@@ -480,7 +480,7 @@ igris version
 - `--force-unlock` clears a stale `.igris/igris.lock` (its process is gone, the file is unreadable, or it comes from another host); a lock held by a live process on this host is always refused (§13).
 - `--dry-run` uses the fake backend: walks the phase, prints which task would launch with which model and mode, writes nothing. It runs the real engine on a temporary copy of the plan, with every session finishing at once, user tasks done, verify and commits off. Drift and skip-permissions tasks are shown as warnings instead of asked about; a task already in progress is shown as resumed with a fresh session. Without a phase it walks the last run's phases. It never touches `.igris/`.
 - On start, `arise` warns if `ANTHROPIC_API_KEY` is set in the environment (Claude Code would bill the API instead of the subscription) and asks for confirmation. It also warns, without asking, if the project is not a git repository or has uncommitted changes (§7.3).
-- Before its first write `arise` asks to confirm readiness drift (§5.2), and asks for the typed `skip permissions` confirmation when a task would run in `yolo` mode (§7.3). Declining any of these exits 1 with nothing started. With `--no-tui` the answers come from stdin (`y` for the questions); `--dry-run` prints the warnings and never asks.
+- Before its first write `arise` asks to confirm readiness drift (§5.2), and asks for the typed `skip permissions` confirmation when a task would run in `yolo` mode (§7.3). Declining any of these exits 1 with nothing started. With `--no-tui` the answers come from stdin (`y` for the questions). With the TUI they are asked the same way, as plain prompts before the TUI takes over the terminal. `--dry-run` prints the warnings and never asks.
 
 ---
 
@@ -530,13 +530,13 @@ Every action is reachable three ways: **clicking** its button (or tapping it, e.
 - Status glyphs: `✓` done, `●` running, `!` needs you, `·` ready, `⨯` blocked, `–` skipped. Never color alone.
 - Rank colors are configurable but each rank also shows its name.
 - Respect `NO_COLOR`.
-- The focused element and the element under the mouse are marked without relying on color (reverse video plus `›…‹` brackets on buttons, `›` on rows), so focus is visible under `NO_COLOR`.
+- The focused element is marked without relying on color (reverse video plus `›…‹` brackets on buttons, `›` on rows), so focus is visible under `NO_COLOR`.
 
 ### 15.5 Interaction
 Modelled on Claude Code's choice prompts and herdr's clickable UI.
 
 - **Focus.** `tab` / `shift+tab` move between regions: task list, action bar, log (and the open dialog, which keeps the focus until it closes). Inside a region: `←/→` along the action bar, `↑/↓` (and `j/k`) in lists, dialogs and the log, `pgup/pgdn` to scroll. `enter` or `space` activates the focused element. Shortcut keys (§15.3) work from anywhere outside a text field.
-- **Mouse.** Click or tap activates a button, a task row (select; a second click or `enter` opens details) or a dialog option. The wheel scrolls the list or log under the pointer. Hover highlights what a click would hit. Mouse reporting is on by default; `[tui] mouse = false` turns it off, because while a TUI captures the mouse the terminal's own text selection usually needs `shift`+drag.
+- **Mouse.** Click or tap activates a button, a task row (select; a second click or `enter` opens details) or a dialog option. The wheel scrolls the list or log under the pointer. Mouse reporting (button presses, wheel and drags; no hover) is on by default; `[tui] mouse = false` turns it off, because while a TUI captures the mouse the terminal's own text selection usually needs `shift`+drag.
 - **Dialogs.** When the engine asks the owner something, a modal choice list opens at once and is focused on the safe default:
 
   | Question | Options (default first) |

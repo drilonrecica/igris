@@ -42,6 +42,9 @@ prompt_template = "prompt.tmpl"
 [adapt]
 model = "opus"
 
+[tui]
+mouse = false
+
 [notify.backend]
 enabled = false
 
@@ -67,7 +70,7 @@ func TestParseEmptyGivesDefaults(t *testing.T) {
 	}
 	if got.Plan != "tasks.md" || got.NeedsInputAfter.Std() != 30*time.Second ||
 		got.Run.VerifyTimeout.Std() != 15*time.Minute || got.Run.VerifyMaxAttempts != 3 ||
-		got.Models["opus"] != "opus" || !got.Notify.Backend.Enabled || got.Notify.Ntfy.Server != "https://ntfy.sh" {
+		got.Models["opus"] != "opus" || !got.TUI.Mouse || !got.Notify.Backend.Enabled || got.Notify.Ntfy.Server != "https://ntfy.sh" {
 		t.Fatalf("unexpected defaults: %+v", got)
 	}
 }
@@ -87,6 +90,9 @@ func TestParseFullSample(t *testing.T) {
 	if c.Run.Verify != "make fmt lint test" || c.Run.VerifyTimeout.Std() != 20*time.Minute ||
 		c.Run.VerifyMaxAttempts != 5 || c.Run.Commit != "auto" || c.Run.PromptTemplate != "prompt.tmpl" {
 		t.Errorf("run: %+v", c.Run)
+	}
+	if c.TUI.Mouse {
+		t.Errorf("tui.mouse = true, want false")
 	}
 	if c.Adapt.Model != "opus" || c.Notify.Backend.Enabled {
 		t.Errorf("adapt/notify.backend: %+v %+v", c.Adapt, c.Notify.Backend)
@@ -119,6 +125,8 @@ func TestParseErrors(t *testing.T) {
 		{"unknown nested", "[run]\nverfy = \"x\"", []string{"run.verfy"}},
 		{"several unknown", "a = 1\n[claude]\nb = 2", []string{`"a"`, `"claude.b"`}},
 		{"unknown table", "[nope]\nx = 1", []string{"nope"}},
+		{"unknown tui key", "[tui]\nmice = false", []string{"tui.mice"}},
+		{"tui mouse not bool", "[tui]\nmouse = \"no\"", []string{"parse igris.toml"}},
 		{"syntax", "plan = ", []string{"parse igris.toml"}},
 		{"bad duration", `poll_interval = "soon"`, []string{"invalid duration", "soon"}},
 		{"duration not string", `poll_interval = 5`, []string{"parse igris.toml"}},
@@ -230,6 +238,7 @@ func TestHash(t *testing.T) {
 		"timeout": func(c *Config) { c.Run.VerifyTimeout++ },
 		"token":   func(c *Config) { c.Notify.Ntfy.Token = "env:OTHER" },
 		"column":  func(c *Config) { c.Columns["X"] = "Y" },
+		"mouse":   func(c *Config) { c.TUI.Mouse = !c.TUI.Mouse },
 	}
 	for name, mutate := range mutations {
 		c, _ := Parse([]byte(specSample), "igris.toml")

@@ -53,6 +53,7 @@ type Config struct {
 	Claude          Claude            `toml:"claude"`
 	Run             Run               `toml:"run"`
 	Adapt           Adapt             `toml:"adapt"`
+	TUI             TUI               `toml:"tui"`
 	Notify          Notify            `toml:"notify"`
 }
 
@@ -75,6 +76,13 @@ type Run struct {
 // Adapt configures `igris adapt`.
 type Adapt struct {
 	Model string `toml:"model"`
+}
+
+// TUI configures the terminal UI (SPEC §15).
+type TUI struct {
+	// Mouse turns on click/tap and wheel support (SPEC §15.5). Off keeps the
+	// terminal's own text selection without shift+drag.
+	Mouse bool `toml:"mouse"`
 }
 
 // Notify groups the notification channels.
@@ -158,6 +166,7 @@ func Default() *Config {
 			CommitMessage:     "{{.ID}}: {{.Title}}",
 		},
 		Adapt: Adapt{Model: "sonnet"},
+		TUI:   TUI{Mouse: true},
 		Notify: Notify{
 			Backend: NotifyBackend{Enabled: true},
 			Ntfy:    Ntfy{Server: "https://ntfy.sh", Events: defaultEvents()},

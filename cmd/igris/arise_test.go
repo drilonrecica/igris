@@ -19,6 +19,7 @@ import (
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/runner"
 	"github.com/drilonrecica/igris/internal/state"
+	"github.com/drilonrecica/igris/internal/tui"
 )
 
 func TestParseCommand(t *testing.T) {
@@ -239,7 +240,7 @@ func TestDryRunResumesTheLastRunsPhases(t *testing.T) {
 	}
 }
 
-func TestAriseRefusesWhatIsNotBuiltYet(t *testing.T) {
+func TestAriseNeedsHerdr(t *testing.T) {
 	writeProject(t, map[string]string{"tasks.md": dryPlan})
 	savedRunner, savedGetenv := ariseRunner, ariseGetenv
 	t.Cleanup(func() { ariseRunner, ariseGetenv = savedRunner, savedGetenv })
@@ -249,7 +250,7 @@ func TestAriseRefusesWhatIsNotBuiltYet(t *testing.T) {
 		args []string
 		want string
 	}{
-		{[]string{"arise", "A"}, "the TUI is not part of this build yet"},
+		{[]string{"arise", "A"}, "must run inside a herdr pane"},
 		{[]string{"arise", "A", "--no-tui"}, "must run inside a herdr pane"},
 	}
 	for _, tt := range tests {
@@ -305,6 +306,10 @@ type noTUIRun struct {
 	apiKey     string
 	gitFn      func(runner.Cmd) (runner.Result, error)
 	replies    [][2]string // output pattern → stdin line
+	// ui replaces the TUI when args lack --no-tui.
+	ui func(context.Context, tui.Options) error
+	// noSignal: sessions never signal, so agent tasks stay in progress.
+	noSignal bool
 }
 
 func (r noTUIRun) run(t *testing.T) (code int, output, root string) {
@@ -329,17 +334,26 @@ func (r noTUIRun) run(t *testing.T) (code int, output, root string) {
 		t.Fatal(err)
 	}
 	be := fake.New()
-	be.SetAutoSignal(func(_ context.Context, id string) error {
-		return dir.WriteSignal(state.Signal{ID: id, Action: state.ActionDone, Note: "did " + id})
-	})
+	if !r.noSignal {
+		be.SetAutoSignal(func(_ context.Context, id string) error {
+			return dir.WriteSignal(state.Signal{ID: id, Action: state.ActionDone, Note: "did " + id})
+		})
+	}
 	git := &runner.Fake{}
 	git.Func(r.gitFn)
 	stdinR, stdinW := io.Pipe()
 	t.Cleanup(func() { _ = stdinW.Close() })
-	savedStdin, savedBackend, savedRunner, savedGetenv := ariseStdin, ariseBackend, ariseRunner, ariseGetenv
+	savedStdin, savedBackend, savedRunner, savedGetenv, savedUI := ariseStdin, ariseBackend, ariseRunner, ariseGetenv, ariseUI
 	t.Cleanup(func() {
-		ariseStdin, ariseBackend, ariseRunner, ariseGetenv = savedStdin, savedBackend, savedRunner, savedGetenv
+		ariseStdin, ariseBackend, ariseRunner, ariseGetenv, ariseUI = savedStdin, savedBackend, savedRunner, savedGetenv, savedUI
 	})
+	ariseUI = func(context.Context, tui.Options) error {
+		t.Error("the TUI was started")
+		return nil
+	}
+	if r.ui != nil {
+		ariseUI = r.ui
+	}
 	ariseStdin, ariseRunner = stdinR, git
 	ariseBackend = func(*config.Config) (backend.Backend, error) { return be, nil }
 	ariseGetenv = func(k string) string {
@@ -356,7 +370,7 @@ func (r noTUIRun) run(t *testing.T) (code int, output, root string) {
 	select {
 	case code = <-done:
 	case <-time.After(10 * time.Second):
-		t.Fatalf("igris arise --no-tui did not finish; output:\n%s", out.String())
+		t.Fatalf("igris arise did not finish; output:\n%s", out.String())
 	}
 	return code, out.String() + errb.String(), root
 }
@@ -501,6 +515,135 @@ func TestAriseStartUpConfirmations(t *testing.T) {
 			}
 			if got := planStatuses(t, root); got != tt.wantStatus {
 				t.Errorf("statuses = %s, want %s", got, tt.wantStatus)
+			}
+		})
+	}
+}
+
+// waitForEnd is a TUI that shows the run until it ends on its own.
+func waitForEnd(got *tui.Options) func(context.Context, tui.Options) error {
+	return func(ctx context.Context, o tui.Options) error {
+		*got = o
+		select {
+		case <-o.Feed.Ended():
+		case <-ctx.Done():
+		}
+		return nil
+	}
+}
+
+const oneTaskPlan = `## A
+
+| ID | Task | Deps | Status | Model | Owner |
+|---|---|---|---|---|---|
+| A-1 | **One** | — | ready | sonnet | agent |
+`
+
+func TestAriseTUIRunsTheEngine(t *testing.T) {
+	var got tui.Options
+	code, output, root := noTUIRun{
+		plan: oneTaskPlan,
+		toml: "[run]\ncommit = \"never\"\n[tui]\nmouse = false\n",
+		args: []string{"A"},
+		ui:   waitForEnd(&got),
+	}.run(t)
+	if code != exitOK {
+		t.Fatalf("exit %d; output:\n%s", code, output)
+	}
+	if !strings.Contains(output, "run completed") {
+		t.Errorf("output lacks the outcome:\n%s", output)
+	}
+	if got.Feed == nil || got.Sender == nil || got.Focus == nil || got.Backend != "fake" ||
+		got.Project != filepath.Base(root) || got.Mouse {
+		t.Errorf("TUI options = %+v", got)
+	}
+	if s := planStatuses(t, root); s != "A-1=done" {
+		t.Errorf("statuses = %s", s)
+	}
+}
+
+func TestAriseTUIQuitLeavesTheSessionRunning(t *testing.T) {
+	code, output, root := noTUIRun{
+		plan:     oneTaskPlan,
+		args:     []string{"A"},
+		noSignal: true,
+		// The owner quits at once.
+		ui: func(context.Context, tui.Options) error { return nil },
+	}.run(t)
+	if code != exitOK || !strings.Contains(output, "igris stopped; a running session keeps running") {
+		t.Fatalf("exit %d; output:\n%s", code, output)
+	}
+	// The run lock is released: the next arise can resume.
+	dir, err := state.Open(root, state.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lock, err := dir.Lock(false)
+	if err != nil {
+		t.Fatalf("lock still held: %v", err)
+	}
+	_ = lock.Release()
+}
+
+func TestAriseTUIConfirmsBeforeTheTUIStarts(t *testing.T) {
+	const driftPlan = `## A
+
+| ID | Task | Deps | Status | Model | Owner |
+|---|---|---|---|---|---|
+| A-1 | **One** | — | ready | sonnet | agent |
+| A-2 | **Two** | A-1 | ready | sonnet | agent |
+`
+	tests := []struct {
+		name       string
+		r          noTUIRun
+		wantCode   int
+		wantUI     bool
+		wantStatus string
+	}{
+		{
+			name:       "drift confirmed",
+			r:          noTUIRun{plan: driftPlan, replies: [][2]string{{"Let igris fix them?", "y"}}},
+			wantCode:   exitOK,
+			wantUI:     true,
+			wantStatus: "A-1=done A-2=done",
+		},
+		{
+			name:       "drift declined",
+			r:          noTUIRun{plan: driftPlan, replies: [][2]string{{"Let igris fix them?", "n"}}},
+			wantCode:   exitFail,
+			wantStatus: "A-1=ready A-2=ready",
+		},
+		{
+			name:       "yolo typed",
+			r:          noTUIRun{plan: oneTaskPlan, args: []string{"--mode", "yolo"}, replies: [][2]string{{"Type \"skip permissions\"", "skip permissions"}}},
+			wantCode:   exitOK,
+			wantUI:     true,
+			wantStatus: "A-1=done",
+		},
+		{
+			name:       "api key declined",
+			r:          noTUIRun{plan: oneTaskPlan, apiKey: "sk-x", replies: [][2]string{{"Start the run anyway?", "n"}}},
+			wantCode:   exitFail,
+			wantStatus: "A-1=ready",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var got tui.Options
+			uiRan := false
+			show := waitForEnd(&got)
+			tt.r.ui = func(ctx context.Context, o tui.Options) error {
+				uiRan = true
+				return show(ctx, o)
+			}
+			tt.r.toml = "[run]\ncommit = \"never\"\n"
+			tt.r.args = append([]string{"A"}, tt.r.args...)
+			code, output, root := tt.r.run(t)
+			if code != tt.wantCode || uiRan != tt.wantUI {
+				t.Errorf("exit %d (want %d), TUI started %v (want %v); output:\n%s", code, tt.wantCode, uiRan, tt.wantUI, output)
+			}
+			if s := planStatuses(t, root); s != tt.wantStatus {
+				t.Errorf("statuses = %s, want %s", s, tt.wantStatus)
 			}
 		})
 	}

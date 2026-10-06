@@ -25,7 +25,7 @@ func TestRun(t *testing.T) {
 		{"phases extra arg", []string{"phases", "x"}, exitUsage, "", "unexpected argument"},
 		{"status two phases", []string{"status", "M0", "M1"}, exitUsage, "", "unexpected argument"},
 		{"arise flags", []string{"arise", "M0", "--through", "M1", "--mode", "plan", "--no-tui", "--dry-run", "--plan-is-not-a-flag"}, exitUsage, "", "flag provided but not defined"},
-		{"arise force-unlock flag", []string{"arise", "--force-unlock"}, exitFail, "", "the TUI is not part of this build yet"},
+		{"arise force-unlock flag", []string{"arise", "--force-unlock", "--mode", "wild"}, exitUsage, "", "invalid --mode"},
 		{"arise help lists force-unlock", []string{"arise", "-h"}, exitOK, "", "-force-unlock"},
 		{"arise bad mode", []string{"arise", "--mode", "wild"}, exitUsage, "", "invalid --mode"},
 		{"done missing id", []string{"done"}, exitUsage, "", "missing ID"},

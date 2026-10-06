@@ -160,3 +160,4 @@ Design choices:
 - **No new dependency:** Bubble Tea's mouse messages plus a small hand-rolled hit-region layer (each rendered button, row and option records its rectangle). `bubblezone` would do this but isn't on the P0-01 list and the layer is small.
 - **Safety unchanged:** skip-permissions (§7.3) still needs the typed phrase `skip permissions`; no click or key alone can select it. Focus and hover are marked without color, so they work under `NO_COLOR`.
 - `--no-tui` keeps the plain stdin commands.
+- **Amended** (2026-10-06, M4-01): mouse reporting uses cell motion (presses, wheel, drags), so there is no hover highlight; SPEC §15.4–15.5 updated.

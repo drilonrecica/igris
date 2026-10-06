@@ -23,6 +23,7 @@ import (
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/runner"
 	"github.com/drilonrecica/igris/internal/state"
+	"github.com/drilonrecica/igris/internal/tui"
 )
 
 // Seams for tests: where owner commands come from, which backend and
@@ -51,6 +52,7 @@ type ariseFlags struct {
 	noTUI, dryRun, forceUnlock bool
 	root                       string
 	cfg                        *config.Config
+	lines                      <-chan string // --no-tui: the owner's stdin lines
 }
 
 func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
@@ -76,9 +78,6 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 	if f.dryRun {
 		return dryRun(f, out, stderr)
 	}
-	if !f.noTUI {
-		return fail("the TUI is not part of this build yet (milestone M4); use --no-tui for plain output, or --dry-run")
-	}
 	be, err := ariseBackend(f.cfg)
 	if err != nil {
 		return fail("%v", err)
@@ -95,10 +94,21 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(out, "warning: %s\n", hint)
 		}
 	}
-	lines := readLines(ariseStdin)
+	// With --no-tui, stdin carries the owner's commands for the whole run.
+	// The TUI owns the terminal once it starts, so until then each answer
+	// is read on demand and nothing keeps reading stdin.
+	var ask func() (string, bool)
+	if f.noTUI {
+		lines := readLines(ariseStdin)
+		ask = func() (string, bool) { return nextLine(ctx, lines) }
+		f.lines = lines
+	} else {
+		r := bufio.NewReader(ariseStdin)
+		ask = func() (string, bool) { return readLine(ctx, r) }
+	}
 	for _, w := range engine.Preflight(ctx, commandRunner(), f.root, ariseGetenv) {
 		fmt.Fprintf(out, "warning: %s\n", w.Text)
-		if w.Confirm && !confirm(ctx, out, lines, "Start the run anyway?") {
+		if w.Confirm && !confirm(out, ask, "Start the run anyway?") {
 			return fail("not confirmed; nothing was started")
 		}
 	}
@@ -112,10 +122,20 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		Through:     f.through,
 		Mode:        f.mode,
 		ForceUnlock: f.forceUnlock,
-		Events:      func(ev engine.Event) { printEvent(out, ev) },
 	}
 	for {
-		res, err := runOnce(ctx, opts, lines, out)
+		var res engine.Result
+		var err error
+		if f.noTUI {
+			opts.Events = func(ev engine.Event) { printEvent(out, ev) }
+			res, err = runOnce(ctx, opts, f.lines, out)
+		} else {
+			var started bool
+			res, started, err = runWithTUI(ctx, f, opts, be, out)
+			if started {
+				return tuiExit(res, err, out, stderr)
+			}
+		}
 		var drift *engine.DriftError
 		switch {
 		case errors.As(err, &drift) && !opts.ConfirmedDrift:
@@ -124,14 +144,14 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 			for _, c := range drift.Changes {
 				fmt.Fprintf(out, "  %s\n", c)
 			}
-			if !confirm(ctx, out, lines, "Let igris fix them?") {
+			if !confirm(out, ask, "Let igris fix them?") {
 				return fail("not confirmed; nothing was started")
 			}
 			opts.ConfirmedDrift = true
 		case errors.Is(err, engine.ErrYoloUnconfirmed) && !opts.ConfirmedYolo:
 			// SPEC §7.3: typed confirmation, every run.
 			fmt.Fprintf(out, "%v\nSessions in this mode run with --dangerously-skip-permissions: Claude Code acts without asking.\n", err)
-			if !typed(ctx, out, lines, yoloPhrase) {
+			if !typed(out, ask, yoloPhrase) {
 				return fail("skip-permissions mode not confirmed; nothing was started")
 			}
 			opts.ConfirmedYolo = true
@@ -142,6 +162,84 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		default:
 			return exitOK
 		}
+	}
+}
+
+// ariseUI shows the TUI; a seam for tests.
+var ariseUI = tui.Run
+
+// runWithTUI starts the engine and, once the run passed its start-up checks
+// (the first event arrives), hands the terminal to the TUI. A run that
+// fails before that returns with started false, so its error can be
+// answered on the plain terminal (drift, skip-permissions) and the run
+// tried again. Quitting the TUI stops the run; the session stays open.
+func runWithTUI(ctx context.Context, f ariseFlags, opts engine.Options, be backend.Backend, out io.Writer) (engine.Result, bool, error) {
+	feed := tui.NewFeed()
+	opts.Events = feed.Push
+	eng, err := engine.New(opts)
+	if err != nil {
+		return engine.Result{}, false, err
+	}
+	runCtx, stopRun := context.WithCancel(ctx)
+	defer stopRun()
+	go func() { feed.End(eng.Run(runCtx)) }()
+	select {
+	case <-feed.Started():
+	case <-feed.Ended():
+		select {
+		case <-feed.Started(): // it started, then ended at once
+		default:
+			res, err := feed.Result()
+			return res, false, err
+		}
+	}
+	uiErr := ariseUI(ctx, tui.Options{
+		Project: filepath.Base(f.root),
+		Backend: be.Name(),
+		Mode:    f.mode,
+		Mouse:   f.cfg.TUI.Mouse,
+		Feed:    feed,
+		Sender:  eng,
+		Focus:   focusSession(be),
+	})
+	stopRun()
+	<-feed.Ended()
+	res, err := feed.Result()
+	if uiErr != nil {
+		fmt.Fprintf(out, "the TUI failed: %v\n", uiErr)
+		if err == nil {
+			err = uiErr
+		}
+	}
+	return res, true, err
+}
+
+// tuiExit reports how a run shown in the TUI ended, once the terminal is
+// back to normal.
+func tuiExit(res engine.Result, err error, out, stderr io.Writer) int {
+	switch {
+	case err != nil:
+		fmt.Fprintf(stderr, "igris arise: %v\n", err)
+		return exitFail
+	case res.Outcome == engine.Stuck:
+		fmt.Fprintf(out, "phase %s is stuck: unfinished tasks, none can start (see `igris status %s`)\n", res.Phase, res.Phase)
+		return exitFail
+	case res.Outcome == engine.Stopped:
+		fmt.Fprintln(out, "igris stopped; a running session keeps running — `igris arise` resumes")
+	default:
+		fmt.Fprintf(out, "run %s\n", res.Outcome)
+	}
+	return exitOK
+}
+
+// focusSession brings a session's pane to the front through the backend.
+func focusSession(be backend.Backend) func(context.Context, backend.SessionRef) error {
+	return func(ctx context.Context, ref backend.SessionRef) error {
+		s, err := be.Attach(ctx, ref)
+		if err != nil {
+			return err
+		}
+		return s.Focus(ctx)
 	}
 }
 
@@ -174,17 +272,17 @@ func commandRunner() runner.Runner {
 }
 
 // confirm asks a y/N question on stdin; anything but y/yes is no.
-func confirm(ctx context.Context, out io.Writer, lines <-chan string, question string) bool {
+func confirm(out io.Writer, ask func() (string, bool), question string) bool {
 	fmt.Fprintf(out, "%s [y/N]\n", question)
-	answer, ok := nextLine(ctx, lines)
+	answer, ok := ask()
 	answer = strings.ToLower(strings.TrimSpace(answer))
 	return ok && (answer == "y" || answer == "yes")
 }
 
 // typed asks the owner to type phrase exactly.
-func typed(ctx context.Context, out io.Writer, lines <-chan string, phrase string) bool {
+func typed(out io.Writer, ask func() (string, bool), phrase string) bool {
 	fmt.Fprintf(out, "Type %q to confirm:\n", phrase)
-	answer, ok := nextLine(ctx, lines)
+	answer, ok := ask()
 	return ok && strings.TrimSpace(answer) == phrase
 }
 
@@ -196,6 +294,26 @@ func nextLine(ctx context.Context, lines <-chan string) (string, bool) {
 		return "", false
 	case line, ok := <-lines:
 		return line, ok
+	}
+}
+
+// readLine reads one line from r, giving up when ctx ends. The read goes
+// on in the background then, but igris is about to exit.
+func readLine(ctx context.Context, r *bufio.Reader) (string, bool) {
+	type result struct {
+		line string
+		ok   bool
+	}
+	ch := make(chan result, 1)
+	go func() {
+		line, err := r.ReadString('\n')
+		ch <- result{strings.TrimRight(line, "\r\n"), err == nil || line != ""}
+	}()
+	select {
+	case <-ctx.Done():
+		return "", false
+	case res := <-ch:
+		return res.line, res.ok
 	}
 }
 
