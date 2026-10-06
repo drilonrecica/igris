@@ -484,6 +484,10 @@ func dryRun(f ariseFlags, out, stderr io.Writer) int {
 	if err := p.Check(f.cfg.Models); err != nil {
 		return fail("%v", err)
 	}
+	// Check the range on the owner's plan, so errors name it, not the copy.
+	if _, err := p.PhasesThrough(f.phase, f.through); err != nil {
+		return fail("%v", err)
+	}
 	for _, c := range p.Readiness() {
 		fmt.Fprintf(out, "warning: drift: %s (a real run asks you before fixing it)\n", c)
 	}

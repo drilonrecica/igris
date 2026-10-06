@@ -191,6 +191,20 @@ func TestDryRun(t *testing.T) {
 	}
 }
 
+func TestDryRunUnknownPhase(t *testing.T) {
+	root := writeProject(t, map[string]string{"tasks.md": dryPlan})
+	var out, errb bytes.Buffer
+	if code := run([]string{"arise", "Z", "--dry-run"}, &out, &errb); code != exitFail {
+		t.Fatalf("exit %d", code)
+	}
+	if want := filepath.Join(root, "tasks.md") + "; phases are: A, B"; !strings.Contains(errb.String(), want) {
+		t.Errorf("stderr = %q, want it to name %q", errb.String(), want)
+	}
+	if strings.Contains(out.String(), "dry run of phase") {
+		t.Errorf("header printed for a phase that doesn't exist:\n%s", out.String())
+	}
+}
+
 func TestDryRunResumesTheLastRunsPhases(t *testing.T) {
 	root := writeProject(t, map[string]string{"tasks.md": dryPlan})
 	dir, err := state.Open(root, state.Options{})
