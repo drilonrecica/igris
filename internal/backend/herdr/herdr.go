@@ -95,3 +95,27 @@ func (b *Backend) OpenSession(ctx context.Context, spec backend.SessionSpec) (ba
 	}
 	return s, nil
 }
+
+// Attach rebuilds a session from a stored ref after igris restarted. It
+// fails with an error wrapping backend.ErrSessionGone when the pane is gone
+// or Claude Code no longer runs in it. A startup prompt the session may have
+// been blocked at is not remembered: State reports what `pane get` says.
+func (b *Backend) Attach(ctx context.Context, ref backend.SessionRef) (backend.Session, error) {
+	if ref.Backend != Name {
+		return nil, fmt.Errorf("attach: session ref is for backend %q, not %s", ref.Backend, Name)
+	}
+	if ref.TabID == "" || ref.PaneID == "" || ref.Agent == "" {
+		return nil, fmt.Errorf("attach: session ref %+v is incomplete; state.json looks damaged, delete it to start a new run", ref)
+	}
+	s := &Session{c: b.c, id: ref.Agent, ref: ref}
+	p, err := b.c.PaneGet(ctx, ref.PaneID)
+	switch {
+	case gone(err):
+		return nil, s.goneErr("attach", err)
+	case err != nil:
+		return nil, fmt.Errorf("attach %s: %w", ref.Agent, err)
+	case p.Agent == "":
+		return nil, s.goneErr("attach", errors.New("claude code is no longer running in the pane"))
+	}
+	return s, nil
+}

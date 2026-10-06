@@ -334,3 +334,68 @@ func TestFocusClose(t *testing.T) {
 }
 
 func ptr[T any](v T) *T { return &v }
+
+func TestAttach(t *testing.T) {
+	ref := backend.SessionRef{Backend: Name, TabID: "w2B:t3", PaneID: "w2B:p3", Agent: "igris-t-01"}
+	attach := func(f *runner.Fake, ref backend.SessionRef) (backend.Session, error) {
+		return New(f, "w2B").Attach(context.Background(), ref)
+	}
+
+	t.Run("live pane", func(t *testing.T) {
+		f := &runner.Fake{}
+		f.On(cmd("pane", "get", "w2B:p3"), ok(t, "pane_get_working.json"), nil) // Attach
+		f.On(cmd("pane", "get", "w2B:p3"), ok(t, "pane_get_working.json"), nil) // State
+		f.On(cmd("tab", "close"), ok(t, "tab_close.json"), nil)
+		s, err := attach(f, ref)
+		if err != nil {
+			t.Fatalf("Attach: %v", err)
+		}
+		if s.Ref() != ref {
+			t.Errorf("ref = %+v, want %+v", s.Ref(), ref)
+		}
+		if st, err := s.State(context.Background()); err != nil || st != backend.Working {
+			t.Errorf("State = %v, %v; want working", st, err)
+		}
+		if err := s.Close(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+		if got := argv(f); got[len(got)-1][2] != "w2B:t3" {
+			t.Errorf("close used %q, want the stored tab", got[len(got)-1])
+		}
+	})
+	t.Run("pane gone", func(t *testing.T) {
+		f := &runner.Fake{}
+		f.On(cmd("pane", "get"), fail(t, "error_pane_not_found.json", 1), nil)
+		if _, err := attach(f, ref); !errors.Is(err, backend.ErrSessionGone) {
+			t.Fatalf("err = %v, want ErrSessionGone", err)
+		}
+	})
+	t.Run("claude exited", func(t *testing.T) {
+		f := &runner.Fake{}
+		f.On(cmd("pane", "get"), shellPane, nil)
+		if _, err := attach(f, ref); !errors.Is(err, backend.ErrSessionGone) {
+			t.Fatalf("err = %v, want ErrSessionGone", err)
+		}
+	})
+	t.Run("other herdr failure is not gone", func(t *testing.T) {
+		f := &runner.Fake{}
+		f.On(cmd("pane", "get"), runner.Result{Stderr: []byte("boom"), ExitCode: 1}, nil)
+		_, err := attach(f, ref)
+		if err == nil || errors.Is(err, backend.ErrSessionGone) {
+			t.Fatalf("err = %v, want a plain error", err)
+		}
+	})
+	t.Run("bad refs", func(t *testing.T) {
+		for _, bad := range []backend.SessionRef{
+			{Backend: "fake", TabID: "t", PaneID: "p", Agent: "a"},
+			{Backend: Name, PaneID: "p", Agent: "a"},
+			{Backend: Name, TabID: "t", Agent: "a"},
+			{Backend: Name, TabID: "t", PaneID: "p"},
+		} {
+			f := &runner.Fake{}
+			if _, err := attach(f, bad); err == nil || len(f.Calls()) != 0 {
+				t.Errorf("Attach(%+v) = %v with %d calls; want an error without calling herdr", bad, err, len(f.Calls()))
+			}
+		}
+	})
+}
