@@ -9,16 +9,22 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/drilonrecica/igris/internal/adapt"
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/notify"
 	"github.com/drilonrecica/igris/internal/state"
+	"github.com/drilonrecica/igris/internal/tui"
 )
 
-// adaptClock paces the adapt session's polling; tests use a fake clock.
-var adaptClock engine.Clock = engine.SystemClock()
+// Seams for tests: the clock that paces the adapt session's polling and
+// stamps the backup, and the diff review.
+var (
+	adaptClock  engine.Clock = engine.SystemClock()
+	adaptReview              = tui.Review
+)
 
 func adaptArgs(fs *flag.FlagSet) func([]string) error {
 	model := fs.String("model", "", "model to use: sonnet|opus (default: adapt.model in igris.toml)")
@@ -85,20 +91,44 @@ func execAdapt(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return fail("%v", err)
 	}
-	return reviewProposal(res, stdout)
-}
 
-// reviewProposal reports the proposal and its validation result.
-func reviewProposal(res *adapt.Result, stdout io.Writer) int {
-	fmt.Fprintf(stdout, "proposal: %s\n", res.ProposalPath)
-	if len(res.Issues) == 0 {
-		fmt.Fprintln(stdout, "✓ the proposal passes `igris check`")
-	} else {
-		fmt.Fprintf(stdout, "⨯ the proposal has %d problem(s) left to fix after accepting it:\n", len(res.Issues))
+	// The owner decides in the diff review (SPEC §9.5–6).
+	issues := make([]string, len(res.Issues))
+	for i, is := range res.Issues {
+		issues[i] = is.Error()
+	}
+	accepted, err := adaptReview(ctx, tui.ReviewOptions{
+		Mouse:    cfg.TUI.Mouse,
+		Theme:    cfg.TUI.Theme,
+		PlanPath: rel(root, planPath),
+		Diff:     adapt.Diff(adapt.Lines(res.Original), adapt.Lines(res.Proposed)),
+		Issues:   issues,
+	})
+	if err != nil {
+		return fail("review: %v; the plan is unchanged, the proposal is in %s", err, res.ProposalPath)
+	}
+	if !accepted {
+		fmt.Fprintf(stdout, "rejected: %s is unchanged; the proposal stays in %s\n", planPath, res.ProposalPath)
+		return exitOK
+	}
+	backup, err := adapt.Accept(dir, res, adaptClock.Now())
+	if err != nil {
+		return fail("%v", err)
+	}
+	fmt.Fprintf(stdout, "accepted: %s replaced; the original is backed up to %s\n", planPath, backup)
+	if len(res.Issues) > 0 {
+		fmt.Fprintf(stdout, "the plan still has %d problem(s); fix them (models left at ?), then run `igris check`:\n", len(res.Issues))
 		for _, is := range res.Issues {
-			fmt.Fprintf(stdout, "  %s\n", is)
+			fmt.Fprintf(stdout, "  %s\n", strings.Replace(is.Error(), res.ProposalPath, planPath, 1))
 		}
 	}
-	fmt.Fprintf(stdout, "%s is unchanged; compare the two files and copy the proposal over it if it looks right\n", res.PlanPath)
 	return exitOK
+}
+
+// rel shows path relative to the project root when it is inside it.
+func rel(root, path string) string {
+	if r, err := filepath.Rel(root, path); err == nil && !strings.HasPrefix(r, "..") {
+		return r
+	}
+	return path
 }

@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -316,5 +317,47 @@ func TestWriterErrors(t *testing.T) {
 	}
 	if readPlan(t, path) != specExample {
 		t.Fatal("file must be unchanged")
+	}
+}
+
+func TestReplace(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "tasks.md")
+	was := []byte("# old\r\nkeep\ttabs \n")
+	if err := os.WriteFile(path, was, 0o640); err != nil { //nolint:gosec // test file: a mode Replace must keep
+		t.Fatal(err)
+	}
+	data := []byte("## M0\n\n| ID | Status | Model |\n|---|---|---|\n| a | ready | sonnet |\n")
+	if err := Replace(path, was, data); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(path) //nolint:gosec // test temp dir
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, data) {
+		t.Errorf("plan = %q, want the proposal byte for byte", got)
+	}
+	if fi, _ := os.Stat(path); fi.Mode().Perm() != 0o640 {
+		t.Errorf("mode = %v, want 0640 kept", fi.Mode().Perm())
+	}
+	if entries, _ := os.ReadDir(filepath.Dir(path)); len(entries) != 1 {
+		t.Errorf("temp files left behind: %v", entries)
+	}
+}
+
+func TestReplaceRefusesChangedPlan(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "tasks.md")
+	if err := os.WriteFile(path, []byte("edited since the review\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	err := Replace(path, []byte("reviewed\n"), []byte("proposal\n"))
+	if !errors.Is(err, ErrConcurrentEdit) {
+		t.Fatalf("err = %v, want ErrConcurrentEdit", err)
+	}
+	if got, _ := os.ReadFile(path); string(got) != "edited since the review\n" { //nolint:gosec // test temp dir
+		t.Errorf("plan = %q, want it untouched", got)
+	}
+	if err := Replace(filepath.Join(t.TempDir(), "nope.md"), nil, nil); err == nil {
+		t.Error("want an error for a missing plan")
 	}
 }

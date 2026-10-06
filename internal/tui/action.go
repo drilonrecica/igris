@@ -37,6 +37,10 @@ const (
 	actModeAuto
 	actModePlan
 	actModeYolo
+	// igris adapt's review (adapt.go).
+	actAccept       // replace the plan with the proposal
+	actAcceptAnyway // replace it although the proposal doesn't pass check
+	actReject       // keep the plan as it is
 )
 
 // modeActs maps the mode picker's actions to their modes, in the order

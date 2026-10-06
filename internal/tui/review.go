@@ -1,0 +1,318 @@
+package tui
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"strings"
+	"unicode"
+	"unicode/utf8"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+
+	"github.com/drilonrecica/igris/internal/adapt"
+)
+
+// ReviewOptions configure the review of an `igris adapt` proposal.
+type ReviewOptions struct {
+	Mouse bool
+	Theme string // "auto", "dark" or "light", as [tui] theme
+	// PlanPath is the plan the proposal would replace, as shown.
+	PlanPath string
+	Diff     []adapt.Line
+	// Issues are the proposal's `igris check` problems; none means it
+	// passes.
+	Issues []string
+}
+
+// Review shows the diff of the plan and the proposal with its validation
+// result and returns whether the owner accepted it (SPEC §9). Quitting in
+// any other way rejects it.
+func Review(ctx context.Context, o ReviewOptions) (bool, error) {
+	m := newReview(o)
+	m.th = newTheme(lipgloss.NewRenderer(os.Stdout), darkTheme(o.Theme, lipgloss.HasDarkBackground), nil)
+	final, err := tea.NewProgram(m, programOptions(ctx, o.Mouse)...).Run()
+	if errors.Is(err, tea.ErrProgramKilled) && ctx.Err() != nil {
+		return false, nil // ctx ended: nothing was accepted
+	}
+	if err != nil {
+		return false, err
+	}
+	r, ok := final.(*review)
+	return ok && r.accepted, nil
+}
+
+// review is the TUI of the adapt review: a scrollable diff over a bar with
+// Reject and Accept. Reject is the safe default and has the focus first.
+type review struct {
+	o              ReviewOptions
+	th             *theme
+	width, height  int
+	added, removed int
+
+	view     page // only its scroll state is used
+	body     []string
+	bodyW    int // width body was laid out for
+	focus    action
+	dialog   *dialog
+	zones    zones
+	accepted bool
+}
+
+func newReview(o ReviewOptions) *review {
+	r := &review{o: o, th: &theme{}, width: 80, height: 24, focus: actReject}
+	r.added, r.removed = adapt.Counts(o.Diff)
+	return r
+}
+
+func (r *review) Init() tea.Cmd { return nil }
+
+func (r *review) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		r.width, r.height = msg.Width, msg.Height
+	case tea.KeyMsg:
+		return r, r.key(msg)
+	case tea.MouseMsg:
+		return r, r.mouse(msg)
+	}
+	return r, nil
+}
+
+func (r *review) key(msg tea.KeyMsg) tea.Cmd {
+	k := msg.String()
+	if k == "ctrl+c" {
+		return r.activate(actReject)
+	}
+	if r.dialog != nil {
+		if a, ok := r.dialog.key(msg); ok {
+			return r.activate(a)
+		}
+		return nil
+	}
+	switch k {
+	case "a":
+		return r.activate(actAccept)
+	case "r", "esc", "q":
+		return r.activate(actReject)
+	case "tab", "shift+tab", "left", "right", "h", "l":
+		if r.focus == actReject {
+			r.focus = actAccept
+		} else {
+			r.focus = actReject
+		}
+	case "enter", " ", "space":
+		return r.activate(r.focus)
+	case "up", "k", "down", "j", "pgup", "pgdown", "home", "end":
+		r.view.key(k)
+	}
+	return nil
+}
+
+func (r *review) mouse(msg tea.MouseMsg) tea.Cmd {
+	if msg.Action != tea.MouseActionPress {
+		return nil
+	}
+	switch msg.Button {
+	case tea.MouseButtonWheelUp:
+		r.view.scroll(-3)
+		return nil
+	case tea.MouseButtonWheelDown:
+		r.view.scroll(3)
+		return nil
+	case tea.MouseButtonLeft:
+	default:
+		return nil
+	}
+	t, ok := r.zones.at(msg.X, msg.Y)
+	if !ok {
+		return nil
+	}
+	if r.dialog != nil {
+		if t.act == actOption {
+			return r.activate(r.dialog.pick(t.option))
+		}
+		return nil // modal: the bar under it can't be used
+	}
+	return r.activate(t.act)
+}
+
+// activate runs action a and returns the command that ends the review
+// once the owner has decided.
+func (r *review) activate(a action) tea.Cmd {
+	switch a {
+	case actReject:
+		r.accepted = false
+		return tea.Quit
+	case actAccept:
+		if len(r.o.Issues) > 0 {
+			r.dialog = &dialog{
+				title: "Replace the plan anyway?",
+				detail: fmt.Sprintf("The proposal has %d problem(s) igris check rejects, e.g. models left at ?. "+
+					"igris arise refuses the plan until you fix them.", len(r.o.Issues)),
+				options: []option{{"Keep reviewing", actClose}, {"Replace anyway", actAcceptAnyway}},
+				cancel:  actClose,
+			}
+			return nil
+		}
+		r.accepted = true
+		return tea.Quit
+	case actAcceptAnyway:
+		r.accepted = true
+		return tea.Quit
+	case actClose:
+		r.dialog = nil
+	}
+	return nil
+}
+
+func (r *review) View() string {
+	r.zones.reset()
+	w, h := max(r.width, 20), max(r.height, 6)
+	if r.dialog != nil {
+		box, z := r.dialog.render(r.th, w, h)
+		r.zones.merge(z, 0, 0)
+		for i := range box {
+			box[i] = fit(box[i], w)
+		}
+		return strings.Join(box[:min(len(box), h)], "\n")
+	}
+
+	out := []string{
+		fit(r.th.paint(lookTitle, "igris adapt · review "+r.o.PlanPath)+r.th.paint(lookDim, fmt.Sprintf(" · +%d −%d lines", r.added, r.removed)), w),
+		fit(r.status(), w),
+		r.th.paint(lookFrame, strings.Repeat("─", w)),
+	}
+	if r.bodyW != w {
+		r.body, r.bodyW = r.layout(w), w
+	}
+	rows := h - len(out) - 2
+	r.view.rows, r.view.total = rows, len(r.body)
+	r.view.clamp()
+	for i := range rows {
+		out = append(out, line(r.body, r.view.top+i))
+	}
+	out = append(out, r.th.paint(lookFrame, strings.Repeat("─", w)))
+
+	bar := layoutBar(r.th, []option{{"Reject", actReject}, {"Accept", actAccept}}, w, r.focus)
+	row := bar.rows[0]
+	for _, b := range row {
+		r.zones.add(rect{b.x, h - 1, textWidth(b.text), 1}, target{act: b.act})
+	}
+	foot := bar.text[0]
+	if len(r.body) > rows {
+		foot += r.th.paint(lookDim, fmt.Sprintf("  %d–%d of %d · ↑↓ scroll", r.view.top+1, min(r.view.top+rows, len(r.body)), len(r.body)))
+	}
+	out = append(out, fit(foot, w))
+	return strings.Join(out, "\n")
+}
+
+// status is the proposal's validation result.
+func (r *review) status() string {
+	if len(r.o.Issues) == 0 {
+		return r.th.paint(lookAccent, "✓ the proposal passes igris check")
+	}
+	return r.th.paint(lookAlert, fmt.Sprintf("⨯ the proposal has %d problem(s) igris check rejects", len(r.o.Issues)))
+}
+
+// diffContext is how many unchanged lines are shown around a change.
+const diffContext = 3
+
+// layout lays the problems and the diff out for w cells. Every diff line
+// keeps its -, + or space marker, also when it wraps, so the change never
+// depends on color; long unchanged stretches are folded.
+func (r *review) layout(w int) []string {
+	var out []string
+	if len(r.o.Issues) > 0 {
+		out = append(out, r.th.paint(lookAlert, fit("Problems (fix them after accepting, or reject):", w)))
+		for _, is := range r.o.Issues {
+			for _, l := range hang("  ⨯ ", clean(is), w) {
+				out = append(out, r.th.paint(lookAlert, l))
+			}
+		}
+		out = append(out, "")
+	}
+	if len(r.o.Diff) == 0 {
+		return append(out, r.th.paint(lookDim, "(both files are empty)"))
+	}
+	d := r.o.Diff
+	changed := make([]bool, len(d))
+	for i, l := range d {
+		changed[i] = l.Op != adapt.Equal
+	}
+	near := func(i int) bool {
+		for j := max(i-diffContext, 0); j <= min(i+diffContext, len(d)-1); j++ {
+			if changed[j] {
+				return true
+			}
+		}
+		return false
+	}
+	for i := 0; i < len(d); {
+		if !near(i) {
+			j := i
+			for j < len(d) && !near(j) {
+				j++
+			}
+			out = append(out, r.th.paint(lookDim, fit(fmt.Sprintf("  ⋯ %d unchanged line(s)", j-i), w)))
+			i = j
+			continue
+		}
+		out = append(out, r.diffLine(d[i], w)...)
+		i++
+	}
+	return out
+}
+
+// diffLine draws one diff line in rows of w cells, the marker on each.
+func (r *review) diffLine(l adapt.Line, w int) []string {
+	mark, lk := "  ", lookPlain
+	switch l.Op {
+	case adapt.Del:
+		mark, lk = "- ", lookAlert
+	case adapt.Add:
+		mark, lk = "+ ", lookAccent
+	}
+	var out []string
+	for _, part := range chop(clean(l.Text), w-2) {
+		out = append(out, r.th.paint(lk, mark+part))
+	}
+	return out
+}
+
+// clean makes plan text safe to draw: tabs become spaces and other control
+// characters (escape sequences in a proposal) a visible "?".
+func clean(s string) string {
+	s = strings.ReplaceAll(s, "\t", "    ")
+	return strings.Map(func(c rune) rune {
+		if unicode.IsControl(c) || c == utf8.RuneError {
+			return '?'
+		}
+		return c
+	}, s)
+}
+
+// chop cuts s into pieces of at most w cells, keeping every space, so
+// table alignment changes stay visible.
+func chop(s string, w int) []string {
+	w = max(w, 1)
+	if s == "" {
+		return []string{""}
+	}
+	var out []string
+	var b strings.Builder
+	used := 0
+	for _, c := range s {
+		cw := textWidth(string(c))
+		if used+cw > w && used > 0 {
+			out = append(out, b.String())
+			b.Reset()
+			used = 0
+		}
+		b.WriteRune(c)
+		used += cw
+	}
+	return append(out, b.String())
+}

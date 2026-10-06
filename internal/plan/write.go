@@ -190,3 +190,46 @@ func syncDir(dir string) {
 	_ = d.Sync()
 	_ = d.Close()
 }
+
+// Replace swaps the whole plan file at path for data, keeping its file
+// mode. It is the one write outside Status cells, for an `igris adapt`
+// proposal the owner accepted (SPEC §9). was is the content the owner
+// reviewed: if the file no longer holds it, nothing is written and the
+// error wraps ErrConcurrentEdit.
+func Replace(path string, was, data []byte) error {
+	same := func() error {
+		now, err := os.ReadFile(path) //nolint:gosec // the owner's plan
+		if err != nil {
+			return fmt.Errorf("read plan %s: %w", path, err)
+		}
+		if !bytes.Equal(now, was) {
+			return fmt.Errorf("not replacing %s: %w after the review; run `igris adapt` again", path, ErrConcurrentEdit)
+		}
+		return nil
+	}
+	if err := same(); err != nil {
+		return err
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("stat plan %s: %w", path, err)
+	}
+	tmp, err := writeTemp(path, data, info.Mode().Perm())
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if tmp != "" {
+			_ = os.Remove(tmp)
+		}
+	}()
+	if err := same(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		return fmt.Errorf("replace plan %s: %w", path, err)
+	}
+	tmp = ""
+	syncDir(filepath.Dir(path))
+	return nil
+}

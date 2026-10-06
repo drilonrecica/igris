@@ -82,6 +82,12 @@ func (hs *harness) keys(ks ...string) {
 
 // key presses k and runs the command it returns, like the program would.
 func (hs *harness) key(k string) tea.Msg {
+	_, cmd := hs.m.Update(keyMsg(k))
+	return run(cmd)
+}
+
+// keyMsg is the key message for the key named k.
+func keyMsg(k string) tea.KeyMsg {
 	var msg tea.KeyMsg
 	switch k {
 	case "enter":
@@ -113,8 +119,7 @@ func (hs *harness) key(k string) tea.Msg {
 	default:
 		msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(k)}
 	}
-	_, cmd := hs.m.Update(msg)
-	return run(cmd)
+	return msg
 }
 
 // click renders a frame and presses the left button on the zone matching

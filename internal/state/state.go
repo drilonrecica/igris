@@ -80,6 +80,17 @@ func (d *Dir) PromptsDir() string { return filepath.Join(d.path, "prompts") }
 // backups (SPEC §9).
 func (d *Dir) AdaptDir() string { return filepath.Join(d.path, "adapt") }
 
+// WriteAdaptFile atomically writes data to adapt/<name> and returns its
+// path: an adapt proposal or plan backup (SPEC §9). name must be a plain
+// file name.
+func (d *Dir) WriteAdaptFile(name string, data []byte) (string, error) {
+	if name == "" || name != filepath.Base(name) || name == "." || name == ".." {
+		return "", fmt.Errorf("write adapt file: invalid name %q", name)
+	}
+	path := filepath.Join(d.AdaptDir(), name)
+	return path, writeFileAtomic(path, data)
+}
+
 func (d *Dir) lockPath() string   { return filepath.Join(d.path, "igris.lock") }
 func (d *Dir) runPath() string    { return filepath.Join(d.path, "state.json") }
 func (d *Dir) eventsPath() string { return filepath.Join(d.path, "runs.jsonl") }

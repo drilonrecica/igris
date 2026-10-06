@@ -335,3 +335,25 @@ func TestRunLogTruncatedTail(t *testing.T) {
 		t.Errorf("Events with corrupt line = %v, want error naming line 1", err)
 	}
 }
+
+func TestWriteAdaptFile(t *testing.T) {
+	d, err := Open(t.TempDir(), Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path, err := d.WriteAdaptFile("tasks.bak.md", []byte("x"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path != filepath.Join(d.AdaptDir(), "tasks.bak.md") {
+		t.Errorf("path = %s", path)
+	}
+	if fi, err := os.Stat(path); err != nil || fi.Mode().Perm() != 0o600 {
+		t.Errorf("stat = %v, %v; want 0600", fi, err)
+	}
+	for _, bad := range []string{"", "..", "../x.md", "a/b.md"} {
+		if _, err := d.WriteAdaptFile(bad, nil); err == nil {
+			t.Errorf("WriteAdaptFile(%q) succeeded", bad)
+		}
+	}
+}
