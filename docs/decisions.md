@@ -137,3 +137,15 @@ Design choices:
 - The non-negotiable parts (one task, no Status edits, no commits, ask-and-wait, `igris done` last, no self-initiated `igris skip`, fix-the-cause on verify feedback) are in the rules *and* briefly restated in the task prompt where they depend on per-run values.
 - No template functions are used, so a custom `prompt_template` override needs nothing beyond stock `text/template`.
 - Rendered with a scratch program for fresh/resumed × `ask`/`never` × `agent`/`agent + user`: no `<no value>`, no double blank lines. M2-04 turns this into golden tests.
+
+## P0-07 — CI policy
+
+**Approved by owner: yes, Linux + macOS** (2026-10-06). M0-07 implements it.
+
+- Trigger: `push` to `master` and `pull_request`; `concurrency` cancels superseded runs on the same ref.
+- Jobs:
+  - `lint` (ubuntu-latest): `gofmt -l` must print nothing, `go vet ./...`, golangci-lint with the M0-04 config.
+  - `test` (matrix `ubuntu-latest`, `macos-latest`): `go test -race ./...`. macOS is included because darwin is a release target (SPEC §18).
+- Go version from `go.mod` (`actions/setup-go` with `go-version-file`), module cache enabled.
+- Hardening: `permissions: contents: read`; third-party actions pinned by full commit SHA; no secrets; no publishing, tagging, release or artifact upload steps (releases stay manual per P0-04).
+- `make test` never needs herdr or Claude (AGENTS §5), so CI needs no extra tooling.

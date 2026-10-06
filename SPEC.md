@@ -523,5 +523,6 @@ Single column: header, current task card, compact task list (ID + status glyph +
 - Built with **GoReleaser** (P0-04): `tar.gz` per target (binary + `LICENSE` + `README.md`) and a single `checksums.txt` (SHA-256), version injected with `-ldflags`. `make release-local` runs `goreleaser release --snapshot --clean` into `dist/`; nothing is published automatically — the owner uploads to a GitHub Release by hand (task M7-07).
 - Artifacts are **not signed** in v0.1.0 (checksums only); cosign/minisign signing is a post-v1 item.
 - `go install github.com/drilonrecica/igris/cmd/igris@latest` works.
+- CI (P0-07): GitHub Actions on push to `master` and on PRs — gofmt check, `go vet`, golangci-lint, `go test -race ./...` on Linux and macOS. Read-only token, no secrets, never builds or publishes releases.
 - Homebrew tap: post-v1 nice-to-have.
 - MIT license.
