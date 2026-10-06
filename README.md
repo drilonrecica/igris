@@ -11,7 +11,7 @@
 
 You write the plan. You decide which tasks need Fable, which need Opus and which are fine on Sonnet. Igris makes sure that's what actually happens: it never runs a Sonnet task on a more expensive model, never lets one task's context bleed into the next, and stops to wait for you whenever a task needs a decision.
 
-> **Status:** early development. v0.1.0 is not released yet. This README describes the planned v1 behavior; see [`SPEC.md`](SPEC.md).
+> **Status:** v0.1.0, the first release. Linux and macOS, herdr backend only. The full behavior is specified in [`SPEC.md`](SPEC.md).
 
 ---
 
@@ -50,16 +50,38 @@ Rank aliases are configurable in `igris.toml`. Every key is optional; unknown ke
 
 - **Claude Code**, logged in with your subscription (Pro/Max) or however you normally use it. Igris starts ordinary interactive sessions, so it uses your normal login and limits.
   > If `ANTHROPIC_API_KEY` is set in your environment, Claude Code bills the API instead of your subscription. Igris warns you about this at start.
-- **[herdr](https://herdr.dev)** — v1 runs sessions in herdr tabs, so everything survives disconnects and you can reconnect over SSH (e.g. from your phone). tmux support is planned.
-- Linux or macOS.
+- **[herdr](https://herdr.dev)** — v1 runs sessions in herdr tabs, so everything survives disconnects and you can reconnect over SSH (e.g. from your phone). tmux support is planned. See [herdr setup](#herdr-setup).
+- **git** (recommended): igris can commit after each task and warns when the tree is dirty.
+- Linux or macOS (amd64 or arm64).
 
 ## Install
+
+With Go (the version pinned in `go.mod` or newer):
 
 ```sh
 go install github.com/drilonrecica/igris/cmd/igris@latest
 ```
 
-Prebuilt binaries will be on the [Releases](https://github.com/drilonrecica/igris/releases) page.
+Or download a prebuilt binary from the [Releases](https://github.com/drilonrecica/igris/releases) page: `igris_<version>_<os>_<arch>.tar.gz` for linux and darwin on amd64 and arm64. Check the download against `checksums.txt` (SHA-256), then put the binary on your `PATH`:
+
+```sh
+sha256sum --ignore-missing -c checksums.txt    # macOS: shasum -a 256 --ignore-missing -c checksums.txt
+tar xzf igris_<version>_<os>_<arch>.tar.gz
+install -m 755 igris ~/.local/bin/igris
+igris version
+```
+
+The binaries are static and not signed in v0.1.0; the checksums guard against a corrupted download.
+
+## herdr setup
+
+Igris starts every Claude Code session in its own herdr tab, so `igris arise` must run **inside a herdr pane** with the herdr server running:
+
+1. Install [herdr](https://herdr.dev) and start it (`herdr`), ideally on the machine where your project lives; reconnect over SSH whenever you like and everything is still running.
+2. Once: `herdr integration install claude`, so herdr reports Claude's state (working, waiting for you) accurately. `igris arise` warns when it isn't installed.
+3. In a herdr pane, `cd` to your project and run igris (see Quick start).
+
+Outside herdr, `igris arise` exits and says so. `init`, `check`, `phases`, `status`, `done`, `skip` and `notify test` need no herdr (`adapt` does).
 
 ## Quick start
 
@@ -83,9 +105,7 @@ Before a run starts, igris warns if `ANTHROPIC_API_KEY` is set (your sessions wo
 
 Each session gets two prompts: fixed igris rules (one task only, never touch Status, run `igris done` last) passed as a system-prompt file, and a first message built from a template. Set `prompt_template` in `igris.toml` to your own Go template to replace the default message; the variables are listed in SPEC §6.1.
 
-`igris arise` needs herdr: run it inside a herdr pane with the herdr server running, otherwise it exits and says so (tmux support is planned). `check`, `status`, `done` and `skip` work without herdr.
-
-Recommended once: `herdr integration install claude`, so herdr reports Claude's state accurately; `arise` warns when it isn't installed.
+`igris arise` needs herdr (see [herdr setup](#herdr-setup)); `check`, `status`, `done` and `skip` work without it.
 
 ## Your plan
 
@@ -166,10 +186,31 @@ The TUI captures the mouse, so selecting text in the terminal needs `shift`+drag
 
 Only one `igris arise` runs per project at a time. If a crashed run left its lock behind, igris says so; `igris arise --force-unlock` clears it.
 
+## FAQ
+
+**Does igris use my Claude subscription or the API?**
+Whatever Claude Code normally uses for you. Igris starts ordinary interactive `claude` sessions, so they run on your login (Pro/Max) and count against its limits. The one exception is in your environment: if `ANTHROPIC_API_KEY` is set, Claude Code bills the API instead. Igris warns about that at start and asks you to confirm. It never sets that variable, and never reads, prints or stores your Claude credentials.
+
+**Why a fresh session per task?**
+A long session fills its context and drifts, and one task's context shouldn't leak into the next. A fresh session gets the task, the plan and your project rules, and nothing else.
+
+**Can igris pick the model for me?**
+No, on purpose. The plan's Model column is the only input: igris launches exactly that rank and never a more expensive one. A task without a usable model is a validation error, not a guess.
+
+**What if a task needs me?**
+Claude asks in its pane like it always does; igris notices the stalled session, shows it in the TUI and notifies you (herdr toast, ntfy, Discord). Answer in the session, or use **Open session** to jump to it.
+
+**Is skip-permissions safe?**
+Only where you'd trust an unattended agent: a worktree or container. It needs a typed confirmation every run, by design.
+
+**I don't use herdr.**
+v1 needs it. A tmux backend is on the roadmap.
+
 ## Roadmap
 
 - tmux backend (and other multiplexers) for people who don't use herdr
 - Homebrew tap
+- Signed release artifacts (cosign/minisign)
 
 ## License
 
