@@ -117,7 +117,7 @@ Validation reports **every** problem at once, each as `file:line: message` sayin
 Igris edits the plan file in place, so writes must be surgical:
 
 1. **Only Status cells change.** Every other byte of the file — whitespace, other cells, other sections, line endings, trailing newline — is preserved exactly.
-2. Within a Status cell, the original padding and backtick style are preserved (`` `ready` `` → `` `done` ``).
+2. Within a Status cell, the original padding and backtick style are preserved (`` `ready` `` → `` `done` ``). Any text after the old keyword is dropped (`blocked (waits on vendor)` → `ready`), since it described the old status.
 3. **Re-read before write.** The file is re-read and re-parsed immediately before every write, because the owner or a session may have edited it. If the target row no longer exists, igris stops with an error rather than writing.
 4. **No lost updates.** Igris hashes the bytes it re-read and, immediately before the rename, hashes the file again. If it changed in between, the write is discarded and retried from step 3 (up to 3 times, then stop with an error).
 5. **Atomic write:** write to a temp file in the same directory, fsync, rename.
