@@ -1,0 +1,12 @@
+# igris.toml for the README demo (`make demo`). Only the keys that differ
+# from the defaults are set.
+
+plan = "tasks.md"
+needs_input_after = "20s"
+
+[run]
+verify = "sh hello.sh"
+commit = "auto"                   # no commit dialog in the recording
+
+[tui]
+theme = "dark"                    # same colors in every recording
