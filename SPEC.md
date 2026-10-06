@@ -220,7 +220,13 @@ After a task is accepted, igris waits up to 30 s for the agent to become idle (s
 | Plan | `plan` | `--permission-mode plan` | Session plans first; owner approves the plan in Claude Code, then it implements. `igris done` only becomes possible after approval, since plan mode blocks commands. |
 | Skip permissions | `yolo` | `--dangerously-skip-permissions` | Shown with a red badge everywhere; needs per-run confirmation (§7.3). |
 
-Exact flag spellings are verified against the installed Claude Code during P0 and kept in one table in code. (Observed on Claude Code 2.1.291: `--permission-mode` accepts `acceptEdits`, `auto`, `bypassPermissions`, `manual`, `dontAsk`, `plan`.)
+Exact flag spellings are verified against the installed Claude Code (P0-02, 2.1.291) and kept in one table in code. `--permission-mode` accepts `acceptEdits`, `auto`, `bypassPermissions`, `manual`, `dontAsk`, `plan`; there is no `default` value, so Default mode passes **no** permission flag (`manual` behaves the same but is not used).
+
+Verified behavior that the design relies on:
+- **`auto` does not pre-approve `igris done`.** An unfamiliar shell command still prompts (headless: denied; interactive: "This command requires approval"). `igris done` must therefore be allow-listed (below) in every mode that is not `yolo`.
+- **Allow rule:** `Bash(igris done:*)` and `Bash(igris done *)` in `.claude/settings.local.json` (`{"permissions":{"allow":[...]}}`) both let `igris done` run without a prompt in `default`, `acceptEdits` and `auto`.
+- **Plan mode blocks Bash** (including allow-listed `igris done`) until the owner approves the plan.
+- `--dangerously-skip-permissions` runs `igris done` with no prompt.
 
 ### 7.2 Resolution order (per task)
 1. Owner override set in the TUI for that specific task.
@@ -238,7 +244,9 @@ Mode changes in the TUI apply to the **next** session launched; a running sessio
 
 ### 7.4 Model and mode enforcement
 - `claude.extra_args` must not contain `--model`, `--fallback-model`, `--permission-mode`, `--dangerously-skip-permissions`, `--allow-dangerously-skip-permissions`, `--session-id`, `--resume`, `--continue` or `--append-system-prompt`. Igris sets these itself; `check` and `arise` reject a config that contains them. `--fallback-model` in particular would let a task silently run on a different model.
-- `--model` on the command line takes precedence over a `model` in Claude Code's settings, so the plan's rank always wins.
+- `--model` on the command line takes precedence over a `model` in Claude Code's settings (verified: settings `haiku` + `--model sonnet` ran `claude-sonnet-5-5`), so the plan's rank always wins. This also holds on `--resume`: a resumed session's new turns run on the `--model` given at resume.
+- Model aliases `fable`, `opus`, `sonnet`, `haiku` all resolve (2.1.291: `claude-fable-5-1`, `claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-4-5-20251001`). Igris passes the alias and never pins a full model name.
+- If `ANTHROPIC_API_KEY` is set in the environment, Claude Code uses it instead of the subscription login (it warns that it "takes precedence over your claude.ai login"). Igris never sets it; `check` warns when it is present in igris's environment, because tasks would then bill the API.
 
 ---
 
