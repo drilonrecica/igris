@@ -119,6 +119,8 @@ Igris runs in its own herdr pane: the task list with status and rank, the curren
 
 `q` quits the TUI without stopping anything. `igris arise` picks up exactly where it left off.
 
+Only one `igris arise` runs per project at a time. If a crashed run left its lock behind, igris says so; `igris arise --force-unlock` clears it.
+
 ## Roadmap
 
 - tmux backend (and other multiplexers) for people who don't use herdr

@@ -32,6 +32,7 @@ Commands:
   status [PHASE] [--plan PATH] [--json] tasks with status/rank/owner, current run, unmet deps
   arise [PHASE] [--through PHASE]       run (or resume) with the TUI
         [--mode default|accept|auto|plan|yolo] [--no-tui] [--dry-run]
+        [--force-unlock]
   done ID [--note TEXT]                 signal that a task is finished
   skip ID --reason TEXT                 signal that a task is skipped
   adapt [--model sonnet|opus]           AI-assisted conversion with diff review
@@ -63,6 +64,7 @@ func commands() []command {
 			mode := fs.String("mode", "", "run mode: "+strings.Join(runModes, "|"))
 			fs.Bool("no-tui", false, "plain log output, owner commands from stdin")
 			fs.Bool("dry-run", false, "walk the phase with the fake backend, write nothing")
+			fs.Bool("force-unlock", false, "clear a stale lock left by a run that is no longer alive")
 			return func(args []string) error {
 				if *mode != "" && !contains(runModes, *mode) {
 					return fmt.Errorf("invalid --mode %q (want %s)", *mode, strings.Join(runModes, "|"))

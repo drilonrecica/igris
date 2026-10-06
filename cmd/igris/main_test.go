@@ -26,6 +26,8 @@ func TestRun(t *testing.T) {
 		{"phases extra arg", []string{"phases", "x"}, exitUsage, "", "unexpected argument"},
 		{"status two phases", []string{"status", "M0", "M1"}, exitUsage, "", "unexpected argument"},
 		{"arise stub", []string{"arise", "M0", "--through", "M1", "--mode", "plan", "--no-tui", "--dry-run"}, exitFail, "", "not implemented"},
+		{"arise force-unlock flag", []string{"arise", "--force-unlock"}, exitFail, "", "not implemented"},
+		{"arise help lists force-unlock", []string{"arise", "-h"}, exitOK, "", "-force-unlock"},
 		{"arise bad mode", []string{"arise", "--mode", "wild"}, exitUsage, "", "invalid --mode"},
 		{"done stub", []string{"done", "M0-01", "--note", "ok"}, exitFail, "", "not implemented"},
 		{"done flag before id", []string{"done", "--note", "ok", "M0-01"}, exitFail, "", "not implemented"},
