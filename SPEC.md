@@ -469,6 +469,7 @@ igris arise [PHASE] [--through PHASE]       run (or resume) with the TUI
            [--force-unlock]
 igris done ID [--note TEXT]                 signal that a task is finished
 igris skip ID --reason TEXT                 signal that a task is skipped
+igris notify test [--event NAME]            send a sample of each notification to the configured channels
 igris adapt [--model sonnet|opus]           AI-assisted conversion with diff review
 igris version
 ```
@@ -482,6 +483,7 @@ igris version
   - `pause` toggles pause-after-task like `p` in the TUI (§15.3), `stop` stops igris and leaves the session open;
   - `mode <m>` sets the run mode for the next sessions, `mode <task> <m>` overrides one task's mode for its next session (§7.2); `yolo` then asks to type `skip permissions` (§7.3);
   - `help` lists them. Ctrl-C is `stop`.
+- `notify test` sends one sample message per event to every channel set up for it (the herdr toast is included when herdr is reachable) and prints `ok` or `FAILED: <reason>` per event and channel; secrets never appear in the output. It exits 1 if a delivery failed or no channel is set up. `--event` limits it to one event.
 - `--force-unlock` clears a stale `.igris/igris.lock` (its process is gone, the file is unreadable, or it comes from another host); a lock held by a live process on this host is always refused (§13).
 - `--dry-run` uses the fake backend: walks the phase, prints which task would launch with which model and mode, writes nothing. It runs the real engine on a temporary copy of the plan, with every session finishing at once, user tasks done, verify and commits off. Drift and skip-permissions tasks are shown as warnings instead of asked about; a task already in progress is shown as resumed with a fresh session. Without a phase it walks the last run's phases. It never touches `.igris/`.
 - On start, `arise` warns if `ANTHROPIC_API_KEY` is set in the environment (Claude Code would bill the API instead of the subscription) and asks for confirmation. It also warns, without asking, if the project is not a git repository or has uncommitted changes (§7.3).

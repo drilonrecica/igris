@@ -35,6 +35,7 @@ Commands:
         [--force-unlock]
   done ID [--note TEXT]                 signal that a task is finished
   skip ID --reason TEXT                 signal that a task is skipped
+  notify test [--event NAME]            send a sample of each notification to the configured channels
   adapt [--model sonnet|opus]           AI-assisted conversion with diff review
   version                               print the version
 
@@ -88,6 +89,7 @@ func commands() []command {
 				return nil
 			}
 		}, exec: execSkip},
+		{name: "notify", setup: notifyArgs, exec: execNotify},
 		{name: "adapt", setup: func(fs *flag.FlagSet) func([]string) error {
 			model := fs.String("model", "", "model to use: sonnet|opus")
 			return func(args []string) error {
