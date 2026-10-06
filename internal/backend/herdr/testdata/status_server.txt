@@ -1,0 +1,6 @@
+status: running
+version: 0.9.1
+endpoint_compatible: yes
+private_protocol: 22
+private_protocol_compatible: yes
+socket: /home/user/.config/herdr/herdr.sock
