@@ -282,3 +282,26 @@ func TestResumeYoloSessionNeedsConfirmation(t *testing.T) {
 		t.Errorf("task_resumed %q", got)
 	}
 }
+
+// A user task in progress without a record simply becomes the owner's turn
+// again.
+func TestAdoptUserTaskInProgressWithoutState(t *testing.T) {
+	h := newHarness(t, strings.Replace(userPlan, "| ready | — | user |", "| in progress | — | user |", 1), "")
+	h.onEvent = func(ev Event) {
+		if ev.Kind == YourTurn {
+			h.eng.Send(Command{Kind: CmdDone, Text: "bought"})
+		}
+	}
+	if _, err := h.run(); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if got := h.event(TaskResumed, "A-1").Detail; got != "user task" {
+		t.Errorf("task_resumed %q", got)
+	}
+	if got := h.count(Asked); got != 0 {
+		t.Errorf("%d questions for an adopted user task", got)
+	}
+	if got := h.statuses(); got != "A-1=done A-2=done" {
+		t.Errorf("statuses = %s", got)
+	}
+}
