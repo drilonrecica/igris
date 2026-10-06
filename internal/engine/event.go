@@ -39,6 +39,8 @@ const (
 	VerifyPassed   EventKind = "verify_passed"   // Detail is the verify command
 	VerifyFailed   EventKind = "verify_failed"   // Detail says why and which attempt
 	VerifyLimit    EventKind = "verify_limit"    // verify_max_attempts failures in a row; needs the owner
+	Committed      EventKind = "committed"       // Detail is the commit subject
+	NotCommitted   EventKind = "not_committed"   // Detail says why: nothing to commit, or the owner declined
 	Warning        EventKind = "warning"         // something failed that doesn't stop the run
 	RunFailed      EventKind = "run_error"       // Detail is the error; the run stops
 	RunStopped     EventKind = "run_stopped"     // the run ended; Detail is the outcome or "error"
@@ -75,6 +77,9 @@ const (
 	// QuestionSessionLost: the session is gone. CmdRetry (continue or
 	// fresh), CmdDone, CmdSkip or CmdStop.
 	QuestionSessionLost Question = "session_lost"
+	// QuestionCommit: commit = "ask" and the task is verified; CmdAnswer
+	// yes commits, no leaves the changes uncommitted.
+	QuestionCommit Question = "commit"
 )
 
 // emit stamps ev with the time and the current phase and task and hands it

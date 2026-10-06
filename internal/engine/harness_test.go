@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -40,15 +41,17 @@ const chainPlan = `# Demo plan
 // harness is a temp project with a fake backend and a fake clock. Sessions
 // signal done at their first prompt unless a test changes the auto-signal.
 type harness struct {
-	t      *testing.T
-	root   string
-	cfg    *config.Config
-	be     *fake.Backend
-	cmds   *runner.Fake // verify and git commands
-	dir    *state.Dir
-	clock  *FakeClock
-	eng    *Engine
-	events []Event
+	t    *testing.T
+	root string
+	cfg  *config.Config
+	be   *fake.Backend
+	cmds *runner.Fake // verify and git commands, answered by gitFn and verifyFn
+	// gitFn answers git commands, verifyFn the verify command.
+	gitFn, verifyFn func(runner.Cmd) (runner.Result, error)
+	dir             *state.Dir
+	clock           *FakeClock
+	eng             *Engine
+	events          []Event
 	// onEvent runs for every event, on the engine's goroutine.
 	onEvent func(Event)
 	cancel  context.CancelFunc
@@ -71,6 +74,18 @@ func newHarness(t *testing.T, planText, tomlText string) *harness {
 		t.Fatal(err)
 	}
 	h.be.SetAutoSignal(func(_ context.Context, id string) error { return h.signal(id) })
+	// git sees a clean tree unless a test says otherwise; verify must be
+	// scripted by the tests that configure it.
+	h.gitFn = func(runner.Cmd) (runner.Result, error) { return runner.Result{}, nil }
+	h.verifyFn = func(c runner.Cmd) (runner.Result, error) {
+		return runner.Result{}, fmt.Errorf("unexpected command %s", c)
+	}
+	h.cmds.Func(func(c runner.Cmd) (runner.Result, error) {
+		if c.Name == "git" {
+			return h.gitFn(c)
+		}
+		return h.verifyFn(c)
+	})
 	return h
 }
 
@@ -233,6 +248,17 @@ func (h *harness) assertUnlocked() {
 	if err := l.Release(); err != nil {
 		h.t.Fatal(err)
 	}
+}
+
+// calls returns the commands run with program name.
+func (h *harness) calls(name string) []runner.Cmd {
+	var out []runner.Cmd
+	for _, c := range h.cmds.Calls() {
+		if c.Name == name {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // arg returns the value following flag in a session's arguments.

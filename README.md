@@ -97,6 +97,12 @@ A plan is a markdown file (default `tasks.md`) with one task table per `##` phas
 
 Different format? Run **`igris adapt`**: a Claude session (Sonnet or Opus) converts your plan into the canonical format, you review the diff, and nothing changes unless you accept. It never invents models; missing ones are flagged for you.
 
+## Verification and commits
+
+Set `verify` in `igris.toml` (e.g. `verify = "make fmt lint test"`) and igris runs it each time a session says it's done. When it fails, the last 60 lines go back into the same session to fix; after `verify_max_attempts` failures in a row igris calls you instead. If you mark a task done yourself, igris takes your word and skips verify.
+
+After a task passes, igris commits everything in the tree (`commit = "ask"`, the default, asks you first; `auto` just commits; `never` leaves git alone). The message comes from `commit_message`, `{{.ID}}: {{.Title}}` by default, with the session's done note as the body.
+
 ## Modes
 
 Choose the permission mode in the TUI, per run or per task:

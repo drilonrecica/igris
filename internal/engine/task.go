@@ -200,7 +200,8 @@ func (e *Engine) openSession(ctx context.Context, l *launch, st sessionStart) er
 }
 
 // drive watches l's session until the task is finished or the run stops,
-// verifying every done signal (SPEC §6.4).
+// verifying every done signal (SPEC §6.4) and committing before the task is
+// marked done (SPEC §6 steps 8–9).
 func (e *Engine) drive(ctx context.Context, l *launch) (stopped bool, err error) {
 	for {
 		v, err := e.watch(ctx, l)
@@ -218,6 +219,9 @@ func (e *Engine) drive(ctx context.Context, l *launch) (stopped bool, err error)
 				if !passed {
 					continue // the task stays in progress
 				}
+			}
+			if stopped, err := e.commit(ctx, l, v.note); err != nil || stopped {
+				return stopped, err
 			}
 			return false, e.finish(ctx, l, plan.Done, v.note)
 		case verdictSkip:

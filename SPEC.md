@@ -214,6 +214,8 @@ Igris never advances on agent state alone — only on a signal or an explicit ow
 - `commit = "ask"` (default) — the TUI (or `--no-tui` stdin) asks y/n after each verified task.
 - `commit = "never"` — igris never touches git. Uncommitted changes then carry over into the next task's session; the task prompt says so, and `Resumed` sessions can't tell whose changes they're looking at. Use `never` only if you commit by hand between tasks.
 - `commit = "auto"` — after verification passes: `git add -A && git commit -m "<template>"`. Default message template: `{{.ID}}: {{.Title}}` plus the done note as body. If there's nothing to commit, continue silently. A commit failure stops the run and notifies.
+- Igris checks `git status --porcelain` first: with nothing to commit, `ask` doesn't ask. The commit happens before the task is marked `done` (§6 steps 8–9). Git runs as argv, never through a shell, with a timeout.
+- `commit_message` is a Go `text/template` with `ID`, `Title`, `Phase`, `Rank`, `Model` and `Note`; a template that doesn't parse stops `arise` before anything starts. User tasks are never committed.
 
 ### 6.6 Closing
 After a task is accepted, igris waits up to 30 s for the agent to become idle (so it can finish its final message), then closes the pane.

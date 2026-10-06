@@ -107,7 +107,7 @@ func TestRunPhase(t *testing.T) {
 	}
 
 	if got, want := h.kinds(), "run_started phase_started"+
-		strings.Repeat(" task_started session_opened task_done", 3)+" phase_done run_stopped"; got != want {
+		strings.Repeat(" task_started session_opened not_committed task_done", 3)+" phase_done run_stopped"; got != want {
 		t.Errorf("events = %s\nwant     %s", got, want)
 	}
 	started := h.event(TaskStarted, "A-2")

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"text/template"
 
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/config"
@@ -102,16 +103,17 @@ type Result struct {
 // Engine runs the tasks of one or more phases, one session at a time
 // (SPEC §5, §6). Create it with New, call Run once, and steer it with Send.
 type Engine struct {
-	opts     Options
-	cfg      *config.Config
-	be       backend.Backend
-	dir      *state.Dir
-	clock    Clock
-	runner   runner.Runner
-	planPath string
-	planOpts plan.Options
-	writer   *plan.Writer
-	conf     configWatch
+	opts      Options
+	cfg       *config.Config
+	be        backend.Backend
+	dir       *state.Dir
+	clock     Clock
+	runner    runner.Runner
+	planPath  string
+	planOpts  plan.Options
+	writer    *plan.Writer
+	conf      configWatch
+	commitMsg *template.Template
 
 	mu    sync.Mutex
 	queue []Command     // guarded by mu
@@ -152,19 +154,24 @@ func New(opts Options) (*Engine, error) {
 	if opts.Runner == nil {
 		opts.Runner = runner.Exec{}
 	}
+	commitMsg, err := parseCommitMessage(opts.Config.Run.CommitMessage)
+	if err != nil {
+		return nil, fmt.Errorf("engine: %w", err)
+	}
 	root := opts.State.Root()
 	e := &Engine{
-		opts:     opts,
-		cfg:      opts.Config,
-		be:       opts.Backend,
-		dir:      opts.State,
-		clock:    opts.Clock,
-		runner:   opts.Runner,
-		planPath: inRoot(root, opts.Config.Plan),
-		planOpts: plan.Options{Columns: opts.Config.Columns},
-		conf:     newConfigWatch(filepath.Join(root, state.ConfigFile), opts.Config),
-		wake:     make(chan struct{}, 1),
-		reported: map[string]bool{},
+		opts:      opts,
+		cfg:       opts.Config,
+		be:        opts.Backend,
+		dir:       opts.State,
+		clock:     opts.Clock,
+		runner:    opts.Runner,
+		planPath:  inRoot(root, opts.Config.Plan),
+		planOpts:  plan.Options{Columns: opts.Config.Columns},
+		conf:      newConfigWatch(filepath.Join(root, state.ConfigFile), opts.Config),
+		wake:      make(chan struct{}, 1),
+		reported:  map[string]bool{},
+		commitMsg: commitMsg,
 	}
 	e.writer = plan.NewWriter(e.planPath, e.planOpts, e.cfg.Models)
 	return e, nil

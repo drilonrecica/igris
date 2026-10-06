@@ -18,14 +18,11 @@ const verifyTOML = "[run]\nverify = \"make test\"\nverify_max_attempts = 2\n"
 // given results in order; the last one repeats.
 func (h *harness) verifyResults(results ...func() (runner.Result, error)) {
 	n := 0
-	h.cmds.Func(func(c runner.Cmd) (runner.Result, error) {
-		if c.Name != "sh" {
-			return runner.Result{}, fmt.Errorf("unexpected command %s", c)
-		}
+	h.verifyFn = func(c runner.Cmd) (runner.Result, error) {
 		r := results[min(n, len(results)-1)]
 		n++
 		return r()
-	})
+	}
 }
 
 func pass() (runner.Result, error) { return runner.Result{}, nil }
@@ -64,7 +61,7 @@ func TestVerifyPasses(t *testing.T) {
 	if _, err := h.run(); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
-	calls := h.cmds.Calls()
+	calls := h.calls("sh")
 	if len(calls) != 3 {
 		t.Fatalf("%d verify runs, want 3", len(calls))
 	}
@@ -164,7 +161,7 @@ func TestVerifyLimit(t *testing.T) {
 		t.Errorf("A-1 done note %q", got)
 	}
 	// The owner's done is not verified: three verify runs, all for the signals.
-	if got := len(h.cmds.Calls()); got != 3 {
+	if got := len(h.calls("sh")); got != 3 {
 		t.Errorf("%d verify runs, want 3", got)
 	}
 	if got := h.statuses(); !strings.HasPrefix(got, "A-1=done A-2=ready") {
