@@ -323,7 +323,9 @@ type Session interface {
 }
 ```
 
-`SessionSpec` holds: working directory, label, Claude Code argv (model, mode flags, extra args), environment additions.
+`SessionSpec` holds: task ID (backends derive session names from it, e.g. herdr's `igris-<id>`), working directory, label, Claude Code argv (model, mode flags, extra args), environment additions.
+
+`State` reports a vanished pane or exited Claude Code as `exited` rather than an error; `Prompt`, `Focus` and `Attach` fail with a "session gone" error for it, and `Close` on a gone session is a no-op. The engine treats both as **Session lost** (§6.3).
 
 v1 ships `herdr` and `fake` (in-process, used by tests and `--dry-run`). `tmux` is planned and must fit this interface without changes to the engine.
 
