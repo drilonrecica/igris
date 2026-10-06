@@ -207,10 +207,12 @@ func (m *model) card(x, y, w, rows int) []string {
 // cardLines renders the card; with record set, its buttons' zones are
 // recorded for a card drawn at (x, y).
 func (m *model) cardLines(w, x, y int, record bool) []string {
+	if m.ended {
+		// The run is over; a task it was on stays as the plan says.
+		return wrap(m.endText+" — press q to quit", w)
+	}
 	if m.cur == nil {
 		switch {
-		case m.ended:
-			return wrap(m.endText+" — press q to quit", w)
 		case m.holding:
 			return []string{"paused before the next task", "press p to continue"}
 		}
@@ -250,7 +252,7 @@ func (m *model) cardLines(w, x, y int, record bool) []string {
 // dialogBody fills rows lines below row y with the open dialog, centered,
 // and records its options.
 func (m *model) dialogBody(y, w, rows int) []string {
-	box, z := m.dialog.render(min(w-4, 72))
+	box, z := m.dialog.render(min(w-4, 72), rows)
 	top := max((rows-len(box))/2, 0)
 	left := max((w-textWidth(box[0]))/2, 1)
 	m.zones.merge(z, left, y+top)

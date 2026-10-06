@@ -270,7 +270,7 @@ func TestDialogIsModalAndSettledByEvents(t *testing.T) {
 	hs := newHarness(t, 80, 24)
 	hs.events(started("M0-03"), opened("M0-03"), asked(engine.QuestionCommit, "commit?"))
 	view := hs.m.View()
-	for _, want := range []string{"Commit M0-03?", "› 1. Commit", "  2. Leave uncommitted", "WAITING FOR YOUR ANSWER"} {
+	for _, want := range []string{"Commit M0-03?", "› 1. Commit", "  2. Leave uncommitted"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("view lacks %q:\n%s", want, view)
 		}

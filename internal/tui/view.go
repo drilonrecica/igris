@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"strings"
 	"time"
 )
 
@@ -15,68 +14,7 @@ func (m *model) View() string {
 	if m.width >= wideWidth && m.height >= wideMinHeight {
 		return m.wideView()
 	}
-	w, h := max(m.width, 20), max(m.height, 5)
-	lines := []string{m.header(), m.currentLine()}
-	body := h - 3
-	if m.dialog != nil {
-		box, z := m.dialog.render(min(w, 72))
-		top := len(lines) + max((body-len(box))/2, 0)
-		left := max((w-textWidth(box[0]))/2, 0)
-		m.zones.merge(z, left, top)
-		for len(lines) < top {
-			lines = append(lines, "")
-		}
-		for _, l := range box {
-			lines = append(lines, strings.Repeat(" ", left)+l)
-		}
-	} else {
-		m.zones.add(rect{0, len(lines), w, body}, target{region: regionLog})
-		lines = append(lines, m.logView(body)...)
-	}
-	for len(lines) < h-1 {
-		lines = append(lines, "")
-	}
-	lines = append(lines[:h-1], m.barAt(0, h-1, w))
-	for i, l := range lines {
-		lines[i] = fit(l, w)
-	}
-	return strings.Join(lines, "\n")
-}
-
-func (m *model) header() string {
-	s := "igris · " + m.opts.Project
-	if m.phase != "" {
-		s += " · phase " + m.phase
-	}
-	if m.mode != "" {
-		s += " · mode: " + m.mode + badge(m.mode)
-	}
-	s += " · " + m.opts.Backend
-	if m.paused {
-		s += " · PAUSE AFTER TASK"
-	}
-	return s
-}
-
-func (m *model) currentLine() string {
-	switch {
-	case m.ended:
-		return m.endText + " — press q to quit"
-	case m.cur == nil && m.holding:
-		return "paused: press p to continue"
-	case m.cur == nil:
-		return "no task running"
-	}
-	c := m.cur
-	s := c.id + " " + c.title
-	if !c.user {
-		s += " · " + c.rank + " → " + c.model + " · " + c.mode
-	}
-	s += " · " + since(m.opts.Now(), c.started)
-	if st := m.stateText(); st != "" {
-		s += " · " + st
-	}
-	return s
+	return m.narrowView()
 }
 
 // stateText says what the current task needs, in words.

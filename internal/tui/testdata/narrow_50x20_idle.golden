@@ -1,0 +1,20 @@
+igris · sinjal · phase M0 · mode: plan · herdr
+── CURRENT ───────────────────────────────────────
+no task running
+── TASKS ─────────────────────────────────────────
+✓ M0-01 sonnet  ✓ M0-02 sonnet  ● M0-03 sonnet
+· M0-04 opus    · M0-05 user    ⨯ M0-13 sonnet
+– M0-14 haiku
+
+
+
+
+
+
+
+
+── LOG ───────────────────────────────────────────
+09:41 run started: phase M0
+09:41 phase M0 started
+
+[Pause] [Quit]

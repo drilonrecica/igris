@@ -1,0 +1,24 @@
+igris · sinjal · phase M0 · mode: plan · herdr
+── CURRENT ─────────────────────────────────────────────────────────────────────
+M0-03 Makefile
+rank sonnet → model sonnet
+mode plan · 4m12s
+state: working
+[o] Open session
+── TASKS ───────────────────────────────────────────────────────────────────────
+✓ M0-01 sonnet  ✓ M0-02 sonnet  ● M0-03 sonnet  · M0-04 opus    · M0-05 user
+⨯ M0-13 sonnet  – M0-14 haiku
+
+
+
+
+
+
+
+
+
+── LOG ─────────────────────────────────────────────────────────────────────────
+09:41 M0-02 done · subcommand dispatch + tests
+09:41 M0-03 started (sonnet → sonnet, plan) · Makefile
+09:41 M0-03 session open
+[Open session] [Pause] [Done] [Quit]

@@ -20,6 +20,7 @@ const (
 	actStop   // stop igris now (only offered inside dialogs so far)
 	actAnswer // reopen the dialog of the pending question
 	actClose  // close a dialog; its question stays pending
+	actMore   // show the actions the narrow bar folded away
 )
 
 // command is the engine command an action sends, if any.

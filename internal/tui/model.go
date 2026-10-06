@@ -66,6 +66,7 @@ type model struct {
 	// autoTaskTop is where following the current task put the list in the
 	// last frame; scrolling starts from there.
 	autoTaskTop int
+	folded      []option // actions behind the bar's More… in the last frame
 	loc         *time.Location
 
 	zones zones // of the last frame
@@ -175,7 +176,7 @@ func (m *model) key(k string) tea.Cmd {
 			return m.activate(actQuit)
 		}
 		a, _ := m.dialog.key(k)
-		return m.activate(a)
+		return m.pick(a)
 	}
 	switch k {
 	case "pgup":
@@ -208,7 +209,7 @@ func (m *model) mouse(msg tea.MouseMsg) tea.Cmd {
 			if m.dialog == nil {
 				return nil
 			}
-			return m.activate(m.dialog.pick(t.option))
+			return m.pick(m.dialog.pick(t.option))
 		}
 		if m.dialog != nil {
 			return nil // the dialog is modal
@@ -216,6 +217,15 @@ func (m *model) mouse(msg tea.MouseMsg) tea.Cmd {
 		return m.activate(t.act)
 	}
 	return nil
+}
+
+// pick runs an action chosen in the open dialog. A dialog the TUI opened
+// itself (More…) closes once something is picked.
+func (m *model) pick(a action) tea.Cmd {
+	if a != actNone && m.dialog != nil && m.dialog.question == "" {
+		m.dialog = nil
+	}
+	return m.activate(a)
 }
 
 // activate runs an action, whether it came from a key, a click or a
@@ -234,6 +244,11 @@ func (m *model) activate(a action) tea.Cmd {
 	case actAnswer:
 		if m.asked != nil {
 			m.dialog = questionDialog(*m.asked)
+		}
+		return nil
+	case actMore:
+		if len(m.folded) > 0 {
+			m.dialog = moreDialog(m.folded)
 		}
 		return nil
 	case actDone:

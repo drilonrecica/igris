@@ -91,18 +91,14 @@ func (d *dialog) pick(i int) action {
 	return d.options[i].act
 }
 
-// render draws the dialog as a box at most w cells wide and records the
-// option zones relative to the box's top-left corner.
-func (d *dialog) render(w int) ([]string, zones) {
+// render draws the dialog as a box at most w cells wide and h lines high
+// and records the option zones relative to the box's top-left corner. When
+// space is short the detail text is cut, never the options.
+func (d *dialog) render(w, h int) ([]string, zones) {
 	inner := max(w-4, 8) // "│ " + text + " │"
-	var body []string
-	body = append(body, wrap(d.title, inner)...)
-	if d.detail != "" {
-		body = append(body, "")
-		body = append(body, wrap(d.detail, inner)...)
-	}
-	body = append(body, "")
-	var z zones
+	title := wrap(d.title, inner)
+	var opts [][]string
+	optLines := 0
 	for i, o := range d.options {
 		mark := "  "
 		if i == d.selected {
@@ -113,7 +109,31 @@ func (d *dialog) render(w int) ([]string, zones) {
 		for j := 1; j < len(lines); j++ {
 			lines[j] = "     " + lines[j]
 		}
-		z.add(rect{x: 0, y: len(body) + 1, w: inner + 4, h: len(lines)}, target{act: actOption, option: i})
+		opts = append(opts, lines)
+		optLines += len(lines)
+	}
+	var detail []string
+	if d.detail != "" {
+		detail = wrap(d.detail, inner)
+		// Borders, the title, a blank line before and after the detail.
+		room := h - 2 - len(title) - 2 - optLines
+		if room < 1 {
+			detail = nil
+		} else if len(detail) > room {
+			detail = detail[:room]
+			detail[room-1] = fit(detail[room-1]+" …", inner)
+		}
+	}
+
+	body := append([]string{}, title...)
+	if len(detail) > 0 {
+		body = append(body, "")
+		body = append(body, detail...)
+	}
+	body = append(body, "")
+	var z zones
+	for i, lines := range opts {
+		z.add(rect{x: 0, y: len(body) + 1, w: 1, h: len(lines)}, target{act: actOption, option: i})
 		body = append(body, lines...)
 	}
 	width := 0
