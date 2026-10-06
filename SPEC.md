@@ -71,6 +71,7 @@ A task table is a GitHub-flavored markdown table whose header row contains at le
 | `Owner` | no | `agent`, `user`, or `agent + user`. Missing column = `agent`. |
 | `Mode` | no | Per-task run-mode override (§7.2): `default`, `accept`, `auto`, `plan`, `yolo`, or `—`. |
 
+- In `Model` and `Mode`, `—`, `-`, `none` (case-insensitive) and an empty cell all mean "no model" / "no override", as in `Deps`. `Owner` is case-insensitive (`Agent + User` = `agent+user` = `agent + user`); an empty cell means `agent`.
 - Column names can be aliased in config (`[columns]`, §12), e.g. `Depends on` → `Deps`.
 - Extra columns (e.g. `Spec`) are preserved untouched and passed to the session prompt as context.
 - Cells are split on **unescaped** pipes only; `\|` inside a cell is literal text (read as `|`; the file keeps `\|`).

@@ -44,9 +44,11 @@ func (i Issue) Error() string {
 type Plan struct {
 	Path   string   // file name used in messages
 	Phases []*Phase // phases with a task table, in file order
+	Tasks  []*Task  // all tasks in file order
 
 	lines  []line
 	issues []Issue // structural problems found while parsing
+	byID   map[string]*Task
 }
 
 // Phase is a "##" section holding one task table.
@@ -56,6 +58,7 @@ type Phase struct {
 	Heading string   // full heading text
 	Line    int      // line of the heading
 	Columns []string // table header in order; canonical names where recognized
+	Tasks   []*Task  // in file order
 
 	tableLine int // line of the table header
 	rows      []row
@@ -131,6 +134,7 @@ func Parse(name string, data []byte, opts Options) *Plan {
 		}
 		i = end - 1
 	}
+	p.buildTasks()
 	return p
 }
 
