@@ -39,9 +39,9 @@ func (m *model) wideView() string {
 	case m.page != nil:
 		out = append(out, m.pageBody(len(out), w, body)...)
 	default:
-		left := m.taskPane(lw, paneRows-1)
-		right := m.card(lw+5, len(out)+1, rw, paneRows-1)
 		m.zones.add(rect{2, len(out) + 1, lw, paneRows - 1}, target{region: regionTasks})
+		left := m.taskPane(2, len(out)+1, lw, paneRows-1)
+		right := m.card(lw+5, len(out)+1, rw, paneRows-1)
 		out = append(out, "│ "+pad(m.areaTitle("TASKS", focusTasks), lw)+" │ "+pad("CURRENT", rw)+" │")
 		for i := range paneRows - 1 {
 			out = append(out, "│ "+pad(line(left, i), lw)+" │ "+pad(line(right, i), rw)+" │")
@@ -158,16 +158,17 @@ func rank(t *plan.Task) string {
 	return t.Rank
 }
 
-// taskLines renders the task list w cells wide, returning the lines and
-// the index of the line to keep in view (-1 for none): the selected task's
-// while the list has the focus, else the current task's.
-func (m *model) taskLines(w int) ([]string, int) {
+// taskLines renders the task list w cells wide, returning the lines, the
+// index of the line to keep in view (-1 for none) — the selected task's
+// while the list has the focus, else the current task's — and for each
+// line the index of the task it shows (-1 for a "waits on" line).
+func (m *model) taskLines(w int) (lines []string, follow int, owner []int) {
 	tasks := m.phaseTasks()
 	if len(tasks) == 0 {
 		if m.plan == nil {
-			return []string{"reading the plan…"}, -1
+			return []string{"reading the plan…"}, -1, []int{-1}
 		}
-		return []string{"no tasks in this phase"}, -1
+		return []string{"no tasks in this phase"}, -1, []int{-1}
 	}
 	idW, rankW := 0, 0
 	for _, t := range tasks {
@@ -176,26 +177,29 @@ func (m *model) taskLines(w int) ([]string, int) {
 	titleW := max(w-3-idW-2-1-rankW, 1) // "›✓ " + ID + "  " + title + " " + rank
 	sel := m.listSel()
 	var out []string
-	follow := -1
+	follow = -1
 	for i, t := range tasks {
 		if (sel >= 0 && i == sel) || (sel < 0 && m.cur != nil && m.cur.id == t.ID) {
 			follow = len(out)
 		}
 		row := rowMark(i == sel) + m.glyph(t) + " " + pad(t.ID, idW) + "  " + pad(fit(t.Title, titleW), titleW) + " " + rank(t)
 		out = append(out, fit(row, w))
+		owner = append(owner, i)
 		if t.Status == plan.Blocked {
 			if wt := m.plan.WaitingOn(t); wt != nil {
 				out = append(out, fit("   waits on "+strings.Join(wt.Unmet, ", "), w))
+				owner = append(owner, -1)
 			}
 		}
 	}
-	return out, follow
+	return out, follow, owner
 }
 
-// taskPane is the visible part of the task list: it follows the current
-// task unless the owner scrolled.
-func (m *model) taskPane(w, rows int) []string {
-	lines, cur := m.taskLines(w)
+// taskPane is the visible part of the task list drawn at (x, y): it
+// follows the current task unless the owner scrolled. Each task row is
+// recorded as a click target.
+func (m *model) taskPane(x, y, w, rows int) []string {
+	lines, cur, owner := m.taskLines(w)
 	top := m.taskTop
 	if top < 0 {
 		top = 0
@@ -209,7 +213,13 @@ func (m *model) taskPane(w, rows int) []string {
 	} else {
 		m.taskTop = top
 	}
-	return lines[top:min(top+rows, len(lines))]
+	end := min(top+rows, len(lines))
+	for i := top; i < end; i++ {
+		if owner[i] >= 0 && !m.modal() {
+			m.zones.add(rect{x, y + i - top, w, 1}, target{act: actTaskRow, option: owner[i]})
+		}
+	}
+	return lines[top:end]
 }
 
 // listSel is the selected task's index while the task list has the focus,
@@ -223,7 +233,7 @@ func (m *model) listSel() int {
 
 // paneNeed is how many rows the panes want, titles included.
 func (m *model) paneNeed(lw, rw int) int {
-	tasks, _ := m.taskLines(lw)
+	tasks, _, _ := m.taskLines(lw)
 	return 1 + max(len(tasks), len(m.cardLines(rw, 0, 0, false)))
 }
 

@@ -42,7 +42,7 @@ func (m *model) narrowView() string {
 	out = append(out, m.card(0, len(out), w, cardRows)...)
 	out = append(out, rule(m.areaTitle("TASKS", focusTasks), w))
 	m.zones.add(rect{0, len(out), w, taskRows}, target{region: regionTasks})
-	out = append(out, m.compactTasks(w, taskRows)...)
+	out = append(out, m.compactTasks(len(out), w, taskRows)...)
 	for len(out) < 1+1+cardRows+1+taskRows {
 		out = append(out, "")
 	}
@@ -73,14 +73,15 @@ func rule(name string, w int) string {
 }
 
 // compactTasks lays the phase's tasks out as "glyph ID rank" cells in as
-// many columns as fit, row by row, following the current task.
-func (m *model) compactTasks(w, rows int) []string {
+// many columns as fit, row by row, following the current task, drawn from
+// row y on. Each cell is recorded as a click target.
+func (m *model) compactTasks(y, w, rows int) []string {
 	if rows <= 0 {
 		return nil
 	}
 	tasks := m.phaseTasks()
 	if len(tasks) == 0 {
-		lines, _ := m.taskLines(w)
+		lines, _, _ := m.taskLines(w)
 		return lines[:min(rows, len(lines))]
 	}
 	sel := m.listSel()
@@ -122,7 +123,15 @@ func (m *model) compactTasks(w, rows int) []string {
 	} else {
 		m.taskTop = top
 	}
-	return lines[top:min(top+rows, len(lines))]
+	end := min(top+rows, len(lines))
+	for l := top; l < end; l++ {
+		for c := range cols {
+			if i := l*cols + c; i < len(tasks) {
+				m.zones.add(rect{c * (cellW + 1), y + l - top, min(cellW, w), 1}, target{act: actTaskRow, option: i})
+			}
+		}
+	}
+	return lines[top:end]
 }
 
 // fullScreenDialog draws the open dialog over the whole screen.

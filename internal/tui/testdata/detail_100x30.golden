@@ -1,0 +1,30 @@
+┌ igris · sinjal ─────────────────────────────────────────────────── phase M0 · mode: plan · herdr ┐
+│ M0-02 · esc closes                                                                               │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────── │
+│ M0-02 — Config loader                                                                            │
+│                                                                                                  │
+│ Config loader — read igris.toml, validate every key and report each problem with the line it is  │
+│ on, so the owner can fix them all at once                                                        │
+│                                                                                                  │
+│ Status    ⨯ blocked                                                                              │
+│ Rank      opus                                                                                   │
+│ Owner     agent                                                                                  │
+│ Mode      plan (Mode column)                                                                     │
+│ Phase     M0 Repository foundation                                                               │
+│ Deps      ✓ M0-01 done · Go module                                                               │
+│           · P0-05 ready · Create repo                                                            │
+│ Waits on  P0-05                                                                                  │
+│ Spec      12, 12.1                                                                               │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│ [Close]                                                                                          │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ [Open session] [Mode] [Task mode] [Pause] [Done] [Retry] [Skip] [Stop] [?] [Quit]                │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘

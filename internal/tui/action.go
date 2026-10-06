@@ -30,6 +30,7 @@ const (
 	actMode        // choose the run mode for the next sessions
 	actTaskMode    // choose the mode of the selected task's next session
 	actYoloConfirm // switch to skip permissions with the phrase typed
+	actTaskRow     // a task list row; the zone's option is the task's index
 	// One action per mode in the mode picker; see modeActs.
 	actModeDefault
 	actModeAccept
@@ -116,11 +117,12 @@ var helpActions = []helpEntry{
 
 // helpFocus are the focus keys the help page lists (SPEC §15.5).
 var helpFocus = []helpEntry{
+	{"click", "", "select a task; click it again, or press enter, for its details"},
 	{"tab", "", "move between the task list, the action bar and the log"},
 	{"← →", "", "move along the action bar"},
 	{"↑ ↓  j k", "", "move in lists and dialogs, scroll the log"},
 	{"pgup pgdn", "", "scroll a page"},
-	{"enter space", "", "activate the focused element"},
+	{"enter space", "", "activate the focused element: a button, a task's details, the whole log"},
 	{"1…9", "", "pick a dialog option by its number"},
 	{"esc", "", "close a dialog or page with its safe choice"},
 }

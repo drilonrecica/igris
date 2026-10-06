@@ -13,6 +13,7 @@ type page struct {
 	body  func(w int) []string // the text, laid out for w cells
 	top   int                  // first body line shown; clamped when drawn
 	rows  int                  // body lines shown in the last frame
+	total int                  // body lines in the last frame
 }
 
 // key handles a key press and reports whether it closes the page.
@@ -32,14 +33,27 @@ func (p *page) key(k string) bool {
 		p.top = 0
 	case "end":
 		p.top = maxTop
+		p.clamp()
 	}
 	return false
 }
 
-// maxTop asks for the last screenful; render clamps it.
+// maxTop asks for the last screenful; clamp brings it down.
 const maxTop = 1 << 30
 
-func (p *page) scroll(by int) { p.top = max(p.top+by, 0) }
+func (p *page) scroll(by int) {
+	p.clamp()
+	p.top = max(p.top+by, 0)
+	p.clamp()
+}
+
+// clamp keeps the last screenful drawn in view; before the first frame
+// the size isn't known yet and render clamps.
+func (p *page) clamp() {
+	if p.rows > 0 {
+		p.top = min(p.top, max(p.total-p.rows, 0))
+	}
+}
 
 // render draws the page in exactly h lines of at most w cells: the title,
 // a rule, the body and a footer with the Close button. Zones are relative
@@ -51,9 +65,9 @@ func (p *page) render(w, h int) ([]string, zones) {
 		return []string{fit(p.title, w)}[:min(h, 1)], z
 	}
 	body := p.body(w)
-	rows := h - 3
-	p.rows = rows
-	p.top = min(p.top, max(len(body)-rows, 0))
+	p.rows, p.total = h-3, len(body)
+	rows := p.rows
+	p.clamp()
 	out := []string{fit(p.title, w), strings.Repeat("─", w)}
 	z.add(rect{0, 2, w, rows}, target{region: regionPage})
 	for i := range rows {

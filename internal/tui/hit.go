@@ -63,4 +63,15 @@ func (z *zones) at(x, y int) (target, bool) {
 	return target{}, false
 }
 
+// regionAt returns the topmost scrollable region at (x, y), looking
+// through the buttons drawn on it (task rows lie on the task list).
+func (z *zones) regionAt(x, y int) region {
+	for i := len(z.list) - 1; i >= 0; i-- {
+		if z.list[i].t.region != regionNone && z.list[i].r.contains(x, y) {
+			return z.list[i].t.region
+		}
+	}
+	return regionNone
+}
+
 func (z *zones) reset() { z.list = z.list[:0] }

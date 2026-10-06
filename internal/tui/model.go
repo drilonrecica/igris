@@ -216,8 +216,15 @@ func (m *model) key(msg tea.KeyMsg) tea.Cmd {
 	case "tab", "shift+tab":
 		m.cycleFocus(k == "tab")
 	case "enter", " ":
-		if m.focus == focusBar {
+		switch m.focus {
+		case focusBar:
 			return m.activate(m.focusedButton())
+		case focusTasks:
+			if i := m.selected(); i >= 0 {
+				m.page = m.detailPage(m.phaseTasks()[i].ID)
+			}
+		case focusLog:
+			m.page = m.logPage()
 		}
 	case "left", "right":
 		if m.focus == focusBar {
@@ -352,14 +359,17 @@ func (m *model) mouse(msg tea.MouseMsg) tea.Cmd {
 		if msg.Button == tea.MouseButtonWheelDown {
 			by = -3
 		}
-		switch {
-		case ok && t.region == regionLog:
+		switch m.zones.regionAt(msg.X, msg.Y) {
+		case regionLog:
 			m.scrollLog(by)
-		case ok && t.region == regionTasks:
+		case regionTasks:
 			m.scrollTasks(-by)
 		}
 	case msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress && ok:
 		switch {
+		case t.act == actTaskRow && m.dialog == nil:
+			m.clickTask(t.option)
+			return nil
 		case t.act == actField && m.dialog != nil:
 			m.dialog.inField = true
 			return nil
@@ -374,6 +384,20 @@ func (m *model) mouse(msg tea.MouseMsg) tea.Cmd {
 		return m.activate(t.act)
 	}
 	return nil
+}
+
+// clickTask selects the i-th task of the phase; clicking the selected
+// task again opens its details.
+func (m *model) clickTask(i int) {
+	tasks := m.phaseTasks()
+	if i < 0 || i >= len(tasks) {
+		return
+	}
+	if m.focus == focusTasks && m.selected() == i {
+		m.page = m.detailPage(tasks[i].ID)
+		return
+	}
+	m.focus, m.selID = focusTasks, tasks[i].ID
 }
 
 // pageMouse handles the mouse while a page is open: the wheel scrolls it
