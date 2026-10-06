@@ -44,9 +44,29 @@ func (m *model) logView(n int) []string {
 	start := max(end-n, 0)
 	out := make([]string, 0, n)
 	for _, e := range m.log[start:end] {
-		out = append(out, e.at.In(m.loc).Format("15:04")+" "+e.text)
+		out = append(out, m.th.paint(lookDim, e.at.In(m.loc).Format("15:04"))+" "+m.logText(e, e.text))
 	}
 	return out
+}
+
+// logText draws text, a line of entry e, in the entry's look.
+func (m *model) logText(e logEntry, text string) string {
+	if e.look == lookPlain {
+		return m.th.marks(text)
+	}
+	return m.th.paint(e.look, text)
+}
+
+// stateLook is how the current task's state is drawn: waiting on the
+// owner stands out.
+func (m *model) stateLook() look {
+	switch m.cur.state {
+	case stateNeedsYou, stateYourTurn, stateQuestion, stateLost:
+		return lookAlert
+	case stateVerifying:
+		return lookAccent
+	}
+	return lookPlain
 }
 
 // buttons are the actions the bar offers right now (SPEC §15.3): only
@@ -92,13 +112,18 @@ func (m *model) modal() bool { return m.dialog != nil || m.page != nil }
 // barFocused reports whether the action bar has the focus.
 func (m *model) barFocused() bool { return m.focus == focusBar && !m.modal() }
 
-// buttonLabel draws a bar button; the focused one is marked without color,
-// "[›Open session‹]" (SPEC §15.4).
-func buttonLabel(label string, focused bool) string {
-	if focused {
-		return "[›" + label + "‹]"
+// barState is how the bar button for a is drawn: focused is the button
+// with the focus, if the bar has it.
+func barState(a, focused action, modal bool) btnState {
+	switch {
+	case modal:
+		return btnInactive
+	case a == focused:
+		return btnFocused
+	case a == actAnswer:
+		return btnAttention
 	}
-	return "[" + label + "]"
+	return btnNormal
 }
 
 // rowMark is the marker column of a list row: "›" on the selected row
@@ -113,9 +138,9 @@ func rowMark(selected bool) string {
 // areaTitle is a region's title, marked while it has the focus.
 func (m *model) areaTitle(name string, a area) string {
 	if m.focus == a && !m.modal() {
-		return "› " + name
+		return m.th.paint(lookAccentBold, "› "+name)
 	}
-	return name
+	return m.th.paint(lookTitle, name)
 }
 
 // since formats the time from t to now, e.g. "4m12s".

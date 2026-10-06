@@ -44,6 +44,11 @@ model = "opus"
 
 [tui]
 mouse = false
+theme = "light"
+
+[tui.rank_colors]
+opus = "#B48CFF"
+fable = "220"
 
 [notify.backend]
 enabled = false
@@ -70,7 +75,7 @@ func TestParseEmptyGivesDefaults(t *testing.T) {
 	}
 	if got.Plan != "tasks.md" || got.NeedsInputAfter.Std() != 30*time.Second ||
 		got.Run.VerifyTimeout.Std() != 15*time.Minute || got.Run.VerifyMaxAttempts != 3 ||
-		got.Models["opus"] != "opus" || !got.TUI.Mouse || !got.Notify.Backend.Enabled || got.Notify.Ntfy.Server != "https://ntfy.sh" {
+		got.Models["opus"] != "opus" || !got.TUI.Mouse || got.TUI.Theme != "auto" || len(got.TUI.RankColors) != 0 || !got.Notify.Backend.Enabled || got.Notify.Ntfy.Server != "https://ntfy.sh" {
 		t.Fatalf("unexpected defaults: %+v", got)
 	}
 }
@@ -93,6 +98,9 @@ func TestParseFullSample(t *testing.T) {
 	}
 	if c.TUI.Mouse {
 		t.Errorf("tui.mouse = true, want false")
+	}
+	if c.TUI.Theme != "light" || c.TUI.RankColors["opus"] != "#B48CFF" || c.TUI.RankColors["fable"] != "220" {
+		t.Errorf("tui: %+v", c.TUI)
 	}
 	if c.Adapt.Model != "opus" || c.Notify.Backend.Enabled {
 		t.Errorf("adapt/notify.backend: %+v %+v", c.Adapt, c.Notify.Backend)
@@ -127,6 +135,14 @@ func TestParseErrors(t *testing.T) {
 		{"unknown table", "[nope]\nx = 1", []string{"nope"}},
 		{"unknown tui key", "[tui]\nmice = false", []string{"tui.mice"}},
 		{"tui mouse not bool", "[tui]\nmouse = \"no\"", []string{"parse igris.toml"}},
+		{"bad theme", "[tui]\ntheme = \"neon\"", []string{`tui.theme = "neon"`, "auto, dark, light"}},
+		{"rank color by name", "[tui.rank_colors]\nopus = \"purple\"", []string{`tui.rank_colors.opus = "purple"`, "#rrggbb"}},
+		{"rank color short hex", "[tui.rank_colors]\nopus = \"#fff\"", []string{"tui.rank_colors.opus"}},
+		{"rank color bad hex", "[tui.rank_colors]\nopus = \"#12345g\"", []string{"tui.rank_colors.opus"}},
+		{"rank color number too large", "[tui.rank_colors]\nopus = \"256\"", []string{"tui.rank_colors.opus"}},
+		{"rank color negative", "[tui.rank_colors]\nopus = \"-1\"", []string{"tui.rank_colors.opus"}},
+		{"rank color empty", "[tui.rank_colors]\nopus = \"\"", []string{"tui.rank_colors.opus"}},
+		{"rank color not string", "[tui.rank_colors]\nopus = 5", []string{"parse igris.toml"}},
 		{"syntax", "plan = ", []string{"parse igris.toml"}},
 		{"bad duration", `poll_interval = "soon"`, []string{"invalid duration", "soon"}},
 		{"duration not string", `poll_interval = 5`, []string{"parse igris.toml"}},
@@ -239,6 +255,8 @@ func TestHash(t *testing.T) {
 		"token":   func(c *Config) { c.Notify.Ntfy.Token = "env:OTHER" },
 		"column":  func(c *Config) { c.Columns["X"] = "Y" },
 		"mouse":   func(c *Config) { c.TUI.Mouse = !c.TUI.Mouse },
+		"theme":   func(c *Config) { c.TUI.Theme = "dark" },
+		"rank":    func(c *Config) { c.TUI.RankColors["opus"] = "5" },
 	}
 	for name, mutate := range mutations {
 		c, _ := Parse([]byte(specSample), "igris.toml")
@@ -295,7 +313,7 @@ func TestForbiddenExtraArg(t *testing.T) {
 }
 
 func TestWriteRoundTrips(t *testing.T) {
-	for _, src := range []string{"", "plan = \"x.md\"\n[run]\nverify = \"make test\"\ncommit = \"never\"\n[columns]\n\"Depends on\" = \"Deps\"\n[notify.ntfy]\ntoken = \"env:T\"\n"} {
+	for _, src := range []string{"", "plan = \"x.md\"\n[run]\nverify = \"make test\"\ncommit = \"never\"\n[columns]\n\"Depends on\" = \"Deps\"\n[notify.ntfy]\ntoken = \"env:T\"\n[tui]\ntheme = \"dark\"\n[tui.rank_colors]\nopus = \"5\"\n"} {
 		want, err := Parse([]byte(src), "igris.toml")
 		if err != nil {
 			t.Fatal(err)

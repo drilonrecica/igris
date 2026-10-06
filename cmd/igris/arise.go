@@ -190,10 +190,12 @@ func runWithTUI(ctx context.Context, f ariseFlags, opts engine.Options, be backe
 		}
 	}
 	uiErr := ariseUI(ctx, tui.Options{
-		Project: filepath.Base(f.root),
-		Backend: be.Name(),
-		Mode:    f.mode,
-		Mouse:   f.cfg.TUI.Mouse,
+		Project:    filepath.Base(f.root),
+		Backend:    be.Name(),
+		Mode:       f.mode,
+		Mouse:      f.cfg.TUI.Mouse,
+		Theme:      f.cfg.TUI.Theme,
+		RankColors: f.cfg.TUI.RankColors,
 		// The task list reads the plan the engine writes.
 		PlanPath:    rootPath(f.root, f.cfg.Plan),
 		PlanOptions: plan.Options{Columns: f.cfg.Columns},

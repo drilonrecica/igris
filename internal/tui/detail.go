@@ -18,11 +18,14 @@ func (m *model) detailPage(id string) *page {
 		if t == nil {
 			return wrap(id+" is no longer in the plan.", w)
 		}
-		out := wrap(t.ID+" — "+t.Title, w)
+		var out []string
+		for _, l := range wrap(t.ID+" — "+t.Title, w) {
+			out = append(out, m.th.paint(lookTitle, l))
+		}
 		out = append(out, "")
 		out = append(out, wrap(strings.ReplaceAll(t.Text, "**", ""), w)...)
 		out = append(out, "")
-		return append(out, fields(m.taskFacts(t), w)...)
+		return append(out, fields(m.th, m.taskFacts(t), w)...)
 	}}
 }
 
@@ -39,8 +42,8 @@ func (m *model) taskFacts(t *plan.Task) []fact {
 		owner = "—"
 	}
 	facts := []fact{
-		{"Status", []string{m.glyph(t) + " " + statusWord(t)}},
-		{"Rank", []string{rank(t)}},
+		{"Status", []string{m.paintedGlyph(t) + " " + statusWord(t)}},
+		{"Rank", []string{m.th.rank(rank(t), false)}},
 		{"Owner", []string{owner}},
 		{"Mode", []string{m.modeText(t)}},
 	}
@@ -54,7 +57,7 @@ func (m *model) taskFacts(t *plan.Task) []fact {
 			deps.lines = append(deps.lines, "? "+d+" (not in the plan)")
 			continue
 		}
-		deps.lines = append(deps.lines, m.glyph(dt)+" "+d+" "+statusWord(dt)+" · "+dt.Title)
+		deps.lines = append(deps.lines, m.paintedGlyph(dt)+" "+d+" "+statusWord(dt)+" · "+dt.Title)
 	}
 	if len(deps.lines) == 0 {
 		deps.lines = []string{"none"}
@@ -96,8 +99,9 @@ func (m *model) modeText(t *plan.Task) string {
 }
 
 // fields lays facts out as "Name   value" with the values aligned and
-// wrapped under themselves.
-func fields(facts []fact, w int) []string {
+// wrapped under themselves. A value may hold painted single words (a
+// glyph, a rank); the skip-permissions badge is painted after wrapping.
+func fields(th *theme, facts []fact, w int) []string {
 	nameW := 0
 	for _, f := range facts {
 		nameW = max(nameW, textWidth(f.name))
@@ -109,7 +113,9 @@ func fields(facts []fact, w int) []string {
 			if i == 0 {
 				name = f.name
 			}
-			out = append(out, hang(pad(name, nameW)+"  ", l, w)...)
+			for _, hl := range hang(th.paint(lookDim, pad(name, nameW))+"  ", l, w) {
+				out = append(out, th.marks(hl))
+			}
 		}
 	}
 	return out
@@ -120,7 +126,14 @@ func (m *model) logPage() *page {
 	return &page{title: "Log · esc closes", top: maxTop, body: func(w int) []string {
 		var out []string
 		for _, e := range m.log {
-			out = append(out, hang(e.at.In(m.loc).Format("15:04")+" ", e.text, w)...)
+			at := e.at.In(m.loc).Format("15:04") + " "
+			for i, l := range wrap(e.text, w-textWidth(at)) {
+				if i == 0 {
+					out = append(out, m.th.paint(lookDim, at)+m.logText(e, l))
+				} else {
+					out = append(out, strings.Repeat(" ", textWidth(at))+m.logText(e, l))
+				}
+			}
 		}
 		if len(out) == 0 {
 			out = []string{"nothing logged yet"}

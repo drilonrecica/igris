@@ -548,7 +548,7 @@ func TestAriseTUIRunsTheEngine(t *testing.T) {
 	var got tui.Options
 	code, output, root := noTUIRun{
 		plan: oneTaskPlan,
-		toml: "[run]\ncommit = \"never\"\n[tui]\nmouse = false\n",
+		toml: "[run]\ncommit = \"never\"\n[tui]\nmouse = false\ntheme = \"light\"\n[tui.rank_colors]\nopus = \"5\"\n",
 		args: []string{"A"},
 		ui:   waitForEnd(&got),
 	}.run(t)
@@ -559,7 +559,8 @@ func TestAriseTUIRunsTheEngine(t *testing.T) {
 		t.Errorf("output lacks the outcome:\n%s", output)
 	}
 	if got.Feed == nil || got.Sender == nil || got.Focus == nil || got.Backend != "fake" ||
-		got.Project != filepath.Base(root) || got.Mouse || got.PlanPath != filepath.Join(root, "tasks.md") {
+		got.Project != filepath.Base(root) || got.Mouse || got.PlanPath != filepath.Join(root, "tasks.md") ||
+		got.Theme != "light" || got.RankColors["opus"] != "5" {
 		t.Errorf("TUI options = %+v", got)
 	}
 	if s := planStatuses(t, root); s != "A-1=done" {

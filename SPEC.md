@@ -400,6 +400,11 @@ model = "sonnet"                  # sonnet | opus
 
 [tui]
 mouse = true                      # click/tap and wheel in the TUI (§15.5); false keeps the terminal's own text selection
+theme = "auto"                    # auto | dark | light: which colors to use (§15.4); auto goes by the terminal's background
+
+[tui.rank_colors]                 # optional: rank -> color, "#rrggbb" or an ANSI color number "0"–"255" (§15.4)
+# opus = "#B48CFF"
+# fable = "220"
 
 [notify.backend]
 enabled = true
@@ -498,7 +503,7 @@ Built with Bubble Tea / Lip Gloss. Runs in the igris pane; the Claude sessions l
 │ · M0-04  Config loader  sonnet │ state: NEEDS YOU (idle 45s)  │
 │ ⨯ M0-13  Static assets  sonnet │ [o] open session             │
 │   waits on P0-05               │                              │
-├────────────────────────────────┴──────────────────────────────┤
+├─ LOG ──────────────────────────┴──────────────────────────────┤
 │ 09:41 M0-02 done · "subcommand dispatch + tests"              │
 │ 09:41 M0-03 started (sonnet, plan)                            │
 ├───────────────────────────────────────────────────────────────┤
@@ -527,10 +532,12 @@ Every action is reachable three ways: **clicking** its button (or tapping it, e.
 | ? | `?` | Help: every action, its key, and the focus keys |
 
 ### 15.4 Visual rules
-- Status glyphs: `✓` done, `●` running, `!` needs you, `·` ready, `⨯` blocked, `–` skipped. Never color alone.
-- Rank colors are configurable but each rank also shows its name.
-- Respect `NO_COLOR`.
+- Status glyphs: `✓` done, `●` running, `!` needs you, `·` ready, `⨯` blocked, `–` skipped. Never color alone: every state, badge and marker is also a glyph or a word, and color and weight only add emphasis (what runs or needs the owner stands out; what is done, skipped or blocked is dimmed).
+- Colors follow the brand palette (`docs/brand/`): cyan is the working accent, red marks what needs the owner and the `[SKIP PERMISSIONS]` badge. Each color has a value for dark and for light terminals; `[tui] theme` picks one, and `auto` goes by the terminal's background (dark if it can't be detected).
+- Rank colors are configurable (`[tui.rank_colors]`, §12) but each rank also shows its name. The stock ranks have built-in colors; other ranks are uncolored until given one.
+- Respect `NO_COLOR`: no color is drawn. Bold, faint and reverse video are not colors and stay.
 - The focused element is marked without relying on color (reverse video plus `›…‹` brackets on buttons, `›` on rows), so focus is visible under `NO_COLOR`.
+- Buttons have four states: normal, focused, wanting attention (`Answer…` while a question is pending) and inactive (the bar under a dialog or page, dimmed). There is no hover state (§15.5).
 
 ### 15.5 Interaction
 Modelled on Claude Code's choice prompts and herdr's clickable UI.

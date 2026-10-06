@@ -2,11 +2,13 @@ package tui
 
 import (
 	"strings"
+	"unicode/utf8"
 
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Text helpers for plain (unstyled) strings. Widths are terminal cells.
+// Text helpers. Widths are terminal cells; SGR sequences take none. wrap
+// takes plain text only.
 
 func textWidth(s string) int { return lipgloss.Width(s) }
 
@@ -18,7 +20,8 @@ func pad(s string, w int) string {
 	return s
 }
 
-// fit shortens s to at most w cells, ending in "…" when it was cut.
+// fit shortens s to at most w cells, ending in "…" when it was cut. Styled
+// text is cut between its SGR sequences and reset after the cut.
 func fit(s string, w int) string {
 	if w <= 0 {
 		return ""
@@ -27,16 +30,42 @@ func fit(s string, w int) string {
 		return s
 	}
 	var b strings.Builder
-	used := 0
-	for _, r := range s {
+	used, styled := 0, false
+	for i := 0; i < len(s); {
+		if n := sgrLen(s[i:]); n > 0 {
+			b.WriteString(s[i : i+n])
+			styled = true
+			i += n
+			continue
+		}
+		r, size := utf8.DecodeRuneInString(s[i:])
 		rw := textWidth(string(r))
 		if used+rw > w-1 {
 			break
 		}
 		b.WriteRune(r)
 		used += rw
+		i += size
 	}
-	return b.String() + "…"
+	b.WriteString("…")
+	if styled {
+		b.WriteString(sgrReset)
+	}
+	return b.String()
+}
+
+// sgrLen is the length of the escape sequence s starts with ("\x1b[1;7m"),
+// or 0 if it starts with none.
+func sgrLen(s string) int {
+	if !strings.HasPrefix(s, "\x1b[") {
+		return 0
+	}
+	for i := 2; i < len(s); i++ {
+		if s[i] >= 0x40 && s[i] <= 0x7e {
+			return i + 1
+		}
+	}
+	return 0
 }
 
 // wrap breaks s into lines of at most w cells at spaces; words longer than

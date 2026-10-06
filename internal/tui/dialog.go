@@ -229,8 +229,8 @@ func (d *dialog) pick(i int) action {
 // render draws the dialog as a box at most w cells wide and h lines high
 // and records the option and field zones relative to the box's top-left
 // corner. When space is short the detail text is cut, never the field or
-// the options.
-func (d *dialog) render(w, h int) ([]string, zones) {
+// the options. The selected option is a focus bar across the box.
+func (d *dialog) render(th *theme, w, h int) ([]string, zones) {
 	inner := max(w-4, 8) // "│ " + text + " │"
 	title := wrap(d.title, inner)
 	var opts [][]string
@@ -272,32 +272,50 @@ func (d *dialog) render(w, h int) ([]string, zones) {
 		}
 	}
 
-	body := append([]string{}, title...)
-	if len(detail) > 0 {
-		body = append(body, "")
-		body = append(body, detail...)
+	var body []string
+	var looks []look // of each body line
+	add := func(l look, lines ...string) {
+		for _, s := range lines {
+			body, looks = append(body, s), append(looks, l)
+		}
 	}
-	body = append(body, "")
+	add(lookTitle, title...)
+	if len(detail) > 0 {
+		add(lookPlain, "")
+		add(lookPlain, detail...)
+	}
+	add(lookPlain, "")
 	var z zones
 	if len(input) > 0 {
 		z.add(rect{x: 0, y: len(body) + 1, w: 1, h: 1}, target{act: actField})
-		body = append(body, input...)
-		body = append(body, "")
+		add(lookPlain, input[0])
+		add(lookAlert, input[1:]...) // the hint
+		add(lookPlain, "")
 	}
 	for i, lines := range opts {
 		z.add(rect{x: 0, y: len(body) + 1, w: 1, h: len(lines)}, target{act: actOption, option: i})
-		body = append(body, lines...)
+		if i == d.selected && !d.inField {
+			add(lookFocus, lines...)
+		} else {
+			add(lookPlain, lines...)
+		}
 	}
 	width := 0
 	for _, l := range body {
 		width = max(width, textWidth(l))
 	}
+	v := th.paint(lookAccent, "│")
 	out := make([]string, 0, len(body)+2)
-	out = append(out, "╭"+strings.Repeat("─", width+2)+"╮")
-	for _, l := range body {
-		out = append(out, "│ "+pad(l, width)+" │")
+	out = append(out, th.paint(lookAccent, "╭"+strings.Repeat("─", width+2)+"╮"))
+	for i, l := range body {
+		if looks[i] == lookPlain {
+			l = pad(th.marks(l), width)
+		} else {
+			l = th.paint(looks[i], pad(l, width))
+		}
+		out = append(out, v+" "+l+" "+v)
 	}
-	out = append(out, "╰"+strings.Repeat("─", width+2)+"╯")
+	out = append(out, th.paint(lookAccent, "╰"+strings.Repeat("─", width+2)+"╯"))
 	for i := range z.list {
 		z.list[i].r.w = width + 4
 	}

@@ -12,7 +12,7 @@ import (
 //
 //	┌ igris · sinjal ───── phase M0 · mode: plan · herdr ┐
 //	│ TASKS                  │ CURRENT                   │  panes
-//	├────────────────────────┴───────────────────────────┤
+//	├─ LOG ──────────────────┴───────────────────────────┤
 //	│ 09:41 M0-02 done                                   │  log
 //	├────────────────────────────────────────────────────┤
 //	│ [Open session] [Pause] [Done] [Quit]               │  action bar
@@ -31,6 +31,7 @@ func (m *model) wideView() string {
 	paneRows := min(max(m.paneNeed(lw, rw), 4), avail*55/100) // incl. the pane titles
 	logRows := avail - paneRows
 
+	v := m.th.paint(lookFrame, "│")
 	var out []string
 	out = append(out, m.topRule(w))
 	switch body := paneRows + 1 + logRows; { // the panes, their rule and the log
@@ -42,36 +43,30 @@ func (m *model) wideView() string {
 		m.zones.add(rect{2, len(out) + 1, lw, paneRows - 1}, target{region: regionTasks})
 		left := m.taskPane(2, len(out)+1, lw, paneRows-1)
 		right := m.card(lw+5, len(out)+1, rw, paneRows-1)
-		out = append(out, "│ "+pad(m.areaTitle("TASKS", focusTasks), lw)+" │ "+pad("CURRENT", rw)+" │")
+		out = append(out, v+" "+pad(m.areaTitle("TASKS", focusTasks), lw)+" "+v+" "+pad(m.th.paint(lookTitle, "CURRENT"), rw)+" "+v)
 		for i := range paneRows - 1 {
-			out = append(out, "│ "+pad(line(left, i), lw)+" │ "+pad(line(right, i), rw)+" │")
+			out = append(out, v+" "+pad(line(left, i), lw)+" "+v+" "+pad(line(right, i), rw)+" "+v)
 		}
-		rule := "├" + strings.Repeat("─", lw+2) + "┴" + strings.Repeat("─", rw+2) + "┤"
-		if m.focus == focusLog {
-			rule = overlay(rule, 2, " "+m.areaTitle("LOG", focusLog)+" ")
-		}
-		out = append(out, rule)
+		out = append(out, m.logRule(lw, rw))
 		m.zones.add(rect{2, len(out), inner, logRows}, target{region: regionLog})
 		logs := m.logView(logRows)
 		for i := range logRows {
-			out = append(out, "│ "+pad(fit(line(logs, i), inner), inner)+" │")
+			out = append(out, v+" "+pad(fit(line(logs, i), inner), inner)+" "+v)
 		}
 	}
-	out = append(out, "├"+strings.Repeat("─", w-2)+"┤")
-	out = append(out, "│ "+pad(m.barAt(2, len(out), inner), inner)+" │")
-	out = append(out, "└"+strings.Repeat("─", w-2)+"┘")
+	out = append(out, m.th.paint(lookFrame, "├"+strings.Repeat("─", w-2)+"┤"))
+	out = append(out, v+" "+pad(m.barAt(2, len(out), inner), inner)+" "+v)
+	out = append(out, m.th.paint(lookFrame, "└"+strings.Repeat("─", w-2)+"┘"))
 	return strings.Join(out, "\n")
 }
 
-// overlay writes text over s from cell at on; s is box drawing, one cell
-// per rune.
-func overlay(s string, at int, text string) string {
-	r, t := []rune(s), []rune(text)
-	if at+len(t) >= len(r) {
-		return s
-	}
-	copy(r[at:], t)
-	return string(r)
+// logRule is the rule between the panes and the log; it carries the log's
+// title: "├─ LOG ────┴────┤".
+func (m *model) logRule(lw, rw int) string {
+	title := m.areaTitle("LOG", focusLog)
+	rest := []rune(strings.Repeat("─", lw+2) + "┴" + strings.Repeat("─", rw+2) + "┤")
+	used := 1 + 1 + textWidth(title) + 1 // "─ " + title + " "
+	return m.th.paint(lookFrame, "├─") + " " + title + " " + m.th.paint(lookFrame, string(rest[used:]))
 }
 
 // line returns lines[i], or "" past the end.
@@ -85,14 +80,14 @@ func line(lines []string, i int) string {
 // topRule is the top border with the title on the left and the run's
 // facts on the right.
 func (m *model) topRule(w int) string {
-	title := " igris · " + m.opts.Project + " "
+	title := " " + m.th.paint(lookAccentBold, "igris") + " · " + m.opts.Project + " "
 	facts := " " + m.facts() + " "
 	fill := w - 2 - textWidth(title) - textWidth(facts)
 	if fill < 1 {
 		facts = " " + fit(strings.TrimSpace(facts), max(w-4-textWidth(title)-1, 0)) + " "
 		fill = max(w-2-textWidth(title)-textWidth(facts), 0)
 	}
-	return fit("┌"+title+strings.Repeat("─", fill)+facts+"┐", w)
+	return fit(m.th.paint(lookFrame, "┌")+title+m.th.paint(lookFrame, strings.Repeat("─", fill))+facts+m.th.paint(lookFrame, "┐"), w)
 }
 
 // facts are the header's run facts: phase, mode, backend, pause.
@@ -102,15 +97,15 @@ func (m *model) facts() string {
 		parts = append(parts, "phase "+m.phase)
 	}
 	if m.mode != "" {
-		parts = append(parts, "mode: "+m.mode+badge(m.mode))
+		parts = append(parts, m.th.marks("mode: "+m.mode+badge(m.mode)))
 	}
 	if m.mode != engine.ModeYolo && m.cur != nil && m.cur.mode == engine.ModeYolo {
 		// The run mode isn't yolo but this session is (SPEC §7.3).
-		parts = append(parts, "SKIP PERMISSIONS")
+		parts = append(parts, m.th.paint(lookAlert, "SKIP PERMISSIONS"))
 	}
 	parts = append(parts, m.opts.Backend)
 	if m.paused {
-		parts = append(parts, "PAUSE AFTER TASK")
+		parts = append(parts, m.th.paint(lookTitle, "PAUSE AFTER TASK"))
 	}
 	return strings.Join(parts, " · ")
 }
@@ -127,13 +122,41 @@ var glyphs = map[plan.Status]string{
 // glyph is t's status glyph; the current task shows "!" while it waits on
 // the owner.
 func (m *model) glyph(t *plan.Task) string {
-	if m.cur != nil && m.cur.id == t.ID && m.cur.state != stateWorking && m.cur.state != stateVerifying {
+	if m.needsOwner(t) {
 		return "!"
 	}
 	if g, ok := glyphs[t.Status]; ok {
 		return g
 	}
 	return "?"
+}
+
+// needsOwner reports whether t is the current task and waits on the owner.
+func (m *model) needsOwner(t *plan.Task) bool {
+	return m.cur != nil && m.cur.id == t.ID && m.cur.state != stateWorking && m.cur.state != stateVerifying
+}
+
+// taskLooks are the looks of t's glyph and of its text: what runs or
+// waits on the owner stands out, what is over or can't start recedes.
+func (m *model) taskLooks(t *plan.Task) (glyph, text look) {
+	if m.needsOwner(t) {
+		return lookAlert, lookTitle
+	}
+	switch t.Status {
+	case plan.InProgress:
+		return lookAccentBold, lookTitle
+	case plan.Done:
+		return lookAccent, lookDim
+	case plan.Blocked, plan.Skipped:
+		return lookDim, lookDim
+	}
+	return lookPlain, lookPlain
+}
+
+// paintedGlyph is t's glyph in its look.
+func (m *model) paintedGlyph(t *plan.Task) string {
+	l, _ := m.taskLooks(t)
+	return m.th.paint(l, m.glyph(t))
 }
 
 // phaseTasks are the tasks of the phase being run.
@@ -182,12 +205,20 @@ func (m *model) taskLines(w int) (lines []string, follow int, owner []int) {
 		if (sel >= 0 && i == sel) || (sel < 0 && m.cur != nil && m.cur.id == t.ID) {
 			follow = len(out)
 		}
-		row := rowMark(i == sel) + m.glyph(t) + " " + pad(t.ID, idW) + "  " + pad(fit(t.Title, titleW), titleW) + " " + rank(t)
-		out = append(out, fit(row, w))
+		id, title := pad(t.ID, idW), pad(fit(t.Title, titleW), titleW)
+		if i == sel {
+			// The selected row is one focus bar; its parts keep no looks.
+			row := rowMark(true) + m.glyph(t) + " " + id + "  " + title + " " + rank(t)
+			out = append(out, m.th.focusLine(fit(row, w), w))
+		} else {
+			_, tl := m.taskLooks(t)
+			row := rowMark(false) + m.paintedGlyph(t) + " " + m.th.paint(tl, id) + "  " + m.th.paint(tl, title) + " " + m.th.rank(rank(t), tl == lookDim)
+			out = append(out, fit(row, w))
+		}
 		owner = append(owner, i)
 		if t.Status == plan.Blocked {
 			if wt := m.plan.WaitingOn(t); wt != nil {
-				out = append(out, fit("   waits on "+strings.Join(wt.Unmet, ", "), w))
+				out = append(out, m.th.paint(lookDim, fit("   waits on "+strings.Join(wt.Unmet, ", "), w)))
 				owner = append(owner, -1)
 			}
 		}
@@ -262,14 +293,14 @@ func (m *model) cardLines(w, x, y int, record bool) []string {
 		return []string{"no task running"}
 	}
 	c := m.cur
-	out := []string{fit(c.id+" "+c.title, w)}
+	out := []string{m.th.paint(lookTitle, fit(c.id+" "+c.title, w))}
 	if c.user {
 		out = append(out, "user task · "+since(m.opts.Now(), c.started))
 	} else {
-		out = append(out, fit("rank "+c.rank+" → model "+c.model, w))
-		out = append(out, fit("mode "+c.mode+badge(c.mode)+" · "+since(m.opts.Now(), c.started), w))
+		out = append(out, fit("rank "+m.th.rank(c.rank, false)+" → model "+c.model, w))
+		out = append(out, fit(m.th.marks("mode "+c.mode+badge(c.mode)+" · "+since(m.opts.Now(), c.started)), w))
 	}
-	out = append(out, fit("state: "+m.stateText(), w))
+	out = append(out, fit("state: "+m.th.paint(m.stateLook(), m.stateText()), w))
 	switch c.state {
 	case stateYourTurn:
 		out = append(out, wrap(strings.ReplaceAll(c.detail, "**", ""), w)...)
@@ -287,7 +318,11 @@ func (m *model) cardLines(w, x, y int, record bool) []string {
 		if record {
 			m.zones.add(rect{x, y + len(out), min(textWidth(b.label), w), 1}, target{act: b.act})
 		}
-		out = append(out, fit(b.label, w))
+		l := lookAccent
+		if b.act == actAnswer {
+			l = lookAccentBold // it answers what igris waits for
+		}
+		out = append(out, m.th.paint(l, fit(b.label, w)))
 	}
 	return out
 }
@@ -296,11 +331,12 @@ func (m *model) cardLines(w, x, y int, record bool) []string {
 // its zones.
 func (m *model) pageBody(y, w, rows int) []string {
 	inner := w - 4
-	lines, z := m.page.render(inner, rows)
+	lines, z := m.page.render(m.th, inner, rows)
 	m.zones.merge(z, 2, y)
+	v := m.th.paint(lookFrame, "│")
 	out := make([]string, 0, rows)
 	for _, l := range lines {
-		out = append(out, "│ "+pad(l, inner)+" │")
+		out = append(out, v+" "+pad(l, inner)+" "+v)
 	}
 	return out
 }
@@ -308,17 +344,18 @@ func (m *model) pageBody(y, w, rows int) []string {
 // dialogBody fills rows lines below row y with the open dialog, centered,
 // and records its options.
 func (m *model) dialogBody(y, w, rows int) []string {
-	box, z := m.dialog.render(min(w-4, 72), rows)
+	box, z := m.dialog.render(m.th, min(w-4, 72), rows)
 	top := max((rows-len(box))/2, 0)
 	left := max((w-textWidth(box[0]))/2, 1)
 	m.zones.merge(z, left, y+top)
+	v := m.th.paint(lookFrame, "│")
 	out := make([]string, 0, rows)
 	for i := range rows {
 		l := ""
 		if i >= top && i-top < len(box) {
 			l = strings.Repeat(" ", left-1) + box[i-top]
 		}
-		out = append(out, "│"+pad(fit(l, w-2), w-2)+"│")
+		out = append(out, v+pad(fit(l, w-2), w-2)+v)
 	}
 	return out
 }
@@ -338,7 +375,7 @@ func (m *model) barAt(x, y, w int) string {
 	var b strings.Builder
 	m.bar = m.bar[:0]
 	for _, o := range btns {
-		label := buttonLabel(o.label, o.act == mark)
+		label := m.th.button(o.label, barState(o.act, mark, m.modal()))
 		lw := textWidth(label)
 		if textWidth(b.String())+lw > w {
 			break

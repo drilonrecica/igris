@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -83,6 +84,12 @@ type TUI struct {
 	// Mouse turns on click/tap and wheel support (SPEC §15.5). Off keeps the
 	// terminal's own text selection without shift+drag.
 	Mouse bool `toml:"mouse"`
+	// Theme picks the colors for a dark or a light terminal; "auto" goes by
+	// the terminal's background (SPEC §15.4).
+	Theme string `toml:"theme"`
+	// RankColors maps a rank to its color in the TUI: "#rrggbb" or an ANSI
+	// color number 0-255. Ranks not listed keep the built-in colors.
+	RankColors map[string]string `toml:"rank_colors"`
 }
 
 // Notify groups the notification channels.
@@ -128,6 +135,7 @@ var (
 	validModes   = []string{"default", "accept", "auto", "plan", "yolo"}
 	validCommit  = []string{"ask", "auto", "never"}
 	validAdapt   = []string{"sonnet", "opus"}
+	validThemes  = []string{"auto", "dark", "light"}
 	validEvents  = []string{"needs_input", "session_lost", "verify_failed_limit", "task_done", "phase_done", "phase_stuck", "run_error"}
 	forbiddenArg = []string{
 		"--model", "--fallback-model", "--permission-mode",
@@ -166,7 +174,7 @@ func Default() *Config {
 			CommitMessage:     "{{.ID}}: {{.Title}}",
 		},
 		Adapt: Adapt{Model: "sonnet"},
-		TUI:   TUI{Mouse: true},
+		TUI:   TUI{Mouse: true, Theme: "auto", RankColors: map[string]string{}},
 		Notify: Notify{
 			Backend: NotifyBackend{Enabled: true},
 			Ntfy:    Ntfy{Server: "https://ntfy.sh", Events: defaultEvents()},
@@ -240,6 +248,12 @@ func (c *Config) Validate() error {
 	}
 	oneOf("run.commit", c.Run.Commit, validCommit)
 	oneOf("adapt.model", c.Adapt.Model, validAdapt)
+	oneOf("tui.theme", c.TUI.Theme, validThemes)
+	for _, rank := range sortedKeys(c.TUI.RankColors) {
+		if v := c.TUI.RankColors[rank]; !validColor(v) {
+			add("tui.rank_colors.%s = %q is not a color; use \"#rrggbb\" or an ANSI color number \"0\" to \"255\"", rank, v)
+		}
+	}
 	if strings.TrimSpace(c.Claude.Command) == "" {
 		add("claude.command must not be empty; use \"claude\"")
 	}
@@ -314,6 +328,22 @@ func (c *Config) Hash() string {
 	}
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:])
+}
+
+// validColor reports whether s is "#rrggbb" or an ANSI color number.
+func validColor(s string) bool {
+	if hex, ok := strings.CutPrefix(s, "#"); ok {
+		if len(hex) != 6 {
+			return false
+		}
+		_, err := strconv.ParseUint(hex, 16, 32)
+		return err == nil
+	}
+	if s == "" || strings.TrimLeft(s, "0123456789") != "" {
+		return false
+	}
+	n, err := strconv.Atoi(s)
+	return err == nil && n <= 255
 }
 
 func contains(list []string, s string) bool {

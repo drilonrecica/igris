@@ -53,6 +53,7 @@ var areaOrder = []area{focusTasks, focusBar, focusLog}
 type logEntry struct {
 	at   time.Time
 	text string
+	look look
 }
 
 // model is the TUI's state. Only Update changes it; View only records the
@@ -96,13 +97,14 @@ type model struct {
 	overrides map[string]string
 
 	zones zones // of the last frame
+	th    *theme
 }
 
 func newModel(ctx context.Context, opts Options) *model {
 	if opts.Now == nil {
 		opts.Now = time.Now
 	}
-	return &model{ctx: ctx, opts: opts, mode: opts.Mode, width: 80, height: 24, taskTop: -1, loc: time.Local, overrides: map[string]string{}}
+	return &model{ctx: ctx, opts: opts, mode: opts.Mode, width: 80, height: 24, taskTop: -1, loc: time.Local, overrides: map[string]string{}, th: &theme{}}
 }
 
 // Messages besides the feed's batches.
@@ -179,14 +181,14 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.listen(m.ended)
 	case planMsg:
 		if msg.err != nil {
-			m.addLog(m.opts.Now(), "could not read the plan: "+msg.err.Error())
+			m.addLog(m.opts.Now(), "could not read the plan: "+msg.err.Error(), lookTitle)
 			break
 		}
 		m.plan = msg.p
 	case tickMsg:
 		return m, tick()
 	case focusErrMsg:
-		m.addLog(m.opts.Now(), "could not open the session: "+msg.err.Error())
+		m.addLog(m.opts.Now(), "could not open the session: "+msg.err.Error(), lookTitle)
 	case tea.KeyMsg:
 		return m, m.key(msg)
 	case tea.MouseMsg:
@@ -499,7 +501,7 @@ func (m *model) activate(a action) tea.Cmd {
 		}
 		return nil
 	case actHelp:
-		m.page = helpPage()
+		m.page = helpPage(m.th)
 		return nil
 	case actMode:
 		if !m.ended {
@@ -565,7 +567,7 @@ func (m *model) focusSession() tea.Cmd {
 // event applies one engine event.
 func (m *model) event(ev engine.Event) {
 	for _, line := range logLines(ev) {
-		m.addLog(ev.At, line)
+		m.addLog(ev.At, line, logLook(ev.Kind))
 	}
 	if ev.Phase != "" {
 		m.phase = ev.Phase
@@ -650,8 +652,8 @@ func (m *model) settle() {
 	}
 }
 
-func (m *model) addLog(at time.Time, text string) {
-	m.log = append(m.log, logEntry{at, text})
+func (m *model) addLog(at time.Time, text string, l look) {
+	m.log = append(m.log, logEntry{at, text, l})
 	if len(m.log) > maxLog {
 		m.log = m.log[len(m.log)-maxLog:]
 	}

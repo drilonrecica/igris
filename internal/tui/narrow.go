@@ -22,7 +22,7 @@ func (m *model) narrowView() string {
 	case m.dialog != nil:
 		return m.fullScreenDialog(w, h)
 	case m.page != nil:
-		lines, z := m.page.render(w, h)
+		lines, z := m.page.render(m.th, w, h)
 		m.zones.merge(z, 0, 0)
 		return strings.Join(lines, "\n")
 	}
@@ -37,16 +37,16 @@ func (m *model) narrowView() string {
 	taskRows := max(rest-logRows-cardRows, 0)
 
 	var out []string
-	out = append(out, fit("igris · "+m.opts.Project+" · "+m.facts(), w))
-	out = append(out, rule("CURRENT", w))
+	out = append(out, fit(m.th.paint(lookAccentBold, "igris")+" · "+m.opts.Project+" · "+m.facts(), w))
+	out = append(out, m.rule(m.th.paint(lookTitle, "CURRENT"), w))
 	out = append(out, m.card(0, len(out), w, cardRows)...)
-	out = append(out, rule(m.areaTitle("TASKS", focusTasks), w))
+	out = append(out, m.rule(m.areaTitle("TASKS", focusTasks), w))
 	m.zones.add(rect{0, len(out), w, taskRows}, target{region: regionTasks})
 	out = append(out, m.compactTasks(len(out), w, taskRows)...)
 	for len(out) < 1+1+cardRows+1+taskRows {
 		out = append(out, "")
 	}
-	out = append(out, rule(m.areaTitle("LOG", focusLog), w))
+	out = append(out, m.rule(m.areaTitle("LOG", focusLog), w))
 	m.zones.add(rect{0, len(out), w, logRows}, target{region: regionLog})
 	logs := m.logView(logRows)
 	for i := range logRows {
@@ -66,10 +66,10 @@ func (m *model) narrowView() string {
 	return strings.Join(out, "\n")
 }
 
-// rule is a section rule: "── TASKS ─────".
-func rule(name string, w int) string {
-	s := "── " + name + " "
-	return fit(s+strings.Repeat("─", max(w-textWidth(s), 0)), w)
+// rule is a section rule with its title: "── TASKS ─────".
+func (m *model) rule(title string, w int) string {
+	fill := max(w-3-textWidth(title)-1, 0) // "── " + title + " "
+	return fit(m.th.paint(lookFrame, "──")+" "+title+" "+m.th.paint(lookFrame, strings.Repeat("─", fill)), w)
 }
 
 // compactTasks lays the phase's tasks out as "glyph ID rank" cells in as
@@ -93,6 +93,14 @@ func (m *model) compactTasks(y, w, rows int) []string {
 		if sel < 0 && m.cur != nil && m.cur.id == t.ID {
 			cur = i
 		}
+	}
+	for i, t := range tasks {
+		if i == sel {
+			cells[i] = m.th.focusLine(cells[i], cellW)
+			continue
+		}
+		_, tl := m.taskLooks(t)
+		cells[i] = rowMark(false) + m.paintedGlyph(t) + " " + m.th.paint(tl, t.ID) + " " + m.th.rank(rank(t), tl == lookDim)
 	}
 	cols := max((w+1)/(cellW+1), 1)
 	var lines []string
@@ -136,7 +144,7 @@ func (m *model) compactTasks(y, w, rows int) []string {
 
 // fullScreenDialog draws the open dialog over the whole screen.
 func (m *model) fullScreenDialog(w, h int) string {
-	box, z := m.dialog.render(w, h)
+	box, z := m.dialog.render(m.th, w, h)
 	m.zones.merge(z, 0, 0)
 	if len(box) > h {
 		box = box[:h]
@@ -174,10 +182,10 @@ func (m *model) fitBar(w int) barLayout {
 	if m.barFocused() {
 		mark = m.barFocus
 	}
-	l := fitBar(btns, w, barRows, mark)
+	l := fitBar(m.th, btns, w, barRows, mark)
 	if m.barFocused() && !l.has(mark) {
 		mark = l.rows[0][0].act
-		l = fitBar(btns, w, barRows, mark)
+		l = fitBar(m.th, btns, w, barRows, mark)
 	}
 	m.bar = m.bar[:0]
 	for _, row := range l.rows {
@@ -203,11 +211,11 @@ func (l barLayout) has(a action) bool {
 // fitBar lays the buttons out in at most maxRows rows of w cells, marking
 // the focused one. When they don't fit, the less common actions move
 // behind a More… button.
-func fitBar(btns []option, w, maxRows int, focused action) barLayout {
+func fitBar(th *theme, btns []option, w, maxRows int, focused action) barLayout {
 	keep := append([]option{}, btns...)
 	var folded []option
 	for _, a := range foldOrder {
-		if l := layoutBar(keep, w, focused); len(l.rows) <= maxRows {
+		if l := layoutBar(th, keep, w, focused); len(l.rows) <= maxRows {
 			l.folded = folded
 			return l
 		}
@@ -222,7 +230,7 @@ func fitBar(btns []option, w, maxRows int, focused action) barLayout {
 			}
 		}
 	}
-	l := layoutBar(keep, w, focused)
+	l := layoutBar(th, keep, w, focused)
 	if len(l.rows) > maxRows { // can't fit even folded: cut the bar
 		l.rows, l.text = l.rows[:maxRows], l.text[:maxRows]
 	}
@@ -231,7 +239,7 @@ func fitBar(btns []option, w, maxRows int, focused action) barLayout {
 }
 
 // layoutBar wraps the buttons into rows of w cells.
-func layoutBar(btns []option, w int, focused action) barLayout {
+func layoutBar(th *theme, btns []option, w int, focused action) barLayout {
 	var l barLayout
 	var row []placed
 	x := 0
@@ -245,7 +253,7 @@ func layoutBar(btns []option, w int, focused action) barLayout {
 		row, x = nil, 0
 	}
 	for _, o := range btns {
-		label := fit(buttonLabel(o.label, o.act == focused), w)
+		label := fit(th.button(o.label, barState(o.act, focused, false)), w)
 		lw := textWidth(label)
 		if x > 0 && x+1+lw > w {
 			flush()

@@ -58,25 +58,25 @@ func (p *page) clamp() {
 // render draws the page in exactly h lines of at most w cells: the title,
 // a rule, the body and a footer with the Close button. Zones are relative
 // to the top-left corner.
-func (p *page) render(w, h int) ([]string, zones) {
+func (p *page) render(th *theme, w, h int) ([]string, zones) {
 	var z zones
 	if h < 3 {
 		z.add(rect{0, 0, w, h}, target{region: regionPage})
-		return []string{fit(p.title, w)}[:min(h, 1)], z
+		return []string{th.paint(lookTitle, fit(p.title, w))}[:min(h, 1)], z
 	}
 	body := p.body(w)
 	p.rows, p.total = h-3, len(body)
 	rows := p.rows
 	p.clamp()
-	out := []string{fit(p.title, w), strings.Repeat("─", w)}
+	out := []string{th.paint(lookTitle, fit(p.title, w)), th.paint(lookFrame, strings.Repeat("─", w))}
 	z.add(rect{0, 2, w, rows}, target{region: regionPage})
 	for i := range rows {
 		out = append(out, fit(line(body, p.top+i), w))
 	}
-	close := "[Close]"
+	close := th.button("Close", btnNormal)
 	where := ""
 	if len(body) > rows {
-		where = fmt.Sprintf("  %d–%d of %d · ↑↓ scroll", p.top+1, min(p.top+rows, len(body)), len(body))
+		where = th.paint(lookDim, fmt.Sprintf("  %d–%d of %d · ↑↓ scroll", p.top+1, min(p.top+rows, len(body)), len(body)))
 	}
 	z.add(rect{0, h - 1, textWidth(close), 1}, target{act: actClose})
 	out = append(out, fit(close+where, w))
@@ -84,27 +84,18 @@ func (p *page) render(w, h int) ([]string, zones) {
 }
 
 // helpPage lists every action, its key and the focus keys (SPEC §15.3).
-func helpPage() *page {
+func helpPage(th *theme) *page {
 	return &page{title: "Help · esc closes", body: func(w int) []string {
-		out := []string{"Actions: click a button, focus it and press enter, or press its key."}
-		out = append(out, helpTable(helpActions, w)...)
-		out = append(out, "", "Focus")
-		out = append(out, helpTable(helpFocus, w)...)
-		var wrapped []string
-		for _, l := range out {
-			if strings.HasPrefix(l, "  ") {
-				wrapped = append(wrapped, l)
-				continue
-			}
-			wrapped = append(wrapped, wrap(l, w)...)
-		}
-		return wrapped
+		out := wrap("Actions: click a button, focus it and press enter, or press its key.", w)
+		out = append(out, helpTable(th, helpActions, w)...)
+		out = append(out, "", th.paint(lookTitle, "Focus"))
+		return append(out, helpTable(th, helpFocus, w)...)
 	}}
 }
 
 // helpTable lays entries out as "  key  name — what", wrapping the
 // description under itself.
-func helpTable(entries []helpEntry, w int) []string {
+func helpTable(th *theme, entries []helpEntry, w int) []string {
 	keyW := 0
 	for _, e := range entries {
 		keyW = max(keyW, textWidth(e.key))
@@ -115,7 +106,7 @@ func helpTable(entries []helpEntry, w int) []string {
 		if e.name != "" {
 			text = e.name + " — " + e.what
 		}
-		out = append(out, hang("  "+pad(e.key, keyW)+"  ", text, w)...)
+		out = append(out, hang("  "+th.paint(lookTitle, pad(e.key, keyW))+"  ", text, w)...)
 	}
 	return out
 }

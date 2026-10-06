@@ -127,7 +127,7 @@ func TestFitBar(t *testing.T) {
 		{16, [][]string{{"[Open session]"}, {"[Done]", "[More…]"}}, 2},
 	}
 	for _, tt := range tests {
-		l := fitBar(btns, tt.w, barRows, actNone)
+		l := fitBar(&theme{}, btns, tt.w, barRows, actNone)
 		if got := labels(l); !reflect.DeepEqual(got, tt.rows) || len(l.folded) != tt.folded {
 			t.Errorf("w=%d: rows %q folded %d, want %q %d", tt.w, got, len(l.folded), tt.rows, tt.folded)
 		}

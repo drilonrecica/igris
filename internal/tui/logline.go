@@ -88,10 +88,25 @@ func note(s, n string) string {
 	return s + " · " + n
 }
 
-// badge marks skip-permissions mode in words, never by color alone.
+// skipBadge marks skip-permissions mode in words, never by color alone.
+const skipBadge = "[SKIP PERMISSIONS]"
+
+// badge is the skip-permissions badge after a mode, if the mode is yolo.
 func badge(mode string) string {
 	if mode == engine.ModeYolo {
-		return " [SKIP PERMISSIONS]"
+		return " " + skipBadge
 	}
 	return ""
+}
+
+// logLook is how the log lines of an event are drawn: what needs the
+// owner stands out. The words say it either way.
+func logLook(k engine.EventKind) look {
+	switch k {
+	case engine.NeedsYou, engine.SessionLost, engine.VerifyFailed, engine.VerifyLimit, engine.PhaseStuck, engine.RunFailed:
+		return lookAlert
+	case engine.Warning, engine.Asked, engine.YourTurn, engine.Paused, engine.PhaseDone:
+		return lookTitle
+	}
+	return lookPlain
 }
