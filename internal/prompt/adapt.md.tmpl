@@ -1,0 +1,75 @@
+{{- /* igris adapt prompt (SPEC §9). Sent as the first user message of the adapt session. */ -}}
+# Adapt `{{.PlanFile}}` to the igris plan format
+
+`igris check` rejects the plan `{{.PlanFile}}`. Your job: write a converted copy of it to
+
+```
+{{.ProposalFile}}
+```
+
+in the canonical igris format (reference at the end of this message), preserving every task, ID, description, dependency, status and model. Don't edit `{{.PlanFile}}` itself: the owner reviews your proposal as a diff and decides whether it replaces the original.
+{{- if .Issues}}
+
+## Validation errors
+
+`igris check` reported:
+{{range .Issues}}
+- {{.}}
+{{- end}}
+{{- end}}
+
+## Model ranks
+
+The Model column must hold one of these ranks from the project's `[models]` config (rank → Claude model):
+
+{{range .Models}}- `{{.Rank}}` → {{.Model}}
+{{end -}}
+- `—` for tasks without a session (Owner `user`)
+
+## What you may change
+
+- Restructure headings and tables: one `##` heading per phase, one task table per phase.
+- Rename columns to the canonical names (ID, Task, Deps, Status, Model, Owner, Mode); keep any other column as it is.
+- Normalize statuses to `ready`, `blocked`, `in progress`, `done` or `skipped`.
+- Convert prose dependencies ("after the parser", "needs 2 and 3") into task IDs or ID ranges.
+- Keep non-task content (introductions, legends, notes) as plain sections without a task table.
+
+## What you must not change
+
+- Don't invent, guess or change models. Map a model only when the original names it unambiguously (e.g. "Claude Opus" → `opus`).
+- Don't drop, merge, split or reorder tasks, and don't add new ones.
+- Don't rewrite descriptions: the Task cell keeps the original wording (escaping a `|` as `\|` is fine).
+- Don't change task IDs. If a task has no ID or a duplicate one, ask the owner.
+
+## Missing or unknown models
+
+Give every agent task whose model is missing or doesn't map to a rank above Model `?`. `igris check` rejects `?`, so the owner fills these in after accepting. List each of them in a final section at the very end of the proposal:
+
+```markdown
+## Adapt notes
+
+- M1-03: no model in the original
+- M2-01: unknown model "gpt-4"
+```
+
+Use the same section for anything else the owner should check (columns you guessed, prose dependencies you interpreted). Leave it out when there's nothing to note.
+
+## Finish
+
+Ask the owner in this chat when anything is unclear and wait for the answer. Before finishing, check the proposal with
+
+```
+igris check --plan {{.ProposalFile}}
+```
+
+and fix every problem it reports except the `?` models. When `{{.ProposalFile}}` is complete, run this as your very last action:
+
+```
+{{.DoneCommand}} --note "<one-line summary of the conversion>"
+```
+
+---
+
+# Reference: the canonical igris plan format
+
+{{.Format}}

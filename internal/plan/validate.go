@@ -107,6 +107,9 @@ func (v *validator) checkTask(t *Task) {
 		v.add(at, "%s: user tasks must have Model —, not %q (igris runs no session for them)", name, t.Rank)
 	case t.Owner.IsAgent() && t.Rank == "":
 		v.add(at, "%s: %s task needs a Model (a rank from [models], e.g. sonnet); use Owner user for tasks without a session", name, t.Owner)
+	case t.Owner.IsAgent() && t.Rank == "?":
+		// `igris adapt` leaves "?" where the original plan had no usable model.
+		v.add(at, "%s: model not set yet (\"?\"); fill in one of: %s", name, strings.Join(sortedKeys(v.models), ", "))
 	case t.Owner.IsAgent():
 		if _, ok := v.models[t.Rank]; !ok {
 			v.add(at, "%s: unknown model rank %q; add it to [models] in igris.toml or use one of: %s", name, t.Rank, strings.Join(sortedKeys(v.models), ", "))

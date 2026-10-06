@@ -56,6 +56,8 @@ func TestValidateErrors(t *testing.T) {
 			[]string{"tasks.md:11: duplicate task ID a (first at line 5); task IDs must be unique across the plan"}},
 		{"unknown rank", table("| a | | ready | gpt | agent | |"),
 			[]string{`tasks.md:5: a: unknown model rank "gpt"; add it to [models] in igris.toml or use one of: fable, haiku, opus, sonnet`}},
+		{"model left open by adapt", table("| a | | ready | ? | agent | |"),
+			[]string{`tasks.md:5: a: model not set yet ("?"); fill in one of: fable, haiku, opus, sonnet`}},
 		{"user with model", table("| a | | ready | sonnet | user | |"),
 			[]string{`tasks.md:5: a: user tasks must have Model —, not "sonnet" (igris runs no session for them)`}},
 		{"agent without model", table("| a | | ready | — | agent | |", "| b | | ready | | agent + user | |"),

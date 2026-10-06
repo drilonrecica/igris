@@ -1,0 +1,129 @@
+# Adapt `tasks.md` to the igris plan format
+
+`igris check` rejects the plan `tasks.md`. Your job: write a converted copy of it to
+
+```
+.igris/adapt/tasks.proposed.md
+```
+
+in the canonical igris format (reference at the end of this message), preserving every task, ID, description, dependency, status and model. Don't edit `tasks.md` itself: the owner reviews your proposal as a diff and decides whether it replaces the original.
+
+## Model ranks
+
+The Model column must hold one of these ranks from the project's `[models]` config (rank → Claude model):
+
+- `haiku` → haiku
+- `opus` → claude-opus-5-5
+- `sonnet` → sonnet
+- `—` for tasks without a session (Owner `user`)
+
+## What you may change
+
+- Restructure headings and tables: one `##` heading per phase, one task table per phase.
+- Rename columns to the canonical names (ID, Task, Deps, Status, Model, Owner, Mode); keep any other column as it is.
+- Normalize statuses to `ready`, `blocked`, `in progress`, `done` or `skipped`.
+- Convert prose dependencies ("after the parser", "needs 2 and 3") into task IDs or ID ranges.
+- Keep non-task content (introductions, legends, notes) as plain sections without a task table.
+
+## What you must not change
+
+- Don't invent, guess or change models. Map a model only when the original names it unambiguously (e.g. "Claude Opus" → `opus`).
+- Don't drop, merge, split or reorder tasks, and don't add new ones.
+- Don't rewrite descriptions: the Task cell keeps the original wording (escaping a `|` as `\|` is fine).
+- Don't change task IDs. If a task has no ID or a duplicate one, ask the owner.
+
+## Missing or unknown models
+
+Give every agent task whose model is missing or doesn't map to a rank above Model `?`. `igris check` rejects `?`, so the owner fills these in after accepting. List each of them in a final section at the very end of the proposal:
+
+```markdown
+## Adapt notes
+
+- M1-03: no model in the original
+- M2-01: unknown model "gpt-4"
+```
+
+Use the same section for anything else the owner should check (columns you guessed, prose dependencies you interpreted). Leave it out when there's nothing to note.
+
+## Finish
+
+Ask the owner in this chat when anything is unclear and wait for the answer. Before finishing, check the proposal with
+
+```
+igris check --plan .igris/adapt/tasks.proposed.md
+```
+
+and fix every problem it reports except the `?` models. When `.igris/adapt/tasks.proposed.md` is complete, run this as your very last action:
+
+```
+igris done ADAPT --note "<one-line summary of the conversion>"
+```
+
+---
+
+# Reference: the canonical igris plan format
+
+## 3. Canonical plan format
+
+Igris's parser is deterministic and strict. Plans that don't match this format are rejected by `igris check` and can be converted with `igris adapt` (§9).
+
+### 3.1 Phases
+- A phase is a level-2 heading (`## `) whose section contains a task table.
+- **Phase ID** = the first whitespace-delimited token of the heading text (`## M0 — Repository foundation` → `M0`). Matching on the command line is case-insensitive.
+- If the first token is alphabetic and the second is a number (`## Phase 2 — API`), the phase ID is the two tokens joined with a hyphen: `Phase-2`. The second token must be digits only (`## Phase 2: API` has phase ID `Phase`).
+- Only level-2 headings start a phase; `###` and deeper headings stay inside the current phase. Headings and tables inside fenced code blocks (```` ``` ```` / `~~~`) are ignored.
+- Phase IDs must be unique within a plan.
+- `##` sections without a task table (Legend, Working rules, traceability tables) are ignored.
+- **Phase order** is file order.
+
+### 3.2 Task tables
+A task table is a GitHub-flavored markdown table whose header row contains at least the columns **ID**, **Status** and **Model** (case-insensitive, surrounding `*`/backticks ignored). Recognized columns:
+
+| Column | Required | Purpose |
+|---|---|---|
+| `ID` | yes | Unique task ID across the whole plan. Pattern: `[A-Za-z0-9][A-Za-z0-9._-]*`. |
+| `Task` | recommended | Description. The first `**bold**` span is used as the task title; otherwise the first 80 characters. |
+| `Deps` | no | Dependencies (§3.4). Missing column = no deps. |
+| `Status` | yes | §3.3. |
+| `Model` | yes | Rank alias or `—` for no model. |
+| `Owner` | no | `agent`, `user`, or `agent + user`. Missing column = `agent`. |
+| `Mode` | no | Per-task run-mode override (§7.2): `default`, `accept`, `auto`, `plan`, `yolo`, or `—`. |
+
+- In `Model` and `Mode`, `—`, `-`, `none` (case-insensitive) and an empty cell all mean "no model" / "no override", as in `Deps`. `Owner` is case-insensitive (`Agent + User` = `agent+user` = `agent + user`); an empty cell means `agent`.
+- Column names can be aliased in config (`[columns]`, §12), e.g. `Depends on` → `Deps`.
+- Extra columns (e.g. `Spec`) are preserved untouched and passed to the session prompt as context.
+- Cells are split on **unescaped** pipes only; `\|` inside a cell is literal text (read as `|`; the file keeps `\|`).
+- A table belongs to the phase whose heading most recently preceded it. A phase may contain only one task table; a second one is a validation error, as is a task table before the first `##` heading or a header that names the same column twice. Other tables (e.g. a legend) next to the task table are ignored.
+
+### 3.3 Status values
+`ready`, `blocked`, `in progress`, `done`, `skipped` — case-insensitive, optional surrounding backticks. Anything after the keyword (e.g. `skipped (not needed)`) is kept and ignored for logic.
+
+- **Satisfied** (counts as a met dependency): `done`, `skipped`.
+- **Owned by igris**: igris writes `in progress`, `done`, `skipped`, and recomputes `ready`/`blocked` (§5.2). Sessions are told not to edit Status (§6).
+- An unknown status is a validation error.
+
+### 3.4 Dependencies
+- Empty, `—`, `-` or `none` = no dependencies.
+- Otherwise a comma-separated list of task IDs.
+- **Ranges:** `A…B`, `A...B` or `A..B` expands to every task ID from `A` to `B` inclusive, **in file order**. Both endpoints must exist and `A` must precede `B`. An entry that is itself a task ID is never read as a range (IDs may contain dots). Duplicate entries are ignored.
+- Dependencies may point to tasks in other phases.
+- Validation errors: unknown ID, self-dependency, dependency cycle, malformed range.
+
+### 3.5 Owners and models
+- `user` tasks must have Model `—`. `agent` and `agent + user` tasks must have a Model that resolves through `[models]` config. Violations are validation errors (igris never guesses a model).
+- An unknown Owner or Mode value is a validation error.
+
+Validation reports **every** problem at once, each as `file:line: message` saying what to fix, sorted by line; a dependency cycle is reported once with its path (`a → b → a`).
+
+### 3.6 Example
+
+```markdown
+## M0 — Repository foundation
+
+| ID | Task | Deps | Status | Model | Owner |
+|---|---|---|---|---|---|
+| M0-01 | **Go module** — init module, pin Go version | — | ready | sonnet | agent |
+| M0-02 | **Entrypoint** — main.go with subcommands | M0-01 | blocked | sonnet | agent |
+| M0-03 | **Crypto envelope** — `v1 \| nonce \| ciphertext` | M0-01 | blocked | opus | agent |
+| M0-G | **M0 gate** — owner smoke test | M0-02…M0-03 | blocked | sonnet | agent + user |
+```
