@@ -16,8 +16,8 @@ import (
 	"github.com/drilonrecica/igris/internal/state"
 )
 
-// ErrUnsupported marks a situation the run loop doesn't handle yet: user
-// tasks and resuming an interrupted run. The run stops without touching
+// ErrUnsupported marks a situation the run loop doesn't handle yet:
+// resuming an interrupted run. The run stops without touching
 // anything.
 var ErrUnsupported = errors.New("not supported yet")
 

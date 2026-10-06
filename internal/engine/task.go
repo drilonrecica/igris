@@ -63,11 +63,11 @@ type sessionStart struct {
 func (e *Engine) runTask(ctx context.Context, t *plan.Task) (stopped bool, err error) {
 	l := &launch{t: t}
 	e.task = l
-	switch {
-	case !t.Owner.IsAgent():
-		return false, fmt.Errorf("task %s is a user task; running those is %w", t.ID, ErrUnsupported)
-	case t.Status == plan.InProgress:
+	if t.Status == plan.InProgress {
 		return false, fmt.Errorf("task %s is already in progress; resuming a task is %w", t.ID, ErrUnsupported)
+	}
+	if !t.Owner.IsAgent() {
+		return e.runUserTask(ctx, l)
 	}
 
 	// Resolve everything that can fail before anything is written, so a
@@ -82,7 +82,20 @@ func (e *Engine) runTask(ctx context.Context, t *plan.Task) (stopped bool, err e
 		return false, err
 	}
 	l.mode, l.cur.Mode, l.cur.ClaudeSession = start.mode, start.mode, start.sessionID
+	if started, err := e.markInProgress(ctx, l, "mode "+l.mode); err != nil || !started {
+		return false, err
+	}
+	if err := e.openSession(ctx, l, start); err != nil {
+		return false, err
+	}
+	return e.drive(ctx, l)
+}
 
+// markInProgress records l in state.json, then marks its task in progress.
+// started is false if the task's row changed since it was selected; nothing
+// is recorded then and the loop selects again.
+func (e *Engine) markInProgress(ctx context.Context, l *launch, detail string) (started bool, err error) {
+	t := l.t
 	e.run.Current = l.cur
 	if err := e.dir.SaveRun(e.run); err != nil {
 		return false, err
@@ -111,13 +124,9 @@ func (e *Engine) runTask(ctx context.Context, t *plan.Task) (stopped bool, err e
 		}
 		return false, err
 	}
-	e.log(state.Event{Type: state.EventTaskStarted, Detail: "mode " + l.mode})
+	e.log(state.Event{Type: state.EventTaskStarted, Detail: detail})
 	e.emit(Event{Kind: TaskStarted, Changes: changes})
-
-	if err := e.openSession(ctx, l, start); err != nil {
-		return false, err
-	}
-	return e.drive(ctx, l)
+	return true, nil
 }
 
 // prepareSession resolves the mode, session ID, arguments and first prompt

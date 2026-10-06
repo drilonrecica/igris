@@ -35,6 +35,7 @@ const (
 	Asked          EventKind = "asked"           // Question waits for the owner's answer; Detail is the question
 	Retrying       EventKind = "retrying"        // the session is replaced; Detail is "continue" or "fresh"
 	TaskSkipped    EventKind = "task_skipped"    // Detail is the reason; Changes holds the cells written
+	YourTurn       EventKind = "your_turn"       // a user task waits for the owner; Detail is the full task text
 	VerifyStarted  EventKind = "verify_started"  // Detail is the verify command
 	VerifyPassed   EventKind = "verify_passed"   // Detail is the verify command
 	VerifyFailed   EventKind = "verify_failed"   // Detail says why and which attempt

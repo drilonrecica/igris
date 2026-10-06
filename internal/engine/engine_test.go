@@ -668,18 +668,10 @@ func TestRunNeedsAnAvailableBackend(t *testing.T) {
 }
 
 func TestNotYetSupportedCases(t *testing.T) {
-	const userPlan = `## A
-
-| ID | Task | Deps | Status | Model | Owner |
-|---|---|---|---|---|---|
-| A-1 | **Buy a domain** | — | ready | — | user |
-| A-2 | **Two** | A-1 | blocked | sonnet | agent |
-`
 	tests := []struct {
 		name, plan string
 		setup      func(h *harness)
 	}{
-		{"user task", userPlan, nil},
 		{"task already in progress", strings.Replace(chainPlan, "| — | ready |", "| — | in progress |", 1), nil},
 		{"earlier run stopped mid-task", chainPlan, func(h *harness) {
 			if err := h.dir.SaveRun(&state.Run{Phases: []string{"A"}, Current: &state.Current{TaskID: "A-1"}}); err != nil {

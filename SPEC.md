@@ -270,7 +270,7 @@ For a task with Owner `user`:
 1. Igris shows the full task text in the TUI, marks it **Your turn**, and sends a `needs_input` notification.
 2. No pane, no Claude session.
 3. The owner completes it outside igris, then presses `d` (done) or `s` (skip, with a reason) in the TUI, or runs `igris done <ID>` / `igris skip <ID> --reason …` from any terminal.
-4. Igris marks the status and continues.
+4. Igris marks the status and continues. User tasks are never verified or committed; `state.json` records the task (without a session) so a restarted `arise` comes back to it.
 
 ---
 
