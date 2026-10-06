@@ -163,6 +163,27 @@ Design choices:
 - **Amended** (2026-10-06, M4-01): mouse reporting uses cell motion (presses, wheel, drags), so there is no hover highlight; SPEC §15.4–15.5 updated.
 - **Amended** (2026-10-06, M4-07, approved by owner): the visual design pass. Rank colors are set in a new `[tui.rank_colors]` table, with built-in colors for the stock ranks. The default colors are the brand palette (`docs/brand/`). A new `[tui] theme = "auto" | "dark" | "light"` key overrides the background detection, which can fail in a multiplexer or over SSH. Hover stays out, as amended in M4-01. `NO_COLOR` removes color but keeps bold, faint and reverse video. No new dependency: colors go through Lip Gloss, the attributes are plain SGR codes. SPEC §12 and §15.4 updated.
 
+## P0-09 — Project site
+
+**Approved by owner** (2026-10-07), after v0.1.0. The project gets a one-page landing site at `https://drilonrecica.github.io/igris/`; the README stays the full documentation. Task M7-11 builds it.
+
+| Option | Pros | Cons |
+|---|---|---|
+| **Hand-written HTML/CSS in `site/`** | No toolchain, nothing to keep updated, fast page | Copy is kept in step with the README by hand |
+| Static site generator (Hugo, Astro, …) | Templates, docs pages later | A toolchain and its updates for a single page |
+
+| Deploy | Pros | Cons |
+|---|---|---|
+| **Pages workflow (`pages.yml`)** | Deploys on every change to the site, no manual step | First workflow with write scopes |
+| `gh-pages` branch, pushed by hand | CI stays fully read-only | A manual step that drifts |
+| Branch source `/docs` | No workflow | Would also publish `docs/decisions.md`, the smoke checklist and so on |
+
+Decided:
+- Static, hand-written site in `site/`. `site/build.sh` assembles `_site/` from it plus the brand files in `docs/brand/` and the demo GIF in `docs/demo/`, so those assets live in one place.
+- `.github/workflows/pages.yml` is the **only** workflow with write scopes: the deploy job alone gets `pages: write` and `id-token: write`, everything else stays `contents: read`. No secrets; no build, tag, release or artifact steps for igris itself (releases stay manual per P0-04). Actions pinned by full commit SHA, as in P0-07.
+- Fonts: Chakra Petch 600/700 (the wordmark's typeface), self-hosted as woff2 from Fontsource under the SIL Open Font License 1.1, with `OFL.txt` next to them. It is a static asset, not a Go dependency, so AGENTS §4 doesn't apply.
+- No third-party requests from the page: no web-font CDN, analytics or cookies.
+
 ## Plans without a task table
 
 **Approved by owner** (2026-10-06), raised during M6-02. `igris check` used to accept a plan without any task table ("OK, 0 tasks"), although such a plan is almost always in another format: exactly what `igris adapt` is for. It is now a validation error, reported only when nothing else explains it (a misplaced table is reported as misplaced). SPEC §3.1 and §9.2 amended; `igris adapt` drops its own special case for it.

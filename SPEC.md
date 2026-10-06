@@ -604,5 +604,6 @@ Modelled on Claude Code's choice prompts and herdr's clickable UI.
 - Artifacts are **not signed** in v0.1.0 (checksums only); cosign/minisign signing is a post-v1 item.
 - `go install github.com/drilonrecica/igris/cmd/igris@latest` works; such builds have no ldflags, so `igris version` falls back to the module version from the binary's build info (`v0.1.0` → `0.1.0`).
 - CI (P0-07): GitHub Actions on push to `master` and on PRs — gofmt check, `go vet`, golangci-lint, `go test -race ./...` on Linux and macOS. Read-only token, no secrets, never builds or publishes releases.
+- Project page (P0-09): `https://drilonrecica.github.io/igris/`, a static page built from `site/` and deployed by `.github/workflows/pages.yml`. That is the only workflow with write permissions (`pages`, `id-token`, for the deploy job only); it has no secrets and never builds or publishes releases.
 - Homebrew tap: post-v1 nice-to-have.
 - MIT license.
