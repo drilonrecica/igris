@@ -39,7 +39,7 @@ Like summoning the right shadow for the fight, each task gets the rank your plan
 | `opus` | complex or security-sensitive logic | `--model opus` |
 | `fable` | the highest-stakes design and correctness work | `--model fable` |
 
-Rank aliases are configurable in `igris.toml`.
+Rank aliases are configurable in `igris.toml`. Every key is optional; unknown keys are rejected so typos don't go unnoticed, and secrets such as the ntfy token can be given as `env:VAR_NAME` instead of being written in the file.
 
 ## Requirements
 

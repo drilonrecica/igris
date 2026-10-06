@@ -400,6 +400,8 @@ events = ["needs_input", "session_lost", "phase_done", "phase_stuck", "run_error
 ```
 
 - Unknown keys are errors (catches typos). Durations use Go syntax.
+- Durations must be greater than zero. `env:VAR` references are accepted for `notify.ntfy.token` and `notify.discord.webhook_url`; an unset or empty variable is an error. Several problems are reported together, each saying what to fix.
+- The config hash recorded in the run snapshot (§13) is a SHA-256 of the parsed config as written (defaults applied, `env:` references unresolved), so secret values never enter it.
 - `igris.toml` holds no secrets by default and is safe to commit; `.igris/` is local state and is added to `.gitignore` by `igris init`.
 
 ---
