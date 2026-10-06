@@ -93,6 +93,9 @@ A task table is a GitHub-flavored markdown table whose header row contains at le
 
 ### 3.5 Owners and models
 - `user` tasks must have Model `—`. `agent` and `agent + user` tasks must have a Model that resolves through `[models]` config. Violations are validation errors (igris never guesses a model).
+- An unknown Owner or Mode value is a validation error.
+
+Validation reports **every** problem at once, each as `file:line: message` saying what to fix, sorted by line; a dependency cycle is reported once with its path (`a → b → a`).
 
 ### 3.6 Example
 
