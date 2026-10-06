@@ -11,6 +11,7 @@ import (
 
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/config"
+	"github.com/drilonrecica/igris/internal/notify"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/runner"
 	"github.com/drilonrecica/igris/internal/state"
@@ -46,6 +47,12 @@ type Options struct {
 	Clock   Clock      // nil means the system clock
 	// Runner runs the verify command and git; nil means real processes.
 	Runner runner.Runner
+	// Secrets are the resolved env: references of the notify settings
+	// (Config.Resolve); the zero value sets up no ntfy token or Discord.
+	Secrets config.Secrets
+	// Notifier delivers notifications (SPEC §10); nil means a router built
+	// from Config.Notify, Secrets and Backend.
+	Notifier Notifier
 
 	Phase   string // phase to run; "" resumes the previous run's phases
 	Through string // last phase to run; "" means only Phase (SPEC §5.3)
@@ -64,6 +71,12 @@ type Options struct {
 	Events func(Event)
 
 	beforeMark func() // test hook: runs just before a task is marked in progress
+}
+
+// Notifier delivers one notification to the owner's channels and says how
+// each delivery went. *notify.Router is the real one.
+type Notifier interface {
+	Notify(ctx context.Context, m notify.Message) []notify.Result
 }
 
 // Outcome says how a run ended.
@@ -98,6 +111,7 @@ type Result struct {
 // Engine runs the tasks of one or more phases, one session at a time
 // (SPEC §5, §6). Create it with New, call Run once, and steer it with Send.
 type Engine struct {
+	notifier  Notifier
 	opts      Options
 	cfg       *config.Config
 	be        backend.Backend
@@ -156,8 +170,12 @@ func New(opts Options) (*Engine, error) {
 	if err != nil {
 		return nil, fmt.Errorf("engine: %w", err)
 	}
+	if opts.Notifier == nil {
+		opts.Notifier = notify.FromConfig(opts.Config.Notify, opts.Secrets, opts.Backend)
+	}
 	root := opts.State.Root()
 	e := &Engine{
+		notifier:  opts.Notifier,
 		opts:      opts,
 		cfg:       opts.Config,
 		be:        opts.Backend,

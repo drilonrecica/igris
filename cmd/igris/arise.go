@@ -74,6 +74,10 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 	if f.dryRun {
 		return dryRun(f, out, stderr)
 	}
+	secrets, err := f.cfg.Resolve(os.Getenv)
+	if err != nil {
+		return fail("%v", err)
+	}
 	be, err := ariseBackend(f.cfg)
 	if err != nil {
 		return fail("%v", err)
@@ -114,6 +118,7 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		Backend:     be,
 		State:       dir,
 		Runner:      ariseRunner,
+		Secrets:     secrets,
 		Phase:       f.phase,
 		Through:     f.through,
 		Mode:        f.mode,
@@ -685,6 +690,7 @@ func dryRunProject(tmp, root string, orig *config.Config) (*config.Config, error
 	cfg.Run.Verify = ""
 	cfg.Run.Commit = engine.CommitNever
 	cfg.Notify.Backend.Enabled = false
+	cfg.Notify.Ntfy.Topic = "" // no Discord webhook either: dry runs resolve no secrets
 	copyIn := func(rel string) (string, error) {
 		name := rel
 		if filepath.IsAbs(rel) || !filepath.IsLocal(rel) {

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/drilonrecica/igris/internal/backend"
+	"github.com/drilonrecica/igris/internal/notify"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/state"
 )
@@ -131,7 +132,7 @@ func (e *Engine) observe(ctx context.Context, st backend.AgentState, ep *episode
 
 // needsYou marks the task Needs you and sends the notification event. why
 // is shown in the UI; the notification only says that igris waits.
-func (e *Engine) needsYou(ctx context.Context, event, why string) {
+func (e *Engine) needsYou(ctx context.Context, event notify.Event, why string) {
 	e.emit(Event{Kind: NeedsYou, Detail: why})
 	what := "needs you"
 	if event == notifyVerifyLimit {

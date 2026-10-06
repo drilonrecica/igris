@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/drilonrecica/igris/internal/backend"
+	"github.com/drilonrecica/igris/internal/notify"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/state"
 )
@@ -117,37 +118,35 @@ func (e *Engine) log(ev state.Event) {
 
 // Notification events (SPEC §10) the engine raises so far.
 const (
-	notifyNeedsInput  = "needs_input"
-	notifySessionLost = "session_lost"
-	notifyVerifyLimit = "verify_failed_limit"
-	notifyPhaseDone   = "phase_done"
-	notifyPhaseStuck  = "phase_stuck"
-	notifyRunError    = "run_error"
+	notifyNeedsInput  = notify.NeedsInput
+	notifySessionLost = notify.SessionLost
+	notifyVerifyLimit = notify.VerifyFailedLimit
+	notifyPhaseDone   = notify.PhaseDone
+	notifyPhaseStuck  = notify.PhaseStuck
+	notifyRunError    = notify.RunError
 )
 
-// toast shows a backend notification for a SPEC §10 event, if the backend
-// channel is enabled. what says what happened in a few words; it must never
-// carry file contents, diffs or command output. Delivery is best effort.
-//
-// This is the engine's only notification path until the router (M5) takes
-// over.
-func (e *Engine) toast(ctx context.Context, event, what string) {
-	if !e.cfg.Notify.Backend.Enabled {
-		return
+// toast sends a SPEC §10 notification through the router: to the backend
+// toast and to ntfy and Discord, whichever are set up and want the event.
+// what says what happened in a few words; it must never carry file contents,
+// diffs or command output. Delivery is best effort: a failing channel is
+// reported as a warning and the run goes on. The call waits for the
+// channels (at most one timeout plus one retry each, in parallel).
+func (e *Engine) toast(ctx context.Context, event notify.Event, what string) {
+	m := notify.Message{
+		Event:   event,
+		Project: filepath.Base(e.dir.Root()),
+		Phase:   e.phase,
+		What:    what,
 	}
-	sound := backend.SoundRequest
-	if event == notifyPhaseDone {
-		sound = backend.SoundDone
-	}
-	body := "phase " + e.phase
 	if e.task != nil {
-		body += " · " + e.task.t.ID + " " + e.task.t.Title
+		m.TaskID, m.Title = e.task.t.ID, e.task.t.Title
 	}
-	body += ": " + what
-	n := backend.Notification{Title: "igris · " + filepath.Base(e.dir.Root()), Body: body, Sound: sound}
-	if err := e.be.Notify(ctx, n); err != nil {
-		e.warn("notification " + event + " not shown: " + err.Error())
-		return
+	for _, r := range e.notifier.Notify(ctx, m) {
+		if r.Err != nil {
+			e.warn("notification " + string(event) + " not delivered to " + r.Channel + ": " + r.Err.Error())
+			continue
+		}
+		e.log(state.Event{Type: state.EventNotification, Detail: string(event) + " via " + r.Channel})
 	}
-	e.log(state.Event{Type: state.EventNotification, Detail: event})
 }
