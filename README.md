@@ -128,6 +128,8 @@ A plan is a markdown file (default `tasks.md`) with one task table per `##` phas
 - **Owner:** `agent`, `agent + user` (the agent must get your decision or sign-off), or `user` (your own task: igris pauses until you mark it done).
 - **Optional `Mode` column** to force a mode per task (e.g. `plan` for design-heavy tasks).
 
+A complete small plan is in [`examples/tasks.md`](examples/tasks.md) and a commented config in [`examples/igris.toml`](examples/igris.toml); copy them and run `igris check` and `igris arise P1 --dry-run` to see how igris reads them.
+
 ### Different format? `igris adapt`
 
 `igris adapt` converts a plan igris can't read into the canonical format. It opens one Claude Code session (in herdr, mode default) with `adapt.model` from `igris.toml` (`sonnet` by default; `--model opus` for a hard one) and `--plan PATH` for a plan other than the configured one. The session gets the format, `igris check`'s complaints and your `[models]`, writes the converted copy to `.igris/adapt/<plan>.proposed.md`, and finishes with `igris done ADAPT`. It may ask you things in its pane, like any igris session.
