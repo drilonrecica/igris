@@ -17,7 +17,7 @@ Versions and release dates are from the Go module proxy (checked 2026-10-06). Li
 | `spf13/cobra` | CLI parsing | v1.10.2 (2025-12) | Apache-2.0 | stdlib `flag` | Reject — ~10 subcommands with few flags; `flag.FlagSet` per subcommand in `cmd/igris/` is enough and avoids a large transitive tree |
 | `sergi/go-diff` / `pmezard/go-difflib` | diff rendering for `igris adapt` | v1.4.0 / v1.0.0 (2016, unmaintained) | MIT / BSD-3 | hand-rolled | Reject — `adapt` shows a line diff of a table; a small LCS line differ (~60 lines, fully tested) avoids a dependency |
 
-### Proposed approved list (awaiting owner approval)
+### Approved list (approved by owner 2026-10-06)
 
 - `github.com/charmbracelet/bubbletea`
 - `github.com/charmbracelet/bubbles`
@@ -97,7 +97,7 @@ Requirements (SPEC §18): static `CGO_ENABLED=0` binaries for linux/darwin × am
 - **Signing: no for v0.1.0.** Checksums protect against corruption, and `go install` provides module-proxy/checksum-db verification. Revisit with keyless cosign if/when CI publishes (P0-07).
 - **Homebrew tap: later** (post-v1); GoReleaser's `brews` section can be added without changing the pipeline.
 
-SPEC §18 amended accordingly. Awaiting owner approval of the GoReleaser choice (task M7-03 implements it).
+SPEC §18 amended accordingly. **Decided 2026-10-06** (owner delegated the call): GoReleaser, checksums only, no signing, Homebrew tap later. Task M7-03 implements it.
 
 ## P0-05 — GitHub repository
 
