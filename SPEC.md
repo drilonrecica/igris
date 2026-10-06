@@ -398,6 +398,9 @@ prompt_template = ""              # path to a custom task prompt template
 [adapt]
 model = "sonnet"                  # sonnet | opus
 
+[tui]
+mouse = true                      # click/tap and wheel in the TUI (§15.5); false keeps the terminal's own text selection
+
 [notify.backend]
 enabled = true
 
@@ -498,31 +501,55 @@ Built with Bubble Tea / Lip Gloss. Runs in the igris pane; the Claude sessions l
 ├────────────────────────────────┴──────────────────────────────┤
 │ 09:41 M0-02 done · "subcommand dispatch + tests"              │
 │ 09:41 M0-03 started (sonnet, plan)                            │
-└ o open · m mode · p pause after task · r retry · s skip · ? ──┘
+├───────────────────────────────────────────────────────────────┤
+│ [›Open session‹] [Mode] [Pause] [Retry] [Skip] [Stop] [?]     │
+└───────────────────────────────────────────────────────────────┘
 ```
 
 ### 15.2 Narrow layout (< 100 columns, e.g. Termius on a phone)
-Single column: header, current task card, compact task list (ID + status glyph + rank), last 3 log lines, one-line key hint. Must stay usable at 50×20.
+Single column: header, current task card, compact task list (ID + status glyph + rank), last 3 log lines, action bar. Must stay usable at 50×20. The action bar wraps to a second row or folds its less common actions into a `More…` button; an open dialog (§15.5) takes the whole screen.
 
-### 15.3 Keys
-| Key | Action |
-|---|---|
-| `o` | Focus the current session's pane (herdr) |
-| `m` | Change run mode for upcoming sessions (picker; `yolo` needs confirmation) |
-| `M` | Override mode for the selected task |
-| `p` | Pause after the current task (toggle): the task finishes normally, then igris launches nothing and waits — the run stays alive — until pause is toggled off |
-| `d` | Mark current user task done |
-| `s` | Skip current task (asks for reason; for agent tasks also closes the session after confirmation) |
-| `r` | Retry: close current session, then continue its conversation or start a fresh one (`Resumed=true`) |
-| `x` | Stop now: leave the session open, stop igris after confirmation |
-| `↑/↓`, `enter` | Browse tasks / show task details (full text, deps, extra columns) |
-| `q` | Quit the TUI; sessions keep running, `igris arise` resumes |
-| `?` | Help |
+### 15.3 Actions
+Every action is reachable three ways: **clicking** its button (or tapping it, e.g. in Termius), **moving the focus** to it and pressing `enter`, and its **shortcut key**. The action bar shows only the actions that apply right now (e.g. `Done` only while a task is running, `Open session` only while a session exists); it never shows buttons that do nothing.
+
+| Button | Key | Action |
+|---|---|---|
+| Open session | `o` | Focus the current session's pane (herdr) |
+| Mode | `m` | Change run mode for upcoming sessions (choice list; `yolo` needs the typed confirmation, §15.5) |
+| Task mode | `M` | Override mode for the selected task (same choice list) |
+| Pause / Resume | `p` | Pause after the current task (toggle): the task finishes normally, then igris launches nothing and waits — the run stays alive — until pause is toggled off. The button label shows the current state |
+| Done | `d` | Mark the current task done (a user task, or an agent task as the owner's decision, §6.4) |
+| Skip | `s` | Skip the current task: asks for a reason; for agent tasks also closes the session after confirmation |
+| Retry | `r` | Retry: close the current session, then choose **Continue conversation** or **Start fresh** (`Resumed=true`) |
+| Stop | `x` | Stop now: leave the session open, stop igris after confirmation |
+| — | `↑/↓`, `enter`, click | Browse tasks / show task details (full text, deps, extra columns) |
+| Quit | `q` | Quit the TUI; sessions keep running, `igris arise` resumes |
+| ? | `?` | Help: every action, its key, and the focus keys |
 
 ### 15.4 Visual rules
 - Status glyphs: `✓` done, `●` running, `!` needs you, `·` ready, `⨯` blocked, `–` skipped. Never color alone.
 - Rank colors are configurable but each rank also shows its name.
 - Respect `NO_COLOR`.
+- The focused element and the element under the mouse are marked without relying on color (reverse video plus `›…‹` brackets on buttons, `›` on rows), so focus is visible under `NO_COLOR`.
+
+### 15.5 Interaction
+Modelled on Claude Code's choice prompts and herdr's clickable UI.
+
+- **Focus.** `tab` / `shift+tab` move between regions: task list, action bar, log (and the open dialog, which keeps the focus until it closes). Inside a region: `←/→` along the action bar, `↑/↓` (and `j/k`) in lists, dialogs and the log, `pgup/pgdn` to scroll. `enter` or `space` activates the focused element. Shortcut keys (§15.3) work from anywhere outside a text field.
+- **Mouse.** Click or tap activates a button, a task row (select; a second click or `enter` opens details) or a dialog option. The wheel scrolls the list or log under the pointer. Hover highlights what a click would hit. Mouse reporting is on by default; `[tui] mouse = false` turns it off, because while a TUI captures the mouse the terminal's own text selection usually needs `shift`+drag.
+- **Dialogs.** When the engine asks the owner something, a modal choice list opens at once and is focused on the safe default:
+
+  | Question | Options (default first) |
+  |---|---|
+  | Commit (§6.5, `commit = "ask"`) | **Commit** · Leave uncommitted |
+  | Session asks to skip (§6.2) | **Keep working** (discards the request) · Skip the task |
+  | Session lost (§6.3) | **Start fresh** · Continue conversation · Mark done · Skip · Stop igris |
+  | Stop (`x`) | **Keep running** · Stop igris |
+  | Skip (`s`) | text field for the reason · **Cancel** · Skip |
+
+  Options can be picked by click, by `↑/↓` + `enter`, or by their number (`1`…`9`). `esc` closes a dialog with its non-destructive choice (cancel / keep) where it has one; the session-lost and commit questions stay pending until answered, and the dialog reopens from the current-task card. Destructive choices (skip, stop) are never the default.
+- **Skip permissions** (§7.3) is never a single click or key: picking `yolo` in a mode list opens a text field that only accepts the typed phrase `skip permissions`.
+- `--no-tui` (§14) remains the plain stdin interface with the same actions as typed commands.
 
 ---
 

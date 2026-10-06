@@ -149,3 +149,14 @@ Design choices:
 - Go version from `go.mod` (`actions/setup-go` with `go-version-file`), module cache enabled.
 - Hardening: `permissions: contents: read`; third-party actions pinned by full commit SHA; no secrets; no publishing, tagging, release or artifact upload steps (releases stay manual per P0-04).
 - `make test` never needs herdr or Claude (AGENTS §5), so CI needs no extra tooling.
+
+## P0-08 — TUI interaction model
+
+**Approved by owner** (2026-10-06), after the M3-07 smoke run: answering igris by typing `done`, `y` or `retry fresh` works but is not what the owner wants day to day. The TUI should offer every option as something you can click (or tap in Termius) or reach by moving a highlight with the keyboard, like Claude Code's choice prompts and herdr's clickable UI. SPEC §15.3–15.5 and §12 are amended; the M4 rows are reworded to match.
+
+- **Three ways to every action:** a button in a contextual action bar, focus navigation (`tab` between regions, arrows inside, `enter`/`space`), and the existing shortcut key. The bar only shows actions that apply right now.
+- **Questions become dialogs:** commit, a session's skip request, session lost, stop and skip open a modal choice list focused on the safe default; options also take `1`…`9`. Destructive choices are never the default, and `esc` only ever picks the non-destructive one.
+- **Mouse:** click/tap, wheel scrolling, hover highlight, on by default. `[tui] mouse = false` turns it off, because a TUI that captures the mouse makes the terminal's own text selection need `shift`+drag.
+- **No new dependency:** Bubble Tea's mouse messages plus a small hand-rolled hit-region layer (each rendered button, row and option records its rectangle). `bubblezone` would do this but isn't on the P0-01 list and the layer is small.
+- **Safety unchanged:** skip-permissions (§7.3) still needs the typed phrase `skip permissions`; no click or key alone can select it. Focus and hover are marked without color, so they work under `NO_COLOR`.
+- `--no-tui` keeps the plain stdin commands.

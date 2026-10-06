@@ -138,7 +138,7 @@ Igris tells you when it needs you (a question, a plan to approve, a stalled sess
 
 ## The TUI
 
-Igris runs in its own herdr pane: the task list with status and rank, the current task and how long it's been running, and a log. Claude sessions run in their own tabs; press `o` to jump to the current one. The layout collapses to a single column on small terminals, so it works over SSH from a phone.
+Igris runs in its own herdr pane: the task list with status and rank, the current task and how long it's been running, and a log. Claude sessions run in their own tabs; press `o` (or click **Open session**) to jump to the current one. Every action is a button you can click or tap, reach with `tab` and the arrow keys, or trigger with its shortcut key; when igris needs an answer (commit? session lost?) it opens a choice dialog, like Claude Code's prompts. The layout collapses to a single column on small terminals, so it works over SSH from a phone.
 
 `q` quits the TUI without stopping anything. `igris arise` (no phase needed) picks up exactly where it left off: it reattaches to the running session, or, if that's gone, lets you continue its conversation or start a fresh session that is told to check the work already in the tree.
 
