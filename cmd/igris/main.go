@@ -75,7 +75,7 @@ func commands() []command {
 		{name: "done", setup: func(fs *flag.FlagSet) func([]string) error {
 			fs.String("note", "", "short note stored with the signal")
 			return exactArgs("ID", 1)
-		}},
+		}, exec: execDone},
 		{name: "skip", setup: func(fs *flag.FlagSet) func([]string) error {
 			reason := fs.String("reason", "", "why the task is skipped (required)")
 			return func(args []string) error {
@@ -87,7 +87,7 @@ func commands() []command {
 				}
 				return nil
 			}
-		}},
+		}, exec: execSkip},
 		{name: "adapt", setup: func(fs *flag.FlagSet) func([]string) error {
 			model := fs.String("model", "", "model to use: sonnet|opus")
 			return func(args []string) error {

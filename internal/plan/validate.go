@@ -218,3 +218,7 @@ func sortedKeys(m map[string]string) []string {
 	sort.Strings(keys)
 	return keys
 }
+
+// ValidID reports whether id is a legal task ID (SPEC §3.2). It is also safe
+// to use as a file name: it has no path separators and cannot start with a dot.
+func ValidID(id string) bool { return idPattern.MatchString(id) }
