@@ -270,17 +270,41 @@ func (w *triggerWriter) String() string {
 	return w.buf.String()
 }
 
-func TestAriseNoTUI(t *testing.T) {
-	const noTUIPlan = `## A
+const noTUIPlan = `## A
 
 | ID | Task | Deps | Status | Model | Owner |
 |---|---|---|---|---|---|
 | A-1 | **One** | — | ready | sonnet | agent |
 | A-2 | **Buy a domain** | A-1 | blocked | — | user |
 `
-	root := writeProject(t, map[string]string{
-		"tasks.md":   noTUIPlan,
-		"igris.toml": "poll_interval = \"5ms\"\n[notify.backend]\nenabled = false\n",
+
+// noTUIRun is one `igris arise --no-tui` with a fake backend whose sessions
+// signal done at once, git answered by gitFn, and stdin replies triggered
+// by the output.
+type noTUIRun struct {
+	plan, toml string
+	args       []string
+	apiKey     string
+	gitFn      func(runner.Cmd) (runner.Result, error)
+	replies    [][2]string // output pattern → stdin line
+}
+
+func (r noTUIRun) run(t *testing.T) (code int, output, root string) {
+	t.Helper()
+	if r.plan == "" {
+		r.plan = noTUIPlan
+	}
+	if r.gitFn == nil {
+		r.gitFn = func(c runner.Cmd) (runner.Result, error) {
+			if c.Args[0] == "rev-parse" {
+				return runner.Result{Stdout: []byte("true\n")}, nil
+			}
+			return runner.Result{}, nil
+		}
+	}
+	root = writeProject(t, map[string]string{
+		"tasks.md":   r.plan,
+		"igris.toml": "poll_interval = \"5ms\"\n[notify.backend]\nenabled = false\n" + r.toml,
 	})
 	dir, err := state.Open(root, state.Options{})
 	if err != nil {
@@ -291,41 +315,70 @@ func TestAriseNoTUI(t *testing.T) {
 		return dir.WriteSignal(state.Signal{ID: id, Action: state.ActionDone, Note: "did " + id})
 	})
 	git := &runner.Fake{}
-	git.Func(func(c runner.Cmd) (runner.Result, error) {
-		if c.Args[0] == "status" {
-			return runner.Result{Stdout: []byte(" M x\n")}, nil
-		}
-		return runner.Result{}, nil
-	})
+	git.Func(r.gitFn)
 	stdinR, stdinW := io.Pipe()
-	defer func() { _ = stdinW.Close() }()
-	saved := []any{ariseStdin, ariseBackend, ariseRunner}
+	t.Cleanup(func() { _ = stdinW.Close() })
+	savedStdin, savedBackend, savedRunner, savedGetenv := ariseStdin, ariseBackend, ariseRunner, ariseGetenv
 	t.Cleanup(func() {
-		ariseStdin = saved[0].(io.Reader)
-		ariseBackend = saved[1].(func(*config.Config) (backend.Backend, error))
-		ariseRunner, _ = saved[2].(runner.Runner)
+		ariseStdin, ariseBackend, ariseRunner, ariseGetenv = savedStdin, savedBackend, savedRunner, savedGetenv
 	})
 	ariseStdin, ariseRunner = stdinR, git
 	ariseBackend = func(*config.Config) (backend.Backend, error) { return be, nil }
+	ariseGetenv = func(k string) string {
+		if k == engine.APIKeyVar {
+			return r.apiKey
+		}
+		return ""
+	}
 
-	out := &triggerWriter{stdin: stdinW, replies: [][2]string{
-		{"A-1 session open", "bogus"},
-		{"? commit the changes of A-1", "y"},
-		{"A-2 YOUR TURN", "done bought it"},
-	}}
+	out := &triggerWriter{stdin: stdinW, replies: r.replies}
 	var errb bytes.Buffer
 	done := make(chan int)
-	go func() { done <- run([]string{"arise", "A", "--no-tui"}, out, &errb) }()
+	go func() { done <- run(append([]string{"arise"}, r.args...), out, &errb) }()
 	select {
-	case code := <-done:
-		if code != exitOK {
-			t.Fatalf("exit %d, stderr: %s\noutput:\n%s", code, errb.String(), out.String())
-		}
+	case code = <-done:
 	case <-time.After(10 * time.Second):
 		t.Fatalf("igris arise --no-tui did not finish; output:\n%s", out.String())
 	}
-	got := out.String()
+	return code, out.String() + errb.String(), root
+}
+
+func planStatuses(t *testing.T, root string) string {
+	t.Helper()
+	p, err := plan.Load(filepath.Join(root, "tasks.md"), plan.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []string
+	for _, task := range p.Tasks {
+		out = append(out, task.ID+"="+task.Status.String())
+	}
+	return strings.Join(out, " ")
+}
+
+func TestAriseNoTUI(t *testing.T) {
+	code, got, root := noTUIRun{
+		args: []string{"A", "--no-tui"},
+		gitFn: func(c runner.Cmd) (runner.Result, error) {
+			switch c.Args[0] {
+			case "rev-parse":
+				return runner.Result{Stdout: []byte("true\n")}, nil
+			case "status":
+				return runner.Result{Stdout: []byte(" M x\n")}, nil
+			}
+			return runner.Result{}, nil
+		},
+		replies: [][2]string{
+			{"A-1 session open", "bogus"},
+			{"? commit the changes of A-1", "y"},
+			{"A-2 YOUR TURN", "done bought it"},
+		},
+	}.run(t)
+	if code != exitOK {
+		t.Fatalf("exit %d; output:\n%s", code, got)
+	}
 	for _, w := range []string{
+		"warning: the working tree has uncommitted changes",
 		"run started: phase A",
 		"A-1 started (sonnet → sonnet, mode default) · One",
 		`unknown command "bogus"; type help`,
@@ -340,13 +393,97 @@ func TestAriseNoTUI(t *testing.T) {
 			t.Errorf("output lacks %q:\n%s", w, got)
 		}
 	}
-	p, err := plan.Load(filepath.Join(root, "tasks.md"), plan.Options{})
-	if err != nil {
-		t.Fatal(err)
+	if got := planStatuses(t, root); got != "A-1=done A-2=done" {
+		t.Errorf("statuses = %s", got)
 	}
-	for _, task := range p.Tasks {
-		if task.Status != plan.Done {
-			t.Errorf("%s is %s", task.ID, task.Status)
-		}
+}
+
+func TestAriseStartUpConfirmations(t *testing.T) {
+	const driftPlan = `## A
+
+| ID | Task | Deps | Status | Model | Owner |
+|---|---|---|---|---|---|
+| A-1 | **One** | — | ready | sonnet | agent |
+| A-2 | **Two** | A-1 | ready | sonnet | agent |
+`
+	tests := []struct {
+		name       string
+		r          noTUIRun
+		wantCode   int
+		wantOut    []string
+		wantStatus string
+	}{
+		{
+			name:       "api key confirmed",
+			r:          noTUIRun{apiKey: "sk-x", replies: [][2]string{{"Start the run anyway?", "y"}, {"A-2 YOUR TURN", "done"}}},
+			wantCode:   exitOK,
+			wantOut:    []string{"warning: ANTHROPIC_API_KEY is set"},
+			wantStatus: "A-1=done A-2=done",
+		},
+		{
+			name:       "api key declined",
+			r:          noTUIRun{apiKey: "sk-x", replies: [][2]string{{"Start the run anyway?", "n"}}},
+			wantCode:   exitFail,
+			wantOut:    []string{"not confirmed; nothing was started"},
+			wantStatus: "A-1=ready A-2=blocked",
+		},
+		{
+			name:       "drift confirmed",
+			r:          noTUIRun{plan: driftPlan, replies: [][2]string{{"Let igris fix them?", "yes"}}},
+			wantCode:   exitOK,
+			wantOut:    []string{"  A-2: ready → blocked"},
+			wantStatus: "A-1=done A-2=done",
+		},
+		{
+			name:       "drift declined",
+			r:          noTUIRun{plan: driftPlan, replies: [][2]string{{"Let igris fix them?", "n"}}},
+			wantCode:   exitFail,
+			wantStatus: "A-1=ready A-2=ready",
+		},
+		{
+			name:       "yolo typed",
+			r:          noTUIRun{args: []string{"--mode", "yolo"}, plan: driftPlan[:strings.Index(driftPlan, "| A-2")], replies: [][2]string{{"Type \"skip permissions\"", "skip permissions"}}},
+			wantCode:   exitOK,
+			wantOut:    []string{"A-1 session open [SKIP PERMISSIONS]"},
+			wantStatus: "A-1=done",
+		},
+		{
+			name:       "yolo not typed",
+			r:          noTUIRun{args: []string{"--mode", "yolo"}, replies: [][2]string{{"Type \"skip permissions\"", "y"}}},
+			wantCode:   exitFail,
+			wantOut:    []string{"skip-permissions mode not confirmed"},
+			wantStatus: "A-1=ready A-2=blocked",
+		},
+		{
+			name: "not a git repo only warns",
+			r: noTUIRun{
+				gitFn:   func(runner.Cmd) (runner.Result, error) { return runner.Result{ExitCode: 128}, nil },
+				toml:    "[run]\ncommit = \"never\"\n",
+				replies: [][2]string{{"A-2 YOUR TURN", "done"}},
+			},
+			wantCode:   exitOK,
+			wantOut:    []string{"warning: this is not a git repository"},
+			wantStatus: "A-1=done A-2=done",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.r.args = append([]string{"A", "--no-tui"}, tt.r.args...)
+			code, got, root := tt.r.run(t)
+			if code != tt.wantCode {
+				t.Errorf("exit %d, want %d; output:\n%s", code, tt.wantCode, got)
+			}
+			for _, w := range tt.wantOut {
+				if !strings.Contains(got, w) {
+					t.Errorf("output lacks %q:\n%s", w, got)
+				}
+			}
+			if strings.Contains(got, "sk-x") {
+				t.Errorf("output leaks the API key:\n%s", got)
+			}
+			if got := planStatuses(t, root); got != tt.wantStatus {
+				t.Errorf("statuses = %s, want %s", got, tt.wantStatus)
+			}
+		})
 	}
 }

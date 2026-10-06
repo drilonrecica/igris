@@ -30,6 +30,7 @@ var (
 	ariseStdin   io.Reader     = os.Stdin
 	ariseBackend               = newBackend
 	ariseRunner  runner.Runner // nil means real processes
+	ariseGetenv  = os.Getenv
 )
 
 // newBackend returns the backend named in the config.
@@ -89,7 +90,14 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel() // Ctrl-C stops the run; the session stays open (SPEC §13)
 	lines := readLines(ariseStdin)
-	eng, err := engine.New(engine.Options{
+	for _, w := range engine.Preflight(ctx, commandRunner(), f.root, ariseGetenv) {
+		fmt.Fprintf(out, "warning: %s\n", w.Text)
+		if w.Confirm && !confirm(ctx, out, lines, "Start the run anyway?") {
+			return fail("not confirmed; nothing was started")
+		}
+	}
+
+	opts := engine.Options{
 		Config:      f.cfg,
 		Backend:     be,
 		State:       dir,
@@ -99,19 +107,90 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		Mode:        f.mode,
 		ForceUnlock: f.forceUnlock,
 		Events:      func(ev engine.Event) { printEvent(out, ev) },
-	})
-	if err != nil {
-		return fail("%v", err)
 	}
-	go ownerCommands(ctx, lines, eng, out)
+	for {
+		res, err := runOnce(ctx, opts, lines, out)
+		var drift *engine.DriftError
+		switch {
+		case errors.As(err, &drift) && !opts.ConfirmedDrift:
+			// SPEC §5.2: list the drift, ask before the first write fixes it.
+			fmt.Fprintf(out, "The plan's ready/blocked cells don't match its dependencies; igris's first write would change:\n")
+			for _, c := range drift.Changes {
+				fmt.Fprintf(out, "  %s\n", c)
+			}
+			if !confirm(ctx, out, lines, "Let igris fix them?") {
+				return fail("not confirmed; nothing was started")
+			}
+			opts.ConfirmedDrift = true
+		case errors.Is(err, engine.ErrYoloUnconfirmed) && !opts.ConfirmedYolo:
+			// SPEC §7.3: typed confirmation, every run.
+			fmt.Fprintf(out, "%v\nSessions in this mode run with --dangerously-skip-permissions: Claude Code acts without asking.\n", err)
+			if !typed(ctx, out, lines, yoloPhrase) {
+				return fail("skip-permissions mode not confirmed; nothing was started")
+			}
+			opts.ConfirmedYolo = true
+		case err != nil:
+			return fail("%v", err)
+		case res.Outcome == engine.Stuck:
+			return exitFail
+		default:
+			return exitOK
+		}
+	}
+}
+
+// runOnce runs one engine with opts while stdin feeds it owner commands.
+// Once it returns, stdin is free again for confirmations.
+func runOnce(ctx context.Context, opts engine.Options, lines <-chan string, out io.Writer) (engine.Result, error) {
+	eng, err := engine.New(opts)
+	if err != nil {
+		return engine.Result{}, err
+	}
+	cmdCtx, stopCmds := context.WithCancel(ctx)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		ownerCommands(cmdCtx, lines, eng, out)
+	}()
 	res, err := eng.Run(ctx)
-	if err != nil {
-		return fail("%v", err)
+	stopCmds()
+	wg.Wait()
+	return res, err
+}
+
+// commandRunner is the runner for igris's own checks.
+func commandRunner() runner.Runner {
+	if ariseRunner != nil {
+		return ariseRunner
 	}
-	if res.Outcome == engine.Stuck {
-		return exitFail
+	return runner.Exec{}
+}
+
+// confirm asks a y/N question on stdin; anything but y/yes is no.
+func confirm(ctx context.Context, out io.Writer, lines <-chan string, question string) bool {
+	fmt.Fprintf(out, "%s [y/N]\n", question)
+	answer, ok := nextLine(ctx, lines)
+	answer = strings.ToLower(strings.TrimSpace(answer))
+	return ok && (answer == "y" || answer == "yes")
+}
+
+// typed asks the owner to type phrase exactly.
+func typed(ctx context.Context, out io.Writer, lines <-chan string, phrase string) bool {
+	fmt.Fprintf(out, "Type %q to confirm:\n", phrase)
+	answer, ok := nextLine(ctx, lines)
+	return ok && strings.TrimSpace(answer) == phrase
+}
+
+// nextLine returns the next stdin line; false when stdin ended or ctx is
+// done.
+func nextLine(ctx context.Context, lines <-chan string) (string, bool) {
+	select {
+	case <-ctx.Done():
+		return "", false
+	case line, ok := <-lines:
+		return line, ok
 	}
-	return exitOK
 }
 
 // loadProject finds the project root (the nearest igris.toml or .igris/,
@@ -164,14 +243,7 @@ func readLines(r io.Reader) <-chan string {
 // ownerCommands turns stdin lines into engine commands until stdin ends or
 // ctx is done (SPEC §14 --no-tui).
 func ownerCommands(ctx context.Context, lines <-chan string, eng *engine.Engine, out io.Writer) {
-	next := func() (string, bool) {
-		select {
-		case <-ctx.Done():
-			return "", false
-		case line, ok := <-lines:
-			return line, ok
-		}
-	}
+	next := func() (string, bool) { return nextLine(ctx, lines) }
 	for {
 		line, ok := next()
 		if !ok {
@@ -397,6 +469,13 @@ func dryRun(f ariseFlags, out, stderr io.Writer) int {
 		}
 	}
 
+	for _, w := range engine.Preflight(context.Background(), commandRunner(), f.root, ariseGetenv) {
+		asks := ""
+		if w.Confirm {
+			asks = " (a real run asks you to confirm)"
+		}
+		fmt.Fprintf(out, "warning: %s%s\n", w.Text, asks)
+	}
 	planPath := rootPath(f.root, f.cfg.Plan)
 	p, err := plan.Load(planPath, plan.Options{Columns: f.cfg.Columns})
 	if err != nil {
@@ -406,7 +485,7 @@ func dryRun(f ariseFlags, out, stderr io.Writer) int {
 		return fail("%v", err)
 	}
 	for _, c := range p.Readiness() {
-		fmt.Fprintf(out, "warning: drift: %s (a real run asks before fixing it)\n", c)
+		fmt.Fprintf(out, "warning: drift: %s (a real run asks you before fixing it)\n", c)
 	}
 
 	tmp, err := os.MkdirTemp("", "igris-dry-run-*")
