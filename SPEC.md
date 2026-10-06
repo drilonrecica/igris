@@ -55,7 +55,7 @@ Igris's parser is deterministic and strict. Plans that don't match this format a
 - If the first token is alphabetic and the second is a number (`## Phase 2 — API`), the phase ID is the two tokens joined with a hyphen: `Phase-2`. The second token must be digits only (`## Phase 2: API` has phase ID `Phase`).
 - Only level-2 headings start a phase; `###` and deeper headings stay inside the current phase. Headings and tables inside fenced code blocks (```` ``` ```` / `~~~`) are ignored.
 - Phase IDs must be unique within a plan.
-- `##` sections without a task table (Legend, Working rules, traceability tables) are ignored.
+- `##` sections without a task table (Legend, Working rules, traceability tables) are ignored. A plan needs at least one task table; a plan without any is a validation error (it is most likely in another format, §9).
 - **Phase order** is file order.
 
 ### 3.2 Task tables
@@ -279,7 +279,7 @@ For a task with Owner `user`:
 For plans that fail `igris check` or use a different format.
 
 1. `igris adapt [--model sonnet|opus] [--plan PATH]` (default model from `adapt.model`, default `sonnet`). Only `sonnet` and `opus` are offered.
-2. Igris runs `igris check` and captures every validation error. A plan without any task table passes `check` (it has nothing to run) but counts as a problem for `adapt`, as it is a plan in another format; a plan that passes and has tasks has nothing to adapt (exit 0). `adapt` takes the run lock (§13), so it never runs alongside `arise`.
+2. Igris runs `igris check` and captures every validation error; a plan that passes has nothing to adapt (exit 0). `adapt` takes the run lock (§13), so it never runs alongside `arise`.
 3. It opens a session (same backend, mode `default`) with the adapt prompt: the canonical format (§3, embedded), the validation errors, the config's `[models]` aliases, and the job — **write a converted copy to `.igris/adapt/<plan-name>.proposed.md`**, preserving every task, ID, description, dependency, status and model. Allowed: restructure headings and tables, rename columns, normalize statuses, convert prose dependencies into IDs. Not allowed: inventing or changing models, dropping tasks, rewriting descriptions. Tasks with missing or unknown models are listed in a `## Adapt notes` section at the end of the proposal and given Model `?` — which `check` rejects, so the owner must fill them in. The adapt session gets its own rules instead of the task rules (§6.1): write only the proposal file, never edit the original, never guess a model, ask when the original is ambiguous, finish with `igris done ADAPT`.
 4. The session can ask the owner questions like any other session (`needs_input` and `session_lost` are notified as in §10). It finishes with `igris done ADAPT`, which `igris done` accepts without reading the plan (unless the plan has a task `ADAPT`). Interrupting `adapt` leaves the session open; a session that ends without `done` is an error and nothing changes.
 5. Igris validates the proposal with the normal parser, then shows a **diff view** (original vs proposal) in the TUI with the validation result: a line diff (hand-rolled LCS, P0-01) with `-`/`+`/space markers on every row, unchanged stretches folded to 3 lines of context, the proposal's problems above it, and **Reject** / **Accept** buttons (keys `r`/`esc`/`q` and `a`; Reject has the focus first). Text from the plan or proposal is drawn with control characters replaced, so a proposal can't send escape sequences to the terminal.

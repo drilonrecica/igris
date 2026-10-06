@@ -8,7 +8,7 @@ Igris's parser is deterministic and strict. Plans that don't match this format a
 - If the first token is alphabetic and the second is a number (`## Phase 2 — API`), the phase ID is the two tokens joined with a hyphen: `Phase-2`. The second token must be digits only (`## Phase 2: API` has phase ID `Phase`).
 - Only level-2 headings start a phase; `###` and deeper headings stay inside the current phase. Headings and tables inside fenced code blocks (```` ``` ```` / `~~~`) are ignored.
 - Phase IDs must be unique within a plan.
-- `##` sections without a task table (Legend, Working rules, traceability tables) are ignored.
+- `##` sections without a task table (Legend, Working rules, traceability tables) are ignored. A plan needs at least one task table; a plan without any is a validation error (it is most likely in another format, §9).
 - **Phase order** is file order.
 
 ### 3.2 Task tables

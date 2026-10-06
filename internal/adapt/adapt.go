@@ -129,28 +129,17 @@ func Run(ctx context.Context, o Options) (*Result, error) {
 		ProposalPath: proposal,
 		Original:     original,
 		Proposed:     proposed,
-		Issues:       problems(plan.Parse(proposal, proposed, opts), cfg.Models),
+		Issues:       plan.Parse(proposal, proposed, opts).Validate(cfg.Models),
 		Note:         sig.Note,
 	}, nil
 }
 
 // needsAdapt returns the plan's problems, or ErrAlreadyValid.
 func needsAdapt(p *plan.Plan, models map[string]string) ([]plan.Issue, error) {
-	if issues := problems(p, models); len(issues) > 0 {
+	if issues := p.Validate(models); len(issues) > 0 {
 		return issues, nil
 	}
 	return nil, ErrAlreadyValid
-}
-
-// problems validates p. A plan without any task table passes `igris check`
-// (it has nothing to run), but for adapt that is a plan in another format,
-// or a proposal that lost every task, so it counts as a problem.
-func problems(p *plan.Plan, models map[string]string) []plan.Issue {
-	issues := p.Validate(models)
-	if len(issues) == 0 && len(p.Tasks) == 0 {
-		issues = []plan.Issue{{File: p.Path, Msg: "no task table found; igris needs a table with ID, Status and Model columns under a ## heading"}}
-	}
-	return issues
 }
 
 // lockError rewords the run-lock errors for adapt, which has no

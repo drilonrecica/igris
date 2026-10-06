@@ -162,3 +162,7 @@ Design choices:
 - `--no-tui` keeps the plain stdin commands.
 - **Amended** (2026-10-06, M4-01): mouse reporting uses cell motion (presses, wheel, drags), so there is no hover highlight; SPEC §15.4–15.5 updated.
 - **Amended** (2026-10-06, M4-07, approved by owner): the visual design pass. Rank colors are set in a new `[tui.rank_colors]` table, with built-in colors for the stock ranks. The default colors are the brand palette (`docs/brand/`). A new `[tui] theme = "auto" | "dark" | "light"` key overrides the background detection, which can fail in a multiplexer or over SSH. Hover stays out, as amended in M4-01. `NO_COLOR` removes color but keeps bold, faint and reverse video. No new dependency: colors go through Lip Gloss, the attributes are plain SGR codes. SPEC §12 and §15.4 updated.
+
+## Plans without a task table
+
+**Approved by owner** (2026-10-06), raised during M6-02. `igris check` used to accept a plan without any task table ("OK, 0 tasks"), although such a plan is almost always in another format: exactly what `igris adapt` is for. It is now a validation error, reported only when nothing else explains it (a misplaced table is reported as misplaced). SPEC §3.1 and §9.2 amended; `igris adapt` drops its own special case for it.

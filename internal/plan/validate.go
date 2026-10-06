@@ -47,6 +47,11 @@ func (p *Plan) Validate(models map[string]string) []Issue {
 		v.checkTask(t)
 	}
 	v.checkDeps()
+	if len(p.Tasks) == 0 && len(v.issues) == 0 {
+		// Nothing igris can run: most likely a plan in another format. A
+		// misplaced table is reported as such instead.
+		v.add(0, "no task table found; add a table with ID, Status and Model columns under a ## heading")
+	}
 
 	sort.SliceStable(v.issues, func(i, j int) bool { return v.issues[i].Line < v.issues[j].Line })
 	return v.issues
