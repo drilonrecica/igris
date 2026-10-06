@@ -2,9 +2,11 @@ package herdr
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
+	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/runner"
 )
 
@@ -73,5 +75,37 @@ func TestIntegrationHint(t *testing.T) {
 	f.On(cmd("integration", "status"), runner.Result{Stderr: []byte("x"), ExitCode: 1}, nil)
 	if h := New(f, "w").IntegrationHint(context.Background()); h != "" {
 		t.Errorf("hint when herdr fails = %q, want none", h)
+	}
+}
+
+func TestNotify(t *testing.T) {
+	tests := []struct {
+		sound backend.Sound
+		want  string
+	}{
+		{backend.SoundRequest, "request"},
+		{backend.SoundDone, "done"},
+		{backend.SoundNone, "none"},
+		{"", "request"},
+		{"bogus", "request"},
+	}
+	for _, tt := range tests {
+		f := &runner.Fake{}
+		f.On(cmd("notification", "show"), ok(t, "notification_show.json"), nil)
+		n := backend.Notification{Title: "igris · demo", Body: "phase M0: needs you", Sound: tt.sound}
+		if err := New(f, "w").Notify(context.Background(), n); err != nil {
+			t.Fatalf("Notify(%q): %v", tt.sound, err)
+		}
+		want := []string{"notification", "show", "igris · demo", "--body", "phase M0: needs you", "--sound", tt.want}
+		if got := argv(f); len(got) != 1 || !slices.Equal(got[0], want) {
+			t.Errorf("sound %q: calls = %q, want %q", tt.sound, got, want)
+		}
+	}
+
+	f := &runner.Fake{}
+	f.On(cmd("notification", "show"), runner.Result{Stderr: []byte("down"), ExitCode: 1}, nil)
+	err := New(f, "w").Notify(context.Background(), backend.Notification{Title: "t"})
+	if err == nil || !strings.Contains(err.Error(), "show herdr toast") {
+		t.Errorf("err = %v, want it wrapped with \"show herdr toast\"", err)
 	}
 }

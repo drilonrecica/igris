@@ -164,5 +164,19 @@ func (b *Backend) IntegrationHint(ctx context.Context) string {
 	return ""
 }
 
-// Notify is replaced by the real toast in M3-05.
-func (b *Backend) Notify(context.Context, backend.Notification) error { return nil }
+// Notify shows a herdr toast with the sound matching n.Sound: "request"
+// when igris needs the owner, "done" for completions (SPEC §10). A toast
+// herdr chose not to show is not an error.
+func (b *Backend) Notify(ctx context.Context, n backend.Notification) error {
+	sound := SoundRequest
+	switch n.Sound {
+	case backend.SoundDone:
+		sound = SoundDone
+	case backend.SoundNone:
+		sound = SoundNone
+	}
+	if _, err := b.c.NotificationShow(ctx, n.Title, n.Body, sound); err != nil {
+		return fmt.Errorf("show herdr toast: %w", err)
+	}
+	return nil
+}
