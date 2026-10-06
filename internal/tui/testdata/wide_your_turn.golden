@@ -1,0 +1,30 @@
+┌ igris · sinjal ─────────────────────────────────────────────────────────────────────── phase M0 · mode: plan · herdr ┐
+│ TASKS                                                    │ CURRENT                                                   │
+│ ✓ M0-01  Go module                                sonnet │ M0-05 Buy the domain                                      │
+│ ✓ M0-02  Entrypoint                               sonnet │ user task · 0s                                            │
+│ ● M0-03  Makefile                                 sonnet │ state: YOUR TURN                                          │
+│ · M0-04  Config loader                            opus   │ Buy the domain — pick a registrar, buy it, then press d   │
+│ ! M0-05  Buy the domain                           user   │                                                           │
+│ ⨯ M0-13  Static assets                            sonnet │                                                           │
+│   waits on P0-05                                         │                                                           │
+│ – M0-14  Old idea                                 haiku  │                                                           │
+├──────────────────────────────────────────────────────────┴───────────────────────────────────────────────────────────┤
+│ 09:41 M0-05 started (user task) · Buy the domain                                                                     │
+│ 09:41 M0-05 is your turn                                                                                             │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ [Pause] [Done] [Quit]                                                                                                │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘

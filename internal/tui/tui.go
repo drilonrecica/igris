@@ -12,6 +12,7 @@ import (
 
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/engine"
+	"github.com/drilonrecica/igris/internal/plan"
 )
 
 // Sender takes the owner's commands; *engine.Engine is one.
@@ -25,6 +26,11 @@ type Options struct {
 	Backend string // backend name for the header
 	Mode    string // the run mode chosen for the run; "" for none
 	Mouse   bool   // [tui] mouse: click, tap and wheel (SPEC §15.5)
+
+	// PlanPath is the plan the task list shows; it is re-read when the run
+	// changes it.
+	PlanPath    string
+	PlanOptions plan.Options
 
 	Feed   *Feed  // the run's events
 	Sender Sender // where the owner's commands go

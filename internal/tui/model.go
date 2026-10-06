@@ -8,6 +8,7 @@ import (
 
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/engine"
+	"github.com/drilonrecica/igris/internal/plan"
 )
 
 // maxLog caps the log kept in memory; the full record is .igris/runs.jsonl.
@@ -60,6 +61,12 @@ type model struct {
 	scroll  int // log lines scrolled back from the newest
 	ended   bool
 	endText string
+	plan    *plan.Plan // as last read; nil until loaded
+	taskTop int        // first task list line shown; -1 follows the current task
+	// autoTaskTop is where following the current task put the list in the
+	// last frame; scrolling starts from there.
+	autoTaskTop int
+	loc         *time.Location
 
 	zones zones // of the last frame
 }
@@ -68,17 +75,44 @@ func newModel(ctx context.Context, opts Options) *model {
 	if opts.Now == nil {
 		opts.Now = time.Now
 	}
-	return &model{ctx: ctx, opts: opts, mode: opts.Mode, width: 80, height: 24}
+	return &model{ctx: ctx, opts: opts, mode: opts.Mode, width: 80, height: 24, taskTop: -1, loc: time.Local}
 }
 
 // Messages besides the feed's batches.
 type (
 	tickMsg     struct{}
 	focusErrMsg struct{ err error }
+	planMsg     struct {
+		p   *plan.Plan
+		err error
+	}
 )
 
 func (m *model) Init() tea.Cmd {
-	return tea.Batch(m.listen(false), tick())
+	return tea.Batch(m.listen(false), tick(), m.loadPlan())
+}
+
+// loadPlan reads the plan for the task list. The engine writes it
+// atomically, so a read never sees half a write.
+func (m *model) loadPlan() tea.Cmd {
+	if m.opts.PlanPath == "" {
+		return nil
+	}
+	path, opts := m.opts.PlanPath, m.opts.PlanOptions
+	return func() tea.Msg {
+		p, err := plan.Load(path, opts)
+		return planMsg{p, err}
+	}
+}
+
+// changesPlan reports whether ev means the plan's statuses or the phase
+// shown changed.
+func changesPlan(ev engine.Event) bool {
+	switch ev.Kind {
+	case engine.PhaseStarted, engine.PhaseDone, engine.TaskStarted, engine.TaskResumed, engine.TaskDone, engine.TaskSkipped:
+		return true
+	}
+	return len(ev.Changes) > 0
 }
 
 // listen waits for the next batch from the feed.
@@ -101,8 +135,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 	case batch:
+		reload := false
 		for _, ev := range msg.events {
 			m.event(ev)
+			reload = reload || changesPlan(ev)
 		}
 		if msg.ended {
 			m.ended = true
@@ -110,7 +146,16 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.endText = "the run ended"
 			}
 		}
+		if reload {
+			return m, tea.Batch(m.listen(m.ended), m.loadPlan())
+		}
 		return m, m.listen(m.ended)
+	case planMsg:
+		if msg.err != nil {
+			m.addLog(m.opts.Now(), "could not read the plan: "+msg.err.Error())
+			break
+		}
+		m.plan = msg.p
 	case tickMsg:
 		return m, tick()
 	case focusErrMsg:
@@ -147,13 +192,16 @@ func (m *model) key(k string) tea.Cmd {
 func (m *model) mouse(msg tea.MouseMsg) tea.Cmd {
 	t, ok := m.zones.at(msg.X, msg.Y)
 	switch {
-	case msg.Button == tea.MouseButtonWheelUp:
-		if ok && t.region == regionLog {
-			m.scrollLog(3)
+	case msg.Button == tea.MouseButtonWheelUp, msg.Button == tea.MouseButtonWheelDown:
+		by := 3
+		if msg.Button == tea.MouseButtonWheelDown {
+			by = -3
 		}
-	case msg.Button == tea.MouseButtonWheelDown:
-		if ok && t.region == regionLog {
-			m.scrollLog(-3)
+		switch {
+		case ok && t.region == regionLog:
+			m.scrollLog(by)
+		case ok && t.region == regionTasks:
+			m.scrollTasks(-by)
 		}
 	case msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress && ok:
 		if t.act == actOption {
@@ -180,6 +228,14 @@ func (m *model) activate(a action) tea.Cmd {
 		return tea.Quit
 	case actOpen:
 		return m.focusSession()
+	case actClose:
+		m.dialog = nil
+		return nil
+	case actAnswer:
+		if m.asked != nil {
+			m.dialog = questionDialog(*m.asked)
+		}
+		return nil
 	case actDone:
 		if m.cur == nil {
 			return nil
@@ -228,6 +284,7 @@ func (m *model) event(ev engine.Event) {
 		m.cur.user = ev.Model == ""
 		m.setState(stateWorking, ev)
 		m.holding = false
+		m.taskTop = -1
 		m.settle()
 	case engine.SessionOpened:
 		if m.cur != nil {
@@ -304,4 +361,13 @@ func (m *model) addLog(at time.Time, text string) {
 
 func (m *model) scrollLog(by int) {
 	m.scroll = min(max(m.scroll+by, 0), max(len(m.log)-1, 0))
+}
+
+// scrollTasks moves the task list by lines; it stops following the current
+// task until the next one starts.
+func (m *model) scrollTasks(by int) {
+	if m.taskTop < 0 {
+		m.taskTop = m.autoTaskTop
+	}
+	m.taskTop = max(m.taskTop+by, 0)
 }

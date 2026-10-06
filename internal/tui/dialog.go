@@ -14,7 +14,8 @@ type dialog struct {
 	detail   string
 	options  []option
 	selected int
-	// cancel is what esc picks; actNone keeps the dialog open.
+	// cancel is what esc picks: the non-destructive choice, or actClose
+	// for a question that stays pending until answered.
 	cancel action
 	// question is the engine question the dialog answers; "" for dialogs
 	// the TUI opens itself.
@@ -33,6 +34,7 @@ func questionDialog(ev engine.Event) *dialog {
 	case engine.QuestionCommit:
 		d.title = "Commit " + ev.Task + "?"
 		d.options = []option{{"Commit", actAnswerYes}, {"Leave uncommitted", actAnswerNo}}
+		d.cancel = actClose
 	case engine.QuestionConfirmSkip:
 		d.title = ev.Task + " asks to skip"
 		d.options = []option{{"Keep working", actAnswerNo}, {"Skip the task", actAnswerYes}}
@@ -45,6 +47,7 @@ func questionDialog(ev engine.Event) *dialog {
 			{"Mark done", actDone},
 			{"Stop igris", actStop},
 		}
+		d.cancel = actClose
 	default:
 		d.title = "Question"
 		d.options = []option{{"Yes", actAnswerYes}, {"No", actAnswerNo}}

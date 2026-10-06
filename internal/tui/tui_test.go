@@ -215,10 +215,11 @@ func TestQuestionDialogs(t *testing.T) {
 		clickOp int      // option to click instead, when keys is empty
 		want    engine.Command
 		open    bool // the dialog stays open, nothing sent
+		closed  bool // the dialog closes, the question stays pending
 	}{
 		{name: "commit default", q: engine.QuestionCommit, keys: []string{"enter"}, want: engine.Command{Kind: engine.CmdAnswer, Yes: true}},
 		{name: "commit by number", q: engine.QuestionCommit, keys: []string{"2"}, want: engine.Command{Kind: engine.CmdAnswer}},
-		{name: "commit esc stays", q: engine.QuestionCommit, keys: []string{"esc"}, open: true},
+		{name: "commit esc closes, stays pending", q: engine.QuestionCommit, keys: []string{"esc"}, closed: true},
 		{name: "skip default keeps working", q: engine.QuestionConfirmSkip, keys: []string{" "}, want: engine.Command{Kind: engine.CmdAnswer}},
 		{name: "skip esc keeps working", q: engine.QuestionConfirmSkip, keys: []string{"esc"}, want: engine.Command{Kind: engine.CmdAnswer}},
 		{name: "skip by arrows", q: engine.QuestionConfirmSkip, keys: []string{"down", "enter"}, want: engine.Command{Kind: engine.CmdAnswer, Yes: true}},
@@ -226,7 +227,7 @@ func TestQuestionDialogs(t *testing.T) {
 		{name: "lost wraps up to stop", q: engine.QuestionSessionLost, keys: []string{"up", "enter"}, want: engine.Command{Kind: engine.CmdStop}},
 		{name: "lost click continue", q: engine.QuestionSessionLost, clickOp: 1, want: engine.Command{Kind: engine.CmdRetry, Continue: true}},
 		{name: "lost click done", q: engine.QuestionSessionLost, clickOp: 2, want: engine.Command{Kind: engine.CmdDone}},
-		{name: "lost esc stays", q: engine.QuestionSessionLost, keys: []string{"esc"}, open: true},
+		{name: "lost esc closes, stays pending", q: engine.QuestionSessionLost, keys: []string{"esc"}, closed: true},
 		{name: "shortcuts are off in a dialog", q: engine.QuestionCommit, keys: []string{"p", "d", "9"}, open: true},
 	}
 	for _, tt := range tests {
@@ -243,6 +244,12 @@ func TestQuestionDialogs(t *testing.T) {
 				hs.key(k)
 			}
 			got := hs.s.take()
+			if tt.closed {
+				if len(got) != 0 || hs.m.dialog != nil || hs.m.asked == nil {
+					t.Fatalf("sent %+v, dialog %v, asked %v; want it closed, nothing sent, still pending", got, hs.m.dialog, hs.m.asked)
+				}
+				return
+			}
 			if tt.open {
 				if len(got) != 0 || hs.m.dialog == nil {
 					t.Fatalf("sent %+v, dialog %v; want it open and nothing sent", got, hs.m.dialog)
@@ -341,4 +348,13 @@ func TestProgramOptionsMouse(t *testing.T) {
 	if on, off := len(programOptions(ctx, true)), len(programOptions(ctx, false)); on != off+1 {
 		t.Errorf("mouse on adds %d options, want exactly the mouse one", on-off)
 	}
+}
+
+// wheel is a wheel event over r.
+func wheel(r rect, up bool) tea.MouseMsg {
+	b := tea.MouseButtonWheelDown
+	if up {
+		b = tea.MouseButtonWheelUp
+	}
+	return tea.MouseMsg{X: r.x, Y: r.y, Button: b, Action: tea.MouseActionPress}
 }

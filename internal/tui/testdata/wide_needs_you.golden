@@ -1,0 +1,30 @@
+┌ igris · sinjal ─────────────────────────────────────────────────────────────────────── phase M0 · mode: plan · herdr ┐
+│ TASKS                                                    │ CURRENT                                                   │
+│ ✓ M0-01  Go module                                sonnet │ M0-03 Makefile                                            │
+│ ✓ M0-02  Entrypoint                               sonnet │ rank sonnet → model sonnet                                │
+│ ! M0-03  Makefile                                 sonnet │ mode plan · 4m12s                                         │
+│ · M0-04  Config loader                            opus   │ state: NEEDS YOU (idle 45s)                               │
+│ · M0-05  Buy the domain                           user   │ the session is idle without a signal                      │
+│ ⨯ M0-13  Static assets                            sonnet │ [o] Open session                                          │
+│   waits on P0-05                                         │                                                           │
+│ – M0-14  Old idea                                 haiku  │                                                           │
+├──────────────────────────────────────────────────────────┴───────────────────────────────────────────────────────────┤
+│ 09:41 M0-03 started (sonnet → sonnet, plan) · Makefile                                                               │
+│ 09:41 M0-03 session open                                                                                             │
+│ 09:44 M0-03 needs you: the session is idle without a signal                                                          │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ [Open session] [Pause] [Done] [Quit]                                                                                 │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘

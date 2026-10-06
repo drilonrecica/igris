@@ -17,7 +17,9 @@ const (
 	actAnswerNo
 	actRetryFresh
 	actRetryContinue
-	actStop // stop igris now (only offered inside dialogs so far)
+	actStop   // stop igris now (only offered inside dialogs so far)
+	actAnswer // reopen the dialog of the pending question
+	actClose  // close a dialog; its question stays pending
 )
 
 // command is the engine command an action sends, if any.

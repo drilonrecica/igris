@@ -198,9 +198,12 @@ func runWithTUI(ctx context.Context, f ariseFlags, opts engine.Options, be backe
 		Backend: be.Name(),
 		Mode:    f.mode,
 		Mouse:   f.cfg.TUI.Mouse,
-		Feed:    feed,
-		Sender:  eng,
-		Focus:   focusSession(be),
+		// The task list reads the plan the engine writes.
+		PlanPath:    rootPath(f.root, f.cfg.Plan),
+		PlanOptions: plan.Options{Columns: f.cfg.Columns},
+		Feed:        feed,
+		Sender:      eng,
+		Focus:       focusSession(be),
 	})
 	stopRun()
 	<-feed.Ended()

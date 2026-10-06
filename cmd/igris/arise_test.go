@@ -554,7 +554,7 @@ func TestAriseTUIRunsTheEngine(t *testing.T) {
 		t.Errorf("output lacks the outcome:\n%s", output)
 	}
 	if got.Feed == nil || got.Sender == nil || got.Focus == nil || got.Backend != "fake" ||
-		got.Project != filepath.Base(root) || got.Mouse {
+		got.Project != filepath.Base(root) || got.Mouse || got.PlanPath != filepath.Join(root, "tasks.md") {
 		t.Errorf("TUI options = %+v", got)
 	}
 	if s := planStatuses(t, root); s != "A-1=done" {

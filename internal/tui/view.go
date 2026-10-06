@@ -6,9 +6,15 @@ import (
 	"time"
 )
 
+// wideWidth is where the two-column layout starts (SPEC §15.1).
+const wideWidth = 100
+
 // View draws the frame and records its zones.
 func (m *model) View() string {
 	m.zones.reset()
+	if m.width >= wideWidth && m.height >= wideMinHeight {
+		return m.wideView()
+	}
 	w, h := max(m.width, 20), max(m.height, 5)
 	lines := []string{m.header(), m.currentLine()}
 	body := h - 3
@@ -30,7 +36,7 @@ func (m *model) View() string {
 	for len(lines) < h-1 {
 		lines = append(lines, "")
 	}
-	lines = append(lines[:h-1], m.bar(h-1, w))
+	lines = append(lines[:h-1], m.barAt(0, h-1, w))
 	for i, l := range lines {
 		lines[i] = fit(l, w)
 	}
@@ -100,7 +106,7 @@ func (m *model) logView(n int) []string {
 	start := max(end-n, 0)
 	out := make([]string, 0, n)
 	for _, e := range m.log[start:end] {
-		out = append(out, e.at.Local().Format("15:04")+" "+e.text)
+		out = append(out, e.at.In(m.loc).Format("15:04")+" "+e.text)
 	}
 	return out
 }
@@ -122,25 +128,6 @@ func (m *model) buttons() []option {
 		out = append(out, option{"Done", actDone})
 	}
 	return append(out, option{"Quit", actQuit})
-}
-
-// bar draws the action bar on row y and records its buttons.
-func (m *model) bar(y, w int) string {
-	var b strings.Builder
-	x := 0
-	for _, o := range m.buttons() {
-		label := "[" + o.label + "]"
-		lw := textWidth(label)
-		if x+lw > w {
-			break
-		}
-		if m.dialog == nil { // a dialog is modal
-			m.zones.add(rect{x, y, lw, 1}, target{act: o.act})
-		}
-		b.WriteString(label + " ")
-		x += lw + 1
-	}
-	return strings.TrimRight(b.String(), " ")
 }
 
 // since formats the time from t to now, e.g. "4m12s".
