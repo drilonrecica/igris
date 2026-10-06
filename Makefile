@@ -1,7 +1,7 @@
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -X main.version=$(VERSION)
 
-.PHONY: build install fmt lint test test-race release-local demo
+.PHONY: build install fmt lint test test-race release-local demo site
 
 build:
 	go build -ldflags "$(LDFLAGS)" -o bin/igris ./cmd/igris
@@ -38,3 +38,8 @@ demo:
 	$(MAKE) install
 	@# Drop HERDR_* so the recorded herdr doesn't refuse to nest when this runs in a herdr pane.
 	env $$(env | sed -n 's/^\(HERDR_[A-Z_]*\)=.*/-u \1/p') vhs docs/demo/demo.tape
+
+# Builds the project page into _site/ (decisions.md P0-09); pages.yml deploys
+# the same output. Preview: python3 -m http.server -d _site
+site:
+	sh site/build.sh

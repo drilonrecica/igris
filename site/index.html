@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>igris — run your task plan one Claude Code session at a time</title>
+  <meta name="description" content="igris runs the tasks in your markdown project plan one at a time, each in a fresh Claude Code session, started with exactly the model your plan assigns to that task.">
+  <link rel="canonical" href="https://drilonrecica.github.io/igris/">
+  <meta name="theme-color" content="#05070F">
+  <meta name="color-scheme" content="dark">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="igris — one task, one fresh session, the right rank">
+  <meta property="og:description" content="Runs your task plan one fresh Claude Code session at a time, each task on exactly the model your plan assigns.">
+  <meta property="og:url" content="https://drilonrecica.github.io/igris/">
+  <meta property="og:image" content="https://drilonrecica.github.io/igris/brand/igris-mark-dark-512.png">
+  <meta property="og:image:alt" content="The igris helm: a black knight's helm with a glowing cyan visor and a red plume">
+  <meta name="twitter:card" content="summary">
+  <link rel="icon" href="brand/favicon.ico" sizes="16x16 32x32 48x48">
+  <link rel="apple-touch-icon" href="brand/igris-icon-180.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="./" aria-label="igris home"><img src="brand/igris-logo-dark.svg" alt="igris" width="82" height="32"></a>
+      <nav aria-label="Main">
+        <a class="nav-opt" href="#how">How it works</a>
+        <a class="nav-opt" href="#ranks">Ranks</a>
+        <a href="#install">Install</a>
+        <a href="https://github.com/drilonrecica/igris">GitHub</a>
+        <a class="pill pill-version" href="https://github.com/drilonrecica/igris/releases/latest">v0.1.0</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div class="hero-text">
+          <p class="tagline"><em>Arise.</em> One task, one fresh session, the right rank.</p>
+          <h1>Run your task plan one fresh Claude Code session at a time.</h1>
+          <p class="lead">Each task on exactly the model your plan assigns. Never a more expensive one.</p>
+          <div class="cmd" data-copy>
+            <code>go install github.com/drilonrecica/<wbr>igris/cmd/igris@latest</code>
+            <button type="button" class="copy" hidden>Copy</button>
+          </div>
+          <div class="actions">
+            <a class="btn btn-primary" href="#install">Get started</a>
+            <a class="btn btn-ghost" href="https://github.com/drilonrecica/igris">GitHub</a>
+          </div>
+        </div>
+        <figure class="term">
+          <div class="term-bar" aria-hidden="true"><i></i><i></i><i></i></div>
+          <img src="igris-demo.gif" width="1280" height="760" alt="igris running a two-task phase in herdr: each task gets a fresh Claude Code session on the model the plan assigns, sonnet then opus, and the phase completes">
+        </figure>
+      </div>
+    </section>
+
+    <section class="why">
+      <div class="wrap">
+        <p>Long Claude Code sessions fill their context and drift, and picking the model by hand for every task is tedious. The expensive mistake is the silent one: a routine task quietly running on your most expensive model.</p>
+      </div>
+    </section>
+
+    <section id="how" class="section">
+      <div class="wrap">
+        <h2>How it works</h2>
+        <p class="section-lead">You already plan your work as a task table with dependencies and a model per task. igris turns that plan into an execution queue:</p>
+        <div class="cmd cmd-inline"><code>igris arise M0</code></div>
+        <ol class="steps">
+          <li><strong>Takes the next ready task</strong> in phase <code>M0</code>.</li>
+          <li><strong>Opens a fresh session</strong> with that task's model: <code>--model sonnet</code>, <code>opus</code>, <code>fable</code>, …</li>
+          <li><strong>Hands it</strong> the task, the plan and your project rules.</li>
+          <li><strong>Waits and notifies you</strong> when Claude needs a decision, an approval or a plan review.</li>
+          <li><strong>On <code>igris done</code></strong> it runs your checks, offers to commit, marks the task done and unblocks dependents.</li>
+          <li><strong>Starts the next task</strong> in a new session, until the phase is finished.</li>
+        </ol>
+        <p class="note">Strictly sequential. Deterministic. No LLM decides which model runs what.</p>
+      </div>
+    </section>
+
+    <section id="ranks" class="section">
+      <div class="wrap">
+        <h2>Shadows have ranks</h2>
+        <p class="section-lead">Like summoning the right shadow for the fight, each task gets the rank your plan gives it.</p>
+        <div class="ranks">
+          <div class="rank"><span class="pill rank-sonnet">sonnet</span><p>Routine, well-specified work.</p></div>
+          <div class="rank"><span class="pill rank-opus">opus</span><p>Complex or security-sensitive logic.</p></div>
+          <div class="rank rank-top"><span class="pill rank-fable">fable</span><p>The highest-stakes design and correctness work.</p></div>
+        </div>
+        <p class="note">Rank aliases are configurable in <code>igris.toml</code>. A task without a usable model is a validation error, not a guess.</p>
+      </div>
+    </section>
+
+    <section id="plan" class="section">
+      <div class="wrap">
+        <h2>Your plan is the input</h2>
+        <p class="section-lead">A plain markdown file: one task table per phase. This is all igris needs.</p>
+<pre class="plan" tabindex="0" aria-label="Example plan in markdown"><span class="md-h">## P1 — Hello CLI</span>
+
+| ID    | Task                 | Deps        | Status  | Model  |
+|-------|----------------------|-------------|---------|--------|
+| P1-01 | **Project skeleton** | —           | done    | <span class="m-sonnet">sonnet</span> |
+| P1-02 | **Flag parsing**     | P1-01       | ready   | <span class="m-sonnet">sonnet</span> |
+| P1-03 | **Greeting design**  | P1-01       | ready   | <span class="m-opus">opus</span>   |
+| P1-G  | **P1 gate**          | P1-01…P1-03 | blocked | <span class="m-sonnet">sonnet</span> |</pre>
+        <p class="note">igris only ever changes Status cells, byte for byte. <code>igris check</code> validates the plan; a plan in another format can be converted with <code>igris adapt</code>, and you review the diff first. <a href="https://github.com/drilonrecica/igris/blob/master/examples/tasks.md">See the full example plan</a>.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <h2>What you get</h2>
+        <div class="features">
+          <div class="feature"><h3>A fresh session per task</h3><p>No context bleed from one task into the next. Each session gets the task, the plan and your rules.</p></div>
+          <div class="feature"><h3>Your plan stays yours</h3><p>Only Status cells change. Unexpected edits to the plan pause the run.</p></div>
+          <div class="feature"><h3>Stops when it needs you</h3><p>Questions, approvals, stalled sessions and failed checks notify you via herdr toasts, ntfy or Discord.</p></div>
+          <div class="feature"><h3>Verify and commit</h3><p>Your <code>verify</code> command runs on every done; failures go back to the same session. Commits are <code>ask</code>, <code>auto</code> or <code>never</code>.</p></div>
+          <div class="feature"><h3>Works from your phone</h3><p>Mouse and keyboard, choice dialogs, and a single-column layout for small terminals over SSH.</p></div>
+          <div class="feature"><h3>Resumable</h3><p>Quit any time. <code>igris arise</code> reattaches to the running session or continues where it left off.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="install" class="section">
+      <div class="wrap two-col">
+        <div>
+          <h2>Install</h2>
+          <p>With Go:</p>
+          <div class="cmd" data-copy>
+            <code>go install github.com/drilonrecica/<wbr>igris/cmd/igris@latest</code>
+            <button type="button" class="copy" hidden>Copy</button>
+          </div>
+          <p>Or download a static binary for Linux or macOS (amd64, arm64) from <a href="https://github.com/drilonrecica/igris/releases/latest">Releases</a> and check it against <code>checksums.txt</code>.</p>
+          <p>Then, in a herdr pane in your project:</p>
+          <div class="cmd"><code>igris init &amp;&amp; igris check &amp;&amp; igris arise M0</code></div>
+          <p class="note"><a href="https://github.com/drilonrecica/igris#quick-start">Quick start and herdr setup in the README</a></p>
+        </div>
+        <div>
+          <h2>Requirements</h2>
+          <ul class="reqs">
+            <li><strong>Claude Code</strong>, logged in the way you normally use it (Pro/Max subscription).</li>
+            <li><strong><a href="https://herdr.dev">herdr</a></strong>, which keeps sessions alive across disconnects. tmux support is planned.</li>
+            <li><strong>git</strong>, recommended.</li>
+            <li><strong>Linux or macOS</strong>.</li>
+          </ul>
+          <p class="callout">If <code>ANTHROPIC_API_KEY</code> is set, Claude Code bills the API instead of your subscription. igris warns you at start.</p>
+          <div class="faq">
+            <details>
+              <summary>Does igris use my subscription or the API?</summary>
+              <p>Whatever Claude Code normally uses for you. igris starts ordinary interactive sessions, so they run on your login and count against its limits. It never sets <code>ANTHROPIC_API_KEY</code> and never reads, prints or stores your Claude credentials.</p>
+            </details>
+            <details>
+              <summary>Why a fresh session per task?</summary>
+              <p>A long session fills its context and drifts, and one task's context shouldn't leak into the next. A fresh session gets the task, the plan and your project rules, and nothing else.</p>
+            </details>
+            <details>
+              <summary>Can igris pick the model for me?</summary>
+              <p>No, on purpose. The plan's Model column is the only input: igris launches exactly that rank and never a more expensive one.</p>
+            </details>
+          </div>
+          <p class="note"><a href="https://github.com/drilonrecica/igris#faq">More in the README FAQ</a></p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <span class="footer-brand"><img src="brand/igris-mark-dark.svg" alt="" width="48" height="48"> igris · MIT license</span>
+      <nav aria-label="Project">
+        <a href="https://github.com/drilonrecica/igris#readme">README</a>
+        <a href="https://github.com/drilonrecica/igris/blob/master/SPEC.md">SPEC</a>
+        <a href="https://github.com/drilonrecica/igris/blob/master/CHANGELOG.md">Changelog</a>
+        <a href="https://github.com/drilonrecica/igris/releases">Releases</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script>
+    // Copy buttons appear only where the clipboard API works; the command stays selectable either way.
+    if (navigator.clipboard && window.isSecureContext) {
+      document.querySelectorAll('[data-copy]').forEach(function (box) {
+        var btn = box.querySelector('.copy');
+        var text = box.querySelector('code').textContent;
+        btn.hidden = false;
+        btn.addEventListener('click', function () {
+          navigator.clipboard.writeText(text).then(function () {
+            btn.textContent = 'Copied';
+            setTimeout(function () { btn.textContent = 'Copy'; }, 1600);
+          });
+        });
+      });
+    }
+  </script>
+</body>
+</html>

@@ -38,3 +38,6 @@ go.work.sum
 .igris/
 dist/
 bin/
+
+# project page build output
+_site/
