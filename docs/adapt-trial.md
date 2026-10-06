@@ -19,3 +19,17 @@ Run `igris adapt` on two real plans from your other projects. Work on **copies**
 ## Record
 
 For each plan: task count before/after, errors `check` reported, edits you had to make after accepting, anything the session got wrong or asked needlessly, anything the review screen made hard to judge. Report problems back as new tasks; don't patch adapt ad hoc.
+
+# M6 gate (M6-G)
+
+Exit: a non-canonical plan can be converted, reviewed as a diff, and accepted or rejected safely.
+
+Automated (checked when this was written): `make fmt lint test` and `go test -race ./...` are green; `igris adapt --help` (`--model`, `--plan`) matches SPEC §9; scenario tests cover renamed columns, prose deps and missing models end to end on the fake backend, including accept + backup.
+
+Owner confirms:
+
+- [ ] Two real plans adapted per the trial above, each accepted and passing `igris check`.
+- [ ] Reject left the plan untouched and the proposal in `.igris/adapt/`.
+- [ ] No problems found, or each one is recorded as a task.
+
+When all three are ticked, mark M6-05 and M6-G `done` in `imp-docs/tasks.md`.
