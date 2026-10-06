@@ -2,6 +2,7 @@
 package config
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -279,6 +280,19 @@ func (c *Config) Resolve(getenv func(string) string) (Secrets, error) {
 	s.NtfyToken = resolve("notify.ntfy.token", c.Notify.Ntfy.Token)
 	s.DiscordWebhook = resolve("notify.discord.webhook_url", c.Notify.Discord.WebhookURL)
 	return s, errors.Join(errs...)
+}
+
+// Write stores c as TOML at path (0600). Loading the file gives a config
+// with the same Hash.
+func Write(path string, c *Config) error {
+	var buf bytes.Buffer
+	if err := toml.NewEncoder(&buf).Encode(c); err != nil {
+		return fmt.Errorf("encode %s: %w", path, err)
+	}
+	if err := os.WriteFile(path, buf.Bytes(), 0o600); err != nil {
+		return fmt.Errorf("write %s: %w", path, err)
+	}
+	return nil
 }
 
 // Hash returns a stable digest of the configuration as written (env:

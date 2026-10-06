@@ -467,9 +467,15 @@ igris version
 
 - The plan file is `--plan`, else `plan` in `igris.toml` in the working directory, else `tasks.md`. `check`, `phases` and `status` read the plan only; `phases` and `status` refuse an invalid plan (exit 1, listing the problems) and report to stdout, errors to stderr. `--json` prints one JSON document instead of text.
 - `check` prints each validation problem as `file:line: message` and each readiness drift (§5.2) as `warning: file:line: …`; warnings never fail the check. `status` shows, per phase, how many tasks are finished, the §5.1 outcome (`next`, `complete`, `stuck`) and, for each task, the dependencies it waits on. The current run (needs `.igris/` state, §13) is added to `status` once runs exist.
-- `--no-tui` prints plain timestamped log lines and reads owner commands from stdin (`done`, `skip <reason>`, `retry`, `pause`, `stop`, `mode <m>`), for scripting or very small terminals. `pause` toggles pause-after-task like `p` in the TUI (§15.3).
+- `--no-tui` prints plain timestamped log lines and reads owner commands from stdin, one per line, for scripting or very small terminals:
+  - `y` / `n` answer the question igris asked (commit? confirm a session's skip request?);
+  - `done [note]` marks the current task done (an agent task is not verified, §6.4), `skip <reason>` skips it;
+  - `retry [continue|fresh]` replaces the current session: continue its conversation or start fresh (`Resumed=true`); bare `retry` is `fresh`. This is also the answer when a session is lost;
+  - `pause` toggles pause-after-task like `p` in the TUI (§15.3), `stop` stops igris and leaves the session open;
+  - `mode <m>` sets the run mode for the next sessions; `mode yolo` then asks to type `skip permissions` (§7.3);
+  - `help` lists them. Ctrl-C is `stop`.
 - `--force-unlock` clears a stale `.igris/igris.lock` (its process is gone, the file is unreadable, or it comes from another host); a lock held by a live process on this host is always refused (§13).
-- `--dry-run` uses the fake backend: walks the phase, prints which task would launch with which model and mode, writes nothing.
+- `--dry-run` uses the fake backend: walks the phase, prints which task would launch with which model and mode, writes nothing. It runs the real engine on a temporary copy of the plan, with every session finishing at once, user tasks done, verify and commits off. Drift and skip-permissions tasks are shown as warnings instead of asked about; a task already in progress is shown as resumed with a fresh session. Without a phase it walks the last run's phases. It never touches `.igris/`.
 - On start, `arise` warns if `ANTHROPIC_API_KEY` is set in the environment (Claude Code would bill the API instead of the subscription) and asks for confirmation.
 
 ---

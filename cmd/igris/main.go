@@ -71,7 +71,7 @@ func commands() []command {
 				}
 				return atMost(args, 1)
 			}
-		}},
+		}, exec: execArise},
 		{name: "done", setup: func(fs *flag.FlagSet) func([]string) error {
 			fs.String("note", "", "short note stored with the signal")
 			return exactArgs("ID", 1)

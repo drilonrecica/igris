@@ -124,6 +124,8 @@ type Engine struct {
 	reported map[string]bool // keys of the signals and problems reported once
 	// configMoved: igris.toml differs from the one of the run being resumed.
 	configMoved bool
+	runMode     string // the run mode chosen for this run; see CmdMode
+	yoloOK      bool   // skip-permissions mode was confirmed through CmdMode
 }
 
 // New checks opts and returns an engine. It does no I/O.
@@ -167,6 +169,7 @@ func New(opts Options) (*Engine, error) {
 		wake:      make(chan struct{}, 1),
 		reported:  map[string]bool{},
 		commitMsg: commitMsg,
+		runMode:   opts.Mode,
 	}
 	e.writer = plan.NewWriter(e.planPath, e.planOpts, e.cfg.Models)
 	return e, nil
@@ -266,6 +269,12 @@ func (e *Engine) prepare() ([]string, error) {
 	if prev != nil {
 		cur = prev.Current
 	}
+	// A session left running in skip-permissions mode is only reattached
+	// with this run's confirmation too (SPEC §7.3); new sessions are gated
+	// by modeFor.
+	if cur != nil && cur.Mode == ModeYolo && !e.yoloConfirmed() {
+		return nil, fmt.Errorf("the interrupted task %s runs in yolo mode: %w", cur.TaskID, ErrYoloUnconfirmed)
+	}
 	ids := make([]string, 0, len(phases))
 	for _, ph := range phases {
 		// A resumed run starts in the phase of the task it picks up again;
@@ -316,11 +325,11 @@ func (e *Engine) loadPlan() (*plan.Plan, error) {
 // modeFor resolves the run mode of t (SPEC §7.2) and refuses
 // skip-permissions mode the owner didn't confirm.
 func (e *Engine) modeFor(t *plan.Task) (string, error) {
-	mode, err := ResolveMode("", t.Mode, e.opts.Mode, e.cfg.DefaultMode)
+	mode, err := ResolveMode("", t.Mode, e.runMode, e.cfg.DefaultMode)
 	if err != nil {
 		return "", fmt.Errorf("task %s: %w", t.ID, err)
 	}
-	if mode == ModeYolo && !e.opts.ConfirmedYolo {
+	if mode == ModeYolo && !e.yoloConfirmed() {
 		return "", fmt.Errorf("task %s would run in yolo mode: %w", t.ID, ErrYoloUnconfirmed)
 	}
 	return mode, nil
@@ -340,6 +349,10 @@ func (e *Engine) resumeAndRun(ctx context.Context, phases []string) (Result, err
 	}
 	return e.runPhases(ctx, phases)
 }
+
+// yoloConfirmed reports whether the owner confirmed skip-permissions mode
+// for this run.
+func (e *Engine) yoloConfirmed() bool { return e.opts.ConfirmedYolo || e.yoloOK }
 
 func (e *Engine) runPhases(ctx context.Context, phases []string) (Result, error) {
 	var res Result

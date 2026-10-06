@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/drilonrecica/igris/internal/backend"
@@ -48,8 +49,16 @@ func (d *Dir) SaveRun(r *Run) error {
 }
 
 // LoadRun reads state.json. It returns ErrNoRun if there is none.
-func (d *Dir) LoadRun() (*Run, error) {
-	data, err := os.ReadFile(d.runPath())
+func (d *Dir) LoadRun() (*Run, error) { return loadRun(d.runPath()) }
+
+// PeekRun reads root/.igris/state.json without creating or changing
+// anything, e.g. for a dry run. It returns ErrNoRun if there is none.
+func PeekRun(root string) (*Run, error) {
+	return loadRun(filepath.Join(root, DirName, "state.json"))
+}
+
+func loadRun(path string) (*Run, error) {
+	data, err := os.ReadFile(path) //nolint:gosec // igris's own state file
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, ErrNoRun
 	}
@@ -58,10 +67,10 @@ func (d *Dir) LoadRun() (*Run, error) {
 	}
 	var r Run
 	if err := json.Unmarshal(data, &r); err != nil {
-		return nil, fmt.Errorf("read run state %s: %w; delete the file to start a new run", d.runPath(), err)
+		return nil, fmt.Errorf("read run state %s: %w; delete the file to start a new run", path, err)
 	}
 	if r.Version != runVersion {
-		return nil, fmt.Errorf("read run state %s: unsupported version %d (want %d); delete the file to start a new run", d.runPath(), r.Version, runVersion)
+		return nil, fmt.Errorf("read run state %s: unsupported version %d (want %d); delete the file to start a new run", path, r.Version, runVersion)
 	}
 	return &r, nil
 }

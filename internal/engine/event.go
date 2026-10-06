@@ -26,6 +26,7 @@ const (
 	PauseOn        EventKind = "pause_on"        // pause-after-task was switched on
 	PauseOff       EventKind = "pause_off"       // ... and off again; a held run continues
 	Paused         EventKind = "paused"          // the run holds instead of launching Task
+	ModeChanged    EventKind = "mode_changed"    // Detail is the run mode for the next sessions
 	ConfigChanged  EventKind = "config_changed"  // igris.toml differs from the snapshot; needs the owner
 	ConfigRestored EventKind = "config_restored" // igris.toml matches the snapshot again
 	StaleSignal    EventKind = "stale_signal"    // a signal from before the task started was ignored

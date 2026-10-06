@@ -839,3 +839,41 @@ func TestConfigDefaultsAreUsedWithoutAFile(t *testing.T) {
 		t.Errorf("%d config_changed events, want none", got)
 	}
 }
+
+// Mode changes apply to the next session; skip-permissions needs the typed
+// confirmation (SPEC §7.2, §7.3).
+func TestModeCommand(t *testing.T) {
+	h := newHarness(t, chainPlan, "")
+	h.onEvent = func(ev Event) {
+		if ev.Kind != TaskStarted {
+			return
+		}
+		switch ev.Task {
+		case "A-1":
+			h.eng.Send(Command{Kind: CmdMode, Text: "accept"})
+		case "A-2":
+			h.eng.Send(Command{Kind: CmdMode, Text: "wild"})
+			h.eng.Send(Command{Kind: CmdMode, Text: "yolo"}) // not confirmed
+			h.eng.Send(Command{Kind: CmdMode, Text: "YOLO", Yes: true})
+		}
+	}
+	if _, err := h.run(); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	specs := h.be.Opened()
+	if got := arg(specs[0], "--permission-mode"); got != "" {
+		t.Errorf("A-1 --permission-mode %q, want none (it was running when the mode changed)", got)
+	}
+	if got := arg(specs[1], "--permission-mode"); got != "acceptEdits" {
+		t.Errorf("A-2 --permission-mode %q, want acceptEdits", got)
+	}
+	if got := strings.Join(specs[2].Args, " "); !strings.Contains(got, "--dangerously-skip-permissions") {
+		t.Errorf("A-3 args %q, want skip permissions", got)
+	}
+	if got := h.count(ModeChanged); got != 2 {
+		t.Errorf("%d mode_changed events, want 2", got)
+	}
+	if got := h.count(Warning); got != 2 {
+		t.Errorf("%d warnings, want the unknown mode and the unconfirmed yolo rejected", got)
+	}
+}

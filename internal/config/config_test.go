@@ -284,3 +284,23 @@ func TestForbiddenExtraArg(t *testing.T) {
 		}
 	}
 }
+
+func TestWriteRoundTrips(t *testing.T) {
+	for _, src := range []string{"", "plan = \"x.md\"\n[run]\nverify = \"make test\"\ncommit = \"never\"\n[columns]\n\"Depends on\" = \"Deps\"\n[notify.ntfy]\ntoken = \"env:T\"\n"} {
+		want, err := Parse([]byte(src), "igris.toml")
+		if err != nil {
+			t.Fatal(err)
+		}
+		path := filepath.Join(t.TempDir(), "igris.toml")
+		if err := Write(path, want); err != nil {
+			t.Fatalf("Write: %v", err)
+		}
+		got, err := Load(path)
+		if err != nil {
+			t.Fatalf("Load after Write: %v", err)
+		}
+		if got.Hash() != want.Hash() {
+			t.Errorf("round trip of %q changed the config:\n%+v\n%+v", src, got, want)
+		}
+	}
+}

@@ -2,6 +2,8 @@ package engine
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 )
 
@@ -30,6 +32,11 @@ const (
 	// CmdAnswer answers the pending question (see Question); Yes is the
 	// answer.
 	CmdAnswer
+	// CmdMode sets the run mode for the sessions launched from now on
+	// (SPEC §7.2); Text is the mode. Skip-permissions mode needs Yes: the
+	// owner typed its confirmation (SPEC §7.3), unless the run was started
+	// with it confirmed.
+	CmdMode
 )
 
 func (k CommandKind) String() string {
@@ -46,6 +53,8 @@ func (k CommandKind) String() string {
 		return "retry"
 	case CmdAnswer:
 		return "answer"
+	case CmdMode:
+		return "mode"
 	}
 	return "unknown"
 }
@@ -53,9 +62,9 @@ func (k CommandKind) String() string {
 // Command is an owner action sent to a running engine.
 type Command struct {
 	Kind     CommandKind
-	Text     string // CmdDone: the note; CmdSkip: the reason
+	Text     string // CmdDone: the note; CmdSkip: the reason; CmdMode: the mode
 	Continue bool   // CmdRetry: continue the conversation instead of starting fresh
-	Yes      bool   // CmdAnswer: the answer
+	Yes      bool   // CmdAnswer: the answer; CmdMode: skip permissions confirmed
 }
 
 // Send queues c for the run. It may be called from any goroutine, including
@@ -88,10 +97,29 @@ func (e *Engine) drain() {
 			}
 		case CmdStop:
 			e.stop = true
+		case CmdMode:
+			e.setMode(c)
 		default:
 			e.pending = append(e.pending, c)
 		}
 	}
+}
+
+// setMode applies a CmdMode. A running session keeps its mode.
+func (e *Engine) setMode(c Command) {
+	m := strings.ToLower(strings.TrimSpace(c.Text))
+	switch {
+	case !ValidMode(m):
+		e.reject(c, fmt.Sprintf("unknown run mode %q (want default|accept|auto|plan|yolo)", c.Text))
+		return
+	case m == ModeYolo && !c.Yes && !e.yoloConfirmed():
+		e.reject(c, "skip-permissions mode needs the owner's typed confirmation")
+		return
+	case m == ModeYolo:
+		e.yoloOK = true
+	}
+	e.runMode = m
+	e.emit(Event{Kind: ModeChanged, Detail: m})
 }
 
 // takeCommands returns the task-scoped commands received so far.
