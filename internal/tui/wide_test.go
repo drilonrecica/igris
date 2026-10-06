@@ -12,7 +12,12 @@ import (
 	"github.com/drilonrecica/igris/internal/engine"
 )
 
-var update = flag.Bool("update", false, "rewrite the golden files")
+// updating reports -update. The flag is registered by teatest's golden
+// package, which program_test.go imports, so it can't be declared here too.
+func updating() bool {
+	f := flag.Lookup("update")
+	return f != nil && f.Value.String() == "true"
+}
 
 // demoPlan is a synthetic plan for the layout tests.
 const demoPlan = `## M0 — Repository foundation
@@ -52,7 +57,7 @@ func (hs *harness) withPlan(text string) {
 func golden(t *testing.T, name, got string) {
 	t.Helper()
 	path := filepath.Join("testdata", name+".golden")
-	if *update {
+	if updating() {
 		if err := os.MkdirAll("testdata", 0o750); err != nil {
 			t.Fatal(err)
 		}
