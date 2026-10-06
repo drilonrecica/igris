@@ -94,6 +94,7 @@ A task table is a GitHub-flavored markdown table whose header row contains at le
 ### 3.5 Owners and models
 - `user` tasks must have Model `—`. `agent` and `agent + user` tasks must have a Model that resolves through `[models]` config. Violations are validation errors (igris never guesses a model).
 - An unknown Owner or Mode value is a validation error.
+- A control character (other than tab) in a task row or a phase heading — an escape sequence, say — is a validation error. Parsed cell text never carries one: the TUI, the prompts and the notifications only ever see cleaned text.
 
 Validation reports **every** problem at once, each as `file:line: message` saying what to fix, sorted by line; a dependency cycle is reported once with its path (`a → b → a`).
 
@@ -120,7 +121,7 @@ Igris edits the plan file in place, so writes must be surgical:
 2. Within a Status cell, the original padding and backtick style are preserved (`` `ready` `` → `` `done` ``). Any text after the old keyword is dropped (`blocked (waits on vendor)` → `ready`), since it described the old status.
 3. **Re-read before write.** The file is re-read and re-parsed immediately before every write, because the owner or a session may have edited it. If the target row no longer exists, igris stops with an error rather than writing.
 4. **No lost updates.** Igris hashes the bytes it re-read and, immediately before the rename, hashes the file again. If it changed in between, the write is discarded and retried from step 3 (up to 3 times, then stop with an error).
-5. **Atomic write:** write to a temp file in the same directory, fsync, rename.
+5. **Atomic write:** write to a temp file in the same directory, fsync, rename. The file replaced is the one the plan path resolves to, so a plan that is a symlink stays a symlink.
 6. Igris never reorders, adds or deletes rows, and never edits the plan outside Status cells — except `igris adapt` after explicit owner approval (§9).
 
 ---
@@ -145,6 +146,9 @@ After every status change igris recomputes readiness for **all** tasks in the pl
 - `igris arise <phase>` runs one phase and stops when it completes.
 - `igris arise <phase> --through <phase>` continues through the following phases (file order) up to and including the named one, stopping early if a phase gets stuck.
 - Gate tasks have no special treatment; they're ordinary (usually `agent + user`) tasks.
+
+### 5.4 Plan edits igris didn't make
+Igris remembers every row as it last read or wrote it (Status, Model, Mode, Owner, Deps, Task text; rows added or removed). Whenever it re-reads the plan to select a task and finds a difference it did not write itself — a session editing a later task's Mode or Model, marking tasks done, or the owner's own edit; igris can't tell them apart — it reports the changed cells (`M1-03 Mode — → auto`), sends `needs_input`, and **holds**: pause-after-task goes on and nothing is selected, not even "phase complete", until the owner resumes (`p`, or `pause` with `--no-tui`). The current task is not interrupted. Ready/blocked cells igris recomputes itself (§5.2) are never reported.
 
 ---
 
@@ -184,6 +188,7 @@ The default prompt must tell the session:
 - `igris done <ID> [--note TEXT]` and `igris skip <ID> --reason TEXT` locate the project root (walk up from cwd to the nearest `igris.toml` or `.igris/`), validate that `<ID>` exists, and write a signal file `.igris/signals/<ID>.json` (`{"id","action":"done|skip","note","at"}`) atomically. They print a one-line confirmation and exit 0.
 - They do **not** edit the plan themselves; only the running igris consumes signals. This keeps a single writer.
 - A signal for a task that isn't the current one is kept and reported in the TUI; it is never applied silently.
+- Signal files are read only if they are regular files of at most 64 KiB (sessions can write into `signals/`; a FIFO or a huge file must not stall igris); anything else is reported as unreadable. The note is cleaned of control characters before it is shown, logged or used as a commit body.
 - A signal counts for the current task only if it was written at or after the task started. An older file (e.g. `igris done` run before igris reached the task) is kept and reported, never applied; running the command again replaces it.
 - **Skip needs the owner.** A `skip` signal for an **agent** task is treated as a request: igris marks the task **Needs you**, notifies, and applies the skip only after the owner confirms in the TUI (or via `--no-tui` stdin). Pressing `s` in the TUI applies directly. For **user** tasks a skip signal applies directly, since only the owner acts on them.
 - `igris init` adds the allow rule `Bash(igris done:*)` to `.claude/settings.local.json` (merging, never overwriting) so the done command doesn't trigger a permission prompt. `igris skip` is deliberately **not** allow-listed: a session that wants to skip has to go through a permission prompt and the confirmation above.
@@ -205,7 +210,7 @@ Igris never advances on agent state alone — only on a signal or an explicit ow
 - Optional `verify` command in config (e.g. `make fmt lint test`), run with `sh -c` in the project root, with a timeout (default 15 min).
 - The verify command (like every other config value) comes from the config snapshot taken at `arise` start (§13), never from a re-read of `igris.toml` mid-run.
 - **Pass** → continue. **Fail** → delete the signal, wait until the agent is idle (it ran `igris done` as its last action, so it may still be finishing its turn; up to 30 s, then send anyway), and send the last 60 lines of output into the same session: "igris verification `<cmd>` failed: … Fix the problem, then run `igris done <ID>` again." The task stays in progress.
-- Output is stdout and stderr interleaved as written; a timeout counts as a failure. A verify command that can't be started at all stops the run with an error. The run log records each result, never the output.
+- Output is stdout and stderr interleaved as written, with escape sequences and other control characters removed before it is sent (the text is pasted into the session's terminal and must stay text); only the last 8 MiB are kept. A timeout counts as a failure. A verify command that can't be started at all stops the run with an error. The run log records each result, never the output.
 - After `verify_max_attempts` (default 3) consecutive failures, igris stops sending failures back, marks **Needs you**, and notifies (`verify_failed_limit`). A later `igris done` is verified again (failures still not sent back); retrying the session starts a new count.
 - No verify command → the signal is accepted as is.
 - When the **owner** marks an agent task done (TUI `d`, `--no-tui` `done`, or the session-lost choice), verify is skipped: that is the owner's explicit decision. The commit policy still applies.
@@ -257,7 +262,8 @@ Mode changes in the TUI apply to the **next** session launched; a running sessio
 - Igris warns at start if the project is not a git repository or has uncommitted changes.
 
 ### 7.4 Model and mode enforcement
-- `claude.extra_args` must not contain `--model`, `--fallback-model`, `--permission-mode`, `--dangerously-skip-permissions`, `--allow-dangerously-skip-permissions`, `--session-id`, `--resume`, `--continue`, `--append-system-prompt` or `--append-system-prompt-file`. Igris sets these itself; `check` and `arise` reject a config that contains them. `--fallback-model` in particular would let a task silently run on a different model.
+- `claude.extra_args` must not contain `--model`, `--fallback-model`, `--permission-mode`, `--dangerously-skip-permissions`, `--allow-dangerously-skip-permissions`, `--session-id`, `--resume`, `--continue`, `--append-system-prompt`, `--append-system-prompt-file` or `--settings`, nor the short forms `-c`/`-r` (alone or in a cluster such as `-rd`). Igris sets the first ones itself; `--settings` could set `permissions.defaultMode` and so change the mode of a default-mode task; `check` and `arise` reject a config that contains any of them. `--fallback-model` in particular would let a task silently run on a different model. Arguments may not contain control characters.
+- The Claude session UUID that `--resume` gets on "continue" comes from `state.json`; it is only used if it has the form of a UUID (a session could rewrite the file so the value reads as another flag), otherwise only a fresh session is offered.
 - `--model` on the command line takes precedence over a `model` in Claude Code's settings (verified: settings `haiku` + `--model sonnet` ran `claude-sonnet-5-5`), so the plan's rank always wins. This also holds on `--resume`: a resumed session's new turns run on the `--model` given at resume.
 - Model aliases `fable`, `opus`, `sonnet`, `haiku` all resolve (2.1.291: `claude-fable-5-1`, `claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-4-5-20251001`). Igris passes the alias and never pins a full model name.
 - If `ANTHROPIC_API_KEY` is set in the environment, Claude Code uses it instead of the subscription login (it warns that it "takes precedence over your claude.ai login"). Igris never sets it; `check` warns when it is present in igris's environment, because tasks would then bill the API.
@@ -434,8 +440,8 @@ events = ["needs_input", "session_lost", "phase_done", "phase_stuck", "run_error
 
 | Path | Content |
 |---|---|
-| `igris.lock` | PID + host + start time. A second `igris arise` refuses to start while the PID is alive; a stale lock is reported and can be cleared with `--force-unlock`. |
-| `state.json` | Current run: phases, current task ID, session ref (backend name, pane/tab IDs, agent name), Claude session UUID, mode, attempt counters, started-at, hash of the config snapshot. Written atomically on every change. |
+| `igris.lock` | PID + host + start time, created complete (written to a temp file and hard-linked into place) so a concurrent `--force-unlock` never mistakes a fresh lock for a damaged one. A second `igris arise` refuses to start while the PID is alive; a stale lock is reported and can be cleared with `--force-unlock`. If the PID was reused by another program (after a reboot, say), the error says to delete the file. |
+| `state.json` | Current run: phases, current task ID, session ref (backend name, pane/tab IDs, agent name), Claude session UUID, mode, attempt counters, started-at, hash of the config snapshot. Written atomically on every change. Values that become command arguments (session ref IDs, the session UUID) are checked for their expected shape when read back; a file that fails is reported as damaged. |
 | `signals/` | Pending signal files (§6.2). |
 | `runs.jsonl` | Append-only log: one JSON line per event (task started/done/skipped, verify result, notifications, errors) with timestamps, task ID, rank and model. |
 | `adapt/` | Adapt proposals and backups (§9). |
@@ -566,12 +572,15 @@ Modelled on Claude Code's choice prompts and herdr's clickable UI.
 
 ## 16. Errors and safety
 
+**Trust model.** The owner and `igris.toml` are trusted. A session is not: it can edit any file in the project without a prompt in `accept`, `auto` and `yolo` mode — the plan, `igris.toml`, `.igris/` — and it controls its done note and the output of `verify`. Igris is designed so that none of this lets a session change which model or permission mode a task runs with, make igris skip verification, or drive the owner's terminal. What a session can do by design: edit files, and therefore influence what `verify` and git hooks execute as the owner once they run (verify runs project code; this is inherent to verifying) — so the mode a task runs in is the real boundary.
+
 - The plan is never written while it fails validation.
-- Sessions can't change igris's behavior mid-run: config is snapshotted (§13), `igris skip` from a session needs owner confirmation (§6.2), and model/mode flags can't be smuggled in via `extra_args` (§7.4).
-- Every external command (herdr, claude, git, verify) has a timeout; failures are shown with the command and exit code.
+- Sessions can't change igris's behavior mid-run: config is snapshotted (§13), `igris skip` from a session needs owner confirmation (§6.2), model/mode flags can't be smuggled in via `extra_args` (§7.4), values read back from `state.json` are checked before they become arguments (§7.4, §13), and plan edits igris didn't make hold the run until the owner looks (§5.4).
+- Every external command (herdr, claude, git, verify) has a timeout; failures are shown with the command and exit code. Captured output is bounded (§6.4).
 - Igris never runs commands from the plan's content, and never passes plan text through a shell — prompts go to herdr as argv, not interpolated into shell strings.
-- Signal and state files are written atomically, with `0600` files and `0700` directories.
-- Igris never reads or logs Claude Code credentials, and never sets `ANTHROPIC_API_KEY`.
+- Text igris did not write — plan cells, done notes, command output, backend errors — is cleaned of escape sequences and control characters before it is drawn in the TUI or the `--no-tui` log, sent as a notification, used in a commit message, or typed into a session's pane (§3.5, §6.2, §6.4, §9.5).
+- Signal and state files are written atomically, with `0600` files and `0700` directories; signals are read only as regular files of bounded size (§6.2).
+- Igris never reads or logs Claude Code credentials, and never sets `ANTHROPIC_API_KEY`. Notification secrets never enter the config hash, the run log or error messages (§10). An ntfy `token` is sent as a bearer header, so use an `https://` server for it.
 
 ---
 

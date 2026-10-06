@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -23,6 +24,7 @@ func (i LockInfo) String() string {
 // LockedError reports a lock held by a run that may still be alive.
 type LockedError struct {
 	Info LockInfo
+	Path string // the lock file
 	// Remote is set when the lock comes from another host, where igris
 	// can't tell whether the run is still alive.
 	Remote bool
@@ -32,7 +34,9 @@ func (e *LockedError) Error() string {
 	if e.Remote {
 		return fmt.Sprintf("igris is locked by a run on another host (%s); if that run is gone, rerun with --force-unlock", e.Info)
 	}
-	return fmt.Sprintf("igris is already running in this project (%s); stop it first", e.Info)
+	// A live PID is all igris can check: after a reboot it may belong to
+	// another program, and only the owner can tell.
+	return fmt.Sprintf("igris is already running in this project (%s); stop it first. If that process is not igris (its PID was reused, e.g. after a reboot), delete %s", e.Info, e.Path)
 }
 
 // StaleLockError reports a lock left behind by a run that is no longer
@@ -107,9 +111,9 @@ func (d *Dir) checkHeld(host string, force bool) error {
 		if force {
 			return nil
 		}
-		return &LockedError{Info: info, Remote: true}
+		return &LockedError{Info: info, Path: d.lockPath(), Remote: true}
 	case d.alive(info.PID):
-		return &LockedError{Info: info}
+		return &LockedError{Info: info, Path: d.lockPath()}
 	case force:
 		return nil
 	default:
@@ -148,21 +152,56 @@ func readLock(path string) (LockInfo, error) {
 	return info, nil
 }
 
-// createExclusive writes data to a new 0600 file at path, failing with
-// fs.ErrExist if the file already exists.
+// createExclusive creates path holding data, failing with fs.ErrExist if the
+// file already exists. The content goes to a temp file that is hard-linked
+// into place, so the lock appears complete: another igris never reads a
+// half-written lock, takes it for a damaged one and clears it with
+// --force-unlock while its owner is alive.
 func createExclusive(path string, data []byte) error {
+	f, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmp := f.Name()
+	defer func() { _ = os.Remove(tmp) }()
+	if err := writeAndClose(f, data); err != nil {
+		return err
+	}
+	err = os.Link(tmp, path)
+	if err == nil || errors.Is(err, fs.ErrExist) {
+		return err
+	}
+	// No hard links here (some network and FAT file systems): create the
+	// file directly, which is exclusive but briefly empty.
+	return createDirect(path, data)
+}
+
+// createDirect writes data to a new 0600 file at path, failing with
+// fs.ErrExist if the file already exists.
+func createDirect(path string, data []byte) error {
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, filePerm) //nolint:gosec // igris's own lock file
 	if err != nil {
 		return err
 	}
+	if err := writeAndClose(f, data); err != nil {
+		_ = os.Remove(path)
+		return err
+	}
+	return nil
+}
+
+// writeAndClose writes data to f as a 0600 file, fsyncs and closes it.
+func writeAndClose(f *os.File, data []byte) error {
+	if err := f.Chmod(filePerm); err != nil {
+		_ = f.Close()
+		return err
+	}
 	if _, err := f.Write(data); err != nil {
 		_ = f.Close()
-		_ = os.Remove(path)
 		return err
 	}
 	if err := f.Sync(); err != nil {
 		_ = f.Close()
-		_ = os.Remove(path)
 		return err
 	}
 	return f.Close()

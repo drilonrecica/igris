@@ -58,6 +58,10 @@ func (e *Engine) watch(ctx context.Context, l *launch) (verdict, error) {
 					e.reject(c, "there is no earlier conversation of "+t.ID+" to continue; retry fresh")
 					continue
 				}
+				if c.Continue && !ValidSessionID(l.cur.ClaudeSession) {
+					e.reject(c, "the conversation ID recorded for "+t.ID+" in state.json is not a session ID; retry fresh")
+					continue
+				}
 				if err := e.retry(ctx, l, c.Continue); err != nil {
 					return verdict{}, err
 				}

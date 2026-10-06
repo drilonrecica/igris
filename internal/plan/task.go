@@ -3,6 +3,8 @@ package plan
 import (
 	"strings"
 	"unicode/utf8"
+
+	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
 // titleMaxRunes is how much of the Task text is used as the title when it
@@ -55,6 +57,9 @@ func (p *Plan) buildTasks() {
 func (p *Plan) newTask(ph *Phase, r row) *Task {
 	if len(r.cells) > len(ph.Columns) {
 		p.addIssue(r.line.num, "row has %d cells but the table header has %d; escape literal pipes as \\|", len(r.cells), len(ph.Columns))
+	}
+	if textsafe.HasControl(r.line.text) {
+		p.addIssue(r.line.num, "row contains a control character (an escape sequence?); remove it")
 	}
 	t := &Task{Phase: ph, Line: r.line.num, Extra: map[string]string{}}
 	ownerSeen := false

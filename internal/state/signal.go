@@ -12,7 +12,11 @@ import (
 	"time"
 
 	"github.com/drilonrecica/igris/internal/plan"
+	"github.com/drilonrecica/igris/internal/textsafe"
 )
+
+// maxSignalSize bounds a signal file; a real one is a few hundred bytes.
+const maxSignalSize = 64 << 10
 
 // Signal actions (SPEC §6.2).
 const (
@@ -92,7 +96,23 @@ func (d *Dir) ReadSignal(id string) (*Signal, error) {
 	return readSignalFile(d.signalPath(id), id)
 }
 
+// readSignalFile reads one signal. Sessions can write into signals/, so the
+// file is only read if it is a regular file of a sane size (a FIFO would
+// block igris forever), and its note is cleaned for display.
 func readSignalFile(path, id string) (*Signal, error) {
+	info, err := os.Lstat(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read signal %s: %w", path, err)
+	}
+	switch {
+	case !info.Mode().IsRegular():
+		return nil, fmt.Errorf("read signal %s: not a regular file (%s); delete it and run the command again", path, info.Mode().Type())
+	case info.Size() > maxSignalSize:
+		return nil, fmt.Errorf("read signal %s: %d bytes is too large for a signal; delete it and run the command again", path, info.Size())
+	}
 	data, err := os.ReadFile(path) //nolint:gosec // igris's own state directory; id validated
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
@@ -107,6 +127,7 @@ func readSignalFile(path, id string) (*Signal, error) {
 	if s.ID != id || (s.Action != ActionDone && s.Action != ActionSkip) {
 		return nil, fmt.Errorf("read signal %s: unexpected content (id %q, action %q); delete the file or run the command again", path, s.ID, s.Action)
 	}
+	s.Note = textsafe.Line(s.Note)
 	return &s, nil
 }
 

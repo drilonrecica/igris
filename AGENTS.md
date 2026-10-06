@@ -28,6 +28,7 @@ These rules apply to every coding agent working in this repository (Claude Code 
   - `internal/tui/` — Bubble Tea UI
   - `internal/adapt/` — `igris adapt`
   - `internal/prompt/` — embedded templates
+  - `internal/textsafe/` — cleans untrusted text (plan cells, notes, command output) of escape sequences before it is drawn or typed into a pane
 - Small concrete types, plain functions. Interfaces only at real seams (`Backend`, `Session`, notifier, clock, command runner).
 - Every external process call goes through one injectable command runner with a timeout. Never build shell strings from plan text; pass argv.
 - Errors: wrap with context (`fmt.Errorf("parse %s: %w", path, err)`); user-facing errors say what to do next.

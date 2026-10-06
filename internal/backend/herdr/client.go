@@ -13,8 +13,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/drilonrecica/igris/internal/runner"
+	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
 // Program is the herdr executable, resolved via PATH.
@@ -244,8 +246,8 @@ func (c *Client) AgentStart(ctx context.Context, name, paneID string, timeout ti
 	// herdr can't encode control characters for the shell it types the
 	// command into (invalid_agent_argument, P0-03); fail before calling it.
 	for i, a := range args {
-		if strings.ContainsAny(a, "\n\r\t") {
-			return Agent{}, fmt.Errorf("herdr agent start: argument %d contains a newline, tab or carriage return, which herdr can't pass to Claude Code; send multi-line text with a prompt instead", i+1)
+		if strings.ContainsFunc(a, unicode.IsControl) {
+			return Agent{}, fmt.Errorf("herdr agent start: argument %d contains a control character (such as a newline or tab), which herdr can't pass to Claude Code; send multi-line text with a prompt instead", i+1)
 		}
 	}
 	argv := append([]string{"agent", "start", name, "--kind", "claude", "--pane", paneID, "--timeout", ms(timeout), "--"}, args...)
@@ -283,6 +285,10 @@ func (c *Client) AgentWait(ctx context.Context, name string, until []string, tim
 // waiting; the returned status is the one before the turn. An agent at an
 // approval or question UI rejects it with code CodeAgentBlocked.
 func (c *Client) AgentPrompt(ctx context.Context, name, text string) (Agent, error) {
+	// herdr types the text into Claude Code's terminal as a paste. Escape
+	// sequences in it (verify output is the session's own) could end the
+	// paste and act as keystrokes, so only plain text goes in.
+	text = textsafe.Clean(text)
 	// No "--" before the text: herdr 0.9.1 rejects it ("unknown option"),
 	// while a positional starting with "-" or "--" is taken as text.
 	var r struct {

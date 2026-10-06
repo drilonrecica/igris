@@ -142,14 +142,24 @@ var (
 		"--dangerously-skip-permissions", "--allow-dangerously-skip-permissions",
 		"--session-id", "--resume", "--continue",
 		"--append-system-prompt", "--append-system-prompt-file",
+		"--settings",
 	}
 )
 
 // ForbiddenExtraArg reports whether arg (a flag, optionally as --flag=value)
-// is one igris sets itself and claude.extra_args must not contain (SPEC §7.4).
+// is one claude.extra_args must not contain (SPEC §7.4): igris sets it
+// itself, or it could change the model or the permission mode.
 func ForbiddenExtraArg(arg string) bool {
 	name, _, _ := strings.Cut(arg, "=")
-	return contains(forbiddenArg, name)
+	if contains(forbiddenArg, name) {
+		return true
+	}
+	// Short flags, alone or clustered ("-c", "-rd"): -c is --continue and -r
+	// is --resume.
+	if len(name) > 1 && name[0] == '-' && name[1] != '-' {
+		return strings.ContainsAny(name[1:], "cr")
+	}
+	return false
 }
 
 func defaultEvents() []string {
@@ -266,7 +276,7 @@ func (c *Config) Validate() error {
 
 	for _, arg := range c.Claude.ExtraArgs {
 		if ForbiddenExtraArg(arg) {
-			add("claude.extra_args contains %q, which igris sets itself (SPEC §7.4); remove it", arg)
+			add("claude.extra_args contains %q, which igris sets itself or which could change the model or permission mode (SPEC §7.4); remove it", arg)
 		}
 	}
 

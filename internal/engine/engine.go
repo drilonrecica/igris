@@ -122,6 +122,7 @@ type Engine struct {
 	planOpts  plan.Options
 	writer    *plan.Writer
 	conf      configWatch
+	plans     planWatch
 	commitMsg *template.Template
 
 	mu    sync.Mutex
@@ -133,6 +134,7 @@ type Engine struct {
 	phase    string          // current phase
 	task     *launch         // current task; nil between tasks
 	pause    bool            // pause-after-task is on
+	hold     bool            // the plan changed outside igris; nothing is selected until pause goes off
 	stop     bool            // the owner asked to stop
 	pending  []Command       // task-scoped commands not handled yet
 	reported map[string]bool // keys of the signals and problems reported once
@@ -285,6 +287,7 @@ func (e *Engine) prepare() ([]string, error) {
 	if drift := p.Readiness(); len(drift) > 0 && !e.opts.ConfirmedDrift {
 		return nil, &DriftError{Changes: drift}
 	}
+	e.plans.reset(p)
 	var cur *state.Current
 	if prev != nil {
 		cur = prev.Current
@@ -404,6 +407,11 @@ func (e *Engine) runPhase(ctx context.Context, id string) (Result, error) {
 		p, err := e.loadPlan()
 		if err != nil {
 			return res, err
+		}
+		e.checkPlan(ctx, p)
+		if e.hold {
+			e.wait(ctx, e.cfg.PollInterval.Std())
+			continue
 		}
 		sel, err := p.Select(id)
 		if err != nil {

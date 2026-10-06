@@ -77,7 +77,7 @@ func TestClaudeArgs(t *testing.T) {
 }
 
 func TestClaudeArgsNoPositionalPrompt(t *testing.T) {
-	args, err := ClaudeArgs(ClaudeParams{Model: "sonnet", SessionID: "s", Mode: ModeYolo, RulesFile: "r.md"})
+	args, err := ClaudeArgs(ClaudeParams{Model: "sonnet", SessionID: "11111111-2222-4333-8444-555555555555", Mode: ModeYolo, RulesFile: "r.md"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +90,7 @@ func TestClaudeArgsNoPositionalPrompt(t *testing.T) {
 }
 
 func TestClaudeArgsErrors(t *testing.T) {
-	good := ClaudeParams{Model: "opus", SessionID: "s", Mode: ModeDefault, RulesFile: "r.md"}
+	good := ClaudeParams{Model: "opus", SessionID: "11111111-2222-4333-8444-555555555555", Mode: ModeDefault, RulesFile: "r.md"}
 	tests := []struct {
 		name   string
 		mutate func(*ClaudeParams)
@@ -98,6 +98,8 @@ func TestClaudeArgsErrors(t *testing.T) {
 	}{
 		{"no model", func(p *ClaudeParams) { p.Model = " " }, "model is empty"},
 		{"no session", func(p *ClaudeParams) { p.SessionID = "" }, "session ID"},
+		{"session ID smuggles a flag", func(p *ClaudeParams) { p.SessionID = "--dangerously-skip-permissions" }, "not a UUID"},
+		{"session ID is not a UUID", func(p *ClaudeParams) { p.SessionID = "abc" }, "not a UUID"},
 		{"no rules", func(p *ClaudeParams) { p.RulesFile = "" }, "rules file"},
 		{"bad mode", func(p *ClaudeParams) { p.Mode = "wild" }, "unknown run mode"},
 		{"forbidden extra", func(p *ClaudeParams) { p.ExtraArgs = []string{"--model=haiku"} }, "sets itself"},

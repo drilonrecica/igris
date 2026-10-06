@@ -320,6 +320,40 @@ func TestWriterErrors(t *testing.T) {
 	}
 }
 
+// A plan that is a symlink stays one: the write replaces the file it points
+// to, byte for byte except the Status cell.
+func TestWriterKeepsSymlink(t *testing.T) {
+	const in = "## M0\n\n| ID | Status | Model |\n|---|---|---|\n| a | ready | sonnet |\n"
+	target := writePlan(t, in)
+	link := filepath.Join(t.TempDir(), "link.md")
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewWriter(link, Options{}, testModels).Update(context.Background(), set("a", Done)); err != nil {
+		t.Fatal(err)
+	}
+	if fi, err := os.Lstat(link); err != nil || fi.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("the plan path is no longer a symlink: %v, %v", fi, err)
+	}
+	want := strings.Replace(in, "| ready |", "| done |", 1)
+	if got := readPlan(t, target); got != want {
+		t.Errorf("target = %q, want %q", got, want)
+	}
+	assertNoTempFiles(t, target)
+	assertNoTempFiles(t, link)
+
+	// Replace behaves the same.
+	if err := Replace(link, []byte(want), []byte(in)); err != nil {
+		t.Fatal(err)
+	}
+	if fi, _ := os.Lstat(link); fi.Mode()&os.ModeSymlink == 0 {
+		t.Error("Replace turned the symlink into a file")
+	}
+	if got := readPlan(t, target); got != in {
+		t.Errorf("target after Replace = %q", got)
+	}
+}
+
 func TestReplace(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "tasks.md")
 	was := []byte("# old\r\nkeep\ttabs \n")

@@ -140,13 +140,13 @@ It keeps every task, ID, description, dependency, status and model; it only rest
 
 ## Verification and commits
 
-Set `verify` in `igris.toml` (e.g. `verify = "make fmt lint test"`) and igris runs it each time a session says it's done. When it fails, the last 60 lines go back into the same session to fix; after `verify_max_attempts` failures in a row igris calls you instead. If you mark a task done yourself, igris takes your word and skips verify.
+Set `verify` in `igris.toml` (e.g. `verify = "make fmt lint test"`) and igris runs it each time a session says it's done. When it fails, the last 60 lines go back into the same session to fix (as plain text: escape sequences are stripped); after `verify_max_attempts` failures in a row igris calls you instead. If you mark a task done yourself, igris takes your word and skips verify. Keep in mind that `verify` runs your project's own code, as you: a session that can edit files can change what it does.
 
 After a task passes, igris commits everything in the tree (`commit = "ask"`, the default, asks you first; `auto` just commits; `never` leaves git alone). The message comes from `commit_message`, `{{.ID}}: {{.Title}}` by default, with the session's done note as the body.
 
 ## Modes
 
-Choose the permission mode in the TUI, per run or per task: press `m` (or click **Mode**) for the run, or select a task and press `M` (**Task mode**) to override it for that task. A change applies to the next session; a running one keeps its mode. A task's mode is, in order: your override, its `Mode` column, the run mode, `default_mode` in `igris.toml`.
+Choose the permission mode in the TUI, per run or per task: press `m` (or click **Mode**) for the run, or select a task and press `M` (**Task mode**) to override it for that task. A change applies to the next session; a running one keeps its mode. A task's mode is, in order: your override, its `Mode` column, the run mode, `default_mode` in `igris.toml`. `claude.extra_args` can't carry model, mode, session or settings flags (`--model`, `--permission-mode`, `--settings`, `-c`/`-r`, …); igris sets those itself and rejects a config that has them.
 
 | Mode | What it does |
 |---|---|
@@ -206,6 +206,9 @@ Claude asks in its pane like it always does; igris notices the stalled session, 
 
 **Is skip-permissions safe?**
 Only where you'd trust an unattended agent: a worktree or container. It needs a typed confirmation every run, by design.
+
+**What stops a session from changing the plan or igris itself?**
+Igris treats sessions as untrusted. `igris.toml` is read once per run; if it changes mid-run you're told and the old settings stay. If the plan changes in a way igris didn't write (a later task's Mode or Model, a Status, task text), igris lists the cells, notifies you and pauses until you resume — your own mid-run edits cost one resume. Session IDs and pane IDs read back from `.igris/state.json` are checked before they become command arguments, and anything a session wrote (done notes, verify output, plan text) is cleaned of escape sequences before it reaches your terminal or a session's pane. What igris can't prevent: a session edits files, and `verify` and git hooks run your project's code as you, so the permission mode is the real boundary.
 
 **I don't use herdr.**
 v1 needs it. A tmux backend is on the roadmap.

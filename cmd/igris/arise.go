@@ -558,7 +558,7 @@ func formatEvent(ev engine.Event) []string {
 		return []string{"run mode for the next sessions: " + ev.Detail + yoloBadge(ev.Detail)}
 	case engine.TaskModeChanged:
 		return []string{"mode for " + id + "'s next session: " + ev.Detail + yoloBadge(ev.Detail)}
-	case engine.ConfigChanged, engine.ConfigRestored, engine.StaleSignal, engine.StraySignal:
+	case engine.ConfigChanged, engine.ConfigRestored, engine.PlanChanged, engine.StaleSignal, engine.StraySignal:
 		return []string{ev.Detail}
 	case engine.Warning:
 		return []string{"warning: " + ev.Detail}

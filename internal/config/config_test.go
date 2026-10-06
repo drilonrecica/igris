@@ -304,7 +304,9 @@ func TestLoad(t *testing.T) {
 func TestForbiddenExtraArg(t *testing.T) {
 	for arg, want := range map[string]bool{
 		"--model": true, "--model=haiku": true, "--resume": true, "--append-system-prompt-file=x": true,
-		"--verbose": false, "--add-dir": false, "": false,
+		"--settings": true, "--settings=/tmp/s.json": true,
+		"-c": true, "-r": true, "-rc": true, "-dc": true, "-c=x": true, // short forms of --continue and --resume
+		"--verbose": false, "--add-dir": false, "-d": false, "-n": false, "-": false, "--": false, "": false,
 	} {
 		if got := ForbiddenExtraArg(arg); got != want {
 			t.Errorf("ForbiddenExtraArg(%q) = %v, want %v", arg, got, want)

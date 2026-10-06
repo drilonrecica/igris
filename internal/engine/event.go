@@ -9,6 +9,7 @@ import (
 	"github.com/drilonrecica/igris/internal/notify"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/state"
+	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
 // EventKind classifies an Event.
@@ -31,6 +32,7 @@ const (
 	TaskModeChanged EventKind = "task_mode_changed" // Task's next session runs in mode Detail (an override)
 	ConfigChanged   EventKind = "config_changed"    // igris.toml differs from the snapshot; needs the owner
 	ConfigRestored  EventKind = "config_restored"   // igris.toml matches the snapshot again
+	PlanChanged     EventKind = "plan_changed"      // rows changed that the run did not write; Detail lists them; the run holds (pause on)
 	StaleSignal     EventKind = "stale_signal"      // a signal from before the task started was ignored
 	StraySignal     EventKind = "stray_signal"      // a signal for another task (or an unreadable one) is kept, never applied
 	NeedsYou        EventKind = "needs_you"         // the task waits on the owner; Detail says why
@@ -97,6 +99,9 @@ func (e *Engine) emit(ev Event) {
 	if ev.Task == "" && e.task != nil {
 		ev = e.task.fill(ev)
 	}
+	// Details quote notes, plan text and command output: nothing in them may
+	// reach the owner's terminal as an escape sequence (SPEC §16).
+	ev.Detail, ev.Title = textsafe.Clean(ev.Detail), textsafe.Line(ev.Title)
 	if e.opts.Events != nil {
 		e.opts.Events(ev)
 	}

@@ -3,6 +3,7 @@ package state
 import (
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -166,6 +167,42 @@ func TestLock(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// The lock file is complete the moment it exists, so another igris never
+// reads it half-written, and the temp file it came from is cleaned up.
+func TestLockFileAppearsComplete(t *testing.T) {
+	d := testDir(t)
+	if err := createExclusive(d.lockPath(), []byte("full content")); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := os.ReadFile(d.lockPath()); string(got) != "full content" {
+		t.Errorf("lock = %q", got)
+	}
+	if err := createExclusive(d.lockPath(), []byte("second")); !errors.Is(err, fs.ErrExist) {
+		t.Errorf("second create err = %v, want ErrExist", err)
+	}
+	if got, _ := os.ReadFile(d.lockPath()); string(got) != "full content" {
+		t.Errorf("lock after refused create = %q", got)
+	}
+	entries, _ := os.ReadDir(d.Path())
+	for _, e := range entries {
+		if strings.Contains(e.Name(), ".tmp-") {
+			t.Errorf("temp file %s left behind", e.Name())
+		}
+	}
+	if err := createDirect(d.lockPath(), []byte("x")); !errors.Is(err, fs.ErrExist) {
+		t.Errorf("fallback create err = %v, want ErrExist", err)
+	}
+}
+
+func TestLockedErrorNamesTheFile(t *testing.T) {
+	d := testDir(t, 42)
+	writeLock(t, d, lockJSON(42, "here"))
+	_, err := d.Lock(false)
+	if err == nil || !strings.Contains(err.Error(), d.lockPath()) || !strings.Contains(err.Error(), "not igris") {
+		t.Errorf("err = %v, want the lock path and the PID-reuse hint", err)
 	}
 }
 

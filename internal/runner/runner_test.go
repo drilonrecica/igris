@@ -104,6 +104,26 @@ func TestExecOutputAndExitCode(t *testing.T) {
 	}
 }
 
+func TestTailBufferKeepsTheEnd(t *testing.T) {
+	b := &tailBuffer{max: 10}
+	for i := range 7 {
+		if _, err := fmt.Fprintf(b, "%d2345", i); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := string(b.Bytes()); got != "5234562345" {
+		t.Errorf("Bytes = %q, want the last 10 bytes", got)
+	}
+	if len(b.buf) > 2*b.max {
+		t.Errorf("buffer holds %d bytes, want at most %d", len(b.buf), 2*b.max)
+	}
+	small := &tailBuffer{max: 10}
+	_, _ = small.Write([]byte("abc"))
+	if got := string(small.Bytes()); got != "abc" {
+		t.Errorf("Bytes = %q", got)
+	}
+}
+
 func TestExecArgvIsNotShellInterpreted(t *testing.T) {
 	args := []string{"$(echo pwned); rm -rf x", "a b", "`id`", "*", "line1\nline2", ""}
 	res, err := Exec{}.Run(context.Background(), helper(t, append([]string{"args"}, args...)...))

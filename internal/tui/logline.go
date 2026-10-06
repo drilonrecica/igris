@@ -75,7 +75,7 @@ func logLines(ev engine.Event) []string {
 		return []string{"error: " + ev.Detail}
 	case engine.RunStopped:
 		return []string{"run stopped: " + ev.Detail}
-	case engine.VerifyLimit, engine.ConfigChanged, engine.ConfigRestored, engine.StaleSignal, engine.StraySignal:
+	case engine.VerifyLimit, engine.ConfigChanged, engine.ConfigRestored, engine.PlanChanged, engine.StaleSignal, engine.StraySignal:
 		return []string{strings.TrimSpace(id + " " + ev.Detail)}
 	}
 	return []string{strings.TrimSpace(string(ev.Kind) + " " + id + " " + ev.Detail)}
@@ -103,7 +103,7 @@ func badge(mode string) string {
 // owner stands out. The words say it either way.
 func logLook(k engine.EventKind) look {
 	switch k {
-	case engine.NeedsYou, engine.SessionLost, engine.VerifyFailed, engine.VerifyLimit, engine.PhaseStuck, engine.RunFailed:
+	case engine.NeedsYou, engine.SessionLost, engine.VerifyFailed, engine.VerifyLimit, engine.PhaseStuck, engine.PlanChanged, engine.RunFailed:
 		return lookAlert
 	case engine.Warning, engine.Asked, engine.YourTurn, engine.Paused, engine.PhaseDone:
 		return lookTitle

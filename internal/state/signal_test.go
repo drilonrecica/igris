@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/drilonrecica/igris/internal/plan"
@@ -123,6 +124,34 @@ func TestListSignals(t *testing.T) {
 	}
 	if len(bad) != 2 {
 		t.Errorf("bad = %v, want 2 errors (corrupt, mismatched)", bad)
+	}
+}
+
+// Sessions can write into signals/: only regular files of a sane size are
+// read, and the note can't carry escape sequences into the TUI.
+func TestSignalsFromSessionsAreGuarded(t *testing.T) {
+	d := testDir(t)
+	must(t, d.WriteSignal(Signal{ID: "M0-01", Action: ActionDone, Note: "fine\x1b[2J\x1b[H\nspoof"}))
+	target := filepath.Join(d.Path(), "target.json")
+	must(t, os.WriteFile(target, []byte(`{"id":"M0-02","action":"done"}`), 0o600))
+	must(t, os.Symlink(target, filepath.Join(d.SignalsDir(), "M0-02.json")))
+	must(t, os.WriteFile(filepath.Join(d.SignalsDir(), "M0-03.json"), make([]byte, maxSignalSize+1), 0o600))
+	must(t, syscall.Mkfifo(filepath.Join(d.SignalsDir(), "M0-04.json"), 0o600))
+
+	sigs, bad, err := d.ListSignals()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sigs) != 1 || sigs[0].ID != "M0-01" || sigs[0].Note != "fine spoof" {
+		t.Errorf("sigs = %+v, want only M0-01 with a cleaned note", sigs)
+	}
+	if len(bad) != 3 {
+		t.Errorf("bad = %v, want 3 errors (symlink, oversized, fifo)", bad)
+	}
+	for _, id := range []string{"M0-02", "M0-03", "M0-04"} {
+		if s, err := d.ReadSignal(id); err == nil || s != nil {
+			t.Errorf("ReadSignal(%s) = %+v, %v; want an error", id, s, err)
+		}
 	}
 }
 

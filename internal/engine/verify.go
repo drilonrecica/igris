@@ -10,6 +10,7 @@ import (
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/runner"
 	"github.com/drilonrecica/igris/internal/state"
+	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
 const (
@@ -79,7 +80,7 @@ func (e *Engine) verify(ctx context.Context, l *launch) (bool, error) {
 	}
 	e.settle(ctx, l.sess, verifyIdleWait)
 	msg := fmt.Sprintf("igris verification `%s` failed (%s). Last lines of its output:\n\n```\n%s\n```\n\nFix the problem, then run `igris done %s` again.\n",
-		script, why, tail(string(res.Stdout), verifyTailLines), t.ID)
+		script, why, tail(textsafe.Clean(string(res.Stdout)), verifyTailLines), t.ID)
 	switch err := l.sess.Prompt(ctx, msg); {
 	case errors.Is(err, backend.ErrSessionGone):
 		e.lose(ctx, l)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -29,6 +30,14 @@ const (
 
 // maxAgentName is herdr's limit on agent names: [a-z][a-z0-9_-]{0,31}.
 const maxAgentName = 32
+
+// What a stored session ref may hold. The ref comes from state.json, which a
+// session can edit, and its fields become herdr arguments: nothing in them
+// may read as an option.
+var (
+	refIDPattern    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9:._-]*$`) // tab and pane IDs, e.g. "w2B:p3"
+	refAgentPattern = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,31}$`)
+)
 
 // AgentName derives the herdr agent name for a task: "igris-<id>"
 // lowercased, with every character herdr doesn't allow replaced by "-" and
@@ -153,8 +162,8 @@ func (b *Backend) Attach(ctx context.Context, ref backend.SessionRef) (backend.S
 	if ref.Backend != Name {
 		return nil, fmt.Errorf("attach: session ref is for backend %q, not %s", ref.Backend, Name)
 	}
-	if ref.TabID == "" || ref.PaneID == "" || ref.Agent == "" {
-		return nil, fmt.Errorf("attach: session ref %+v is incomplete; state.json looks damaged, delete it to start a new run", ref)
+	if !refIDPattern.MatchString(ref.TabID) || !refIDPattern.MatchString(ref.PaneID) || !refAgentPattern.MatchString(ref.Agent) {
+		return nil, fmt.Errorf("attach: session ref (tab %q, pane %q, agent %q) is incomplete or malformed; state.json looks damaged, delete it to start a new run", ref.TabID, ref.PaneID, ref.Agent)
 	}
 	s := &Session{c: b.c, id: ref.Agent, ref: ref}
 	p, err := b.c.PaneGet(ctx, ref.PaneID)

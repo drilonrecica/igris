@@ -342,6 +342,22 @@ func TestStartupBlocked(t *testing.T) {
 	}
 }
 
+// Prompt text is typed into Claude Code's terminal as a paste: escape
+// sequences in it (a verify failure quotes the session's own output) are
+// removed so they can't end the paste and act as keystrokes.
+func TestPromptIsCleaned(t *testing.T) {
+	f := &runner.Fake{}
+	f.On(cmd("agent", "wait"), ok(t, "agent_wait_settled.json"), nil)
+	f.On(cmd("agent", "prompt"), ok(t, "agent_prompt_nowait.json"), nil)
+	s := &Session{c: NewClient(f), id: "t-01", ref: backend.SessionRef{Backend: Name, TabID: "w2B:t3", PaneID: "w2B:p3", Agent: "igris-t-01"}}
+	if err := s.Prompt(context.Background(), "```\n\x1b[31mFAIL\x1b[0m\x1b[201~\x1b[Z\n```\n\tfix it"); err != nil {
+		t.Fatal(err)
+	}
+	if got := prompts(f); !slices.Equal(got, []string{"```\nFAIL\n```\n\tfix it"}) {
+		t.Errorf("prompts = %q", got)
+	}
+}
+
 func TestStartupBlockedVariants(t *testing.T) {
 	ctx := context.Background()
 	t.Run("already past the prompt", func(t *testing.T) {
@@ -457,6 +473,27 @@ func TestAttach(t *testing.T) {
 		f.On(cmd("pane", "get"), fail(t, "error_pane_not_found.json", 1), nil)
 		if _, err := attach(f, ref); !errors.Is(err, backend.ErrSessionGone) {
 			t.Fatalf("err = %v, want ErrSessionGone", err)
+		}
+	})
+	t.Run("malformed ref never reaches herdr", func(t *testing.T) {
+		// state.json can be edited by a session: an ID that reads as an
+		// option, or an empty one, is refused before any herdr call.
+		for _, bad := range []backend.SessionRef{
+			{Backend: Name, TabID: "--all", PaneID: "w2B:p3", Agent: "igris-t-01"},
+			{Backend: Name, TabID: "w2B:t3", PaneID: "-w2B:p3", Agent: "igris-t-01"},
+			{Backend: Name, TabID: "w2B:t3", PaneID: "w2B:p3", Agent: "Igris T"},
+			{Backend: Name, TabID: "w2B:t3", PaneID: "w2B:p3", Agent: "--help"},
+			{Backend: Name, TabID: "", PaneID: "w2B:p3", Agent: "igris-t-01"},
+			{Backend: Name, TabID: "w2B:t3", PaneID: "w2B:p3 x", Agent: "igris-t-01"},
+		} {
+			f := &runner.Fake{}
+			_, err := attach(f, bad)
+			if err == nil || !strings.Contains(err.Error(), "state.json looks damaged") {
+				t.Errorf("Attach(%+v) err = %v, want a damaged-state error", bad, err)
+			}
+			if calls := argv(f); len(calls) != 0 {
+				t.Errorf("Attach(%+v) ran herdr: %v", bad, calls)
+			}
 		}
 	})
 	t.Run("claude exited", func(t *testing.T) {

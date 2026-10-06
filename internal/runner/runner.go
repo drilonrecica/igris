@@ -5,7 +5,6 @@
 package runner
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -21,6 +20,32 @@ var ErrTimeout = errors.New("command timed out")
 // waitDelay bounds how long Run waits for output pipes after the process is
 // killed, in case a leaked descendant still holds them open.
 const waitDelay = 2 * time.Second
+
+// maxOutput is how much of each output stream Run keeps: the end of it. A
+// command that prints without end (a runaway verify) must not fill memory.
+const maxOutput = 8 << 20
+
+// tailBuffer keeps the last max bytes written to it.
+type tailBuffer struct {
+	buf []byte
+	max int
+}
+
+func (b *tailBuffer) Write(p []byte) (int, error) {
+	b.buf = append(b.buf, p...)
+	// Trim at twice the limit, so the copying is amortized over max bytes.
+	if len(b.buf) > 2*b.max {
+		b.buf = append(b.buf[:0], b.buf[len(b.buf)-b.max:]...)
+	}
+	return len(p), nil
+}
+
+func (b *tailBuffer) Bytes() []byte {
+	if len(b.buf) > b.max {
+		return b.buf[len(b.buf)-b.max:]
+	}
+	return b.buf
+}
 
 // Cmd describes one external process call.
 type Cmd struct {
@@ -63,8 +88,8 @@ func Shell(script, dir string, timeout time.Duration) Cmd {
 // timeout or cancellation).
 type Result struct {
 	Cmd      Cmd
-	Stdout   []byte
-	Stderr   []byte
+	Stdout   []byte // the last 8 MiB at most
+	Stderr   []byte // likewise
 	ExitCode int
 }
 
@@ -144,11 +169,11 @@ func (Exec) Run(ctx context.Context, c Cmd) (Result, error) {
 	cmd.Dir = c.Dir
 	cmd.Env = c.Env
 	cmd.Stdin = c.Stdin
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	stdout, stderr := &tailBuffer{max: maxOutput}, &tailBuffer{max: maxOutput}
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 	if c.Combined {
-		cmd.Stderr = &stdout
+		cmd.Stderr = stdout
 	}
 	cmd.WaitDelay = waitDelay
 	killGroupOnCancel(cmd)

@@ -124,6 +124,7 @@ func (e *Engine) markInProgress(ctx context.Context, l *launch, detail string) (
 		}
 		return false, err
 	}
+	e.plans.wrote(changes)
 	e.log(state.Event{Type: state.EventTaskStarted, Detail: detail})
 	e.emit(Event{Kind: TaskStarted, Changes: changes})
 	return true, nil
@@ -279,6 +280,7 @@ func (e *Engine) finish(ctx context.Context, l *launch, to plan.Status, note str
 	if err != nil {
 		return err
 	}
+	e.plans.wrote(changes)
 	logType, kind := state.EventTaskDone, TaskDone
 	if to == plan.Skipped {
 		logType, kind = state.EventTaskSkipped, TaskSkipped

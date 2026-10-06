@@ -3,6 +3,7 @@ package engine
 import (
 	"crypto/rand"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/drilonrecica/igris/internal/config"
@@ -31,6 +32,10 @@ func ClaudeArgs(p ClaudeParams) ([]string, error) {
 		return nil, fmt.Errorf("build claude arguments: model is empty; map the task's rank in [models]")
 	case strings.TrimSpace(p.SessionID) == "":
 		return nil, fmt.Errorf("build claude arguments: session ID is empty")
+	case !ValidSessionID(p.SessionID):
+		// On resume the ID comes from state.json, which a session can edit:
+		// anything but a UUID could be read by claude as another flag.
+		return nil, fmt.Errorf("build claude arguments: session ID %q is not a UUID; state.json looks damaged, start a fresh session", p.SessionID)
 	case strings.TrimSpace(p.RulesFile) == "":
 		return nil, fmt.Errorf("build claude arguments: rules file is empty")
 	}
@@ -40,7 +45,7 @@ func ClaudeArgs(p ClaudeParams) ([]string, error) {
 	}
 	for _, a := range p.ExtraArgs {
 		if config.ForbiddenExtraArg(a) {
-			return nil, fmt.Errorf("build claude arguments: claude.extra_args contains %q, which igris sets itself (SPEC §7.4); remove it", a)
+			return nil, fmt.Errorf("build claude arguments: claude.extra_args contains %q, which igris sets itself or which could change the model or permission mode (SPEC §7.4); remove it", a)
 		}
 	}
 
@@ -53,6 +58,11 @@ func ClaudeArgs(p ClaudeParams) ([]string, error) {
 	args = append(args, "--append-system-prompt-file", p.RulesFile)
 	return append(args, p.ExtraArgs...), nil
 }
+
+var sessionIDPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
+// ValidSessionID reports whether id has the form of a Claude session UUID.
+func ValidSessionID(id string) bool { return sessionIDPattern.MatchString(id) }
 
 // NewSessionID returns a random (version 4) UUID for a Claude session.
 func NewSessionID() (string, error) {

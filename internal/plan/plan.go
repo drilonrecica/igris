@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
+
+	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
 // Canonical column names (SPEC §3.2).
@@ -88,6 +90,7 @@ func (p *Plan) addIssue(line int, format string, a ...any) {
 type section struct {
 	phase      *Phase
 	tableFound bool
+	control    bool // the heading line holds a control character
 }
 
 // Parse parses data. It never fails outright: structural problems are
@@ -116,7 +119,7 @@ func Parse(name string, data []byte, opts Options) *Plan {
 			continue
 		}
 		if text, ok := headingText(l.text); ok {
-			cur = &section{phase: newPhase(text, l.num)}
+			cur = &section{phase: newPhase(textsafe.Line(text), l.num), control: textsafe.HasControl(l.text)}
 			continue
 		}
 		if !isTableStart(p.lines, i) {
@@ -154,6 +157,9 @@ func (p *Plan) addTable(cur *section, cols []string, at int, rows []line, firstP
 	}
 	cur.tableFound = true
 	ph := cur.phase
+	if cur.control {
+		p.addIssue(ph.Line, "the heading of phase %s contains a control character (an escape sequence?); remove it", ph.ID)
+	}
 	ph.Columns = cols
 	ph.tableLine = at
 	for _, l := range rows {

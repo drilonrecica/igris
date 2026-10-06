@@ -2,7 +2,11 @@
 // markdown task plan (SPEC §3–§5).
 package plan
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/drilonrecica/igris/internal/textsafe"
+)
 
 // line is one physical line of the plan file.
 type line struct {
@@ -34,7 +38,7 @@ func splitLines(data []byte) []line {
 
 // cell is one table cell.
 type cell struct {
-	value string // trimmed content with \| unescaped to |
+	value string // trimmed content with \| unescaped to | and control characters removed
 	start int    // byte offset of the trimmed content within the line
 	end   int    // byte offset just past the trimmed content
 }
@@ -92,7 +96,9 @@ func splitRow(s string) []cell {
 			// where content would go in "| x |".
 			a, b = sg.from+1, sg.from+1
 		}
-		cells[i] = cell{value: strings.ReplaceAll(s[a:b], `\|`, "|"), start: a, end: b}
+		// Cell text is shown in the TUI and sent to sessions; it never
+		// carries escape sequences (the row is a validation error too).
+		cells[i] = cell{value: textsafe.Line(strings.ReplaceAll(s[a:b], `\|`, "|")), start: a, end: b}
 	}
 	return cells
 }

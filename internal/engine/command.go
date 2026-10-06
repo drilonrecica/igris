@@ -100,6 +100,7 @@ func (e *Engine) drain() {
 			if e.pause {
 				e.emit(Event{Kind: PauseOn})
 			} else {
+				e.hold = false // the owner looked at the changed plan
 				e.emit(Event{Kind: PauseOff})
 			}
 		case CmdStop:

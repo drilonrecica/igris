@@ -82,11 +82,17 @@ func (w *Writer) attempt(fn UpdateFunc) (changes []Change, retry bool, err error
 		return nil, false, err
 	}
 
-	info, err := os.Stat(w.path)
+	// The file the plan path resolves to is the one replaced, so a plan that
+	// is a symlink stays one.
+	dst, err := resolve(w.path)
+	if err != nil {
+		return nil, false, err
+	}
+	info, err := os.Stat(dst)
 	if err != nil {
 		return nil, false, fmt.Errorf("stat plan %s: %w", w.path, err)
 	}
-	tmp, err := writeTemp(w.path, out, info.Mode().Perm())
+	tmp, err := writeTemp(dst, out, info.Mode().Perm())
 	if err != nil {
 		return nil, false, err
 	}
@@ -106,12 +112,23 @@ func (w *Writer) attempt(fn UpdateFunc) (changes []Change, retry bool, err error
 	if sha256.Sum256(now) != sum {
 		return nil, true, nil
 	}
-	if err := os.Rename(tmp, w.path); err != nil {
+	if err := os.Rename(tmp, dst); err != nil {
 		return nil, false, fmt.Errorf("replace plan %s: %w", w.path, err)
 	}
 	tmp = ""
-	syncDir(filepath.Dir(w.path))
+	syncDir(filepath.Dir(dst))
 	return changes, false, nil
+}
+
+// resolve follows symlinks in path. Renaming a temp file over path itself
+// would replace a symlink with a regular file and leave the file it pointed
+// to untouched.
+func resolve(path string) (string, error) {
+	dst, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return "", fmt.Errorf("resolve plan %s: %w", path, err)
+	}
+	return dst, nil
 }
 
 // splice returns data with the Status cell of every changed task replaced.
@@ -210,11 +227,15 @@ func Replace(path string, was, data []byte) error {
 	if err := same(); err != nil {
 		return err
 	}
-	info, err := os.Stat(path)
+	dst, err := resolve(path)
+	if err != nil {
+		return err
+	}
+	info, err := os.Stat(dst)
 	if err != nil {
 		return fmt.Errorf("stat plan %s: %w", path, err)
 	}
-	tmp, err := writeTemp(path, data, info.Mode().Perm())
+	tmp, err := writeTemp(dst, data, info.Mode().Perm())
 	if err != nil {
 		return err
 	}
@@ -226,10 +247,10 @@ func Replace(path string, was, data []byte) error {
 	if err := same(); err != nil {
 		return err
 	}
-	if err := os.Rename(tmp, path); err != nil {
+	if err := os.Rename(tmp, dst); err != nil {
 		return fmt.Errorf("replace plan %s: %w", path, err)
 	}
 	tmp = ""
-	syncDir(filepath.Dir(path))
+	syncDir(filepath.Dir(dst))
 	return nil
 }

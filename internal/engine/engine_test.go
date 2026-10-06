@@ -610,18 +610,25 @@ func TestSkipPermissionsNeedsConfirmation(t *testing.T) {
 	}
 }
 
-// A plan edited mid-run can't switch a later task to skip-permissions.
+// A plan edited mid-run can't switch a later task to skip-permissions, not
+// even after the owner resumed past the plan-change hold.
 func TestSkipPermissionsIsCheckedAgainAtLaunch(t *testing.T) {
 	planText := strings.Replace(modePlan, "TASKMODE", "—", 1)
 	h := newHarness(t, planText, "")
 	h.onEvent = func(ev Event) {
-		if ev.Kind == SessionOpened && ev.Task == "A-1" {
+		switch {
+		case ev.Kind == SessionOpened && ev.Task == "A-1":
 			h.write("tasks.md", strings.Replace(h.read("tasks.md"), "| blocked | sonnet | — |", "| blocked | sonnet | yolo |", 1))
+		case ev.Kind == PlanChanged:
+			h.eng.Send(Command{Kind: CmdPause}) // resume
 		}
 	}
 	_, err := h.run()
 	if !errors.Is(err, ErrYoloUnconfirmed) {
 		t.Fatalf("err = %v, want ErrYoloUnconfirmed", err)
+	}
+	if ev := h.event(PlanChanged, ""); !strings.Contains(ev.Detail, "A-2 Mode — → yolo") {
+		t.Errorf("plan_changed detail = %q", ev.Detail)
 	}
 	if got := h.opened(); got != "A-1" {
 		t.Errorf("sessions opened for %q, want only A-1", got)
@@ -728,10 +735,16 @@ func TestOpenSessionFailure(t *testing.T) {
 }
 
 // The owner finishes a task by hand between selection and igris's write:
-// igris must not overwrite that, and moves on to the next task.
+// igris must not overwrite that. The edit holds the run (SPEC §5.4); once
+// the owner resumes, igris moves on to the next task.
 func TestPlanEditedBeforeMarking(t *testing.T) {
 	h := newHarness(t, chainPlan, "")
 	edited := false
+	h.onEvent = func(ev Event) {
+		if ev.Kind == PlanChanged {
+			h.eng.Send(Command{Kind: CmdPause}) // resume
+		}
+	}
 	res, err := h.run(func(o *Options) {
 		o.beforeMark = func() {
 			if !edited {
@@ -742,6 +755,12 @@ func TestPlanEditedBeforeMarking(t *testing.T) {
 	})
 	if err != nil || res.Outcome != Completed {
 		t.Fatalf("Run = %s, %v", res.Outcome, err)
+	}
+	if ev := h.event(PlanChanged, ""); !strings.Contains(ev.Detail, "A-1 Status ready → done") {
+		t.Errorf("plan_changed detail = %q", ev.Detail)
+	}
+	if on, off := h.count(PauseOn), h.count(PauseOff); on != 1 || off != 1 {
+		t.Errorf("pause on/off = %d/%d, want 1/1 in %s", on, off, h.kinds())
 	}
 	if got := h.opened(); got != "A-2 A-3" {
 		t.Errorf("sessions opened for %q, want A-2 A-3", got)
