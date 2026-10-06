@@ -241,12 +241,16 @@ func TestDryRunResumesTheLastRunsPhases(t *testing.T) {
 
 func TestAriseRefusesWhatIsNotBuiltYet(t *testing.T) {
 	writeProject(t, map[string]string{"tasks.md": dryPlan})
+	savedRunner, savedGetenv := ariseRunner, ariseGetenv
+	t.Cleanup(func() { ariseRunner, ariseGetenv = savedRunner, savedGetenv })
+	ariseRunner = &runner.Fake{} // any herdr call would fail the run
+	ariseGetenv = func(string) string { return "" }
 	tests := []struct {
 		args []string
 		want string
 	}{
 		{[]string{"arise", "A"}, "the TUI is not part of this build yet"},
-		{[]string{"arise", "A", "--no-tui"}, "herdr backend is not part of this build yet"},
+		{[]string{"arise", "A", "--no-tui"}, "must run inside a herdr pane"},
 	}
 	for _, tt := range tests {
 		var out, errb bytes.Buffer

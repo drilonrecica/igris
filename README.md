@@ -81,7 +81,9 @@ Before a run starts, igris warns if `ANTHROPIC_API_KEY` is set (your sessions wo
 
 Each session gets two prompts: fixed igris rules (one task only, never touch Status, run `igris done` last) passed as a system-prompt file, and a first message built from a template. Set `prompt_template` in `igris.toml` to your own Go template to replace the default message; the variables are listed in SPEC §6.1.
 
-Recommended once: `herdr integration install claude`, so herdr reports Claude's state accurately.
+`igris arise` needs herdr: run it inside a herdr pane with the herdr server running, otherwise it exits and says so (tmux support is planned). `check`, `status`, `done` and `skip` work without herdr.
+
+Recommended once: `herdr integration install claude`, so herdr reports Claude's state accurately; `arise` warns when it isn't installed.
 
 ## Your plan
 

@@ -46,6 +46,16 @@ type Backend struct {
 	workspace string
 }
 
+// WorkspaceEnv is the variable herdr sets in every pane it opens.
+const WorkspaceEnv = "HERDR_WORKSPACE_ID"
+
+// NewFromEnv is New with the workspace taken from HERDR_WORKSPACE_ID. When
+// igris runs outside a herdr pane the workspace is empty and Available
+// says so.
+func NewFromEnv(r runner.Runner, getenv func(string) string) *Backend {
+	return New(r, getenv(WorkspaceEnv))
+}
+
 // New returns a herdr backend that opens tabs in workspace (igris's own
 // HERDR_WORKSPACE_ID) and runs herdr through r.
 func New(r runner.Runner, workspace string) *Backend {
@@ -119,3 +129,40 @@ func (b *Backend) Attach(ctx context.Context, ref backend.SessionRef) (backend.S
 	}
 	return s, nil
 }
+
+// errNeedsHerdr is appended to availability errors so the owner knows v1
+// has no other backend (SPEC §11.3).
+const errNeedsHerdr = "igris v1 requires herdr (tmux support is planned)"
+
+// Available reports why herdr can't host sessions: igris doesn't run inside
+// a herdr pane, or the herdr server isn't reachable and running.
+func (b *Backend) Available(ctx context.Context) error {
+	if b.workspace == "" {
+		return fmt.Errorf("igris must run inside a herdr pane (%s is not set); start herdr, open a pane and run igris there. %s", WorkspaceEnv, errNeedsHerdr)
+	}
+	st, err := b.c.ServerStatus(ctx)
+	if err != nil {
+		return fmt.Errorf("the herdr server is not reachable: %w; start herdr first. %s", err, errNeedsHerdr)
+	}
+	if st.Status != "running" {
+		return fmt.Errorf("the herdr server is %q, not running; start herdr first. %s", st.Status, errNeedsHerdr)
+	}
+	return nil
+}
+
+// IntegrationHint returns advice when herdr's Claude Code integration isn't
+// installed, so agent states would be inaccurate, and "" when it is
+// installed or can't be determined.
+func (b *Backend) IntegrationHint(ctx context.Context) string {
+	st, err := b.c.IntegrationStatus(ctx)
+	if err != nil {
+		return ""
+	}
+	if s, ok := st["claude"]; ok && strings.HasPrefix(s, "not installed") {
+		return "herdr's Claude Code integration is not installed, so agent states may be inaccurate; run `herdr integration install claude`"
+	}
+	return ""
+}
+
+// Notify is replaced by the real toast in M3-05.
+func (b *Backend) Notify(context.Context, backend.Notification) error { return nil }

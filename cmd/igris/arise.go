@@ -17,6 +17,7 @@ import (
 
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/backend/fake"
+	"github.com/drilonrecica/igris/internal/backend/herdr"
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/plan"
@@ -36,7 +37,7 @@ var (
 // newBackend returns the backend named in the config.
 func newBackend(cfg *config.Config) (backend.Backend, error) {
 	if cfg.Backend == "herdr" {
-		return nil, errors.New("the herdr backend is not part of this build yet (milestone M3); `igris arise --dry-run` shows what a run would do")
+		return herdr.NewFromEnv(commandRunner(), ariseGetenv), nil
 	}
 	return nil, fmt.Errorf("unknown backend %q in igris.toml; igris v1 runs on herdr (tmux support is planned)", cfg.Backend)
 }
@@ -89,6 +90,11 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel() // Ctrl-C stops the run; the session stays open (SPEC §13)
+	if h, ok := be.(interface{ IntegrationHint(context.Context) string }); ok {
+		if hint := h.IntegrationHint(ctx); hint != "" {
+			fmt.Fprintf(out, "warning: %s\n", hint)
+		}
+	}
 	lines := readLines(ariseStdin)
 	for _, w := range engine.Preflight(ctx, commandRunner(), f.root, ariseGetenv) {
 		fmt.Fprintf(out, "warning: %s\n", w.Text)
