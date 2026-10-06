@@ -1,5 +1,5 @@
 // Package engine holds igris's run logic: mode resolution, the Claude Code
-// command line and (later) the run loop.
+// command line and the run loop.
 package engine
 
 import (

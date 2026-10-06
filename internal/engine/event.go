@@ -1,0 +1,116 @@
+package engine
+
+import (
+	"context"
+	"path/filepath"
+	"time"
+
+	"github.com/drilonrecica/igris/internal/backend"
+	"github.com/drilonrecica/igris/internal/plan"
+	"github.com/drilonrecica/igris/internal/state"
+)
+
+// EventKind classifies an Event.
+type EventKind string
+
+// Events of a run, in the order a UI typically sees them.
+const (
+	RunStarted     EventKind = "run_started"
+	PhaseStarted   EventKind = "phase_started"
+	TaskStarted    EventKind = "task_started"    // marked in progress; Changes holds the cells written
+	SessionOpened  EventKind = "session_opened"  // Session is set
+	TaskDone       EventKind = "task_done"       // Detail is the done note; Changes holds the cells written
+	PhaseDone      EventKind = "phase_done"      // every task of the phase is satisfied
+	PhaseStuck     EventKind = "phase_stuck"     // Waiting lists the unfinished tasks
+	PauseOn        EventKind = "pause_on"        // pause-after-task was switched on
+	PauseOff       EventKind = "pause_off"       // ... and off again; a held run continues
+	Paused         EventKind = "paused"          // the run holds instead of launching Task
+	ConfigChanged  EventKind = "config_changed"  // igris.toml differs from the snapshot; needs the owner
+	ConfigRestored EventKind = "config_restored" // igris.toml matches the snapshot again
+	StaleSignal    EventKind = "stale_signal"    // a signal from before the task started was ignored
+	Warning        EventKind = "warning"         // something failed that doesn't stop the run
+	RunFailed      EventKind = "run_error"       // Detail is the error; the run stops
+	RunStopped     EventKind = "run_stopped"     // the run ended; Detail is the outcome or "error"
+)
+
+// Event is one step of a run, delivered to Options.Events. UIs render it;
+// the run log and notifications are written by the engine itself.
+type Event struct {
+	At    time.Time
+	Kind  EventKind
+	Phase string
+	Task  string // task ID; empty for run and phase events
+	Title string
+	Rank  string
+	Model string
+	Mode  string
+	// Detail is a short human-readable addition; see the kinds.
+	Detail  string
+	Changes []plan.Change
+	Waiting []plan.Waiting
+	Session *backend.SessionRef
+}
+
+// emit stamps ev with the time and the current phase and task and hands it
+// to the UI.
+func (e *Engine) emit(ev Event) {
+	ev.At = e.clock.Now()
+	if ev.Phase == "" {
+		ev.Phase = e.phase
+	}
+	if ev.Task == "" && e.task != nil {
+		ev = e.task.fill(ev)
+	}
+	if e.opts.Events != nil {
+		e.opts.Events(ev)
+	}
+}
+
+// warn reports a failure that doesn't stop the run.
+func (e *Engine) warn(detail string) { e.emit(Event{Kind: Warning, Detail: detail}) }
+
+// log appends to runs.jsonl. The log is a record, not state: a failed write
+// is reported and the run goes on.
+func (e *Engine) log(ev state.Event) {
+	if ev.Task == "" && e.task != nil {
+		ev.Task, ev.Rank, ev.Model = e.task.t.ID, e.task.t.Rank, e.task.model
+	}
+	if err := e.dir.Append(ev); err != nil {
+		e.warn(err.Error())
+	}
+}
+
+// Notification events (SPEC §10) the engine raises so far.
+const (
+	notifyNeedsInput = "needs_input"
+	notifyPhaseDone  = "phase_done"
+	notifyPhaseStuck = "phase_stuck"
+	notifyRunError   = "run_error"
+)
+
+// toast shows a backend notification for a SPEC §10 event, if the backend
+// channel is enabled. what says what happened in a few words; it must never
+// carry file contents, diffs or command output. Delivery is best effort.
+//
+// This is the engine's only notification path until the router (M5) takes
+// over.
+func (e *Engine) toast(ctx context.Context, event, what string) {
+	if !e.cfg.Notify.Backend.Enabled {
+		return
+	}
+	sound := backend.SoundRequest
+	if event == notifyPhaseDone {
+		sound = backend.SoundDone
+	}
+	body := "phase " + e.phase
+	if e.task != nil {
+		body += " · " + e.task.t.ID + " " + e.task.t.Title
+	}
+	body += ": " + what
+	n := backend.Notification{Title: "igris · " + filepath.Base(e.dir.Root()), Body: body, Sound: sound}
+	if err := e.be.Notify(ctx, n); err != nil {
+		e.warn("notification " + event + " not shown: " + err.Error())
+		return
+	}
+	e.log(state.Event{Type: state.EventNotification, Detail: event})
+}
