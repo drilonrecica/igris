@@ -52,7 +52,8 @@ Igris's parser is deterministic and strict. Plans that don't match this format a
 ### 3.1 Phases
 - A phase is a level-2 heading (`## `) whose section contains a task table.
 - **Phase ID** = the first whitespace-delimited token of the heading text (`## M0 — Repository foundation` → `M0`). Matching on the command line is case-insensitive.
-- If the first token is alphabetic and the second is a number (`## Phase 2 — API`), the phase ID is the two tokens joined with a hyphen: `Phase-2`.
+- If the first token is alphabetic and the second is a number (`## Phase 2 — API`), the phase ID is the two tokens joined with a hyphen: `Phase-2`. The second token must be digits only (`## Phase 2: API` has phase ID `Phase`).
+- Only level-2 headings start a phase; `###` and deeper headings stay inside the current phase. Headings and tables inside fenced code blocks (```` ``` ```` / `~~~`) are ignored.
 - Phase IDs must be unique within a plan.
 - `##` sections without a task table (Legend, Working rules, traceability tables) are ignored.
 - **Phase order** is file order.
@@ -72,8 +73,8 @@ A task table is a GitHub-flavored markdown table whose header row contains at le
 
 - Column names can be aliased in config (`[columns]`, §12), e.g. `Depends on` → `Deps`.
 - Extra columns (e.g. `Spec`) are preserved untouched and passed to the session prompt as context.
-- Cells are split on **unescaped** pipes only; `\|` inside a cell is literal text.
-- A table belongs to the phase whose heading most recently preceded it. A phase may contain only one task table; a second one is a validation error.
+- Cells are split on **unescaped** pipes only; `\|` inside a cell is literal text (read as `|`; the file keeps `\|`).
+- A table belongs to the phase whose heading most recently preceded it. A phase may contain only one task table; a second one is a validation error, as is a task table before the first `##` heading or a header that names the same column twice. Other tables (e.g. a legend) next to the task table are ignored.
 
 ### 3.3 Status values
 `ready`, `blocked`, `in progress`, `done`, `skipped` — case-insensitive, optional surrounding backticks. Anything after the keyword (e.g. `skipped (not needed)`) is kept and ignored for logic.
