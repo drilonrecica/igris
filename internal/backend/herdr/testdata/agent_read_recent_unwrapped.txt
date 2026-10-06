@@ -1,0 +1,60 @@
+ ▐▛███▛█   Claude Code v2.1.291
+▝▜██████▀  Haiku 4.5 · Claude Max
+ ▝▝   ▝▝   /work/demo
+
+
+❯ Line one of a multi-line prompt.
+
+  - indented bullet with backticks and "quotes"
+    Line last.
+
+  Now run the shell command igris done with the Bash tool.
+
+  Ran 1 shell command
+
+● The igris done command was not found (exit code 127). This typically means either:
+  - The command isn't installed on this system
+  - It's not in the system PATH
+  - There's a typo in the command name
+
+  Could you clarify what this command should do, or verify the correct command name?
+
+✻ Baked for 11s · done 12:47 PM
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ 
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  Haiku 4.5 | /work/demo | main | ctx 21% | default
+  ⏸ manual mode on · ← for agents
