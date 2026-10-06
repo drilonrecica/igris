@@ -1,5 +1,3 @@
-<p align="center"><img src="docs/brand/igris-icon.svg" alt="" width="96" height="96"></p>
-
 <h1 align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/brand/igris-logo-dark.svg">
