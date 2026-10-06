@@ -1,0 +1,43 @@
+# GoReleaser config (SPEC §18, decisions.md P0-04). Used locally through
+# `make release-local`; it only builds into dist/ and never publishes.
+version: 2
+
+project_name: igris
+
+before:
+  hooks:
+    - go mod verify
+
+builds:
+  - id: igris
+    main: ./cmd/igris
+    binary: igris
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: igris
+    formats: [tar.gz]
+    name_template: "igris_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+# Releases are created and uploaded by hand (M7-07); release notes are written
+# by hand too (M7-06).
+changelog:
+  disable: true
+
+release:
+  disable: true

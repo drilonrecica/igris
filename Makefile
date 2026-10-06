@@ -23,6 +23,9 @@ test:
 test-race:
 	go test -race ./...
 
-# Stub until M7-03 wires up GoReleaser (snapshot build into dist/, never publishes).
+# Snapshot build of all release targets into dist/ (SPEC §18). Needs goreleaser;
+# never publishes: the owner uploads dist/ to a GitHub Release by hand.
 release-local:
-	@echo "release-local is not implemented yet (see M7-03)"
+	@command -v goreleaser >/dev/null || { echo "goreleaser not found: https://goreleaser.com/install/"; exit 1; }
+	goreleaser check
+	goreleaser release --snapshot --clean --skip=publish

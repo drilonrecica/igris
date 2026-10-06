@@ -214,6 +214,10 @@ v1 needs it. A tmux backend is on the roadmap.
 - Homebrew tap
 - Signed release artifacts (cosign/minisign)
 
+## Building releases
+
+`make release-local` needs [GoReleaser](https://goreleaser.com/install/). It builds the four release targets (linux and darwin, amd64 and arm64) as static binaries, packs each with `LICENSE` and `README.md`, and writes the archives and `checksums.txt` to `dist/`. It never publishes anything; a release is uploaded to GitHub by hand.
+
 ## License
 
 MIT
