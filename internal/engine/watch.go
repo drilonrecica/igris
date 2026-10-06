@@ -53,6 +53,10 @@ func (e *Engine) watch(ctx context.Context, l *launch) (verdict, error) {
 			case CmdSkip:
 				return verdict{kind: verdictSkip, note: c.Text, owner: true}, nil
 			case CmdRetry:
+				if c.Continue && l.cur.Session == nil {
+					e.reject(c, "there is no earlier conversation of "+t.ID+" to continue; retry fresh")
+					continue
+				}
 				if err := e.retry(ctx, l, c.Continue); err != nil {
 					return verdict{}, err
 				}
@@ -141,7 +145,11 @@ func (e *Engine) lose(ctx context.Context, l *launch) {
 	l.lost = true
 	e.emit(Event{Kind: SessionLost, Detail: "the session is gone without `igris done`"})
 	e.toast(ctx, notifySessionLost, "session lost")
-	e.emit(Event{Kind: Asked, Question: QuestionSessionLost, Detail: "the session of " + l.t.ID + " is gone: continue its conversation, start a fresh session, mark the task done, skip it, or stop"})
+	choices := "continue its conversation, start a fresh session"
+	if l.cur.Session == nil {
+		choices = "start a fresh session" // no conversation was ever started
+	}
+	e.emit(Event{Kind: Asked, Question: QuestionSessionLost, Detail: "the session of " + l.t.ID + " is gone: " + choices + ", mark the task done, skip it, or stop"})
 }
 
 // scanSignals reads every pending signal, reports the ones that are not

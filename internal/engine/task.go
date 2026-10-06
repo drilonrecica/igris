@@ -64,7 +64,7 @@ func (e *Engine) runTask(ctx context.Context, t *plan.Task) (stopped bool, err e
 	l := &launch{t: t}
 	e.task = l
 	if t.Status == plan.InProgress {
-		return false, fmt.Errorf("task %s is already in progress; resuming a task is %w", t.ID, ErrUnsupported)
+		return e.adopt(ctx, l)
 	}
 	if !t.Owner.IsAgent() {
 		return e.runUserTask(ctx, l)

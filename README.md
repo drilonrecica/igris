@@ -127,7 +127,7 @@ Igris tells you when it needs you (a question, a plan to approve, a stalled sess
 
 Igris runs in its own herdr pane: the task list with status and rank, the current task and how long it's been running, and a log. Claude sessions run in their own tabs; press `o` to jump to the current one. The layout collapses to a single column on small terminals, so it works over SSH from a phone.
 
-`q` quits the TUI without stopping anything. `igris arise` picks up exactly where it left off.
+`q` quits the TUI without stopping anything. `igris arise` (no phase needed) picks up exactly where it left off: it reattaches to the running session, or, if that's gone, lets you continue its conversation or start a fresh session that is told to check the work already in the tree.
 
 Only one `igris arise` runs per project at a time. If a crashed run left its lock behind, igris says so; `igris arise --force-unlock` clears it.
 

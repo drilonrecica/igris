@@ -26,7 +26,6 @@ func TestNewRejectsIncompleteOptions(t *testing.T) {
 		{"no config", func(o *Options) { o.Config = nil }},
 		{"no backend", func(o *Options) { o.Backend = nil }},
 		{"no state", func(o *Options) { o.State = nil }},
-		{"no phase", func(o *Options) { o.Phase = " " }},
 		{"unknown mode", func(o *Options) { o.Mode = "wild" }},
 		{"invalid config", func(o *Options) { c := *h.cfg; c.PollInterval = 0; o.Config = &c }},
 	}
@@ -665,42 +664,6 @@ func TestRunNeedsAnAvailableBackend(t *testing.T) {
 		t.Error("plan written although the backend is unavailable")
 	}
 	h.assertUnlocked()
-}
-
-func TestNotYetSupportedCases(t *testing.T) {
-	tests := []struct {
-		name, plan string
-		setup      func(h *harness)
-	}{
-		{"task already in progress", strings.Replace(chainPlan, "| — | ready |", "| — | in progress |", 1), nil},
-		{"earlier run stopped mid-task", chainPlan, func(h *harness) {
-			if err := h.dir.SaveRun(&state.Run{Phases: []string{"A"}, Current: &state.Current{TaskID: "A-1"}}); err != nil {
-				h.t.Fatal(err)
-			}
-		}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			h := newHarness(t, tt.plan, "")
-			if tt.setup != nil {
-				tt.setup(h)
-			}
-			_, err := h.run()
-			if !errors.Is(err, ErrUnsupported) {
-				t.Fatalf("err = %v, want ErrUnsupported", err)
-			}
-			if got := h.read("tasks.md"); got != tt.plan {
-				t.Errorf("plan written:\n%s", got)
-			}
-			if got := h.opened(); got != "" {
-				t.Errorf("sessions opened for %q", got)
-			}
-			if run, err := h.dir.LoadRun(); tt.setup != nil && (err != nil || run.Current == nil) {
-				t.Errorf("the earlier run's state was overwritten: %+v, %v", run, err)
-			}
-			h.assertUnlocked()
-		})
-	}
 }
 
 // A signal written before its task started (e.g. an early `igris done`) is

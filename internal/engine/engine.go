@@ -16,11 +16,6 @@ import (
 	"github.com/drilonrecica/igris/internal/state"
 )
 
-// ErrUnsupported marks a situation the run loop doesn't handle yet:
-// resuming an interrupted run. The run stops without touching
-// anything.
-var ErrUnsupported = errors.New("not supported yet")
-
 // ErrYoloUnconfirmed is returned when a task would launch in skip-permissions
 // mode without the owner's confirmation for this run (SPEC §7.3).
 var ErrYoloUnconfirmed = errors.New("skip-permissions mode needs the owner's confirmation for this run; confirm it when starting `igris arise`")
@@ -52,7 +47,7 @@ type Options struct {
 	// Runner runs the verify command and git; nil means real processes.
 	Runner runner.Runner
 
-	Phase   string // phase to run
+	Phase   string // phase to run; "" resumes the previous run's phases
 	Through string // last phase to run; "" means only Phase (SPEC §5.3)
 	Mode    string // run mode chosen for this run (--mode); "" means none
 
@@ -127,6 +122,8 @@ type Engine struct {
 	stop     bool            // the owner asked to stop
 	pending  []Command       // task-scoped commands not handled yet
 	reported map[string]bool // keys of the signals and problems reported once
+	// configMoved: igris.toml differs from the one of the run being resumed.
+	configMoved bool
 }
 
 // New checks opts and returns an engine. It does no I/O.
@@ -140,8 +137,6 @@ func New(opts Options) (*Engine, error) {
 		return nil, errors.New("engine: no backend")
 	case opts.State == nil:
 		return nil, errors.New("engine: no state directory")
-	case opts.Phase == "":
-		return nil, errors.New("engine: no phase; name the phase to run")
 	case opts.Mode != "" && !ValidMode(opts.Mode):
 		return nil, fmt.Errorf("engine: unknown run mode %q (want default|accept|auto|plan|yolo)", opts.Mode)
 	}
@@ -216,7 +211,10 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 	e.log(state.Event{Type: state.EventRunStarted, Detail: scope})
 	e.emit(Event{Kind: RunStarted, Detail: scope})
 
-	res, err := e.runPhases(ctx, phases)
+	if e.configMoved {
+		e.warn("igris.toml changed since the interrupted run; this run uses the file as it is now")
+	}
+	res, err := e.resumeAndRun(ctx, phases)
 	if err != nil && ctx.Err() != nil {
 		// A call was cut short by the cancellation: that is a stop.
 		res, err = Result{Outcome: Stopped, Phase: e.phase}, nil
@@ -234,22 +232,48 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 }
 
 // prepare validates the plan and the run's gates, then records the new run
-// in state.json. It returns the IDs of the phases to run.
+// in state.json. It returns the IDs of the phases to run. A task the
+// previous run was working on is carried over for resume (SPEC §13); with
+// no phase named, the previous run's phases are run again.
 func (e *Engine) prepare() ([]string, error) {
+	prev, err := e.dir.LoadRun()
+	switch {
+	case errors.Is(err, state.ErrNoRun):
+		prev = nil
+	case err != nil:
+		return nil, err
+	}
+	from, through := e.opts.Phase, e.opts.Through
+	if from == "" {
+		if prev == nil || len(prev.Phases) == 0 {
+			return nil, errors.New("there is no earlier run to resume; name the phase to run, e.g. `igris arise M0`")
+		}
+		from, through = prev.Phases[0], prev.Through
+	}
+
 	p, err := e.loadPlan()
 	if err != nil {
 		return nil, err
 	}
-	phases, err := p.PhasesThrough(e.opts.Phase, e.opts.Through)
+	phases, err := p.PhasesThrough(from, through)
 	if err != nil {
 		return nil, err
 	}
 	if drift := p.Readiness(); len(drift) > 0 && !e.opts.ConfirmedDrift {
 		return nil, &DriftError{Changes: drift}
 	}
-	ids := make([]string, len(phases))
-	for i, ph := range phases {
-		ids[i] = ph.ID
+	var cur *state.Current
+	if prev != nil {
+		cur = prev.Current
+	}
+	ids := make([]string, 0, len(phases))
+	for _, ph := range phases {
+		// A resumed run starts in the phase of the task it picks up again;
+		// the phases before it have nothing left to do for this run.
+		if cur != nil && len(ids) > 0 && hasTask(ph, cur.TaskID) {
+			ids = ids[:0]
+		}
+		ids = append(ids, ph.ID)
 		// Refuse an unconfirmed skip-permissions task now rather than hours
 		// into the run. runTask checks again: the plan can change.
 		for _, t := range ph.Tasks {
@@ -261,18 +285,20 @@ func (e *Engine) prepare() ([]string, error) {
 			}
 		}
 	}
-
-	switch prev, err := e.dir.LoadRun(); {
-	case errors.Is(err, state.ErrNoRun):
-	case err != nil:
-		return nil, err
-	case prev.Current != nil:
-		// Its session may still be alive; a new run would overwrite the
-		// only record of it.
-		return nil, fmt.Errorf("an earlier run stopped while working on %s; resuming a run is %w", prev.Current.TaskID, ErrUnsupported)
+	e.run = &state.Run{StartedAt: e.clock.Now(), Phases: ids, Through: through, ConfigHash: e.cfg.Hash(), Current: cur}
+	if prev != nil && cur != nil && prev.ConfigHash != e.run.ConfigHash {
+		e.configMoved = true
 	}
-	e.run = &state.Run{StartedAt: e.clock.Now(), Phases: ids, Through: e.opts.Through, ConfigHash: e.cfg.Hash()}
 	return ids, e.dir.SaveRun(e.run)
+}
+
+func hasTask(ph *plan.Phase, id string) bool {
+	for _, t := range ph.Tasks {
+		if t.ID == id {
+			return true
+		}
+	}
+	return false
 }
 
 // loadPlan re-reads the plan; igris never works from a stale or invalid one.
@@ -298,6 +324,21 @@ func (e *Engine) modeFor(t *plan.Task) (string, error) {
 		return "", fmt.Errorf("task %s would run in yolo mode: %w", t.ID, ErrYoloUnconfirmed)
 	}
 	return mode, nil
+}
+
+// resumeAndRun picks up the task an earlier run was working on, then runs
+// the phases.
+func (e *Engine) resumeAndRun(ctx context.Context, phases []string) (Result, error) {
+	if e.run.Current != nil {
+		stopped, err := e.resume(ctx)
+		if err != nil {
+			return Result{Phase: e.phase}, err
+		}
+		if stopped {
+			return Result{Outcome: Stopped, Phase: e.phase}, nil
+		}
+	}
+	return e.runPhases(ctx, phases)
 }
 
 func (e *Engine) runPhases(ctx context.Context, phases []string) (Result, error) {

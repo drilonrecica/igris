@@ -436,6 +436,13 @@ events = ["needs_input", "session_lost", "phase_done", "phase_stuck", "run_error
 - session gone → offer (TUI, or `--no-tui` stdin; default fresh): **continue** the previous conversation (`claude --resume <uuid>`, same model) or start a **fresh** session with `Resumed=true`;
 - pending signal for the current task → process it first.
 
+Details:
+- With no phase argument the previous run's phase range (and `--through`) is used again; with no previous run, `arise` asks for a phase. A resumed run starts in the phase of the interrupted task.
+- The interrupted task is picked up before anything else, also when a different phase is named.
+- If the plan no longer says `in progress` for it (the owner settled it while igris was down), igris warns, forgets it and goes on.
+- A task the plan says is `in progress` without any record in `state.json` is treated like a lost session with nothing to continue: the owner can start a fresh session (`Resumed=true`), mark it done, skip it or stop.
+- The new run uses the config as it is now; igris warns if it differs from the interrupted run's.
+
 **Config snapshot.** `arise` loads `igris.toml` once at start and uses that snapshot for the whole run. If the file changes during a run (a session could edit it, e.g. to weaken `verify`), igris marks **Needs you**, notifies (once per change), and keeps using the snapshot; the new config only takes effect when the owner restarts `arise`.
 
 Quitting the TUI (`q`) never kills a running session; it saves state and exits. Stopping a session requires an explicit action.

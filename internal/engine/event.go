@@ -18,6 +18,7 @@ const (
 	RunStarted     EventKind = "run_started"
 	PhaseStarted   EventKind = "phase_started"
 	TaskStarted    EventKind = "task_started"    // marked in progress; Changes holds the cells written
+	TaskResumed    EventKind = "task_resumed"    // a task in progress from an earlier run is picked up; Detail says how
 	SessionOpened  EventKind = "session_opened"  // Session is set
 	TaskDone       EventKind = "task_done"       // Detail is the done note; Changes holds the cells written
 	PhaseDone      EventKind = "phase_done"      // every task of the phase is satisfied

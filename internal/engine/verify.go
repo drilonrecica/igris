@@ -73,7 +73,9 @@ func (e *Engine) verify(ctx context.Context, l *launch) (bool, error) {
 		return false, nil
 	}
 	if l.lost {
-		return false, nil // the owner was already asked what to do
+		// Nobody to send the failure to: the owner decides.
+		e.lose(ctx, l)
+		return false, nil
 	}
 	e.settle(ctx, l.sess, verifyIdleWait)
 	msg := fmt.Sprintf("igris verification `%s` failed (%s). Last lines of its output:\n\n```\n%s\n```\n\nFix the problem, then run `igris done %s` again.\n",

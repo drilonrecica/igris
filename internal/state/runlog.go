@@ -18,6 +18,7 @@ const (
 	EventRunStarted   EventType = "run_started"
 	EventRunStopped   EventType = "run_stopped"
 	EventTaskStarted  EventType = "task_started"
+	EventTaskResumed  EventType = "task_resumed"
 	EventTaskDone     EventType = "task_done"
 	EventTaskSkipped  EventType = "task_skipped"
 	EventVerifyPassed EventType = "verify_passed"
