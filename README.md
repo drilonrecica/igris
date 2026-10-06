@@ -236,6 +236,10 @@ The [project page](https://drilonrecica.github.io/igris/) is a static page in [`
 
 `make demo` re-records the GIF at the top of this README with [VHS](https://github.com/charmbracelet/vhs); see [`docs/demo/`](docs/demo/README.md).
 
+## Contributing
+
+Bug reports and pull requests are welcome; see [`CONTRIBUTING.md`](CONTRIBUTING.md). Report security problems privately as described in [`SECURITY.md`](SECURITY.md).
+
 ## License
 
 MIT

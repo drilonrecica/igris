@@ -4,6 +4,10 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+### Added
+
+- `CONTRIBUTING.md`, `SECURITY.md` (private vulnerability reporting through GitHub), a bug report template that asks for the igris, Claude Code and herdr versions, and a pull request template.
+
 ## [0.1.0] - 2026-10-07
 
 First release. Linux and macOS, herdr backend only. The full behavior is specified in [`SPEC.md`](SPEC.md).

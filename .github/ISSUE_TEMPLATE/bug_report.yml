@@ -1,0 +1,61 @@
+name: Bug report
+description: Something igris did wrong or confusingly
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please don't paste plans, logs or notes from private projects — a small synthetic plan that shows the problem is best. Security problems go through [SECURITY.md](https://github.com/drilonrecica/igris/blob/master/SECURITY.md), not here.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you ran, what you expected, and what igris did instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: Commands, and a minimal plan and `igris.toml` if they matter (remove notification URLs).
+      render: markdown
+  - type: input
+    id: igris
+    attributes:
+      label: igris version
+      description: Output of `igris version`
+    validations:
+      required: true
+  - type: input
+    id: claude
+    attributes:
+      label: Claude Code version
+      description: Output of `claude --version`
+    validations:
+      required: true
+  - type: input
+    id: herdr
+    attributes:
+      label: herdr version
+      description: Output of `herdr --version`
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      placeholder: e.g. Fedora 44, macOS 26.1, Ubuntu 24.04 on WSL2
+    validations:
+      required: true
+  - type: input
+    id: terminal
+    attributes:
+      label: Terminal
+      description: Terminal app, and how you're connected if remote.
+      placeholder: e.g. Ghostty; Termius on iOS over SSH
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output
+      description: Error messages or `igris status --json`, if relevant.
+      render: text
