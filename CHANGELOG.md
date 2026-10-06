@@ -57,6 +57,7 @@ First release. Linux and macOS, herdr backend only. The full behavior is specifi
 - `igris init`: creates `igris.toml` and `.igris/`, ignores `.igris/` in git, and merges a `Bash(igris done:*)` allow rule into `.claude/settings.local.json`. Safe to re-run.
 - Examples: [`examples/tasks.md`](examples/tasks.md) and a commented [`examples/igris.toml`](examples/igris.toml).
 - Static binaries for linux and darwin on amd64 and arm64, `checksums.txt` (SHA-256), `make release-local` (GoReleaser snapshot, never publishes).
+- `igris version` reports the module version for `go install …@vX.Y.Z` builds too.
 
 ### Security
 

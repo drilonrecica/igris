@@ -7,11 +7,25 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime/debug"
 	"strings"
 )
 
 // version is set at build time with -ldflags "-X main.version=...".
 var version = "dev"
+
+// resolveVersion prefers the ldflags version; a `go install …@vX.Y.Z` build has
+// none, so it falls back to the module version from the build info (SPEC §18).
+func resolveVersion(ldflags string, info *debug.BuildInfo, ok bool) string {
+	if ldflags != "dev" || !ok || info == nil {
+		return ldflags
+	}
+	v := info.Main.Version
+	if v == "" || v == "(devel)" {
+		return ldflags
+	}
+	return strings.TrimPrefix(v, "v")
+}
 
 // Exit codes shared by every subcommand (SPEC §14).
 const (
@@ -110,7 +124,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprint(stdout, usageText)
 		return exitOK
 	case "version", "-v", "--version":
-		fmt.Fprintf(stdout, "igris %s\n", version)
+		info, ok := debug.ReadBuildInfo()
+		fmt.Fprintf(stdout, "igris %s\n", resolveVersion(version, info, ok))
 		return exitOK
 	}
 	for _, c := range commands() {

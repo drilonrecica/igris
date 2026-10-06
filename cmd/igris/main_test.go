@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"runtime/debug"
 	"strings"
 	"testing"
 )
@@ -47,6 +48,31 @@ func TestRun(t *testing.T) {
 			}
 			if !strings.Contains(errb.String(), tt.wantStderr) {
 				t.Errorf("stderr = %q, want substring %q", errb.String(), tt.wantStderr)
+			}
+		})
+	}
+}
+
+func TestResolveVersion(t *testing.T) {
+	mod := func(v string) *debug.BuildInfo { return &debug.BuildInfo{Main: debug.Module{Version: v}} }
+	tests := []struct {
+		name    string
+		ldflags string
+		info    *debug.BuildInfo
+		ok      bool
+		want    string
+	}{
+		{"ldflags win", "0.1.0", mod("v9.9.9"), true, "0.1.0"},
+		{"go install tag", "dev", mod("v0.1.0"), true, "0.1.0"},
+		{"go install pseudo-version", "dev", mod("v0.1.1-0.20261007120000-abcdef123456"), true, "0.1.1-0.20261007120000-abcdef123456"},
+		{"local build", "dev", mod("(devel)"), true, "dev"},
+		{"empty module version", "dev", mod(""), true, "dev"},
+		{"no build info", "dev", nil, false, "dev"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := resolveVersion(tt.ldflags, tt.info, tt.ok); got != tt.want {
+				t.Errorf("resolveVersion = %q, want %q", got, tt.want)
 			}
 		})
 	}
