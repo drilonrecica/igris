@@ -152,3 +152,23 @@ func TestClassify(t *testing.T) {
 		})
 	}
 }
+
+func TestWriteRules(t *testing.T) {
+	d := testDir(t)
+	path, err := d.WriteRules("M0-01", "be good\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(d.PromptsDir(), "M0-01.rules.md"); path != want {
+		t.Errorf("path = %q, want %q", path, want)
+	}
+	if got, _ := os.ReadFile(path); string(got) != "be good\n" { //nolint:gosec // test temp dir
+		t.Errorf("content = %q", got)
+	}
+	if p := perm(t, path); p != 0o600 {
+		t.Errorf("mode = %v, want 0600", p)
+	}
+	if _, err := d.WriteRules("../x", "x"); err == nil {
+		t.Error("path-like ID accepted")
+	}
+}

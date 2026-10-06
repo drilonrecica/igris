@@ -1,0 +1,31 @@
+# Task M1-03 — Pick a widget color
+
+You are working on **exactly one task** of an automated sequential igris run. Do nothing beyond it.
+
+- Phase: M1 — Widgets
+- Plan file: `tasks.md` (find the row for `M1-03`)
+- Model rank: opus (opus)
+- Owner: agent + user
+- Depends on (all done): M1-01, M1-02
+
+## Task
+
+**Pick a widget color** — recommend one
+
+## How to work
+
+1. Read the project's agent rules (`CLAUDE.md`, `AGENTS.md` if present), the task's row in `tasks.md`, and every spec section or document the task references.
+2. Implement the task to the project's definition of done.
+3. Don't edit the Status column of the plan; igris updates it.
+4. Don't commit. igris commits your changes after verification passes.
+5. This task needs the owner's decision or sign-off. When you have a recommendation or result, present it in this chat (options, trade-offs, what you recommend) and wait for the owner's explicit decision or approval. Don't finish before you have it.
+
+If anything needs the owner — a decision, approval, credentials, an unclear spec — ask in this chat and wait.
+
+## Finish
+
+When the task is done and nothing is waiting on the owner, run this as your very last action:
+
+```
+igris done M1-03 --note "<one-line summary of what you did>"
+```

@@ -126,3 +126,16 @@ func syncDir(dir string) {
 	_ = d.Sync()
 	_ = d.Close()
 }
+
+// WriteRules writes content (the igris rules) to .igris/prompts/<ID>.rules.md
+// and returns its path, for --append-system-prompt-file (SPEC §6).
+func (d *Dir) WriteRules(id, content string) (string, error) {
+	if err := checkSignalID(id); err != nil {
+		return "", fmt.Errorf("write rules: %w", err)
+	}
+	path := filepath.Join(d.PromptsDir(), id+".rules.md")
+	if err := writeFileAtomic(path, []byte(content)); err != nil {
+		return "", err
+	}
+	return path, nil
+}
