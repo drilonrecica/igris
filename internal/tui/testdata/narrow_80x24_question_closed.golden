@@ -7,8 +7,8 @@ state: WAITING FOR YOUR ANSWER
 [o] Open session
 [Answer…]
 ── TASKS ───────────────────────────────────────────────────────────────────────
-✓ M0-01 sonnet  ✓ M0-02 sonnet  ! M0-03 sonnet  · M0-04 opus    · M0-05 user
-⨯ M0-13 sonnet  – M0-14 haiku
+ ✓ M0-01 sonnet  ✓ M0-02 sonnet  ! M0-03 sonnet  · M0-04 opus    · M0-05 user
+ ⨯ M0-13 sonnet  – M0-14 haiku
 
 
 
@@ -21,4 +21,4 @@ state: WAITING FOR YOUR ANSWER
 09:41 M0-03 started (sonnet → sonnet, plan) · Makefile
 09:41 M0-03 session open
 09:41 ? the session of M0-03 is gone
-[Open session] [Pause] [Done] [Quit]
+[›Answer…‹] [Open session] [Pause] [Done] [Retry] [Skip] [Stop] [?] [Quit]

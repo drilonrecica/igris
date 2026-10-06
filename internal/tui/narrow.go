@@ -18,10 +18,15 @@ const barRows = 2
 
 func (m *model) narrowView() string {
 	w, h := max(m.width, 10), max(m.height, 3)
-	if m.dialog != nil {
+	switch {
+	case m.dialog != nil:
 		return m.fullScreenDialog(w, h)
+	case m.page != nil:
+		lines, z := m.page.render(w, h)
+		m.zones.merge(z, 0, 0)
+		return strings.Join(lines, "\n")
 	}
-	bar := fitBar(m.buttons(), w, barRows)
+	bar := m.fitBar(w)
 
 	// Header, three section rules and the bar are fixed; the card, the
 	// task list and the log share the rest.
@@ -35,13 +40,13 @@ func (m *model) narrowView() string {
 	out = append(out, fit("igris · "+m.opts.Project+" · "+m.facts(), w))
 	out = append(out, rule("CURRENT", w))
 	out = append(out, m.card(0, len(out), w, cardRows)...)
-	out = append(out, rule("TASKS", w))
+	out = append(out, rule(m.areaTitle("TASKS", focusTasks), w))
 	m.zones.add(rect{0, len(out), w, taskRows}, target{region: regionTasks})
 	out = append(out, m.compactTasks(w, taskRows)...)
 	for len(out) < 1+1+cardRows+1+taskRows {
 		out = append(out, "")
 	}
-	out = append(out, rule("LOG", w))
+	out = append(out, rule(m.areaTitle("LOG", focusLog), w))
 	m.zones.add(rect{0, len(out), w, logRows}, target{region: regionLog})
 	logs := m.logView(logRows)
 	for i := range logRows {
@@ -78,22 +83,23 @@ func (m *model) compactTasks(w, rows int) []string {
 		lines, _ := m.taskLines(w)
 		return lines[:min(rows, len(lines))]
 	}
+	sel := m.listSel()
 	cells := make([]string, len(tasks))
-	cellW, cur := 0, -1
+	cellW, cur := 0, sel
 	for i, t := range tasks {
-		cells[i] = m.glyph(t) + " " + t.ID + " " + rank(t)
+		cells[i] = rowMark(i == sel) + m.glyph(t) + " " + t.ID + " " + rank(t)
 		cellW = max(cellW, textWidth(cells[i]))
-		if m.cur != nil && m.cur.id == t.ID {
+		if sel < 0 && m.cur != nil && m.cur.id == t.ID {
 			cur = i
 		}
 	}
-	cols := max((w+2)/(cellW+2), 1)
+	cols := max((w+1)/(cellW+1), 1)
 	var lines []string
 	for i := 0; i < len(cells); i += cols {
 		var b strings.Builder
 		for j := i; j < min(i+cols, len(cells)); j++ {
 			if j > i {
-				b.WriteString("  ")
+				b.WriteString(" ")
 			}
 			b.WriteString(pad(cells[j], cellW))
 		}
@@ -148,15 +154,51 @@ type barLayout struct {
 
 // foldOrder lists the actions the bar folds into More… first when it
 // doesn't fit; actions not listed are never folded.
-var foldOrder = []action{actPause, actQuit}
+var foldOrder = []action{actHelp, actStopAsk, actRetry, actPause, actQuit, actSkip}
 
-// fitBar lays the buttons out in at most maxRows rows of w cells. When they
-// don't fit, the less common actions move behind a More… button.
-func fitBar(btns []option, w, maxRows int) barLayout {
+// fitBar lays out the model's bar w cells wide, records its buttons and
+// marks the focused one. The focus moves to the first button if its
+// button was folded away or is gone.
+func (m *model) fitBar(w int) barLayout {
+	btns := m.buttons()
+	mark := actNone
+	if m.barFocused() {
+		mark = m.barFocus
+	}
+	l := fitBar(btns, w, barRows, mark)
+	if m.barFocused() && !l.has(mark) {
+		mark = l.rows[0][0].act
+		l = fitBar(btns, w, barRows, mark)
+	}
+	m.bar = m.bar[:0]
+	for _, row := range l.rows {
+		for _, p := range row {
+			m.bar = append(m.bar, p.act)
+		}
+	}
+	return l
+}
+
+// has reports whether a is on the bar.
+func (l barLayout) has(a action) bool {
+	for _, row := range l.rows {
+		for _, p := range row {
+			if p.act == a {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// fitBar lays the buttons out in at most maxRows rows of w cells, marking
+// the focused one. When they don't fit, the less common actions move
+// behind a More… button.
+func fitBar(btns []option, w, maxRows int, focused action) barLayout {
 	keep := append([]option{}, btns...)
 	var folded []option
 	for _, a := range foldOrder {
-		if l := layoutBar(keep, w); len(l.rows) <= maxRows {
+		if l := layoutBar(keep, w, focused); len(l.rows) <= maxRows {
 			l.folded = folded
 			return l
 		}
@@ -171,7 +213,7 @@ func fitBar(btns []option, w, maxRows int) barLayout {
 			}
 		}
 	}
-	l := layoutBar(keep, w)
+	l := layoutBar(keep, w, focused)
 	if len(l.rows) > maxRows { // can't fit even folded: cut the bar
 		l.rows, l.text = l.rows[:maxRows], l.text[:maxRows]
 	}
@@ -180,7 +222,7 @@ func fitBar(btns []option, w, maxRows int) barLayout {
 }
 
 // layoutBar wraps the buttons into rows of w cells.
-func layoutBar(btns []option, w int) barLayout {
+func layoutBar(btns []option, w int, focused action) barLayout {
 	var l barLayout
 	var row []placed
 	x := 0
@@ -194,7 +236,7 @@ func layoutBar(btns []option, w int) barLayout {
 		row, x = nil, 0
 	}
 	for _, o := range btns {
-		label := fit("["+o.label+"]", w)
+		label := fit(buttonLabel(o.label, o.act == focused), w)
 		lw := textWidth(label)
 		if x > 0 && x+1+lw > w {
 			flush()

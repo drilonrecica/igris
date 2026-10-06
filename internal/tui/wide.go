@@ -32,18 +32,24 @@ func (m *model) wideView() string {
 
 	var out []string
 	out = append(out, m.topRule(w))
-	if m.dialog != nil {
-		body := paneRows + 1 + logRows // the panes, their rule and the log
+	switch body := paneRows + 1 + logRows; { // the panes, their rule and the log
+	case m.dialog != nil:
 		out = append(out, m.dialogBody(len(out), w, body)...)
-	} else {
+	case m.page != nil:
+		out = append(out, m.pageBody(len(out), w, body)...)
+	default:
 		left := m.taskPane(lw, paneRows-1)
 		right := m.card(lw+5, len(out)+1, rw, paneRows-1)
 		m.zones.add(rect{2, len(out) + 1, lw, paneRows - 1}, target{region: regionTasks})
-		out = append(out, "│ "+pad("TASKS", lw)+" │ "+pad("CURRENT", rw)+" │")
+		out = append(out, "│ "+pad(m.areaTitle("TASKS", focusTasks), lw)+" │ "+pad("CURRENT", rw)+" │")
 		for i := range paneRows - 1 {
 			out = append(out, "│ "+pad(line(left, i), lw)+" │ "+pad(line(right, i), rw)+" │")
 		}
-		out = append(out, "├"+strings.Repeat("─", lw+2)+"┴"+strings.Repeat("─", rw+2)+"┤")
+		rule := "├" + strings.Repeat("─", lw+2) + "┴" + strings.Repeat("─", rw+2) + "┤"
+		if m.focus == focusLog {
+			rule = overlay(rule, 2, " "+m.areaTitle("LOG", focusLog)+" ")
+		}
+		out = append(out, rule)
 		m.zones.add(rect{2, len(out), inner, logRows}, target{region: regionLog})
 		logs := m.logView(logRows)
 		for i := range logRows {
@@ -54,6 +60,17 @@ func (m *model) wideView() string {
 	out = append(out, "│ "+pad(m.barAt(2, len(out), inner), inner)+" │")
 	out = append(out, "└"+strings.Repeat("─", w-2)+"┘")
 	return strings.Join(out, "\n")
+}
+
+// overlay writes text over s from cell at on; s is box drawing, one cell
+// per rune.
+func overlay(s string, at int, text string) string {
+	r, t := []rune(s), []rune(text)
+	if at+len(t) >= len(r) {
+		return s
+	}
+	copy(r[at:], t)
+	return string(r)
 }
 
 // line returns lines[i], or "" past the end.
@@ -137,7 +154,8 @@ func rank(t *plan.Task) string {
 }
 
 // taskLines renders the task list w cells wide, returning the lines and
-// the index of the current task's line (-1 if it isn't listed).
+// the index of the line to keep in view (-1 for none): the selected task's
+// while the list has the focus, else the current task's.
 func (m *model) taskLines(w int) ([]string, int) {
 	tasks := m.phaseTasks()
 	if len(tasks) == 0 {
@@ -150,22 +168,23 @@ func (m *model) taskLines(w int) ([]string, int) {
 	for _, t := range tasks {
 		idW, rankW = max(idW, textWidth(t.ID)), max(rankW, textWidth(rank(t)))
 	}
-	titleW := max(w-2-idW-2-1-rankW, 1) // "✓ " + ID + "  " + title + " " + rank
+	titleW := max(w-3-idW-2-1-rankW, 1) // "›✓ " + ID + "  " + title + " " + rank
+	sel := m.listSel()
 	var out []string
-	cur := -1
-	for _, t := range tasks {
-		if m.cur != nil && m.cur.id == t.ID {
-			cur = len(out)
+	follow := -1
+	for i, t := range tasks {
+		if (sel >= 0 && i == sel) || (sel < 0 && m.cur != nil && m.cur.id == t.ID) {
+			follow = len(out)
 		}
-		row := m.glyph(t) + " " + pad(t.ID, idW) + "  " + pad(fit(t.Title, titleW), titleW) + " " + rank(t)
+		row := rowMark(i == sel) + m.glyph(t) + " " + pad(t.ID, idW) + "  " + pad(fit(t.Title, titleW), titleW) + " " + rank(t)
 		out = append(out, fit(row, w))
 		if t.Status == plan.Blocked {
 			if wt := m.plan.WaitingOn(t); wt != nil {
-				out = append(out, fit("  waits on "+strings.Join(wt.Unmet, ", "), w))
+				out = append(out, fit("   waits on "+strings.Join(wt.Unmet, ", "), w))
 			}
 		}
 	}
-	return out, cur
+	return out, follow
 }
 
 // taskPane is the visible part of the task list: it follows the current
@@ -186,6 +205,15 @@ func (m *model) taskPane(w, rows int) []string {
 		m.taskTop = top
 	}
 	return lines[top:min(top+rows, len(lines))]
+}
+
+// listSel is the selected task's index while the task list has the focus,
+// else -1: the selection is only shown, and followed, then.
+func (m *model) listSel() int {
+	if m.focus != focusTasks || m.modal() {
+		return -1
+	}
+	return m.selected()
 }
 
 // paneNeed is how many rows the panes want, titles included.
@@ -249,6 +277,19 @@ func (m *model) cardLines(w, x, y int, record bool) []string {
 	return out
 }
 
+// pageBody fills rows lines below row y with the open page and records
+// its zones.
+func (m *model) pageBody(y, w, rows int) []string {
+	inner := w - 4
+	lines, z := m.page.render(inner, rows)
+	m.zones.merge(z, 2, y)
+	out := make([]string, 0, rows)
+	for _, l := range lines {
+		out = append(out, "│ "+pad(l, inner)+" │")
+	}
+	return out
+}
+
 // dialogBody fills rows lines below row y with the open dialog, centered,
 // and records its options.
 func (m *model) dialogBody(y, w, rows int) []string {
@@ -270,16 +311,27 @@ func (m *model) dialogBody(y, w, rows int) []string {
 // barAt draws the action bar at (x, y), at most w cells, and records its
 // buttons.
 func (m *model) barAt(x, y, w int) string {
+	btns := m.buttons()
+	m.bar = m.bar[:0]
+	for _, o := range btns {
+		m.bar = append(m.bar, o.act)
+	}
+	mark := actNone
+	if m.barFocused() {
+		mark = m.focusedButton()
+	}
 	var b strings.Builder
-	for _, o := range m.buttons() {
-		label := "[" + o.label + "]"
+	m.bar = m.bar[:0]
+	for _, o := range btns {
+		label := buttonLabel(o.label, o.act == mark)
 		lw := textWidth(label)
 		if textWidth(b.String())+lw > w {
 			break
 		}
-		if m.dialog == nil { // a dialog is modal
+		if !m.modal() {
 			m.zones.add(rect{x + textWidth(b.String()), y, lw, 1}, target{act: o.act})
 		}
+		m.bar = append(m.bar, o.act)
 		b.WriteString(label + " ")
 	}
 	return strings.TrimRight(b.String(), " ")

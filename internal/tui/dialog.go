@@ -4,6 +4,8 @@ import (
 	"strconv"
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	"github.com/drilonrecica/igris/internal/engine"
 )
 
@@ -20,11 +22,28 @@ type dialog struct {
 	// question is the engine question the dialog answers; "" for dialogs
 	// the TUI opens itself.
 	question engine.Question
+	// input is a text field above the options; nil for none. While inField
+	// is set it has the focus and takes the typed keys.
+	input   *field
+	inField bool
+	// task is the task a dialog the TUI opened is about; it closes when
+	// that task ends.
+	task string
+	// answers is the question a TUI dialog was opened from (the session
+	// lost question's Skip); sending its command answers that question.
+	answers engine.Question
 }
 
 type option struct {
 	label string
 	act   action
+}
+
+// field is a one-line text field.
+type field struct {
+	label string
+	value string
+	hint  string // shown below the field, e.g. why a pick didn't work
 }
 
 // questionDialog builds the dialog for an Asked event.
@@ -45,6 +64,7 @@ func questionDialog(ev engine.Event) *dialog {
 			{"Start fresh", actRetryFresh},
 			{"Continue conversation", actRetryContinue},
 			{"Mark done", actDone},
+			{"Skip…", actSkip},
 			{"Stop igris", actStop},
 		}
 		d.cancel = actClose
@@ -55,11 +75,58 @@ func questionDialog(ev engine.Event) *dialog {
 	return d
 }
 
+// stopDialog confirms the Stop action.
+func stopDialog() *dialog {
+	return &dialog{
+		title:   "Stop igris?",
+		detail:  "The session stays open; igris arise picks the run up again.",
+		options: []option{{"Keep running", actClose}, {"Stop igris", actStop}},
+		cancel:  actClose,
+	}
+}
+
+// retryDialog asks how to retry task id.
+func retryDialog(id string) *dialog {
+	return &dialog{
+		title:   "Retry " + id + "?",
+		detail:  "The current session is closed first.",
+		options: []option{{"Start fresh", actRetryFresh}, {"Continue conversation", actRetryContinue}},
+		cancel:  actClose,
+		task:    id,
+	}
+}
+
+// skipDialog asks for the reason to skip task id. The field has the focus;
+// leaving it lands on Cancel, so enter twice never skips.
+func skipDialog(id string, agent bool) *dialog {
+	detail := "The reason is recorded with the skip."
+	if agent {
+		detail += " The session is closed."
+	}
+	return &dialog{
+		title:   "Skip " + id + "?",
+		detail:  detail,
+		input:   &field{label: "Reason: "},
+		inField: true,
+		options: []option{{"Cancel", actClose}, {"Skip", actSkipConfirm}},
+		cancel:  actClose,
+		task:    id,
+	}
+}
+
 // key handles a key press. It returns the action to run, if the key picked
 // one, and whether the key was used.
-func (d *dialog) key(k string) (action, bool) {
+func (d *dialog) key(msg tea.KeyMsg) (action, bool) {
+	k := msg.String()
+	if d.inField {
+		return d.fieldKey(msg)
+	}
 	switch k {
 	case "up", "k", "shift+tab":
+		if d.input != nil && (d.selected == 0 || k == "shift+tab") {
+			d.inField = true
+			return actNone, true
+		}
 		d.move(-1)
 	case "down", "j", "tab":
 		d.move(1)
@@ -78,6 +145,32 @@ func (d *dialog) key(k string) (action, bool) {
 	return actNone, true
 }
 
+// fieldKey handles a key while the text field has the focus: every
+// printable key types.
+func (d *dialog) fieldKey(msg tea.KeyMsg) (action, bool) {
+	f := d.input
+	switch msg.Type {
+	case tea.KeyRunes, tea.KeySpace:
+		f.value += string(msg.Runes)
+		if msg.Type == tea.KeySpace && len(msg.Runes) == 0 {
+			f.value += " "
+		}
+		f.hint = ""
+		return actNone, true
+	case tea.KeyBackspace:
+		if r := []rune(f.value); len(r) > 0 {
+			f.value = string(r[:len(r)-1])
+		}
+		return actNone, true
+	case tea.KeyEnter, tea.KeyTab, tea.KeyDown:
+		d.inField, d.selected = false, 0
+		return actNone, true
+	case tea.KeyEsc:
+		return d.cancel, true
+	}
+	return actNone, false
+}
+
 func (d *dialog) move(by int) {
 	d.selected = (d.selected + by + len(d.options)) % len(d.options)
 }
@@ -87,13 +180,15 @@ func (d *dialog) pick(i int) action {
 	if i < 0 || i >= len(d.options) {
 		return actNone
 	}
+	d.inField = false
 	d.selected = i
 	return d.options[i].act
 }
 
 // render draws the dialog as a box at most w cells wide and h lines high
-// and records the option zones relative to the box's top-left corner. When
-// space is short the detail text is cut, never the options.
+// and records the option and field zones relative to the box's top-left
+// corner. When space is short the detail text is cut, never the field or
+// the options.
 func (d *dialog) render(w, h int) ([]string, zones) {
 	inner := max(w-4, 8) // "│ " + text + " │"
 	title := wrap(d.title, inner)
@@ -101,7 +196,7 @@ func (d *dialog) render(w, h int) ([]string, zones) {
 	optLines := 0
 	for i, o := range d.options {
 		mark := "  "
-		if i == d.selected {
+		if i == d.selected && !d.inField {
 			mark = "› "
 		}
 		lines := wrap(o.label, inner-5) // "› 1. "
@@ -112,11 +207,22 @@ func (d *dialog) render(w, h int) ([]string, zones) {
 		opts = append(opts, lines)
 		optLines += len(lines)
 	}
+	var input []string
+	if d.input != nil {
+		input = append(input, d.fieldLine(inner))
+		if d.input.hint != "" {
+			input = append(input, fit(d.input.hint, inner))
+		}
+	}
 	var detail []string
 	if d.detail != "" {
 		detail = wrap(d.detail, inner)
-		// Borders, the title, a blank line before and after the detail.
+		// Borders, the title, a blank line before the detail and before the
+		// options, the field and the blank line after it.
 		room := h - 2 - len(title) - 2 - optLines
+		if len(input) > 0 {
+			room -= len(input) + 1
+		}
 		if room < 1 {
 			detail = nil
 		} else if len(detail) > room {
@@ -132,6 +238,11 @@ func (d *dialog) render(w, h int) ([]string, zones) {
 	}
 	body = append(body, "")
 	var z zones
+	if len(input) > 0 {
+		z.add(rect{x: 0, y: len(body) + 1, w: 1, h: 1}, target{act: actField})
+		body = append(body, input...)
+		body = append(body, "")
+	}
 	for i, lines := range opts {
 		z.add(rect{x: 0, y: len(body) + 1, w: 1, h: len(lines)}, target{act: actOption, option: i})
 		body = append(body, lines...)
@@ -150,4 +261,25 @@ func (d *dialog) render(w, h int) ([]string, zones) {
 		z.list[i].r.w = width + 4
 	}
 	return out, z
+}
+
+// fieldLine draws the text field in w cells: its label, the end of its
+// value that fits, and a cursor while it has the focus. A field without
+// the focus is drawn in brackets so it reads as a field.
+func (d *dialog) fieldLine(w int) string {
+	f := d.input
+	cursor := " "
+	if d.inField {
+		cursor = "▏"
+	}
+	room := max(w-textWidth(f.label)-3, 1) // "[" + value + cursor + "]"
+	v := []rune(f.value)
+	for textWidth(string(v)) > room {
+		v = v[1:]
+	}
+	val := string(v)
+	if len(v) < len([]rune(f.value)) {
+		val = "…" + string(v[1:])
+	}
+	return fit(f.label+"["+pad(val+cursor, room+1)+"]", w)
 }

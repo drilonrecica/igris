@@ -55,7 +55,7 @@ func TestNarrowShowsWhatMatters(t *testing.T) {
 		hs.events(engine.Event{Kind: engine.Warning, Detail: fmt.Sprintf("log %d", i)})
 	}
 	v := hs.m.View()
-	for _, want := range []string{"M0-03 Makefile", "● M0-03 sonnet", "⨯ M0-13 sonnet", "log 2", "log 3", "log 4", "[Open session]", "[Done]"} {
+	for _, want := range []string{"M0-03 Makefile", "● M0-03 sonnet", "⨯ M0-13 sonnet", "log 2", "log 3", "log 4", "[›Open session‹]", "[Done]"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("view lacks %q:\n%s", want, v)
 		}
@@ -84,7 +84,13 @@ func TestNarrowFoldsIntoMore(t *testing.T) {
 	if hs.m.dialog == nil || !strings.Contains(hs.m.View(), "Pause") {
 		t.Fatalf("More… shows no folded actions:\n%s", hs.m.View())
 	}
-	hs.key("1")
+	pause := -1
+	for i, o := range hs.m.dialog.options {
+		if o.act == actPause {
+			pause = i
+		}
+	}
+	hs.key(fmt.Sprint(pause + 1))
 	if got := hs.s.take(); len(got) != 1 || got[0].Kind != engine.CmdPause {
 		t.Errorf("sent %+v, want pause", got)
 	}
@@ -121,7 +127,7 @@ func TestFitBar(t *testing.T) {
 		{16, [][]string{{"[Open session]"}, {"[Done]", "[More…]"}}, 2},
 	}
 	for _, tt := range tests {
-		l := fitBar(btns, tt.w, barRows)
+		l := fitBar(btns, tt.w, barRows, actNone)
 		if got := labels(l); !reflect.DeepEqual(got, tt.rows) || len(l.folded) != tt.folded {
 			t.Errorf("w=%d: rows %q folded %d, want %q %d", tt.w, got, len(l.folded), tt.rows, tt.folded)
 		}
@@ -148,7 +154,7 @@ func TestNarrowDialogTakesTheScreen(t *testing.T) {
 	if strings.Contains(v, "TASKS") || !strings.HasPrefix(v, "╭") {
 		t.Errorf("dialog doesn't take the whole screen:\n%s", v)
 	}
-	for i, o := range []string{"Start fresh", "Continue conversation", "Mark done", "Stop igris"} {
+	for i, o := range []string{"Start fresh", "Continue conversation", "Mark done", "Skip…", "Stop igris"} {
 		if !strings.Contains(v, fmt.Sprintf("%d. %s", i+1, o)) {
 			t.Errorf("option %q cut off:\n%s", o, v)
 		}
@@ -156,7 +162,7 @@ func TestNarrowDialogTakesTheScreen(t *testing.T) {
 	if !strings.Contains(v, "…") {
 		t.Errorf("long detail not shortened:\n%s", v)
 	}
-	hs.click(isOption(3))
+	hs.click(isOption(4))
 	if got := hs.s.take(); len(got) != 1 || got[0].Kind != engine.CmdStop {
 		t.Errorf("sent %+v, want stop", got)
 	}

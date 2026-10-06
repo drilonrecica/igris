@@ -1,13 +1,13 @@
 ┌ igris · sinjal ─────────────────────────────────────────────────────────────────────── phase M0 · mode: plan · herdr ┐
 │ TASKS                                                    │ CURRENT                                                   │
-│ ✓ M0-01  Go module                                sonnet │ M0-03 Makefile                                            │
-│ ✓ M0-02  Entrypoint                               sonnet │ rank sonnet → model sonnet                                │
-│ ● M0-03  Makefile                                 sonnet │ mode plan · 4m12s                                         │
-│ · M0-04  Config loader                            opus   │ state: working                                            │
-│ · M0-05  Buy the domain                           user   │ [o] Open session                                          │
-│ ⨯ M0-13  Static assets                            sonnet │                                                           │
-│   waits on P0-05                                         │                                                           │
-│ – M0-14  Old idea                                 haiku  │                                                           │
+│  ✓ M0-01  Go module                               sonnet │ M0-03 Makefile                                            │
+│  ✓ M0-02  Entrypoint                              sonnet │ rank sonnet → model sonnet                                │
+│  ● M0-03  Makefile                                sonnet │ mode plan · 4m12s                                         │
+│  · M0-04  Config loader                           opus   │ state: working                                            │
+│  · M0-05  Buy the domain                          user   │ [o] Open session                                          │
+│  ⨯ M0-13  Static assets                           sonnet │                                                           │
+│    waits on P0-05                                        │                                                           │
+│  – M0-14  Old idea                                haiku  │                                                           │
 ├──────────────────────────────────────────────────────────┴───────────────────────────────────────────────────────────┤
 │ 09:41 run started: phase M0                                                                                          │
 │ 09:41 M0-02 done · subcommand dispatch + tests                                                                       │
@@ -26,5 +26,5 @@
 │                                                                                                                      │
 │                                                                                                                      │
 ├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ [Open session] [Pause] [Done] [Quit]                                                                                 │
+│ [›Open session‹] [Pause] [Done] [Retry] [Skip] [Stop] [?] [Quit]                                                     │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘

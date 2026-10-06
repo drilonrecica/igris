@@ -73,6 +73,13 @@ func (hs *harness) events(evs ...engine.Event) {
 	hs.m.Update(batch{events: evs})
 }
 
+// keys presses each key in turn.
+func (hs *harness) keys(ks ...string) {
+	for _, k := range ks {
+		hs.key(k)
+	}
+}
+
 // key presses k and runs the command it returns, like the program would.
 func (hs *harness) key(k string) tea.Msg {
 	var msg tea.KeyMsg
@@ -89,6 +96,20 @@ func (hs *harness) key(k string) tea.Msg {
 		msg = tea.KeyMsg{Type: tea.KeyCtrlC}
 	case "pgup":
 		msg = tea.KeyMsg{Type: tea.KeyPgUp}
+	case "pgdown":
+		msg = tea.KeyMsg{Type: tea.KeyPgDown}
+	case "tab":
+		msg = tea.KeyMsg{Type: tea.KeyTab}
+	case "shift+tab":
+		msg = tea.KeyMsg{Type: tea.KeyShiftTab}
+	case "left":
+		msg = tea.KeyMsg{Type: tea.KeyLeft}
+	case "right":
+		msg = tea.KeyMsg{Type: tea.KeyRight}
+	case "backspace":
+		msg = tea.KeyMsg{Type: tea.KeyBackspace}
+	case "end":
+		msg = tea.KeyMsg{Type: tea.KeyEnd}
 	default:
 		msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(k)}
 	}
@@ -142,7 +163,7 @@ func TestEventsDriveTheCurrentTask(t *testing.T) {
 	hs.now = t0.Add(4*time.Minute + 12*time.Second)
 	hs.events(engine.Event{Kind: engine.NeedsYou, Task: "M0-03", Detail: "idle", At: t0.Add(3*time.Minute + 27*time.Second)})
 	view := hs.m.View()
-	for _, want := range []string{"igris · sinjal · phase M0 · mode: plan · herdr", "M0-03 Makefile", "4m12s", "NEEDS YOU (idle 45s)", "M0-03 needs you: idle", "[Open session]"} {
+	for _, want := range []string{"igris · sinjal · phase M0 · mode: plan · herdr", "M0-03 Makefile", "4m12s", "NEEDS YOU (idle 45s)", "M0-03 needs you: idle", "[›Open session‹]"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("view lacks %q:\n%s", want, view)
 		}

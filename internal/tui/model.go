@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -37,6 +38,18 @@ type current struct {
 	session                      *backend.SessionRef
 }
 
+// area is a focus region (SPEC §15.5); tab moves between them.
+type area int
+
+const (
+	focusBar area = iota // the default
+	focusLog
+	focusTasks
+)
+
+// areaOrder is the tab order: task list, action bar, log.
+var areaOrder = []area{focusTasks, focusBar, focusLog}
+
 type logEntry struct {
 	at   time.Time
 	text string
@@ -57,6 +70,7 @@ type model struct {
 	cur     *current
 	asked   *engine.Event // the question waiting for an answer
 	dialog  *dialog
+	page    *page // help, details or the log, under any dialog
 	log     []logEntry
 	scroll  int // log lines scrolled back from the newest
 	ended   bool
@@ -68,6 +82,15 @@ type model struct {
 	autoTaskTop int
 	folded      []option // actions behind the bar's More… in the last frame
 	loc         *time.Location
+
+	focus area
+	// barFocus is the focused bar button, by action so it survives buttons
+	// coming and going; actNone means the first one.
+	barFocus action
+	bar      []action // the bar's buttons in the last frame, in order
+	// selID is the selected task in the task list; "" means the current
+	// one (or the first).
+	selID string
 
 	zones zones // of the last frame
 }
@@ -162,36 +185,164 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case focusErrMsg:
 		m.addLog(m.opts.Now(), "could not open the session: "+msg.err.Error())
 	case tea.KeyMsg:
-		return m, m.key(msg.String())
+		return m, m.key(msg)
 	case tea.MouseMsg:
 		return m, m.mouse(msg)
 	}
 	return m, nil
 }
 
-// key handles a key press: an open dialog gets it first.
-func (m *model) key(k string) tea.Cmd {
+// key handles a key press: an open dialog gets it first, then an open
+// page, then the focused region; shortcut keys work outside text fields.
+func (m *model) key(msg tea.KeyMsg) tea.Cmd {
+	k := msg.String()
+	if k == "ctrl+c" || (k == "q" && (m.dialog == nil || !m.dialog.inField)) {
+		return m.activate(actQuit)
+	}
 	if m.dialog != nil {
-		if k == "ctrl+c" || k == "q" {
-			return m.activate(actQuit)
-		}
-		a, _ := m.dialog.key(k)
+		a, _ := m.dialog.key(msg)
 		return m.pick(a)
 	}
-	switch k {
-	case "pgup":
-		m.scrollLog(m.logRows())
-		return nil
-	case "pgdown":
-		m.scrollLog(-m.logRows())
+	if m.page != nil {
+		if m.page.key(k) {
+			m.page = nil
+		}
 		return nil
 	}
-	return m.activate(shortcuts[k])
+	switch k {
+	case "tab", "shift+tab":
+		m.cycleFocus(k == "tab")
+	case "enter", " ":
+		if m.focus == focusBar {
+			return m.activate(m.focusedButton())
+		}
+	case "left", "right":
+		if m.focus == focusBar {
+			m.moveBar(k == "right")
+		}
+	case "up", "k":
+		m.arrow(-1)
+	case "down", "j":
+		m.arrow(1)
+	case "pgup":
+		m.pageArea(-1)
+	case "pgdown":
+		m.pageArea(1)
+	default:
+		return m.activate(shortcuts[k])
+	}
+	return nil
+}
+
+// arrow moves within the focused region: the task selection, or the log
+// one line (by > 0 is down, towards the newest).
+func (m *model) arrow(by int) {
+	switch m.focus {
+	case focusTasks:
+		m.moveSel(by)
+	case focusLog:
+		m.scrollLog(-by)
+	}
+}
+
+// pageArea scrolls the task list when it has the focus, else the log, by
+// a screenful.
+func (m *model) pageArea(by int) {
+	if m.focus == focusTasks {
+		m.scrollTasks(by * max(m.height/3, 1))
+		return
+	}
+	m.scrollLog(-by * m.logRows())
+}
+
+// cycleFocus moves the focus to the next (or previous) region.
+func (m *model) cycleFocus(next bool) {
+	i := 0
+	for j, a := range areaOrder {
+		if a == m.focus {
+			i = j
+		}
+	}
+	if next {
+		i++
+	} else {
+		i += len(areaOrder) - 1
+	}
+	m.focus = areaOrder[i%len(areaOrder)]
+	if m.focus == focusTasks {
+		m.taskTop = -1 // bring the selection into view
+	}
+}
+
+// focusedButton is the action of the focused bar button in the last frame.
+func (m *model) focusedButton() action {
+	for _, a := range m.bar {
+		if a == m.barFocus {
+			return a
+		}
+	}
+	if len(m.bar) > 0 {
+		return m.bar[0]
+	}
+	return actNone
+}
+
+// moveBar moves the bar focus one button along, wrapping around.
+func (m *model) moveBar(right bool) {
+	if len(m.bar) == 0 {
+		return
+	}
+	i := 0
+	for j, a := range m.bar {
+		if a == m.focusedButton() {
+			i = j
+		}
+	}
+	if right {
+		i++
+	} else {
+		i += len(m.bar) - 1
+	}
+	m.barFocus = m.bar[i%len(m.bar)]
+}
+
+// selected is the selected task's index in the phase's tasks: the one
+// picked, else the current one, else the first; -1 when there are none.
+func (m *model) selected() int {
+	tasks := m.phaseTasks()
+	id := m.selID
+	if id == "" && m.cur != nil {
+		id = m.cur.id
+	}
+	for i, t := range tasks {
+		if t.ID == id {
+			return i
+		}
+	}
+	if len(tasks) > 0 {
+		return 0
+	}
+	return -1
+}
+
+// moveSel moves the task selection by tasks, keeping it in the list.
+func (m *model) moveSel(by int) {
+	tasks := m.phaseTasks()
+	i := m.selected()
+	if i < 0 {
+		return
+	}
+	i = min(max(i+by, 0), len(tasks)-1)
+	m.selID = tasks[i].ID
+	m.taskTop = -1
 }
 
 // mouse handles clicks and the wheel.
 func (m *model) mouse(msg tea.MouseMsg) tea.Cmd {
 	t, ok := m.zones.at(msg.X, msg.Y)
+	if m.page != nil && m.dialog == nil {
+		return m.pageMouse(msg, t, ok)
+	}
 	switch {
 	case msg.Button == tea.MouseButtonWheelUp, msg.Button == tea.MouseButtonWheelDown:
 		by := 3
@@ -205,11 +356,14 @@ func (m *model) mouse(msg tea.MouseMsg) tea.Cmd {
 			m.scrollTasks(-by)
 		}
 	case msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress && ok:
-		if t.act == actOption {
-			if m.dialog == nil {
-				return nil
-			}
+		switch {
+		case t.act == actField && m.dialog != nil:
+			m.dialog.inField = true
+			return nil
+		case t.act == actOption && m.dialog != nil:
 			return m.pick(m.dialog.pick(t.option))
+		case t.act == actOption || t.act == actField:
+			return nil
 		}
 		if m.dialog != nil {
 			return nil // the dialog is modal
@@ -219,10 +373,38 @@ func (m *model) mouse(msg tea.MouseMsg) tea.Cmd {
 	return nil
 }
 
+// pageMouse handles the mouse while a page is open: the wheel scrolls it
+// wherever the pointer is, and Close closes it.
+func (m *model) pageMouse(msg tea.MouseMsg, t target, ok bool) tea.Cmd {
+	switch {
+	case msg.Button == tea.MouseButtonWheelUp:
+		m.page.scroll(-3)
+	case msg.Button == tea.MouseButtonWheelDown:
+		m.page.scroll(3)
+	case msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress && ok && t.act == actClose:
+		m.page = nil
+	}
+	return nil
+}
+
 // pick runs an action chosen in the open dialog. A dialog the TUI opened
-// itself (More…) closes once something is picked.
+// itself (More…, Stop, Skip…) closes once something is picked.
 func (m *model) pick(a action) tea.Cmd {
-	if a != actNone && m.dialog != nil && m.dialog.question == "" {
+	d := m.dialog
+	if a == actSkipConfirm && d != nil && d.input != nil {
+		reason := strings.TrimSpace(d.input.value)
+		if reason == "" {
+			d.inField, d.input.hint = true, "Type a reason to skip."
+			return nil
+		}
+		m.dialog = nil
+		if d.answers != "" {
+			m.asked = nil // the skip answers the question it came from
+		}
+		m.opts.Sender.Send(engine.Command{Kind: engine.CmdSkip, Text: reason})
+		return nil
+	}
+	if a != actNone && d != nil && d.question == "" {
 		m.dialog = nil
 	}
 	return m.activate(a)
@@ -249,6 +431,28 @@ func (m *model) activate(a action) tea.Cmd {
 	case actMore:
 		if len(m.folded) > 0 {
 			m.dialog = moreDialog(m.folded)
+		}
+		return nil
+	case actHelp:
+		m.page = helpPage()
+		return nil
+	case actStopAsk:
+		if !m.ended {
+			m.dialog = stopDialog()
+		}
+		return nil
+	case actSkip:
+		if m.cur != nil && !m.ended {
+			d := skipDialog(m.cur.id, !m.cur.user)
+			if m.dialog != nil && m.dialog.question != "" {
+				d.answers = m.dialog.question
+			}
+			m.dialog = d
+		}
+		return nil
+	case actRetry:
+		if m.cur != nil && !m.cur.user && !m.ended {
+			m.dialog = retryDialog(m.cur.id)
 		}
 		return nil
 	case actDone:
@@ -334,6 +538,9 @@ func (m *model) event(ev engine.Event) {
 	case engine.TaskDone, engine.TaskSkipped:
 		m.cur = nil
 		m.settle()
+		if m.dialog != nil && m.dialog.task == ev.Task {
+			m.dialog = nil // it asked about a task that is over
+		}
 	case engine.PauseOn:
 		m.paused = true
 	case engine.PauseOff:
@@ -346,6 +553,7 @@ func (m *model) event(ev engine.Event) {
 		m.ended = true
 		m.endText = "the run stopped: " + ev.Detail
 		m.settle()
+		m.dialog = nil // nothing left to ask or confirm
 	}
 }
 

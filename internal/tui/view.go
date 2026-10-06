@@ -49,9 +49,14 @@ func (m *model) logView(n int) []string {
 	return out
 }
 
-// buttons are the actions the bar offers right now.
+// buttons are the actions the bar offers right now (SPEC §15.3): only
+// those that would do something.
 func (m *model) buttons() []option {
 	var out []option
+	running := m.cur != nil && !m.ended
+	if m.asked != nil && m.dialog == nil {
+		out = append(out, option{"Answer…", actAnswer})
+	}
 	if m.cur != nil && m.cur.session != nil {
 		out = append(out, option{"Open session", actOpen})
 	}
@@ -62,10 +67,49 @@ func (m *model) buttons() []option {
 		}
 		out = append(out, option{label, actPause})
 	}
-	if m.cur != nil && !m.ended {
+	if running {
 		out = append(out, option{"Done", actDone})
+		if !m.cur.user {
+			out = append(out, option{"Retry", actRetry})
+		}
+		out = append(out, option{"Skip", actSkip})
 	}
-	return append(out, option{"Quit", actQuit})
+	if !m.ended {
+		out = append(out, option{"Stop", actStopAsk})
+	}
+	return append(out, option{"?", actHelp}, option{"Quit", actQuit})
+}
+
+// modal reports whether a dialog or page holds the focus.
+func (m *model) modal() bool { return m.dialog != nil || m.page != nil }
+
+// barFocused reports whether the action bar has the focus.
+func (m *model) barFocused() bool { return m.focus == focusBar && !m.modal() }
+
+// buttonLabel draws a bar button; the focused one is marked without color,
+// "[›Open session‹]" (SPEC §15.4).
+func buttonLabel(label string, focused bool) string {
+	if focused {
+		return "[›" + label + "‹]"
+	}
+	return "[" + label + "]"
+}
+
+// rowMark is the marker column of a list row: "›" on the selected row
+// while its list has the focus.
+func rowMark(selected bool) string {
+	if selected {
+		return "›"
+	}
+	return " "
+}
+
+// areaTitle is a region's title, marked while it has the focus.
+func (m *model) areaTitle(name string, a area) string {
+	if m.focus == a && !m.modal() {
+		return "› " + name
+	}
+	return name
 }
 
 // since formats the time from t to now, e.g. "4m12s".
