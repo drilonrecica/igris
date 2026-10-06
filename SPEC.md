@@ -343,6 +343,7 @@ Igris itself runs in a herdr pane. It uses the herdr CLI (JSON output), never th
 | Availability | `herdr status server`; require `HERDR_WORKSPACE_ID` (igris must run inside a herdr pane) |
 | Open pane | `herdr tab create --workspace $HERDR_WORKSPACE_ID --cwd <root> --label "<ID> · <rank>" --no-focus` → `.result.tab.tab_id`, `.result.root_pane.pane_id` |
 | Start Claude | `herdr agent start <name> --kind claude --pane <pane_id> --timeout 120000 -- <claude args>`; `<name>` = `igris-<id>` lowercased, sanitized to `[a-z][a-z0-9_-]{0,31}`. Timeout must be > 3000 and ≤ 300000 ms. Returns `.result.agent` (`agent_status`, `interactive_ready`, `name`, `pane_id`) and `argv` |
+| Shell not ready yet | `agent_pane_busy` ("is not an available shell"): the new tab's shell hasn't reached its prompt (slow rc file, fresh herdr server) → retry `agent start` every 250 ms for up to 15 s, then fail the start (and close the tab) |
 | Startup blocked (e.g. folder-trust prompt) | `agent_not_ready` (exit 2, message "blocked during startup"; the name stays usable) → mark **Needs you**, poll state until the agent is past the prompt, then continue |
 | Wait for state | `herdr agent wait <name> [--until STATUS]… [--timeout MS]`. Without `--until` it returns at the first settled state (`idle`, `done` **or `blocked`**), so check `.result.agent.agent_status` on return; it returns at once if already settled. `timeout` error code on expiry. Replaces tight polling for "is it ready for feedback"; `Needs you` still needs `pane get` polling |
 | Send follow-up / task prompt | `herdr agent prompt <name> <text> [--wait --timeout MS]`. Multi-line text works (bracketed paste). Rejected with `agent_blocked` if the agent is at an approval/question UI. Without `--wait` the returned status is the pre-turn one |
@@ -353,7 +354,7 @@ Igris itself runs in a herdr pane. It uses the herdr CLI (JSON output), never th
 
 - Exact JSON shapes and flags were verified against herdr 0.9.1 (P0-03); recorded responses live in `internal/backend/herdr/testdata/` and drive the fixture tests.
 - **Arguments after `--` must not contain control characters** (newline, tab, CR): herdr rejects them with `invalid_agent_argument` ("cannot be encoded safely for the target shell"). So the multi-line task prompt can **not** be a positional argument of `agent start`. Igris starts Claude with its flags only (no prompt), waits for `idle`, then submits the task prompt with `agent prompt` (§6.1).
-- Error shape: JSON on stderr `{"error":{"code","message"},"id"}`, exit 1 (syntax errors exit 2; `agent_not_ready` exits 2). Codes seen: `agent_not_ready`, `agent_blocked`, `agent_not_found`, `pane_not_found`, `tab_not_found`, `timeout`, `invalid_agent_argument`, `invalid_agent_timeout`.
+- Error shape: JSON on stderr `{"error":{"code","message"},"id"}`, exit 1 (syntax errors exit 2; `agent_not_ready` exits 2). Codes seen: `agent_not_ready`, `agent_pane_busy`, `agent_blocked`, `agent_not_found`, `pane_not_found`, `tab_not_found`, `timeout`, `invalid_agent_argument`, `invalid_agent_timeout`.
 - `igris init` recommends `herdr integration install claude` for accurate agent state, and `igris check` warns if it's missing (where detectable).
 - All herdr calls have timeouts (10 s default; agent start uses its own). Command failures surface the herdr error code in the TUI.
 

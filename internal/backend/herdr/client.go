@@ -37,6 +37,7 @@ const (
 // Error codes herdr reports in {"error":{"code",...}} (P0-03).
 const (
 	CodeAgentNotReady        = "agent_not_ready"
+	CodeAgentPaneBusy        = "agent_pane_busy"
 	CodeAgentBlocked         = "agent_blocked"
 	CodeAgentNotFound        = "agent_not_found"
 	CodePaneNotFound         = "pane_not_found"

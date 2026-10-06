@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/runner"
@@ -130,6 +131,94 @@ func TestOpenSessionFailures(t *testing.T) {
 			t.Fatalf("err = %v", err)
 		}
 	})
+}
+
+// sleeps replaces b's sleep with one that records each wait and returns
+// what next returns (nil when next is nil), so tests never sleep.
+func sleeps(b *Backend, next func() error) *[]time.Duration {
+	var got []time.Duration
+	b.sleep = func(_ context.Context, d time.Duration) error {
+		got = append(got, d)
+		if next != nil {
+			return next()
+		}
+		return nil
+	}
+	return &got
+}
+
+func TestOpenSessionShellNotReady(t *testing.T) {
+	busy := func(t *testing.T) runner.Result { return fail(t, "error_agent_pane_busy.json", 1) }
+
+	t.Run("retries until the shell is at its prompt", func(t *testing.T) {
+		f := &runner.Fake{}
+		f.On(cmd("tab", "create"), ok(t, "tab_create.json"), nil)
+		f.On(cmd("agent", "start"), busy(t), nil)
+		f.On(cmd("agent", "start"), busy(t), nil)
+		f.On(cmd("agent", "start"), ok(t, "agent_start_ok.json"), nil)
+		b := New(f, "w2B")
+		waits := sleeps(b, nil)
+		s, err := b.OpenSession(context.Background(), spec)
+		if err != nil {
+			t.Fatalf("OpenSession: %v", err)
+		}
+		if s.(*Session).startupBlocked {
+			t.Error("session marked startup-blocked")
+		}
+		if want := []time.Duration{paneReadyPoll, paneReadyPoll}; !slices.Equal(*waits, want) {
+			t.Errorf("waits = %v, want %v", *waits, want)
+		}
+		if got := len(argv(f)); got != 4 {
+			t.Errorf("%d calls, want tab create + 3 agent starts", got)
+		}
+	})
+
+	t.Run("gives up after paneReadyWait and closes the tab", func(t *testing.T) {
+		f := &runner.Fake{}
+		f.On(cmd("tab", "create"), ok(t, "tab_create.json"), nil)
+		f.Func(func(c runner.Cmd) (runner.Result, error) {
+			if c.Args[0] == "agent" {
+				return busy(t), nil
+			}
+			return ok(t, "tab_close.json"), nil
+		})
+		b := New(f, "w2B")
+		waits := sleeps(b, nil)
+		_, err := b.OpenSession(context.Background(), spec)
+		if !IsCode(err, CodeAgentPaneBusy) || !strings.Contains(err.Error(), "did not reach its prompt within 15s") {
+			t.Fatalf("err = %v, want agent_pane_busy after 15s", err)
+		}
+		if want := int(paneReadyWait / paneReadyPoll); len(*waits) != want {
+			t.Errorf("%d waits, want %d", len(*waits), want)
+		}
+		if got := argv(f); got[len(got)-1][1] != "close" {
+			t.Errorf("last call = %q, want tab close", got[len(got)-1])
+		}
+	})
+
+	t.Run("cancelled while waiting closes the tab", func(t *testing.T) {
+		f := &runner.Fake{}
+		f.On(cmd("tab", "create"), ok(t, "tab_create.json"), nil)
+		f.On(cmd("agent", "start"), busy(t), nil)
+		f.On(cmd("tab", "close", "w2B:t3"), ok(t, "tab_close.json"), nil)
+		b := New(f, "w2B")
+		sleeps(b, func() error { return context.Canceled })
+		_, err := b.OpenSession(context.Background(), spec)
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("err = %v, want context.Canceled", err)
+		}
+		if got := argv(f); len(got) != 3 || got[2][1] != "close" {
+			t.Errorf("calls = %q, want tab close last", got)
+		}
+	})
+}
+
+func TestSleep(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := sleep(ctx, time.Hour); !errors.Is(err, context.Canceled) {
+		t.Errorf("sleep on a cancelled context = %v, want context.Canceled", err)
+	}
 }
 
 func TestPrompt(t *testing.T) {

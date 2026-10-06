@@ -18,6 +18,15 @@ const Name = "herdr"
 // for input (SPEC §11.2).
 const startTimeout = 120 * time.Second
 
+// A new tab's shell may still be starting up (a slow rc file, a fresh herdr
+// server) when igris starts Claude Code in it; herdr then answers
+// agent_pane_busy. OpenSession retries every paneReadyPoll for up to
+// paneReadyWait.
+const (
+	paneReadyWait = 15 * time.Second
+	paneReadyPoll = 250 * time.Millisecond
+)
+
 // maxAgentName is herdr's limit on agent names: [a-z][a-z0-9_-]{0,31}.
 const maxAgentName = 32
 
@@ -44,6 +53,7 @@ func AgentName(taskID string) string {
 type Backend struct {
 	c         *Client
 	workspace string
+	sleep     func(ctx context.Context, d time.Duration) error // waits between start attempts; tests replace it
 }
 
 // WorkspaceEnv is the variable herdr sets in every pane it opens.
@@ -59,7 +69,19 @@ func NewFromEnv(r runner.Runner, getenv func(string) string) *Backend {
 // New returns a herdr backend that opens tabs in workspace (igris's own
 // HERDR_WORKSPACE_ID) and runs herdr through r.
 func New(r runner.Runner, workspace string) *Backend {
-	return &Backend{c: NewClient(r), workspace: workspace}
+	return &Backend{c: NewClient(r), workspace: workspace, sleep: sleep}
+}
+
+// sleep waits d or until ctx is done.
+func sleep(ctx context.Context, d time.Duration) error {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return nil
+	}
 }
 
 // Name returns "herdr".
@@ -90,7 +112,7 @@ func (b *Backend) OpenSession(ctx context.Context, spec backend.SessionSpec) (ba
 		},
 	}
 
-	_, err = b.c.AgentStart(ctx, s.ref.Agent, pane.PaneID, startTimeout, spec.Args)
+	err = b.startAgent(ctx, s.ref.Agent, pane.PaneID, spec.Args)
 	switch {
 	case IsCode(err, CodeAgentNotReady):
 		// Blocked during startup; the agent name stays usable (P0-03).
@@ -104,6 +126,23 @@ func (b *Backend) OpenSession(ctx context.Context, spec backend.SessionSpec) (ba
 		return nil, err
 	}
 	return s, nil
+}
+
+// startAgent starts Claude Code in pane, retrying while the pane's shell
+// hasn't reached its prompt yet (agent_pane_busy, SPEC §11.2).
+func (b *Backend) startAgent(ctx context.Context, name, paneID string, args []string) error {
+	for wait := time.Duration(0); ; wait += paneReadyPoll {
+		_, err := b.c.AgentStart(ctx, name, paneID, startTimeout, args)
+		if !IsCode(err, CodeAgentPaneBusy) {
+			return err
+		}
+		if wait >= paneReadyWait {
+			return fmt.Errorf("the new tab's shell did not reach its prompt within %s: %w", paneReadyWait, err)
+		}
+		if serr := b.sleep(ctx, paneReadyPoll); serr != nil {
+			return errors.Join(err, serr)
+		}
+	}
 }
 
 // Attach rebuilds a session from a stored ref after igris restarted. It
