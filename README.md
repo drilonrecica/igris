@@ -66,6 +66,8 @@ igris status        # shows phases, tasks, what's ready and what's blocked
 igris arise M0      # runs phase M0 (inside a herdr pane)
 ```
 
+`check`, `phases` and `status` read your plan without changing it. Each takes `--plan PATH` (default: `plan` in `igris.toml`, else `tasks.md`) and `--json`. `check` exits 0 for a valid plan, 1 for an invalid one, and warns when `ready`/`blocked` cells don't match the dependencies; `phases` lists task counts per phase; `status [PHASE]` lists tasks with rank, owner and what each is waiting on.
+
 Recommended once: `herdr integration install claude`, so herdr reports Claude's state accurately.
 
 ## Your plan

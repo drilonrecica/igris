@@ -439,8 +439,8 @@ Quitting the TUI (`q`) never kills a running session; it saves state and exits. 
 ```
 igris init                                  create igris.toml, .igris/, .gitignore entry, Claude allow rules
 igris check [--plan PATH] [--json]          validate the plan; exit 0 valid, 1 invalid, 2 usage error
-igris phases                                list phases with task counts per status
-igris status [PHASE]                        tasks with status/rank/owner, current run, unmet deps
+igris phases [--plan PATH] [--json]         list phases with task counts per status
+igris status [PHASE] [--plan PATH] [--json] tasks with status/rank/owner, current run, unmet deps
 igris arise [PHASE] [--through PHASE]       run (or resume) with the TUI
            [--mode default|accept|auto|plan|yolo] [--no-tui] [--dry-run]
 igris done ID [--note TEXT]                 signal that a task is finished
@@ -449,6 +449,8 @@ igris adapt [--model sonnet|opus]           AI-assisted conversion with diff rev
 igris version
 ```
 
+- The plan file is `--plan`, else `plan` in `igris.toml` in the working directory, else `tasks.md`. `check`, `phases` and `status` read the plan only; `phases` and `status` refuse an invalid plan (exit 1, listing the problems) and report to stdout, errors to stderr. `--json` prints one JSON document instead of text.
+- `check` prints each validation problem as `file:line: message` and each readiness drift (§5.2) as `warning: file:line: …`; warnings never fail the check. `status` shows, per phase, how many tasks are finished, the §5.1 outcome (`next`, `complete`, `stuck`) and, for each task, the dependencies it waits on. The current run (needs `.igris/` state, §13) is added to `status` once runs exist.
 - `--no-tui` prints plain timestamped log lines and reads owner commands from stdin (`done`, `skip <reason>`, `retry`, `pause`, `stop`, `mode <m>`), for scripting or very small terminals.
 - `--dry-run` uses the fake backend: walks the phase, prints which task would launch with which model and mode, writes nothing.
 - On start, `arise` warns if `ANTHROPIC_API_KEY` is set in the environment (Claude Code would bill the API instead of the subscription) and asks for confirmation.

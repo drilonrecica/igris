@@ -45,6 +45,16 @@ func (p *Plan) Readiness() []Change {
 	return out
 }
 
+// WaitingOn returns t with its unmet dependencies, or nil if every
+// dependency is satisfied.
+func (p *Plan) WaitingOn(t *Task) *Waiting {
+	unmet := p.unmet(t)
+	if len(unmet) == 0 {
+		return nil
+	}
+	return &Waiting{Task: t, Unmet: unmet, plan: p}
+}
+
 // Apply sets the statuses in memory. It fails without changing anything if
 // a task does not exist.
 func (p *Plan) Apply(changes []Change) error {

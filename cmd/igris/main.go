@@ -28,8 +28,8 @@ Usage:
 Commands:
   init                                  create igris.toml, .igris/, .gitignore entry, Claude allow rules
   check [--plan PATH] [--json]          validate the plan; exit 0 valid, 1 invalid, 2 usage error
-  phases                                list phases with task counts per status
-  status [PHASE]                        tasks with status/rank/owner, current run, unmet deps
+  phases [--plan PATH] [--json]         list phases with task counts per status
+  status [PHASE] [--plan PATH] [--json] tasks with status/rank/owner, current run, unmet deps
   arise [PHASE] [--through PHASE]       run (or resume) with the TUI
         [--mode default|accept|auto|plan|yolo] [--no-tui] [--dry-run]
   done ID [--note TEXT]                 signal that a task is finished
@@ -45,6 +45,9 @@ Run "igris <command> -h" for the flags of a command.
 type command struct {
 	name  string
 	setup func(fs *flag.FlagSet) (validate func(args []string) error)
+	// exec runs the command after flags and arguments validated. Commands
+	// without it are not implemented yet.
+	exec func(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int
 }
 
 var runModes = []string{"default", "accept", "auto", "plan", "yolo"}
@@ -52,13 +55,9 @@ var runModes = []string{"default", "accept", "auto", "plan", "yolo"}
 func commands() []command {
 	return []command{
 		{name: "init", setup: noFlags(0)},
-		{name: "check", setup: func(fs *flag.FlagSet) func([]string) error {
-			fs.String("plan", "", "path to the plan file")
-			fs.Bool("json", false, "machine-readable output")
-			return maxArgs(fs, 0)
-		}},
-		{name: "phases", setup: noFlags(0)},
-		{name: "status", setup: noFlags(1)},
+		{name: "check", setup: planFlags(0), exec: execCheck},
+		{name: "phases", setup: planFlags(0), exec: execPhases},
+		{name: "status", setup: planFlags(1), exec: execStatus},
 		{name: "arise", setup: func(fs *flag.FlagSet) func([]string) error {
 			fs.String("through", "", "last phase to run")
 			mode := fs.String("mode", "", "run mode: "+strings.Join(runModes, "|"))
@@ -119,14 +118,14 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	for _, c := range commands() {
 		if c.name == args[0] {
-			return runCommand(c, args[1:], stderr)
+			return runCommand(c, args[1:], stdout, stderr)
 		}
 	}
 	fmt.Fprintf(stderr, "igris: unknown command %q\n\n%s", args[0], usageText)
 	return exitUsage
 }
 
-func runCommand(c command, args []string, stderr io.Writer) int {
+func runCommand(c command, args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("igris "+c.name, flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	validate := c.setup(fs)
@@ -140,8 +139,11 @@ func runCommand(c command, args []string, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "igris %s: %v\n", c.name, err)
 		return exitUsage
 	}
-	fmt.Fprintf(stderr, "igris %s: not implemented yet\n", c.name)
-	return exitFail
+	if c.exec == nil {
+		fmt.Fprintf(stderr, "igris %s: not implemented yet\n", c.name)
+		return exitFail
+	}
+	return c.exec(fs, fs.Args(), stdout, stderr)
 }
 
 // reorder moves flags ahead of positional arguments so that both
@@ -175,6 +177,16 @@ func reorder(fs *flag.FlagSet, args []string) []string {
 func isBool(f *flag.Flag) bool {
 	b, ok := f.Value.(interface{ IsBoolFlag() bool })
 	return ok && b.IsBoolFlag()
+}
+
+// planFlags registers the flags shared by the plan commands and allows up
+// to max positional arguments.
+func planFlags(max int) func(*flag.FlagSet) func([]string) error {
+	return func(fs *flag.FlagSet) func([]string) error {
+		fs.String("plan", "", "path to the plan file (default: plan from igris.toml, else tasks.md)")
+		fs.Bool("json", false, "machine-readable output")
+		return maxArgs(fs, max)
+	}
 }
 
 func noFlags(max int) func(*flag.FlagSet) func([]string) error {
