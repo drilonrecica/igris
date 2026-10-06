@@ -98,3 +98,26 @@ Requirements (SPEC §18): static `CGO_ENABLED=0` binaries for linux/darwin × am
 - **Homebrew tap: later** (post-v1); GoReleaser's `brews` section can be added without changing the pipeline.
 
 SPEC §18 amended accordingly. Awaiting owner approval of the GoReleaser choice (task M7-03 implements it).
+
+## P0-05 — GitHub repository
+
+Checked read-only on 2026-10-06 (unauthenticated GitHub API, `git ls-remote`, Go module proxy). The owner had already created the repo; the agent made no changes to GitHub (`gh` currently reports an invalid token).
+
+| Check | Result |
+|---|---|
+| `github.com/drilonrecica/igris` | Exists, **public**, default branch `master`, not archived |
+| Module path `github.com/drilonrecica/igris` | Owned by the same account; Go proxy lists no versions yet (path unclaimed by anyone else) |
+| Remote state | `origin/master` is at `a2ec189`; local commits since then (including P0-01…P0-05) are **not pushed** |
+| Description | `Arise. Runs your tasks.md one fresh Claude Code session at a time, each with the model rank your plan assigns.` — differs from the planned text |
+| Topics | none set |
+| License | none detected on GitHub yet (M0-01 adds the MIT `LICENSE`) |
+
+Owner to do (needs a valid `gh` login, e.g. `! gh auth login -h github.com`), if the planned description and topics are wanted:
+
+```bash
+gh repo edit drilonrecica/igris \
+  --description "Run your task plan one Claude Code session at a time, with the right model for each task." \
+  --add-topic claude-code --add-topic ai-agents --add-topic task-runner --add-topic golang --add-topic tui --add-topic herdr
+```
+
+The current description is also fine; this is a naming/branding call for the owner.
