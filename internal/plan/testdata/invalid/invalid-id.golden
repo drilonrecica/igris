@@ -1,0 +1,2 @@
+invalid-id.md:5: "-a" is not a valid task ID; use letters, digits, '.', '_' and '-', starting with a letter or digit
+invalid-id.md:6: "a b" is not a valid task ID; use letters, digits, '.', '_' and '-', starting with a letter or digit

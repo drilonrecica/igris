@@ -1,0 +1,1 @@
+range-reversed.md:7: c: Deps range "b…a" is not in file order (b does not come before a); swap the endpoints

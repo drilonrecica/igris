@@ -1,0 +1,6 @@
+many-problems.md:1: task table outside a phase; put it under a "## <phase ID> — <title>" heading
+many-problems.md:9: a: unknown status "todo"; use ready, blocked, in progress, done or skipped
+many-problems.md:9: a: unknown model rank "gpt"; add it to [models] in igris.toml or use one of: fable, haiku, opus, sonnet
+many-problems.md:9: dependency cycle a → b → a (each task waits on the next); remove one of these dependencies
+many-problems.md:10: b: user tasks must have Model —, not "sonnet" (igris runs no session for them)
+many-problems.md:11: duplicate task ID a (first at line 9); task IDs must be unique across the plan

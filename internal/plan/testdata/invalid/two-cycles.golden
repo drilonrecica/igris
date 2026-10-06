@@ -1,0 +1,2 @@
+two-cycles.md:5: dependency cycle a → b → a (each task waits on the next); remove one of these dependencies
+two-cycles.md:6: dependency cycle b → c → b (each task waits on the next); remove one of these dependencies

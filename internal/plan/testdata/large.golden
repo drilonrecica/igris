@@ -1,0 +1,28 @@
+phases 12 tasks 168
+F1 "Foundation" ready=0 blocked=2 in-progress=0 done=12 skipped=0 select=next F1-13
+F2 "Storage" ready=0 blocked=2 in-progress=0 done=12 skipped=0 select=next F2-13
+F3 "Ingest" ready=2 blocked=6 in-progress=1 done=4 skipped=1 select=next F3-06
+Phase-4 "Index" ready=1 blocked=13 in-progress=0 done=0 skipped=0 select=stuck
+F5 "Query" ready=1 blocked=13 in-progress=0 done=0 skipped=0 select=stuck
+F6 "Auth" ready=1 blocked=13 in-progress=0 done=0 skipped=0 select=stuck
+F7 "API" ready=1 blocked=13 in-progress=0 done=0 skipped=0 select=stuck
+Phase-8 "Workers" ready=1 blocked=13 in-progress=0 done=0 skipped=0 select=stuck
+F9 "Billing" ready=1 blocked=13 in-progress=0 done=0 skipped=0 select=stuck
+F10 "Reports" ready=1 blocked=13 in-progress=0 done=0 skipped=0 select=stuck
+F11 "Admin" ready=1 blocked=13 in-progress=0 done=0 skipped=0 select=stuck
+Phase-12 "Release" ready=1 blocked=13 in-progress=0 done=0 skipped=0 select=stuck
+drift:
+  F1-13: blocked → ready
+  F2-13: blocked → ready
+  F3-08: ready → blocked
+  F3-10: blocked → ready
+  F3-13: blocked → ready
+  Phase-4-01: ready → blocked
+  F5-01: ready → blocked
+  F6-01: ready → blocked
+  F7-01: ready → blocked
+  Phase-8-01: ready → blocked
+  F9-01: ready → blocked
+  F10-01: ready → blocked
+  F11-01: ready → blocked
+  Phase-12-01: ready → blocked

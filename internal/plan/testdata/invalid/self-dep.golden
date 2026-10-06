@@ -1,0 +1,1 @@
+self-dep.md:5: a depends on itself; remove it from Deps

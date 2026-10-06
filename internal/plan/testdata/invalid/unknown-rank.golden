@@ -1,0 +1,1 @@
+unknown-rank.md:5: a: unknown model rank "gpt"; add it to [models] in igris.toml or use one of: fable, haiku, opus, sonnet

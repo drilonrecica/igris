@@ -1,0 +1,2 @@
+agent-without-model.md:5: a: agent task needs a Model (a rank from [models], e.g. sonnet); use Owner user for tasks without a session
+agent-without-model.md:6: b: agent + user task needs a Model (a rank from [models], e.g. sonnet); use Owner user for tasks without a session
