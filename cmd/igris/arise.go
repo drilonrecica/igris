@@ -43,10 +43,6 @@ func newBackend(cfg *config.Config) (backend.Backend, error) {
 	return nil, fmt.Errorf("unknown backend %q in igris.toml; igris v1 runs on herdr (tmux support is planned)", cfg.Backend)
 }
 
-// yoloPhrase is what the owner types to switch to skip-permissions mode
-// (SPEC §7.3).
-const yoloPhrase = "skip permissions"
-
 type ariseFlags struct {
 	phase, through, mode       string
 	noTUI, dryRun, forceUnlock bool
@@ -151,7 +147,7 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		case errors.Is(err, engine.ErrYoloUnconfirmed) && !opts.ConfirmedYolo:
 			// SPEC §7.3: typed confirmation, every run.
 			fmt.Fprintf(out, "%v\nSessions in this mode run with --dangerously-skip-permissions: Claude Code acts without asking.\n", err)
-			if !typed(out, ask, yoloPhrase) {
+			if !typed(out, ask, engine.YoloPhrase) {
 				return fail("skip-permissions mode not confirmed; nothing was started")
 			}
 			opts.ConfirmedYolo = true
@@ -383,8 +379,8 @@ func ownerCommands(ctx context.Context, lines <-chan string, eng *engine.Engine,
 		case act == actHelp:
 			fmt.Fprint(out, commandHelp)
 		case act == actConfirmYolo:
-			fmt.Fprintf(out, "Skip-permissions mode runs sessions with --dangerously-skip-permissions. Type %q to confirm:\n", yoloPhrase)
-			if answer, ok := next(); !ok || strings.TrimSpace(answer) != yoloPhrase {
+			fmt.Fprintf(out, "Skip-permissions mode runs sessions with --dangerously-skip-permissions. Type %q to confirm:\n", engine.YoloPhrase)
+			if answer, ok := next(); !ok || strings.TrimSpace(answer) != engine.YoloPhrase {
 				fmt.Fprintln(out, "not confirmed; the mode is unchanged")
 				continue
 			}
@@ -414,6 +410,7 @@ const commandHelp = `commands:
   pause                      pause after the current task (again to resume)
   stop                       stop igris now; the session stays open
   mode <m>                   run mode for the next sessions: default|accept|auto|plan|yolo
+  mode <task> <m>            mode for that task's next session, over its Mode column
   help                       this list
 `
 
@@ -454,11 +451,18 @@ func parseCommand(line string) (engine.Command, commandAction, error) {
 	case "stop":
 		return noArgs(engine.Command{Kind: engine.CmdStop})
 	case "mode":
-		m := strings.ToLower(rest)
-		if !engine.ValidMode(m) {
-			return engine.Command{}, actNone, fmt.Errorf("mode takes one of default|accept|auto|plan|yolo")
+		c := engine.Command{Kind: engine.CmdMode}
+		args := strings.Fields(rest)
+		switch len(args) {
+		case 1:
+			c.Text = strings.ToLower(args[0])
+		case 2:
+			c.Kind, c.Task, c.Text = engine.CmdTaskMode, args[0], strings.ToLower(args[1])
 		}
-		c := engine.Command{Kind: engine.CmdMode, Text: m}
+		if !engine.ValidMode(c.Text) {
+			return engine.Command{}, actNone, fmt.Errorf("mode takes [task] and one of default|accept|auto|plan|yolo")
+		}
+		m := c.Text
 		if m == engine.ModeYolo {
 			return c, actConfirmYolo, nil
 		}
@@ -545,6 +549,8 @@ func formatEvent(ev engine.Event) []string {
 		return []string{"paused before " + id + "; type `pause` to continue"}
 	case engine.ModeChanged:
 		return []string{"run mode for the next sessions: " + ev.Detail + yoloBadge(ev.Detail)}
+	case engine.TaskModeChanged:
+		return []string{"mode for " + id + "'s next session: " + ev.Detail + yoloBadge(ev.Detail)}
 	case engine.ConfigChanged, engine.ConfigRestored, engine.StaleSignal, engine.StraySignal:
 		return []string{ev.Detail}
 	case engine.Warning:
@@ -737,7 +743,7 @@ func (w *dryWalk) event(eng *engine.Engine, dir *state.Dir, ev engine.Event) {
 		eng.Send(engine.Command{Kind: engine.CmdRetry})
 	case engine.PhaseDone:
 		fmt.Fprintf(w.out, "     phase %s complete\n", ev.Phase)
-	case engine.PhaseStuck, engine.ModeChanged, engine.ConfigChanged, engine.Warning, engine.RunFailed:
+	case engine.PhaseStuck, engine.ModeChanged, engine.TaskModeChanged, engine.ConfigChanged, engine.Warning, engine.RunFailed:
 		for _, line := range formatEvent(ev) {
 			fmt.Fprintln(w.out, "     "+line)
 		}

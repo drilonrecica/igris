@@ -124,8 +124,9 @@ type Engine struct {
 	reported map[string]bool // keys of the signals and problems reported once
 	// configMoved: igris.toml differs from the one of the run being resumed.
 	configMoved bool
-	runMode     string // the run mode chosen for this run; see CmdMode
-	yoloOK      bool   // skip-permissions mode was confirmed through CmdMode
+	runMode     string            // the run mode chosen for this run; see CmdMode
+	overrides   map[string]string // per-task modes by task ID; see CmdTaskMode
+	yoloOK      bool              // skip-permissions mode was confirmed through CmdMode or CmdTaskMode
 }
 
 // New checks opts and returns an engine. It does no I/O.
@@ -170,6 +171,7 @@ func New(opts Options) (*Engine, error) {
 		reported:  map[string]bool{},
 		commitMsg: commitMsg,
 		runMode:   opts.Mode,
+		overrides: map[string]string{},
 	}
 	e.writer = plan.NewWriter(e.planPath, e.planOpts, e.cfg.Models)
 	return e, nil
@@ -325,7 +327,7 @@ func (e *Engine) loadPlan() (*plan.Plan, error) {
 // modeFor resolves the run mode of t (SPEC §7.2) and refuses
 // skip-permissions mode the owner didn't confirm.
 func (e *Engine) modeFor(t *plan.Task) (string, error) {
-	mode, err := ResolveMode("", t.Mode, e.runMode, e.cfg.DefaultMode)
+	mode, err := ResolveMode(e.overrides[t.ID], t.Mode, e.runMode, e.cfg.DefaultMode)
 	if err != nil {
 		return "", fmt.Errorf("task %s: %w", t.ID, err)
 	}

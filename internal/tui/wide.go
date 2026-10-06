@@ -3,6 +3,7 @@ package tui
 import (
 	"strings"
 
+	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/plan"
 )
 
@@ -102,6 +103,10 @@ func (m *model) facts() string {
 	}
 	if m.mode != "" {
 		parts = append(parts, "mode: "+m.mode+badge(m.mode))
+	}
+	if m.mode != engine.ModeYolo && m.cur != nil && m.cur.mode == engine.ModeYolo {
+		// The run mode isn't yolo but this session is (SPEC §7.3).
+		parts = append(parts, "SKIP PERMISSIONS")
 	}
 	parts = append(parts, m.opts.Backend)
 	if m.paused {

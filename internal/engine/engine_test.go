@@ -877,3 +877,50 @@ func TestModeCommand(t *testing.T) {
 		t.Errorf("%d warnings, want the unknown mode and the unconfirmed yolo rejected", got)
 	}
 }
+
+// A per-task override beats the run mode for that task's next session;
+// skip-permissions still needs the typed confirmation (SPEC §7.2, §7.3).
+func TestTaskModeCommand(t *testing.T) {
+	h := newHarness(t, chainPlan, "")
+	var changed []Event
+	h.onEvent = func(ev Event) {
+		if ev.Kind == ModeChanged || ev.Kind == TaskModeChanged {
+			changed = append(changed, ev)
+		}
+		if ev.Kind != TaskStarted {
+			return
+		}
+		switch ev.Task {
+		case "A-1":
+			h.eng.Send(Command{Kind: CmdMode, Text: "plan"})
+			h.eng.Send(Command{Kind: CmdTaskMode, Task: "A-2", Text: "accept"})
+			h.eng.Send(Command{Kind: CmdTaskMode, Task: "A-3", Text: "yolo"}) // not confirmed
+			h.eng.Send(Command{Kind: CmdTaskMode, Task: "A-3", Text: "wild"})
+			h.eng.Send(Command{Kind: CmdTaskMode, Text: "auto"}) // no task
+		case "A-2":
+			h.eng.Send(Command{Kind: CmdTaskMode, Task: "A-3", Text: "Yolo", Yes: true})
+		}
+	}
+	if _, err := h.run(); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	specs := h.be.Opened()
+	if got := arg(specs[1], "--permission-mode"); got != "acceptEdits" {
+		t.Errorf("A-2 --permission-mode %q, want the override acceptEdits over the run mode plan", got)
+	}
+	if got := strings.Join(specs[2].Args, " "); !strings.Contains(got, "--dangerously-skip-permissions") {
+		t.Errorf("A-3 args %q, want skip permissions", got)
+	}
+	want := []Event{{Kind: ModeChanged, Detail: "plan"}, {Kind: TaskModeChanged, Task: "A-2", Detail: "accept"}, {Kind: TaskModeChanged, Task: "A-3", Detail: "yolo"}}
+	if len(changed) != len(want) {
+		t.Fatalf("mode events %+v, want %+v", changed, want)
+	}
+	for i, ev := range changed {
+		if ev.Kind != want[i].Kind || ev.Detail != want[i].Detail || (ev.Kind == TaskModeChanged && ev.Task != want[i].Task) {
+			t.Errorf("mode event %d = %s %q %q, want %s %q %q", i, ev.Kind, ev.Task, ev.Detail, want[i].Kind, want[i].Task, want[i].Detail)
+		}
+	}
+	if got := h.count(Warning); got != 3 {
+		t.Errorf("%d warnings, want the unconfirmed yolo, the unknown mode and the missing task rejected", got)
+	}
+}

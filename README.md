@@ -71,7 +71,7 @@ igris status        # shows phases, tasks, what's ready and what's blocked
 igris arise M0      # runs phase M0 (inside a herdr pane)
 ```
 
-`igris arise M0 --dry-run` shows the launch order with each task's model and mode without starting anything or writing a byte. `igris arise M0 --no-tui` runs with plain log lines instead of the TUI and reads your answers and commands from stdin (`y`/`n`, `done [note]`, `skip <reason>`, `retry [continue|fresh]`, `pause`, `stop`, `mode <m>`, `help`).
+`igris arise M0 --dry-run` shows the launch order with each task's model and mode without starting anything or writing a byte. `igris arise M0 --no-tui` runs with plain log lines instead of the TUI and reads your answers and commands from stdin (`y`/`n`, `done [note]`, `skip <reason>`, `retry [continue|fresh]`, `pause`, `stop`, `mode [task] <m>`, `help`).
 
 Before a run starts, igris warns if `ANTHROPIC_API_KEY` is set (your sessions would bill the API, not your subscription; it asks you to confirm), if the project isn't a git repository, or if the tree has uncommitted changes.
 
@@ -118,7 +118,7 @@ After a task passes, igris commits everything in the tree (`commit = "ask"`, the
 
 ## Modes
 
-Choose the permission mode in the TUI, per run or per task:
+Choose the permission mode in the TUI, per run or per task: press `m` (or click **Mode**) for the run, or select a task and press `M` (**Task mode**) to override it for that task. A change applies to the next session; a running one keeps its mode. A task's mode is, in order: your override, its `Mode` column, the run mode, `default_mode` in `igris.toml`.
 
 | Mode | What it does |
 |---|---|
@@ -126,7 +126,7 @@ Choose the permission mode in the TUI, per run or per task:
 | Accept edits | Edits are accepted automatically. |
 | Auto | Claude Code approves routine actions itself and asks you about risky ones. |
 | Plan | Claude plans first; you approve the plan, then it implements. |
-| Skip permissions | `--dangerously-skip-permissions`. Needs typed confirmation every run, and shows a red badge while active. Use it in a worktree or container you trust. |
+| Skip permissions | `--dangerously-skip-permissions`. Never a single click or key: you type `skip permissions` to confirm, every run, and a red badge shows while it is active. Use it in a worktree or container you trust. |
 
 ## Notifications
 
@@ -138,7 +138,7 @@ Igris tells you when it needs you (a question, a plan to approve, a stalled sess
 
 ## The TUI
 
-Igris runs in its own herdr pane: the task list with status and rank, the current task and how long it's been running, and a log. Claude sessions run in their own tabs; press `o` (or click **Open session**) to jump to the current one. Every action is a button you can click or tap, reach with `tab` and the arrow keys, or trigger with its shortcut key; when igris needs an answer (commit? session lost?) it opens a choice dialog, like Claude Code's prompts. The keys: `o` open session, `p` pause/resume, `d` done, `s` skip (asks for a reason), `r` retry (fresh or continue), `x` stop (asks first), `q` quit, `?` help; `tab` moves between the task list, the action bar and the log, the arrow keys move within them, and `enter` activates. Dialogs open on the safe choice, and `esc` backs out. The layout collapses to a single column on small terminals, so it works over SSH from a phone.
+Igris runs in its own herdr pane: the task list with status and rank, the current task and how long it's been running, and a log. Claude sessions run in their own tabs; press `o` (or click **Open session**) to jump to the current one. Every action is a button you can click or tap, reach with `tab` and the arrow keys, or trigger with its shortcut key; when igris needs an answer (commit? session lost?) it opens a choice dialog, like Claude Code's prompts. The keys: `o` open session, `m`/`M` run/task mode, `p` pause/resume, `d` done, `s` skip (asks for a reason), `r` retry (fresh or continue), `x` stop (asks first), `q` quit, `?` help; `tab` moves between the task list, the action bar and the log, the arrow keys move within them, and `enter` activates. Dialogs open on the safe choice, and `esc` backs out. The layout collapses to a single column on small terminals, so it works over SSH from a phone.
 
 The TUI captures the mouse, so selecting text in the terminal needs `shift`+drag; set `mouse = false` under `[tui]` in `igris.toml` to keep plain selection. Start-up questions (an API key in the environment, plan drift, skip-permissions confirmation) are asked as plain prompts before the TUI opens.
 

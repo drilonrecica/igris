@@ -154,7 +154,7 @@ type barLayout struct {
 
 // foldOrder lists the actions the bar folds into More… first when it
 // doesn't fit; actions not listed are never folded.
-var foldOrder = []action{actHelp, actStopAsk, actRetry, actPause, actQuit, actSkip}
+var foldOrder = []action{actHelp, actTaskMode, actStopAsk, actRetry, actMode, actPause, actQuit, actSkip}
 
 // fitBar lays out the model's bar w cells wide, records its buttons and
 // marks the focused one. The focus moves to the first button if its

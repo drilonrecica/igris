@@ -16,9 +16,9 @@ state: working
 
 
 
-
 ── LOG ─────────────────────────────────────────────────────────────────────────
 09:41 M0-02 done · subcommand dispatch + tests
 09:41 M0-03 started (sonnet → sonnet, plan) · Makefile
 09:41 M0-03 session open
-[›Open session‹] [Pause] [Done] [Retry] [Skip] [Stop] [?] [Quit]
+[›Open session‹] [Mode] [Task mode] [Pause] [Done] [Retry] [Skip] [Stop] [?]
+[Quit]

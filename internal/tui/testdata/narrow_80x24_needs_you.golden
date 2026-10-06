@@ -16,9 +16,9 @@ the session is idle without a signal
 
 
 
-
 ── LOG ─────────────────────────────────────────────────────────────────────────
 09:41 M0-03 started (sonnet → sonnet, plan) · Makefile
 09:41 M0-03 session open
 09:44 M0-03 needs you: the session is idle without a signal
-[›Open session‹] [Pause] [Done] [Retry] [Skip] [Stop] [?] [Quit]
+[›Open session‹] [Mode] [Task mode] [Pause] [Done] [Retry] [Skip] [Stop] [?]
+[Quit]

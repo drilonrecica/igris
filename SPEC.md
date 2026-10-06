@@ -475,7 +475,7 @@ igris version
   - `done [note]` marks the current task done (an agent task is not verified, §6.4), `skip <reason>` skips it;
   - `retry [continue|fresh]` replaces the current session: continue its conversation or start fresh (`Resumed=true`); bare `retry` is `fresh`. This is also the answer when a session is lost;
   - `pause` toggles pause-after-task like `p` in the TUI (§15.3), `stop` stops igris and leaves the session open;
-  - `mode <m>` sets the run mode for the next sessions; `mode yolo` then asks to type `skip permissions` (§7.3);
+  - `mode <m>` sets the run mode for the next sessions, `mode <task> <m>` overrides one task's mode for its next session (§7.2); `yolo` then asks to type `skip permissions` (§7.3);
   - `help` lists them. Ctrl-C is `stop`.
 - `--force-unlock` clears a stale `.igris/igris.lock` (its process is gone, the file is unreadable, or it comes from another host); a lock held by a live process on this host is always refused (§13).
 - `--dry-run` uses the fake backend: walks the phase, prints which task would launch with which model and mode, writes nothing. It runs the real engine on a temporary copy of the plan, with every session finishing at once, user tasks done, verify and commits off. Drift and skip-permissions tasks are shown as warnings instead of asked about; a task already in progress is shown as resumed with a fresh session. Without a phase it walks the last run's phases. It never touches `.igris/`.

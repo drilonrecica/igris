@@ -114,6 +114,47 @@ func skipDialog(id string, agent bool) *dialog {
 	}
 }
 
+// modeDialog lets the owner pick a mode: for the run when task is "", else
+// for that task's next session. The current mode starts selected.
+func modeDialog(task, current string) *dialog {
+	d := &dialog{
+		title:  "Run mode for the next sessions",
+		detail: "A running session keeps its mode.",
+		cancel: actClose,
+		task:   task,
+	}
+	if task != "" {
+		d.title = "Mode for " + task + "'s next session"
+	}
+	for i, m := range modeActs {
+		label := m.label
+		if m.mode == current {
+			label += " (current)"
+			d.selected = i
+		}
+		d.options = append(d.options, option{label, m.act})
+	}
+	return d
+}
+
+// yoloDialog asks for the typed phrase before switching to skip
+// permissions (SPEC §7.3); task is as for modeDialog.
+func yoloDialog(task string) *dialog {
+	what := "the next sessions"
+	if task != "" {
+		what = task + "'s next session"
+	}
+	return &dialog{
+		title:   "Skip permissions?",
+		detail:  "Claude Code runs " + what + " with --dangerously-skip-permissions: no permission prompts at all. Type \"" + engine.YoloPhrase + "\" to confirm.",
+		input:   &field{label: "Phrase: "},
+		inField: true,
+		options: []option{{"Cancel", actClose}, {"Skip permissions", actYoloConfirm}},
+		cancel:  actClose,
+		task:    task,
+	}
+}
+
 // key handles a key press. It returns the action to run, if the key picked
 // one, and whether the key was used.
 func (d *dialog) key(msg tea.KeyMsg) (action, bool) {

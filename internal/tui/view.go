@@ -61,6 +61,12 @@ func (m *model) buttons() []option {
 		out = append(out, option{"Open session", actOpen})
 	}
 	if !m.ended {
+		out = append(out, option{"Mode", actMode})
+	}
+	if !m.ended && len(m.phaseTasks()) > 0 {
+		out = append(out, option{"Task mode", actTaskMode})
+	}
+	if !m.ended {
 		label := "Pause"
 		if m.paused {
 			label = "Resume"

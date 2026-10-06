@@ -67,6 +67,8 @@ func logLines(ev engine.Event) []string {
 		return []string{"paused before " + id}
 	case engine.ModeChanged:
 		return []string{"run mode for the next sessions: " + ev.Detail + badge(ev.Detail)}
+	case engine.TaskModeChanged:
+		return []string{"mode for " + id + "'s next session: " + ev.Detail + badge(ev.Detail)}
 	case engine.Warning:
 		return []string{"warning: " + ev.Detail}
 	case engine.RunFailed:

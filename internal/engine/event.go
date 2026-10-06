@@ -15,38 +15,39 @@ type EventKind string
 
 // Events of a run, in the order a UI typically sees them.
 const (
-	RunStarted     EventKind = "run_started"
-	PhaseStarted   EventKind = "phase_started"
-	TaskStarted    EventKind = "task_started"    // marked in progress; Changes holds the cells written
-	TaskResumed    EventKind = "task_resumed"    // a task in progress from an earlier run is picked up; Detail says how
-	SessionOpened  EventKind = "session_opened"  // Session is set
-	TaskDone       EventKind = "task_done"       // Detail is the done note; Changes holds the cells written
-	PhaseDone      EventKind = "phase_done"      // every task of the phase is satisfied
-	PhaseStuck     EventKind = "phase_stuck"     // Waiting lists the unfinished tasks
-	PauseOn        EventKind = "pause_on"        // pause-after-task was switched on
-	PauseOff       EventKind = "pause_off"       // ... and off again; a held run continues
-	Paused         EventKind = "paused"          // the run holds instead of launching Task
-	ModeChanged    EventKind = "mode_changed"    // Detail is the run mode for the next sessions
-	ConfigChanged  EventKind = "config_changed"  // igris.toml differs from the snapshot; needs the owner
-	ConfigRestored EventKind = "config_restored" // igris.toml matches the snapshot again
-	StaleSignal    EventKind = "stale_signal"    // a signal from before the task started was ignored
-	StraySignal    EventKind = "stray_signal"    // a signal for another task (or an unreadable one) is kept, never applied
-	NeedsYou       EventKind = "needs_you"       // the task waits on the owner; Detail says why
-	NeedsYouClear  EventKind = "needs_you_clear" // the agent is working again
-	SessionLost    EventKind = "session_lost"    // the pane is gone or Claude Code exited without a signal
-	Asked          EventKind = "asked"           // Question waits for the owner's answer; Detail is the question
-	Retrying       EventKind = "retrying"        // the session is replaced; Detail is "continue" or "fresh"
-	TaskSkipped    EventKind = "task_skipped"    // Detail is the reason; Changes holds the cells written
-	YourTurn       EventKind = "your_turn"       // a user task waits for the owner; Detail is the full task text
-	VerifyStarted  EventKind = "verify_started"  // Detail is the verify command
-	VerifyPassed   EventKind = "verify_passed"   // Detail is the verify command
-	VerifyFailed   EventKind = "verify_failed"   // Detail says why and which attempt
-	VerifyLimit    EventKind = "verify_limit"    // verify_max_attempts failures in a row; needs the owner
-	Committed      EventKind = "committed"       // Detail is the commit subject
-	NotCommitted   EventKind = "not_committed"   // Detail says why: nothing to commit, or the owner declined
-	Warning        EventKind = "warning"         // something failed that doesn't stop the run
-	RunFailed      EventKind = "run_error"       // Detail is the error; the run stops
-	RunStopped     EventKind = "run_stopped"     // the run ended; Detail is the outcome or "error"
+	RunStarted      EventKind = "run_started"
+	PhaseStarted    EventKind = "phase_started"
+	TaskStarted     EventKind = "task_started"      // marked in progress; Changes holds the cells written
+	TaskResumed     EventKind = "task_resumed"      // a task in progress from an earlier run is picked up; Detail says how
+	SessionOpened   EventKind = "session_opened"    // Session is set
+	TaskDone        EventKind = "task_done"         // Detail is the done note; Changes holds the cells written
+	PhaseDone       EventKind = "phase_done"        // every task of the phase is satisfied
+	PhaseStuck      EventKind = "phase_stuck"       // Waiting lists the unfinished tasks
+	PauseOn         EventKind = "pause_on"          // pause-after-task was switched on
+	PauseOff        EventKind = "pause_off"         // ... and off again; a held run continues
+	Paused          EventKind = "paused"            // the run holds instead of launching Task
+	ModeChanged     EventKind = "mode_changed"      // Detail is the run mode for the next sessions
+	TaskModeChanged EventKind = "task_mode_changed" // Task's next session runs in mode Detail (an override)
+	ConfigChanged   EventKind = "config_changed"    // igris.toml differs from the snapshot; needs the owner
+	ConfigRestored  EventKind = "config_restored"   // igris.toml matches the snapshot again
+	StaleSignal     EventKind = "stale_signal"      // a signal from before the task started was ignored
+	StraySignal     EventKind = "stray_signal"      // a signal for another task (or an unreadable one) is kept, never applied
+	NeedsYou        EventKind = "needs_you"         // the task waits on the owner; Detail says why
+	NeedsYouClear   EventKind = "needs_you_clear"   // the agent is working again
+	SessionLost     EventKind = "session_lost"      // the pane is gone or Claude Code exited without a signal
+	Asked           EventKind = "asked"             // Question waits for the owner's answer; Detail is the question
+	Retrying        EventKind = "retrying"          // the session is replaced; Detail is "continue" or "fresh"
+	TaskSkipped     EventKind = "task_skipped"      // Detail is the reason; Changes holds the cells written
+	YourTurn        EventKind = "your_turn"         // a user task waits for the owner; Detail is the full task text
+	VerifyStarted   EventKind = "verify_started"    // Detail is the verify command
+	VerifyPassed    EventKind = "verify_passed"     // Detail is the verify command
+	VerifyFailed    EventKind = "verify_failed"     // Detail says why and which attempt
+	VerifyLimit     EventKind = "verify_limit"      // verify_max_attempts failures in a row; needs the owner
+	Committed       EventKind = "committed"         // Detail is the commit subject
+	NotCommitted    EventKind = "not_committed"     // Detail says why: nothing to commit, or the owner declined
+	Warning         EventKind = "warning"           // something failed that doesn't stop the run
+	RunFailed       EventKind = "run_error"         // Detail is the error; the run stops
+	RunStopped      EventKind = "run_stopped"       // the run ended; Detail is the outcome or "error"
 )
 
 // Event is one step of a run, delivered to Options.Events. UIs render it;

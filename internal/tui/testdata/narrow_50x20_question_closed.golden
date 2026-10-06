@@ -16,5 +16,5 @@ state: WAITING FOR YOUR ANSWER
 09:41 M0-03 started (sonnet → sonnet, plan) · Mak…
 09:41 M0-03 session open
 09:41 ? the session of M0-03 is gone
-[›Answer…‹] [Open session] [Pause] [Done] [Retry]
-[Skip] [Stop] [?] [Quit]
+[›Answer…‹] [Open session] [Mode] [Task mode]
+[Pause] [Done] [Retry] [Skip] [Stop] [?] [Quit]

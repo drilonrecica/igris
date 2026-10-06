@@ -16,6 +16,10 @@ const (
 	ModeYolo    = "yolo"
 )
 
+// YoloPhrase is what the owner types to choose skip-permissions mode
+// (SPEC §7.3); a single key or click never does.
+const YoloPhrase = "skip permissions"
+
 // modeFlags maps each run mode to its Claude Code flags. Spellings were
 // verified against Claude Code 2.1.291 (P0-02, SPEC §7.1). Default passes no
 // permission flag: `--permission-mode` has no `default` value.

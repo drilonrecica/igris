@@ -27,7 +27,39 @@ const (
 	actStopAsk     // ask before stopping igris
 	actHelp        // show every action and its key
 	actField       // a dialog's text field; clicking it focuses it
+	actMode        // choose the run mode for the next sessions
+	actTaskMode    // choose the mode of the selected task's next session
+	actYoloConfirm // switch to skip permissions with the phrase typed
+	// One action per mode in the mode picker; see modeActs.
+	actModeDefault
+	actModeAccept
+	actModeAuto
+	actModePlan
+	actModeYolo
 )
+
+// modeActs maps the mode picker's actions to their modes, in the order
+// the picker lists them.
+var modeActs = []struct {
+	act         action
+	mode, label string
+}{
+	{actModeDefault, engine.ModeDefault, "default — your normal permission prompts"},
+	{actModeAccept, engine.ModeAccept, "accept — edits are accepted"},
+	{actModeAuto, engine.ModeAuto, "auto — Claude Code asks only about risky actions"},
+	{actModePlan, engine.ModePlan, "plan — plan first, you approve, then it implements"},
+	{actModeYolo, engine.ModeYolo, "yolo [SKIP PERMISSIONS] — no permission prompts"},
+}
+
+// modeOf is the mode a mode picker action picks, if it is one.
+func modeOf(a action) (string, bool) {
+	for _, m := range modeActs {
+		if m.act == a {
+			return m.mode, true
+		}
+	}
+	return "", false
+}
 
 // command is the engine command an action sends, if any.
 func (a action) command() (engine.Command, bool) {
@@ -53,6 +85,8 @@ func (a action) command() (engine.Command, bool) {
 // shortcuts maps the keys of SPEC §15.3 to their actions.
 var shortcuts = map[string]action{
 	"o":      actOpen,
+	"m":      actMode,
+	"M":      actTaskMode,
 	"p":      actPause,
 	"d":      actDone,
 	"s":      actSkip,
@@ -69,6 +103,8 @@ type helpEntry struct{ key, name, what string }
 // helpActions are the actions the help page lists, in SPEC §15.3 order.
 var helpActions = []helpEntry{
 	{"o", "Open session", "bring the current session's pane to the front"},
+	{"m", "Mode", "run mode for the sessions launched from now on; yolo needs the typed phrase"},
+	{"M", "Task mode", "mode for the selected task's next session, over its Mode column"},
 	{"p", "Pause / Resume", "pause after the current task; igris waits until you resume"},
 	{"d", "Done", "mark the current task done (your decision: verify is skipped)"},
 	{"s", "Skip", "skip the current task; asks for a reason and closes its session"},

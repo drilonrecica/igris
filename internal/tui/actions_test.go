@@ -20,17 +20,19 @@ func TestBarShowsOnlyWhatApplies(t *testing.T) {
 		setup func(hs *harness)
 		want  []action
 	}{
-		{"no task", func(*harness) {}, []action{actPause, actStopAsk, actHelp, actQuit}},
+		{"no task", func(*harness) {}, []action{actMode, actPause, actStopAsk, actHelp, actQuit}},
 		{"agent task", func(hs *harness) { hs.events(started("M0-03"), opened("M0-03")) },
-			[]action{actOpen, actPause, actDone, actRetry, actSkip, actStopAsk, actHelp, actQuit}},
+			[]action{actOpen, actMode, actPause, actDone, actRetry, actSkip, actStopAsk, actHelp, actQuit}},
 		{"agent task, no session yet", func(hs *harness) { hs.events(started("M0-03")) },
-			[]action{actPause, actDone, actRetry, actSkip, actStopAsk, actHelp, actQuit}},
+			[]action{actMode, actPause, actDone, actRetry, actSkip, actStopAsk, actHelp, actQuit}},
 		{"user task", func(hs *harness) { hs.events(userStarted("M0-05")) },
-			[]action{actPause, actDone, actSkip, actStopAsk, actHelp, actQuit}},
+			[]action{actMode, actPause, actDone, actSkip, actStopAsk, actHelp, actQuit}},
 		{"question put aside", func(hs *harness) {
 			hs.events(started("M0-03"), asked(engine.QuestionCommit, "commit?"))
 			hs.key("esc")
-		}, []action{actAnswer, actPause, actDone, actRetry, actSkip, actStopAsk, actHelp, actQuit}},
+		}, []action{actAnswer, actMode, actPause, actDone, actRetry, actSkip, actStopAsk, actHelp, actQuit}},
+		{"plan loaded", func(hs *harness) { hs.withPlan(demoPlan); hs.events(started("M0-03")) },
+			[]action{actMode, actTaskMode, actPause, actDone, actRetry, actSkip, actStopAsk, actHelp, actQuit}},
 		{"run over", func(hs *harness) {
 			hs.events(started("M0-03"), engine.Event{Kind: engine.RunStopped, Detail: "completed"})
 		}, []action{actHelp, actQuit}},
@@ -225,14 +227,14 @@ func TestFocusMovesAndActivates(t *testing.T) {
 	hs := newHarness(t, 120, 30)
 	hs.withPlan(demoPlan)
 	hs.events(started("M0-03"), opened("M0-03"))
-	if v := hs.m.View(); !strings.Contains(v, "[›Open session‹] [Pause]") {
+	if v := hs.m.View(); !strings.Contains(v, "[›Open session‹] [Mode]") {
 		t.Fatalf("first bar button not focused:\n%s", v)
 	}
-	hs.keys("right", "enter")
+	hs.keys("right", "right", "right", "enter") // Mode, Task mode, Pause
 	if got := hs.s.take(); len(got) != 1 || got[0].Kind != engine.CmdPause {
 		t.Fatalf("enter on Pause sent %+v", got)
 	}
-	hs.keys("left", "left") // wraps around to Quit
+	hs.keys("left", "left", "left", "left") // wraps around to Quit
 	if v := hs.m.View(); !strings.Contains(v, "[›Quit‹]") {
 		t.Fatalf("left doesn't wrap:\n%s", v)
 	}
@@ -277,13 +279,13 @@ func TestFocusSurvivesButtonChanges(t *testing.T) {
 	hs := newHarness(t, 120, 30)
 	hs.events(started("M0-03"))
 	hs.m.View()
-	hs.key("right") // Done
+	hs.keys("right", "right") // Mode, Pause, Done
 	hs.events(opened("M0-03"))
 	if v := hs.m.View(); !strings.Contains(v, "[›Done‹]") {
 		t.Errorf("focus moved off Done when Open session appeared:\n%s", v)
 	}
 	hs.events(engine.Event{Kind: engine.TaskDone, Task: "M0-03"})
-	if v := hs.m.View(); !strings.Contains(v, "[›Pause‹]") {
+	if v := hs.m.View(); !strings.Contains(v, "[›Mode‹]") {
 		t.Errorf("focus not back on the first button once Done went:\n%s", v)
 	}
 }

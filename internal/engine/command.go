@@ -37,6 +37,10 @@ const (
 	// owner typed its confirmation (SPEC §7.3), unless the run was started
 	// with it confirmed.
 	CmdMode
+	// CmdTaskMode overrides the run mode of one task (SPEC §7.2): Task is
+	// the task, Text the mode. It applies to the task's next session, like
+	// CmdMode; skip-permissions mode needs Yes the same way.
+	CmdTaskMode
 )
 
 func (k CommandKind) String() string {
@@ -55,6 +59,8 @@ func (k CommandKind) String() string {
 		return "answer"
 	case CmdMode:
 		return "mode"
+	case CmdTaskMode:
+		return "task mode"
 	}
 	return "unknown"
 }
@@ -62,9 +68,10 @@ func (k CommandKind) String() string {
 // Command is an owner action sent to a running engine.
 type Command struct {
 	Kind     CommandKind
-	Text     string // CmdDone: the note; CmdSkip: the reason; CmdMode: the mode
+	Text     string // CmdDone: the note; CmdSkip: the reason; CmdMode, CmdTaskMode: the mode
 	Continue bool   // CmdRetry: continue the conversation instead of starting fresh
-	Yes      bool   // CmdAnswer: the answer; CmdMode: skip permissions confirmed
+	Yes      bool   // CmdAnswer: the answer; CmdMode, CmdTaskMode: skip permissions confirmed
+	Task     string // CmdTaskMode: the task whose mode is overridden
 }
 
 // Send queues c for the run. It may be called from any goroutine, including
@@ -97,7 +104,7 @@ func (e *Engine) drain() {
 			}
 		case CmdStop:
 			e.stop = true
-		case CmdMode:
+		case CmdMode, CmdTaskMode:
 			e.setMode(c)
 		default:
 			e.pending = append(e.pending, c)
@@ -105,10 +112,15 @@ func (e *Engine) drain() {
 	}
 }
 
-// setMode applies a CmdMode. A running session keeps its mode.
+// setMode applies a CmdMode or CmdTaskMode. A running session keeps its
+// mode.
 func (e *Engine) setMode(c Command) {
 	m := strings.ToLower(strings.TrimSpace(c.Text))
+	task := strings.TrimSpace(c.Task)
 	switch {
+	case c.Kind == CmdTaskMode && task == "":
+		e.reject(c, "no task given")
+		return
 	case !ValidMode(m):
 		e.reject(c, fmt.Sprintf("unknown run mode %q (want default|accept|auto|plan|yolo)", c.Text))
 		return
@@ -117,6 +129,11 @@ func (e *Engine) setMode(c Command) {
 		return
 	case m == ModeYolo:
 		e.yoloOK = true
+	}
+	if c.Kind == CmdTaskMode {
+		e.overrides[task] = m
+		e.emit(Event{Kind: TaskModeChanged, Task: task, Detail: m})
+		return
 	}
 	e.runMode = m
 	e.emit(Event{Kind: ModeChanged, Detail: m})

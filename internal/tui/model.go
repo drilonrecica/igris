@@ -91,6 +91,9 @@ type model struct {
 	// selID is the selected task in the task list; "" means the current
 	// one (or the first).
 	selID string
+	// overrides are the per-task modes the owner chose, as the engine
+	// confirmed them.
+	overrides map[string]string
 
 	zones zones // of the last frame
 }
@@ -99,7 +102,7 @@ func newModel(ctx context.Context, opts Options) *model {
 	if opts.Now == nil {
 		opts.Now = time.Now
 	}
-	return &model{ctx: ctx, opts: opts, mode: opts.Mode, width: 80, height: 24, taskTop: -1, loc: time.Local}
+	return &model{ctx: ctx, opts: opts, mode: opts.Mode, width: 80, height: 24, taskTop: -1, loc: time.Local, overrides: map[string]string{}}
 }
 
 // Messages besides the feed's batches.
@@ -404,10 +407,48 @@ func (m *model) pick(a action) tea.Cmd {
 		m.opts.Sender.Send(engine.Command{Kind: engine.CmdSkip, Text: reason})
 		return nil
 	}
+	if mode, ok := modeOf(a); ok && d != nil {
+		m.dialog = nil
+		if mode == engine.ModeYolo {
+			m.dialog = yoloDialog(d.task) // never a single click or key
+			return nil
+		}
+		m.opts.Sender.Send(modeCommand(d.task, mode, false))
+		return nil
+	}
+	if a == actYoloConfirm && d != nil && d.input != nil {
+		if strings.TrimSpace(d.input.value) != engine.YoloPhrase {
+			d.inField, d.input.hint = true, "Type exactly: "+engine.YoloPhrase
+			return nil
+		}
+		m.dialog = nil
+		m.opts.Sender.Send(modeCommand(d.task, engine.ModeYolo, true))
+		return nil
+	}
 	if a != actNone && d != nil && d.question == "" {
 		m.dialog = nil
 	}
 	return m.activate(a)
+}
+
+// modeCommand sets the run mode, or task's mode when task isn't "".
+func modeCommand(task, mode string, typed bool) engine.Command {
+	if task == "" {
+		return engine.Command{Kind: engine.CmdMode, Text: mode, Yes: typed}
+	}
+	return engine.Command{Kind: engine.CmdTaskMode, Task: task, Text: mode, Yes: typed}
+}
+
+// taskMode is the mode t's next session would run in, as far as the TUI
+// knows: the owner's override, its Mode column, else the run mode.
+func (m *model) taskMode(t *plan.Task) string {
+	switch {
+	case m.overrides[t.ID] != "":
+		return m.overrides[t.ID]
+	case t.Mode != "":
+		return t.Mode
+	}
+	return m.mode
 }
 
 // activate runs an action, whether it came from a key, a click or a
@@ -435,6 +476,17 @@ func (m *model) activate(a action) tea.Cmd {
 		return nil
 	case actHelp:
 		m.page = helpPage()
+		return nil
+	case actMode:
+		if !m.ended {
+			m.dialog = modeDialog("", m.mode)
+		}
+		return nil
+	case actTaskMode:
+		if i := m.selected(); i >= 0 && !m.ended {
+			t := m.phaseTasks()[i]
+			m.dialog = modeDialog(t.ID, m.taskMode(t))
+		}
 		return nil
 	case actStopAsk:
 		if !m.ended {
@@ -549,6 +601,8 @@ func (m *model) event(ev engine.Event) {
 		m.holding = true
 	case engine.ModeChanged:
 		m.mode = ev.Detail
+	case engine.TaskModeChanged:
+		m.overrides[ev.Task] = ev.Detail
 	case engine.RunStopped:
 		m.ended = true
 		m.endText = "the run stopped: " + ev.Detail
