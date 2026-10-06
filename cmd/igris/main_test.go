@@ -31,7 +31,8 @@ func TestRun(t *testing.T) {
 		{"done missing id", []string{"done"}, exitUsage, "", "missing ID"},
 		{"skip missing reason", []string{"skip", "M0-01"}, exitUsage, "", "--reason is required"},
 		{"skip missing id", []string{"skip", "--reason", "x"}, exitUsage, "", "missing ID"},
-		{"adapt stub", []string{"adapt", "--model", "opus"}, exitFail, "", "not implemented"},
+		{"adapt extra arg", []string{"adapt", "x"}, exitUsage, "", "unexpected argument"},
+		{"adapt help lists plan", []string{"adapt", "-h"}, exitOK, "", "-plan"},
 		{"adapt bad model", []string{"adapt", "--model", "gpt"}, exitUsage, "", "invalid --model"},
 		{"subcommand help", []string{"check", "-h"}, exitOK, "", "Usage of igris check"},
 	}

@@ -12,7 +12,7 @@ in the canonical igris format (reference at the end of this message), preserving
 
 `igris check` reported:
 
-- docs/plan.md: no task tables found; add a table with ID, Status and Model columns under a ## heading
+- docs/plan.md: no task table found; igris needs a table with ID, Status and Model columns under a ## heading
 - docs/plan.md:12: T-3: unknown status "wip"; use ready, blocked, in progress, done or skipped
 
 ## Model ranks

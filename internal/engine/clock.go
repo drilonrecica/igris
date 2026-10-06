@@ -18,6 +18,9 @@ type systemClock struct{}
 func (systemClock) Now() time.Time                         { return time.Now() }
 func (systemClock) After(d time.Duration) <-chan time.Time { return time.After(d) }
 
+// SystemClock returns the real clock, for callers outside the engine.
+func SystemClock() Clock { return systemClock{} }
+
 var (
 	_ Clock = systemClock{}
 	_ Clock = (*FakeClock)(nil)

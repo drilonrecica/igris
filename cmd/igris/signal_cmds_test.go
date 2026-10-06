@@ -107,3 +107,28 @@ func TestSignalOutsideProject(t *testing.T) {
 		t.Errorf("stderr = %q, want hint to run igris init", errb.String())
 	}
 }
+
+func TestDoneAdaptNeedsNoPlan(t *testing.T) {
+	root := project(t)
+	// The adapt session's plan doesn't validate, or isn't the configured one.
+	if err := os.Remove(filepath.Join(root, "tasks.md")); err != nil {
+		t.Fatal(err)
+	}
+	var out, errb bytes.Buffer
+	if got := run([]string{"done", "ADAPT", "--note", "converted"}, &out, &errb); got != exitOK {
+		t.Fatalf("done ADAPT exit = %d, stderr: %s", got, errb.String())
+	}
+	d, err := state.Open(root, state.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, err := d.ReadSignal("ADAPT")
+	if err != nil || s == nil || s.Action != state.ActionDone || s.Note != "converted" {
+		t.Fatalf("signal = %+v, %v", s, err)
+	}
+
+	// skip ADAPT is not an adapt signal: the plan has to know the task.
+	if got := run([]string{"skip", "ADAPT", "--reason", "x"}, &out, &errb); got != exitFail {
+		t.Errorf("skip ADAPT exit = %d, want %d", got, exitFail)
+	}
+}

@@ -16,7 +16,7 @@ func TestRenderAdaptGolden(t *testing.T) {
 			PlanFile:     "docs/plan.md",
 			ProposalFile: ".igris/adapt/plan.proposed.md",
 			Issues: []string{
-				"docs/plan.md: no task tables found; add a table with ID, Status and Model columns under a ## heading",
+				"docs/plan.md: no task table found; igris needs a table with ID, Status and Model columns under a ## heading",
 				"docs/plan.md:12: T-3: unknown status \"wip\"; use ready, blocked, in progress, done or skipped",
 			},
 			Models: models,

@@ -37,6 +37,7 @@ Commands:
   skip ID --reason TEXT                 signal that a task is skipped
   notify test [--event NAME]            send a sample of each notification to the configured channels
   adapt [--model sonnet|opus]           AI-assisted conversion with diff review
+        [--plan PATH]
   version                               print the version
 
 Run "igris <command> -h" for the flags of a command.
@@ -90,15 +91,7 @@ func commands() []command {
 			}
 		}, exec: execSkip},
 		{name: "notify", setup: notifyArgs, exec: execNotify},
-		{name: "adapt", setup: func(fs *flag.FlagSet) func([]string) error {
-			model := fs.String("model", "", "model to use: sonnet|opus")
-			return func(args []string) error {
-				if *model != "" && *model != "sonnet" && *model != "opus" {
-					return fmt.Errorf("invalid --model %q (want sonnet|opus)", *model)
-				}
-				return atMost(args, 0)
-			}
-		}},
+		{name: "adapt", setup: adaptArgs, exec: execAdapt},
 	}
 }
 

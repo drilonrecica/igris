@@ -55,7 +55,7 @@ func TestOpenCreatesPrivateDirs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, dir := range []string{d.Path(), d.SignalsDir(), d.PromptsDir()} {
+	for _, dir := range []string{d.Path(), d.SignalsDir(), d.PromptsDir(), d.AdaptDir()} {
 		if got := perm(t, dir); got != 0o700 {
 			t.Errorf("%s perm = %o, want 700", dir, got)
 		}

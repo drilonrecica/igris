@@ -108,7 +108,11 @@ A plan is a markdown file (default `tasks.md`) with one task table per `##` phas
 - **Owner:** `agent`, `agent + user` (the agent must get your decision or sign-off), or `user` (your own task: igris pauses until you mark it done).
 - **Optional `Mode` column** to force a mode per task (e.g. `plan` for design-heavy tasks).
 
-Different format? Run **`igris adapt`**: a Claude session (Sonnet or Opus) converts your plan into the canonical format, you review the diff, and nothing changes unless you accept. It never invents models; missing ones are flagged for you.
+### Different format? `igris adapt`
+
+`igris adapt` converts a plan igris can't read into the canonical format. It opens one Claude Code session (in herdr, mode default) with `adapt.model` from `igris.toml` (`sonnet` by default; `--model opus` for a hard one) and `--plan PATH` for a plan other than the configured one. The session gets the format, `igris check`'s complaints and your `[models]`, writes the converted copy to `.igris/adapt/<plan>.proposed.md`, and finishes with `igris done ADAPT`. It may ask you things in its pane, like any igris session.
+
+It keeps every task, ID, description, dependency, status and model; it only restructures. It never invents models: a task without a usable one gets Model `?` and is listed under `## Adapt notes` at the end, and `igris check` keeps rejecting it until you fill it in. Your plan stays untouched: igris validates the proposal and prints the result; compare the two files and copy the proposal over your plan when it looks right. `adapt` can't run while `igris arise` runs in the project, and `Ctrl-C` stops waiting without closing the session.
 
 ## Verification and commits
 

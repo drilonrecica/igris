@@ -10,6 +10,7 @@ import (
 
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/plan"
+	"github.com/drilonrecica/igris/internal/prompt"
 	"github.com/drilonrecica/igris/internal/state"
 )
 
@@ -46,11 +47,16 @@ func sendSignal(action, id, note string, stdout, stderr io.Writer) int {
 	case err != nil:
 		return fail("%v", err)
 	}
+	// The adapt session finishes with `igris done ADAPT` (SPEC §9). Its
+	// plan doesn't validate and may not be the configured one, so ADAPT is
+	// accepted without the plan, unless the plan has a task of that ID.
 	p, err := plan.Load(rootPath(root, cfg.Plan), plan.Options{Columns: cfg.Columns})
-	if err != nil {
+	adapting := action == state.ActionDone && id == prompt.AdaptID && (err != nil || p.Task(id) == nil)
+	switch {
+	case adapting:
+	case err != nil:
 		return fail("%v; set plan in %s", err, state.ConfigFile)
-	}
-	if p.Task(id) == nil {
+	case p.Task(id) == nil:
 		return fail("task %q is not in %s; check the ID with `igris status`", id, p.Path)
 	}
 	dir, err := state.Open(root, state.Options{})
