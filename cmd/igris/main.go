@@ -45,7 +45,6 @@ Run "igris <command> -h" for the flags of a command.
 type command struct {
 	name  string
 	setup func(fs *flag.FlagSet) (validate func(args []string) error)
-	run   func(stdout, stderr io.Writer) int
 }
 
 var runModes = []string{"default", "accept", "auto", "plan", "yolo"}

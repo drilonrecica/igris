@@ -1,0 +1,24 @@
+version: "2"
+
+# Conservative set (AGENTS §3): correctness and security only, no style linters.
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gosec
+  settings:
+    errcheck:
+      # Writing to stdout/stderr is the CLI's output channel; there is nothing
+      # useful to do when it fails. Other write errors must still be handled.
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+
+formatters:
+  enable:
+    - gofmt
