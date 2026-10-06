@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -4 68 68" width="256" height="256" role="img" aria-labelledby="t">
+  <title id="t">igris</title>
+  <defs>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="halo" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="3"/></filter>
+  </defs>
+  <path fill="#E3172B" d="M33.5 6.5C38 -0.5 49 -1.5 54.5 5.5C59 11.5 56.5 19 62.5 28.5C55.5 24 53 18 51.5 12.5C49.5 6.5 42 3.5 35.5 8.5Z"/>
+  <path fill="none" stroke="#E3172B" stroke-width="1.5" stroke-linecap="round" opacity=".75" d="M36.5 9.5C43 5.5 49.5 8 50.5 14C51.5 20 50 24.5 55.5 31"/>
+  <path fill="#0E1730" d="M32 4L18 12L12 28L14 44L22 56L32 61Z"/>
+  <path fill="#05070F" d="M32 4L46 12L52 28L50 44L42 56L32 61Z"/>
+  <path fill="none" stroke="#0A86C8" stroke-width="2" stroke-linejoin="round" d="M32 4L46 12L52 28L50 44L42 56L32 61L22 56L14 44L12 28L18 12Z"/>
+  <path fill="none" stroke="#0A86C8" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.75" d="M32 4V27"/>
+  <path fill="none" stroke="#0A86C8" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity="0.5" d="M18 12L23 27M46 12L41 27M12 28L17 33M52 28L47 33"/>
+  <path fill="none" stroke="#0A86C8" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" d="M19 43L32 47L45 43M21 49L32 53L43 49M25 55L32 57.5L39 55"/>
+  <ellipse filter="url(#halo)" fill="#0A9BE6" opacity=".35" cx="32" cy="34" rx="17" ry="4"/>
+  <path filter="url(#glow)" fill="#0A9BE6" d="M16 29L30 32.5L32 35L34 32.5L48 29L47 33.5L34 37L32 39.5L30 37L17 33.5Z"/>
+  <path fill="#8FE3FF" d="M20 31.2L30 33.6L32 35.6L34 33.6L44 31.2L44 32.2L34 35L32 37L30 35L20 32.2Z"/>
+</svg>

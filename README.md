@@ -1,6 +1,13 @@
-# igris
+<p align="center"><img src="docs/brand/igris-icon.svg" alt="" width="96" height="96"></p>
 
-> *Arise.* One task, one fresh session, the right rank.
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/igris-logo-dark.svg">
+    <img src="docs/brand/igris-logo-light.svg" alt="igris" height="96">
+  </picture>
+</h1>
+
+<p align="center"><em>Arise.</em> One task, one fresh session, the right rank.</p>
 
 **igris** runs the tasks in your markdown project plan **one at a time**, each in a **fresh Claude Code session**, started with **exactly the model your plan assigns to that task**.
 
