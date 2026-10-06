@@ -128,6 +128,13 @@ var (
 	}
 )
 
+// ForbiddenExtraArg reports whether arg (a flag, optionally as --flag=value)
+// is one igris sets itself and claude.extra_args must not contain (SPEC §7.4).
+func ForbiddenExtraArg(arg string) bool {
+	name, _, _ := strings.Cut(arg, "=")
+	return contains(forbiddenArg, name)
+}
+
 func defaultEvents() []string {
 	return []string{"needs_input", "session_lost", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"}
 }
@@ -234,8 +241,7 @@ func (c *Config) Validate() error {
 	}
 
 	for _, arg := range c.Claude.ExtraArgs {
-		name, _, _ := strings.Cut(arg, "=")
-		if contains(forbiddenArg, name) {
+		if ForbiddenExtraArg(arg) {
 			add("claude.extra_args contains %q, which igris sets itself (SPEC §7.4); remove it", arg)
 		}
 	}

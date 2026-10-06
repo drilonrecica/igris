@@ -273,3 +273,14 @@ func TestLoad(t *testing.T) {
 		t.Fatalf("error should name the file: %v", err)
 	}
 }
+
+func TestForbiddenExtraArg(t *testing.T) {
+	for arg, want := range map[string]bool{
+		"--model": true, "--model=haiku": true, "--resume": true, "--append-system-prompt-file=x": true,
+		"--verbose": false, "--add-dir": false, "": false,
+	} {
+		if got := ForbiddenExtraArg(arg); got != want {
+			t.Errorf("ForbiddenExtraArg(%q) = %v, want %v", arg, got, want)
+		}
+	}
+}
