@@ -23,6 +23,7 @@ These rules apply to every coding agent working in this repository (Claude Code 
   - `internal/backend/` — `Backend`/`Session` interfaces; `herdr/`, `fake/`
   - `internal/notify/` — backend toast, ntfy, Discord
   - `internal/state/` — `.igris/` state, lock, run log
+  - `internal/runner/` — injectable command runner (argv, timeouts); fake for tests
   - `internal/config/` — `igris.toml`
   - `internal/tui/` — Bubble Tea UI
   - `internal/adapt/` — `igris adapt`
