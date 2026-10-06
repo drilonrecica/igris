@@ -121,3 +121,19 @@ gh repo edit drilonrecica/igris \
 ```
 
 The current description is also fine; this is a naming/branding call for the owner.
+
+## P0-06 — Default task prompt
+
+**Draft, committed for owner review of the wording** (2026-10-06). Files:
+
+- `internal/prompt/rules.md` — the igris rules, written to `.igris/prompts/<ID>.rules.md` and passed with `--append-system-prompt-file` (P0-02/P0-03). Static on purpose: no template variables, so they stay correct even after the first message is compacted away. They state that they override plan/AGENTS/CLAUDE rules (notably "agent updates Status").
+- `internal/prompt/task.md.tmpl` — `text/template` with exactly the SPEC §6.1 variables; sent as the first user message via `herdr agent prompt`. Conditional blocks:
+  - `Resumed` → inspect `git status`/`git diff` and continue; with `commit = never` it adds that the diff may contain earlier tasks' changes.
+  - `CommitPolicy` `never` → don't commit and leave earlier uncommitted changes alone; otherwise "igris commits after verification".
+  - `Owner == "agent + user"` → present recommendation/result and wait for explicit decision/sign-off before finishing.
+  - `Deps` and `Extra` are listed only when present.
+
+Design choices:
+- The non-negotiable parts (one task, no Status edits, no commits, ask-and-wait, `igris done` last, no self-initiated `igris skip`, fix-the-cause on verify feedback) are in the rules *and* briefly restated in the task prompt where they depend on per-run values.
+- No template functions are used, so a custom `prompt_template` override needs nothing beyond stock `text/template`.
+- Rendered with a scratch program for fresh/resumed × `ask`/`never` × `agent`/`agent + user`: no `<no value>`, no double blank lines. M2-04 turns this into golden tests.

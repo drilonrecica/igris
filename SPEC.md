@@ -164,6 +164,8 @@ Two parts (§6 steps 4–5):
 - **Igris rules** — the fixed, non-negotiable part (exactly one task, don't edit Status, how and when to run `igris done`, ask the owner when blocked). Passed with `--append-system-prompt-file` (verified in P0-03; accepted by Claude Code 2.1.291 though absent from `--help`) so they survive context compaction in long sessions.
 - **Task prompt** — the first user message (sent via the backend's prompt call, multi-line OK), built from a Go `text/template`. The default template ships embedded; the owner can override it with `prompt_template` in config. Variables: `ID`, `Title`, `Text` (full Task cell), `Phase`, `PhaseTitle`, `Rank`, `Model`, `Owner`, `Deps`, `Extra` (map of extra columns, e.g. `Spec`), `PlanFile`, `Resumed` (bool), `CommitPolicy`, `DoneCommand`.
 
+Defaults live in `internal/prompt/rules.md` (static, no template variables, so the rules hold after compaction) and `internal/prompt/task.md.tmpl` (P0-06).
+
 The default prompt must tell the session:
 - It is working on **exactly one task** (`ID — Title`) as part of an automated sequential run; do nothing beyond it.
 - Read the project's agent rules (`CLAUDE.md`/`AGENTS.md` if present), the task's row in the plan, and any referenced specs before changing anything.
