@@ -81,3 +81,20 @@ Verified on herdr 0.9.1 (server running, `private_protocol` 22) from inside a he
 4. `herdr integration install claude` stays a recommendation in `init`/`check` (optional), matching §11.2.
 
 Open for the owner: whether to run `herdr integration install claude` on this machine.
+
+## P0-04 — Release tooling
+
+Requirements (SPEC §18): static `CGO_ENABLED=0` binaries for linux/darwin × amd64/arm64, checksums, `make release-local`, never publish automatically, `go install …/cmd/igris@latest` keeps working.
+
+| Option | Pros | Cons |
+|---|---|---|
+| **GoReleaser** (already installed on the owner's machine) | One declarative `.goreleaser.yaml`; cross-compiles all four targets, archives, `checksums.txt`, `--snapshot` for local dry runs, changelog; can add Homebrew tap/signing later with a few lines | One more dev tool (not a Go dependency, so AGENTS §4 is unaffected); config schema changes between majors |
+| Plain release script | No tooling | ~40 lines of bash to re-implement archive naming, checksums, ldflags; more room for platform bugs |
+
+**Recommendation: GoReleaser.**
+- Config: `builds` with `CGO_ENABLED=0`, `goos: [linux, darwin]`, `goarch: [amd64, arm64]`, `-s -w` plus `-X main.version={{.Version}}`; `archives` tar.gz with LICENSE/README; `checksum: checksums.txt` (sha256). `release.disable: true` / run with `--skip=publish` so tooling never publishes; the owner creates the GitHub Release and uploads `dist/*` (M7-07).
+- `make release-local` = `goreleaser release --snapshot --clean`; run `goreleaser check` as part of it.
+- **Signing: no for v0.1.0.** Checksums protect against corruption, and `go install` provides module-proxy/checksum-db verification. Revisit with keyless cosign if/when CI publishes (P0-07).
+- **Homebrew tap: later** (post-v1); GoReleaser's `brews` section can be added without changing the pipeline.
+
+SPEC §18 amended accordingly. Awaiting owner approval of the GoReleaser choice (task M7-03 implements it).
