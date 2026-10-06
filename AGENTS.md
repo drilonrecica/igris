@@ -3,14 +3,15 @@
 These rules apply to every coding agent working in this repository (Claude Code reads them via `CLAUDE.md`).
 
 ## 1. Sources of truth
-- `SPEC.md` is normative. If code and spec disagree, the spec wins until amended through a `P0`-style decision task in `tasks.md`.
-- `tasks.md` is the implementation plan. Work only on the task you were given. Don't start adjacent tasks, even small ones.
+- `SPEC.md` is normative. If code and spec disagree, the spec wins until amended through a `P0`-style decision task in `imp-docs/tasks.md`.
+- `imp-docs/tasks.md` is the implementation plan (private, gitignored). Work only on the task you were given. Don't start adjacent tasks, even small ones.
 - If the spec is ambiguous or seems wrong, stop and ask the owner. Don't silently pick an interpretation.
 
 ## 2. Task workflow
-- Before changing anything: read this file, `SPEC.md` sections relevant to the task, and the task's row in `tasks.md`.
+- Before changing anything: read this file, `SPEC.md` sections relevant to the task, and the task's row in `imp-docs/tasks.md`.
 - Definition of done for any task: code + tests + `make fmt lint test` green + `SPEC.md`/`README.md` updated in the same change if behavior changed.
 - **Status column:** when the task is run by igris itself, igris owns the Status column — don't edit it. When the owner runs a task manually (before igris can run itself, i.e. before M3 is done), update the task's Status and flip dependents to `ready` when all their deps are `done`/`skipped`.
+- **Trunk-based development:** commit directly on `master`. Don't create branches, worktrees or PRs unless the owner explicitly asks for one. Keep each commit small and green (`make fmt lint test` passes) so `master` is always releasable.
 - Commit only when the owner asks. Commit messages: `<TASK-ID>: <short summary>`.
 
 ## 3. Go conventions

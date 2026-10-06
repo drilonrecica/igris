@@ -6,7 +6,7 @@
 
 You write the plan. You decide which tasks need Fable, which need Opus and which are fine on Sonnet. Igris makes sure that's what actually happens: it never runs a Sonnet task on a more expensive model, never lets one task's context bleed into the next, and stops to wait for you whenever a task needs a decision.
 
-> **Status:** early development. v0.1.0 is not released yet. This README describes the planned v1 behavior; see [`SPEC.md`](SPEC.md) and [`tasks.md`](tasks.md).
+> **Status:** early development. v0.1.0 is not released yet. This README describes the planned v1 behavior; see [`SPEC.md`](SPEC.md).
 
 ---
 
@@ -24,7 +24,7 @@ igris arise M0
 2. Opens a new pane and starts Claude Code with that task's model (`--model sonnet`, `opus`, `fable`, …).
 3. Hands it the task, the plan and your project rules.
 4. If Claude needs you — a decision, an approval, a plan to review — igris waits and notifies you.
-5. When the task is truly done, Claude runs `igris done M0-03`. Igris optionally runs your checks, marks the task `done`, unblocks dependents, closes the session.
+5. When the task is truly done, Claude runs `igris done M0-03`. Igris optionally runs your checks, offers to commit, marks the task `done`, unblocks dependents, closes the session.
 6. Starts a fresh session for the next task. Repeat until the phase is finished.
 
 Strictly sequential. Deterministic. No LLM decides which model runs what.
@@ -99,6 +99,7 @@ Choose the permission mode in the TUI, per run or per task:
 |---|---|
 | Default | Your normal Claude Code permission prompts. |
 | Accept edits | Edits are accepted automatically. |
+| Auto | Claude Code approves routine actions itself and asks you about risky ones. |
 | Plan | Claude plans first; you approve the plan, then it implements. |
 | Skip permissions | `--dangerously-skip-permissions`. Needs typed confirmation every run, and shows a red badge while active. Use it in a worktree or container you trust. |
 
