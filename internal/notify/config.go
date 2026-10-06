@@ -9,8 +9,9 @@ import (
 // out when it is off or not set up: the backend toast when disabled, ntfy
 // without a topic, Discord without a webhook URL, and any channel whose
 // events list is empty. secrets holds the resolved env: references; every
-// value is scrubbed from the errors the router reports.
-func FromConfig(c config.Notify, s config.Secrets, be backend.Backend) *Router {
+// value is scrubbed from the errors the router reports. tune adjusts the
+// router's Options last (tests use it to avoid real sleeps).
+func FromConfig(c config.Notify, s config.Secrets, be backend.Backend, tune ...func(*Options)) *Router {
 	var entries []Entry
 	if c.Backend.Enabled && be != nil {
 		entries = append(entries, Entry{Channel: Toast{Backend: be}, Events: AllEvents})
@@ -27,7 +28,11 @@ func FromConfig(c config.Notify, s config.Secrets, be backend.Backend) *Router {
 			Events:  toEvents(c.Discord.Events),
 		})
 	}
-	return New(Options{Channels: entries, Secrets: []string{s.NtfyToken, s.DiscordWebhook}})
+	o := Options{Channels: entries, Secrets: []string{s.NtfyToken, s.DiscordWebhook}}
+	for _, f := range tune {
+		f(&o)
+	}
+	return New(o)
 }
 
 func toEvents(names []string) []Event {
