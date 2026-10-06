@@ -114,11 +114,13 @@ type Engine struct {
 	wake  chan struct{} // poked by Send
 
 	// Only touched by the goroutine in Run.
-	run   *state.Run // state.json
-	phase string     // current phase
-	task  *launch    // current task; nil between tasks
-	pause bool       // pause-after-task is on
-	stop  bool       // the owner asked to stop
+	run      *state.Run      // state.json
+	phase    string          // current phase
+	task     *launch         // current task; nil between tasks
+	pause    bool            // pause-after-task is on
+	stop     bool            // the owner asked to stop
+	pending  []Command       // task-scoped commands not handled yet
+	reported map[string]bool // keys of the signals and problems reported once
 }
 
 // New checks opts and returns an engine. It does no I/O.
@@ -154,6 +156,7 @@ func New(opts Options) (*Engine, error) {
 		planOpts: plan.Options{Columns: opts.Config.Columns},
 		conf:     newConfigWatch(filepath.Join(root, state.ConfigFile), opts.Config),
 		wake:     make(chan struct{}, 1),
+		reported: map[string]bool{},
 	}
 	e.writer = plan.NewWriter(e.planPath, e.planOpts, e.cfg.Models)
 	return e, nil
@@ -305,6 +308,9 @@ func (e *Engine) runPhase(ctx context.Context, id string) (Result, error) {
 		if e.stopping(ctx) {
 			res.Outcome = Stopped
 			return res, nil
+		}
+		for _, c := range e.takeCommands() {
+			e.reject(c, "no task is running")
 		}
 		p, err := e.loadPlan()
 		if err != nil {

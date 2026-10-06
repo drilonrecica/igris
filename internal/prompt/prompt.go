@@ -23,6 +23,15 @@ var defaultTemplate string
 // They are static (no template variables) so they hold after compaction.
 func Rules() string { return rules }
 
+// Continue returns the first prompt of a session that continues an earlier
+// conversation about task id (`claude --resume`). The conversation already
+// holds the task prompt, so this only says how to go on.
+func Continue(id string) string {
+	return "igris reopened this conversation after the previous session of task " + id + " ended. " +
+		"Continue the task where you left off: check `git status` and `git diff` first. " +
+		"When the task is done and nothing waits on the owner, run `igris done " + id + " --note \"<one-line summary>\"` as your very last action.\n"
+}
+
 // Vars are the template variables of the task prompt (SPEC §6.1).
 type Vars struct {
 	ID           string

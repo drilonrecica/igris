@@ -740,26 +740,6 @@ func TestStaleSignalIsNotApplied(t *testing.T) {
 	}
 }
 
-// A skip signal from an agent session is a request the owner has to confirm
-// (SPEC §6.2); until that exists the signal is kept and nothing happens.
-func TestSkipSignalIsNotApplied(t *testing.T) {
-	h := newHarness(t, chainPlan, "")
-	h.be.SetAutoSignal(func(_ context.Context, id string) error {
-		return h.dir.WriteSignal(state.Signal{ID: id, Action: state.ActionSkip, Note: "not needed"})
-	})
-	h.clock.At(6*time.Second, func() { h.eng.Send(Command{Kind: CmdStop}) })
-	res, err := h.run()
-	if err != nil || res.Outcome != Stopped {
-		t.Fatalf("Run = %s, %v; want stopped", res.Outcome, err)
-	}
-	if got := h.statuses(); !strings.HasPrefix(got, "A-1=in progress") {
-		t.Errorf("statuses = %s", got)
-	}
-	if sig, err := h.dir.ReadSignal("A-1"); err != nil || sig == nil {
-		t.Errorf("skip signal not kept: %+v, %v", sig, err)
-	}
-}
-
 func TestOpenSessionFailure(t *testing.T) {
 	h := newHarness(t, chainPlan, "")
 	h.be.FailOpen(errors.New("no pane for you"))
@@ -790,22 +770,6 @@ func TestOpenSessionFailure(t *testing.T) {
 		t.Errorf("run_error event = %+v", ev)
 	}
 	h.assertUnlocked()
-}
-
-func TestPromptFailure(t *testing.T) {
-	h := newHarness(t, chainPlan, "")
-	h.onEvent = func(ev Event) {
-		if ev.Kind == SessionOpened {
-			h.be.Kill(*ev.Session) // the pane closes before the prompt is sent
-		}
-	}
-	_, err := h.run()
-	if !errors.Is(err, backend.ErrSessionGone) {
-		t.Fatalf("err = %v, want ErrSessionGone", err)
-	}
-	if got := h.statuses(); !strings.HasPrefix(got, "A-1=in progress A-2=blocked") {
-		t.Errorf("statuses = %s", got)
-	}
 }
 
 // The owner finishes a task by hand between selection and igris's write:

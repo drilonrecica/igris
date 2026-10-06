@@ -16,16 +16,41 @@ import (
 // since it was selected; the loop then selects again from the fresh plan.
 var errReselect = errors.New("task changed since it was selected")
 
+// closeIdleWait bounds how long igris waits for an accepted task's agent to
+// finish its final message before closing the pane (SPEC §6.6).
+const closeIdleWait = 30 * time.Second
+
 // launch is the task the run is working on, with what was resolved for it.
 type launch struct {
 	t     *plan.Task
 	model string
 	mode  string
+	cur   *state.Current  // the task's record in state.json
+	sess  backend.Session // nil until a session is open
+	lost  bool            // the session is gone; the owner decides what's next
 }
 
 func (l *launch) fill(ev Event) Event {
 	ev.Task, ev.Title, ev.Rank, ev.Model, ev.Mode = l.t.ID, l.t.Title, l.t.Rank, l.model, l.mode
 	return ev
+}
+
+// startKind says how a session for a task starts.
+type startKind int
+
+const (
+	startNew      startKind = iota // first session of the task
+	startFresh                     // a new conversation for a task worked on before (Resumed=true)
+	startContinue                  // the previous conversation goes on (claude --resume)
+)
+
+// sessionStart is everything resolved for one session launch.
+type sessionStart struct {
+	how       startKind
+	mode      string
+	sessionID string
+	args      []string
+	text      string // the first prompt
 }
 
 // runTask runs one agent task from launch to acceptance (SPEC §6). stopped
@@ -51,38 +76,14 @@ func (e *Engine) runTask(ctx context.Context, t *plan.Task) (stopped bool, err e
 	if l.model, ok = e.cfg.Models[t.Rank]; !ok {
 		return false, fmt.Errorf("task %s: unknown model rank %q; add it to [models] in igris.toml", t.ID, t.Rank)
 	}
-	if l.mode, err = e.modeFor(t); err != nil {
-		return false, err
-	}
-	text, err := prompt.Render(prompt.VarsFor(t, prompt.Env{
-		Model:        l.model,
-		PlanFile:     e.cfg.Plan,
-		CommitPolicy: e.cfg.Run.Commit,
-	}), e.templatePath())
+	l.cur = &state.Current{TaskID: t.ID, StartedAt: e.clock.Now()}
+	start, err := e.prepareSession(l, startNew)
 	if err != nil {
 		return false, err
 	}
-	sessionID, err := NewSessionID()
-	if err != nil {
-		return false, err
-	}
-	rules, err := e.dir.WriteRules(t.ID, prompt.Rules())
-	if err != nil {
-		return false, err
-	}
-	args, err := ClaudeArgs(ClaudeParams{
-		Model:     l.model,
-		SessionID: sessionID,
-		Mode:      l.mode,
-		RulesFile: rules,
-		ExtraArgs: e.cfg.Claude.ExtraArgs,
-	})
-	if err != nil {
-		return false, err
-	}
+	l.mode, l.cur.Mode, l.cur.ClaudeSession = start.mode, start.mode, start.sessionID
 
-	cur := &state.Current{TaskID: t.ID, Mode: l.mode, ClaudeSession: sessionID, StartedAt: e.clock.Now()}
-	e.run.Current = cur
+	e.run.Current = l.cur
 	if err := e.dir.SaveRun(e.run); err != nil {
 		return false, err
 	}
@@ -113,36 +114,124 @@ func (e *Engine) runTask(ctx context.Context, t *plan.Task) (stopped bool, err e
 	e.log(state.Event{Type: state.EventTaskStarted, Detail: "mode " + l.mode})
 	e.emit(Event{Kind: TaskStarted, Changes: changes})
 
+	if err := e.openSession(ctx, l, start); err != nil {
+		return false, err
+	}
+	return e.drive(ctx, l)
+}
+
+// prepareSession resolves the mode, session ID, arguments and first prompt
+// of a session for l's task. It writes only the rules file.
+func (e *Engine) prepareSession(l *launch, how startKind) (sessionStart, error) {
+	t := l.t
+	st := sessionStart{how: how}
+	var err error
+	if st.mode, err = e.modeFor(t); err != nil {
+		return st, err
+	}
+	if how == startContinue {
+		st.sessionID = l.cur.ClaudeSession
+		st.text = prompt.Continue(t.ID)
+	} else {
+		if st.sessionID, err = NewSessionID(); err != nil {
+			return st, err
+		}
+		st.text, err = prompt.Render(prompt.VarsFor(t, prompt.Env{
+			Model:        l.model,
+			PlanFile:     e.cfg.Plan,
+			CommitPolicy: e.cfg.Run.Commit,
+			Resumed:      how == startFresh,
+		}), e.templatePath())
+		if err != nil {
+			return st, err
+		}
+	}
+	rules, err := e.dir.WriteRules(t.ID, prompt.Rules())
+	if err != nil {
+		return st, err
+	}
+	st.args, err = ClaudeArgs(ClaudeParams{
+		Model:     l.model,
+		SessionID: st.sessionID,
+		Mode:      st.mode,
+		RulesFile: rules,
+		ExtraArgs: e.cfg.Claude.ExtraArgs,
+		Resume:    how == startContinue,
+	})
+	return st, err
+}
+
+// openSession opens a session for l as prepared in st, records it in
+// state.json and submits the first prompt. A session that is gone before
+// the prompt arrives leaves l lost rather than failing the run (SPEC §11.1).
+func (e *Engine) openSession(ctx context.Context, l *launch, st sessionStart) error {
+	t := l.t
+	l.mode, l.cur.Mode, l.cur.ClaudeSession, l.cur.Session = st.mode, st.mode, st.sessionID, nil
+	l.sess, l.lost = nil, false
+	if err := e.dir.SaveRun(e.run); err != nil {
+		return err
+	}
 	sess, err := e.be.OpenSession(ctx, backend.SessionSpec{
 		TaskID: t.ID,
 		Dir:    e.dir.Root(),
 		Label:  t.ID + " · " + t.Rank,
-		Args:   args,
+		Args:   st.args,
 	})
 	if err != nil {
-		return false, fmt.Errorf("start the session for %s: %w", t.ID, err)
+		return fmt.Errorf("start the session for %s: %w", t.ID, err)
 	}
+	l.sess = sess
 	ref := sess.Ref()
-	cur.Session = &ref
+	l.cur.Session = &ref
 	if err := e.dir.SaveRun(e.run); err != nil {
-		return false, err
+		return err
 	}
 	opened := ref
 	e.emit(Event{Kind: SessionOpened, Session: &opened})
 
 	// The prompt is submitted, never passed as an argument (SPEC §6, §11.2).
-	if err := sess.Prompt(ctx, text); err != nil {
-		return false, fmt.Errorf("send the task prompt to %s: %w", t.ID, err)
+	switch err := sess.Prompt(ctx, st.text); {
+	case errors.Is(err, backend.ErrSessionGone):
+		e.lose(ctx, l)
+	case err != nil:
+		return fmt.Errorf("send the task prompt to %s: %w", t.ID, err)
 	}
+	return nil
+}
 
-	sig, err := e.watch(ctx, t, cur.StartedAt)
+// drive watches l's session until the task is finished or the run stops.
+func (e *Engine) drive(ctx context.Context, l *launch) (stopped bool, err error) {
+	v, err := e.watch(ctx, l)
 	if err != nil {
 		return false, err
 	}
-	if sig == nil {
-		return true, nil
+	switch v.kind {
+	case verdictDone:
+		return false, e.finish(ctx, l, plan.Done, v.note)
+	case verdictSkip:
+		return false, e.finish(ctx, l, plan.Skipped, v.note)
 	}
-	return false, e.accept(ctx, t, sess, sig)
+	return true, nil
+}
+
+// retry replaces l's session (SPEC §6.3, §15.3 `r`): the old one is closed
+// and a new one continues the conversation or starts fresh.
+func (e *Engine) retry(ctx context.Context, l *launch, cont bool) error {
+	how, detail := startFresh, "fresh"
+	if cont {
+		how, detail = startContinue, "continue"
+	}
+	e.emit(Event{Kind: Retrying, Detail: detail})
+	if l.sess != nil {
+		if err := l.sess.Close(ctx); err != nil {
+			e.warn(fmt.Sprintf("close the session of %s: %v; close its pane by hand", l.t.ID, err))
+		}
+	}
+	st, err := e.prepareSession(l, how)
+	if err != nil {
+		return err
+	}
+	return e.openSession(ctx, l, st)
 }
 
 // templatePath is the owner's prompt template; "" means the built-in one.
@@ -153,63 +242,54 @@ func (e *Engine) templatePath() string {
 	return inRoot(e.dir.Root(), e.cfg.Run.PromptTemplate)
 }
 
-// watch waits for the task's done signal and returns it; a nil signal means
-// the run was stopped. Igris advances on a signal only, never on what the
-// session looks like (SPEC §6.3).
-//
-// A signal written before the task started (an early `igris done`) is not
-// this session's work: it is kept and reported once, never applied
-// (SPEC §6.2). A skip signal is a request the owner has to confirm, so it is
-// left in place too.
-func (e *Engine) watch(ctx context.Context, t *plan.Task, started time.Time) (*state.Signal, error) {
-	staleReported := false
-	unreadable := "" // the last signal read error reported
-	for {
-		e.checkConfig(ctx) // before the signal, so a config edit is seen before the task is accepted
-		if e.stopping(ctx) {
-			return nil, nil
-		}
-		sig, err := e.dir.ReadSignal(t.ID)
-		switch {
-		case err != nil:
-			if msg := err.Error(); msg != unreadable {
-				unreadable = msg
-				e.warn(msg)
-			}
-		case sig == nil:
-		case sig.At.Before(started):
-			if !staleReported {
-				staleReported = true
-				e.emit(Event{Kind: StaleSignal, Detail: fmt.Sprintf("ignoring a %s signal for %s written before the task started; run `igris %s %s` again if it is meant", sig.Action, t.ID, sig.Action, t.ID)})
-			}
-		case state.Classify(*sig, t.ID, t.Owner) == state.Apply:
-			return sig, nil
-		}
-		e.wait(ctx, e.cfg.PollInterval.Std())
-	}
-}
-
-// accept finishes a task whose done signal arrived: mark it done, unblock
-// its dependents, log it, drop the signal and close the session.
-func (e *Engine) accept(ctx context.Context, t *plan.Task, sess backend.Session, sig *state.Signal) error {
+// finish marks a task done or skipped, unblocks its dependents, logs it,
+// drops its signal and closes its session.
+func (e *Engine) finish(ctx context.Context, l *launch, to plan.Status, note string) error {
+	t := l.t
 	changes, err := e.writer.Update(ctx, func(p *plan.Plan) ([]plan.Change, error) {
-		return p.Sync(t.ID, plan.Done)
+		return p.Sync(t.ID, to)
 	})
 	if err != nil {
 		return err
 	}
-	e.log(state.Event{Type: state.EventTaskDone, Detail: sig.Note})
+	logType, kind := state.EventTaskDone, TaskDone
+	if to == plan.Skipped {
+		logType, kind = state.EventTaskSkipped, TaskSkipped
+	}
+	e.log(state.Event{Type: logType, Detail: note})
 	if err := e.dir.RemoveSignal(t.ID); err != nil {
 		return err
 	}
-	if err := sess.Close(ctx); err != nil {
-		e.warn(fmt.Sprintf("close the session of %s: %v; close its pane by hand", t.ID, err))
+	if l.sess != nil && !l.lost {
+		if to == plan.Done {
+			// Let the agent finish its final message (SPEC §6.6).
+			e.settle(ctx, l.sess, closeIdleWait)
+		}
+		if err := l.sess.Close(ctx); err != nil {
+			e.warn(fmt.Sprintf("close the session of %s: %v; close its pane by hand", t.ID, err))
+		}
 	}
 	e.run.Current = nil
 	if err := e.dir.SaveRun(e.run); err != nil {
 		return err
 	}
-	e.emit(Event{Kind: TaskDone, Detail: sig.Note, Changes: changes})
+	e.emit(Event{Kind: kind, Detail: note, Changes: changes})
 	e.task = nil
 	return nil
+}
+
+// settle waits up to max for sess to stop working: idle, done, blocked or
+// gone. A state it can't read counts as not settled.
+func (e *Engine) settle(ctx context.Context, sess backend.Session, max time.Duration) {
+	deadline := e.clock.Now().Add(max)
+	for {
+		st, err := sess.State(ctx)
+		if ctx.Err() != nil || (err == nil && (st.Settled() || st == backend.Exited)) {
+			return
+		}
+		if !e.clock.Now().Before(deadline) {
+			return
+		}
+		e.wait(ctx, e.cfg.PollInterval.Std())
+	}
 }

@@ -17,11 +17,45 @@ const (
 	// CmdStop ends the run now. A running session is left open and the state
 	// is kept, so a later `igris arise` can pick it up (SPEC §13).
 	CmdStop
+	// CmdDone marks the current task done; Text is the note. It is the
+	// owner's decision, so verification is skipped.
+	CmdDone
+	// CmdSkip skips the current task; Text is the reason. For an agent task
+	// the UI confirms before sending it; the engine applies it directly.
+	CmdSkip
+	// CmdRetry closes the current task's session and opens a new one: with
+	// Continue the previous conversation goes on (`claude --resume`),
+	// otherwise a fresh session starts with Resumed=true.
+	CmdRetry
+	// CmdAnswer answers the pending question (see Question); Yes is the
+	// answer.
+	CmdAnswer
 )
+
+func (k CommandKind) String() string {
+	switch k {
+	case CmdPause:
+		return "pause"
+	case CmdStop:
+		return "stop"
+	case CmdDone:
+		return "done"
+	case CmdSkip:
+		return "skip"
+	case CmdRetry:
+		return "retry"
+	case CmdAnswer:
+		return "answer"
+	}
+	return "unknown"
+}
 
 // Command is an owner action sent to a running engine.
 type Command struct {
-	Kind CommandKind
+	Kind     CommandKind
+	Text     string // CmdDone: the note; CmdSkip: the reason
+	Continue bool   // CmdRetry: continue the conversation instead of starting fresh
+	Yes      bool   // CmdAnswer: the answer
 }
 
 // Send queues c for the run. It may be called from any goroutine, including
@@ -36,7 +70,8 @@ func (e *Engine) Send(c Command) {
 	}
 }
 
-// drain applies the queued commands in order.
+// drain applies the queued run-wide commands in order and keeps the
+// task-scoped ones for the loop that is waiting on the current task.
 func (e *Engine) drain() {
 	e.mu.Lock()
 	queue := e.queue
@@ -53,8 +88,22 @@ func (e *Engine) drain() {
 			}
 		case CmdStop:
 			e.stop = true
+		default:
+			e.pending = append(e.pending, c)
 		}
 	}
+}
+
+// takeCommands returns the task-scoped commands received so far.
+func (e *Engine) takeCommands() []Command {
+	cmds := e.pending
+	e.pending = nil
+	return cmds
+}
+
+// reject tells the owner that c can't be used right now.
+func (e *Engine) reject(c Command, why string) {
+	e.warn("ignored " + c.Kind.String() + ": " + why)
 }
 
 // stopping applies pending commands and reports whether the run should end

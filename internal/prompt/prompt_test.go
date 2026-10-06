@@ -143,3 +143,15 @@ func TestRules(t *testing.T) {
 		}
 	}
 }
+
+func TestContinue(t *testing.T) {
+	got := Continue("M0-03")
+	for _, want := range []string{"M0-03", "git status", "igris done M0-03 --note"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("Continue() = %q, missing %q", got, want)
+		}
+	}
+	if strings.Count(got, "\n") != 1 || !strings.HasSuffix(got, "\n") {
+		t.Errorf("Continue() = %q, want a single line", got)
+	}
+}

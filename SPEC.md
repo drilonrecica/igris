@@ -196,9 +196,10 @@ Igris polls the backend every 2 s (configurable) for the pane's agent state and 
 | Signal present | Proceed to verification. |
 | Agent `working` | Clear any "needs you" flag. |
 | Agent `blocked`, `idle` or `done` without a signal for ≥ `needs_input_after` (default 30 s) | Mark the task **Needs you** in the TUI; send a `needs_input` notification once per idle episode. Possible causes: a question, a permission prompt, a plan awaiting approval, a usage limit, or a stall — igris doesn't try to tell them apart. |
-| Pane gone or Claude Code exited without a signal | Mark **Session lost**, notify, and offer: continue the conversation (`claude --resume <uuid>`), retry fresh (`Resumed=true`), mark done, skip, or stop. |
+| Agent `unknown` | Nothing; it says nothing about the agent (e.g. herdr's integration is missing). |
+| Pane gone or Claude Code exited without a signal | Mark **Session lost**, notify, and offer: continue the conversation (`claude --resume <uuid>`, with a short fixed prompt telling the session to pick the task up again), retry fresh (`Resumed=true`), mark done, skip, or stop. A done signal written before the session went away still counts. |
 
-Igris never advances on agent state alone — only on a signal or an explicit owner action.
+Igris never advances on agent state alone — only on a signal or an explicit owner action. A signal for another task, or one igris can't read, is reported once and kept. A skip signal from an agent session is asked about once; declining it deletes the signal and the session carries on.
 
 ### 6.4 Verification
 - Optional `verify` command in config (e.g. `make fmt lint test`), run with `sh -c` in the project root, with a timeout (default 15 min).

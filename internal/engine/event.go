@@ -28,6 +28,13 @@ const (
 	ConfigChanged  EventKind = "config_changed"  // igris.toml differs from the snapshot; needs the owner
 	ConfigRestored EventKind = "config_restored" // igris.toml matches the snapshot again
 	StaleSignal    EventKind = "stale_signal"    // a signal from before the task started was ignored
+	StraySignal    EventKind = "stray_signal"    // a signal for another task (or an unreadable one) is kept, never applied
+	NeedsYou       EventKind = "needs_you"       // the task waits on the owner; Detail says why
+	NeedsYouClear  EventKind = "needs_you_clear" // the agent is working again
+	SessionLost    EventKind = "session_lost"    // the pane is gone or Claude Code exited without a signal
+	Asked          EventKind = "asked"           // Question waits for the owner's answer; Detail is the question
+	Retrying       EventKind = "retrying"        // the session is replaced; Detail is "continue" or "fresh"
+	TaskSkipped    EventKind = "task_skipped"    // Detail is the reason; Changes holds the cells written
 	Warning        EventKind = "warning"         // something failed that doesn't stop the run
 	RunFailed      EventKind = "run_error"       // Detail is the error; the run stops
 	RunStopped     EventKind = "run_stopped"     // the run ended; Detail is the outcome or "error"
@@ -49,7 +56,22 @@ type Event struct {
 	Changes []plan.Change
 	Waiting []plan.Waiting
 	Session *backend.SessionRef
+	// Question is set on Asked events.
+	Question Question
 }
+
+// Question identifies what an Asked event waits for. The owner answers with
+// the commands listed for each.
+type Question string
+
+const (
+	// QuestionConfirmSkip: the agent session asked to skip its task (Detail
+	// is the reason). CmdAnswer yes applies the skip, no discards it.
+	QuestionConfirmSkip Question = "confirm_skip"
+	// QuestionSessionLost: the session is gone. CmdRetry (continue or
+	// fresh), CmdDone, CmdSkip or CmdStop.
+	QuestionSessionLost Question = "session_lost"
+)
 
 // emit stamps ev with the time and the current phase and task and hands it
 // to the UI.
@@ -82,10 +104,11 @@ func (e *Engine) log(ev state.Event) {
 
 // Notification events (SPEC §10) the engine raises so far.
 const (
-	notifyNeedsInput = "needs_input"
-	notifyPhaseDone  = "phase_done"
-	notifyPhaseStuck = "phase_stuck"
-	notifyRunError   = "run_error"
+	notifyNeedsInput  = "needs_input"
+	notifySessionLost = "session_lost"
+	notifyPhaseDone   = "phase_done"
+	notifyPhaseStuck  = "phase_stuck"
+	notifyRunError    = "run_error"
 )
 
 // toast shows a backend notification for a SPEC §10 event, if the backend
