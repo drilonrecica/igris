@@ -55,7 +55,7 @@ var runModes = []string{"default", "accept", "auto", "plan", "yolo"}
 
 func commands() []command {
 	return []command{
-		{name: "init", setup: noFlags(0)},
+		{name: "init", setup: noFlags(0), exec: execInit},
 		{name: "check", setup: planFlags(0), exec: execCheck},
 		{name: "phases", setup: planFlags(0), exec: execPhases},
 		{name: "status", setup: planFlags(1), exec: execStatus},

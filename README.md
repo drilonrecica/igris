@@ -65,7 +65,7 @@ Prebuilt binaries will be on the [Releases](https://github.com/drilonrecica/igri
 
 ```sh
 cd your-project
-igris init          # creates igris.toml and .igris/, adds Claude allow rules for `igris done`
+igris init          # creates igris.toml and .igris/, ignores .igris/ in git, allows `igris done` for Claude
 igris check         # validates your plan
 igris status        # shows phases, tasks, what's ready and what's blocked
 igris arise M0      # runs phase M0 (inside a herdr pane)
@@ -74,6 +74,8 @@ igris arise M0      # runs phase M0 (inside a herdr pane)
 `igris arise M0 --dry-run` shows the launch order with each task's model and mode without starting anything or writing a byte. `igris arise M0 --no-tui` runs with plain log lines instead of the TUI and reads your answers and commands from stdin (`y`/`n`, `done [note]`, `skip <reason>`, `retry [continue|fresh]`, `pause`, `stop`, `mode <m>`, `help`).
 
 Before a run starts, igris warns if `ANTHROPIC_API_KEY` is set (your sessions would bill the API, not your subscription; it asks you to confirm), if the project isn't a git repository, or if the tree has uncommitted changes.
+
+`igris init` is safe to re-run: it never overwrites an existing `igris.toml`, appends to `.gitignore` only if `.igris/` isn't ignored yet, and merges the `Bash(igris done:*)` allow rule into `.claude/settings.local.json` without touching your other settings. `igris skip` is deliberately not allowed, so a session that wants to skip has to ask you.
 
 `check`, `phases` and `status` read your plan without changing it. Each takes `--plan PATH` (default: `plan` in `igris.toml`, else `tasks.md`) and `--json`. `check` exits 0 for a valid plan, 1 for an invalid one, and warns when `ready`/`blocked` cells don't match the dependencies; `phases` lists task counts per phase; `status [PHASE]` lists tasks with rank, owner and what each is waiting on.
 

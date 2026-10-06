@@ -19,7 +19,6 @@ func TestRun(t *testing.T) {
 		{"help word", []string{"help"}, exitOK, "Commands:", ""},
 		{"version", []string{"version"}, exitOK, "igris dev", ""},
 		{"unknown command", []string{"bogus"}, exitUsage, "", "unknown command"},
-		{"init stub", []string{"init"}, exitFail, "", "not implemented"},
 		{"check unknown flag", []string{"check", "--nope"}, exitUsage, "", "flag provided but not defined"},
 		{"check missing plan", []string{"check", "--plan", "/nonexistent/p.md"}, exitFail, "", "read plan"},
 		{"check extra arg", []string{"check", "x"}, exitUsage, "", "unexpected argument"},
