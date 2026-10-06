@@ -35,6 +35,10 @@ const (
 	Asked          EventKind = "asked"           // Question waits for the owner's answer; Detail is the question
 	Retrying       EventKind = "retrying"        // the session is replaced; Detail is "continue" or "fresh"
 	TaskSkipped    EventKind = "task_skipped"    // Detail is the reason; Changes holds the cells written
+	VerifyStarted  EventKind = "verify_started"  // Detail is the verify command
+	VerifyPassed   EventKind = "verify_passed"   // Detail is the verify command
+	VerifyFailed   EventKind = "verify_failed"   // Detail says why and which attempt
+	VerifyLimit    EventKind = "verify_limit"    // verify_max_attempts failures in a row; needs the owner
 	Warning        EventKind = "warning"         // something failed that doesn't stop the run
 	RunFailed      EventKind = "run_error"       // Detail is the error; the run stops
 	RunStopped     EventKind = "run_stopped"     // the run ended; Detail is the outcome or "error"
@@ -106,6 +110,7 @@ func (e *Engine) log(ev state.Event) {
 const (
 	notifyNeedsInput  = "needs_input"
 	notifySessionLost = "session_lost"
+	notifyVerifyLimit = "verify_failed_limit"
 	notifyPhaseDone   = "phase_done"
 	notifyPhaseStuck  = "phase_stuck"
 	notifyRunError    = "run_error"

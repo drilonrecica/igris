@@ -198,6 +198,18 @@ func TestExecShell(t *testing.T) {
 	}
 }
 
+func TestExecCombinedOutput(t *testing.T) {
+	c := Shell("echo one; echo two >&2; echo three", "", 10*time.Second)
+	c.Combined = true
+	res, err := Exec{}.Run(context.Background(), c)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if string(res.Stdout) != "one\ntwo\nthree\n" || len(res.Stderr) != 0 {
+		t.Errorf("got stdout %q stderr %q, want all output interleaved in stdout", res.Stdout, res.Stderr)
+	}
+}
+
 func TestExecInvalidCommands(t *testing.T) {
 	tests := []struct {
 		name     string

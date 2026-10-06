@@ -11,6 +11,7 @@ import (
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/plan"
+	"github.com/drilonrecica/igris/internal/runner"
 	"github.com/drilonrecica/igris/internal/state"
 )
 
@@ -47,6 +48,8 @@ type Options struct {
 	Backend backend.Backend
 	State   *state.Dir // the project's .igris/; its root is the project root
 	Clock   Clock      // nil means the system clock
+	// Runner runs the verify command and git; nil means real processes.
+	Runner runner.Runner
 
 	Phase   string // phase to run
 	Through string // last phase to run; "" means only Phase (SPEC §5.3)
@@ -104,6 +107,7 @@ type Engine struct {
 	be       backend.Backend
 	dir      *state.Dir
 	clock    Clock
+	runner   runner.Runner
 	planPath string
 	planOpts plan.Options
 	writer   *plan.Writer
@@ -145,6 +149,9 @@ func New(opts Options) (*Engine, error) {
 	if opts.Clock == nil {
 		opts.Clock = systemClock{}
 	}
+	if opts.Runner == nil {
+		opts.Runner = runner.Exec{}
+	}
 	root := opts.State.Root()
 	e := &Engine{
 		opts:     opts,
@@ -152,6 +159,7 @@ func New(opts Options) (*Engine, error) {
 		be:       opts.Backend,
 		dir:      opts.State,
 		clock:    opts.Clock,
+		runner:   opts.Runner,
 		planPath: inRoot(root, opts.Config.Plan),
 		planOpts: plan.Options{Columns: opts.Config.Columns},
 		conf:     newConfigWatch(filepath.Join(root, state.ConfigFile), opts.Config),

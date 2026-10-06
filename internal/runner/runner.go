@@ -30,6 +30,10 @@ type Cmd struct {
 	Env     []string      // full environment; nil = inherit igris's
 	Stdin   io.Reader     // optional
 	Timeout time.Duration // required, > 0
+	// Combined captures stderr into Stdout, interleaved as written, so the
+	// output reads like a terminal (used for the verify command). Stderr
+	// stays empty.
+	Combined bool
 }
 
 // String renders the command for display and error messages only. It is
@@ -143,6 +147,9 @@ func (Exec) Run(ctx context.Context, c Cmd) (Result, error) {
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
+	if c.Combined {
+		cmd.Stderr = &stdout
+	}
 	cmd.WaitDelay = waitDelay
 	killGroupOnCancel(cmd)
 

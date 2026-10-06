@@ -199,19 +199,32 @@ func (e *Engine) openSession(ctx context.Context, l *launch, st sessionStart) er
 	return nil
 }
 
-// drive watches l's session until the task is finished or the run stops.
+// drive watches l's session until the task is finished or the run stops,
+// verifying every done signal (SPEC §6.4).
 func (e *Engine) drive(ctx context.Context, l *launch) (stopped bool, err error) {
-	v, err := e.watch(ctx, l)
-	if err != nil {
-		return false, err
+	for {
+		v, err := e.watch(ctx, l)
+		if err != nil {
+			return false, err
+		}
+		switch v.kind {
+		case verdictDone:
+			// A session's done signal is verified; the owner's word is final.
+			if v.sig != nil && e.cfg.Run.Verify != "" {
+				passed, err := e.verify(ctx, l)
+				if err != nil {
+					return false, err
+				}
+				if !passed {
+					continue // the task stays in progress
+				}
+			}
+			return false, e.finish(ctx, l, plan.Done, v.note)
+		case verdictSkip:
+			return false, e.finish(ctx, l, plan.Skipped, v.note)
+		}
+		return true, nil
 	}
-	switch v.kind {
-	case verdictDone:
-		return false, e.finish(ctx, l, plan.Done, v.note)
-	case verdictSkip:
-		return false, e.finish(ctx, l, plan.Skipped, v.note)
-	}
-	return true, nil
 }
 
 // retry replaces l's session (SPEC §6.3, §15.3 `r`): the old one is closed
@@ -222,6 +235,7 @@ func (e *Engine) retry(ctx context.Context, l *launch, cont bool) error {
 		how, detail = startContinue, "continue"
 	}
 	e.emit(Event{Kind: Retrying, Detail: detail})
+	l.cur.VerifyAttempts = 0 // a new session gets the full verify budget
 	if l.sess != nil {
 		if err := l.sess.Close(ctx); err != nil {
 			e.warn(fmt.Sprintf("close the session of %s: %v; close its pane by hand", l.t.ID, err))

@@ -205,8 +205,10 @@ Igris never advances on agent state alone — only on a signal or an explicit ow
 - Optional `verify` command in config (e.g. `make fmt lint test`), run with `sh -c` in the project root, with a timeout (default 15 min).
 - The verify command (like every other config value) comes from the config snapshot taken at `arise` start (§13), never from a re-read of `igris.toml` mid-run.
 - **Pass** → continue. **Fail** → delete the signal, wait until the agent is idle (it ran `igris done` as its last action, so it may still be finishing its turn; up to 30 s, then send anyway), and send the last 60 lines of output into the same session: "igris verification `<cmd>` failed: … Fix the problem, then run `igris done <ID>` again." The task stays in progress.
-- After `verify_max_attempts` (default 3) consecutive failures, igris stops sending failures back, marks **Needs you**, and notifies.
+- Output is stdout and stderr interleaved as written; a timeout counts as a failure. A verify command that can't be started at all stops the run with an error. The run log records each result, never the output.
+- After `verify_max_attempts` (default 3) consecutive failures, igris stops sending failures back, marks **Needs you**, and notifies (`verify_failed_limit`). A later `igris done` is verified again (failures still not sent back); retrying the session starts a new count.
 - No verify command → the signal is accepted as is.
+- When the **owner** marks an agent task done (TUI `d`, `--no-tui` `done`, or the session-lost choice), verify is skipped: that is the owner's explicit decision. The commit policy still applies.
 
 ### 6.5 Commits
 - `commit = "ask"` (default) — the TUI (or `--no-tui` stdin) asks y/n after each verified task.

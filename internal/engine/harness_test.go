@@ -12,6 +12,7 @@ import (
 	"github.com/drilonrecica/igris/internal/backend/fake"
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/plan"
+	"github.com/drilonrecica/igris/internal/runner"
 	"github.com/drilonrecica/igris/internal/state"
 )
 
@@ -43,6 +44,7 @@ type harness struct {
 	root   string
 	cfg    *config.Config
 	be     *fake.Backend
+	cmds   *runner.Fake // verify and git commands
 	dir    *state.Dir
 	clock  *FakeClock
 	eng    *Engine
@@ -56,7 +58,7 @@ type harness struct {
 // temp project and loads the config from it, like `igris arise` does.
 func newHarness(t *testing.T, planText, tomlText string) *harness {
 	t.Helper()
-	h := &harness{t: t, root: t.TempDir(), be: fake.New(), clock: NewFakeClock(t0)}
+	h := &harness{t: t, root: t.TempDir(), be: fake.New(), cmds: &runner.Fake{}, clock: NewFakeClock(t0)}
 	h.write("tasks.md", planText)
 	h.write(state.ConfigFile, tomlText)
 	cfg, err := config.Load(filepath.Join(h.root, state.ConfigFile))
@@ -81,6 +83,7 @@ func (h *harness) run(mutate ...func(*Options)) (Result, error) {
 		Backend: h.be,
 		State:   h.dir,
 		Clock:   h.clock,
+		Runner:  h.cmds,
 		Phase:   "A",
 		Events: func(ev Event) {
 			h.events = append(h.events, ev)
