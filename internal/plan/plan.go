@@ -135,6 +135,7 @@ func Parse(name string, data []byte, opts Options) *Plan {
 		i = end - 1
 	}
 	p.buildTasks()
+	p.resolveDeps()
 	return p
 }
 

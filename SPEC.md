@@ -87,7 +87,7 @@ A task table is a GitHub-flavored markdown table whose header row contains at le
 ### 3.4 Dependencies
 - Empty, `—`, `-` or `none` = no dependencies.
 - Otherwise a comma-separated list of task IDs.
-- **Ranges:** `A…B`, `A...B` or `A..B` expands to every task ID from `A` to `B` inclusive, **in file order**. Both endpoints must exist and `A` must precede `B`.
+- **Ranges:** `A…B`, `A...B` or `A..B` expands to every task ID from `A` to `B` inclusive, **in file order**. Both endpoints must exist and `A` must precede `B`. An entry that is itself a task ID is never read as a range (IDs may contain dots). Duplicate entries are ignored.
 - Dependencies may point to tasks in other phases.
 - Validation errors: unknown ID, self-dependency, dependency cycle, malformed range.
 
