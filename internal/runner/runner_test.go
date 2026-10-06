@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -145,8 +146,14 @@ func TestExecDirEnvStdin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run pwd: %v", err)
 	}
-	if got := string(res.Stdout); got != dir {
-		t.Errorf("pwd = %q, want %q", got, dir)
+	// macOS temp dirs live under /var, a symlink to /private/var; the child's
+	// os.Getwd reports the resolved path.
+	want, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		t.Fatalf("EvalSymlinks: %v", err)
+	}
+	if got := string(res.Stdout); got != want {
+		t.Errorf("pwd = %q, want %q", got, want)
 	}
 
 	c = helper(t, "env", "IGRIS_TEST_VAR")
