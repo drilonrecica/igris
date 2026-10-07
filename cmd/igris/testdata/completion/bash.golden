@@ -30,6 +30,7 @@ _igris() {
     esac
     if [[ $cur == -* ]]; then
         case "$cmd" in
+            init) COMPREPLY=($(compgen -W "--example" -- "$cur")) ;;
             doctor) COMPREPLY=($(compgen -W "--json" -- "$cur")) ;;
             check) COMPREPLY=($(compgen -W "--json --plan" -- "$cur")) ;;
             phases) COMPREPLY=($(compgen -W "--json --plan" -- "$cur")) ;;

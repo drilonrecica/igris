@@ -40,7 +40,7 @@ Usage:
   igris <command> [flags]
 
 Commands:
-  init                                  create igris.toml, .igris/, .gitignore entry, Claude allow rules
+  init [--example]                      create igris.toml, .igris/, .gitignore entry, Claude allow rules
   doctor [--json]                       read-only health check of this project and machine; exit 1 on a failure
   check [--plan PATH] [--json]          validate the plan; exit 0 valid, 1 invalid, 2 usage error
   phases [--plan PATH] [--json]         list phases with task counts per status
@@ -74,7 +74,10 @@ var runModes = []string{"default", "accept", "auto", "plan", "yolo"}
 
 func commands() []command {
 	return []command{
-		{name: "init", setup: noFlags(0), exec: execInit},
+		{name: "init", setup: func(fs *flag.FlagSet) func([]string) error {
+			fs.Bool("example", false, "also write the example plan when there is none")
+			return maxArgs(fs, 0)
+		}, exec: execInit},
 		{name: "doctor", setup: doctorArgs, exec: execDoctor},
 		{name: "check", setup: planFlags(0), exec: execCheck},
 		{name: "phases", setup: planFlags(0), exec: execPhases},
@@ -208,10 +211,6 @@ func planFlags(max int) func(*flag.FlagSet) func([]string) error {
 		fs.Bool("json", false, "machine-readable output")
 		return maxArgs(fs, max)
 	}
-}
-
-func noFlags(max int) func(*flag.FlagSet) func([]string) error {
-	return func(fs *flag.FlagSet) func([]string) error { return maxArgs(fs, max) }
 }
 
 func maxArgs(_ *flag.FlagSet, n int) func([]string) error {

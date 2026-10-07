@@ -23,6 +23,7 @@ _igris() {
     esac
     if [[ $PREFIX == -* ]]; then
         case "$cmd" in
+            init) compadd -- --example ;;
             doctor) compadd -- --json ;;
             check) compadd -- --json --plan ;;
             phases) compadd -- --json --plan ;;

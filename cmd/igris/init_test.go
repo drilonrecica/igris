@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/drilonrecica/igris/examples"
 	"github.com/drilonrecica/igris/internal/config"
 )
 
@@ -166,5 +167,76 @@ func TestInitRejectsBrokenSettings(t *testing.T) {
 		if got := readFile(t, p); got != bad {
 			t.Errorf("%s: settings were modified to %q", bad, got)
 		}
+	}
+}
+
+func initExample(t *testing.T, dir string) (int, string, string) {
+	t.Helper()
+	savedGetenv, savedRunner := ariseGetenv, ariseRunner
+	t.Cleanup(func() { ariseGetenv, ariseRunner = savedGetenv, savedRunner })
+	ariseGetenv = func(string) string { return "" }
+	t.Chdir(dir)
+	var out, errb bytes.Buffer
+	code := run([]string{"init", "--example"}, &out, &errb)
+	return code, out.String(), errb.String()
+}
+
+func TestInitExampleWritesPlan(t *testing.T) {
+	dir := t.TempDir()
+	code, out, errb := initExample(t, dir)
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if got := readFile(t, filepath.Join(dir, "tasks.md")); got != string(examples.Plan) {
+		t.Error("tasks.md differs from the embedded examples/tasks.md")
+	}
+	if !strings.Contains(out, "created tasks.md") {
+		t.Errorf("output lacks the created line:\n%s", out)
+	}
+	var cout bytes.Buffer
+	if code := run([]string{"check"}, &cout, &bytes.Buffer{}); code != exitOK {
+		t.Errorf("check on the written plan: exit %d\n%s", code, cout.String())
+	}
+}
+
+func TestInitExampleNeverOverwrites(t *testing.T) {
+	dir := t.TempDir()
+	mine := "# my plan\n"
+	if err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(mine), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	code, out, errb := initExample(t, dir)
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if got := readFile(t, filepath.Join(dir, "tasks.md")); got != mine {
+		t.Errorf("tasks.md overwritten: %q", got)
+	}
+	if !strings.Contains(out, "kept tasks.md") {
+		t.Errorf("output lacks the kept line:\n%s", out)
+	}
+}
+
+func TestInitExampleUsesConfiguredPlanPath(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "igris.toml"), []byte("plan = \"docs/plan.md\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if code, _, errb := initExample(t, dir); code != exitOK {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if got := readFile(t, filepath.Join(dir, "docs", "plan.md")); !strings.Contains(got, "P1-01") {
+		t.Errorf("docs/plan.md is not the example plan:\n%s", got)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "tasks.md")); err == nil {
+		t.Error("tasks.md written although the plan path is docs/plan.md")
+	}
+}
+
+func TestInitWithoutExampleWritesNoPlan(t *testing.T) {
+	dir := t.TempDir()
+	initIn(t, dir)
+	if _, err := os.Stat(filepath.Join(dir, "tasks.md")); err == nil {
+		t.Error("init without --example wrote a plan")
 	}
 }

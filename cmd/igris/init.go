@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/drilonrecica/igris/examples"
 	"github.com/drilonrecica/igris/internal/backend/herdr"
 	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/config"
@@ -26,13 +27,16 @@ const (
 
 // execInit sets up the current directory as an igris project. It is safe to
 // run again: it only adds what is missing and never overwrites.
-func execInit(_ *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
+func execInit(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	root, err := os.Getwd()
 	if err != nil {
 		fmt.Fprintf(stderr, "igris init: %v\n", err)
 		return exitFail
 	}
 	steps := []func(root string) (string, error){initConfig, initState, initGitignore, initClaudeSettings}
+	if f := fs.Lookup("example"); f != nil && f.Value.String() == "true" {
+		steps = append(steps, initExamplePlan)
+	}
 	for _, step := range steps {
 		msg, err := step(root)
 		if err != nil {
@@ -57,6 +61,44 @@ func initConfig(root string) (string, error) {
 		return "", err
 	}
 	return "created " + state.ConfigFile, nil
+}
+
+// initExamplePlan writes the canonical example plan at the configured plan
+// path unless a file is already there.
+func initExamplePlan(root string) (string, error) {
+	cfg, err := config.Load(filepath.Join(root, state.ConfigFile))
+	if err != nil {
+		return "", err
+	}
+	path := cfg.Plan
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(root, path)
+	}
+	kept := "kept " + cfg.Plan + " (already exists)"
+	if _, err := os.Stat(path); err == nil {
+		return kept, nil
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return "", fmt.Errorf("check %s: %w", path, err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		return "", fmt.Errorf("create %s: %w", filepath.Dir(path), err)
+	}
+	// O_EXCL: never overwrite, even if the file appeared since the check.
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644) //nolint:gosec // a plan is meant to be readable
+	if errors.Is(err, fs.ErrExist) {
+		return kept, nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("create %s: %w", path, err)
+	}
+	if _, err := f.Write(examples.Plan); err != nil {
+		_ = f.Close()
+		return "", fmt.Errorf("write %s: %w", path, err)
+	}
+	if err := f.Close(); err != nil {
+		return "", fmt.Errorf("write %s: %w", path, err)
+	}
+	return "created " + cfg.Plan + " (example plan)", nil
 }
 
 // initState creates .igris/ with its subdirectories.
