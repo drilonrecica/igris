@@ -188,6 +188,12 @@ var homeStates = []struct {
 		s.Run = homeRun("", time.Time{})
 		return homeFixture{snap: s, doctor: homeDoctor, doctorDone: true}
 	}},
+	{"last_run_complete", func() homeFixture {
+		s := homeSnap("ready")
+		s.Run = homeRun("", time.Time{})
+		s.Run.Phases, s.Run.Through = []string{"M0", "M1"}, "M1"
+		return homeFixture{snap: s, doctor: homeDoctor, doctorDone: true}
+	}},
 	{"running_elsewhere", func() homeFixture {
 		s := homeSnap("in progress")
 		s.Run = homeRun("M2-02", homeNow.Add(-14*time.Minute))
@@ -316,6 +322,7 @@ func TestHomeButtonsOnlyWhenTheyApply(t *testing.T) {
 		"config_invalid":        "Settings Preview Check Doctor History Edit plan Notify ? Quit",
 		"interrupted":           "Resume… Preview Check Doctor History Edit plan Settings Notify ? Quit",
 		"stopped":               "Resume… Preview Check Doctor History Edit plan Settings Notify ? Quit",
+		"last_run_complete":     "Arise… Preview Check Doctor History Edit plan Settings Notify ? Quit",
 		"running_elsewhere":     "Open session Preview Check Doctor History Edit plan Settings Notify ? Quit",
 		"stale_lock":            "Resume… Preview Check Doctor History Edit plan Settings Notify ? Quit",
 		"remote_lock":           "Arise… Preview Check Doctor History Edit plan Settings Notify ? Quit",
@@ -330,6 +337,37 @@ func TestHomeButtonsOnlyWhenTheyApply(t *testing.T) {
 		if got := strings.Join(labels, " "); got != want[st.name] {
 			t.Errorf("%s: buttons %q, want %q", st.name, got, want[st.name])
 		}
+	}
+}
+
+// A stopped run whose phases are all complete reads as READY with a
+// last-run line; one whose phases still have work stays STOPPED.
+func TestHomeLastRunComplete(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		state      string
+		complete   bool
+		kind       nowKind
+		resumable  bool
+		wantInView string
+	}{
+		{"complete", "last_run_complete", true, nowReady, false, "last run M0, M1 completed"},
+		{"has work", "stopped", false, nowStopped, true, "Resume continues M2 through M3"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, st := range homeStates {
+				if st.name != tc.state {
+					continue
+				}
+				m := homeAt(&theme{}, 120, 40, st.fix())
+				if m.lastRunComplete() != tc.complete || m.kind() != tc.kind || m.resumable() != tc.resumable {
+					t.Errorf("complete %v, kind %v, resumable %v; want %v, %v, %v", m.lastRunComplete(), m.kind(), m.resumable(), tc.complete, tc.kind, tc.resumable)
+				}
+				if v := m.View(); !strings.Contains(v, tc.wantInView) {
+					t.Errorf("view lacks %q:\n%s", tc.wantInView, v)
+				}
+			}
+		})
 	}
 }
 

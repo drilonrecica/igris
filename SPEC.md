@@ -646,7 +646,7 @@ Bare `igris` on a terminal (§14) opens home: the project at a glance and the wa
 | Plan missing | **NO PLAN**: the path igris looked at | — |
 | Plan invalid | **PLAN INVALID**: file, problem count, the first few `file:line: message`, "… N more — Check shows all"; without herdr, why Adapt is unavailable | Check |
 | Ready | **READY**: the phase with work, `next` and `then` tasks with rank, tasks left and how many wait on what | Arise… |
-| Interrupted | **INTERRUPTED**: last run's range, the interrupted task, its session and whether Resume reattaches; **STOPPED** when `state.json` has phases but no current task | Resume… |
+| Interrupted | **INTERRUPTED**: last run's range, the interrupted task, its session and whether Resume reattaches; **STOPPED** when `state.json` has phases but no current task, and only while the last run's phases still have work; when every one of them is complete the card is READY (next phase with work) with a dim `last run P1 completed` line, and the bar says Arise… | Resume… |
 | Running elsewhere | **RUNNING** in another igris (pid, host, since): current task, the last 3 run-log events, "This screen only watches. Use that terminal to control the run." Read-only (§13) | Open session |
 | Remote / stale lock | `LOCKED by a run on host H …; igris can't tell if it is alive` / `LAST RUN DID NOT CLEAN UP (pid N gone)`; Arise stays available and its wizard asks before clearing (below) | Arise… |
 

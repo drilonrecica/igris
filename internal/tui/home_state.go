@@ -58,7 +58,7 @@ func (m *homeScreen) kind() nowKind {
 		return nowRemoteLock
 	case s.Run != nil && s.Run.Task != "":
 		return nowInterrupted
-	case s.Run != nil && len(s.Run.Phases) > 0:
+	case s.Run != nil && len(s.Run.Phases) > 0 && !m.lastRunComplete():
 		return nowStopped
 	}
 	return nowReady
@@ -108,9 +108,31 @@ func (m *homeScreen) planValid() bool {
 // herdr says herdr is known to be reachable.
 func (m *homeScreen) herdr() bool { return m.backendKnown && m.backendErr == nil }
 
-// resumable says a run can be resumed: state.json has a task or phases.
+// lastRunComplete says the recorded run stopped between tasks and every
+// phase it covered is complete, so there is nothing to resume.
+func (m *homeScreen) lastRunComplete() bool {
+	if m.snap == nil || m.snap.Run == nil || m.snap.Run.Task != "" || len(m.snap.Run.Phases) == 0 {
+		return false
+	}
+	outcome := map[string]string{}
+	for _, ph := range m.phases() {
+		outcome[ph.ID] = ph.Outcome
+	}
+	for _, id := range m.snap.Run.Phases {
+		if outcome[id] != plan.Complete.String() {
+			return false
+		}
+	}
+	return true
+}
+
+// resumable says a run can be resumed: state.json has a task, or phases
+// that still have work.
 func (m *homeScreen) resumable() bool {
-	return m.snap != nil && m.snap.Run != nil && (m.snap.Run.Task != "" || len(m.snap.Run.Phases) > 0)
+	if m.snap == nil || m.snap.Run == nil {
+		return false
+	}
+	return m.snap.Run.Task != "" || (len(m.snap.Run.Phases) > 0 && !m.lastRunComplete())
 }
 
 // channels says at least one notification channel is set up.
@@ -552,6 +574,10 @@ func (m *homeScreen) readyCard(w int) []string {
 		}
 	default:
 		out = append(out, m.th.paint(lookTitle, fit("COMPLETE · every phase is done", w)))
+	}
+	if m.lastRunComplete() {
+		r := m.snap.Run
+		out = append(out, m.th.paint(lookDim, fit("last run "+rangeText(r.Phases, r.Through)+" completed", w)))
 	}
 	switch {
 	case !m.backendKnown:

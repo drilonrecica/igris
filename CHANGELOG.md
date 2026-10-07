@@ -4,6 +4,10 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+### Fixed
+
+- Home: after a run whose phases all completed, the NOW card is READY with a `last run P1 completed` line and the bar says Arise…, instead of STOPPED with Resume (SPEC §15.6).
+
 ## [0.2.0] - 2026-10-07
 
 igris v0.2 gets an app: bare `igris` on a terminal opens a home screen, and the onboarding steps (`init`, `doctor`, `check`, `status`, `history`, completions) work from the command line and from inside it. Two behaviors change for people who ran `igris` or `igris arise` by hand; see Migration. No change to the plan format, config keys or file formats.
