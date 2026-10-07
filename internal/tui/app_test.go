@@ -45,7 +45,7 @@ func (p *probe) got(want tea.Msg) bool {
 
 // testApp is an app on a fake project, unpainted, at w×h.
 func testApp(svc Services, w, h int) *appModel {
-	a := newApp(context.Background(), AppOptions{Services: svc}, &theme{})
+	a := newApp(context.Background(), AppOptions{Services: svc, Poll: -1}, &theme{})
 	a.Update(tea.WindowSizeMsg{Width: w, Height: h})
 	return a
 }
@@ -74,7 +74,7 @@ func drive(a *appModel, cmd tea.Cmd) (quit bool) {
 // appProgram runs an app on a fake project in a real program.
 func appProgram(t *testing.T, svc Services, w, h int) *teatest.TestModel {
 	t.Helper()
-	a := newApp(context.Background(), AppOptions{Services: svc}, &theme{})
+	a := newApp(context.Background(), AppOptions{Services: svc, Poll: -1}, &theme{})
 	tm := teatest.NewTestModel(t, a, teatest.WithInitialTermSize(w, h))
 	t.Cleanup(func() { _ = tm.Quit() })
 	return tm
@@ -402,7 +402,7 @@ func TestAppFinish(t *testing.T) {
 
 func TestAppStart(t *testing.T) {
 	for _, s := range []Start{nil, Home{}, Wizard{Mode: "plan", Through: "M3", ForceUnlock: true}} {
-		a := newApp(context.Background(), AppOptions{Services: &fakeServices{}, Start: s}, &theme{})
+		a := newApp(context.Background(), AppOptions{Services: &fakeServices{}, Start: s, Poll: -1}, &theme{})
 		if len(a.stack) != 1 {
 			t.Fatalf("start %#v: %d screens", s, len(a.stack))
 		}

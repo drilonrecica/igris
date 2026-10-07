@@ -7,6 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/drilonrecica/igris/internal/checks"
+	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/report"
 )
 
@@ -24,6 +25,12 @@ type homeScreen struct {
 
 	snap    *report.Snapshot // nil until the first read is back
 	snapErr error
+	// poll is the interval of the stat poll; 0 means no poll. stamp is
+	// the watched files as the last read found them; reading says a read
+	// is on its way, so the poll doesn't start another.
+	poll    time.Duration
+	stamp   report.Stamp
+	reading bool
 	// backendErr is why herdr can't host sessions; backendKnown says the
 	// check is back (it is slow, so the header shows "herdr …" until then).
 	backendErr   error
@@ -81,7 +88,20 @@ type (
 	}
 	backendMsg struct{ err error }
 	doctorMsg  struct{ results []checks.Result }
+	// pollMsg is the poll's tick; stampMsg is what the stat found.
+	pollMsg  struct{}
+	stampMsg struct{ s report.Stamp }
+	// refreshMsg asks home to read the project again now: the app sends it
+	// when a screen it pushed ends or the terminal gets the focus back,
+	// and pages send it when they changed a file (editor, init, adapt).
+	refreshMsg struct{}
+	// configMsg is the [tui] config of a good igris.toml, for the app to
+	// apply live.
+	configMsg struct{ tui config.TUI }
 )
+
+// pollEvery is the stat poll's default interval (SPEC §15.6).
+const pollEvery = 2 * time.Second
 
 func newHome(ctx context.Context, svc Services, th *theme) *homeScreen {
 	return &homeScreen{ctx: ctx, svc: svc, th: th, w: 80, h: 24, now: time.Now, loc: time.Local, phaseTop: -1}
@@ -89,7 +109,23 @@ func newHome(ctx context.Context, svc Services, th *theme) *homeScreen {
 
 // Init reads the project, then asks for the slow checks.
 func (m *homeScreen) Init() tea.Cmd {
-	return tea.Batch(m.refresh(), m.checkBackend(), m.runDoctor())
+	return tea.Batch(m.refresh(), m.checkBackend(), m.runDoctor(), m.nextPoll())
+}
+
+// nextPoll schedules the next stat poll. The tick goes through the app to
+// home wherever it is on the stack, so the poll goes on under a page.
+func (m *homeScreen) nextPoll() tea.Cmd {
+	if m.svc == nil || m.poll <= 0 {
+		return nil
+	}
+	return tea.Tick(m.poll, func(time.Time) tea.Msg { return ownedMsg{m, pollMsg{}} })
+}
+
+// statFiles stats the watched files off the loop and reports them to
+// home, wherever it is on the stack.
+func (m *homeScreen) statFiles() tea.Cmd {
+	svc := m.svc
+	return func() tea.Msg { return ownedMsg{m, stampMsg{svc.Stamp()}} }
 }
 
 // refresh reads the project again, off the program's loop.
@@ -98,6 +134,7 @@ func (m *homeScreen) refresh() tea.Cmd {
 		return nil
 	}
 	ctx, svc := m.ctx, m.svc
+	m.reading = true
 	return async(m, "snapshot", func() tea.Msg {
 		s, err := svc.Snapshot(ctx)
 		return snapshotMsg{s, err}
@@ -151,9 +188,29 @@ func (m *homeScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.w, m.h = msg.Width, msg.Height
+	case pollMsg:
+		return m, tea.Batch(m.statFiles(), m.nextPoll())
+	case stampMsg:
+		// Reload only when a watched file changed since the last read; a
+		// read going on will see it, and the next poll checks again.
+		if !m.reading && msg.s != m.stamp {
+			return m, m.refresh()
+		}
+	case refreshMsg:
+		if !m.reading {
+			return m, m.refresh()
+		}
 	case snapshotMsg:
+		m.reading = false
 		m.snap, m.snapErr = msg.s, msg.err
 		m.keepSelection()
+		if msg.s != nil {
+			m.stamp = msg.s.Stamp
+			if msg.s.Config != nil && len(msg.s.ConfigProblems) == 0 {
+				tui := msg.s.Config.TUI
+				return m, func() tea.Msg { return configMsg{tui} }
+			}
+		}
 	case backendMsg:
 		m.backendErr, m.backendKnown = msg.err, true
 	case doctorMsg:

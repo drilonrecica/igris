@@ -4,12 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/engine"
 )
 
@@ -30,6 +33,9 @@ type AppOptions struct {
 	// the terminal's background, detected once for the whole app.
 	Theme      string
 	RankColors map[string]string // [tui.rank_colors]
+	// Poll is how often home looks at the project's files for changes:
+	// 0 means every 2 s, a negative value turns the poll off.
+	Poll time.Duration
 }
 
 // Start is where the app opens: Home or Wizard.
@@ -66,9 +72,14 @@ func App(ctx context.Context, o AppOptions) (AppResult, error) {
 	defer cancel()
 	// Bubble Tea asked the terminal for its background when the process
 	// started; this is the only time igris looks at it.
-	th := newTheme(lipgloss.NewRenderer(os.Stdout), darkTheme(o.Theme, lipgloss.HasDarkBackground), o.RankColors)
+	dark := lipgloss.HasDarkBackground()
+	th := newTheme(lipgloss.NewRenderer(os.Stdout), darkTheme(o.Theme, func() bool { return dark }), o.RankColors)
 	a := newApp(ctx, o, th)
-	final, err := tea.NewProgram(a, programOptions(ctx, o.Mouse)...).Run()
+	a.dark = dark
+	// Focus reports make home look at the project again when the owner
+	// comes back to the terminal.
+	opts := append(programOptions(ctx, o.Mouse), tea.WithReportFocus())
+	final, err := tea.NewProgram(a, opts...).Run()
 	if errors.Is(err, tea.ErrProgramKilled) && ctx.Err() != nil {
 		err = nil // ctx ended: not a failure of the TUI
 	}
@@ -98,6 +109,12 @@ type (
 	// runMsg tells the app which run is going (nil: none any more), so
 	// quitting stops it and App waits for it.
 	runMsg struct{ h *runHandle }
+	// ownedMsg is a message for one screen wherever it is on the stack
+	// (the poll's tick); it is dropped when the screen is gone.
+	ownedMsg struct {
+		owner tea.Model
+		msg   tea.Msg
+	}
 )
 
 func push(s tea.Model) tea.Cmd    { return func() tea.Msg { return pushMsg{s} } }
@@ -165,6 +182,7 @@ type appModel struct {
 	o     AppOptions
 	stack []tea.Model // home first; the top screen is last
 	th    *theme      // detected once; every screen draws with it
+	dark  bool        // the terminal's background, as detected at start
 	w, h  int
 	run   *runHandle // the run going, if any
 	// stopped says quitting stopped a run that was still going.
@@ -178,10 +196,14 @@ func newApp(ctx context.Context, o AppOptions, th *theme) *appModel {
 	if o.Start == nil {
 		o.Start = Home{}
 	}
-	a := &appModel{ctx: ctx, o: o, th: th, w: 80, h: 24, latest: map[asyncKey]uint64{}}
+	a := &appModel{ctx: ctx, o: o, th: th, dark: true, w: 80, h: 24, latest: map[asyncKey]uint64{}}
 	// The wizard (Start: Wizard) opens over home once it exists; until
 	// then the app starts on home either way.
-	a.stack = []tea.Model{newHome(ctx, o.Services, th)}
+	home := newHome(ctx, o.Services, th)
+	if home.poll = o.Poll; home.poll == 0 {
+		home.poll = pollEvery
+	}
+	a.stack = []tea.Model{home}
 	return a
 }
 
@@ -226,10 +248,24 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, a.quit()
 		}
 		a.drop()
+		// What the screen did may have changed the files home shows.
+		back := a.send(len(a.stack)-1, refreshMsg{})
 		if msg.msg == nil {
+			return a, back
+		}
+		return a, tea.Batch(a.send(len(a.stack)-1, msg.msg), back)
+	case tea.FocusMsg:
+		if len(a.stack) == 0 {
 			return a, nil
 		}
-		return a, a.send(len(a.stack)-1, msg.msg)
+		return a, a.send(0, refreshMsg{})
+	case ownedMsg:
+		if i := a.index(msg.owner); i >= 0 {
+			return a, a.send(i, msg.msg)
+		}
+		return a, nil
+	case configMsg:
+		return a, a.applyConfig(msg.tui)
 	case helpMsg:
 		return a, a.push(a.helpPage())
 	case quitMsg:
@@ -256,6 +292,24 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 	}
 	return a, a.send(len(a.stack)-1, msg)
+}
+
+// applyConfig applies a changed [tui] section live: the colors are redrawn
+// in place (every screen holds the same theme) and the mouse is switched
+// on or off.
+func (a *appModel) applyConfig(c config.TUI) tea.Cmd {
+	if a.th != nil && a.th.r != nil && (c.Theme != a.o.Theme || !maps.Equal(c.RankColors, a.o.RankColors)) {
+		*a.th = *newTheme(a.th.r, darkTheme(c.Theme, func() bool { return a.dark }), c.RankColors)
+	}
+	a.o.Theme, a.o.RankColors = c.Theme, c.RankColors
+	if c.Mouse == a.o.Mouse {
+		return nil
+	}
+	a.o.Mouse = c.Mouse
+	if c.Mouse {
+		return tea.EnableMouseCellMotion
+	}
+	return tea.DisableMouse
 }
 
 // send gives msg to the i-th screen.
