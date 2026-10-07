@@ -47,6 +47,11 @@ func TestNewRunInfo(t *testing.T) {
 			RunInfo{Lock: LockUnreadable, LockDetail: "bad json", Signals: []string{}}},
 		{"state without lock", RunInput{Run: &state.Run{Version: 1, StartedAt: t0, Phases: []string{"A"}}},
 			RunInfo{Phases: []string{"A"}, StartedAt: "2026-10-07T09:30:00Z", Lock: LockNone, Signals: []string{}}},
+		// A user task has no session, so the engine stores no mode (found at gate V02-G).
+		{"user task without mode", RunInput{Run: &state.Run{Version: 1, StartedAt: t0, Phases: []string{"A"},
+			Current: &state.Current{TaskID: "A-04", StartedAt: t0.Add(time.Minute)}}},
+			RunInfo{Phases: []string{"A"}, StartedAt: "2026-10-07T09:30:00Z", Task: "A-04", Since: "2026-10-07T09:31:00Z",
+				Lock: LockNone, Signals: []string{}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

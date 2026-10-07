@@ -658,3 +658,28 @@ func TestHomeFocusFollowsTheDefaultAction(t *testing.T) {
 		t.Errorf("after moving, a refresh shouldn't move the focus back:\n%s", v)
 	}
 }
+
+// A user task has no session and so no mode; the NOW card leaves the mode out
+// instead of printing a bare "mode" (found at gate V02-G).
+func TestHomeRunningUserTaskHasNoMode(t *testing.T) {
+	fix := homeStates[0].fix()
+	for _, st := range homeStates {
+		if st.name == "running_elsewhere" {
+			fix = st.fix()
+		}
+	}
+	fix.snap.Run.Mode = ""
+	m := homeAt(&theme{}, 120, 40, fix)
+	var line string
+	for _, l := range strings.Split(m.View(), "\n") {
+		if strings.Contains(l, "M2-02") && strings.Contains(l, "14m") {
+			line = l
+		}
+	}
+	if line == "" {
+		t.Fatalf("no NOW card line for M2-02 in:\n%s", m.View())
+	}
+	if strings.Contains(line, "mode") {
+		t.Errorf("user task line shows a mode: %q", line)
+	}
+}

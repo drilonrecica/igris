@@ -425,7 +425,10 @@ func (m *homeScreen) runningCard(w int) []string {
 	case s.Run == nil || s.Run.Unreadable != "":
 		out = append(out, m.th.paint(lookDim, fit("state.json: "+orText(s.Run, "not written yet"), w)))
 	case s.Run.Task != "":
-		tail := " · mode " + s.Run.Mode + badge(s.Run.Mode)
+		tail := ""
+		if s.Run.Mode != "" { // a user task has no session, so no mode
+			tail = " · mode " + s.Run.Mode + badge(s.Run.Mode)
+		}
 		if t, err := time.Parse(time.RFC3339, s.Run.Since); err == nil {
 			tail += " · " + shortSince(m.now(), t)
 		}

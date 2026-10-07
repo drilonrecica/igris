@@ -94,7 +94,9 @@ func checkShape(run *state.Run) string {
 		if !plan.ValidID(c.TaskID) {
 			return "state unreadable: malformed task ID in state.json"
 		}
-		if !runModes[c.Mode] {
+		// No mode is valid: a user task has no session, and an agent task has
+		// none until its session launches.
+		if c.Mode != "" && !runModes[c.Mode] {
 			return "state unreadable: unknown mode in state.json"
 		}
 	}
