@@ -41,6 +41,7 @@ release-local:
 	@command -v goreleaser >/dev/null || { echo "goreleaser not found: https://goreleaser.com/install/"; exit 1; }
 	goreleaser check
 	goreleaser release --snapshot --clean --skip=publish
+	go run ./tools/genformula -dist dist
 
 # Records the README demo GIF (docs/demo/README.md). Needs vhs, herdr and a
 # logged-in claude; runs real sessions. Installs this build first: herdr panes
