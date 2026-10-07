@@ -113,120 +113,13 @@ func (m *model) facts() string {
 	return strings.Join(parts, " · ")
 }
 
-// glyphs are the status glyphs of SPEC §15.4.
-var glyphs = map[plan.Status]string{
-	plan.Done:       "✓",
-	plan.InProgress: "●",
-	plan.Ready:      "·",
-	plan.Blocked:    "⨯",
-	plan.Skipped:    "–",
-}
-
-// glyph is t's status glyph; the current task shows "!" while it waits on
-// the owner.
-func (m *model) glyph(t *plan.Task) string {
-	if m.needsOwner(t) {
-		return "!"
-	}
-	if g, ok := glyphs[t.Status]; ok {
-		return g
-	}
-	return "?"
-}
-
-// needsOwner reports whether t is the current task and waits on the owner.
-func (m *model) needsOwner(t *plan.Task) bool {
-	return m.cur != nil && m.cur.id == t.ID && m.cur.state != stateWorking && m.cur.state != stateVerifying
-}
-
-// taskLooks are the looks of t's glyph and of its text: what runs or
-// waits on the owner stands out, what is over or can't start recedes.
-func (m *model) taskLooks(t *plan.Task) (glyph, text look) {
-	if m.needsOwner(t) {
-		return lookAlert, lookTitle
-	}
-	switch t.Status {
-	case plan.InProgress:
-		return lookAccentBold, lookTitle
-	case plan.Done:
-		return lookAccent, lookDim
-	case plan.Blocked, plan.Skipped:
-		return lookDim, lookDim
-	}
-	return lookPlain, lookPlain
-}
-
-// paintedGlyph is t's glyph in its look.
-func (m *model) paintedGlyph(t *plan.Task) string {
-	l, _ := m.taskLooks(t)
-	return m.th.paint(l, m.glyph(t))
-}
-
 // phaseTasks are the tasks of the phase being run.
-func (m *model) phaseTasks() []*plan.Task {
-	if m.plan == nil {
-		return nil
-	}
-	if ph := m.plan.Phase(m.phase); ph != nil {
-		return ph.Tasks
-	}
-	return nil
-}
+func (m *model) phaseTasks() []*plan.Task { return m.rows().tasks() }
 
-// rank is the rank shown for t: its rank name, or "user" for user tasks.
-func rank(t *plan.Task) string {
-	switch {
-	case !t.Owner.IsAgent():
-		return "user"
-	case t.Rank == "":
-		return "—"
-	}
-	return t.Rank
-}
-
-// taskLines renders the task list w cells wide, returning the lines, the
-// index of the line to keep in view (-1 for none) — the selected task's
-// while the list has the focus, else the current task's — and for each
-// line the index of the task it shows (-1 for a "waits on" line).
+// taskLines renders the task list w cells wide (see rows.lines), with the
+// selection shown while the list has the focus.
 func (m *model) taskLines(w int) (lines []string, follow int, owner []int) {
-	tasks := m.phaseTasks()
-	if len(tasks) == 0 {
-		if m.plan == nil {
-			return []string{"reading the plan…"}, -1, []int{-1}
-		}
-		return []string{"no tasks in this phase"}, -1, []int{-1}
-	}
-	idW, rankW := 0, 0
-	for _, t := range tasks {
-		idW, rankW = max(idW, textWidth(t.ID)), max(rankW, textWidth(rank(t)))
-	}
-	titleW := max(w-3-idW-2-1-rankW, 1) // "›✓ " + ID + "  " + title + " " + rank
-	sel := m.listSel()
-	var out []string
-	follow = -1
-	for i, t := range tasks {
-		if (sel >= 0 && i == sel) || (sel < 0 && m.cur != nil && m.cur.id == t.ID) {
-			follow = len(out)
-		}
-		id, title := pad(t.ID, idW), pad(fit(t.Title, titleW), titleW)
-		if i == sel {
-			// The selected row is one focus bar; its parts keep no looks.
-			row := rowMark(true) + m.glyph(t) + " " + id + "  " + title + " " + rank(t)
-			out = append(out, m.th.focusLine(fit(row, w), w))
-		} else {
-			_, tl := m.taskLooks(t)
-			row := rowMark(false) + m.paintedGlyph(t) + " " + m.th.paint(tl, id) + "  " + m.th.paint(tl, title) + " " + m.th.rank(rank(t), tl == lookDim)
-			out = append(out, fit(row, w))
-		}
-		owner = append(owner, i)
-		if t.Status == plan.Blocked {
-			if wt := m.plan.WaitingOn(t); wt != nil {
-				out = append(out, m.th.paint(lookDim, fit("   waits on "+strings.Join(wt.Unmet, ", "), w)))
-				owner = append(owner, -1)
-			}
-		}
-	}
-	return out, follow, owner
+	return m.rows().lines(w, m.listSel())
 }
 
 // taskPane is the visible part of the task list drawn at (x, y): it

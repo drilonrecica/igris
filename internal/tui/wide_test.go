@@ -232,7 +232,7 @@ func TestGlyphs(t *testing.T) {
 	hs := newHarness(t, 120, 30)
 	hs.withPlan(demoPlan)
 	hs.events(started("M0-03"))
-	glyph := func(id string) string { return hs.m.glyph(hs.m.plan.Task(id)) }
+	glyph := func(id string) string { return hs.m.rows().glyph(hs.m.plan.Task(id)) }
 	want := map[string]string{"M0-01": "✓", "M0-03": "●", "M0-04": "·", "M0-13": "⨯", "M0-14": "–"}
 	for id, g := range want {
 		if got := glyph(id); got != g {

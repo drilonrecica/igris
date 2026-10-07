@@ -352,3 +352,23 @@ func TestReviewTablesDecisions(t *testing.T) {
 		t.Error("enter did not reject")
 	}
 }
+
+func TestReviewDoneHook(t *testing.T) {
+	type doneMsg struct{ accepted bool }
+	for _, tt := range []struct {
+		name string
+		key  string
+		want bool
+	}{{"accept", "a", true}, {"reject", "r", false}} {
+		t.Run(tt.name, func(t *testing.T) {
+			o := reviewOpts()
+			o.Done = func(accepted bool) tea.Msg { return doneMsg{accepted} }
+			r := newReview(o)
+			r.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+			_, cmd := r.Update(keyMsg(tt.key))
+			if got, ok := run(cmd).(doneMsg); !ok || got.accepted != tt.want {
+				t.Errorf("got %+v, want doneMsg{%v}", got, tt.want)
+			}
+		})
+	}
+}

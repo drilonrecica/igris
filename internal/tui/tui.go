@@ -49,6 +49,11 @@ type Options struct {
 	Out io.Writer
 	// Now is the clock for elapsed times; nil means time.Now.
 	Now func() time.Time
+	// Leave, when set, is how the run view is left when the owner quits it
+	// (the bar says "Home" then): the message it returns goes to the
+	// program holding the view. Nil means quitting ends the program, as
+	// for a standalone run.
+	Leave func() tea.Msg
 }
 
 // Run shows the TUI until the owner quits or ctx ends. Quitting never stops

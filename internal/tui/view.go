@@ -103,7 +103,11 @@ func (m *model) buttons() []option {
 	if !m.ended {
 		out = append(out, option{"Stop", actStopAsk})
 	}
-	return append(out, option{"?", actHelp}, option{"Quit", actQuit})
+	quit := "Quit"
+	if m.opts.Leave != nil {
+		quit = "Home"
+	}
+	return append(out, option{"?", actHelp}, option{quit, actQuit})
 }
 
 // modal reports whether a dialog or page holds the focus.

@@ -84,36 +84,7 @@ func (m *model) compactTasks(y, w, rows int) []string {
 		lines, _, _ := m.taskLines(w)
 		return lines[:min(rows, len(lines))]
 	}
-	sel := m.listSel()
-	cells := make([]string, len(tasks))
-	cellW, cur := 0, sel
-	for i, t := range tasks {
-		cells[i] = rowMark(i == sel) + m.glyph(t) + " " + t.ID + " " + rank(t)
-		cellW = max(cellW, textWidth(cells[i]))
-		if sel < 0 && m.cur != nil && m.cur.id == t.ID {
-			cur = i
-		}
-	}
-	for i, t := range tasks {
-		if i == sel {
-			cells[i] = m.th.focusLine(cells[i], cellW)
-			continue
-		}
-		_, tl := m.taskLooks(t)
-		cells[i] = rowMark(false) + m.paintedGlyph(t) + " " + m.th.paint(tl, t.ID) + " " + m.th.rank(rank(t), tl == lookDim)
-	}
-	cols := max((w+1)/(cellW+1), 1)
-	var lines []string
-	for i := 0; i < len(cells); i += cols {
-		var b strings.Builder
-		for j := i; j < min(i+cols, len(cells)); j++ {
-			if j > i {
-				b.WriteString(" ")
-			}
-			b.WriteString(pad(cells[j], cellW))
-		}
-		lines = append(lines, fit(strings.TrimRight(b.String(), " "), w))
-	}
+	lines, cols, cellW, cur := m.rows().compact(w, m.listSel())
 	curLine := -1
 	if cur >= 0 {
 		curLine = cur / cols

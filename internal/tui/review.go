@@ -32,6 +32,10 @@ type ReviewOptions struct {
 	// Issues are the proposal's `igris check` problems; none means it
 	// passes.
 	Issues []string
+	// Done, when set, is called with the owner's decision as the review
+	// ends, and its message is sent to the program holding the review
+	// instead of quitting it. Nil means the review ends its own program.
+	Done func(accepted bool) tea.Msg
 }
 
 // Review shows what the proposal changes in the plan with its validation
@@ -153,8 +157,7 @@ func (r *review) mouse(msg tea.MouseMsg) tea.Cmd {
 func (r *review) activate(a action) tea.Cmd {
 	switch a {
 	case actReject:
-		r.accepted = false
-		return tea.Quit
+		return r.finish(false)
 	case actAccept:
 		if len(r.o.Issues) > 0 {
 			r.dialog = &dialog{
@@ -166,15 +169,23 @@ func (r *review) activate(a action) tea.Cmd {
 			}
 			return nil
 		}
-		r.accepted = true
-		return tea.Quit
+		return r.finish(true)
 	case actAcceptAnyway:
-		r.accepted = true
-		return tea.Quit
+		return r.finish(true)
 	case actClose:
 		r.dialog = nil
 	}
 	return nil
+}
+
+// finish records the owner's decision and ends the review: it quits the
+// program, or tells the one holding the review through Done.
+func (r *review) finish(accepted bool) tea.Cmd {
+	r.accepted = accepted
+	if r.o.Done != nil {
+		return func() tea.Msg { return r.o.Done(accepted) }
+	}
+	return tea.Quit
 }
 
 func (r *review) View() string {

@@ -424,3 +424,28 @@ func TestTaskModeIgnoresUserTasks(t *testing.T) {
 		t.Errorf("sent %+v", got)
 	}
 }
+
+type leftMsg struct{}
+
+func TestLeaveReplacesQuit(t *testing.T) {
+	hs := newHarness(t, 120, 30)
+	if _, ok := run(hs.m.activate(actQuit)).(tea.QuitMsg); !ok {
+		t.Error("without Leave, quitting should end the program")
+	}
+	last := hs.m.buttons()
+	if got := last[len(last)-1].label; got != "Quit" {
+		t.Errorf("last button %q, want Quit", got)
+	}
+
+	hs.m.opts.Leave = func() tea.Msg { return leftMsg{} }
+	if _, ok := run(hs.m.activate(actQuit)).(leftMsg); !ok {
+		t.Error("with Leave, quitting should send Leave's message")
+	}
+	if _, ok := run(hs.m.key(keyMsg("q"))).(leftMsg); !ok {
+		t.Error("q should leave through Leave too")
+	}
+	last = hs.m.buttons()
+	if got := last[len(last)-1]; got.label != "Home" || got.act != actQuit {
+		t.Errorf("last button %+v, want Home on actQuit", got)
+	}
+}

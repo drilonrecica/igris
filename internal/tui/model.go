@@ -473,17 +473,8 @@ func modeCommand(task, mode string, typed bool) engine.Command {
 	return engine.Command{Kind: engine.CmdTaskMode, Task: task, Text: mode, Yes: typed}
 }
 
-// taskMode is the mode t's next session would run in, as far as the TUI
-// knows: the owner's override, its Mode column, else the run mode.
-func (m *model) taskMode(t *plan.Task) string {
-	switch {
-	case m.overrides[t.ID] != "":
-		return m.overrides[t.ID]
-	case t.Mode != "":
-		return t.Mode
-	}
-	return m.mode
-}
+// taskMode is the mode t's next session would run in.
+func (m *model) taskMode(t *plan.Task) string { return m.rows().taskMode(t) }
 
 // taskModeTarget is the selected task when Task mode applies to it: nil once
 // the run is over, and for user tasks, which have no session.
@@ -505,6 +496,9 @@ func (m *model) activate(a action) tea.Cmd {
 	case actNone, actOption:
 		return nil
 	case actQuit:
+		if m.opts.Leave != nil {
+			return m.opts.Leave
+		}
 		return tea.Quit
 	case actOpen:
 		return m.focusSession()
