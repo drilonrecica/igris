@@ -7,6 +7,7 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 ### Fixed
 
 - Home: after a run whose phases all completed, the NOW card is READY with a `last run P1 completed` line and the bar says Arise…, instead of STOPPED with Resume (SPEC §15.6).
+- History and home: a task still being worked on in a live run reads `running` (RUNNING card `recent:` line, `igris history`, `--json`), not `unfinished`, which is kept for tasks a run ended before they did.
 
 ## [0.2.0] - 2026-10-07
 

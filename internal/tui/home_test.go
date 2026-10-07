@@ -200,7 +200,7 @@ var homeStates = []struct {
 		s.Run.Lock, s.Run.LockDetail = report.LockHere, "pid 4242"
 		s.Lock = state.LockState{Held: true, Alive: true, Info: state.LockInfo{PID: 4242, Host: "this-host", StartedAt: homeNow.Add(-29 * time.Minute)}, Path: "/src/sinjal/.igris/igris.lock"}
 		s.Recent = append([]report.HistoryRun{{StartedAt: "2026-10-07T09:12:00Z", Phases: []string{"M2", "M3"}, End: report.EndRunning, Done: 1,
-			Tasks: []report.TaskRun{{ID: "M2-01", Result: report.ResultDone}, {ID: "M2-02", Result: report.ResultOpen}}}}, s.Recent...)
+			Tasks: []report.TaskRun{{ID: "M2-01", Result: report.ResultDone}, {ID: "M2-02", Result: report.ResultRunning}}}}, s.Recent...)
 		return homeFixture{snap: s, doctor: homeDoctor, doctorDone: true}
 	}},
 	{"stale_lock", func() homeFixture {

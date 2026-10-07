@@ -35,7 +35,7 @@ func TestHistoryRunBoundaries(t *testing.T) {
 		t.Fatalf("runs = %d", len(h.Runs))
 	}
 	last, mid, first := h.Runs[0], h.Runs[1], h.Runs[2]
-	if last.End != EndRunning || last.Tasks[0].Result != ResultOpen {
+	if last.End != EndRunning || last.Tasks[0].Result != ResultRunning {
 		t.Errorf("last = %+v", last)
 	}
 	if mid.End != "completed" || mid.Skipped != 1 || mid.Tasks[0].Attempts != 1 || mid.Tasks[0].DurationS != 120 || len(mid.Phases) != 2 {
@@ -47,8 +47,33 @@ func TestHistoryRunBoundaries(t *testing.T) {
 	if got := NewHistory(HistoryInput{Events: events, N: 2}); len(got.Runs) != 2 {
 		t.Errorf("-n 2 gave %d runs", len(got.Runs))
 	}
-	if got := NewHistory(HistoryInput{Events: events}); got.Runs[0].End != EndInterrupted {
-		t.Errorf("not live: %q", got.Runs[0].End)
+	got := NewHistory(HistoryInput{Events: events})
+	if got.Runs[0].End != EndInterrupted || got.Runs[0].Tasks[0].Result != ResultOpen {
+		t.Errorf("not live: %+v", got.Runs[0])
+	}
+}
+
+func TestTaskHistoryRunningVersusInterrupted(t *testing.T) {
+	events := []state.Event{
+		ev(1, state.EventRunStarted, "", "phase A"),
+		ev(2, state.EventTaskStarted, "A-1", ""), // interrupted: the next run started
+		ev(10, state.EventRunStarted, "", "phase A"),
+		ev(11, state.EventTaskResumed, "A-1", ""),
+	}
+	for _, c := range []struct {
+		name        string
+		live        bool
+		last, older string
+	}{
+		{"live last run", true, ResultRunning, ResultOpen},
+		{"interrupted last run", false, ResultOpen, ResultOpen},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			h := NewTaskHistory(HistoryInput{Events: events, Live: c.live}, "A-1")
+			if len(h.Attempts) != 2 || h.Attempts[0].Result != c.last || h.Attempts[1].Result != c.older {
+				t.Errorf("attempts = %+v", h.Attempts)
+			}
+		})
 	}
 }
 

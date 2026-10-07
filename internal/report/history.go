@@ -19,6 +19,7 @@ const (
 	ResultDone     = "done"
 	ResultSkipped  = "skipped"
 	ResultOpen     = "unfinished" // the run ended before the task did
+	ResultRunning  = "running"    // the run is still going and the task has no result yet
 )
 
 // HistoryInput is what NewHistory and NewTaskHistory read.
@@ -122,9 +123,10 @@ func NewTaskHistory(in HistoryInput, task string) TaskHistory {
 	recs := readRuns(in.Events)
 	for i := len(recs) - 1; i >= 0; i-- {
 		r := recs[i]
+		running := r.running(in.Live && i == len(recs)-1)
 		for j := len(r.attempts) - 1; j >= 0; j-- {
 			if a := r.attempts[j]; a.id == task {
-				h.Attempts = append(h.Attempts, a.export(r.start))
+				h.Attempts = append(h.Attempts, a.export(r.start, running))
 			}
 		}
 	}
@@ -210,6 +212,9 @@ func scopePhases(detail string) []string {
 	return out
 }
 
+// running says the run is the live one: no stop event and igris still alive.
+func (r *runRec) running(live bool) bool { return live && !r.stopped }
+
 func (r *runRec) summary(live bool) HistoryRun {
 	out := HistoryRun{
 		StartedAt: stamp(r.start), EndedAt: stamp(r.end), DurationS: seconds(r.start, r.end),
@@ -219,7 +224,7 @@ func (r *runRec) summary(live bool) HistoryRun {
 	switch {
 	case r.stopped && out.End == "":
 		out.End = "stopped"
-	case !r.stopped && live:
+	case r.running(live):
 		out.End = EndRunning
 	case !r.stopped:
 		out.End = EndInterrupted
@@ -234,7 +239,7 @@ func (r *runRec) summary(live bool) HistoryRun {
 		}
 		t := &out.Tasks[i]
 		t.Attempts++
-		t.Result = a.resultOr()
+		t.Result = a.resultOr(out.End == EndRunning)
 		t.DurationS += seconds(a.start, a.end)
 		t.VerifyFailed += a.failed
 		t.VerifyPassed += a.passed
@@ -250,18 +255,23 @@ func (r *runRec) summary(live bool) HistoryRun {
 	return out
 }
 
-func (a *attempt) resultOr() string {
-	if a.result == "" {
-		return ResultOpen
+// resultOr is the attempt's result, or what an attempt without one means:
+// running while its run is live, unfinished once the run is over.
+func (a *attempt) resultOr(running bool) string {
+	switch {
+	case a.result != "":
+		return a.result
+	case running:
+		return ResultRunning
 	}
-	return a.result
+	return ResultOpen
 }
 
-func (a *attempt) export(runStart time.Time) Attempt {
+func (a *attempt) export(runStart time.Time, running bool) Attempt {
 	return Attempt{
 		RunStartedAt: stamp(runStart), StartedAt: stamp(a.start), EndedAt: stamp(a.end),
 		DurationS: seconds(a.start, a.end), Rank: a.rank, Model: a.model,
-		Result: a.resultOr(), Note: a.note, Verify: append([]string{}, a.verify...),
+		Result: a.resultOr(running), Note: a.note, Verify: append([]string{}, a.verify...),
 	}
 }
 

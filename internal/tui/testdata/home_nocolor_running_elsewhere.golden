@@ -3,7 +3,7 @@
   ✓ [2mM0[0m  [2mFoundations                  [0m ██████████ [2m3/3 done[0m  │ [1mRUNNING in another igris · pid 4242 on this host · since[0m   
   ✓ [2mM1[0m  [2mPlan parser                  [0m ██████████ [2m2/2 done[0m  │ [1m09:12[0m                                                      
 › [1m●[0m [1mM2[0m  [1mConfig & state               [0m ██░░░░░░░░ [1m1/4 next[0m  │ [1m● M2-02[0m  Lock file              opus · mode plan · 14m     
-  [2m⨯[0m [2mM3[0m  [2mEngine                       [0m ░░░░░░░░░░ [2m0/3 wait[0m  │ [2mrecent: M2-01 done · M2-02 unfinished[0m                      
+  [2m⨯[0m [2mM3[0m  [2mEngine                       [0m ░░░░░░░░░░ [2m0/3 wait[0m  │ [2mrecent: M2-01 done · M2-02 running[0m                         
   [2m⨯[0m [2mM4[0m  [2mTUI                          [0m ░░░░░░░░░░ [2m0/2 wait[0m  │ This screen only watches. Use that terminal to control the 
                                                            │ run.                                                       
                                                            ├─ [1mHEALTH[0m ───────────────────────────────────────────────────
