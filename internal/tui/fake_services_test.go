@@ -36,6 +36,7 @@ type fakeServices struct {
 	onInit     func(example bool) // runs inside Init, to change what Snapshot reads next
 	notify     []report.NotifyResult
 	notifyErr  error
+	notifyFn   func(ctx context.Context, emit func(report.NotifyResult)) error // overrides notify
 	adapt      func(ctx context.Context, model string, out io.Writer, opened func(backend.SessionRef)) (*adapt.Result, error)
 	backup     string
 	acceptErr  error
@@ -133,8 +134,11 @@ func (f *fakeServices) InitFiles(example bool) []string {
 	return files
 }
 
-func (f *fakeServices) NotifyTest(_ context.Context, emit func(report.NotifyResult)) error {
+func (f *fakeServices) NotifyTest(ctx context.Context, emit func(report.NotifyResult)) error {
 	f.count("NotifyTest")
+	if f.notifyFn != nil {
+		return f.notifyFn(ctx, emit)
+	}
 	for _, r := range f.notify {
 		emit(r)
 	}

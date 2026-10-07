@@ -77,6 +77,8 @@ type homeScreen struct {
 	initing *initTarget
 	// adapting says the Adapt dialog is open (adaptpage.go).
 	adapting bool
+	// notifying says the Notify dialog is open (notifypage.go).
+	notifying bool
 
 	status   string // the last action's result
 	statusAt time.Time
@@ -386,6 +388,9 @@ func (m *homeScreen) pick(a action) tea.Cmd {
 	if m.adapting {
 		return m.adaptPick(a)
 	}
+	if m.notifying {
+		return m.notifyPick(a)
+	}
 	if a == actNone {
 		return nil
 	}
@@ -600,6 +605,8 @@ func (m *homeScreen) activate(a action) tea.Cmd {
 		return m.openInit(true)
 	case actAdapt:
 		return m.openAdapt()
+	case actNotify:
+		return m.openNotify()
 	}
 	return m.notYet(label)
 }

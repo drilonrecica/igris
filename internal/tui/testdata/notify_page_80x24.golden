@@ -1,0 +1,24 @@
+Notify test · 1 failure
+────────────────────────────────────────────────────────────────────────────────
+  needs_input  ntfy         ✓ ok
+  needs_input  discord      ⨯ FAILED: discord answered 400 Bad Request
+  phase_done   ntfy         ✓ ok
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[Send again] [Close]

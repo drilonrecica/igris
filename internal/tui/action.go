@@ -54,7 +54,8 @@ const (
 	actSettings    // the settings page
 	actEditAnyway  // edit the plan although a run holds it
 	actEditVi      // open the file with vi: no editor is set
-	actNotify      // the notify test page
+	actNotify      // the notify test page; on it, Send again
+	actNotifySend  // the Notify dialog's Send
 	actAdapt       // igris adapt: the dialog that asks first
 	actAdaptSonnet // the Adapt dialog's Adapt with sonnet
 	actAdaptOpus   // the Adapt dialog's Adapt with opus

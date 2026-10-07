@@ -1,0 +1,23 @@
+╭─────────────────────────────────────────────────────────────────────────────╮
+│ Send 3 test messages to ntfy, discord?                                      │
+│                                                                             │
+│ One sample per event is sent on each channel; a failed one is retried once. │
+│                                                                             │
+│ › 1. Send                                                                   │
+│   2. Cancel                                                                 │
+╰─────────────────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
