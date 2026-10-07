@@ -293,7 +293,11 @@ func orDash(s string) string {
 
 func printPhaseStatus(w io.Writer, r phaseStatusJSON) {
 	satisfied := r.Counts["done"] + r.Counts["skipped"]
-	fmt.Fprintf(w, "%s — %s: %d/%d finished, %s", r.ID, r.Title, satisfied, r.Total, r.Outcome)
+	name := r.ID
+	if r.Title != "" {
+		name += " — " + r.Title
+	}
+	fmt.Fprintf(w, "%s: %d/%d finished, %s", name, satisfied, r.Total, r.Outcome)
 	if r.Next != "" {
 		fmt.Fprintf(w, " (%s)", r.Next)
 	}

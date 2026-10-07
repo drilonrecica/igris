@@ -177,6 +177,18 @@ func TestPhases(t *testing.T) {
 	}
 }
 
+func TestStatusUntitledPhase(t *testing.T) {
+	dir := inDir(t)
+	plan := "## Overview\n\n| ID | Status | Model |\n|---|---|---|\n| a | ready | sonnet |\n"
+	if err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(plan), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	code, out, _ := runCmd("status")
+	if code != exitOK || !strings.HasPrefix(out, "Overview: 0/1 finished, next (a)\n") {
+		t.Errorf("code %d, out:\n%s", code, out)
+	}
+}
+
 func TestStatus(t *testing.T) {
 	inDir(t)
 	code, out, _ := runCmd("status", "f3", "--plan", largePlan) // phase IDs match case-insensitively
