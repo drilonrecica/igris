@@ -1,0 +1,5 @@
+exit: 1
+--- stdout
+--- stderr
+igris status: tasks.md is not valid; run `igris check` and fix:
+  tasks.md:5: dependency cycle a → b → a (each task waits on the next); remove one of these dependencies

@@ -1,0 +1,23 @@
+exit: 0
+--- stdout
+warning: this is not a git repository: sessions' changes can't be reviewed or undone with git, and commits fail unless commit = "never". Run `git init` first.
+warning: drift: F1-13: blocked → ready (a real run asks you before fixing it)
+warning: drift: F2-13: blocked → ready (a real run asks you before fixing it)
+warning: drift: F3-08: ready → blocked (a real run asks you before fixing it)
+warning: drift: F3-10: blocked → ready (a real run asks you before fixing it)
+warning: drift: F3-13: blocked → ready (a real run asks you before fixing it)
+warning: drift: Phase-4-01: ready → blocked (a real run asks you before fixing it)
+warning: drift: F5-01: ready → blocked (a real run asks you before fixing it)
+warning: drift: F6-01: ready → blocked (a real run asks you before fixing it)
+warning: drift: F7-01: ready → blocked (a real run asks you before fixing it)
+warning: drift: Phase-8-01: ready → blocked (a real run asks you before fixing it)
+warning: drift: F9-01: ready → blocked (a real run asks you before fixing it)
+warning: drift: F10-01: ready → blocked (a real run asks you before fixing it)
+warning: drift: F11-01: ready → blocked (a real run asks you before fixing it)
+warning: drift: Phase-12-01: ready → blocked (a real run asks you before fixing it)
+dry run of phase F1: nothing is written and no session starts
+  1. F1-13      haiku   → model haiku   mode default Task F1-13
+  2. F1-G       sonnet  → model sonnet  mode default Task F1-G
+     phase F1 complete
+dry run: 2 session(s), 0 user task(s)
+--- stderr

@@ -1,0 +1,124 @@
+exit: 0
+--- stdout
+{
+  "issues": [],
+  "phases": 12,
+  "plan": "tasks.md",
+  "tasks": 168,
+  "valid": true,
+  "warnings": [
+    {
+      "file": "tasks.md",
+      "line": 40,
+      "task": "F1-13",
+      "from": "blocked",
+      "to": "ready",
+      "message": "F1-13 is blocked but all its dependencies are satisfied; igris will set it to ready"
+    },
+    {
+      "file": "tasks.md",
+      "line": 59,
+      "task": "F2-13",
+      "from": "blocked",
+      "to": "ready",
+      "message": "F2-13 is blocked but all its dependencies are satisfied; igris will set it to ready"
+    },
+    {
+      "file": "tasks.md",
+      "line": 73,
+      "task": "F3-08",
+      "from": "ready",
+      "to": "blocked",
+      "message": "F3-08 is ready but waits on F3-07, F2-G; igris will set it to blocked"
+    },
+    {
+      "file": "tasks.md",
+      "line": 75,
+      "task": "F3-10",
+      "from": "blocked",
+      "to": "ready",
+      "message": "F3-10 is blocked but all its dependencies are satisfied; igris will set it to ready"
+    },
+    {
+      "file": "tasks.md",
+      "line": 78,
+      "task": "F3-13",
+      "from": "blocked",
+      "to": "ready",
+      "message": "F3-13 is blocked but all its dependencies are satisfied; igris will set it to ready"
+    },
+    {
+      "file": "tasks.md",
+      "line": 85,
+      "task": "Phase-4-01",
+      "from": "ready",
+      "to": "blocked",
+      "message": "Phase-4-01 is ready but waits on F3-G; igris will set it to blocked"
+    },
+    {
+      "file": "tasks.md",
+      "line": 104,
+      "task": "F5-01",
+      "from": "ready",
+      "to": "blocked",
+      "message": "F5-01 is ready but waits on Phase-4-G; igris will set it to blocked"
+    },
+    {
+      "file": "tasks.md",
+      "line": 129,
+      "task": "F6-01",
+      "from": "ready",
+      "to": "blocked",
+      "message": "F6-01 is ready but waits on F5-G; igris will set it to blocked"
+    },
+    {
+      "file": "tasks.md",
+      "line": 148,
+      "task": "F7-01",
+      "from": "ready",
+      "to": "blocked",
+      "message": "F7-01 is ready but waits on F6-G; igris will set it to blocked"
+    },
+    {
+      "file": "tasks.md",
+      "line": 167,
+      "task": "Phase-8-01",
+      "from": "ready",
+      "to": "blocked",
+      "message": "Phase-8-01 is ready but waits on F7-G; igris will set it to blocked"
+    },
+    {
+      "file": "tasks.md",
+      "line": 186,
+      "task": "F9-01",
+      "from": "ready",
+      "to": "blocked",
+      "message": "F9-01 is ready but waits on Phase-8-G; igris will set it to blocked"
+    },
+    {
+      "file": "tasks.md",
+      "line": 205,
+      "task": "F10-01",
+      "from": "ready",
+      "to": "blocked",
+      "message": "F10-01 is ready but waits on F9-G; igris will set it to blocked"
+    },
+    {
+      "file": "tasks.md",
+      "line": 224,
+      "task": "F11-01",
+      "from": "ready",
+      "to": "blocked",
+      "message": "F11-01 is ready but waits on F10-G; igris will set it to blocked"
+    },
+    {
+      "file": "tasks.md",
+      "line": 243,
+      "task": "Phase-12-01",
+      "from": "ready",
+      "to": "blocked",
+      "message": "Phase-12-01 is ready but waits on F11-G; igris will set it to blocked"
+    }
+  ]
+}
+--- stderr

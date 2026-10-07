@@ -1,0 +1,32 @@
+exit: 0
+--- stdout
+{
+  "phases": [
+    {
+      "id": "P1",
+      "title": "Hello CLI",
+      "total": 5,
+      "counts": {
+        "blocked": 1,
+        "done": 1,
+        "in progress": 0,
+        "ready": 3,
+        "skipped": 0
+      }
+    },
+    {
+      "id": "P2",
+      "title": "Polish",
+      "total": 3,
+      "counts": {
+        "blocked": 3,
+        "done": 0,
+        "in progress": 0,
+        "ready": 0,
+        "skipped": 0
+      }
+    }
+  ],
+  "plan": "tasks.md"
+}
+--- stderr

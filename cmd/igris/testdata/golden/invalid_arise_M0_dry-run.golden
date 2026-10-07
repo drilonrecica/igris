@@ -1,0 +1,6 @@
+exit: 1
+--- stdout
+warning: this is not a git repository: sessions' changes can't be reviewed or undone with git, and commits fail unless commit = "never". Run `git init` first.
+--- stderr
+igris arise --dry-run: plan has 1 problem(s); fix them (or run `igris adapt`) and try again:
+  <dir>/tasks.md:5: dependency cycle a → b → a (each task waits on the next); remove one of these dependencies

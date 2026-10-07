@@ -1,0 +1,16 @@
+exit: 0
+--- stdout
+P1 — Hello CLI: 1/5 finished, next (P1-02)
+  ID     STATUS   RANK    OWNER         MODE  WAITS ON
+  P1-01  done     sonnet  agent         —     
+  P1-02  ready    sonnet  agent         —     
+  P1-03  ready    opus    agent         plan  
+  P1-04  ready    —       user          —     
+  P1-G   blocked  sonnet  agent + user  —     P1-02 (ready, phase P1), P1-03 (ready, phase P1), P1-04 (ready, phase P1)
+
+P2 — Polish: 0/3 finished, stuck
+  ID     STATUS   RANK    OWNER  MODE  WAITS ON
+  P2-01  blocked  opus    agent  —     P1-G (blocked, phase P1)
+  P2-02  blocked  sonnet  agent  —     P1-02 (ready, phase P1), P2-01 (blocked, phase P2)
+  P2-03  blocked  fable   agent  —     P2-01 (blocked, phase P2), P2-02 (blocked, phase P2)
+--- stderr

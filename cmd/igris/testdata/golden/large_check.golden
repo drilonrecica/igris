@@ -1,0 +1,19 @@
+exit: 0
+--- stdout
+warning: tasks.md:40: F1-13 is blocked but all its dependencies are satisfied; igris will set it to ready
+warning: tasks.md:59: F2-13 is blocked but all its dependencies are satisfied; igris will set it to ready
+warning: tasks.md:73: F3-08 is ready but waits on F3-07, F2-G; igris will set it to blocked
+warning: tasks.md:75: F3-10 is blocked but all its dependencies are satisfied; igris will set it to ready
+warning: tasks.md:78: F3-13 is blocked but all its dependencies are satisfied; igris will set it to ready
+warning: tasks.md:85: Phase-4-01 is ready but waits on F3-G; igris will set it to blocked
+warning: tasks.md:104: F5-01 is ready but waits on Phase-4-G; igris will set it to blocked
+warning: tasks.md:129: F6-01 is ready but waits on F5-G; igris will set it to blocked
+warning: tasks.md:148: F7-01 is ready but waits on F6-G; igris will set it to blocked
+warning: tasks.md:167: Phase-8-01 is ready but waits on F7-G; igris will set it to blocked
+warning: tasks.md:186: F9-01 is ready but waits on Phase-8-G; igris will set it to blocked
+warning: tasks.md:205: F10-01 is ready but waits on F9-G; igris will set it to blocked
+warning: tasks.md:224: F11-01 is ready but waits on F10-G; igris will set it to blocked
+warning: tasks.md:243: Phase-12-01 is ready but waits on F11-G; igris will set it to blocked
+note: no igris.toml here; using the defaults (`igris init` creates one)
+tasks.md: OK (12 phases, 168 tasks, 14 warnings)
+--- stderr

@@ -13,14 +13,13 @@ import (
 	"strings"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/drilonrecica/igris/internal/backend"
-	"github.com/drilonrecica/igris/internal/backend/fake"
 	"github.com/drilonrecica/igris/internal/backend/herdr"
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/plan"
+	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/runner"
 	"github.com/drilonrecica/igris/internal/state"
 	"github.com/drilonrecica/igris/internal/tui"
@@ -114,7 +113,7 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 	for _, w := range f.cfg.Warnings() {
 		fmt.Fprintf(out, "warning: %s: %s\n", state.ConfigFile, w)
 	}
-	for _, h := range planHints(f) {
+	for _, h := range engine.PlanHints(f.root, f.cfg) {
 		fmt.Fprintf(out, "warning: %s\n", h)
 	}
 	for _, w := range engine.Preflight(ctx, commandRunner(), f.root, ariseGetenv) {
@@ -605,205 +604,52 @@ func yoloBadge(mode string) string {
 	return ""
 }
 
-// dryRun walks the phases on a copy of the plan with the fake backend and
-// prints which task would launch with which model and mode (SPEC §14). It
-// writes nothing in the project: the plan copy, the state and the lock live
-// in a temporary directory, and no command is run.
+// dryRun walks the phases on a copy of the plan (engine.DryRun) and prints
+// which task would launch with which model and mode (SPEC §14).
 func dryRun(f ariseFlags, out, stderr io.Writer) int {
-	fail := func(format string, a ...any) int {
-		fmt.Fprintf(stderr, "igris arise --dry-run: %s\n", fmt.Sprintf(format, a...))
+	r, err := engine.DryRun(context.Background(), engine.DryRunOptions{
+		Root: f.root, Config: f.cfg, Phase: f.phase, Through: f.through, Mode: f.mode,
+		Runner: commandRunner(), Getenv: ariseGetenv, Compat: compatWarnings, Format: formatEvent,
+	})
+	printDryRun(out, r)
+	if err != nil {
+		fmt.Fprintf(stderr, "igris arise --dry-run: %v\n", err)
 		return exitFail
 	}
-	switch prev, err := state.PeekRun(f.root); {
-	case errors.Is(err, state.ErrNoRun):
-		if f.phase == "" {
-			return fail("there is no earlier run to resume; name the phase to run, e.g. `igris arise M0 --dry-run`")
-		}
-	case err != nil:
-		return fail("%v", err)
-	default:
-		if prev.Current != nil {
-			fmt.Fprintf(out, "note: the last run stopped during %s; a real `igris arise` picks it up first\n", prev.Current.TaskID)
-		}
-		if f.phase == "" && len(prev.Phases) > 0 {
-			f.phase, f.through = prev.Phases[0], prev.Through
-		}
-	}
-
-	for _, w := range compatWarnings(context.Background(), commandRunner()) {
-		fmt.Fprintf(out, "warning: %s\n", w)
-	}
-	for _, w := range f.cfg.Warnings() {
-		fmt.Fprintf(out, "warning: %s: %s\n", state.ConfigFile, w)
-	}
-	for _, h := range planHints(f) {
-		fmt.Fprintf(out, "warning: %s\n", h)
-	}
-	for _, w := range engine.Preflight(context.Background(), commandRunner(), f.root, ariseGetenv) {
-		asks := ""
-		if w.Confirm {
-			asks = " (a real run asks you to confirm)"
-		}
-		fmt.Fprintf(out, "warning: %s%s\n", w.Text, asks)
-	}
-	planPath := rootPath(f.root, f.cfg.Plan)
-	p, err := plan.Load(planPath, plan.Options{Columns: f.cfg.Columns})
-	if err != nil {
-		return fail("%v", engine.PlanLoadError(err))
-	}
-	if err := p.Check(f.cfg.Models); err != nil {
-		return fail("%v", err)
-	}
-	// Check the range on the owner's plan, so errors name it, not the copy.
-	if _, err := p.PhasesThrough(f.phase, f.through); err != nil {
-		return fail("%v", err)
-	}
-	for _, c := range p.Readiness() {
-		fmt.Fprintf(out, "warning: drift: %s (a real run asks you before fixing it)\n", c)
-	}
-
-	tmp, err := os.MkdirTemp("", "igris-dry-run-*")
-	if err != nil {
-		return fail("%v", err)
-	}
-	defer func() { _ = os.RemoveAll(tmp) }()
-	cfg, err := dryRunProject(tmp, f.root, f.cfg)
-	if err != nil {
-		return fail("%v", err)
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	clock := engine.NewFakeClock(time.Now())
-	// A walk that never ends would be a bug; fake time runs out first.
-	clock.At(365*24*time.Hour, cancel)
-	dir, err := state.Open(tmp, state.Options{Now: clock.Now})
-	if err != nil {
-		return fail("%v", err)
-	}
-	be := newDryBackend(dir)
-	w := &dryWalk{out: out, resumed: map[string]bool{}}
-	var eng *engine.Engine
-	eng, err = engine.New(engine.Options{
-		Config:         cfg,
-		Backend:        be,
-		State:          dir,
-		Clock:          clock,
-		Runner:         &runner.Fake{}, // verify and commits are off; nothing may run
-		Phase:          f.phase,
-		Through:        f.through,
-		Mode:           f.mode,
-		ConfirmedDrift: true,
-		ConfirmedYolo:  true,
-		Events:         func(ev engine.Event) { w.event(eng, dir, ev) },
-	})
-	if err != nil {
-		return fail("%v", err)
-	}
-	scope := f.phase
-	if f.through != "" {
-		scope += " through " + f.through
-	}
-	fmt.Fprintf(out, "dry run of phase %s: nothing is written and no session starts\n", scope)
-	if _, err := eng.Run(ctx); err != nil {
-		return fail("%v", err)
-	}
-	fmt.Fprintf(out, "dry run: %d session(s), %d user task(s)\n", w.sessions, w.users)
+	fmt.Fprintf(out, "dry run: %d session(s), %d user task(s)\n", r.Sessions, r.Users)
 	return exitOK
 }
 
-// dryRunProject sets up a scratch project in tmp: the plan (and prompt
-// template) copied from root, and a config that never verifies, commits or
-// toasts. It returns that config.
-func dryRunProject(tmp, root string, orig *config.Config) (*config.Config, error) {
-	cfg := *orig
-	cfg.Run.Verify = ""
-	cfg.Run.Commit = engine.CommitNever
-	cfg.Notify.Backend.Enabled = false
-	cfg.Notify.Ntfy.Topic = "" // no Discord webhook either: dry runs resolve no secrets
-	copyIn := func(rel string) (string, error) {
-		name := rel
-		if filepath.IsAbs(rel) || !filepath.IsLocal(rel) {
-			name = filepath.Base(rel)
-		}
-		data, err := os.ReadFile(rootPath(root, rel)) //nolint:gosec // the owner's own plan/template
-		if err != nil {
-			return "", err
-		}
-		dst := filepath.Join(tmp, name)
-		if err := os.MkdirAll(filepath.Dir(dst), 0o700); err != nil {
-			return "", err
-		}
-		return name, os.WriteFile(dst, data, 0o600) //nolint:gosec // dst is a local name inside our own temp dir
+// printDryRun renders a dry run, or the part of it found before it failed.
+func printDryRun(out io.Writer, r report.DryRun) {
+	if r.Interrupted != "" {
+		fmt.Fprintf(out, "note: the last run stopped during %s; a real `igris arise` picks it up first\n", r.Interrupted)
 	}
-	var err error
-	if cfg.Plan, err = copyIn(orig.Plan); err != nil {
-		return nil, err
+	for _, w := range r.Warnings {
+		fmt.Fprintf(out, "warning: %s\n", w)
 	}
-	if orig.Run.PromptTemplate != "" {
-		if cfg.Run.PromptTemplate, err = copyIn(orig.Run.PromptTemplate); err != nil {
-			return nil, fmt.Errorf("read prompt_template: %w", err)
-		}
+	if r.Scope == "" {
+		return
 	}
-	// The engine watches igris.toml against its snapshot; give it this one.
-	if err := config.Write(filepath.Join(tmp, state.ConfigFile), &cfg); err != nil {
-		return nil, err
-	}
-	return &cfg, nil
-}
-
-// dryWalk prints the walk and plays the owner and the sessions.
-type dryWalk struct {
-	out             io.Writer
-	sessions, users int
-	resumed         map[string]bool
-}
-
-func (w *dryWalk) event(eng *engine.Engine, dir *state.Dir, ev engine.Event) {
-	switch ev.Kind {
-	case engine.SessionOpened:
-		w.sessions++
-		how := ""
-		if w.resumed[ev.Task] {
-			how = "  (resumed: fresh session)"
-		}
-		fmt.Fprintf(w.out, "%3d. %-10s %-7s → model %-7s mode %-7s %s%s%s\n", w.sessions+w.users, ev.Task, ev.Rank, ev.Model, ev.Mode, ev.Title, yoloBadge(ev.Mode), how)
-	case engine.YourTurn:
-		w.users++
-		fmt.Fprintf(w.out, "%3d. %-10s user task: waits for you  %s\n", w.sessions+w.users, ev.Task, ev.Title)
-		if err := dir.WriteSignal(state.Signal{ID: ev.Task, Action: state.ActionDone, Note: "dry run"}); err != nil {
-			fmt.Fprintf(w.out, "warning: %v\n", err)
-		}
-	case engine.TaskResumed:
-		w.resumed[ev.Task] = true
-	case engine.Asked:
-		// Only a task the plan says is in progress gets here: start fresh.
-		eng.Send(engine.Command{Kind: engine.CmdRetry})
-	case engine.PhaseDone:
-		fmt.Fprintf(w.out, "     phase %s complete\n", ev.Phase)
-	case engine.PhaseStuck, engine.ModeChanged, engine.TaskModeChanged, engine.ConfigChanged, engine.Warning, engine.RunFailed:
-		for _, line := range formatEvent(ev) {
-			fmt.Fprintln(w.out, "     "+line)
+	fmt.Fprintf(out, "dry run of phase %s: nothing is written and no session starts\n", r.Scope)
+	for _, s := range r.Steps {
+		switch s.Kind {
+		case report.StepSession:
+			how := ""
+			if s.Resumed {
+				how = "  (resumed: fresh session)"
+			}
+			fmt.Fprintf(out, "%3d. %-10s %-7s → model %-7s mode %-7s %s%s%s\n", s.N, s.Task, s.Rank, s.Model, s.Mode, s.Title, yoloBadge(s.Mode), how)
+		case report.StepUser:
+			fmt.Fprintf(out, "%3d. %-10s user task: waits for you  %s\n", s.N, s.Task, s.Title)
+		case report.StepPhaseDone:
+			fmt.Fprintf(out, "     phase %s complete\n", s.Phase)
+		case report.StepWarning:
+			fmt.Fprintf(out, "warning: %s\n", s.Lines[0])
+		case report.StepNote:
+			for _, line := range s.Lines {
+				fmt.Fprintln(out, "     "+line)
+			}
 		}
 	}
-}
-
-// newDryBackend is a fake backend whose sessions report done right away.
-func newDryBackend(dir *state.Dir) backend.Backend {
-	be := fake.New()
-	be.SetAutoSignal(func(_ context.Context, id string) error {
-		return dir.WriteSignal(state.Signal{ID: id, Action: state.ActionDone, Note: "dry run"})
-	})
-	return be
-}
-
-// planHints returns the plan's hints (plan.Hints) for the start of a run. A
-// plan that can't be read or isn't valid gives none: the run reports that
-// itself.
-func planHints(f ariseFlags) []plan.Issue {
-	p, err := plan.Load(rootPath(f.root, f.cfg.Plan), plan.Options{Columns: f.cfg.Columns})
-	if err != nil || len(p.Validate(f.cfg.Models)) > 0 {
-		return nil
-	}
-	return p.Hints()
 }

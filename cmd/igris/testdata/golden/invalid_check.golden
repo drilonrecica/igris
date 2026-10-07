@@ -1,0 +1,6 @@
+exit: 1
+--- stdout
+tasks.md:5: dependency cycle a → b → a (each task waits on the next); remove one of these dependencies
+note: no igris.toml here; using the defaults (`igris init` creates one)
+tasks.md: 1 problem(s); fix them (or run `igris adapt`) and run `igris check` again
+--- stderr

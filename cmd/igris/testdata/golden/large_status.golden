@@ -1,0 +1,206 @@
+exit: 0
+--- stdout
+F1 — Foundation: 12/14 finished, next (F1-13)
+  ID     STATUS   RANK    OWNER         MODE    WAITS ON
+  F1-01  done     haiku   agent         —       
+  F1-02  done     sonnet  agent         accept  
+  F1-03  done     opus    agent         plan    
+  F1-04  done     haiku   agent         —       
+  F1-05  done     —       user          —       
+  F1-06  done     sonnet  agent         —       
+  F1-07  done     opus    agent         plan    
+  F1-08  done     sonnet  agent         —       
+  F1-09  done     sonnet  agent         —       
+  F1-10  done     haiku   agent         accept  
+  F1-11  done     —       user          —       
+  F1-12  done     sonnet  agent         —       
+  F1-13  blocked  haiku   agent         —       
+  F1-G   blocked  sonnet  agent + user  —       F1-13 (blocked, phase F1)
+
+F2 — Storage: 12/14 finished, next (F2-13)
+  ID     STATUS   RANK    OWNER         MODE    WAITS ON
+  F2-01  done     haiku   agent         —       
+  F2-02  done     sonnet  agent         accept  
+  F2-03  done     opus    agent         plan    
+  F2-04  done     haiku   agent         —       
+  F2-05  done     —       user          —       
+  F2-06  done     sonnet  agent         —       
+  F2-07  done     opus    agent         plan    
+  F2-08  done     sonnet  agent         —       
+  F2-09  done     sonnet  agent         —       
+  F2-10  done     haiku   agent         accept  
+  F2-11  done     —       user          —       
+  F2-12  done     sonnet  agent         —       
+  F2-13  blocked  haiku   agent         —       
+  F2-G   blocked  sonnet  agent + user  —       F2-13 (blocked, phase F2)
+
+F3 — Ingest: 5/14 finished, next (F3-06)
+  ID     STATUS       RANK    OWNER         MODE    WAITS ON
+  F3-01  done         haiku   agent         —       
+  F3-02  done         sonnet  agent         accept  
+  F3-03  done         opus    agent         plan    
+  F3-04  done         haiku   agent         —       
+  F3-05  skipped      —       user          —       
+  F3-06  in progress  sonnet  agent         —       
+  F3-07  ready        opus    agent         plan    
+  F3-08  ready        sonnet  agent         —       F3-07 (ready, phase F3), F2-G (blocked, phase F2)
+  F3-09  blocked      sonnet  agent         —       F3-08 (ready, phase F3)
+  F3-10  blocked      haiku   agent         accept  
+  F3-11  blocked      —       user          —       F3-10 (blocked, phase F3), F3-09 (blocked, phase F3)
+  F3-12  blocked      sonnet  agent         —       F3-11 (blocked, phase F3)
+  F3-13  blocked      haiku   agent         —       
+  F3-G   blocked      sonnet  agent + user  —       F3-06 (in progress, phase F3), F3-07 (ready, phase F3), F3-08 (ready, phase F3), F3-09 (blocked, phase F3), F3-10 (blocked, phase F3), F3-11 (blocked, phase F3), F3-12 (blocked, phase F3), F3-13 (blocked, phase F3)
+
+Phase-4 — Index: 0/14 finished, stuck
+  ID          STATUS   RANK    OWNER         MODE    WAITS ON
+  Phase-4-01  ready    haiku   agent         —       F3-G (blocked, phase F3)
+  Phase-4-02  blocked  sonnet  agent         accept  Phase-4-01 (ready, phase Phase-4)
+  Phase-4-03  blocked  opus    agent         plan    Phase-4-02 (blocked, phase Phase-4)
+  Phase-4-04  blocked  haiku   agent         —       Phase-4-03 (blocked, phase Phase-4)
+  Phase-4-05  blocked  —       user          —       Phase-4-04 (blocked, phase Phase-4)
+  Phase-4-06  blocked  sonnet  agent         —       Phase-4-05 (blocked, phase Phase-4), Phase-4-04 (blocked, phase Phase-4)
+  Phase-4-07  blocked  opus    agent         plan    Phase-4-02 (blocked, phase Phase-4), Phase-4-03 (blocked, phase Phase-4)
+  Phase-4-08  blocked  sonnet  agent         —       Phase-4-07 (blocked, phase Phase-4), F3-G (blocked, phase F3)
+  Phase-4-09  blocked  sonnet  agent         —       Phase-4-08 (blocked, phase Phase-4)
+  Phase-4-10  blocked  haiku   agent         accept  Phase-4-02 (blocked, phase Phase-4), Phase-4-03 (blocked, phase Phase-4)
+  Phase-4-11  blocked  —       user          —       Phase-4-10 (blocked, phase Phase-4), Phase-4-09 (blocked, phase Phase-4)
+  Phase-4-12  blocked  sonnet  agent         —       Phase-4-11 (blocked, phase Phase-4)
+  Phase-4-13  blocked  haiku   agent         —       Phase-4-02 (blocked, phase Phase-4), Phase-4-03 (blocked, phase Phase-4)
+  Phase-4-G   blocked  sonnet  agent + user  —       Phase-4-01 (ready, phase Phase-4), Phase-4-02 (blocked, phase Phase-4), Phase-4-03 (blocked, phase Phase-4), Phase-4-04 (blocked, phase Phase-4), Phase-4-05 (blocked, phase Phase-4), Phase-4-06 (blocked, phase Phase-4), Phase-4-07 (blocked, phase Phase-4), Phase-4-08 (blocked, phase Phase-4), Phase-4-09 (blocked, phase Phase-4), Phase-4-10 (blocked, phase Phase-4), Phase-4-11 (blocked, phase Phase-4), Phase-4-12 (blocked, phase Phase-4), Phase-4-13 (blocked, phase Phase-4)
+
+F5 — Query: 0/14 finished, stuck
+  ID     STATUS   RANK    OWNER         MODE    WAITS ON
+  F5-01  ready    haiku   agent         —       Phase-4-G (blocked, phase Phase-4)
+  F5-02  blocked  sonnet  agent         accept  F5-01 (ready, phase F5)
+  F5-03  blocked  opus    agent         plan    F5-02 (blocked, phase F5)
+  F5-04  blocked  haiku   agent         —       F5-03 (blocked, phase F5)
+  F5-05  blocked  —       user          —       F5-04 (blocked, phase F5)
+  F5-06  blocked  sonnet  agent         —       F5-05 (blocked, phase F5), F5-04 (blocked, phase F5)
+  F5-07  blocked  opus    agent         plan    F5-02 (blocked, phase F5), F5-03 (blocked, phase F5)
+  F5-08  blocked  sonnet  agent         —       F5-07 (blocked, phase F5), Phase-4-G (blocked, phase Phase-4)
+  F5-09  blocked  sonnet  agent         —       F5-08 (blocked, phase F5)
+  F5-10  blocked  haiku   agent         accept  F5-02 (blocked, phase F5), F5-03 (blocked, phase F5)
+  F5-11  blocked  —       user          —       F5-10 (blocked, phase F5), F5-09 (blocked, phase F5)
+  F5-12  blocked  sonnet  agent         —       F5-11 (blocked, phase F5)
+  F5-13  blocked  haiku   agent         —       F5-02 (blocked, phase F5), F5-03 (blocked, phase F5)
+  F5-G   blocked  sonnet  agent + user  —       F5-01 (ready, phase F5), F5-02 (blocked, phase F5), F5-03 (blocked, phase F5), F5-04 (blocked, phase F5), F5-05 (blocked, phase F5), F5-06 (blocked, phase F5), F5-07 (blocked, phase F5), F5-08 (blocked, phase F5), F5-09 (blocked, phase F5), F5-10 (blocked, phase F5), F5-11 (blocked, phase F5), F5-12 (blocked, phase F5), F5-13 (blocked, phase F5)
+
+F6 — Auth: 0/14 finished, stuck
+  ID     STATUS   RANK    OWNER         MODE    WAITS ON
+  F6-01  ready    haiku   agent         —       F5-G (blocked, phase F5)
+  F6-02  blocked  sonnet  agent         accept  F6-01 (ready, phase F6)
+  F6-03  blocked  opus    agent         plan    F6-02 (blocked, phase F6)
+  F6-04  blocked  haiku   agent         —       F6-03 (blocked, phase F6)
+  F6-05  blocked  —       user          —       F6-04 (blocked, phase F6)
+  F6-06  blocked  sonnet  agent         —       F6-05 (blocked, phase F6), F6-04 (blocked, phase F6)
+  F6-07  blocked  opus    agent         plan    F6-02 (blocked, phase F6), F6-03 (blocked, phase F6)
+  F6-08  blocked  sonnet  agent         —       F6-07 (blocked, phase F6), F5-G (blocked, phase F5)
+  F6-09  blocked  sonnet  agent         —       F6-08 (blocked, phase F6)
+  F6-10  blocked  haiku   agent         accept  F6-02 (blocked, phase F6), F6-03 (blocked, phase F6)
+  F6-11  blocked  —       user          —       F6-10 (blocked, phase F6), F6-09 (blocked, phase F6)
+  F6-12  blocked  sonnet  agent         —       F6-11 (blocked, phase F6)
+  F6-13  blocked  haiku   agent         —       F6-02 (blocked, phase F6), F6-03 (blocked, phase F6)
+  F6-G   blocked  sonnet  agent + user  —       F6-01 (ready, phase F6), F6-02 (blocked, phase F6), F6-03 (blocked, phase F6), F6-04 (blocked, phase F6), F6-05 (blocked, phase F6), F6-06 (blocked, phase F6), F6-07 (blocked, phase F6), F6-08 (blocked, phase F6), F6-09 (blocked, phase F6), F6-10 (blocked, phase F6), F6-11 (blocked, phase F6), F6-12 (blocked, phase F6), F6-13 (blocked, phase F6)
+
+F7 — API: 0/14 finished, stuck
+  ID     STATUS   RANK    OWNER         MODE    WAITS ON
+  F7-01  ready    haiku   agent         —       F6-G (blocked, phase F6)
+  F7-02  blocked  sonnet  agent         accept  F7-01 (ready, phase F7)
+  F7-03  blocked  opus    agent         plan    F7-02 (blocked, phase F7)
+  F7-04  blocked  haiku   agent         —       F7-03 (blocked, phase F7)
+  F7-05  blocked  —       user          —       F7-04 (blocked, phase F7)
+  F7-06  blocked  sonnet  agent         —       F7-05 (blocked, phase F7), F7-04 (blocked, phase F7)
+  F7-07  blocked  opus    agent         plan    F7-02 (blocked, phase F7), F7-03 (blocked, phase F7)
+  F7-08  blocked  sonnet  agent         —       F7-07 (blocked, phase F7), F6-G (blocked, phase F6)
+  F7-09  blocked  sonnet  agent         —       F7-08 (blocked, phase F7)
+  F7-10  blocked  haiku   agent         accept  F7-02 (blocked, phase F7), F7-03 (blocked, phase F7)
+  F7-11  blocked  —       user          —       F7-10 (blocked, phase F7), F7-09 (blocked, phase F7)
+  F7-12  blocked  sonnet  agent         —       F7-11 (blocked, phase F7)
+  F7-13  blocked  haiku   agent         —       F7-02 (blocked, phase F7), F7-03 (blocked, phase F7)
+  F7-G   blocked  sonnet  agent + user  —       F7-01 (ready, phase F7), F7-02 (blocked, phase F7), F7-03 (blocked, phase F7), F7-04 (blocked, phase F7), F7-05 (blocked, phase F7), F7-06 (blocked, phase F7), F7-07 (blocked, phase F7), F7-08 (blocked, phase F7), F7-09 (blocked, phase F7), F7-10 (blocked, phase F7), F7-11 (blocked, phase F7), F7-12 (blocked, phase F7), F7-13 (blocked, phase F7)
+
+Phase-8 — Workers: 0/14 finished, stuck
+  ID          STATUS   RANK    OWNER         MODE    WAITS ON
+  Phase-8-01  ready    haiku   agent         —       F7-G (blocked, phase F7)
+  Phase-8-02  blocked  sonnet  agent         accept  Phase-8-01 (ready, phase Phase-8)
+  Phase-8-03  blocked  opus    agent         plan    Phase-8-02 (blocked, phase Phase-8)
+  Phase-8-04  blocked  haiku   agent         —       Phase-8-03 (blocked, phase Phase-8)
+  Phase-8-05  blocked  —       user          —       Phase-8-04 (blocked, phase Phase-8)
+  Phase-8-06  blocked  sonnet  agent         —       Phase-8-05 (blocked, phase Phase-8), Phase-8-04 (blocked, phase Phase-8)
+  Phase-8-07  blocked  opus    agent         plan    Phase-8-02 (blocked, phase Phase-8), Phase-8-03 (blocked, phase Phase-8)
+  Phase-8-08  blocked  sonnet  agent         —       Phase-8-07 (blocked, phase Phase-8), F7-G (blocked, phase F7)
+  Phase-8-09  blocked  sonnet  agent         —       Phase-8-08 (blocked, phase Phase-8)
+  Phase-8-10  blocked  haiku   agent         accept  Phase-8-02 (blocked, phase Phase-8), Phase-8-03 (blocked, phase Phase-8)
+  Phase-8-11  blocked  —       user          —       Phase-8-10 (blocked, phase Phase-8), Phase-8-09 (blocked, phase Phase-8)
+  Phase-8-12  blocked  sonnet  agent         —       Phase-8-11 (blocked, phase Phase-8)
+  Phase-8-13  blocked  haiku   agent         —       Phase-8-02 (blocked, phase Phase-8), Phase-8-03 (blocked, phase Phase-8)
+  Phase-8-G   blocked  sonnet  agent + user  —       Phase-8-01 (ready, phase Phase-8), Phase-8-02 (blocked, phase Phase-8), Phase-8-03 (blocked, phase Phase-8), Phase-8-04 (blocked, phase Phase-8), Phase-8-05 (blocked, phase Phase-8), Phase-8-06 (blocked, phase Phase-8), Phase-8-07 (blocked, phase Phase-8), Phase-8-08 (blocked, phase Phase-8), Phase-8-09 (blocked, phase Phase-8), Phase-8-10 (blocked, phase Phase-8), Phase-8-11 (blocked, phase Phase-8), Phase-8-12 (blocked, phase Phase-8), Phase-8-13 (blocked, phase Phase-8)
+
+F9 — Billing: 0/14 finished, stuck
+  ID     STATUS   RANK    OWNER         MODE    WAITS ON
+  F9-01  ready    haiku   agent         —       Phase-8-G (blocked, phase Phase-8)
+  F9-02  blocked  sonnet  agent         accept  F9-01 (ready, phase F9)
+  F9-03  blocked  opus    agent         plan    F9-02 (blocked, phase F9)
+  F9-04  blocked  haiku   agent         —       F9-03 (blocked, phase F9)
+  F9-05  blocked  —       user          —       F9-04 (blocked, phase F9)
+  F9-06  blocked  sonnet  agent         —       F9-05 (blocked, phase F9), F9-04 (blocked, phase F9)
+  F9-07  blocked  opus    agent         plan    F9-02 (blocked, phase F9), F9-03 (blocked, phase F9)
+  F9-08  blocked  sonnet  agent         —       F9-07 (blocked, phase F9), Phase-8-G (blocked, phase Phase-8)
+  F9-09  blocked  sonnet  agent         —       F9-08 (blocked, phase F9)
+  F9-10  blocked  haiku   agent         accept  F9-02 (blocked, phase F9), F9-03 (blocked, phase F9)
+  F9-11  blocked  —       user          —       F9-10 (blocked, phase F9), F9-09 (blocked, phase F9)
+  F9-12  blocked  sonnet  agent         —       F9-11 (blocked, phase F9)
+  F9-13  blocked  haiku   agent         —       F9-02 (blocked, phase F9), F9-03 (blocked, phase F9)
+  F9-G   blocked  sonnet  agent + user  —       F9-01 (ready, phase F9), F9-02 (blocked, phase F9), F9-03 (blocked, phase F9), F9-04 (blocked, phase F9), F9-05 (blocked, phase F9), F9-06 (blocked, phase F9), F9-07 (blocked, phase F9), F9-08 (blocked, phase F9), F9-09 (blocked, phase F9), F9-10 (blocked, phase F9), F9-11 (blocked, phase F9), F9-12 (blocked, phase F9), F9-13 (blocked, phase F9)
+
+F10 — Reports: 0/14 finished, stuck
+  ID      STATUS   RANK    OWNER         MODE    WAITS ON
+  F10-01  ready    haiku   agent         —       F9-G (blocked, phase F9)
+  F10-02  blocked  sonnet  agent         accept  F10-01 (ready, phase F10)
+  F10-03  blocked  opus    agent         plan    F10-02 (blocked, phase F10)
+  F10-04  blocked  haiku   agent         —       F10-03 (blocked, phase F10)
+  F10-05  blocked  —       user          —       F10-04 (blocked, phase F10)
+  F10-06  blocked  sonnet  agent         —       F10-05 (blocked, phase F10), F10-04 (blocked, phase F10)
+  F10-07  blocked  opus    agent         plan    F10-02 (blocked, phase F10), F10-03 (blocked, phase F10)
+  F10-08  blocked  sonnet  agent         —       F10-07 (blocked, phase F10), F9-G (blocked, phase F9)
+  F10-09  blocked  sonnet  agent         —       F10-08 (blocked, phase F10)
+  F10-10  blocked  haiku   agent         accept  F10-02 (blocked, phase F10), F10-03 (blocked, phase F10)
+  F10-11  blocked  —       user          —       F10-10 (blocked, phase F10), F10-09 (blocked, phase F10)
+  F10-12  blocked  sonnet  agent         —       F10-11 (blocked, phase F10)
+  F10-13  blocked  haiku   agent         —       F10-02 (blocked, phase F10), F10-03 (blocked, phase F10)
+  F10-G   blocked  sonnet  agent + user  —       F10-01 (ready, phase F10), F10-02 (blocked, phase F10), F10-03 (blocked, phase F10), F10-04 (blocked, phase F10), F10-05 (blocked, phase F10), F10-06 (blocked, phase F10), F10-07 (blocked, phase F10), F10-08 (blocked, phase F10), F10-09 (blocked, phase F10), F10-10 (blocked, phase F10), F10-11 (blocked, phase F10), F10-12 (blocked, phase F10), F10-13 (blocked, phase F10)
+
+F11 — Admin: 0/14 finished, stuck
+  ID      STATUS   RANK    OWNER         MODE    WAITS ON
+  F11-01  ready    haiku   agent         —       F10-G (blocked, phase F10)
+  F11-02  blocked  sonnet  agent         accept  F11-01 (ready, phase F11)
+  F11-03  blocked  opus    agent         plan    F11-02 (blocked, phase F11)
+  F11-04  blocked  haiku   agent         —       F11-03 (blocked, phase F11)
+  F11-05  blocked  —       user          —       F11-04 (blocked, phase F11)
+  F11-06  blocked  sonnet  agent         —       F11-05 (blocked, phase F11), F11-04 (blocked, phase F11)
+  F11-07  blocked  opus    agent         plan    F11-02 (blocked, phase F11), F11-03 (blocked, phase F11)
+  F11-08  blocked  sonnet  agent         —       F11-07 (blocked, phase F11), F10-G (blocked, phase F10)
+  F11-09  blocked  sonnet  agent         —       F11-08 (blocked, phase F11)
+  F11-10  blocked  haiku   agent         accept  F11-02 (blocked, phase F11), F11-03 (blocked, phase F11)
+  F11-11  blocked  —       user          —       F11-10 (blocked, phase F11), F11-09 (blocked, phase F11)
+  F11-12  blocked  sonnet  agent         —       F11-11 (blocked, phase F11)
+  F11-13  blocked  haiku   agent         —       F11-02 (blocked, phase F11), F11-03 (blocked, phase F11)
+  F11-G   blocked  sonnet  agent + user  —       F11-01 (ready, phase F11), F11-02 (blocked, phase F11), F11-03 (blocked, phase F11), F11-04 (blocked, phase F11), F11-05 (blocked, phase F11), F11-06 (blocked, phase F11), F11-07 (blocked, phase F11), F11-08 (blocked, phase F11), F11-09 (blocked, phase F11), F11-10 (blocked, phase F11), F11-11 (blocked, phase F11), F11-12 (blocked, phase F11), F11-13 (blocked, phase F11)
+
+Phase-12 — Release: 0/14 finished, stuck
+  ID           STATUS   RANK    OWNER         MODE    WAITS ON
+  Phase-12-01  ready    haiku   agent         —       F11-G (blocked, phase F11)
+  Phase-12-02  blocked  sonnet  agent         accept  Phase-12-01 (ready, phase Phase-12)
+  Phase-12-03  blocked  opus    agent         plan    Phase-12-02 (blocked, phase Phase-12)
+  Phase-12-04  blocked  haiku   agent         —       Phase-12-03 (blocked, phase Phase-12)
+  Phase-12-05  blocked  —       user          —       Phase-12-04 (blocked, phase Phase-12)
+  Phase-12-06  blocked  sonnet  agent         —       Phase-12-05 (blocked, phase Phase-12), Phase-12-04 (blocked, phase Phase-12)
+  Phase-12-07  blocked  opus    agent         plan    Phase-12-02 (blocked, phase Phase-12), Phase-12-03 (blocked, phase Phase-12)
+  Phase-12-08  blocked  sonnet  agent         —       Phase-12-07 (blocked, phase Phase-12), F11-G (blocked, phase F11)
+  Phase-12-09  blocked  sonnet  agent         —       Phase-12-08 (blocked, phase Phase-12)
+  Phase-12-10  blocked  haiku   agent         accept  Phase-12-02 (blocked, phase Phase-12), Phase-12-03 (blocked, phase Phase-12)
+  Phase-12-11  blocked  —       user          —       Phase-12-10 (blocked, phase Phase-12), Phase-12-09 (blocked, phase Phase-12)
+  Phase-12-12  blocked  sonnet  agent         —       Phase-12-11 (blocked, phase Phase-12)
+  Phase-12-13  blocked  haiku   agent         —       Phase-12-02 (blocked, phase Phase-12), Phase-12-03 (blocked, phase Phase-12)
+  Phase-12-G   blocked  sonnet  agent + user  —       Phase-12-01 (ready, phase Phase-12), Phase-12-02 (blocked, phase Phase-12), Phase-12-03 (blocked, phase Phase-12), Phase-12-04 (blocked, phase Phase-12), Phase-12-05 (blocked, phase Phase-12), Phase-12-06 (blocked, phase Phase-12), Phase-12-07 (blocked, phase Phase-12), Phase-12-08 (blocked, phase Phase-12), Phase-12-09 (blocked, phase Phase-12), Phase-12-10 (blocked, phase Phase-12), Phase-12-11 (blocked, phase Phase-12), Phase-12-12 (blocked, phase Phase-12), Phase-12-13 (blocked, phase Phase-12)
+--- stderr

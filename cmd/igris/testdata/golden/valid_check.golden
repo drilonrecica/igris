@@ -1,0 +1,5 @@
+exit: 0
+--- stdout
+note: no igris.toml here; using the defaults (`igris init` creates one)
+tasks.md: OK (2 phases, 8 tasks, 0 warnings)
+--- stderr

@@ -1,0 +1,6 @@
+exit: 0
+--- stdout
+PHASE  TITLE      READY  BLOCKED  IN PROGRESS  DONE  SKIPPED  TOTAL
+P1     Hello CLI  3      1        0            1     0        5
+P2     Polish     0      3        0            0     0        3
+--- stderr

@@ -1,0 +1,16 @@
+exit: 0
+--- stdout
+PHASE     TITLE       READY  BLOCKED  IN PROGRESS  DONE  SKIPPED  TOTAL
+F1        Foundation  0      2        0            12    0        14
+F2        Storage     0      2        0            12    0        14
+F3        Ingest      2      6        1            4     1        14
+Phase-4   Index       1      13       0            0     0        14
+F5        Query       1      13       0            0     0        14
+F6        Auth        1      13       0            0     0        14
+F7        API         1      13       0            0     0        14
+Phase-8   Workers     1      13       0            0     0        14
+F9        Billing     1      13       0            0     0        14
+F10       Reports     1      13       0            0     0        14
+F11       Admin       1      13       0            0     0        14
+Phase-12  Release     1      13       0            0     0        14
+--- stderr

@@ -1,0 +1,6 @@
+exit: 0
+--- stdout
+PHASE  TITLE   READY  BLOCKED  IN PROGRESS  DONE  SKIPPED  TOTAL
+A      First   2      1        0            1     0        4
+B      Second  1      0        1            0     0        2
+--- stderr

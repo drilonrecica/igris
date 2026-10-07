@@ -15,14 +15,12 @@ import (
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/plan"
+	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/state"
 )
 
 // configFile is the config looked up in the working directory.
 const configFile = "igris.toml"
-
-// statuses lists the statuses in the order the commands report them.
-var statuses = []plan.Status{plan.Ready, plan.Blocked, plan.InProgress, plan.Done, plan.Skipped}
 
 // loaded is a parsed plan with the config it was read under.
 type loaded struct {
@@ -99,20 +97,6 @@ func writeJSON(w io.Writer, v any) {
 	_ = enc.Encode(v) // a failed write to stdout has nowhere to be reported
 }
 
-type issueJSON struct {
-	File    string `json:"file"`
-	Line    int    `json:"line"`
-	Message string `json:"message"`
-}
-
-func issuesJSON(issues []plan.Issue) []issueJSON {
-	out := make([]issueJSON, len(issues)) // never null in JSON
-	for i, is := range issues {
-		out[i] = issueJSON{File: is.File, Line: is.Line, Message: is.Msg}
-	}
-	return out
-}
-
 // requireValid reports an invalid plan's problems and returns exitFail.
 // The status and phases commands refuse to describe a plan igris could not run.
 func requireValid(fs *flag.FlagSet, l *loaded, stdout, stderr io.Writer) int {
@@ -122,7 +106,7 @@ func requireValid(fs *flag.FlagSet, l *loaded, stdout, stderr io.Writer) int {
 		return exitOK
 	}
 	if json {
-		writeJSON(stdout, map[string]any{"plan": l.plan.Path, "valid": false, "issues": issuesJSON(issues)})
+		writeJSON(stdout, report.NewInvalid(l.plan.Path, issues))
 	} else {
 		fmt.Fprintf(stderr, "%s: %s is not valid; run `igris check` and fix:\n", fs.Name(), l.plan.Path)
 		for _, is := range issues {
@@ -137,55 +121,28 @@ func execCheck(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	if code != exitOK {
 		return code
 	}
-	issues := l.plan.Validate(l.cfg.Models)
-	valid := len(issues) == 0
-
-	// Drift is only meaningful when the plan is valid: unknown or cyclic
-	// dependencies make readiness undefined.
-	type warningJSON struct {
-		File    string `json:"file,omitempty"` // empty for a tool version, igris.toml for the config
-		Line    int    `json:"line,omitempty"`
-		Task    string `json:"task,omitempty"`
-		From    string `json:"from,omitempty"`
-		To      string `json:"to,omitempty"`
-		Message string `json:"message"`
-	}
-	warnings := []warningJSON{}
+	var leading []report.Warning
 	for _, w := range compatWarnings(context.Background(), commandRunner()) {
-		warnings = append(warnings, warningJSON{Message: w})
+		leading = append(leading, report.Warning{Message: w})
 	}
 	for _, w := range l.cfg.Warnings() {
-		warnings = append(warnings, warningJSON{File: configFile, Message: w})
+		leading = append(leading, report.Warning{File: configFile, Message: w})
 	}
 	if ariseGetenv(engine.APIKeyVar) != "" {
-		warnings = append(warnings, warningJSON{Message: engine.APIKeyWarning})
+		leading = append(leading, report.Warning{Message: engine.APIKeyWarning})
 	}
 	if l.parentConfig != "" {
-		warnings = append(warnings, warningJSON{Message: parentHint(l.parentConfig)})
+		leading = append(leading, report.Warning{Message: parentHint(l.parentConfig)})
 	}
-	if valid {
-		for _, h := range l.plan.Hints() {
-			warnings = append(warnings, warningJSON{File: h.File, Line: h.Line, Message: h.Msg})
-		}
-		for _, c := range l.plan.Readiness() {
-			t := l.plan.Task(c.ID)
-			warnings = append(warnings, warningJSON{
-				File: l.plan.Path, Line: t.Line, Task: c.ID, From: c.From.String(), To: c.To.String(),
-				Message: fmt.Sprintf("%s is %s but %s; igris will set it to %s", c.ID, c.From, driftReason(l.plan, t, c.To), c.To),
-			})
-		}
-	}
+	r := report.Check(report.CheckInput{Plan: l.plan, Models: l.cfg.Models, Leading: leading})
 
 	if jsonFlag(fs) {
-		writeJSON(stdout, map[string]any{
-			"plan": l.plan.Path, "valid": valid, "phases": len(l.plan.Phases), "tasks": len(l.plan.Tasks),
-			"issues": issuesJSON(issues), "warnings": warnings,
-		})
+		writeJSON(stdout, r)
 	} else {
-		for _, is := range issues {
+		for _, is := range r.Issues {
 			fmt.Fprintln(stdout, is)
 		}
-		for _, w := range warnings {
+		for _, w := range r.Warnings {
 			switch {
 			case w.File == "":
 				fmt.Fprintf(stdout, "warning: %s\n", w.Message)
@@ -200,42 +157,16 @@ func execCheck(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 			// Not a warning: a directory with just a plan is a valid project.
 			fmt.Fprintf(stdout, "note: no %s here; using the defaults (`igris init` creates one)\n", configFile)
 		}
-		if valid {
-			fmt.Fprintf(stdout, "%s: OK (%d phases, %d tasks, %d warnings)\n", l.plan.Path, len(l.plan.Phases), len(l.plan.Tasks), len(warnings))
+		if r.Valid {
+			fmt.Fprintf(stdout, "%s: OK (%d phases, %d tasks, %d warnings)\n", r.Plan, r.Phases, r.Tasks, len(r.Warnings))
 		} else {
-			fmt.Fprintf(stdout, "%s: %d problem(s); fix them (or run `igris adapt`) and run `igris check` again\n", l.plan.Path, len(issues))
+			fmt.Fprintf(stdout, "%s: %d problem(s); fix them (or run `igris adapt`) and run `igris check` again\n", r.Plan, len(r.Issues))
 		}
 	}
-	if !valid {
+	if !r.Valid {
 		return exitFail
 	}
 	return exitOK
-}
-
-// driftReason says why the readiness sync would flip a task's status.
-func driftReason(p *plan.Plan, t *plan.Task, to plan.Status) string {
-	if to == plan.Ready {
-		return "all its dependencies are satisfied"
-	}
-	return "waits on " + strings.Join(p.WaitingOn(t).Unmet, ", ")
-}
-
-type phaseJSON struct {
-	ID     string         `json:"id"`
-	Title  string         `json:"title"`
-	Total  int            `json:"total"`
-	Counts map[string]int `json:"counts"`
-}
-
-func countStatuses(ph *plan.Phase) map[string]int {
-	counts := make(map[string]int, len(statuses))
-	for _, s := range statuses {
-		counts[s.String()] = 0
-	}
-	for _, t := range ph.Tasks {
-		counts[t.Status.String()]++
-	}
-	return counts
 }
 
 func execPhases(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
@@ -246,46 +177,20 @@ func execPhases(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	if code := requireValid(fs, l, stdout, stderr); code != exitOK {
 		return code
 	}
-	phases := make([]phaseJSON, len(l.plan.Phases))
-	for i, ph := range l.plan.Phases {
-		phases[i] = phaseJSON{ID: ph.ID, Title: ph.Title, Total: len(ph.Tasks), Counts: countStatuses(ph)}
-	}
+	r := report.Phases(l.plan)
 	if jsonFlag(fs) {
-		writeJSON(stdout, map[string]any{"plan": l.plan.Path, "phases": phases})
+		writeJSON(stdout, r)
 		return exitOK
 	}
 	tw := tabwriter.NewWriter(stdout, 0, 4, 2, ' ', 0)
 	fmt.Fprintln(tw, "PHASE\tTITLE\tREADY\tBLOCKED\tIN PROGRESS\tDONE\tSKIPPED\tTOTAL")
-	for _, ph := range phases {
+	for _, ph := range r.Phases {
 		c := ph.Counts
 		fmt.Fprintf(tw, "%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\n", ph.ID, ph.Title,
 			c["ready"], c["blocked"], c["in progress"], c["done"], c["skipped"], ph.Total)
 	}
 	_ = tw.Flush()
 	return exitOK
-}
-
-type waitJSON struct {
-	ID     string `json:"id"`
-	Status string `json:"status,omitempty"`
-	Phase  string `json:"phase,omitempty"`
-}
-
-type taskJSON struct {
-	ID      string     `json:"id"`
-	Title   string     `json:"title"`
-	Status  string     `json:"status"`
-	Rank    string     `json:"rank"`
-	Owner   string     `json:"owner"`
-	Mode    string     `json:"mode"`
-	WaitsOn []waitJSON `json:"waits_on"`
-}
-
-type phaseStatusJSON struct {
-	phaseJSON
-	Outcome string     `json:"outcome"`
-	Next    string     `json:"next,omitempty"`
-	Tasks   []taskJSON `json:"tasks"`
 }
 
 func execStatus(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
@@ -296,70 +201,29 @@ func execStatus(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 	if code := requireValid(fs, l, stdout, stderr); code != exitOK {
 		return code
 	}
-	phases := l.plan.Phases
+	phaseID := ""
 	if len(args) == 1 {
-		ph := l.plan.Phase(args[0])
-		if ph == nil {
-			_, err := l.plan.Select(args[0]) // builds the "unknown phase" message
-			fmt.Fprintf(stderr, "%s: %v\n", fs.Name(), err)
-			return exitFail
-		}
-		phases = []*plan.Phase{ph}
+		phaseID = args[0]
 	}
-
-	report := make([]phaseStatusJSON, len(phases))
-	for i, ph := range phases {
-		sel, err := l.plan.Select(ph.ID)
-		if err != nil {
-			fmt.Fprintf(stderr, "%s: %v\n", fs.Name(), err)
-			return exitFail
-		}
-		r := phaseStatusJSON{
-			phaseJSON: phaseJSON{ID: ph.ID, Title: ph.Title, Total: len(ph.Tasks), Counts: countStatuses(ph)},
-			Outcome:   sel.Outcome.String(), Tasks: make([]taskJSON, len(ph.Tasks)),
-		}
-		if sel.Task != nil {
-			r.Next = sel.Task.ID
-		}
-		for j, t := range ph.Tasks {
-			r.Tasks[j] = taskReport(l.plan, t)
-		}
-		report[i] = r
+	r, err := report.Status(l.plan, phaseID)
+	if err != nil {
+		fmt.Fprintf(stderr, "%s: %v\n", fs.Name(), err)
+		return exitFail
 	}
-
 	if jsonFlag(fs) {
-		writeJSON(stdout, map[string]any{"plan": l.plan.Path, "phases": report})
+		writeJSON(stdout, r)
 		return exitOK
 	}
-	for i, r := range report {
+	for i, ph := range r.Phases {
 		if i > 0 {
 			fmt.Fprintln(stdout)
 		}
-		printPhaseStatus(stdout, r)
+		printPhaseStatus(stdout, ph)
 	}
 	return exitOK
 }
 
-func taskReport(p *plan.Plan, t *plan.Task) taskJSON {
-	r := taskJSON{ID: t.ID, Title: t.Title, Status: t.Status.String(), Rank: orDash(t.Rank), Owner: string(t.Owner), Mode: orDash(t.Mode), WaitsOn: []waitJSON{}}
-	if w := p.WaitingOn(t); w != nil {
-		for _, id := range w.Unmet {
-			if d := p.Task(id); d != nil && t.Status != plan.Done && t.Status != plan.Skipped {
-				r.WaitsOn = append(r.WaitsOn, waitJSON{ID: id, Status: d.Status.String(), Phase: d.Phase.ID})
-			}
-		}
-	}
-	return r
-}
-
-func orDash(s string) string {
-	if s == "" {
-		return "—"
-	}
-	return s
-}
-
-func printPhaseStatus(w io.Writer, r phaseStatusJSON) {
+func printPhaseStatus(w io.Writer, r report.PhaseStatus) {
 	satisfied := r.Counts["done"] + r.Counts["skipped"]
 	name := r.ID
 	if r.Title != "" {

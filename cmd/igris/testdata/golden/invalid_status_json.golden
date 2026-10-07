@@ -1,0 +1,14 @@
+exit: 1
+--- stdout
+{
+  "issues": [
+    {
+      "file": "tasks.md",
+      "line": 5,
+      "message": "dependency cycle a → b → a (each task waits on the next); remove one of these dependencies"
+    }
+  ],
+  "plan": "tasks.md",
+  "valid": false
+}
+--- stderr

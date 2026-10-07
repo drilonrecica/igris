@@ -1,0 +1,8 @@
+exit: 0
+--- stdout
+warning: tasks.md:6: A-2 is blocked but all its dependencies are satisfied; igris will set it to ready
+warning: tasks.md:7: A-3 is ready but waits on A-2; igris will set it to blocked
+warning: tasks.md:15: B-2 is ready but waits on B-1, A-3; igris will set it to blocked
+note: no igris.toml here; using the defaults (`igris init` creates one)
+tasks.md: OK (2 phases, 6 tasks, 3 warnings)
+--- stderr

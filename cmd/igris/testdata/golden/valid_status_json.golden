@@ -1,0 +1,155 @@
+exit: 0
+--- stdout
+{
+  "phases": [
+    {
+      "id": "P1",
+      "title": "Hello CLI",
+      "total": 5,
+      "counts": {
+        "blocked": 1,
+        "done": 1,
+        "in progress": 0,
+        "ready": 3,
+        "skipped": 0
+      },
+      "outcome": "next",
+      "next": "P1-02",
+      "tasks": [
+        {
+          "id": "P1-01",
+          "title": "Project skeleton",
+          "status": "done",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": []
+        },
+        {
+          "id": "P1-02",
+          "title": "Flag parsing",
+          "status": "ready",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": []
+        },
+        {
+          "id": "P1-03",
+          "title": "Greeting design",
+          "status": "ready",
+          "rank": "opus",
+          "owner": "agent",
+          "mode": "plan",
+          "waits_on": []
+        },
+        {
+          "id": "P1-04",
+          "title": "Pick a license",
+          "status": "ready",
+          "rank": "—",
+          "owner": "user",
+          "mode": "—",
+          "waits_on": []
+        },
+        {
+          "id": "P1-G",
+          "title": "P1 gate",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent + user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "P1-02",
+              "status": "ready",
+              "phase": "P1"
+            },
+            {
+              "id": "P1-03",
+              "status": "ready",
+              "phase": "P1"
+            },
+            {
+              "id": "P1-04",
+              "status": "ready",
+              "phase": "P1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P2",
+      "title": "Polish",
+      "total": 3,
+      "counts": {
+        "blocked": 3,
+        "done": 0,
+        "in progress": 0,
+        "ready": 0,
+        "skipped": 0
+      },
+      "outcome": "stuck",
+      "tasks": [
+        {
+          "id": "P2-01",
+          "title": "Greeting engine",
+          "status": "blocked",
+          "rank": "opus",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "P1-G",
+              "status": "blocked",
+              "phase": "P1"
+            }
+          ]
+        },
+        {
+          "id": "P2-02",
+          "title": "README",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "P1-02",
+              "status": "ready",
+              "phase": "P1"
+            },
+            {
+              "id": "P2-01",
+              "status": "blocked",
+              "phase": "P2"
+            }
+          ]
+        },
+        {
+          "id": "P2-03",
+          "title": "Release checklist",
+          "status": "blocked",
+          "rank": "fable",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "P2-01",
+              "status": "blocked",
+              "phase": "P2"
+            },
+            {
+              "id": "P2-02",
+              "status": "blocked",
+              "phase": "P2"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "plan": "tasks.md"
+}
+--- stderr

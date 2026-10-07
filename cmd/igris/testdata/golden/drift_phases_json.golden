@@ -1,0 +1,32 @@
+exit: 0
+--- stdout
+{
+  "phases": [
+    {
+      "id": "A",
+      "title": "First",
+      "total": 4,
+      "counts": {
+        "blocked": 1,
+        "done": 1,
+        "in progress": 0,
+        "ready": 2,
+        "skipped": 0
+      }
+    },
+    {
+      "id": "B",
+      "title": "Second",
+      "total": 2,
+      "counts": {
+        "blocked": 0,
+        "done": 0,
+        "in progress": 1,
+        "ready": 1,
+        "skipped": 0
+      }
+    }
+  ],
+  "plan": "tasks.md"
+}
+--- stderr

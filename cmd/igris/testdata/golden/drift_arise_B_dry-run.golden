@@ -1,0 +1,12 @@
+exit: 0
+--- stdout
+warning: this is not a git repository: sessions' changes can't be reviewed or undone with git, and commits fail unless commit = "never". Run `git init` first.
+warning: drift: A-2: blocked → ready (a real run asks you before fixing it)
+warning: drift: A-3: ready → blocked (a real run asks you before fixing it)
+warning: drift: B-2: ready → blocked (a real run asks you before fixing it)
+dry run of phase B: nothing is written and no session starts
+  1. B-1        sonnet  → model sonnet  mode yolo    Resume me [SKIP PERMISSIONS]  (resumed: fresh session)
+     phase B is STUCK: unfinished tasks, none can start
+       B-2 waits on A-3 (blocked, phase A)
+dry run: 1 session(s), 0 user task(s)
+--- stderr

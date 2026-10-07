@@ -1,0 +1,36 @@
+exit: 0
+--- stdout
+{
+  "issues": [],
+  "phases": 2,
+  "plan": "tasks.md",
+  "tasks": 6,
+  "valid": true,
+  "warnings": [
+    {
+      "file": "tasks.md",
+      "line": 6,
+      "task": "A-2",
+      "from": "blocked",
+      "to": "ready",
+      "message": "A-2 is blocked but all its dependencies are satisfied; igris will set it to ready"
+    },
+    {
+      "file": "tasks.md",
+      "line": 7,
+      "task": "A-3",
+      "from": "ready",
+      "to": "blocked",
+      "message": "A-3 is ready but waits on A-2; igris will set it to blocked"
+    },
+    {
+      "file": "tasks.md",
+      "line": 15,
+      "task": "B-2",
+      "from": "ready",
+      "to": "blocked",
+      "message": "B-2 is ready but waits on B-1, A-3; igris will set it to blocked"
+    }
+  ]
+}
+--- stderr

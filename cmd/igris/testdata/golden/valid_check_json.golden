@@ -1,0 +1,11 @@
+exit: 0
+--- stdout
+{
+  "issues": [],
+  "phases": 2,
+  "plan": "tasks.md",
+  "tasks": 8,
+  "valid": true,
+  "warnings": []
+}
+--- stderr

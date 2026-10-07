@@ -1,0 +1,3356 @@
+exit: 0
+--- stdout
+{
+  "phases": [
+    {
+      "id": "F1",
+      "title": "Foundation",
+      "total": 14,
+      "counts": {
+        "blocked": 2,
+        "done": 12,
+        "in progress": 0,
+        "ready": 0,
+        "skipped": 0
+      },
+      "outcome": "next",
+      "next": "F1-13",
+      "tasks": [
+        {
+          "id": "F1-01",
+          "title": "Task F1-01",
+          "status": "done",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": []
+        },
+        {
+          "id": "F1-02",
+          "title": "Task F1-02",
+          "status": "done",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "accept",
+          "waits_on": []
+        },
+        {
+          "id": "F1-03",
+          "title": "Task F1-03",
+          "status": "done",
+          "rank": "opus",
+          "owner": "agent",
+          "mode": "plan",
+          "waits_on": []
+        },
+        {
+          "id": "F1-04",
+          "title": "Task F1-04",
+          "status": "done",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": []
+        },
+        {
+          "id": "F1-05",
+          "title": "Task F1-05",
+          "status": "done",
+          "rank": "—",
+          "owner": "user",
+          "mode": "—",
+          "waits_on": []
+        },
+        {
+          "id": "F1-06",
+          "title": "Task F1-06",
+          "status": "done",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": []
+        },
+        {
+          "id": "F1-07",
+          "title": "Task F1-07",
+          "status": "done",
+          "rank": "opus",
+          "owner": "agent",
+          "mode": "plan",
+          "waits_on": []
+        },
+        {
+          "id": "F1-08",
+          "title": "Task F1-08",
+          "status": "done",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": []
+        },
+        {
+          "id": "F1-09",
+          "title": "Task F1-09",
+          "status": "done",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": []
+        },
+        {
+          "id": "F1-10",
+          "title": "Task F1-10",
+          "status": "done",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "accept",
+          "waits_on": []
+        },
+        {
+          "id": "F1-11",
+          "title": "Task F1-11",
+          "status": "done",
+          "rank": "—",
+          "owner": "user",
+          "mode": "—",
+          "waits_on": []
+        },
+        {
+          "id": "F1-12",
+          "title": "Task F1-12",
+          "status": "done",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": []
+        },
+        {
+          "id": "F1-13",
+          "title": "Task F1-13",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": []
+        },
+        {
+          "id": "F1-G",
+          "title": "Task F1-G",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent + user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F1-13",
+              "status": "blocked",
+              "phase": "F1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "F2",
+      "title": "Storage",
+      "total": 14,
+      "counts": {
+        "blocked": 2,
+        "done": 12,
+        "in progress": 0,
+        "ready": 0,
+        "skipped": 0
+      },
+      "outcome": "next",
+      "next": "F2-13",
+      "tasks": [
+        {
+          "id": "F2-01",
+          "title": "Task F2-01",
+          "status": "done",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": []
+        },
+        {
+          "id": "F2-02",
+          "title": "Task F2-02",
+          "status": "done",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "accept",
+          "waits_on": []
+        },
+        {
+          "id": "F2-03",
+          "title": "Task F2-03",
+          "status": "done",
+          "rank": "opus",
+          "owner": "agent",
+          "mode": "plan",
+          "waits_on": []
+        },
+        {
+          "id": "F2-04",
+          "title": "Task F2-04",
+          "status": "done",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": []
+        },
+        {
+          "id": "F2-05",
+          "title": "Task F2-05",
+          "status": "done",
+          "rank": "—",
+          "owner": "user",
+          "mode": "—",
+          "waits_on": []
+        },
+        {
+          "id": "F2-06",
+          "title": "Task F2-06",
+          "status": "done",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": []
+        },
+        {
+          "id": "F2-07",
+          "title": "Task F2-07",
+          "status": "done",
+          "rank": "opus",
+          "owner": "agent",
+          "mode": "plan",
+          "waits_on": []
+        },
+        {
+          "id": "F2-08",
+          "title": "Task F2-08",
+          "status": "done",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": []
+        },
+        {
+          "id": "F2-09",
+          "title": "Task F2-09",
+          "status": "done",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": []
+        },
+        {
+          "id": "F2-10",
+          "title": "Task F2-10",
+          "status": "done",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "accept",
+          "waits_on": []
+        },
+        {
+          "id": "F2-11",
+          "title": "Task F2-11",
+          "status": "done",
+          "rank": "—",
+          "owner": "user",
+          "mode": "—",
+          "waits_on": []
+        },
+        {
+          "id": "F2-12",
+          "title": "Task F2-12",
+          "status": "done",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": []
+        },
+        {
+          "id": "F2-13",
+          "title": "Task F2-13",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": []
+        },
+        {
+          "id": "F2-G",
+          "title": "Task F2-G",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent + user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F2-13",
+              "status": "blocked",
+              "phase": "F2"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "F3",
+      "title": "Ingest",
+      "total": 14,
+      "counts": {
+        "blocked": 6,
+        "done": 4,
+        "in progress": 1,
+        "ready": 2,
+        "skipped": 1
+      },
+      "outcome": "next",
+      "next": "F3-06",
+      "tasks": [
+        {
+          "id": "F3-01",
+          "title": "Task F3-01",
+          "status": "done",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": []
+        },
+        {
+          "id": "F3-02",
+          "title": "Task F3-02",
+          "status": "done",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "accept",
+          "waits_on": []
+        },
+        {
+          "id": "F3-03",
+          "title": "Task F3-03",
+          "status": "done",
+          "rank": "opus",
+          "owner": "agent",
+          "mode": "plan",
+          "waits_on": []
+        },
+        {
+          "id": "F3-04",
+          "title": "Task F3-04",
+          "status": "done",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": []
+        },
+        {
+          "id": "F3-05",
+          "title": "Task F3-05",
+          "status": "skipped",
+          "rank": "—",
+          "owner": "user",
+          "mode": "—",
+          "waits_on": []
+        },
+        {
+          "id": "F3-06",
+          "title": "Task F3-06",
+          "status": "in progress",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": []
+        },
+        {
+          "id": "F3-07",
+          "title": "Task F3-07",
+          "status": "ready",
+          "rank": "opus",
+          "owner": "agent",
+          "mode": "plan",
+          "waits_on": []
+        },
+        {
+          "id": "F3-08",
+          "title": "Task F3-08",
+          "status": "ready",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F3-07",
+              "status": "ready",
+              "phase": "F3"
+            },
+            {
+              "id": "F2-G",
+              "status": "blocked",
+              "phase": "F2"
+            }
+          ]
+        },
+        {
+          "id": "F3-09",
+          "title": "Task F3-09",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F3-08",
+              "status": "ready",
+              "phase": "F3"
+            }
+          ]
+        },
+        {
+          "id": "F3-10",
+          "title": "Task F3-10",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "accept",
+          "waits_on": []
+        },
+        {
+          "id": "F3-11",
+          "title": "Task F3-11",
+          "status": "blocked",
+          "rank": "—",
+          "owner": "user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F3-10",
+              "status": "blocked",
+              "phase": "F3"
+            },
+            {
+              "id": "F3-09",
+              "status": "blocked",
+              "phase": "F3"
+            }
+          ]
+        },
+        {
+          "id": "F3-12",
+          "title": "Task F3-12",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F3-11",
+              "status": "blocked",
+              "phase": "F3"
+            }
+          ]
+        },
+        {
+          "id": "F3-13",
+          "title": "Task F3-13",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": []
+        },
+        {
+          "id": "F3-G",
+          "title": "Task F3-G",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent + user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F3-06",
+              "status": "in progress",
+              "phase": "F3"
+            },
+            {
+              "id": "F3-07",
+              "status": "ready",
+              "phase": "F3"
+            },
+            {
+              "id": "F3-08",
+              "status": "ready",
+              "phase": "F3"
+            },
+            {
+              "id": "F3-09",
+              "status": "blocked",
+              "phase": "F3"
+            },
+            {
+              "id": "F3-10",
+              "status": "blocked",
+              "phase": "F3"
+            },
+            {
+              "id": "F3-11",
+              "status": "blocked",
+              "phase": "F3"
+            },
+            {
+              "id": "F3-12",
+              "status": "blocked",
+              "phase": "F3"
+            },
+            {
+              "id": "F3-13",
+              "status": "blocked",
+              "phase": "F3"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Phase-4",
+      "title": "Index",
+      "total": 14,
+      "counts": {
+        "blocked": 13,
+        "done": 0,
+        "in progress": 0,
+        "ready": 1,
+        "skipped": 0
+      },
+      "outcome": "stuck",
+      "tasks": [
+        {
+          "id": "Phase-4-01",
+          "title": "Task Phase-4-01",
+          "status": "ready",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F3-G",
+              "status": "blocked",
+              "phase": "F3"
+            }
+          ]
+        },
+        {
+          "id": "Phase-4-02",
+          "title": "Task Phase-4-02",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "accept",
+          "waits_on": [
+            {
+              "id": "Phase-4-01",
+              "status": "ready",
+              "phase": "Phase-4"
+            }
+          ]
+        },
+        {
+          "id": "Phase-4-03",
+          "title": "Task Phase-4-03",
+          "status": "blocked",
+          "rank": "opus",
+          "owner": "agent",
+          "mode": "plan",
+          "waits_on": [
+            {
+              "id": "Phase-4-02",
+              "status": "blocked",
+              "phase": "Phase-4"
+            }
+          ]
+        },
+        {
+          "id": "Phase-4-04",
+          "title": "Task Phase-4-04",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-4-03",
+              "status": "blocked",
+              "phase": "Phase-4"
+            }
+          ]
+        },
+        {
+          "id": "Phase-4-05",
+          "title": "Task Phase-4-05",
+          "status": "blocked",
+          "rank": "—",
+          "owner": "user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-4-04",
+              "status": "blocked",
+              "phase": "Phase-4"
+            }
+          ]
+        },
+        {
+          "id": "Phase-4-06",
+          "title": "Task Phase-4-06",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-4-05",
+              "status": "blocked",
+              "phase": "Phase-4"
+            },
+            {
+              "id": "Phase-4-04",
+              "status": "blocked",
+              "phase": "Phase-4"
+            }
+          ]
+        },
+        {
+          "id": "Phase-4-07",
+          "title": "Task Phase-4-07",
+          "status": "blocked",
+          "rank": "opus",
+          "owner": "agent",
+          "mode": "plan",
+          "waits_on": [
+            {
+              "id": "Phase-4-02",
+              "status": "blocked",
+              "phase": "Phase-4"
+            },
+            {
+              "id": "Phase-4-03",
+              "status": "blocked",
+              "phase": "Phase-4"
+            }
+          ]
+        },
+        {
+          "id": "Phase-4-08",
+          "title": "Task Phase-4-08",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-4-07",
+              "status": "blocked",
+              "phase": "Phase-4"
+            },
+            {
+              "id": "F3-G",
+              "status": "blocked",
+              "phase": "F3"
+            }
+          ]
+        },
+        {
+          "id": "Phase-4-09",
+          "title": "Task Phase-4-09",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-4-08",
+              "status": "blocked",
+              "phase": "Phase-4"
+            }
+          ]
+        },
+        {
+          "id": "Phase-4-10",
+          "title": "Task Phase-4-10",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "accept",
+          "waits_on": [
+            {
+              "id": "Phase-4-02",
+              "status": "blocked",
+              "phase": "Phase-4"
+            },
+            {
+              "id": "Phase-4-03",
+              "status": "blocked",
+              "phase": "Phase-4"
+            }
+          ]
+        },
+        {
+          "id": "Phase-4-11",
+          "title": "Task Phase-4-11",
+          "status": "blocked",
+          "rank": "—",
+          "owner": "user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-4-10",
+              "status": "blocked",
+              "phase": "Phase-4"
+            },
+            {
+              "id": "Phase-4-09",
+              "status": "blocked",
+              "phase": "Phase-4"
+            }
+          ]
+        },
+        {
+          "id": "Phase-4-12",
+          "title": "Task Phase-4-12",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-4-11",
+              "status": "blocked",
+              "phase": "Phase-4"
+            }
+          ]
+        },
+        {
+          "id": "Phase-4-13",
+          "title": "Task Phase-4-13",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-4-02",
+              "status": "blocked",
+              "phase": "Phase-4"
+            },
+            {
+              "id": "Phase-4-03",
+              "status": "blocked",
+              "phase": "Phase-4"
+            }
+          ]
+        },
+        {
+          "id": "Phase-4-G",
+          "title": "Task Phase-4-G",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent + user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-4-01",
+              "status": "ready",
+              "phase": "Phase-4"
+            },
+            {
+              "id": "Phase-4-02",
+              "status": "blocked",
+              "phase": "Phase-4"
+            },
+            {
+              "id": "Phase-4-03",
+              "status": "blocked",
+              "phase": "Phase-4"
+            },
+            {
+              "id": "Phase-4-04",
+              "status": "blocked",
+              "phase": "Phase-4"
+            },
+            {
+              "id": "Phase-4-05",
+              "status": "blocked",
+              "phase": "Phase-4"
+            },
+            {
+              "id": "Phase-4-06",
+              "status": "blocked",
+              "phase": "Phase-4"
+            },
+            {
+              "id": "Phase-4-07",
+              "status": "blocked",
+              "phase": "Phase-4"
+            },
+            {
+              "id": "Phase-4-08",
+              "status": "blocked",
+              "phase": "Phase-4"
+            },
+            {
+              "id": "Phase-4-09",
+              "status": "blocked",
+              "phase": "Phase-4"
+            },
+            {
+              "id": "Phase-4-10",
+              "status": "blocked",
+              "phase": "Phase-4"
+            },
+            {
+              "id": "Phase-4-11",
+              "status": "blocked",
+              "phase": "Phase-4"
+            },
+            {
+              "id": "Phase-4-12",
+              "status": "blocked",
+              "phase": "Phase-4"
+            },
+            {
+              "id": "Phase-4-13",
+              "status": "blocked",
+              "phase": "Phase-4"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "F5",
+      "title": "Query",
+      "total": 14,
+      "counts": {
+        "blocked": 13,
+        "done": 0,
+        "in progress": 0,
+        "ready": 1,
+        "skipped": 0
+      },
+      "outcome": "stuck",
+      "tasks": [
+        {
+          "id": "F5-01",
+          "title": "Task F5-01",
+          "status": "ready",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-4-G",
+              "status": "blocked",
+              "phase": "Phase-4"
+            }
+          ]
+        },
+        {
+          "id": "F5-02",
+          "title": "Task F5-02",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "accept",
+          "waits_on": [
+            {
+              "id": "F5-01",
+              "status": "ready",
+              "phase": "F5"
+            }
+          ]
+        },
+        {
+          "id": "F5-03",
+          "title": "Task F5-03",
+          "status": "blocked",
+          "rank": "opus",
+          "owner": "agent",
+          "mode": "plan",
+          "waits_on": [
+            {
+              "id": "F5-02",
+              "status": "blocked",
+              "phase": "F5"
+            }
+          ]
+        },
+        {
+          "id": "F5-04",
+          "title": "Task F5-04",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F5-03",
+              "status": "blocked",
+              "phase": "F5"
+            }
+          ]
+        },
+        {
+          "id": "F5-05",
+          "title": "Task F5-05",
+          "status": "blocked",
+          "rank": "—",
+          "owner": "user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F5-04",
+              "status": "blocked",
+              "phase": "F5"
+            }
+          ]
+        },
+        {
+          "id": "F5-06",
+          "title": "Task F5-06",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F5-05",
+              "status": "blocked",
+              "phase": "F5"
+            },
+            {
+              "id": "F5-04",
+              "status": "blocked",
+              "phase": "F5"
+            }
+          ]
+        },
+        {
+          "id": "F5-07",
+          "title": "Task F5-07",
+          "status": "blocked",
+          "rank": "opus",
+          "owner": "agent",
+          "mode": "plan",
+          "waits_on": [
+            {
+              "id": "F5-02",
+              "status": "blocked",
+              "phase": "F5"
+            },
+            {
+              "id": "F5-03",
+              "status": "blocked",
+              "phase": "F5"
+            }
+          ]
+        },
+        {
+          "id": "F5-08",
+          "title": "Task F5-08",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F5-07",
+              "status": "blocked",
+              "phase": "F5"
+            },
+            {
+              "id": "Phase-4-G",
+              "status": "blocked",
+              "phase": "Phase-4"
+            }
+          ]
+        },
+        {
+          "id": "F5-09",
+          "title": "Task F5-09",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F5-08",
+              "status": "blocked",
+              "phase": "F5"
+            }
+          ]
+        },
+        {
+          "id": "F5-10",
+          "title": "Task F5-10",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "accept",
+          "waits_on": [
+            {
+              "id": "F5-02",
+              "status": "blocked",
+              "phase": "F5"
+            },
+            {
+              "id": "F5-03",
+              "status": "blocked",
+              "phase": "F5"
+            }
+          ]
+        },
+        {
+          "id": "F5-11",
+          "title": "Task F5-11",
+          "status": "blocked",
+          "rank": "—",
+          "owner": "user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F5-10",
+              "status": "blocked",
+              "phase": "F5"
+            },
+            {
+              "id": "F5-09",
+              "status": "blocked",
+              "phase": "F5"
+            }
+          ]
+        },
+        {
+          "id": "F5-12",
+          "title": "Task F5-12",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F5-11",
+              "status": "blocked",
+              "phase": "F5"
+            }
+          ]
+        },
+        {
+          "id": "F5-13",
+          "title": "Task F5-13",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F5-02",
+              "status": "blocked",
+              "phase": "F5"
+            },
+            {
+              "id": "F5-03",
+              "status": "blocked",
+              "phase": "F5"
+            }
+          ]
+        },
+        {
+          "id": "F5-G",
+          "title": "Task F5-G",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent + user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F5-01",
+              "status": "ready",
+              "phase": "F5"
+            },
+            {
+              "id": "F5-02",
+              "status": "blocked",
+              "phase": "F5"
+            },
+            {
+              "id": "F5-03",
+              "status": "blocked",
+              "phase": "F5"
+            },
+            {
+              "id": "F5-04",
+              "status": "blocked",
+              "phase": "F5"
+            },
+            {
+              "id": "F5-05",
+              "status": "blocked",
+              "phase": "F5"
+            },
+            {
+              "id": "F5-06",
+              "status": "blocked",
+              "phase": "F5"
+            },
+            {
+              "id": "F5-07",
+              "status": "blocked",
+              "phase": "F5"
+            },
+            {
+              "id": "F5-08",
+              "status": "blocked",
+              "phase": "F5"
+            },
+            {
+              "id": "F5-09",
+              "status": "blocked",
+              "phase": "F5"
+            },
+            {
+              "id": "F5-10",
+              "status": "blocked",
+              "phase": "F5"
+            },
+            {
+              "id": "F5-11",
+              "status": "blocked",
+              "phase": "F5"
+            },
+            {
+              "id": "F5-12",
+              "status": "blocked",
+              "phase": "F5"
+            },
+            {
+              "id": "F5-13",
+              "status": "blocked",
+              "phase": "F5"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "F6",
+      "title": "Auth",
+      "total": 14,
+      "counts": {
+        "blocked": 13,
+        "done": 0,
+        "in progress": 0,
+        "ready": 1,
+        "skipped": 0
+      },
+      "outcome": "stuck",
+      "tasks": [
+        {
+          "id": "F6-01",
+          "title": "Task F6-01",
+          "status": "ready",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F5-G",
+              "status": "blocked",
+              "phase": "F5"
+            }
+          ]
+        },
+        {
+          "id": "F6-02",
+          "title": "Task F6-02",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "accept",
+          "waits_on": [
+            {
+              "id": "F6-01",
+              "status": "ready",
+              "phase": "F6"
+            }
+          ]
+        },
+        {
+          "id": "F6-03",
+          "title": "Task F6-03",
+          "status": "blocked",
+          "rank": "opus",
+          "owner": "agent",
+          "mode": "plan",
+          "waits_on": [
+            {
+              "id": "F6-02",
+              "status": "blocked",
+              "phase": "F6"
+            }
+          ]
+        },
+        {
+          "id": "F6-04",
+          "title": "Task F6-04",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F6-03",
+              "status": "blocked",
+              "phase": "F6"
+            }
+          ]
+        },
+        {
+          "id": "F6-05",
+          "title": "Task F6-05",
+          "status": "blocked",
+          "rank": "—",
+          "owner": "user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F6-04",
+              "status": "blocked",
+              "phase": "F6"
+            }
+          ]
+        },
+        {
+          "id": "F6-06",
+          "title": "Task F6-06",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F6-05",
+              "status": "blocked",
+              "phase": "F6"
+            },
+            {
+              "id": "F6-04",
+              "status": "blocked",
+              "phase": "F6"
+            }
+          ]
+        },
+        {
+          "id": "F6-07",
+          "title": "Task F6-07",
+          "status": "blocked",
+          "rank": "opus",
+          "owner": "agent",
+          "mode": "plan",
+          "waits_on": [
+            {
+              "id": "F6-02",
+              "status": "blocked",
+              "phase": "F6"
+            },
+            {
+              "id": "F6-03",
+              "status": "blocked",
+              "phase": "F6"
+            }
+          ]
+        },
+        {
+          "id": "F6-08",
+          "title": "Task F6-08",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F6-07",
+              "status": "blocked",
+              "phase": "F6"
+            },
+            {
+              "id": "F5-G",
+              "status": "blocked",
+              "phase": "F5"
+            }
+          ]
+        },
+        {
+          "id": "F6-09",
+          "title": "Task F6-09",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F6-08",
+              "status": "blocked",
+              "phase": "F6"
+            }
+          ]
+        },
+        {
+          "id": "F6-10",
+          "title": "Task F6-10",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "accept",
+          "waits_on": [
+            {
+              "id": "F6-02",
+              "status": "blocked",
+              "phase": "F6"
+            },
+            {
+              "id": "F6-03",
+              "status": "blocked",
+              "phase": "F6"
+            }
+          ]
+        },
+        {
+          "id": "F6-11",
+          "title": "Task F6-11",
+          "status": "blocked",
+          "rank": "—",
+          "owner": "user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F6-10",
+              "status": "blocked",
+              "phase": "F6"
+            },
+            {
+              "id": "F6-09",
+              "status": "blocked",
+              "phase": "F6"
+            }
+          ]
+        },
+        {
+          "id": "F6-12",
+          "title": "Task F6-12",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F6-11",
+              "status": "blocked",
+              "phase": "F6"
+            }
+          ]
+        },
+        {
+          "id": "F6-13",
+          "title": "Task F6-13",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F6-02",
+              "status": "blocked",
+              "phase": "F6"
+            },
+            {
+              "id": "F6-03",
+              "status": "blocked",
+              "phase": "F6"
+            }
+          ]
+        },
+        {
+          "id": "F6-G",
+          "title": "Task F6-G",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent + user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F6-01",
+              "status": "ready",
+              "phase": "F6"
+            },
+            {
+              "id": "F6-02",
+              "status": "blocked",
+              "phase": "F6"
+            },
+            {
+              "id": "F6-03",
+              "status": "blocked",
+              "phase": "F6"
+            },
+            {
+              "id": "F6-04",
+              "status": "blocked",
+              "phase": "F6"
+            },
+            {
+              "id": "F6-05",
+              "status": "blocked",
+              "phase": "F6"
+            },
+            {
+              "id": "F6-06",
+              "status": "blocked",
+              "phase": "F6"
+            },
+            {
+              "id": "F6-07",
+              "status": "blocked",
+              "phase": "F6"
+            },
+            {
+              "id": "F6-08",
+              "status": "blocked",
+              "phase": "F6"
+            },
+            {
+              "id": "F6-09",
+              "status": "blocked",
+              "phase": "F6"
+            },
+            {
+              "id": "F6-10",
+              "status": "blocked",
+              "phase": "F6"
+            },
+            {
+              "id": "F6-11",
+              "status": "blocked",
+              "phase": "F6"
+            },
+            {
+              "id": "F6-12",
+              "status": "blocked",
+              "phase": "F6"
+            },
+            {
+              "id": "F6-13",
+              "status": "blocked",
+              "phase": "F6"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "F7",
+      "title": "API",
+      "total": 14,
+      "counts": {
+        "blocked": 13,
+        "done": 0,
+        "in progress": 0,
+        "ready": 1,
+        "skipped": 0
+      },
+      "outcome": "stuck",
+      "tasks": [
+        {
+          "id": "F7-01",
+          "title": "Task F7-01",
+          "status": "ready",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F6-G",
+              "status": "blocked",
+              "phase": "F6"
+            }
+          ]
+        },
+        {
+          "id": "F7-02",
+          "title": "Task F7-02",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "accept",
+          "waits_on": [
+            {
+              "id": "F7-01",
+              "status": "ready",
+              "phase": "F7"
+            }
+          ]
+        },
+        {
+          "id": "F7-03",
+          "title": "Task F7-03",
+          "status": "blocked",
+          "rank": "opus",
+          "owner": "agent",
+          "mode": "plan",
+          "waits_on": [
+            {
+              "id": "F7-02",
+              "status": "blocked",
+              "phase": "F7"
+            }
+          ]
+        },
+        {
+          "id": "F7-04",
+          "title": "Task F7-04",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F7-03",
+              "status": "blocked",
+              "phase": "F7"
+            }
+          ]
+        },
+        {
+          "id": "F7-05",
+          "title": "Task F7-05",
+          "status": "blocked",
+          "rank": "—",
+          "owner": "user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F7-04",
+              "status": "blocked",
+              "phase": "F7"
+            }
+          ]
+        },
+        {
+          "id": "F7-06",
+          "title": "Task F7-06",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F7-05",
+              "status": "blocked",
+              "phase": "F7"
+            },
+            {
+              "id": "F7-04",
+              "status": "blocked",
+              "phase": "F7"
+            }
+          ]
+        },
+        {
+          "id": "F7-07",
+          "title": "Task F7-07",
+          "status": "blocked",
+          "rank": "opus",
+          "owner": "agent",
+          "mode": "plan",
+          "waits_on": [
+            {
+              "id": "F7-02",
+              "status": "blocked",
+              "phase": "F7"
+            },
+            {
+              "id": "F7-03",
+              "status": "blocked",
+              "phase": "F7"
+            }
+          ]
+        },
+        {
+          "id": "F7-08",
+          "title": "Task F7-08",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F7-07",
+              "status": "blocked",
+              "phase": "F7"
+            },
+            {
+              "id": "F6-G",
+              "status": "blocked",
+              "phase": "F6"
+            }
+          ]
+        },
+        {
+          "id": "F7-09",
+          "title": "Task F7-09",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F7-08",
+              "status": "blocked",
+              "phase": "F7"
+            }
+          ]
+        },
+        {
+          "id": "F7-10",
+          "title": "Task F7-10",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "accept",
+          "waits_on": [
+            {
+              "id": "F7-02",
+              "status": "blocked",
+              "phase": "F7"
+            },
+            {
+              "id": "F7-03",
+              "status": "blocked",
+              "phase": "F7"
+            }
+          ]
+        },
+        {
+          "id": "F7-11",
+          "title": "Task F7-11",
+          "status": "blocked",
+          "rank": "—",
+          "owner": "user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F7-10",
+              "status": "blocked",
+              "phase": "F7"
+            },
+            {
+              "id": "F7-09",
+              "status": "blocked",
+              "phase": "F7"
+            }
+          ]
+        },
+        {
+          "id": "F7-12",
+          "title": "Task F7-12",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F7-11",
+              "status": "blocked",
+              "phase": "F7"
+            }
+          ]
+        },
+        {
+          "id": "F7-13",
+          "title": "Task F7-13",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F7-02",
+              "status": "blocked",
+              "phase": "F7"
+            },
+            {
+              "id": "F7-03",
+              "status": "blocked",
+              "phase": "F7"
+            }
+          ]
+        },
+        {
+          "id": "F7-G",
+          "title": "Task F7-G",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent + user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F7-01",
+              "status": "ready",
+              "phase": "F7"
+            },
+            {
+              "id": "F7-02",
+              "status": "blocked",
+              "phase": "F7"
+            },
+            {
+              "id": "F7-03",
+              "status": "blocked",
+              "phase": "F7"
+            },
+            {
+              "id": "F7-04",
+              "status": "blocked",
+              "phase": "F7"
+            },
+            {
+              "id": "F7-05",
+              "status": "blocked",
+              "phase": "F7"
+            },
+            {
+              "id": "F7-06",
+              "status": "blocked",
+              "phase": "F7"
+            },
+            {
+              "id": "F7-07",
+              "status": "blocked",
+              "phase": "F7"
+            },
+            {
+              "id": "F7-08",
+              "status": "blocked",
+              "phase": "F7"
+            },
+            {
+              "id": "F7-09",
+              "status": "blocked",
+              "phase": "F7"
+            },
+            {
+              "id": "F7-10",
+              "status": "blocked",
+              "phase": "F7"
+            },
+            {
+              "id": "F7-11",
+              "status": "blocked",
+              "phase": "F7"
+            },
+            {
+              "id": "F7-12",
+              "status": "blocked",
+              "phase": "F7"
+            },
+            {
+              "id": "F7-13",
+              "status": "blocked",
+              "phase": "F7"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Phase-8",
+      "title": "Workers",
+      "total": 14,
+      "counts": {
+        "blocked": 13,
+        "done": 0,
+        "in progress": 0,
+        "ready": 1,
+        "skipped": 0
+      },
+      "outcome": "stuck",
+      "tasks": [
+        {
+          "id": "Phase-8-01",
+          "title": "Task Phase-8-01",
+          "status": "ready",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F7-G",
+              "status": "blocked",
+              "phase": "F7"
+            }
+          ]
+        },
+        {
+          "id": "Phase-8-02",
+          "title": "Task Phase-8-02",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "accept",
+          "waits_on": [
+            {
+              "id": "Phase-8-01",
+              "status": "ready",
+              "phase": "Phase-8"
+            }
+          ]
+        },
+        {
+          "id": "Phase-8-03",
+          "title": "Task Phase-8-03",
+          "status": "blocked",
+          "rank": "opus",
+          "owner": "agent",
+          "mode": "plan",
+          "waits_on": [
+            {
+              "id": "Phase-8-02",
+              "status": "blocked",
+              "phase": "Phase-8"
+            }
+          ]
+        },
+        {
+          "id": "Phase-8-04",
+          "title": "Task Phase-8-04",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-8-03",
+              "status": "blocked",
+              "phase": "Phase-8"
+            }
+          ]
+        },
+        {
+          "id": "Phase-8-05",
+          "title": "Task Phase-8-05",
+          "status": "blocked",
+          "rank": "—",
+          "owner": "user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-8-04",
+              "status": "blocked",
+              "phase": "Phase-8"
+            }
+          ]
+        },
+        {
+          "id": "Phase-8-06",
+          "title": "Task Phase-8-06",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-8-05",
+              "status": "blocked",
+              "phase": "Phase-8"
+            },
+            {
+              "id": "Phase-8-04",
+              "status": "blocked",
+              "phase": "Phase-8"
+            }
+          ]
+        },
+        {
+          "id": "Phase-8-07",
+          "title": "Task Phase-8-07",
+          "status": "blocked",
+          "rank": "opus",
+          "owner": "agent",
+          "mode": "plan",
+          "waits_on": [
+            {
+              "id": "Phase-8-02",
+              "status": "blocked",
+              "phase": "Phase-8"
+            },
+            {
+              "id": "Phase-8-03",
+              "status": "blocked",
+              "phase": "Phase-8"
+            }
+          ]
+        },
+        {
+          "id": "Phase-8-08",
+          "title": "Task Phase-8-08",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-8-07",
+              "status": "blocked",
+              "phase": "Phase-8"
+            },
+            {
+              "id": "F7-G",
+              "status": "blocked",
+              "phase": "F7"
+            }
+          ]
+        },
+        {
+          "id": "Phase-8-09",
+          "title": "Task Phase-8-09",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-8-08",
+              "status": "blocked",
+              "phase": "Phase-8"
+            }
+          ]
+        },
+        {
+          "id": "Phase-8-10",
+          "title": "Task Phase-8-10",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "accept",
+          "waits_on": [
+            {
+              "id": "Phase-8-02",
+              "status": "blocked",
+              "phase": "Phase-8"
+            },
+            {
+              "id": "Phase-8-03",
+              "status": "blocked",
+              "phase": "Phase-8"
+            }
+          ]
+        },
+        {
+          "id": "Phase-8-11",
+          "title": "Task Phase-8-11",
+          "status": "blocked",
+          "rank": "—",
+          "owner": "user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-8-10",
+              "status": "blocked",
+              "phase": "Phase-8"
+            },
+            {
+              "id": "Phase-8-09",
+              "status": "blocked",
+              "phase": "Phase-8"
+            }
+          ]
+        },
+        {
+          "id": "Phase-8-12",
+          "title": "Task Phase-8-12",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-8-11",
+              "status": "blocked",
+              "phase": "Phase-8"
+            }
+          ]
+        },
+        {
+          "id": "Phase-8-13",
+          "title": "Task Phase-8-13",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-8-02",
+              "status": "blocked",
+              "phase": "Phase-8"
+            },
+            {
+              "id": "Phase-8-03",
+              "status": "blocked",
+              "phase": "Phase-8"
+            }
+          ]
+        },
+        {
+          "id": "Phase-8-G",
+          "title": "Task Phase-8-G",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent + user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-8-01",
+              "status": "ready",
+              "phase": "Phase-8"
+            },
+            {
+              "id": "Phase-8-02",
+              "status": "blocked",
+              "phase": "Phase-8"
+            },
+            {
+              "id": "Phase-8-03",
+              "status": "blocked",
+              "phase": "Phase-8"
+            },
+            {
+              "id": "Phase-8-04",
+              "status": "blocked",
+              "phase": "Phase-8"
+            },
+            {
+              "id": "Phase-8-05",
+              "status": "blocked",
+              "phase": "Phase-8"
+            },
+            {
+              "id": "Phase-8-06",
+              "status": "blocked",
+              "phase": "Phase-8"
+            },
+            {
+              "id": "Phase-8-07",
+              "status": "blocked",
+              "phase": "Phase-8"
+            },
+            {
+              "id": "Phase-8-08",
+              "status": "blocked",
+              "phase": "Phase-8"
+            },
+            {
+              "id": "Phase-8-09",
+              "status": "blocked",
+              "phase": "Phase-8"
+            },
+            {
+              "id": "Phase-8-10",
+              "status": "blocked",
+              "phase": "Phase-8"
+            },
+            {
+              "id": "Phase-8-11",
+              "status": "blocked",
+              "phase": "Phase-8"
+            },
+            {
+              "id": "Phase-8-12",
+              "status": "blocked",
+              "phase": "Phase-8"
+            },
+            {
+              "id": "Phase-8-13",
+              "status": "blocked",
+              "phase": "Phase-8"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "F9",
+      "title": "Billing",
+      "total": 14,
+      "counts": {
+        "blocked": 13,
+        "done": 0,
+        "in progress": 0,
+        "ready": 1,
+        "skipped": 0
+      },
+      "outcome": "stuck",
+      "tasks": [
+        {
+          "id": "F9-01",
+          "title": "Task F9-01",
+          "status": "ready",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-8-G",
+              "status": "blocked",
+              "phase": "Phase-8"
+            }
+          ]
+        },
+        {
+          "id": "F9-02",
+          "title": "Task F9-02",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "accept",
+          "waits_on": [
+            {
+              "id": "F9-01",
+              "status": "ready",
+              "phase": "F9"
+            }
+          ]
+        },
+        {
+          "id": "F9-03",
+          "title": "Task F9-03",
+          "status": "blocked",
+          "rank": "opus",
+          "owner": "agent",
+          "mode": "plan",
+          "waits_on": [
+            {
+              "id": "F9-02",
+              "status": "blocked",
+              "phase": "F9"
+            }
+          ]
+        },
+        {
+          "id": "F9-04",
+          "title": "Task F9-04",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F9-03",
+              "status": "blocked",
+              "phase": "F9"
+            }
+          ]
+        },
+        {
+          "id": "F9-05",
+          "title": "Task F9-05",
+          "status": "blocked",
+          "rank": "—",
+          "owner": "user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F9-04",
+              "status": "blocked",
+              "phase": "F9"
+            }
+          ]
+        },
+        {
+          "id": "F9-06",
+          "title": "Task F9-06",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F9-05",
+              "status": "blocked",
+              "phase": "F9"
+            },
+            {
+              "id": "F9-04",
+              "status": "blocked",
+              "phase": "F9"
+            }
+          ]
+        },
+        {
+          "id": "F9-07",
+          "title": "Task F9-07",
+          "status": "blocked",
+          "rank": "opus",
+          "owner": "agent",
+          "mode": "plan",
+          "waits_on": [
+            {
+              "id": "F9-02",
+              "status": "blocked",
+              "phase": "F9"
+            },
+            {
+              "id": "F9-03",
+              "status": "blocked",
+              "phase": "F9"
+            }
+          ]
+        },
+        {
+          "id": "F9-08",
+          "title": "Task F9-08",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F9-07",
+              "status": "blocked",
+              "phase": "F9"
+            },
+            {
+              "id": "Phase-8-G",
+              "status": "blocked",
+              "phase": "Phase-8"
+            }
+          ]
+        },
+        {
+          "id": "F9-09",
+          "title": "Task F9-09",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F9-08",
+              "status": "blocked",
+              "phase": "F9"
+            }
+          ]
+        },
+        {
+          "id": "F9-10",
+          "title": "Task F9-10",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "accept",
+          "waits_on": [
+            {
+              "id": "F9-02",
+              "status": "blocked",
+              "phase": "F9"
+            },
+            {
+              "id": "F9-03",
+              "status": "blocked",
+              "phase": "F9"
+            }
+          ]
+        },
+        {
+          "id": "F9-11",
+          "title": "Task F9-11",
+          "status": "blocked",
+          "rank": "—",
+          "owner": "user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F9-10",
+              "status": "blocked",
+              "phase": "F9"
+            },
+            {
+              "id": "F9-09",
+              "status": "blocked",
+              "phase": "F9"
+            }
+          ]
+        },
+        {
+          "id": "F9-12",
+          "title": "Task F9-12",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F9-11",
+              "status": "blocked",
+              "phase": "F9"
+            }
+          ]
+        },
+        {
+          "id": "F9-13",
+          "title": "Task F9-13",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F9-02",
+              "status": "blocked",
+              "phase": "F9"
+            },
+            {
+              "id": "F9-03",
+              "status": "blocked",
+              "phase": "F9"
+            }
+          ]
+        },
+        {
+          "id": "F9-G",
+          "title": "Task F9-G",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent + user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F9-01",
+              "status": "ready",
+              "phase": "F9"
+            },
+            {
+              "id": "F9-02",
+              "status": "blocked",
+              "phase": "F9"
+            },
+            {
+              "id": "F9-03",
+              "status": "blocked",
+              "phase": "F9"
+            },
+            {
+              "id": "F9-04",
+              "status": "blocked",
+              "phase": "F9"
+            },
+            {
+              "id": "F9-05",
+              "status": "blocked",
+              "phase": "F9"
+            },
+            {
+              "id": "F9-06",
+              "status": "blocked",
+              "phase": "F9"
+            },
+            {
+              "id": "F9-07",
+              "status": "blocked",
+              "phase": "F9"
+            },
+            {
+              "id": "F9-08",
+              "status": "blocked",
+              "phase": "F9"
+            },
+            {
+              "id": "F9-09",
+              "status": "blocked",
+              "phase": "F9"
+            },
+            {
+              "id": "F9-10",
+              "status": "blocked",
+              "phase": "F9"
+            },
+            {
+              "id": "F9-11",
+              "status": "blocked",
+              "phase": "F9"
+            },
+            {
+              "id": "F9-12",
+              "status": "blocked",
+              "phase": "F9"
+            },
+            {
+              "id": "F9-13",
+              "status": "blocked",
+              "phase": "F9"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "F10",
+      "title": "Reports",
+      "total": 14,
+      "counts": {
+        "blocked": 13,
+        "done": 0,
+        "in progress": 0,
+        "ready": 1,
+        "skipped": 0
+      },
+      "outcome": "stuck",
+      "tasks": [
+        {
+          "id": "F10-01",
+          "title": "Task F10-01",
+          "status": "ready",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F9-G",
+              "status": "blocked",
+              "phase": "F9"
+            }
+          ]
+        },
+        {
+          "id": "F10-02",
+          "title": "Task F10-02",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "accept",
+          "waits_on": [
+            {
+              "id": "F10-01",
+              "status": "ready",
+              "phase": "F10"
+            }
+          ]
+        },
+        {
+          "id": "F10-03",
+          "title": "Task F10-03",
+          "status": "blocked",
+          "rank": "opus",
+          "owner": "agent",
+          "mode": "plan",
+          "waits_on": [
+            {
+              "id": "F10-02",
+              "status": "blocked",
+              "phase": "F10"
+            }
+          ]
+        },
+        {
+          "id": "F10-04",
+          "title": "Task F10-04",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F10-03",
+              "status": "blocked",
+              "phase": "F10"
+            }
+          ]
+        },
+        {
+          "id": "F10-05",
+          "title": "Task F10-05",
+          "status": "blocked",
+          "rank": "—",
+          "owner": "user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F10-04",
+              "status": "blocked",
+              "phase": "F10"
+            }
+          ]
+        },
+        {
+          "id": "F10-06",
+          "title": "Task F10-06",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F10-05",
+              "status": "blocked",
+              "phase": "F10"
+            },
+            {
+              "id": "F10-04",
+              "status": "blocked",
+              "phase": "F10"
+            }
+          ]
+        },
+        {
+          "id": "F10-07",
+          "title": "Task F10-07",
+          "status": "blocked",
+          "rank": "opus",
+          "owner": "agent",
+          "mode": "plan",
+          "waits_on": [
+            {
+              "id": "F10-02",
+              "status": "blocked",
+              "phase": "F10"
+            },
+            {
+              "id": "F10-03",
+              "status": "blocked",
+              "phase": "F10"
+            }
+          ]
+        },
+        {
+          "id": "F10-08",
+          "title": "Task F10-08",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F10-07",
+              "status": "blocked",
+              "phase": "F10"
+            },
+            {
+              "id": "F9-G",
+              "status": "blocked",
+              "phase": "F9"
+            }
+          ]
+        },
+        {
+          "id": "F10-09",
+          "title": "Task F10-09",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F10-08",
+              "status": "blocked",
+              "phase": "F10"
+            }
+          ]
+        },
+        {
+          "id": "F10-10",
+          "title": "Task F10-10",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "accept",
+          "waits_on": [
+            {
+              "id": "F10-02",
+              "status": "blocked",
+              "phase": "F10"
+            },
+            {
+              "id": "F10-03",
+              "status": "blocked",
+              "phase": "F10"
+            }
+          ]
+        },
+        {
+          "id": "F10-11",
+          "title": "Task F10-11",
+          "status": "blocked",
+          "rank": "—",
+          "owner": "user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F10-10",
+              "status": "blocked",
+              "phase": "F10"
+            },
+            {
+              "id": "F10-09",
+              "status": "blocked",
+              "phase": "F10"
+            }
+          ]
+        },
+        {
+          "id": "F10-12",
+          "title": "Task F10-12",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F10-11",
+              "status": "blocked",
+              "phase": "F10"
+            }
+          ]
+        },
+        {
+          "id": "F10-13",
+          "title": "Task F10-13",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F10-02",
+              "status": "blocked",
+              "phase": "F10"
+            },
+            {
+              "id": "F10-03",
+              "status": "blocked",
+              "phase": "F10"
+            }
+          ]
+        },
+        {
+          "id": "F10-G",
+          "title": "Task F10-G",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent + user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F10-01",
+              "status": "ready",
+              "phase": "F10"
+            },
+            {
+              "id": "F10-02",
+              "status": "blocked",
+              "phase": "F10"
+            },
+            {
+              "id": "F10-03",
+              "status": "blocked",
+              "phase": "F10"
+            },
+            {
+              "id": "F10-04",
+              "status": "blocked",
+              "phase": "F10"
+            },
+            {
+              "id": "F10-05",
+              "status": "blocked",
+              "phase": "F10"
+            },
+            {
+              "id": "F10-06",
+              "status": "blocked",
+              "phase": "F10"
+            },
+            {
+              "id": "F10-07",
+              "status": "blocked",
+              "phase": "F10"
+            },
+            {
+              "id": "F10-08",
+              "status": "blocked",
+              "phase": "F10"
+            },
+            {
+              "id": "F10-09",
+              "status": "blocked",
+              "phase": "F10"
+            },
+            {
+              "id": "F10-10",
+              "status": "blocked",
+              "phase": "F10"
+            },
+            {
+              "id": "F10-11",
+              "status": "blocked",
+              "phase": "F10"
+            },
+            {
+              "id": "F10-12",
+              "status": "blocked",
+              "phase": "F10"
+            },
+            {
+              "id": "F10-13",
+              "status": "blocked",
+              "phase": "F10"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "F11",
+      "title": "Admin",
+      "total": 14,
+      "counts": {
+        "blocked": 13,
+        "done": 0,
+        "in progress": 0,
+        "ready": 1,
+        "skipped": 0
+      },
+      "outcome": "stuck",
+      "tasks": [
+        {
+          "id": "F11-01",
+          "title": "Task F11-01",
+          "status": "ready",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F10-G",
+              "status": "blocked",
+              "phase": "F10"
+            }
+          ]
+        },
+        {
+          "id": "F11-02",
+          "title": "Task F11-02",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "accept",
+          "waits_on": [
+            {
+              "id": "F11-01",
+              "status": "ready",
+              "phase": "F11"
+            }
+          ]
+        },
+        {
+          "id": "F11-03",
+          "title": "Task F11-03",
+          "status": "blocked",
+          "rank": "opus",
+          "owner": "agent",
+          "mode": "plan",
+          "waits_on": [
+            {
+              "id": "F11-02",
+              "status": "blocked",
+              "phase": "F11"
+            }
+          ]
+        },
+        {
+          "id": "F11-04",
+          "title": "Task F11-04",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F11-03",
+              "status": "blocked",
+              "phase": "F11"
+            }
+          ]
+        },
+        {
+          "id": "F11-05",
+          "title": "Task F11-05",
+          "status": "blocked",
+          "rank": "—",
+          "owner": "user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F11-04",
+              "status": "blocked",
+              "phase": "F11"
+            }
+          ]
+        },
+        {
+          "id": "F11-06",
+          "title": "Task F11-06",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F11-05",
+              "status": "blocked",
+              "phase": "F11"
+            },
+            {
+              "id": "F11-04",
+              "status": "blocked",
+              "phase": "F11"
+            }
+          ]
+        },
+        {
+          "id": "F11-07",
+          "title": "Task F11-07",
+          "status": "blocked",
+          "rank": "opus",
+          "owner": "agent",
+          "mode": "plan",
+          "waits_on": [
+            {
+              "id": "F11-02",
+              "status": "blocked",
+              "phase": "F11"
+            },
+            {
+              "id": "F11-03",
+              "status": "blocked",
+              "phase": "F11"
+            }
+          ]
+        },
+        {
+          "id": "F11-08",
+          "title": "Task F11-08",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F11-07",
+              "status": "blocked",
+              "phase": "F11"
+            },
+            {
+              "id": "F10-G",
+              "status": "blocked",
+              "phase": "F10"
+            }
+          ]
+        },
+        {
+          "id": "F11-09",
+          "title": "Task F11-09",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F11-08",
+              "status": "blocked",
+              "phase": "F11"
+            }
+          ]
+        },
+        {
+          "id": "F11-10",
+          "title": "Task F11-10",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "accept",
+          "waits_on": [
+            {
+              "id": "F11-02",
+              "status": "blocked",
+              "phase": "F11"
+            },
+            {
+              "id": "F11-03",
+              "status": "blocked",
+              "phase": "F11"
+            }
+          ]
+        },
+        {
+          "id": "F11-11",
+          "title": "Task F11-11",
+          "status": "blocked",
+          "rank": "—",
+          "owner": "user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F11-10",
+              "status": "blocked",
+              "phase": "F11"
+            },
+            {
+              "id": "F11-09",
+              "status": "blocked",
+              "phase": "F11"
+            }
+          ]
+        },
+        {
+          "id": "F11-12",
+          "title": "Task F11-12",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F11-11",
+              "status": "blocked",
+              "phase": "F11"
+            }
+          ]
+        },
+        {
+          "id": "F11-13",
+          "title": "Task F11-13",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F11-02",
+              "status": "blocked",
+              "phase": "F11"
+            },
+            {
+              "id": "F11-03",
+              "status": "blocked",
+              "phase": "F11"
+            }
+          ]
+        },
+        {
+          "id": "F11-G",
+          "title": "Task F11-G",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent + user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F11-01",
+              "status": "ready",
+              "phase": "F11"
+            },
+            {
+              "id": "F11-02",
+              "status": "blocked",
+              "phase": "F11"
+            },
+            {
+              "id": "F11-03",
+              "status": "blocked",
+              "phase": "F11"
+            },
+            {
+              "id": "F11-04",
+              "status": "blocked",
+              "phase": "F11"
+            },
+            {
+              "id": "F11-05",
+              "status": "blocked",
+              "phase": "F11"
+            },
+            {
+              "id": "F11-06",
+              "status": "blocked",
+              "phase": "F11"
+            },
+            {
+              "id": "F11-07",
+              "status": "blocked",
+              "phase": "F11"
+            },
+            {
+              "id": "F11-08",
+              "status": "blocked",
+              "phase": "F11"
+            },
+            {
+              "id": "F11-09",
+              "status": "blocked",
+              "phase": "F11"
+            },
+            {
+              "id": "F11-10",
+              "status": "blocked",
+              "phase": "F11"
+            },
+            {
+              "id": "F11-11",
+              "status": "blocked",
+              "phase": "F11"
+            },
+            {
+              "id": "F11-12",
+              "status": "blocked",
+              "phase": "F11"
+            },
+            {
+              "id": "F11-13",
+              "status": "blocked",
+              "phase": "F11"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Phase-12",
+      "title": "Release",
+      "total": 14,
+      "counts": {
+        "blocked": 13,
+        "done": 0,
+        "in progress": 0,
+        "ready": 1,
+        "skipped": 0
+      },
+      "outcome": "stuck",
+      "tasks": [
+        {
+          "id": "Phase-12-01",
+          "title": "Task Phase-12-01",
+          "status": "ready",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "F11-G",
+              "status": "blocked",
+              "phase": "F11"
+            }
+          ]
+        },
+        {
+          "id": "Phase-12-02",
+          "title": "Task Phase-12-02",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "accept",
+          "waits_on": [
+            {
+              "id": "Phase-12-01",
+              "status": "ready",
+              "phase": "Phase-12"
+            }
+          ]
+        },
+        {
+          "id": "Phase-12-03",
+          "title": "Task Phase-12-03",
+          "status": "blocked",
+          "rank": "opus",
+          "owner": "agent",
+          "mode": "plan",
+          "waits_on": [
+            {
+              "id": "Phase-12-02",
+              "status": "blocked",
+              "phase": "Phase-12"
+            }
+          ]
+        },
+        {
+          "id": "Phase-12-04",
+          "title": "Task Phase-12-04",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-12-03",
+              "status": "blocked",
+              "phase": "Phase-12"
+            }
+          ]
+        },
+        {
+          "id": "Phase-12-05",
+          "title": "Task Phase-12-05",
+          "status": "blocked",
+          "rank": "—",
+          "owner": "user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-12-04",
+              "status": "blocked",
+              "phase": "Phase-12"
+            }
+          ]
+        },
+        {
+          "id": "Phase-12-06",
+          "title": "Task Phase-12-06",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-12-05",
+              "status": "blocked",
+              "phase": "Phase-12"
+            },
+            {
+              "id": "Phase-12-04",
+              "status": "blocked",
+              "phase": "Phase-12"
+            }
+          ]
+        },
+        {
+          "id": "Phase-12-07",
+          "title": "Task Phase-12-07",
+          "status": "blocked",
+          "rank": "opus",
+          "owner": "agent",
+          "mode": "plan",
+          "waits_on": [
+            {
+              "id": "Phase-12-02",
+              "status": "blocked",
+              "phase": "Phase-12"
+            },
+            {
+              "id": "Phase-12-03",
+              "status": "blocked",
+              "phase": "Phase-12"
+            }
+          ]
+        },
+        {
+          "id": "Phase-12-08",
+          "title": "Task Phase-12-08",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-12-07",
+              "status": "blocked",
+              "phase": "Phase-12"
+            },
+            {
+              "id": "F11-G",
+              "status": "blocked",
+              "phase": "F11"
+            }
+          ]
+        },
+        {
+          "id": "Phase-12-09",
+          "title": "Task Phase-12-09",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-12-08",
+              "status": "blocked",
+              "phase": "Phase-12"
+            }
+          ]
+        },
+        {
+          "id": "Phase-12-10",
+          "title": "Task Phase-12-10",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "accept",
+          "waits_on": [
+            {
+              "id": "Phase-12-02",
+              "status": "blocked",
+              "phase": "Phase-12"
+            },
+            {
+              "id": "Phase-12-03",
+              "status": "blocked",
+              "phase": "Phase-12"
+            }
+          ]
+        },
+        {
+          "id": "Phase-12-11",
+          "title": "Task Phase-12-11",
+          "status": "blocked",
+          "rank": "—",
+          "owner": "user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-12-10",
+              "status": "blocked",
+              "phase": "Phase-12"
+            },
+            {
+              "id": "Phase-12-09",
+              "status": "blocked",
+              "phase": "Phase-12"
+            }
+          ]
+        },
+        {
+          "id": "Phase-12-12",
+          "title": "Task Phase-12-12",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-12-11",
+              "status": "blocked",
+              "phase": "Phase-12"
+            }
+          ]
+        },
+        {
+          "id": "Phase-12-13",
+          "title": "Task Phase-12-13",
+          "status": "blocked",
+          "rank": "haiku",
+          "owner": "agent",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-12-02",
+              "status": "blocked",
+              "phase": "Phase-12"
+            },
+            {
+              "id": "Phase-12-03",
+              "status": "blocked",
+              "phase": "Phase-12"
+            }
+          ]
+        },
+        {
+          "id": "Phase-12-G",
+          "title": "Task Phase-12-G",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent + user",
+          "mode": "—",
+          "waits_on": [
+            {
+              "id": "Phase-12-01",
+              "status": "ready",
+              "phase": "Phase-12"
+            },
+            {
+              "id": "Phase-12-02",
+              "status": "blocked",
+              "phase": "Phase-12"
+            },
+            {
+              "id": "Phase-12-03",
+              "status": "blocked",
+              "phase": "Phase-12"
+            },
+            {
+              "id": "Phase-12-04",
+              "status": "blocked",
+              "phase": "Phase-12"
+            },
+            {
+              "id": "Phase-12-05",
+              "status": "blocked",
+              "phase": "Phase-12"
+            },
+            {
+              "id": "Phase-12-06",
+              "status": "blocked",
+              "phase": "Phase-12"
+            },
+            {
+              "id": "Phase-12-07",
+              "status": "blocked",
+              "phase": "Phase-12"
+            },
+            {
+              "id": "Phase-12-08",
+              "status": "blocked",
+              "phase": "Phase-12"
+            },
+            {
+              "id": "Phase-12-09",
+              "status": "blocked",
+              "phase": "Phase-12"
+            },
+            {
+              "id": "Phase-12-10",
+              "status": "blocked",
+              "phase": "Phase-12"
+            },
+            {
+              "id": "Phase-12-11",
+              "status": "blocked",
+              "phase": "Phase-12"
+            },
+            {
+              "id": "Phase-12-12",
+              "status": "blocked",
+              "phase": "Phase-12"
+            },
+            {
+              "id": "Phase-12-13",
+              "status": "blocked",
+              "phase": "Phase-12"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "plan": "tasks.md"
+}
+--- stderr

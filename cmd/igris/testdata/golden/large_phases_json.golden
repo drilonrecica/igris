@@ -1,0 +1,152 @@
+exit: 0
+--- stdout
+{
+  "phases": [
+    {
+      "id": "F1",
+      "title": "Foundation",
+      "total": 14,
+      "counts": {
+        "blocked": 2,
+        "done": 12,
+        "in progress": 0,
+        "ready": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "id": "F2",
+      "title": "Storage",
+      "total": 14,
+      "counts": {
+        "blocked": 2,
+        "done": 12,
+        "in progress": 0,
+        "ready": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "id": "F3",
+      "title": "Ingest",
+      "total": 14,
+      "counts": {
+        "blocked": 6,
+        "done": 4,
+        "in progress": 1,
+        "ready": 2,
+        "skipped": 1
+      }
+    },
+    {
+      "id": "Phase-4",
+      "title": "Index",
+      "total": 14,
+      "counts": {
+        "blocked": 13,
+        "done": 0,
+        "in progress": 0,
+        "ready": 1,
+        "skipped": 0
+      }
+    },
+    {
+      "id": "F5",
+      "title": "Query",
+      "total": 14,
+      "counts": {
+        "blocked": 13,
+        "done": 0,
+        "in progress": 0,
+        "ready": 1,
+        "skipped": 0
+      }
+    },
+    {
+      "id": "F6",
+      "title": "Auth",
+      "total": 14,
+      "counts": {
+        "blocked": 13,
+        "done": 0,
+        "in progress": 0,
+        "ready": 1,
+        "skipped": 0
+      }
+    },
+    {
+      "id": "F7",
+      "title": "API",
+      "total": 14,
+      "counts": {
+        "blocked": 13,
+        "done": 0,
+        "in progress": 0,
+        "ready": 1,
+        "skipped": 0
+      }
+    },
+    {
+      "id": "Phase-8",
+      "title": "Workers",
+      "total": 14,
+      "counts": {
+        "blocked": 13,
+        "done": 0,
+        "in progress": 0,
+        "ready": 1,
+        "skipped": 0
+      }
+    },
+    {
+      "id": "F9",
+      "title": "Billing",
+      "total": 14,
+      "counts": {
+        "blocked": 13,
+        "done": 0,
+        "in progress": 0,
+        "ready": 1,
+        "skipped": 0
+      }
+    },
+    {
+      "id": "F10",
+      "title": "Reports",
+      "total": 14,
+      "counts": {
+        "blocked": 13,
+        "done": 0,
+        "in progress": 0,
+        "ready": 1,
+        "skipped": 0
+      }
+    },
+    {
+      "id": "F11",
+      "title": "Admin",
+      "total": 14,
+      "counts": {
+        "blocked": 13,
+        "done": 0,
+        "in progress": 0,
+        "ready": 1,
+        "skipped": 0
+      }
+    },
+    {
+      "id": "Phase-12",
+      "title": "Release",
+      "total": 14,
+      "counts": {
+        "blocked": 13,
+        "done": 0,
+        "in progress": 0,
+        "ready": 1,
+        "skipped": 0
+      }
+    }
+  ],
+  "plan": "tasks.md"
+}
+--- stderr
