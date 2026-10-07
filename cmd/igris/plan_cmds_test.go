@@ -415,3 +415,82 @@ func TestCheckNotesMissingConfig(t *testing.T) {
 		t.Errorf("with igris.toml:\n%s", out)
 	}
 }
+
+// writeRunState writes .igris/<name> under dir.
+func writeRunState(t *testing.T, dir, name, content string) {
+	t.Helper()
+	p := filepath.Join(dir, ".igris", name)
+	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+const runStateJSON = `{"version":1,"started_at":"2026-10-07T09:30:00Z","phases":["F1","F2"],"config_hash":"h",
+"current":{"task_id":"F1-13","mode":"auto","claude_session":"s","session":{"backend":"herdr","tab_id":"t1","pane_id":"p2"},"started_at":"2026-10-07T09:31:00Z"}}`
+
+func TestStatusNoRun(t *testing.T) {
+	dir := inDir(t)
+	writeRunState(t, dir, "signals/.keep", "")
+	_, out, _ := runCmd("status", "--plan", largePlan)
+	if strings.Contains(out, "Run\n") {
+		t.Errorf("no run, but a Run block:\n%s", out)
+	}
+	_, out, _ = runCmd("status", "--json", "--plan", largePlan)
+	if strings.Contains(out, `"run"`) {
+		t.Errorf("no run, but a run object:\n%s", out)
+	}
+}
+
+func TestStatusCurrentRun(t *testing.T) {
+	dir := inDir(t)
+	writeRunState(t, dir, "state.json", runStateJSON)
+	writeRunState(t, dir, "signals/F1-13.json", `{"id":"F1-13","action":"done","note":"n","at":"2026-10-07T09:32:00Z"}`)
+	code, out, _ := runCmd("status", "F1", "--plan", largePlan)
+	if code != exitOK {
+		t.Fatalf("code = %d", code)
+	}
+	for _, want := range []string{"Run\n", "F1, F2", "F1-13", "auto", "2026-10-07T09:31:00Z", "herdr t1 p2", "Lock     none", "F1-13 done"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q:\n%s", want, out)
+		}
+	}
+	if strings.Index(out, "Run\n") > strings.Index(out, "F1 — ") {
+		t.Errorf("Run block should come above the phase table:\n%s", out)
+	}
+
+	_, out, _ = runCmd("status", "--json", "--plan", largePlan)
+	var got struct {
+		Run struct {
+			Task, Mode, Lock string
+			Phases, Signals  []string
+		}
+	}
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Run.Task != "F1-13" || got.Run.Mode != "auto" || got.Run.Lock != "none" ||
+		len(got.Run.Phases) != 2 || len(got.Run.Signals) != 1 {
+		t.Errorf("run = %+v", got.Run)
+	}
+}
+
+func TestStatusRunFromSubdirAndBadState(t *testing.T) {
+	dir := inDir(t)
+	writeRunState(t, dir, "state.json", `{"version":1,"phases":["F1"],"current":{"task_id":"F1-13","mode":"turbo"}}`)
+	writeRunState(t, dir, "igris.lock", `{"pid":1,"host":"definitely-elsewhere","started_at":"2026-10-07T09:30:00Z"}`)
+	sub := filepath.Join(dir, "sub")
+	if err := os.Mkdir(sub, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(sub)
+	code, out, _ := runCmd("status", "--plan", largePlan)
+	if code != exitOK {
+		t.Fatalf("a bad state file must not fail status: code %d", code)
+	}
+	if !strings.Contains(out, "state unreadable") || !strings.Contains(out, "running elsewhere") {
+		t.Errorf("bad state not reported:\n%s", out)
+	}
+}

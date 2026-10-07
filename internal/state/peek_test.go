@@ -143,3 +143,29 @@ func TestPeekNeverCreatesState(t *testing.T) {
 		t.Errorf(".igris/ was created (stat err = %v)", err)
 	}
 }
+
+func TestPeekSignals(t *testing.T) {
+	root := t.TempDir()
+	sigs, bad, err := PeekSignals(root)
+	if err != nil || len(sigs) != 0 || len(bad) != 0 {
+		t.Fatalf("no .igris: %v %v %v", sigs, bad, err)
+	}
+	dir := filepath.Join(root, DirName, "signals")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	files := map[string]string{
+		"B-2.json": `{"id":"B-2","action":"skip","note":"why","at":"2026-10-07T09:30:00Z"}`,
+		"A-1.json": `{"id":"A-1","action":"done","note":"ok","at":"2026-10-07T09:30:00Z"}`,
+		"C-3.json": `not json`,
+	}
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	sigs, bad, err = PeekSignals(root)
+	if err != nil || len(sigs) != 2 || sigs[0].ID != "A-1" || sigs[1].ID != "B-2" || len(bad) != 1 {
+		t.Errorf("sigs %+v, bad %v, err %v", sigs, bad, err)
+	}
+}

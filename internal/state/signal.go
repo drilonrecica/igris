@@ -146,7 +146,21 @@ func parseSignal(data []byte, id string) (*Signal, error) {
 // can't be read as a signal are returned as errors in bad, not dropped, so
 // the engine can report them; one bad file never hides the others.
 func (d *Dir) ListSignals() (sigs []Signal, bad []error, err error) {
-	entries, err := os.ReadDir(d.SignalsDir())
+	return listSignals(d.SignalsDir())
+}
+
+// PeekSignals is ListSignals for root/.igris/signals without creating or
+// changing anything. A missing directory means no signals, not an error.
+func PeekSignals(root string) (sigs []Signal, bad []error, err error) {
+	sigs, bad, err = listSignals(filepath.Join(root, DirName, "signals"))
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil, nil
+	}
+	return sigs, bad, err
+}
+
+func listSignals(dir string) (sigs []Signal, bad []error, err error) {
+	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, nil, fmt.Errorf("list signals: %w", err)
 	}
@@ -156,7 +170,7 @@ func (d *Dir) ListSignals() (sigs []Signal, bad []error, err error) {
 		if !ok || e.IsDir() || !plan.ValidID(id) { // also skips ".<name>.tmp-*" files
 			continue
 		}
-		s, err := readSignalFile(filepath.Join(d.SignalsDir(), name), id)
+		s, err := readSignalFile(filepath.Join(dir, name), id)
 		switch {
 		case err != nil:
 			bad = append(bad, err)

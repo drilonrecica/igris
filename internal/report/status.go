@@ -76,6 +76,7 @@ type PhaseStatus struct {
 type StatusReport struct {
 	Phases []PhaseStatus `json:"phases"`
 	Plan   string        `json:"plan"`
+	Run    *RunInfo      `json:"run,omitempty"` // set by the caller; nil when there is no run
 }
 
 // Status reports the phases of a valid plan, or only phaseID if it isn't

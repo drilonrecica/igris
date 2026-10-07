@@ -15,6 +15,7 @@ import (
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/report"
+	"github.com/drilonrecica/igris/internal/state"
 )
 
 // configFile is the config looked up in the working directory.
@@ -183,9 +184,14 @@ func execStatus(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "%s: %v\n", fs.Name(), err)
 		return exitFail
 	}
+	r.Run = currentRun()
 	if jsonFlag(fs) {
 		writeJSON(stdout, r)
 		return exitOK
+	}
+	if r.Run != nil {
+		printRun(stdout, r.Run)
+		fmt.Fprintln(stdout)
 	}
 	for i, ph := range r.Phases {
 		if i > 0 {
@@ -194,6 +200,61 @@ func execStatus(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		printPhaseStatus(stdout, ph)
 	}
 	return exitOK
+}
+
+// currentRun describes the run recorded under the project root found from
+// the working directory, or returns nil when there is no root or no run.
+// status reads the plan from the cwd but the state from the root (V02-P2);
+// nothing here creates or changes a file.
+func currentRun() *report.RunInfo {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil
+	}
+	root, err := state.FindRoot(cwd)
+	if err != nil {
+		return nil
+	}
+	in := report.RunInput{}
+	in.Run, in.RunErr = state.PeekRun(root)
+	in.Lock, in.LockErr = state.PeekLock(root)
+	var bad []error
+	in.Signals, bad, _ = state.PeekSignals(root) // an unlistable directory shows as no signals
+	in.SignalsBad = len(bad)
+	return report.NewRunInfo(in)
+}
+
+func printRun(w io.Writer, r *report.RunInfo) {
+	fmt.Fprintln(w, "Run")
+	row := func(label, value string) {
+		if value != "" {
+			fmt.Fprintf(w, "  %-8s %s\n", label, value)
+		}
+	}
+	if r.Unreadable != "" {
+		row("State", r.Unreadable)
+	} else {
+		phases := strings.Join(r.Phases, ", ")
+		if r.Through != "" {
+			phases += " (through " + r.Through + ")"
+		}
+		row("Phases", phases)
+		row("Started", r.StartedAt)
+		task := r.Task
+		if task == "" {
+			task = "between tasks"
+		}
+		row("Task", task)
+		row("Mode", r.Mode)
+		row("Since", r.Since)
+		row("Session", r.Session)
+	}
+	lock := r.Lock
+	if r.LockDetail != "" {
+		lock += " (" + r.LockDetail + ")"
+	}
+	row("Lock", lock)
+	row("Signals", strings.Join(r.Signals, ", "))
 }
 
 func printPhaseStatus(w io.Writer, r report.PhaseStatus) {
