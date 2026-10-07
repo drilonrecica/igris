@@ -96,6 +96,28 @@ func (d *Dir) Lock(force bool) (*Lock, error) {
 	return &Lock{path: d.lockPath(), info: info}, nil
 }
 
+// lockClass is how an existing lock file relates to this host.
+type lockClass int
+
+const (
+	lockStale  lockClass = iota // process on this host is gone
+	lockLive                    // process on this host is alive
+	lockRemote                  // another host; igris can't check it
+)
+
+// classifyLock decides whether the lock described by info is held by a live
+// process here, by another host, or is stale. host is this host's name.
+func classifyLock(info LockInfo, host string, alive func(int) bool) lockClass {
+	switch {
+	case info.Host != host:
+		return lockRemote
+	case alive(info.PID):
+		return lockLive
+	default:
+		return lockStale
+	}
+}
+
 // checkHeld inspects an existing lock file. It returns nil only if the lock
 // may be cleared (stale or remote, with force).
 func (d *Dir) checkHeld(host string, force bool) error {
@@ -106,19 +128,71 @@ func (d *Dir) checkHeld(host string, force bool) error {
 		}
 		return &StaleLockError{Reason: fmt.Sprintf("at %s (%v)", d.lockPath(), err)}
 	}
+	class := classifyLock(info, host, d.alive)
 	switch {
-	case info.Host != host:
-		if force {
-			return nil
-		}
+	case class == lockRemote && !force:
 		return &LockedError{Info: info, Path: d.lockPath(), Remote: true}
-	case d.alive(info.PID):
+	case class == lockLive:
 		return &LockedError{Info: info, Path: d.lockPath()}
-	case force:
-		return nil
-	default:
+	case class == lockStale && !force:
 		return &StaleLockError{Info: info, Reason: fmt.Sprintf("from %s (process no longer running)", info)}
+	default:
+		return nil
 	}
+}
+
+// LockState describes the run lock as PeekLock found it.
+type LockState struct {
+	Held       bool     // a lock file exists
+	Alive      bool     // held by a live process on this host
+	Remote     bool     // held from another host; liveness unknown
+	Stale      bool     // held by a process that is gone
+	Unreadable bool     // the lock file can't be read or parsed
+	Info       LockInfo // zero if unreadable
+	Reason     string   // why the lock is Stale or Unreadable
+	Path       string   // the lock file
+}
+
+// PeekLock reads root/.igris/igris.lock without creating or changing
+// anything. A missing lock is the zero-value state (Held false), not an
+// error; only a failure to read the file other than "unreadable content"
+// or absence is returned.
+func PeekLock(root string) (LockState, error) {
+	return peekLock(root, os.Hostname, processAlive)
+}
+
+func peekLock(root string, hostname func() (string, error), alive func(int) bool) (LockState, error) {
+	path := filepath.Join(root, DirName, "igris.lock")
+	st := LockState{Path: path}
+	info, err := readLock(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return st, nil
+	}
+	st.Held = true
+	if err != nil {
+		var pe *fs.PathError
+		if errors.As(err, &pe) {
+			return st, fmt.Errorf("read lock %s: %w", path, err)
+		}
+		st.Unreadable = true
+		st.Reason = err.Error()
+		return st, nil
+	}
+	st.Info = info
+	host, err := hostname()
+	if err != nil {
+		return st, fmt.Errorf("read lock %s: hostname: %w", path, err)
+	}
+	switch classifyLock(info, host, alive) {
+	case lockRemote:
+		st.Remote = true
+	case lockLive:
+		st.Alive = true
+	default:
+		st.Stale = true
+		st.Reason = "process no longer running"
+	}
+	return st, nil
 }
 
 // Running reports whether a run may hold the project's lock: the lock file

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -73,6 +74,30 @@ func (d *Dir) Events() ([]Event, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read run log: %w", err)
 	}
+	return parseEvents(data, d.eventsPath(), false)
+}
+
+// ErrNoLog is returned by PeekEvents when there is no run log.
+var ErrNoLog = errors.New("no run log")
+
+// PeekEvents reads root/.igris/runs.jsonl without creating or changing
+// anything. It returns ErrNoLog if there is none. Unlike Events, a
+// malformed last line is skipped even when newline-terminated.
+func PeekEvents(root string) ([]Event, error) {
+	path := filepath.Join(root, DirName, "runs.jsonl")
+	data, err := os.ReadFile(path) //nolint:gosec // igris's own run log
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, ErrNoLog
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read run log: %w", err)
+	}
+	return parseEvents(data, path, true)
+}
+
+// parseEvents decodes run log lines. A malformed last line is skipped if
+// it is unterminated or lenientLast is set; any other one is an error.
+func parseEvents(data []byte, path string, lenientLast bool) ([]Event, error) {
 	var events []Event
 	sc := bufio.NewScanner(bytes.NewReader(data))
 	sc.Buffer(nil, 1<<20)
@@ -83,15 +108,15 @@ func (d *Dir) Events() ([]Event, error) {
 		}
 		var e Event
 		if err := json.Unmarshal(line, &e); err != nil {
-			if n == lineCount(data) && !bytes.HasSuffix(data, []byte("\n")) {
+			if n == lineCount(data) && (lenientLast || !bytes.HasSuffix(data, []byte("\n"))) {
 				break
 			}
-			return nil, fmt.Errorf("read run log %s:%d: %w", d.eventsPath(), n, err)
+			return nil, fmt.Errorf("read run log %s:%d: %w", path, n, err)
 		}
 		events = append(events, e)
 	}
 	if err := sc.Err(); err != nil {
-		return nil, fmt.Errorf("read run log %s: %w", d.eventsPath(), err)
+		return nil, fmt.Errorf("read run log %s: %w", path, err)
 	}
 	return events, nil
 }
