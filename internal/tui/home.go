@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"io"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -22,6 +23,7 @@ type homeScreen struct {
 	w, h int
 	now  func() time.Time
 	loc  *time.Location
+	out  io.Writer // where the clipboard sequence goes; nil is stdout
 
 	snap    *report.Snapshot // nil until the first read is back
 	snapErr error
@@ -232,6 +234,8 @@ func (m *homeScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case ariseMsg:
 		return m, m.ariseFrom(msg.req)
+	case doMsg:
+		return m, m.activate(msg.a)
 	case launchedMsg:
 		return m, m.launched(msg)
 	case launchFailedMsg:
@@ -502,7 +506,7 @@ func (m *homeScreen) openPhase() tea.Cmd {
 	if m.phaseID == "" {
 		return nil
 	}
-	return m.notYet("Phase " + m.phaseID)
+	return push(newPhaseScreen(m, m.phaseID))
 }
 
 // activate runs a: a button, a shortcut key, a dialog option or a line all
@@ -535,6 +539,8 @@ func (m *homeScreen) activate(a action) tea.Cmd {
 		return m.openWizard(Wizard{})
 	case actPreview:
 		return m.openPreview(m.previewRequest())
+	case actCheck:
+		return push(newCheckScreen(m))
 	}
 	return m.notYet(label)
 }

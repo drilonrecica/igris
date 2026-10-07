@@ -394,9 +394,14 @@ func TestHomeActionsThreeWays(t *testing.T) {
 		return run(cmd)
 	}
 	// Its key.
-	send(keyMsg("c"))
-	if !strings.Contains(m.status, "Check") {
-		t.Errorf("c: status %q, want Check", m.status)
+	if p, ok := send(keyMsg("c")).(pushMsg); !ok {
+		t.Error("c didn't push the check page")
+	} else if _, ok := p.s.(*checkScreen); !ok {
+		t.Errorf("c pushed %T", p.s)
+	}
+	send(keyMsg("h"))
+	if !strings.Contains(m.status, "History") {
+		t.Errorf("h: status %q, want History", m.status)
 	}
 	if v := m.View(); !strings.Contains(v, m.status) || !strings.Contains(v, "09:41") {
 		t.Errorf("the status line isn't drawn with its time:\n%s", v)
@@ -461,9 +466,18 @@ func TestHomeMouse(t *testing.T) {
 	if m.selectedPhase() != "M3" || m.focus != homePhases || m.status != "" {
 		t.Errorf("one click: phase %q, focus %v, status %q; want M3 selected, nothing opened", m.selectedPhase(), m.focus, m.status)
 	}
-	click(row(3))
-	if !strings.Contains(m.status, "Phase") {
-		t.Errorf("second click: status %q, want the phase opened", m.status)
+	m.View()
+	var open tea.Msg
+	for _, z := range m.zones.list {
+		if row(3)(z.t) {
+			_, cmd := m.Update(tea.MouseMsg{X: z.r.x, Y: z.r.y, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress})
+			open = run(cmd)
+		}
+	}
+	if p, ok := open.(pushMsg); !ok {
+		t.Errorf("second click didn't push a page: %T", open)
+	} else if ps, ok := p.s.(*phaseScreen); !ok || ps.id != "M3" {
+		t.Errorf("second click pushed %T, want M3's page", p.s)
 	}
 	m.status = ""
 	if !click(func(t target) bool { return t.act == actLine && t.option == 1 }) {

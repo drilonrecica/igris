@@ -1,0 +1,20 @@
+Check · c checks again
+──────────────────────────────────────────────────
+⨯ plan invalid · 4 problems
+
+tasks.md:5: M9-02 depends on unknown task M9-01;
+check the ID or remove it from Deps
+tasks.md:6: M9-03: unknown status "wip" (did you
+mean in progress?); use ready, blocked, in
+progress, done or skipped
+tasks.md:7: M9-04: unknown model rank "gpt"; add
+it to [models] in igris.toml or use one of: fable,
+haiku, opus, sonnet
+tasks.md:8: M9-05: unknown status "doing" (did you
+mean in progress?); use ready, blocked, in
+progress, done or skipped
+
+3 warnings
+! igris.toml:4: unknown key tui.moose
+! tasks.md:21: M2-03 has a Status cell that reads
+[Edit plan] [Adapt] [Check again] [Close]

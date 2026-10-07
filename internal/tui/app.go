@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"maps"
 	"os"
 	"strings"
@@ -36,6 +37,9 @@ type AppOptions struct {
 	// Poll is how often home looks at the project's files for changes:
 	// 0 means every 2 s, a negative value turns the poll off.
 	Poll time.Duration
+	// Out is where the clipboard sequence (OSC 52) goes; nil means
+	// os.Stdout.
+	Out io.Writer
 }
 
 // Start is where the app opens: Home or Wizard.
@@ -207,6 +211,7 @@ func newApp(ctx context.Context, o AppOptions, th *theme) *appModel {
 	// The wizard (Start: Wizard) opens over home once home has read the
 	// project; the app starts on home either way.
 	home := newHome(ctx, o.Services, th)
+	home.out = o.Out
 	if home.poll = o.Poll; home.poll == 0 {
 		home.poll = pollEvery
 	}

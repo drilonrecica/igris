@@ -1,0 +1,40 @@
+M2-03 · esc closes
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+M2-03 — State file
+
+State file
+
+Status    · ready
+Rank      sonnet
+Owner     agent
+Mode      default (run mode)
+Phase     M2 Config & state
+Deps      ● M2-02 in progress · Lock file
+Waits on  M2-02
+
+Last attempts
+reading the run log…
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[Copy ID] [Close]
