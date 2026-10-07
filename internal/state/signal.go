@@ -120,12 +120,23 @@ func readSignalFile(path, id string) (*Signal, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read signal %s: %w", path, err)
 	}
-	var s Signal
-	if err := json.Unmarshal(data, &s); err != nil {
+	s, err := parseSignal(data, id)
+	if err != nil {
 		return nil, fmt.Errorf("read signal %s: %w; delete the file or run the command again", path, err)
 	}
+	return s, nil
+}
+
+// parseSignal decodes the content of id's signal file. A session could have
+// written it, so only a done or skip for id is accepted, and the note is
+// cleaned for display.
+func parseSignal(data []byte, id string) (*Signal, error) {
+	var s Signal
+	if err := json.Unmarshal(data, &s); err != nil {
+		return nil, err
+	}
 	if s.ID != id || (s.Action != ActionDone && s.Action != ActionSkip) {
-		return nil, fmt.Errorf("read signal %s: unexpected content (id %q, action %q); delete the file or run the command again", path, s.ID, s.Action)
+		return nil, fmt.Errorf("unexpected content (id %q, action %q)", s.ID, s.Action)
 	}
 	s.Note = textsafe.Line(s.Note)
 	return &s, nil

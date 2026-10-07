@@ -1,7 +1,7 @@
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -X main.version=$(VERSION)
 
-.PHONY: build install fmt lint test test-race release-local demo site
+.PHONY: build install fmt lint test test-race fuzz release-local demo site
 
 build:
 	go build -ldflags "$(LDFLAGS)" -o bin/igris ./cmd/igris
@@ -22,6 +22,18 @@ test:
 
 test-race:
 	go test -race ./...
+
+# Runs every Fuzz* target for FUZZTIME each, one after another (`make test`
+# only replays their seeds). A failing input is saved under the package's
+# testdata/fuzz/<Target>/; commit it with the fix as a regression seed.
+FUZZTIME ?= 1m
+fuzz:
+	@for f in $$(grep -rl --include='*_test.go' '^func Fuzz' internal); do \
+		for t in $$(sed -n 's/^func \(Fuzz[A-Za-z0-9_]*\)(.*/\1/p' $$f); do \
+			echo "== $$t ($$(dirname $$f), $(FUZZTIME))"; \
+			go test ./$$(dirname $$f) -run '^$$' -fuzz "^$$t\$$" -fuzztime $(FUZZTIME) || exit 1; \
+		done; \
+	done
 
 # Snapshot build of all release targets into dist/ (SPEC §18). Needs goreleaser;
 # never publishes: the owner uploads dist/ to a GitHub Release by hand.
