@@ -15,9 +15,9 @@ Only the task tables matter to igris: the `Task` text is what each session is to
 
 | ID | Task | Deps | Status | Model | Owner | Mode | Spec |
 |---|---|---|---|---|---|---|---|
-| P1-01 | **Project skeleton** — module, `main.go`, a Makefile with `build` and `test` | — | done | sonnet | agent | — | §1 |
-| P1-02 | **Flag parsing** — `--name` and `--shout` flags with tests | P1-01 | ready | sonnet | agent | — | §2 |
-| P1-03 | **Greeting design** — decide how greetings are chosen and localized; write the decision to `docs/greeting.md` | P1-01 | ready | opus | agent | plan | §3 |
+| P1-01 | **Project skeleton** — module, `main.go`, a Makefile with `build` and `test` | — | ready | sonnet | agent | — | §1 |
+| P1-02 | **Flag parsing** — `--name` and `--shout` flags with tests | P1-01 | blocked | sonnet | agent | — | §2 |
+| P1-03 | **Greeting design** — decide how greetings are chosen and localized; write the decision to `docs/greeting.md` | P1-01 | blocked | opus | agent | plan | §3 |
 | P1-04 | **Pick a license** — your call, not the agent's | — | ready | — | user | — | — |
 | P1-G | **P1 gate** — run the binary and confirm the output is what you want | P1-01…P1-04 | blocked | sonnet | agent + user | — | — |
 
