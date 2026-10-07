@@ -96,8 +96,17 @@ A task table is a GitHub-flavored markdown table whose header row contains at le
 | `Model` | yes | Rank alias or `—` for no model. |
 | `Owner` | no | `agent`, `user`, or `agent + user`. Missing column = `agent`. |
 | `Mode` | no | Per-task run-mode override (§7.2): `default`, `accept`, `auto`, `plan`, `yolo`, or `—`. |
+| `Verify` | no | Verify profile from config (§6.4), or `none` to skip verification for this task. Never a command. |
+| `Timeout` | no | Go duration (`45m`, `1h30m`) after which a running task is reported overdue (§6.3). Never stops a session. |
+| `Context` | no | Comma-separated repo-relative paths (files or directories) the task prompt names as required reading (§6.1). |
 
 - In `Model` and `Mode`, `—`, `-`, `none` (case-insensitive) and an empty cell all mean "no model" / "no override", as in `Deps`. `Owner` is case-insensitive (`Agent + User` = `agent+user` = `agent + user`); an empty cell means `agent`.
+- In `Verify`, `Timeout` and `Context`, an empty cell, `—` or `-` means "not set". In `Verify` only, `none` is not "not set": it turns verification off for the task, while an unset cell falls back to the phase's and the project's default (§6.4).
+- `Verify`, `Timeout` and `Context` are checked only on tasks that are not `done` or `skipped`, since igris never runs those; a violation is a validation error:
+  - a Verify profile must be defined in config (§12): `[verify]`, or `default` for `run.verify`;
+  - a Timeout must parse as a Go duration greater than zero;
+  - each Context entry is trimmed, with surrounding backticks stripped and empty entries and duplicates dropped, at most 20 entries. An entry must not be absolute, must have no `..` element, must exist, and must stay inside the project root once symlinks are resolved. The root is the project root for `arise` and the working directory for `check`, `phases` and `status`.
+- On a `user` task these three cells are ignored (there is no session); `check` and `arise` warn about each one that is set.
 - Column names can be aliased in config (`[columns]`, §12), e.g. `Depends on` → `Deps`. A table without a `Deps` column whose header has a column that looks like dependencies (`Depends`, `Depends on`, `Dependencies`, `Requires`, `Blocked by`, …) is still valid, but `check` and `arise` warn that igris reads no dependencies from it.
 - Extra columns (e.g. `Spec`) are preserved untouched and passed to the session prompt as context.
 - Cells are split on **unescaped** pipes only; `\|` inside a cell is literal text (read as `|`; the file keeps `\|`).

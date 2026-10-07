@@ -71,8 +71,17 @@ A task table is a GitHub-flavored markdown table whose header row contains at le
 | `Model` | yes | Rank alias or `—` for no model. |
 | `Owner` | no | `agent`, `user`, or `agent + user`. Missing column = `agent`. |
 | `Mode` | no | Per-task run-mode override (§7.2): `default`, `accept`, `auto`, `plan`, `yolo`, or `—`. |
+| `Verify` | no | Verify profile from config (§6.4), or `none` to skip verification for this task. Never a command. |
+| `Timeout` | no | Go duration (`45m`, `1h30m`) after which a running task is reported overdue (§6.3). Never stops a session. |
+| `Context` | no | Comma-separated repo-relative paths (files or directories) the task prompt names as required reading (§6.1). |
 
 - In `Model` and `Mode`, `—`, `-`, `none` (case-insensitive) and an empty cell all mean "no model" / "no override", as in `Deps`. `Owner` is case-insensitive (`Agent + User` = `agent+user` = `agent + user`); an empty cell means `agent`.
+- In `Verify`, `Timeout` and `Context`, an empty cell, `—` or `-` means "not set". In `Verify` only, `none` is not "not set": it turns verification off for the task, while an unset cell falls back to the phase's and the project's default (§6.4).
+- `Verify`, `Timeout` and `Context` are checked only on tasks that are not `done` or `skipped`, since igris never runs those; a violation is a validation error:
+  - a Verify profile must be defined in config (§12): `[verify]`, or `default` for `run.verify`;
+  - a Timeout must parse as a Go duration greater than zero;
+  - each Context entry is trimmed, with surrounding backticks stripped and empty entries and duplicates dropped, at most 20 entries. An entry must not be absolute, must have no `..` element, must exist, and must stay inside the project root once symlinks are resolved. The root is the project root for `arise` and the working directory for `check`, `phases` and `status`.
+- On a `user` task these three cells are ignored (there is no session); `check` and `arise` warn about each one that is set.
 - Column names can be aliased in config (`[columns]`, §12), e.g. `Depends on` → `Deps`. A table without a `Deps` column whose header has a column that looks like dependencies (`Depends`, `Depends on`, `Dependencies`, `Requires`, `Blocked by`, …) is still valid, but `check` and `arise` warn that igris reads no dependencies from it.
 - Extra columns (e.g. `Spec`) are preserved untouched and passed to the session prompt as context.
 - Cells are split on **unescaped** pipes only; `\|` inside a cell is literal text (read as `|`; the file keeps `\|`).
@@ -152,6 +161,17 @@ After every status change igris recomputes readiness for **all** tasks in the pl
 ### 5.4 Plan edits igris didn't make
 Igris remembers every row as it last read or wrote it (Status, Model, Mode, Owner, Deps, Task text; rows added or removed). Whenever it re-reads the plan to select a task and finds a difference it did not write itself — a session editing a later task's Mode or Model, marking tasks done, or the owner's own edit; igris can't tell them apart — it reports the changed cells (`M1-03 Mode — → auto`), sends `needs_input`, and **holds**: pause-after-task goes on and nothing is selected, not even "phase complete", until the owner resumes (`p`, or `pause` with `--no-tui`). The current task is not interrupted. Ready/blocked cells igris recomputes itself (§5.2) are never reported.
 
+### 5.5 Running a slice
+`arise --only ID[,ID…]`, `--from ID` and `--until ID` run part of the phase range.
+- `--only` can't be combined with `--from`/`--until`. An empty list or a malformed ID is a usage error.
+- The phase range is the named phase and `--through`, as in §5.3. With no phase named it comes from the flags: from the phase of the earliest named task (file order) through the phase of the latest; `--from` or `--until` alone runs that task's phase.
+- Checked before anything is written: every named ID exists and lies inside the phase range, and `--from` doesn't come after `--until` in file order. Otherwise `arise` exits 1 saying what to change.
+- The **slice** is the tasks of the range listed in `--only`, or the tasks from `--from` (default: the first of the range) to `--until` (default: the last), in file order. §5.1 selects among the slice's tasks only: the first one `in progress`, else the first unsatisfied one whose dependencies are all satisfied.
+- When unsatisfied slice tasks are left in a phase but none qualifies, each is reported as **not run** with its unmet dependencies (`not run: M1-05 waits on M1-04 (ready, phase M1)`), in the TUI and the run's final summary. It is never marked. The run goes on with the next phase of the range; this is not a stuck phase and sends no `phase_stuck`. The run ends when the slice has nothing left to run.
+- `phase_done` is sent only for a phase whose tasks are all satisfied. Tasks outside the slice change only through readiness sync (§5.2).
+- The interrupted task of an earlier run is still picked up first (§13), also when it is outside the slice; `arise` says so.
+- `state.json` records the selection with the phases, so a bare `arise` resumes the same slice. `--dry-run` walks the slice.
+
 ---
 
 ## 6. Session lifecycle (agent tasks)
@@ -159,7 +179,7 @@ Igris remembers every row as it last read or wrote it (Status, Model, Mode, Owne
 For each selected agent task:
 
 1. **Resolve** rank → model (`[models]` config) and run mode (§7.2). Unknown rank → stop with error, before anything is written.
-2. **Mark** the task `in progress` (§4).
+2. **Mark** the task `in progress` (§4), then run the `before_task` hook, if one is configured (§6.7).
 3. **Open a pane** via the backend in the project directory, labelled `<ID> · <rank>`.
 4. **Start Claude Code** in that pane: `claude --model <model> --session-id <uuid>` + run-mode flags + `--append-system-prompt-file <igris rules file>` + `--settings <igris hooks file>` (§6.3) + `claude.extra_args` from config. Neither prompt travels as argv: herdr rejects control characters (newlines) in agent arguments (§11.2). Igris writes the rules to `.igris/prompts/<ID>.rules.md` first.
 5. **Submit the task prompt (§6.1)** with the backend's prompt call once the session is `idle` (the backend's start call only returns when Claude Code is ready for input, so this cannot race with startup).
@@ -167,13 +187,13 @@ For each selected agent task:
 7. **Watch** (§6.3) until a completion signal arrives or the owner intervenes.
 8. **Verify** (§6.4), optionally **commit** (§6.5).
 9. **Mark** `done`, sync readiness, append to the run log.
-10. **Close** the pane (the Claude Code session ends; its transcript stays in Claude Code's own history).
+10. **Close** the pane (the Claude Code session ends; its transcript stays in Claude Code's own history), then run the `after_task` hook, if one is configured (§6.7).
 11. Select the next task.
 
 ### 6.1 Task prompt
 Two parts (§6 steps 4–5):
 - **Igris rules** — the fixed, non-negotiable part (exactly one task, don't edit Status, how and when to run `igris done`, ask the owner when blocked). Passed with `--append-system-prompt-file` (verified in P0-03; accepted by Claude Code 2.1.291 though absent from `--help`) so they survive context compaction in long sessions.
-- **Task prompt** — the first user message (sent via the backend's prompt call, multi-line OK), built from a Go `text/template`. The default template ships embedded; the owner can override it with `prompt_template` in config. Variables: `ID`, `Title`, `Text` (full Task cell), `Phase`, `PhaseTitle`, `Rank`, `Model`, `Owner`, `Deps`, `Extra` (map of extra columns, e.g. `Spec`), `PlanFile`, `Resumed` (bool), `CommitPolicy`, `DoneCommand`.
+- **Task prompt** — the first user message (sent via the backend's prompt call, multi-line OK), built from a Go `text/template`. The default template ships embedded; the owner can override it with `prompt_template` in config. Variables: `ID`, `Title`, `Text` (full Task cell), `Phase`, `PhaseTitle`, `Rank`, `Model`, `Owner`, `Deps`, `Extra` (map of extra columns, e.g. `Spec`; the canonical `Verify`, `Timeout` and `Context` are not in it), `Context` (list of the Context cell's paths as written, §3.2), `PlanFile`, `Resumed` (bool), `CommitPolicy`, `DoneCommand`.
 
 Defaults live in `internal/prompt/rules.md` (static, no template variables, so the rules hold after compaction) and `internal/prompt/task.md.tmpl` (P0-06).
 
@@ -184,6 +204,7 @@ The default prompt must tell the session:
 - **Do not edit the Status column**; igris owns it and unblocks dependents itself. (This overrides any plan rule that says the agent updates Status.)
 - Commit policy: don't commit yourself; depending on `commit`, igris commits after verification (`auto`/`ask`) or not at all (`never`, in which case earlier tasks' changes may still be uncommitted in the tree).
 - When the task meets the project's definition of done and nothing is waiting on the owner, run **`igris done <ID> --note "<one-line summary>"`** as the very last action. Never run it with anything unresolved.
+- If the task has Context paths: list them as required reading before changing anything. igris names the paths only; it never reads or sends their contents.
 - If `Resumed`: a previous session worked on this task and may have left partial changes; inspect `git status`/`git diff` first and continue from there.
 
 ### 6.2 Completion protocol
@@ -193,6 +214,7 @@ The default prompt must tell the session:
 - Signal files are read only if they are regular files of at most 64 KiB (sessions can write into `signals/`; a FIFO or a huge file must not stall igris); anything else is reported as unreadable. The note is cleaned of control characters before it is shown, logged or used as a commit body.
 - A signal counts for the current task only if it was written at or after the task started. An older file (e.g. `igris done` run before igris reached the task) is kept and reported, never applied; running the command again replaces it.
 - **Skip needs the owner.** A `skip` signal for an **agent** task is treated as a request: igris marks the task **Needs you**, notifies, and applies the skip only after the owner confirms in the TUI (or via `--no-tui` stdin). Pressing `s` in the TUI applies directly. For **user** tasks a skip signal applies directly, since only the owner acts on them.
+- **Reset.** `igris reset ID [--force]` (§14) puts a task back to `ready`/`blocked`. While a live igris on this host holds the lock, it writes `.igris/signals/<ID>.json` with action `reset` and `"force": true|false`, replacing any pending signal for that task. The running igris applies it at its next poll, never in the middle of a verify or a commit, and checks the status again first: a `done`/`skipped` task without `force` is reported and left alone. If the task is the current one, igris closes its session without the idle wait (§6.6), clears it from `state.json`, rewrites its Status by readiness, syncs readiness and turns pause-after-task on, so nothing is selected until the owner continues. Any other task gets the Status write and the sync. A `reset` signal still pending when the next `arise` starts is applied before anything is selected. The time rule above doesn't apply to it.
 - `igris init` adds the allow rule `Bash(igris done:*)` to `.claude/settings.local.json` (merging, never overwriting) so the done command doesn't trigger a permission prompt. `igris skip` is deliberately **not** allow-listed: a session that wants to skip has to go through a permission prompt and the confirmation above.
 
 ### 6.3 Watching a session
@@ -215,18 +237,22 @@ The tmux backend takes the agent state from these files; the herdr backend uses 
 | Signal present | Proceed to verification. |
 | Agent `working` | Clear any "needs you" flag. |
 | Agent `blocked`, `idle` or `done` without a signal for ≥ `needs_input_after` (default 30 s) | Mark the task **Needs you** in the TUI; send a `needs_input` notification once per idle episode. Possible causes: a question, a permission prompt, a plan awaiting approval, a usage limit, or a stall — igris doesn't try to tell them apart. |
+| Task running longer than its `Timeout` (§3.2) | Once per attempt: mark it **overdue** in the TUI (until the attempt ends) and **Needs you**, log `task_overdue` and send a `task_overdue` notification. The session is never closed or stopped for it. |
 | Agent `unknown` | Nothing; it says nothing about the agent (e.g. no hook has fired yet and herdr's integration is missing). |
 | Pane gone or Claude Code exited without a signal | Mark **Session lost**, notify, and offer: continue the conversation (`claude --resume <uuid>`, with a short fixed prompt telling the session to pick the task up again), retry fresh (`Resumed=true`), mark done, skip, or stop. A done signal written before the session went away still counts. |
+
+**Timeout.** The clock starts when igris sends the session's first prompt: the task prompt of a fresh session, the continue prompt of `retry continue`, or, on resume, when igris reattaches to a live session (elapsed time is not saved). Each session igris opens or reattaches for the task is one attempt, so a retry starts a new clock. It is checked while igris watches the session. User tasks ignore Timeout (§3.2).
 
 Igris never advances on agent state alone — only on a signal or an explicit owner action. A signal for another task, or one igris can't read, is reported once and kept. A skip signal from an agent session is asked about once; declining it deletes the signal and the session carries on.
 
 ### 6.4 Verification
-- Optional `verify` command in config (e.g. `make fmt lint test`), run with `sh -c` in the project root, with a timeout (default 15 min).
+- **Profiles.** `[verify]` in config maps profile names to commands (`fast = "go test ./internal/plan/..."`, `full = "make fmt lint test"`). `run.verify` is the profile `default`. Plans name profiles, never commands. For each task the command is chosen in this order: the task's Verify cell, then `[phases.<id>] verify` for its phase, then `default`. `none` at either of the first two levels means no verification. With none of them set, there is no verification.
+- The chosen command is run with `sh -c` in the project root, with a timeout (`verify_timeout`, default 15 min, the same for every profile).
 - The verify command (like every other config value) comes from the config snapshot taken at `arise` start (§13), never from a re-read of `igris.toml` mid-run.
-- **Pass** → continue. **Fail** → delete the signal, wait until the agent is idle (it ran `igris done` as its last action, so it may still be finishing its turn; up to 30 s, then send anyway), and send the last 60 lines of output into the same session: "igris verification `<cmd>` failed: … Fix the problem, then run `igris done <ID>` again." The task stays in progress.
-- Output is stdout and stderr interleaved as written, with escape sequences and other control characters removed before it is sent (the text is pasted into the session's terminal and must stay text); only the last 8 MiB are kept. A timeout counts as a failure. A verify command that can't be started at all stops the run with an error. The run log records each result, never the output.
+- **Pass** → continue. **Fail** → delete the signal, wait until the agent is idle (it ran `igris done` as its last action, so it may still be finishing its turn; up to 30 s, then send anyway), and send the last 60 lines of output into the same session: "igris verification `<profile>` (`<cmd>`) failed: … Fix the problem, then run `igris done <ID>` again." The task stays in progress.
+- Output is stdout and stderr interleaved as written, with escape sequences and other control characters removed before it is sent (the text is pasted into the session's terminal and must stay text); only the last 8 MiB are kept. A timeout counts as a failure. A verify command that can't be started at all stops the run with an error. The run log records each result and the profile, never the output; `--dry-run` shows each task's profile.
 - After `verify_max_attempts` (default 3) consecutive failures, igris stops sending failures back, marks **Needs you**, and notifies (`verify_failed_limit`). A later `igris done` is verified again (failures still not sent back); retrying the session starts a new count.
-- No verify command → the signal is accepted as is.
+- No verify command for the task (none set, or `none`) → the signal is accepted as is.
 - When the **owner** marks an agent task done (TUI `d`, `--no-tui` `done`, or the session-lost choice), verify is skipped: that is the owner's explicit decision. The commit policy still applies.
 
 ### 6.5 Commits
@@ -238,6 +264,15 @@ Igris never advances on agent state alone — only on a signal or an explicit ow
 
 ### 6.6 Closing
 After a task is accepted, igris waits up to 30 s for the agent to become idle (so it can finish its final message), then closes the pane.
+
+### 6.7 Task hooks
+`[hooks]` in config (§12) names two optional commands, as argv lists: `before_task` and `after_task`. They are task hooks of igris, unrelated to the Claude Code hooks of §6.3.
+- They come from the config snapshot (§13) and run through the command runner as argv, never through a shell, in the project root, with a timeout (`hooks.timeout`, default 2 min).
+- Environment: igris's own plus `IGRIS_TASK_ID`, `IGRIS_PHASE`, `IGRIS_RANK` (the alias), `IGRIS_MODEL` (the resolved `--model` value) and, for `after_task` only, `IGRIS_RESULT` (`done` or `skipped`).
+- They run for agent tasks only: never for user tasks or `adapt`, and never in `--dry-run`, which says they would run.
+- `before_task` runs before every session igris opens for the task (fresh, retry fresh, retry continue), after the task is marked `in progress` and before the pane opens. It doesn't run when igris reattaches to a live session. If it exits non-zero, times out or can't be started, no session is opened and the task stays `in progress`. igris marks **Needs you**, logs an `error` with the task and a short reason (`before_task hook failed: exit status 1`), sends `run_error`, and offers the choices of a lost session with nothing to continue: retry (which runs the hook again), mark done, skip, or stop.
+- `after_task` runs once after the task is marked `done` or `skipped` (by a signal or by the owner) and its session is closed. A failure is a warning in the TUI, an `error` in the run log and a `run_error` notification; the run continues.
+- On a failure, the last 20 lines of the hook's output (stdout and stderr interleaved), cleaned of control characters, are shown in the TUI only. The run log and notifications get the short reason, never the output.
 
 ---
 
@@ -310,17 +345,17 @@ For plans that fail `igris check` or use a different format.
 
 ## 10. Notifications
 
-Events: `needs_input`, `session_lost`, `verify_failed_limit`, `task_done`, `phase_done`, `phase_stuck`, `run_error`.
+Events: `needs_input`, `session_lost`, `task_overdue`, `verify_failed_limit`, `task_done`, `phase_done`, `phase_stuck`, `run_error`.
 
 Channels (all optional, any combination):
 
 | Channel | Config | Delivery |
 |---|---|---|
-| Backend | `[notify.backend] enabled` | the backend's toast: herdr's `herdr notification show`, tmux's `display-message` (no sound) (sound `request` for needs-input events, `done` for completions). It has no `events` list and always gets the default events. |
-| ntfy | `[notify.ntfy] server`, `topic`, optional `token` | HTTP POST, title + body, priority high for `needs_input`/`session_lost`. |
+| Backend | `[notify.backend] enabled` | the backend's toast: herdr's `herdr notification show`, tmux's `display-message` (no sound) (sound `request` for needs-input events and `task_overdue`, `done` for completions). It has no `events` list and always gets the default events. |
+| ntfy | `[notify.ntfy] server`, `topic`, optional `token` | HTTP POST, title + body, priority high for `needs_input`/`session_lost`/`task_overdue`. |
 | Discord | `[notify.discord] webhook_url` | Webhook POST with a short message (`content`), no embeds needed. |
 
-- Each channel has an `events` list; default: `needs_input`, `session_lost`, `phase_done`, `phase_stuck`, `run_error`, `verify_failed_limit`. `task_done` (opt-in) is sent when an `agent` or `agent + user` task is marked done.
+- Each channel has an `events` list; default: `needs_input`, `session_lost`, `task_overdue`, `phase_done`, `phase_stuck`, `run_error`, `verify_failed_limit`. `task_done` (opt-in) is sent when an `agent` or `agent + user` task is marked done. `task_overdue` is sent once per attempt when a task runs longer than its Timeout (§6.3); like `needs_input` and `session_lost` it is urgent (the toast's `request` sound, ntfy priority high). `run_error` also covers a failed task hook (§6.7), which doesn't stop the run.
 - Messages contain project name, phase, task ID and title, and the event — never file contents, diffs or command output.
 - Delivery is best-effort with a 10 s timeout and one retry; failures are logged and shown in the TUI, never fatal.
 - Secrets (Discord webhook URL, ntfy token) may be given as `env:VAR_NAME` references so they stay out of the repo; igris never logs them.
@@ -442,12 +477,24 @@ command = "claude"                # deprecated and ignored: igris always starts 
 extra_args = []                   # appended to every session launch; model/mode/session flags are rejected (§7.4)
 
 [run]
-verify = ""                       # e.g. "make fmt lint test"
-verify_timeout = "15m"
+verify = ""                       # e.g. "make fmt lint test"; the verify profile "default" (§6.4)
+verify_timeout = "15m"            # for every verify profile
 verify_max_attempts = 3
 commit = "ask"                    # ask | auto | never
 commit_message = "{{.ID}}: {{.Title}}"
 prompt_template = ""              # path to a custom task prompt template
+
+[verify]                          # optional verify profiles: name -> shell command (§6.4)
+# fast = "go test ./internal/plan/..."
+# full = "make fmt lint test"
+
+[phases.M0]                       # optional, per phase: the verify profile for its tasks (§6.4)
+# verify = "fast"                 # a profile, or "none"
+
+[hooks]                           # optional task hooks, argv lists, no shell (§6.7)
+before_task = []                  # e.g. ["./scripts/dev-db", "up"]
+after_task = []                   # e.g. ["./scripts/post-status"]
+timeout = "2m"
 
 [adapt]
 model = "sonnet"                  # sonnet | opus
@@ -467,14 +514,17 @@ enabled = true
 server = "https://ntfy.sh"
 topic = ""
 token = ""                        # or "env:NTFY_TOKEN"
-events = ["needs_input", "session_lost", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]
+events = ["needs_input", "session_lost", "task_overdue", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]
 
 [notify.discord]
 webhook_url = ""                  # or "env:IGRIS_DISCORD_WEBHOOK"
-events = ["needs_input", "session_lost", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]
+events = ["needs_input", "session_lost", "task_overdue", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]
 ```
 
 - Unknown keys are errors (catches typos). Durations use Go syntax.
+- Verify profile names match `[a-z0-9_-]+` and their commands must not be empty. `none` is reserved, and setting both `run.verify` and `[verify] default` is an error (they are the same profile). `run.verify` stays supported.
+- `[phases.<id>]` matches phase IDs case-insensitively; `verify` is its only key, naming a profile or `none`. An unknown profile there is an error. A `[phases.<id>]` that names no phase of the plan is a warning in `check` and `arise` (the config is validated without the plan).
+- `[hooks]`: an empty or missing list means no hook. A non-empty list needs a non-empty first element, and no element may contain a control character.
 - Durations must be greater than zero. `env:VAR` references are accepted for `notify.ntfy.token` and `notify.discord.webhook_url`; an unset or empty variable is an error. Several problems are reported together, each saying what to fix.
 - The config hash recorded in the run snapshot (§13) is a SHA-256 of the parsed config as written (defaults applied, `env:` references unresolved), so secret values never enter it.
 - `igris.toml` holds no secrets by default and is safe to commit; `.igris/` is local state and is added to `.gitignore` by `igris init`.
@@ -488,8 +538,8 @@ events = ["needs_input", "session_lost", "phase_done", "phase_stuck", "run_error
 | Path | Content |
 |---|---|
 | `igris.lock` | PID + host + start time, created complete (written to a temp file and hard-linked into place) so a concurrent `--force-unlock` never mistakes a fresh lock for a damaged one. A second `igris arise` refuses to start while the PID is alive; a stale lock is reported and can be cleared with `--force-unlock`. If the PID was reused by another program (after a reboot, say), the error says to delete the file. |
-| `state.json` | Current run: phases, current task ID, session ref (backend name, pane/tab IDs, agent name), Claude session UUID, mode, attempt counters, started-at, hash of the config snapshot, and the task prompt while it is held at a startup prompt. Written atomically on every change. Values that become command arguments (session ref IDs, the session UUID) are checked for their expected shape when read back; a file that fails is reported as damaged. |
-| `signals/` | Pending signal files (§6.2). |
+| `state.json` | Current run: phases, the selection (§5.5), current task ID, session ref (backend name, pane/tab IDs, agent name), Claude session UUID, mode, attempt counters, started-at, hash of the config snapshot, and the task prompt while it is held at a startup prompt. Written atomically on every change. Values that become command arguments (session ref IDs, the session UUID) are checked for their expected shape when read back; a file that fails is reported as damaged. |
+| `signals/` | Pending signal files (§6.2): `done`, `skip` and `reset`. |
 | `hooks/` | `<ID>.settings.json`: the hooks-only Claude Code settings file igris passes with `--settings` (§6.3). Rewritten before every session. |
 | `agent-state/` | `<session uuid>.json`: `{"state","event","at"}`, the agent state written by `igris hook` (§6.3). Untrusted; read bounded and shape-checked. |
 | `runs.jsonl` | Append-only log: one JSON line per event (task started/done/skipped, verify result, notifications, errors) with timestamps, task ID, rank and model. |
@@ -500,10 +550,10 @@ events = ["needs_input", "session_lost", "phase_done", "phase_stuck", "run_error
 | Field | Content |
 |---|---|
 | `at` | RFC 3339 UTC timestamp |
-| `type` | `run_started`, `run_stopped`, `task_started`, `task_resumed`, `task_done`, `task_skipped`, `verify_passed`, `verify_failed`, `committed`, `notification` or `error` |
+| `type` | `run_started`, `run_stopped`, `task_started`, `task_resumed`, `task_done`, `task_skipped`, `task_overdue`, `task_reset`, `verify_passed`, `verify_failed`, `committed`, `notification` or `error` |
 | `task` | task ID; omitted for events outside a task (`run_started`, `run_stopped`, most `error`s) |
 | `rank`, `model` | the task's rank and resolved model; omitted with `task` |
-| `detail` | free text, never secrets: the phase scope (`phase A, B`) for `run_started`, the outcome (`completed`, `stuck`, `stopped`, `error`) for `run_stopped`, the note or reason for `task_done`/`task_skipped`, `attempt N of M: <why>` for `verify_failed`, the commit subject for `committed` |
+| `detail` | free text, never secrets: the phase scope (`phase A, B`, plus the selection, e.g. `phase M1; only M1-03, M1-05`) for `run_started`, the outcome (`completed`, `stuck`, `stopped`, `error`) for `run_stopped`, the note or reason for `task_done`/`task_skipped`, the profile for `verify_passed` and `verify_failed` (`profile fast: attempt N of M: <why>`), the old status for `task_reset`, the reason for a task hook's `error`, the commit subject for `committed` |
 
 A run is the events from a `run_started` to its `run_stopped`, or to the next `run_started` when there is none (the run was interrupted). `igris history` is the reader of this format.
 
@@ -513,7 +563,7 @@ A run is the events from a `run_started` to its `run_stopped`, or to the next `r
 - pending signal for the current task → process it first.
 
 Details:
-- With no phase argument the previous run's phase range (and `--through`) is used again; with no previous run, `arise` opens the home screen's start-run wizard on a terminal (§14, §15.6) and otherwise exits 1 asking for a phase. A resumed run starts in the phase of the interrupted task.
+- With no phase argument the previous run's phase range (and `--through`, and the selection) is used again, unless selection flags set the range themselves (§5.5); with no previous run, `arise` opens the home screen's start-run wizard on a terminal (§14, §15.6) and otherwise exits 1 asking for a phase. A resumed run starts in the phase of the interrupted task.
 - The interrupted task is picked up before anything else, also when a different phase is named.
 - If the plan no longer says `in progress` for it (the owner settled it while igris was down), igris warns, forgets it and goes on.
 - A task the plan says is `in progress` without any record in `state.json` is treated like a lost session with nothing to continue: the owner can start a fresh session (`Resumed=true`), mark it done, skip it or stop.
@@ -535,14 +585,18 @@ igris init [--example]                      create igris.toml, .igris/, .gitigno
                                             --example also writes the example plan when there is none
 igris doctor [--json]                       read-only health check of this project and machine
 igris check [--plan PATH] [--json]          validate the plan; exit 0 valid, 1 invalid, 2 usage error
+           [--strict]                       also lint the plan; exit 1 on any plan or config warning
 igris phases [--plan PATH] [--json]         list phases with task counts per status
 igris status [PHASE] [--plan PATH] [--json] tasks with status/rank/owner, current run, unmet deps
 igris history [TASK-ID] [-n N] [--json]     past runs from .igris/runs.jsonl; with a task ID, its attempts
 igris arise [PHASE] [--through PHASE]       run (or resume) with the TUI
            [--mode default|accept|auto|plan|yolo] [--no-tui] [--dry-run]
            [--force-unlock]
+           [--only ID[,ID...] | [--from ID] [--until ID]]
+                                            run only part of the phases (§5.5)
 igris done ID [--note TEXT]                 signal that a task is finished
 igris skip ID --reason TEXT                 signal that a task is skipped
+igris reset ID [--force]                    put a task back to ready/blocked; --force for done/skipped
 igris notify test [--event NAME]            send a sample of each notification to the configured channels
 igris adapt [--model sonnet|opus]           AI-assisted conversion with diff review
            [--plan PATH]
@@ -554,7 +608,7 @@ igris version
 - **`igris arise` without a phase and with nothing to resume** (no `state.json`, or one without phases) opens the app in the start-run wizard (§15.6) when it runs on a terminal (as for bare `igris`) without `--no-tui` or `--dry-run`; `--mode`, `--through` and `--force-unlock` are prefilled, and `esc` leaves the wizard for home instead of exiting. In every other case it exits 1 and asks for a phase, as before. `igris arise PHASE` goes straight to the run view, as before.
 - `arise`, `adapt` and `notify test` work in the project root: the nearest directory, from the working directory up, that holds `igris.toml` or `.igris/`. Without one, the working directory is the root only if it holds the plan (`adapt --plan`, else `tasks.md`); otherwise they exit 1 with a hint to run `igris init` and create nothing.
 - The plan file is `--plan`, else `plan` in `igris.toml` in the working directory, else `tasks.md`. `check`, `phases` and `status` stay working-directory-based (they don't search upward like `arise` and home do). `check` and `phases` read the plan only; `status` reads the plan plus the `.igris/` run state, read-only (§13), and never creates `.igris/`; `phases` and `status` refuse an invalid plan (exit 1, listing the problems) and report to stdout, errors to stderr. `--json` prints one JSON document instead of text.
-- `check` prints each validation problem as `file:line: message` and each readiness drift (§5.2) and ignored dependency-like column (§3.2) as `warning: file:line: …`, and each Claude Code or backend (herdr, tmux) version problem (§11.4), a set `ANTHROPIC_API_KEY` (§7.4) and an `igris.toml` in a parent directory (which `check`, `phases` and `status` don't read: they use the working directory's) as `warning: …` (in `--json`, a warning without `file` and `line`), and each deprecated config setting as `warning: igris.toml: …` (§12); warnings never fail the check. Without any `igris.toml`, `check` prints `note: no igris.toml here; using the defaults` (text only, not a warning). `phases` and `status` print the parent-directory hint as a `note:` on stderr. `status` shows, per phase, how many tasks are finished, the §5.1 outcome (`next`, `complete`, `stuck`) and, for each task, the dependencies it waits on. The current run (needs `.igris/` state, §13) is added to `status` once runs exist: phase range, current task, mode, since when, session reference and lock state (running here, running elsewhere, stale, none), plus pending signals. In text it is a short `Run` block above the phase table; in `--json` it is a `run` object, omitted when there is none. A state file that can't be read or doesn't have the expected shape is reported as "state unreadable", never a crash.
+- `check` prints each validation problem as `file:line: message` and each readiness drift (§5.2) and ignored dependency-like column (§3.2) as `warning: file:line: …`, and each Claude Code or backend (herdr, tmux) version problem (§11.4), a set `ANTHROPIC_API_KEY` (§7.4) and an `igris.toml` in a parent directory (which `check`, `phases` and `status` don't read: they use the working directory's) as `warning: …` (in `--json`, a warning without `file` and `line`), and each deprecated config setting as `warning: igris.toml: …` (§12); warnings never fail the check, except under `--strict` (below). Without any `igris.toml`, `check` prints `note: no igris.toml here; using the defaults` (text only, not a warning). `phases` and `status` print the parent-directory hint as a `note:` on stderr. `status` shows, per phase, how many tasks are finished, the §5.1 outcome (`next`, `complete`, `stuck`) and, for each task, the dependencies it waits on. A VERIFY, TIMEOUT or CONTEXT column is shown only when some task of the plan has that cell set; `--json` adds `verify`, `timeout` and `context` (an array) to each task, omitted when empty. The current run (needs `.igris/` state, §13) is added to `status` once runs exist: phase range, current task, mode, since when, session reference and lock state (running here, running elsewhere, stale, none), plus pending signals. In text it is a short `Run` block above the phase table; in `--json` it is a `run` object, omitted when there is none. A state file that can't be read or doesn't have the expected shape is reported as "state unreadable", never a crash.
 - `--no-tui` prints plain timestamped log lines and reads owner commands from stdin, one per line, for scripting or very small terminals:
   - `y` / `n` answer the question igris asked (commit? confirm a session's skip request?);
   - `done [note]` marks the current task done (an agent task is not verified, §6.4), `skip <reason>` skips it;
@@ -562,6 +616,25 @@ igris version
   - `pause` toggles pause-after-task like `p` in the TUI (§15.3), `stop` stops igris and leaves the session open;
   - `mode <m>` sets the run mode for the next sessions, `mode <task> <m>` overrides one task's mode for its next session (§7.2; a user task has no session, so igris answers "<task> is a user task; it has no session"); `yolo` then asks to type `skip permissions` (§7.3);
   - `help` lists them. Ctrl-C is `stop`.
+- **`check --strict`** adds lint hints to `check`'s warnings and exits 1 when any plan or config warning is reported: lint hints, readiness drift, a dependency-like column, a column ignored on a user task, a `[phases.<id>]` naming no phase, a deprecated setting. Machine warnings (Claude Code and backend versions, `ANTHROPIC_API_KEY`, an `igris.toml` in a parent directory) are still printed but never fail it, so it works in CI without Claude Code installed. Plain `check` never shows lint hints. Lint hints skip `done` and `skipped` tasks; each is printed as `warning: file:line: <message>`:
+
+  | Lint | Reported when | Message |
+  |---|---|---|
+  | `title` | the Task cell has no `**bold**` span | `M1-03: the Task cell has no **bold** title, so igris shows its first 80 characters; start the cell with **Title**` |
+  | `long` | the Task cell is longer than 400 characters | `M1-03: the Task cell is N characters (over 400); keep the row short and point to a spec for the details` |
+  | `owner-step` | an `agent + user` task whose row contains none of `owner`, `approv`, `decid`, `decision` (case-insensitive) | `M1-03: agent + user task, but its row never says what the owner does (no "owner", "approve" or "decide"); say what needs the owner's sign-off` |
+  | `gate` | a task whose ID ends in `-G` (case-insensitive) doesn't depend, directly or through other deps, on every other task of its phase | `M1-G: the gate does not depend on M1-04, M1-05 of phase M1; add them to Deps (e.g. M1-01…M1-05)` |
+  | `yolo` | the Mode cell is `yolo` | `M1-03: Mode yolo runs this task with --dangerously-skip-permissions; prefer auto unless it must run unattended` |
+  | `fable` | a task of rank `fable` in a phase where no other task has rank `opus` or `fable` (the aliases as written) | `M1-03: the only heavy-rank task of phase M1 is fable; check that this task needs fable` |
+
+  With warnings, the summary line is `tasks.md: N warning(s) under --strict; fix them and run igris check --strict again`. In `--json` the document gains `"strict": true` and each lint warning a `"lint"` field with its name; `valid` still means the plan validates, and the exit code carries the strict result.
+- **`arise --only/--from/--until`** (§5.5): `--only` takes a comma-separated list. Combining it with `--from`/`--until`, an empty list or a malformed ID is a usage error (exit 2). A named ID that is not in the plan or not in the phase range, or a `--from` after the `--until`, exits 1 before anything is written, e.g. `arise: --until M3-01 is in phase M3, outside the run's phases M1…M2; widen --through or drop it`.
+- **`reset ID [--force]`** puts a task back to `ready`/`blocked` by readiness (§5.2). It finds the project root like `done`/`skip` and needs a valid plan (otherwise exit 1, listing the problems).
+  - An `in progress` task is reset. A `done` or `skipped` one needs `--force` (otherwise exit 1: `M1-03 is done; pass --force to reset it`). A `ready` or `blocked` one prints `nothing to reset` and exits 0 without writing. User tasks are reset the same way.
+  - With no lock, or a stale one (§13): igris writes the Status cell directly (§4) and syncs readiness. If `state.json` names the task as the interrupted one, `reset` adds that its session may still be open and should be closed by hand.
+  - With a lock held by a live igris on this host: `reset` writes a `reset` signal, which that igris applies (§6.2).
+  - With a remote lock: exit 1, saying to run `reset` on that host or clear the lock with `arise --force-unlock`.
+  - It prints what it did (`M1-03: in progress → ready`, or `M1-03: reset sent to the running igris`) and lists the task's dependents that are `in progress`, which it never changes. Exit 0, 1 on failure, 2 on a usage error.
 - `init --example` also writes the canonical example plan (the one in `examples/tasks.md`) as the configured plan path when no plan exists; it never overwrites (`kept existing tasks.md`). Without `--example`, `init` behaves as before.
 - `doctor` is **read-only, now and later**: it never writes, creates or fixes anything (no `--fix`), and for every problem it prints the exact command that would fix it. It works outside a project (it reports "no igris.toml" and checks the machine). Checks, in this order:
   1. `claude` found, with its version (§11.4);
@@ -582,7 +655,7 @@ igris version
 - `hook <event>` is hidden too: Claude Code runs it from the hooks file igris passes to each session (§6.3). It is not meant to be run by hand.
 - `notify test` sends one sample message per event to every channel set up for it (the backend's toast is included when the backend is reachable) and prints `ok` or `FAILED: <reason>` per event and channel; secrets never appear in the output. It exits 1 if a delivery failed or no channel is set up. `--event` limits it to one event.
 - `--force-unlock` clears a stale `.igris/igris.lock` (its process is gone, the file is unreadable, or it comes from another host); a lock held by a live process on this host is always refused (§13). The CLI never asks about a stale lock: `arise` exits 1 saying to rerun with `--force-unlock`. The start-run wizard's **Clear the lock and start** dialog (**Cancel** is the default; asked per launch, never remembered) is the TUI equivalent of the flag, not a new prompt.
-- `--dry-run` uses the fake backend: walks the phase, prints which task would launch with which model and mode, writes nothing. It runs the real engine on a temporary copy of the plan, with every session finishing at once, user tasks done, verify and commits off. Drift and skip-permissions tasks are shown as warnings instead of asked about; a task already in progress is shown as resumed with a fresh session. Without a phase it walks the last run's phases. It never touches `.igris/`.
+- `--dry-run` uses the fake backend: walks the phase (or the slice, §5.5), prints which task would launch with which model, mode and verify profile (§6.4), and that task hooks would run (§6.7), writes nothing. It runs the real engine on a temporary copy of the plan, with every session finishing at once, user tasks done, verify and commits off. Drift and skip-permissions tasks are shown as warnings instead of asked about; a task already in progress is shown as resumed with a fresh session. Without a phase it walks the last run's phases. It never touches `.igris/`.
 - On start, `arise` warns if `ANTHROPIC_API_KEY` is set in the environment (Claude Code would bill the API instead of the subscription) and asks for confirmation. It also warns, without asking, if the project is not a git repository or has uncommitted changes (§7.3), and about the Claude Code and backend versions (§11.4).
 - Before its first write `arise` asks to confirm readiness drift (§5.2), and asks for the typed `skip permissions` confirmation when a task would run in `yolo` mode (§7.3). Declining any of these exits 1 with nothing started. With `--no-tui` the answers come from stdin (`y` for the questions). With the TUI they are asked the same way, as plain prompts before the TUI takes over the terminal; in the start-run wizard (§15.6) they are dialogs with the same defaults and meaning. `--dry-run` prints the warnings and never asks.
 
