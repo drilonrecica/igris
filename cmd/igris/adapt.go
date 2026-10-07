@@ -42,7 +42,7 @@ func execAdapt(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "igris adapt: %s\n", fmt.Sprintf(format, a...))
 		return exitFail
 	}
-	root, cfg, err := loadProject()
+	root, cfg, err := loadProject(fs.Lookup("plan").Value.String())
 	if err != nil {
 		return fail("%v", err)
 	}

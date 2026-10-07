@@ -33,7 +33,7 @@ func execNotify(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	if only != "" && !isEvent(only) {
 		return fail("unknown event %q; use any of: %v", only, notify.AllEvents)
 	}
-	root, cfg, err := loadProject()
+	root, cfg, err := loadProject("")
 	if err != nil {
 		return fail("%v", err)
 	}

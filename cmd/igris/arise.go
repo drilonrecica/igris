@@ -69,7 +69,7 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		return exitFail
 	}
 	var err error
-	if f.root, f.cfg, err = loadProject(); err != nil {
+	if f.root, f.cfg, err = loadProject(""); err != nil {
 		return fail("%v", err)
 	}
 	out := &lockedWriter{w: stdout}
@@ -335,15 +335,25 @@ func readLine(ctx context.Context, r *bufio.Reader) (string, bool) {
 }
 
 // loadProject finds the project root (the nearest igris.toml or .igris/,
-// else the working directory) and loads its config, the defaults if it has
-// none.
-func loadProject() (string, *config.Config, error) {
+// else the working directory if it holds the plan: explicitPlan, or the
+// default tasks.md) and loads its config, the defaults if it has none.
+func loadProject(explicitPlan string) (string, *config.Config, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", nil, err
 	}
 	root, err := state.FindRoot(cwd)
 	if err != nil {
+		// No igris.toml or .igris/ here or above: the working directory is
+		// the project only if it holds the plan, so .igris/ is never
+		// created in an unrelated directory.
+		planPath := explicitPlan
+		if planPath == "" {
+			planPath = config.Default().Plan
+		}
+		if _, serr := os.Stat(planPath); serr != nil {
+			return "", nil, fmt.Errorf("no igris project in %s: no %s or %s here or in a parent, and no %s; run `igris init` in your project (or cd into it)", cwd, state.ConfigFile, state.DirName, planPath)
+		}
 		root = cwd
 	}
 	cfg, err := config.Load(filepath.Join(root, state.ConfigFile))

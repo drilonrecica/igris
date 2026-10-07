@@ -495,6 +495,7 @@ igris adapt [--model sonnet|opus]           AI-assisted conversion with diff rev
 igris version
 ```
 
+- `arise`, `adapt` and `notify test` work in the project root: the nearest directory, from the working directory up, that holds `igris.toml` or `.igris/`. Without one, the working directory is the root only if it holds the plan (`adapt --plan`, else `tasks.md`); otherwise they exit 1 with a hint to run `igris init` and create nothing.
 - The plan file is `--plan`, else `plan` in `igris.toml` in the working directory, else `tasks.md`. `check`, `phases` and `status` read the plan only; `phases` and `status` refuse an invalid plan (exit 1, listing the problems) and report to stdout, errors to stderr. `--json` prints one JSON document instead of text.
 - `check` prints each validation problem as `file:line: message` and each readiness drift (§5.2) and ignored dependency-like column (§3.2) as `warning: file:line: …`, and each Claude Code or herdr version problem (§11.4) as `warning: …` (in `--json`, a warning without `file` and `line`); warnings never fail the check. `status` shows, per phase, how many tasks are finished, the §5.1 outcome (`next`, `complete`, `stuck`) and, for each task, the dependencies it waits on. The current run (needs `.igris/` state, §13) is added to `status` once runs exist.
 - `--no-tui` prints plain timestamped log lines and reads owner commands from stdin, one per line, for scripting or very small terminals:

@@ -665,3 +665,34 @@ func TestAriseWithoutPlan(t *testing.T) {
 		t.Errorf("exit %d, stderr %q", code, errb.String())
 	}
 }
+
+// Outside a project (no igris.toml or .igris/ up the tree) and without a
+// plan, the commands that keep state refuse and create nothing.
+func TestOutsideAProject(t *testing.T) {
+	for _, args := range [][]string{{"arise", "A"}, {"arise", "A", "--dry-run"}, {"adapt"}, {"notify", "test"}} {
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			dir := t.TempDir()
+			t.Chdir(dir)
+			var out, errb bytes.Buffer
+			if code := run(args, &out, &errb); code != exitFail || !strings.Contains(errb.String(), "no igris project in") || !strings.Contains(errb.String(), "run `igris init`") {
+				t.Errorf("exit %d, stderr %q", code, errb.String())
+			}
+			if entries, _ := os.ReadDir(dir); len(entries) != 0 {
+				t.Errorf("created %v", entries)
+			}
+		})
+	}
+}
+
+// A directory with just a plan is a project: every config key is optional.
+func TestPlanOnlyProject(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	if err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(dryPlan), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var out, errb bytes.Buffer
+	if code := run([]string{"arise", "A", "--dry-run"}, &out, &errb); code != exitOK {
+		t.Errorf("exit %d, stderr %q", code, errb.String())
+	}
+}
