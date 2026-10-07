@@ -48,8 +48,8 @@ Run 2026-10-07 on Linux (Fedora) with the **release binary**: `make release-loca
 
 1. **Bug: `status` says "state unreadable" while a user task is current.** A user task has no session and `state.json` stores `"mode": ""` for it, but `checkShape` in `internal/report/run.go:97` accepts only the five real modes. So from the moment a run reaches a user task (and after leaving it there with Home or `q`), `igris status` prints `State  state unreadable: unknown mode in state.json` instead of the Run block, and home shows `READY` with `Arise…` instead of the interrupted/stopped card with `Resume…`, so the owner can't resume that run from home. It is invisible when a run is stopped on an agent task or has completed, which is why V02-CG and the 120×40 pass didn't hit it. Fix: allow an empty mode for the current task (and show `—`), with a test for a user task in `report/run_test.go`.
 2. **Fixed in V02-31 (f3b539f).** **Example plan's P1-G can't pass as written.** P1-01 is pre-marked `done` but there is no skeleton, so the agent task P1-G ("run the binary") finds nothing to run and asks the owner what to do. A new user running the stock example hits it. Either change P1-G to something checkable or turn P1-01 into a task that creates the skeleton. Not a code bug.
-3. **Minor:** after a completed run the NOW card says `STOPPED · … Resume continues P1` although P1 is `5/5 done` and P2 is next. It matches the CLI's resume semantics and the documented note about `status`, but a "run completed — start P2" hint would read better.
-4. **Minor:** in the second terminal's home, `RECENT`/the NOW card list the task being worked on as `recent: P1-02 unfinished` while it is still running.
+3. **Fixed in V021-01.** **Minor:** after a completed run the NOW card says `STOPPED · … Resume continues P1` although P1 is `5/5 done` and P2 is next. It matches the CLI's resume semantics and the documented note about `status`, but a "run completed — start P2" hint would read better.
+4. **Fixed in V021-02.** **Minor:** in the second terminal's home, `RECENT`/the NOW card list the task being worked on as `recent: P1-02 unfinished` while it is still running.
 
 ## Re-check after the fix (9142a2d)
 
@@ -60,7 +60,7 @@ Binary rebuilt from HEAD (`v0.1.3-34-g9142a2d-dirty`, the dirty flag is only thi
 - `a` offers `Resume last run (P1-04 first)`; Resume → summary → run view back on P1-04 (`YOUR TURN`); `d` on P1-04 and P1-G completed P1; `q` returned home with `P1 5/5 done`.
 - Result: finding 1 is fixed. One cosmetic leftover (fixed in 5ec9490, which shares one `modeTail` between both cards and tests both): the interrupted card's task line (`runLines`, `internal/tui/home_state.go:510`) still appends ` · mode ` with an empty mode, so at 50 columns it reads `user · mode`. The running card was fixed first; this one wasn't.
 
-Finding 2 is fixed in V02-31; findings 3–4 stay as follow-ups for after v0.2.0.
+Finding 2 is fixed in V02-31; findings 3–4 are fixed in V021-01 and V021-02 (v0.2.1).
 
 ## Termius (owner)
 

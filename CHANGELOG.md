@@ -4,10 +4,15 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-07
+
+A patch for two small home-screen and history wording bugs found at the v0.2 gate, plus a release-doc fix. No change to the plan format, config keys or file formats.
+
 ### Fixed
 
 - Home: after a run whose phases all completed, the NOW card is READY with a `last run P1 completed` line and the bar says Arise…, instead of STOPPED with Resume (SPEC §15.6).
 - History and home: a task still being worked on in a live run reads `running` (RUNNING card `recent:` line, `igris history`, `--json`), not `unfinished`, which is kept for tasks a run ended before they did.
+- Docs: the Homebrew release steps (`docs/homebrew-tap.md`) build the real release with `goreleaser release --clean --skip=publish` and `genformula`; `make release-local` is the snapshot dry run.
 
 ## [0.2.0] - 2026-10-07
 
@@ -190,7 +195,8 @@ First release. Linux and macOS, herdr backend only. The full behavior is specifi
 - Release artifacts are not signed (checksums only); signing is planned.
 - No Homebrew tap yet.
 
-[Unreleased]: https://github.com/drilonrecica/igris/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/drilonrecica/igris/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/drilonrecica/igris/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/drilonrecica/igris/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/drilonrecica/igris/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/drilonrecica/igris/compare/v0.1.1...v0.1.2
