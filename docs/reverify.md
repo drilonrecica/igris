@@ -97,11 +97,36 @@ New keys are fine. A missing key or a renamed code needs a fixture refresh (last
 - [ ] **`integration status`** still prints a `claude:` line like `integration_status.txt`: `herdr integration status`.
 - [ ] **End to end:** `make install`, then run `docs/smoke-herdr.md`. The checklist above verifies the parts, and the smoke run verifies how igris uses them.
 
+## Claude Code hooks (V03-P1)
+
+igris passes each session a hooks-only `--settings` file (`.igris/hooks/<ID>.settings.json`) and reads the state the hooks record. Check that the events still fire as recorded in `internal/hook/testdata/`:
+
+- [ ] Write a hooks-only settings file whose hooks append their stdin to a log (one command per event: `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PermissionRequest`, `Notification`, `Stop`, `SessionEnd`), start `claude --model haiku --session-id $(uuidgen) --permission-mode manual --settings <file>` in a tmux window or herdr tab, and drive it:
+  - after the trust question: `SessionStart` (`source` `startup`), with the `session_id` you passed;
+  - a prompt running an allow-listed command: `UserPromptSubmit` → `PreToolUse` → `PostToolUse` → `Stop`; the allow rule in `.claude/settings.local.json` still applies (no `PermissionRequest`);
+  - a command that needs approval: `PreToolUse` → `PermissionRequest` → `Notification` with `notification_type` `permission_prompt`;
+  - asking for an `AskUserQuestion` question: `PreToolUse` with `tool_name` `AskUserQuestion` → `PermissionRequest`;
+  - ~60 s idle: `Notification` `idle_prompt`; `/exit`: `SessionEnd`.
+- [ ] A hook command that fails (a missing binary) is reported by Claude Code as non-blocking and the session carries on.
+- [ ] The fields igris reads (`session_id`, `hook_event_name`, `source`, `tool_name`, `notification_type`) are still there; save new payloads over the fixtures (scrubbed to `/work/proj`, a synthetic UUID, no prompt or reply text) and run `go test ./internal/hook/`.
+
+## tmux (V03-P2)
+
+In a scratch server, so your own sessions are untouched: `tmux -L igris-verify -f /dev/null new-session -d`, and `T() { tmux -L igris-verify -f /dev/null "$@"; }`.
+
+- [ ] `T new-window -d -P -F '#{window_id} #{pane_id}' -n x -- sh -c 'printf "%s|" "$@" > argv.txt; sleep 30' x 'a b' 'c;d' '$HOME'` prints `@N %N`, and `argv.txt` holds `a b|c;d|$HOME|` (argv, no shell), like `new_window.txt`.
+- [ ] `T new-window -d -n '#(touch pwn) ##x' -- sleep 5` **creates `pwn`** and names the window ` #x`: `-n` is still a format, so igris's `##` escaping is still needed. `-c DIR` with a `#` in DIR is taken literally.
+- [ ] `printf 'a\nb' | T load-buffer -b b -` then `T paste-buffer -p -d -b b -t %N` and `T send-keys -t %N Enter` deliver the text; the buffer is gone afterwards.
+- [ ] `T list-panes -t %N -F '#{pane_id}\t#{pane_dead}\t#{pane_dead_status}\t#{pane_current_command}'` matches `list_panes_alive.txt`; with `remain-on-exit on` and the command exited, `list_panes_dead.txt`; a missing pane gives `can't find pane: %N`, exit 1 (`err_pane.txt`).
+- [ ] `T kill-window -t @N` twice: the second gives `can't find window: @N` (`err_window.txt`). Outside a server: `error connecting to …` (`err_no_server.txt`).
+- [ ] `tmux -V` prints the version (`version.txt`).
+- [ ] **End to end:** run `docs/smoke-tmux.md`.
+
 ## After the run
 
 - **Shapes unchanged:** nothing to refresh.
 - **A shape changed:** save the new output over the fixture, scrubbing paths and the home directory to `/work/demo` and `/home/user`. Then run `go test ./internal/backend/herdr/`. Fix the client and its tests in the same change, and note the change in `decisions.md` under P0-03. A changed Claude Code flag goes into `internal/engine/argv.go` / `mode.go` and SPEC §7.
-- **Raise the verified versions:** after a clean run, set `Tested` for the tool in `internal/checks/tools.go` (`Tools`) and in SPEC §11.4 to the version you ran. Change `Min` only when igris starts to need something newer.
+- **Raise the verified versions:** after a clean run, set `Tested` for the tool (Claude Code, herdr, tmux) in `internal/checks/tools.go` (`Tools`) and in SPEC §11.4 to the version you ran. Change `Min` only when igris starts to need something newer.
 - Record the run below.
 
 ## Runs

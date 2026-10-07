@@ -6,7 +6,7 @@ igris is pre-1.0. Only the latest release gets security fixes.
 
 | Version | Supported |
 |---|---|
-| latest 0.2.x | yes |
+| latest 0.3.x | yes |
 | older | no — please upgrade |
 
 ## Reporting a vulnerability

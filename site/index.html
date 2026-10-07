@@ -116,7 +116,7 @@
         <div class="features">
           <div class="feature"><h3>A fresh session per task</h3><p>No context bleed from one task into the next. Each session gets the task, the plan and your rules.</p></div>
           <div class="feature"><h3>Your plan stays yours</h3><p>Only Status cells change. Unexpected edits to the plan pause the run.</p></div>
-          <div class="feature"><h3>Stops when it needs you</h3><p>Questions, approvals, stalled sessions and failed checks notify you via herdr toasts, ntfy or Discord.</p></div>
+          <div class="feature"><h3>Stops when it needs you</h3><p>Questions, approvals, stalled sessions and failed checks notify you via herdr or tmux toasts, ntfy or Discord.</p></div>
           <div class="feature"><h3>Verify and commit</h3><p>Your <code>verify</code> command runs on every done; failures go back to the same session. Commits are <code>ask</code>, <code>auto</code> or <code>never</code>.</p></div>
           <div class="feature"><h3>Works from your phone</h3><p>Mouse and keyboard, choice dialogs, and a single-column layout for small terminals over SSH.</p></div>
           <div class="feature"><h3>Resumable</h3><p>Quit any time. <code>igris arise</code> reattaches to the running session or continues where it left off.</p></div>
@@ -157,15 +157,15 @@
             <button type="button" class="copy" hidden>Copy</button>
           </div>
           <p>Or download a static binary for Linux or macOS (amd64, arm64; on Windows, the Linux one inside WSL2) from <a href="https://github.com/drilonrecica/igris/releases/latest">Releases</a> and check it against <code>checksums.txt</code>.</p>
-          <p>Then, in a herdr pane in your project:</p>
+          <p>Then, in a herdr pane or a tmux session in your project:</p>
           <div class="cmd"><code>igris init &amp;&amp; igris check &amp;&amp; igris arise M0</code></div>
-          <p class="note"><a href="https://github.com/drilonrecica/igris#quick-start">Quick start and herdr setup in the README</a></p>
+          <p class="note"><a href="https://github.com/drilonrecica/igris#quick-start">Quick start, herdr and tmux setup in the README</a></p>
         </div>
         <div>
           <h2>Requirements</h2>
           <ul class="reqs">
             <li><strong>Claude Code</strong>, logged in the way you normally use it (Pro/Max subscription).</li>
-            <li><strong><a href="https://herdr.dev">herdr</a></strong>, which keeps sessions alive across disconnects. tmux support is planned.</li>
+            <li><strong><a href="https://herdr.dev">herdr</a></strong> or <strong><a href="https://github.com/tmux/tmux">tmux</a></strong> 3.2+, which keep sessions alive across disconnects.</li>
             <li><strong>git</strong>, recommended.</li>
             <li><strong>Linux or macOS</strong>, or Windows through WSL2 (<a href="https://github.com/drilonrecica/igris#windows-wsl2">notes</a>).</li>
           </ul>

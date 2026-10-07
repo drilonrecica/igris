@@ -4,6 +4,31 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-08
+
+igris runs on tmux as well as herdr, and knows what Claude Code is doing from Claude Code's own hooks instead of depending on herdr's integration. One config default and two check IDs change; see Migration. No change to the plan format.
+
+### Added
+
+- **tmux backend** (SPEC §11.5): run igris inside tmux 3.2 or newer and each session opens in its own background window named `<task> · <rank>`. Prompts go through a paste buffer (bracketed paste), never as arguments; `o` switches to the session's window; toasts show in tmux's status line; an exited Claude Code stays visible in its window until igris closes it. Folder trust and other startup questions hold the task prompt and raise **Needs you**, as on herdr.
+- **`backend = "auto"`** (SPEC §11.3), the new default and what `igris init` writes: herdr inside a herdr pane, else tmux inside tmux, else a message saying where to run igris. `"herdr"` and `"tmux"` pin one.
+- **Agent state from Claude Code hooks** (SPEC §6.3): every session gets `--settings .igris/hooks/<task>.settings.json`, a settings file with only hooks, which run the hidden `igris hook` on Claude's lifecycle events and record working / blocked / idle / exited in `.igris/agent-state/`. tmux uses it; herdr uses it when its own integration isn't installed. Your `.claude/` settings and your own sessions are untouched. The state only drives **Needs you**; tasks still advance only on `igris done` or your action.
+- A backend conformance suite (`internal/backend/conformance`) runs the same behavioral tests against the fake, herdr and tmux backends.
+- `docs/smoke-tmux.md`, and hook and tmux probes in `docs/reverify.md`.
+
+### Changed
+
+- `igris doctor`, `check` and `arise` check the version of the backend you run in (`herdr --version` or `tmux -V`) instead of always herdr's. The doctor check `herdr-available` is now `backend` (`--json` id), and says whether herdr or tmux can host sessions.
+- A missing herdr Claude integration is no longer a warning: igris reads the agent state from hooks without it. `herdr integration install claude` remains optional.
+- Home shows the backend it uses in the header (`herdr ✓`, `tmux ✓`, or `herdr/tmux ⨯` outside both), and its hints say where to run igris.
+- An interrupted run resumed under a different backend (started in herdr, resumed in tmux) treats the session as lost and offers continue, fresh, done, skip or stop.
+
+### Migration
+
+- Existing `igris.toml` files with `backend = "herdr"` keep working unchanged. Without a `backend` key the default is now `auto`, which still picks herdr inside herdr.
+- Scripts reading `igris doctor --json` should look for `"id": "backend"` instead of `"herdr-available"`.
+- igris now passes `--settings` to Claude Code itself; `claude.extra_args` still may not contain it.
+
 ## [0.2.1] - 2026-10-07
 
 A patch for two small home-screen and history wording bugs found at the v0.2 gate, plus a release-doc fix. No change to the plan format, config keys or file formats.
@@ -195,7 +220,8 @@ First release. Linux and macOS, herdr backend only. The full behavior is specifi
 - Release artifacts are not signed (checksums only); signing is planned.
 - No Homebrew tap yet.
 
-[Unreleased]: https://github.com/drilonrecica/igris/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/drilonrecica/igris/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/drilonrecica/igris/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/drilonrecica/igris/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/drilonrecica/igris/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/drilonrecica/igris/compare/v0.1.2...v0.1.3

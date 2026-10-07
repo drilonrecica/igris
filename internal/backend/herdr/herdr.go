@@ -191,9 +191,9 @@ func (b *Backend) Attach(ctx context.Context, ref backend.SessionRef) (backend.S
 	return s, nil
 }
 
-// errNeedsHerdr is appended to availability errors so the owner knows v1
-// has no other backend (SPEC §11.3).
-const errNeedsHerdr = "igris v1 requires herdr (tmux support is planned)"
+// errNeedsHerdr is appended to availability errors: tmux is the other way
+// to run igris (SPEC §11.3).
+const errNeedsHerdr = "To use tmux instead, run igris inside tmux with backend = \"auto\" or \"tmux\" in igris.toml"
 
 // Available reports why herdr can't host sessions: igris doesn't run inside
 // a herdr pane, or the herdr server isn't reachable and running.

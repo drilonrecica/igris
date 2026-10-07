@@ -8,7 +8,7 @@ It uses a synthetic 3-task plan: one agent task, one user task, and one agent ta
 
 - [ ] herdr is running and you are in a herdr pane (`echo $HERDR_WORKSPACE_ID` prints a value)
 - [ ] `herdr status server` shows `status: running`
-- [ ] `herdr integration install claude` done (`herdr integration status` shows `claude: installed`)
+- [ ] Optional: `herdr integration install claude` (`herdr integration status` shows `claude: installed`). Without it igris uses Claude Code hooks for the agent state; run the checklist both ways after changing `internal/hook/`
 - [ ] `claude` is logged in with your subscription and `ANTHROPIC_API_KEY` is **not** set
 - [ ] `igris version` prints the build you want to test (`make install`)
 
@@ -100,7 +100,8 @@ igris arise S0 --no-tui
 
 ## Without herdr
 
-- [ ] Outside a herdr pane (`env -u HERDR_WORKSPACE_ID igris arise S0 --no-tui`) igris exits 1, saying it must run inside a herdr pane and that v1 requires herdr (tmux planned), and writes nothing
+- [ ] Outside a herdr pane and outside tmux (`env -u HERDR_WORKSPACE_ID -u TMUX igris arise S0 --no-tui`) igris exits 1, saying it must run inside a herdr pane or a tmux session, and writes nothing
+- [ ] With `backend = "herdr"` in `igris.toml`, outside a herdr pane, the message says to run igris inside a herdr pane, or to use tmux
 - [ ] `igris check`, `status`, `done` and `skip` still work
 
 ## Result

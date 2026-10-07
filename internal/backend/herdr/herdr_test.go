@@ -41,8 +41,8 @@ func TestAvailable(t *testing.T) {
 				t.Fatalf("Available: %v", err)
 			case tt.want != "" && (err == nil || !strings.Contains(err.Error(), tt.want)):
 				t.Fatalf("err = %v, want it to contain %q", err, tt.want)
-			case err != nil && !strings.Contains(err.Error(), "tmux support is planned"):
-				t.Errorf("err = %v, want the v1-requires-herdr message", err)
+			case err != nil && !strings.Contains(err.Error(), "To use tmux instead"):
+				t.Errorf("err = %v, want the hint to use tmux", err)
 			}
 			if got := len(f.Calls()); got != tt.calls {
 				t.Errorf("%d herdr calls, want %d", got, tt.calls)
