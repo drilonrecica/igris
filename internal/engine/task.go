@@ -198,7 +198,7 @@ func (e *Engine) openSession(ctx context.Context, l *launch, st sessionStart) er
 		ClaudeSession: st.sessionID,
 	})
 	if err != nil {
-		return fmt.Errorf("start the session for %s: %w; check that `claude` starts in a herdr pane (installed, on PATH, logged in), then run `igris arise` again", t.ID, err)
+		return fmt.Errorf("start the session for %s: %w; check that `claude` starts in %s (installed, on PATH, logged in), then run `igris arise` again", t.ID, err, e.be.Name())
 	}
 	l.sess = sess
 	ref := sess.Ref()
@@ -214,7 +214,7 @@ func (e *Engine) openSession(ctx context.Context, l *launch, st sessionStart) er
 	case errors.Is(err, backend.ErrSessionGone):
 		e.lose(ctx, l)
 	case err != nil:
-		return fmt.Errorf("send the task prompt to %s: %w; its session is still open in its herdr tab: run `igris arise` to retry", t.ID, err)
+		return fmt.Errorf("send the task prompt to %s: %w; its session is still open in %s: run `igris arise` to retry", t.ID, err, e.be.Name())
 	}
 	if h, ok := sess.(backend.PromptHolder); ok && h.PromptPending() {
 		// Held at a startup prompt: if igris stops before it goes out, the

@@ -103,12 +103,12 @@ func execCheck(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	}
 	// check only warns: it lists ANTHROPIC_API_KEY but asks nothing.
 	cs := checks.Run(context.Background(), checks.Options{
-		IDs:    []string{checks.IDClaude, checks.IDHerdr, checks.IDConfig, checks.IDAPIKey, checks.IDProject, checks.IDPlanHints, checks.IDDrift},
-		Runner: commandRunner(), Getenv: ariseGetenv, Versions: compatWarnings,
+		IDs:    []string{checks.IDClaude, checks.IDHerdr, checks.IDTmux, checks.IDConfig, checks.IDAPIKey, checks.IDProject, checks.IDPlanHints, checks.IDDrift},
+		Runner: commandRunner(), Getenv: ariseGetenv, Versions: compatWarnings, BackendName: project.BackendName(l.cfg, ariseGetenv),
 		Config: l.cfg, NoConfig: l.noConfig, ParentConfig: l.parentConfig, Plan: l.plan,
 	})
 	r := report.Check(report.CheckInput{Plan: l.plan, Models: l.cfg.Models, Checks: checks.Pick(cs,
-		checks.IDClaude, checks.IDHerdr, checks.IDConfig, checks.IDAPIKey, checks.IDProject, checks.IDPlanHints, checks.IDDrift)})
+		checks.IDClaude, checks.IDHerdr, checks.IDTmux, checks.IDConfig, checks.IDAPIKey, checks.IDProject, checks.IDPlanHints, checks.IDDrift)})
 
 	if jsonFlag(fs) {
 		writeJSON(stdout, r)

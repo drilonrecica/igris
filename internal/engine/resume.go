@@ -8,6 +8,7 @@ import (
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/state"
+	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
 // resume picks up the task the previous run was working on (SPEC §13): its
@@ -44,12 +45,17 @@ func (e *Engine) resume(ctx context.Context) (stopped bool, err error) {
 		return false, fmt.Errorf("task %s: unknown model rank %q; add it to [models] in igris.toml", t.ID, t.Rank)
 	}
 
-	if cur.Session != nil {
+	movedFrom := ""
+	if cur.Session != nil && cur.Session.Backend != e.be.Name() {
+		// It ran on another backend (e.g. herdr, and igris now runs in
+		// tmux): it can't be reattached from here (SPEC §11.3).
+		movedFrom = cur.Session.Backend
+	} else if cur.Session != nil {
 		sess, err := e.be.Attach(ctx, *cur.Session)
 		switch {
 		case errors.Is(err, backend.ErrSessionGone):
 		case err != nil:
-			return false, fmt.Errorf("reattach the session of %s: %w; check that herdr is running, then run `igris arise` again", t.ID, err)
+			return false, fmt.Errorf("reattach the session of %s: %w; check that %s is running, then run `igris arise` again", t.ID, err, e.be.Name())
 		default:
 			if st, err := sess.State(ctx); err != nil || st != backend.Exited {
 				l.sess = sess
@@ -61,7 +67,7 @@ func (e *Engine) resume(ctx context.Context) (stopped bool, err error) {
 					if h, ok := sess.(backend.PromptHolder); ok {
 						h.HoldPrompt(cur.PendingPrompt)
 					} else if err := sess.Prompt(ctx, cur.PendingPrompt); err != nil && !errors.Is(err, backend.ErrSessionGone) {
-						return false, fmt.Errorf("send the task prompt to %s: %w; its session is still open in its herdr tab: run `igris arise` to retry", t.ID, err)
+						return false, fmt.Errorf("send the task prompt to %s: %w; its session is still open in %s: run `igris arise` to retry", t.ID, err, e.be.Name())
 					}
 				}
 				e.emit(Event{Kind: TaskResumed, Detail: detail})
@@ -76,7 +82,11 @@ func (e *Engine) resume(ctx context.Context) (stopped bool, err error) {
 		e.emit(Event{Kind: TaskResumed, Detail: "its session is gone; processing its done signal"})
 		return e.drive(ctx, l)
 	}
-	e.emit(Event{Kind: TaskResumed, Detail: "its session is gone"})
+	if movedFrom != "" {
+		e.emit(Event{Kind: TaskResumed, Detail: "its session ran on " + textsafe.Line(movedFrom) + ", igris now runs on " + e.be.Name() + "; it can't be reattached from here"})
+	} else {
+		e.emit(Event{Kind: TaskResumed, Detail: "its session is gone"})
+	}
 	e.lose(ctx, l)
 	return e.drive(ctx, l)
 }

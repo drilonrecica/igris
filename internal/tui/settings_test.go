@@ -35,7 +35,7 @@ func settingsFix() homeFixture {
 		return ""
 	}
 	f.snap.Settings = report.NewSettings(cfg, keys, getenv)
-	f.snap.ConfigWarnings = []string{`claude.command = "claudex" is ignored: herdr always starts claude from PATH; remove it from igris.toml`}
+	f.snap.ConfigWarnings = []string{`claude.command = "claudex" is ignored: igris always starts claude from PATH; remove it from igris.toml`}
 	return f
 }
 

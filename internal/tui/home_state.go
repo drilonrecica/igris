@@ -105,8 +105,44 @@ func (m *homeScreen) planValid() bool {
 	return m.snap != nil && m.snap.Plan != nil && len(m.snap.Issues) == 0
 }
 
-// herdr says herdr is known to be reachable.
+// herdr says the backend (herdr or tmux) is known to be reachable.
 func (m *homeScreen) herdr() bool { return m.backendKnown && m.backendErr == nil }
+
+// backendName names the backend the config chooses here (SPEC §11.3).
+func (m *homeScreen) backendName() string {
+	if m.snap != nil && m.snap.Backend != "" {
+		return m.snap.Backend
+	}
+	return "herdr"
+}
+
+// needsBackend says that what needs the backend, which isn't available
+// (why, in a few words), and where to run igris instead.
+func (m *homeScreen) needsBackend(what, why string) string {
+	if m.backendName() != "herdr" && m.backendName() != "tmux" {
+		return what + " needs herdr or tmux: run igris inside " + m.backendWhere() + "."
+	}
+	return what + " needs " + m.backendName() + " (" + why + "): run igris inside " + m.backendWhere() + "."
+}
+
+// sessionPlace is what a session opens in: a herdr tab or a tmux window.
+func (m *homeScreen) sessionPlace() string {
+	if m.backendName() == "tmux" {
+		return "tmux window"
+	}
+	return "herdr tab"
+}
+
+// backendWhere is where igris must run for the backend.
+func (m *homeScreen) backendWhere() string {
+	switch m.backendName() {
+	case "herdr":
+		return "a herdr pane"
+	case "tmux":
+		return "a tmux session"
+	}
+	return "a herdr pane or a tmux session"
+}
 
 // lastRunComplete says the recorded run stopped between tasks and every
 // phase it covered is complete, so there is nothing to resume.
@@ -399,12 +435,12 @@ func (m *homeScreen) planInvalidCard(w int) []string {
 		out = append(out, m.firstLines(lines, 3, "Check shows all", w)...)
 	}
 	if !m.herdr() {
-		out = append(out, wrap("Adapt needs herdr ("+m.herdrWhy()+"): run igris inside a herdr pane.", w)...)
+		out = append(out, wrap(m.needsBackend("Adapt", m.herdrWhy()), w)...)
 	}
 	return out
 }
 
-// herdrWhy says why herdr isn't available, in a few words.
+// herdrWhy says why the backend isn't available, in a few words.
 func (m *homeScreen) herdrWhy() string {
 	if !m.backendKnown {
 		return "still checking"
@@ -581,9 +617,9 @@ func (m *homeScreen) readyCard(w int) []string {
 	}
 	switch {
 	case !m.backendKnown:
-		out = append(out, m.th.paint(lookDim, "checking herdr…"))
+		out = append(out, m.th.paint(lookDim, "checking "+m.backendName()+"…"))
 	case m.backendErr != nil:
-		out = append(out, wrap("Arise needs herdr (not reachable): run igris inside a herdr pane.", w)...)
+		out = append(out, wrap(m.needsBackend("Arise", "not reachable"), w)...)
 	}
 	return out
 }
@@ -721,8 +757,8 @@ func (m *homeScreen) recentLines() []homeLine {
 	return out
 }
 
-// header is the header's left part: project, plan file, herdr and mode
-// (wide), or project and herdr (narrow).
+// header is the header's left part: project, plan file, backend and mode
+// (wide), or project and backend (narrow).
 func (m *homeScreen) header(wide bool) string {
 	parts := []string{m.th.paint(lookAccentBold, "igris")}
 	s := m.snap
@@ -740,11 +776,11 @@ func (m *homeScreen) header(wide bool) string {
 	}
 	switch {
 	case !m.backendKnown:
-		parts = append(parts, "herdr …")
+		parts = append(parts, m.backendName()+" …")
 	case m.backendErr != nil:
-		parts = append(parts, m.th.paint(lookAlert, "herdr ⨯"))
+		parts = append(parts, m.th.paint(lookAlert, m.backendName()+" ⨯"))
 	default:
-		parts = append(parts, m.th.paint(lookAccent, "herdr ✓"))
+		parts = append(parts, m.th.paint(lookAccent, m.backendName()+" ✓"))
 	}
 	if wide && s != nil && !s.NoConfig && s.Config != nil {
 		parts = append(parts, m.th.marks("mode "+s.Config.DefaultMode+badge(s.Config.DefaultMode)))

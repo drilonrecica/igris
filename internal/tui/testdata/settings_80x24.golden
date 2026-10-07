@@ -3,11 +3,11 @@ Settings · igris.toml · e edits
 /src/sinjal/igris.toml
 
 PROBLEMS
-  ! warn  claude.command = "claudex" is ignored: herdr always starts claude from
+  ! warn  claude.command = "claudex" is ignored: igris always starts claude from
           PATH; remove it from igris.toml
 
 plan              = "tasks.md" · default
-backend           = "herdr" · default
+backend           = "auto" · default
 default_mode      = "default" · default
 needs_input_after = "30s" · default
 poll_interval     = "2s" · default

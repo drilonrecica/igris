@@ -102,6 +102,11 @@ type Snapshot struct {
 	// Settings is Config laid out for the Settings page, secrets hidden.
 	Settings []SettingsSection
 
+	// Backend is the backend the config chooses here: "herdr" or "tmux",
+	// or "herdr/tmux" when backend = "auto" finds neither (SPEC §11.3).
+	// "" (a snapshot built without one) reads as herdr.
+	Backend string
+
 	PlanPath    string // absolute
 	PlanMissing bool
 	// PlanErr is why the plan couldn't be read (other than missing).

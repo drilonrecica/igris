@@ -15,7 +15,6 @@ import (
 	"strings"
 
 	"github.com/drilonrecica/igris/internal/backend"
-	"github.com/drilonrecica/igris/internal/backend/herdr"
 	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/engine"
@@ -99,16 +98,6 @@ func (e Env) backend(cfg *config.Config, root string) (backend.Backend, error) {
 		return e.Backend(cfg)
 	}
 	return NewBackend(cfg, root, e)
-}
-
-// NewBackend returns the backend named in the config for the project at
-// root, reading its sessions' hook state from root's .igris/ (SPEC §6.3).
-func NewBackend(cfg *config.Config, root string, env Env) (backend.Backend, error) {
-	hooks := state.HookStates(root)
-	if cfg.Backend == "herdr" {
-		return herdr.NewFromEnv(env.runner(), env.getenv()).WithHookStates(hooks), nil
-	}
-	return nil, fmt.Errorf("unknown backend %q in igris.toml; set backend = \"herdr\": igris v1 runs on herdr (tmux support is planned)", cfg.Backend)
 }
 
 // Project is an opened project directory.

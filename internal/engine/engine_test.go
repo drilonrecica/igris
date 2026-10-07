@@ -716,7 +716,7 @@ func TestOpenSessionFailure(t *testing.T) {
 	h := newHarness(t, chainPlan, "")
 	h.be.FailOpen(errors.New("no pane for you"))
 	res, err := h.run()
-	if err == nil || !strings.Contains(err.Error(), "no pane for you") || !strings.Contains(err.Error(), "check that `claude` starts in a herdr pane") {
+	if err == nil || !strings.Contains(err.Error(), "no pane for you") || !strings.Contains(err.Error(), "check that `claude` starts in fake") {
 		t.Fatalf("err = %v", err)
 	}
 	if res.Phase != "A" {

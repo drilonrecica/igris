@@ -69,7 +69,7 @@ func (m *homeScreen) openAdapt() tea.Cmd {
 	if c := m.snap.Config; c != nil && c.Adapt.Model != "" {
 		model = c.Adapt.Model
 	}
-	detail := "Adapt starts Claude in a herdr tab to propose a canonical plan for " + m.planName() +
+	detail := "Adapt starts Claude in a " + m.sessionPlace() + " to propose a canonical plan for " + m.planName() +
 		" in .igris/adapt/; nothing changes until you accept it in the review. adapt.model in igris.toml is " + model + "."
 	if m.snap.APIKeySet {
 		detail += "\n\nwarning: " + checks.APIKeyWarning

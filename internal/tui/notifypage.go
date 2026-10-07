@@ -20,10 +20,17 @@ import (
 // service sends nothing but the test samples, and notify has already
 // removed the secrets from the errors; the page cleans the text.
 
-// notifyChannel is a channel the test sends to, as the page names it.
-type notifyChannel struct{ name, label string }
+// notifyChannels are the channels the test sends to, in the page's order.
+var notifyChannels = []string{"ntfy", "discord", "backend"}
 
-var notifyChannels = []notifyChannel{{"ntfy", "ntfy"}, {"discord", "discord"}, {"backend", "herdr toast"}}
+// channelLabel names a channel as the page shows it: the backend's toast
+// by the backend's name (herdr, tmux).
+func (m *homeScreen) channelLabel(name string) string {
+	if name == "backend" {
+		return m.backendName() + " toast"
+	}
+	return name
+}
 
 // notifyRow is one event on one channel. state is the delivery's
 // outcome; until then it is sending.
@@ -66,8 +73,8 @@ func (m *homeScreen) plannedNotifyRows() []notifyRow {
 	var rows []notifyRow
 	for _, ev := range notify.AllEvents {
 		for _, ch := range notifyChannels {
-			if slices.Contains(events[ch.name], string(ev)) {
-				rows = append(rows, notifyRow{event: string(ev), channel: ch.name})
+			if slices.Contains(events[ch], string(ev)) {
+				rows = append(rows, notifyRow{event: string(ev), channel: ch})
 			}
 		}
 	}
@@ -82,8 +89,8 @@ func (m *homeScreen) openNotify() tea.Cmd {
 	rows := m.plannedNotifyRows()
 	var names []string
 	for _, ch := range notifyChannels {
-		if slices.ContainsFunc(rows, func(r notifyRow) bool { return r.channel == ch.name }) {
-			names = append(names, ch.label)
+		if slices.ContainsFunc(rows, func(r notifyRow) bool { return r.channel == ch }) {
+			names = append(names, m.channelLabel(ch))
 		}
 	}
 	title := "Send test messages?"
@@ -297,12 +304,7 @@ func (s *notifyScreen) body(w int) []string {
 		evW = max(evW, textWidth(r.event))
 	}
 	for _, r := range s.rows {
-		label := r.channel
-		for _, ch := range notifyChannels {
-			if ch.name == r.channel {
-				label = ch.label
-			}
-		}
+		label := s.home.channelLabel(r.channel)
 		prefix := "  " + pad(r.event, evW) + "  " + pad(label, 11) + "  "
 		switch r.state {
 		case notifySending:

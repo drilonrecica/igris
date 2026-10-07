@@ -3,7 +3,7 @@
 # the same file for you.
 
 plan = "tasks.md"                 # path to the plan, relative to the project root
-backend = "herdr"
+backend = "auto"                  # auto | herdr | tmux
 default_mode = "default"          # default | accept | auto | plan | yolo
 needs_input_after = "30s"
 poll_interval = "2s"

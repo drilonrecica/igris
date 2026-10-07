@@ -171,11 +171,18 @@ func defaultEvents() []string {
 	return []string{"needs_input", "session_lost", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"}
 }
 
+// BackendAuto picks herdr inside a herdr pane, else tmux inside tmux
+// (SPEC §11.3).
+const BackendAuto = "auto"
+
+// validBackends are the values of backend.
+var validBackends = []string{BackendAuto, "herdr", "tmux"}
+
 // Default returns the configuration used when igris.toml is empty or absent.
 func Default() *Config {
 	return &Config{
 		Plan:            "tasks.md",
-		Backend:         "herdr",
+		Backend:         BackendAuto,
 		DefaultMode:     "default",
 		NeedsInputAfter: Duration(30 * time.Second),
 		PollInterval:    Duration(2 * time.Second),
@@ -279,9 +286,7 @@ func (c *Config) Validate() error {
 	if strings.TrimSpace(c.Plan) == "" {
 		add("plan must not be empty; set it to the path of your plan file")
 	}
-	if strings.TrimSpace(c.Backend) == "" {
-		add("backend must not be empty; use \"herdr\"")
-	}
+	oneOf("backend", c.Backend, validBackends)
 	oneOf("default_mode", c.DefaultMode, validModes)
 	positive("needs_input_after", c.NeedsInputAfter)
 	positive("poll_interval", c.PollInterval)
@@ -328,8 +333,8 @@ func (c *Config) Validate() error {
 func (c *Config) Warnings() []string {
 	var out []string
 	if c.Claude.Command != defaultClaudeCommand {
-		// herdr's `agent start --kind claude` always starts claude from PATH.
-		out = append(out, fmt.Sprintf("claude.command = %q is ignored: herdr always starts claude from PATH; remove it from igris.toml (the key goes away in v0.2)", c.Claude.Command))
+		// Both backends start `claude` from PATH.
+		out = append(out, fmt.Sprintf("claude.command = %q is ignored: igris always starts claude from PATH; remove it from igris.toml (the key goes away in v0.2)", c.Claude.Command))
 	}
 	return out
 }

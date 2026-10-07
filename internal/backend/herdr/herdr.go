@@ -223,7 +223,7 @@ func (b *Backend) IntegrationHint(ctx context.Context) string {
 		return ""
 	}
 	if s, ok := st["claude"]; ok && strings.HasPrefix(s, "not installed") {
-		return "herdr's Claude Code integration is not installed, so agent states may be inaccurate; run `herdr integration install claude`"
+		return "herdr's Claude Code integration is not installed; igris reads the agent state from Claude Code's hooks instead (`herdr integration install claude` adds herdr's own)"
 	}
 	return ""
 }

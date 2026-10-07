@@ -366,3 +366,34 @@ func TestPendingPromptClearedOnDelivery(t *testing.T) {
 		t.Errorf("A-1 prompts = %q, want one", got)
 	}
 }
+
+// A session recorded on another backend (herdr, now tmux) can't be
+// reattached: it is treated as lost and the owner chooses (SPEC §11.3).
+func TestResumeOnAnotherBackend(t *testing.T) {
+	h := newHarness(t, chainPlan, "")
+	h.autoSignalExcept("A-1")
+	h.stopMidTask(6 * time.Second)
+	run, err := h.dir.LoadRun()
+	if err != nil {
+		t.Fatal(err)
+	}
+	run.Current.Session.Backend = "herdr"
+	if err := h.dir.SaveRun(run); err != nil {
+		t.Fatal(err)
+	}
+	h.be.SetAutoSignal(func(_ context.Context, id string) error { return h.signal(id) })
+	h.onEvent = func(ev Event) {
+		if ev.Kind == Asked && ev.Question == QuestionSessionLost {
+			h.eng.Send(Command{Kind: CmdRetry})
+		}
+	}
+	if _, err := h.run(resumeLast); err != nil {
+		t.Fatalf("resumed run: %v", err)
+	}
+	if got := h.event(TaskResumed, "A-1").Detail; !strings.Contains(got, "ran on herdr, igris now runs on fake") {
+		t.Errorf("task_resumed detail %q", got)
+	}
+	if got := h.statuses(); got != "A-1=done A-2=done A-3=done B-1=ready" {
+		t.Errorf("statuses = %s", got)
+	}
+}

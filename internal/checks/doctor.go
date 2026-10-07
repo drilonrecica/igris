@@ -67,7 +67,7 @@ func Doctor(ctx context.Context, o DoctorOptions) []Result {
 	}
 
 	var out []Result
-	out = append(out, pick(IDClaude, IDHerdr, IDAPIKey, IDHerdrAvailable, IDHerdrIntegration, IDGit)...)
+	out = append(out, pick(IDClaude, IDHerdr, IDTmux, IDAPIKey, IDBackend, IDHerdrIntegration, IDGit)...)
 	out = append(out, cfgResults...)
 	if cfgResults[0].Level != Fail {
 		out = append(out, pick(IDConfig)...)
@@ -86,9 +86,9 @@ func Doctor(ctx context.Context, o DoctorOptions) []Result {
 
 	for i := range out {
 		r := &out[i]
-		// Doctor is mostly run from a plain shell, where "not inside a
-		// herdr pane" is a fact to know, not a failure of the machine.
-		if r.ID == IDHerdrAvailable && r.Level == Fail {
+		// Doctor is mostly run from a plain shell, where "not inside herdr
+		// or tmux" is a fact to know, not a failure of the machine.
+		if r.ID == IDBackend && r.Level == Fail {
 			r.Level = Warn
 		}
 		if rel, err := filepath.Rel(root, r.File); r.File != "" && filepath.IsAbs(r.File) && err == nil && !strings.HasPrefix(rel, "..") {
@@ -104,10 +104,11 @@ func Doctor(ctx context.Context, o DoctorOptions) []Result {
 
 // defaultNext is the command for a problem whose check doesn't name one.
 var defaultNext = map[string]string{
-	IDClaude:         "claude --version",
-	IDHerdr:          "herdr --version",
-	IDHerdrAvailable: "run igris inside a herdr pane",
-	IDNotify:         "igris notify test",
+	IDClaude:  "claude --version",
+	IDHerdr:   "herdr --version",
+	IDTmux:    "tmux -V",
+	IDBackend: "run igris inside a herdr pane or a tmux session",
+	IDNotify:  "igris notify test",
 }
 
 // projectRoot is the project root found from o.Dir (the nearest directory

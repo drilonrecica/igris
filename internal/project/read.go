@@ -9,7 +9,9 @@ import (
 	"strings"
 
 	"github.com/drilonrecica/igris/internal/backend/herdr"
+	"github.com/drilonrecica/igris/internal/backend/tmux"
 	"github.com/drilonrecica/igris/internal/checks"
+	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/state"
@@ -52,17 +54,33 @@ func HistoryInput(root string, n int) (report.HistoryInput, error) {
 // Doctor runs `igris doctor`'s checks for the project dir belongs to
 // (SPEC §14). It is read-only.
 func Doctor(ctx context.Context, dir string, env Env) []checks.Result {
-	// herdr is only asked about when it can be: the backend is built from
-	// the environment and answers from the runner.
-	be := herdr.NewFromEnv(env.runner(), env.getenv())
-	return checks.Doctor(ctx, checks.DoctorOptions{
-		Dir: dir,
-		Options: checks.Options{
-			Runner: env.runner(), Getenv: env.getenv(), Versions: env.versions(),
-			Backend: be, Integration: be,
-		},
-	})
+	// The backend is the one the project's config chooses here (SPEC
+	// §11.3), built from the environment; it answers from the runner.
+	cfg := config.Default()
+	if root, err := state.FindRoot(dir); err == nil {
+		if c, err := config.Load(filepath.Join(root, state.ConfigFile)); err == nil {
+			cfg = c
+		}
+	}
+	o := checks.Options{Runner: env.runner(), Getenv: env.getenv(), Versions: env.versions()}
+	name, err := ResolveBackend(cfg.Backend, env.getenv())
+	switch {
+	case err != nil:
+		o.Backend = unavailable{err}
+	case name == herdr.Name:
+		be := herdr.NewFromEnv(env.runner(), env.getenv())
+		o.BackendName, o.Backend, o.Integration = name, be, be
+	default:
+		o.BackendName, o.Backend = name, tmux.NewFromEnv(env.runner(), env.getenv())
+	}
+	return checks.Doctor(ctx, checks.DoctorOptions{Dir: dir, Options: o})
 }
+
+// unavailable is the availability answer when no backend can be chosen.
+type unavailable struct{ err error }
+
+func (u unavailable) Name() string                    { return config.BackendAuto }
+func (u unavailable) Available(context.Context) error { return u.err }
 
 // Snapshot reads the project as the home screen shows it. It never fails:
 // whatever can't be read is described in the result.
@@ -73,6 +91,10 @@ func (p *Project) Snapshot() *report.Snapshot {
 		Settings:  report.NewSettings(p.Cfg, p.CfgKeys, p.env.getenv()),
 		Stamp:     p.Stamp(),
 		APIKeySet: p.env.getenv()(checks.APIKeyVar) != "",
+		Backend:   BackendName(p.Cfg, p.env.getenv()),
+	}
+	if s.Backend == "" {
+		s.Backend = herdr.Name + "/" + tmux.Name
 	}
 	if p.CfgErr != nil {
 		s.ConfigProblems = problemLines(p.CfgErr)

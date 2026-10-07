@@ -219,6 +219,16 @@ var homeStates = []struct {
 	{"unreadable", func() homeFixture {
 		return homeFixture{snapErr: errors.New("permission denied"), doctor: homeDoctor, doctorDone: true}
 	}},
+	{"ready_tmux", func() homeFixture { // backend = "auto" inside tmux (SPEC §11.3)
+		s := homeSnap("ready")
+		s.Backend = "tmux"
+		return homeFixture{snap: s, doctor: homeDoctor, doctorDone: true}
+	}},
+	{"no_multiplexer", func() homeFixture { // backend = "auto" outside herdr and tmux
+		s := homeSnap("ready")
+		s.Backend = "herdr/tmux"
+		return homeFixture{snap: s, backend: errors.New("igris must run inside a herdr pane or a tmux session"), doctor: homeDoctor, doctorDone: true}
+	}},
 }
 
 // homeAt is a home screen at w×h, painted with th, holding fix's data.
@@ -315,6 +325,8 @@ func TestHomeButtonsOnlyWhenTheyApply(t *testing.T) {
 		"checking":              "Preview Check Doctor History Edit plan Settings Notify ? Quit",
 		"ready":                 "Arise… Preview Check Doctor History Edit plan Settings Notify ? Quit",
 		"herdr_absent":          "Preview Check Doctor History Edit plan Settings Notify ? Quit",
+		"ready_tmux":            "Arise… Preview Check Doctor History Edit plan Settings Notify ? Quit",
+		"no_multiplexer":        "Preview Check Doctor History Edit plan Settings Notify ? Quit",
 		"get_started":           "Init Doctor Settings ? Quit",
 		"plan_missing":          "Example plan Doctor Settings Notify ? Quit",
 		"plan_invalid":          "Check Adapt Doctor Edit plan Settings Notify ? Quit",

@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/drilonrecica/igris/internal/runner"
@@ -17,6 +18,8 @@ import (
 type Tool struct {
 	Name    string // shown to the owner
 	Program string // run as `Program --version`; also the check's ID
+	// VersionArgs replaces --version (tmux prints its version with -V).
+	VersionArgs []string
 	// Min is the oldest version verified to work; older ones get a warning.
 	Min string
 	// Tested is the newest version re-verified with docs/reverify.md; a
@@ -27,8 +30,18 @@ type Tool struct {
 // Tools is the one table of verified versions. Update it (and SPEC §11.4)
 // after running docs/reverify.md.
 var Tools = []Tool{
-	{Name: "Claude Code", Program: IDClaude, Min: "2.1.291", Tested: "2.1.292"}, // P0-02; re-verified for v0.1.2
-	{Name: "herdr", Program: IDHerdr, Min: "0.9.1", Tested: "0.9.1"},            // P0-03; re-verified for v0.1.2
+	{Name: "Claude Code", Program: IDClaude, Min: "2.1.291", Tested: "2.1.292"},             // P0-02; re-verified for v0.1.2
+	{Name: "herdr", Program: IDHerdr, Min: "0.9.1", Tested: "0.9.1"},                        // P0-03; re-verified for v0.1.2
+	{Name: "tmux", Program: IDTmux, VersionArgs: []string{"-V"}, Min: "3.2", Tested: "3.7"}, // V03-P2 (3.7c)
+}
+
+// versionCommand is how t prints its version, e.g. "tmux -V".
+func (t Tool) versionCommand() (args []string, shown string) {
+	args = t.VersionArgs
+	if args == nil {
+		args = []string{"--version"}
+	}
+	return args, t.Program + " " + strings.Join(args, " ")
 }
 
 // versionTimeout bounds each `--version` call of ToolVersions.
@@ -89,20 +102,21 @@ func ToolVersions(ctx context.Context, r runner.Runner) []Result {
 
 func checkTool(ctx context.Context, r runner.Runner, t Tool) Result {
 	warn := func(msg string) Result { return Result{ID: t.Program, Level: Warn, Message: msg} }
-	res, err := r.Run(ctx, runner.Cmd{Name: t.Program, Args: []string{"--version"}, Timeout: versionTimeout})
+	args, shown := t.versionCommand()
+	res, err := r.Run(ctx, runner.Cmd{Name: t.Program, Args: args, Timeout: versionTimeout})
 	switch {
 	case errors.Is(err, exec.ErrNotFound):
 		return warn(fmt.Sprintf("%s not found in PATH; igris arise needs %s %s or later", t.Program, t.Name, t.Min))
 	case errors.Is(err, runner.ErrTimeout):
-		return warn(unknownVersion(t, fmt.Sprintf("`%s --version` took longer than %s", t.Program, versionTimeout)))
+		return warn(unknownVersion(t, fmt.Sprintf("`%s` took longer than %s", shown, versionTimeout)))
 	case err != nil:
 		return warn(unknownVersion(t, err.Error()))
 	case res.ExitCode != 0:
-		return warn(unknownVersion(t, fmt.Sprintf("`%s --version` exited with %d", t.Program, res.ExitCode)))
+		return warn(unknownVersion(t, fmt.Sprintf("`%s` exited with %d", shown, res.ExitCode)))
 	}
 	v, ok := parseVersion(string(res.Stdout))
 	if !ok {
-		return warn(unknownVersion(t, fmt.Sprintf("no version in the output of `%s --version`", t.Program)))
+		return warn(unknownVersion(t, fmt.Sprintf("no version in the output of `%s`", shown)))
 	}
 	minV, _ := parseVersion(t.Min)
 	tested, _ := parseVersion(t.Tested)
@@ -110,7 +124,7 @@ func checkTool(ctx context.Context, r runner.Runner, t Tool) Result {
 	case compareVersions(v, minV) < 0:
 		return warn(fmt.Sprintf("%s %s is older than %s, the oldest version igris is verified with; update %s", t.Name, formatVersion(v), t.Min, t.Program))
 	case v[0] > tested[0]:
-		return warn(fmt.Sprintf("%s %s is a newer major version than igris was verified with (%s); if something breaks, report it with the output of `igris version`, `claude --version` and `herdr --version`", t.Name, formatVersion(v), t.Tested))
+		return warn(fmt.Sprintf("%s %s is a newer major version than igris was verified with (%s); if something breaks, report it with the output of `igris version` and `%s`", t.Name, formatVersion(v), t.Tested, shown))
 	}
 	return Result{ID: t.Program, Level: OK, Message: fmt.Sprintf("%s %s", t.Name, formatVersion(v))}
 }

@@ -57,9 +57,9 @@ func (l *Launch) Prelaunch(ctx context.Context) report.Prelaunch {
 // be answers the herdr integration check, which is left out when be is nil.
 func (p *Project) Prelaunch(ctx context.Context, be backend.Backend) report.Prelaunch {
 	o := checks.Options{
-		IDs:  []string{checks.IDHerdrIntegration, checks.IDClaude, checks.IDHerdr, checks.IDConfig, checks.IDPlanHints, checks.IDAPIKey, checks.IDGit},
+		IDs:  []string{checks.IDHerdrIntegration, checks.IDClaude, checks.IDHerdr, checks.IDTmux, checks.IDConfig, checks.IDPlanHints, checks.IDAPIKey, checks.IDGit},
 		Root: p.Root, Runner: p.env.runner(), Getenv: p.env.getenv(), Versions: p.env.versions(),
-		Config: p.Cfg,
+		Config: p.Cfg, BackendName: BackendName(p.Cfg, p.env.getenv()),
 	}
 	if integration, ok := be.(checks.Integration); ok {
 		o.Integration = integration
@@ -67,7 +67,7 @@ func (p *Project) Prelaunch(ctx context.Context, be backend.Backend) report.Prel
 	cs := checks.Run(ctx, o)
 	var r report.Prelaunch
 	// Information first, then what may need an answer.
-	r.Warnings = append(r.Warnings, checks.Problems(checks.Pick(cs, checks.IDHerdrIntegration, checks.IDClaude, checks.IDHerdr))...)
+	r.Warnings = append(r.Warnings, checks.Problems(checks.Pick(cs, checks.IDHerdrIntegration, checks.IDClaude, checks.IDHerdr, checks.IDTmux))...)
 	r.Warnings = append(r.Warnings, checks.Problems(checks.Pick(cs, checks.IDConfig, checks.IDPlanHints, checks.IDAPIKey, checks.IDGit))...)
 	if prev, err := state.PeekRun(p.Root); err == nil && prev.Current != nil {
 		r.Interrupted = textsafe.Line(prev.Current.TaskID)
@@ -126,5 +126,6 @@ func (p *Project) DryRun(ctx context.Context, req report.RunRequest) (report.Dry
 	return engine.DryRun(ctx, engine.DryRunOptions{
 		Root: p.Root, Config: p.Cfg, Phase: req.Phase, Through: req.Through, Mode: req.Mode,
 		Runner: p.env.runner(), Getenv: p.env.getenv(), Versions: p.env.versions(), Format: p.env.format(),
+		BackendName: BackendName(p.Cfg, p.env.getenv()),
 	})
 }

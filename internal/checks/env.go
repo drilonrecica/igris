@@ -53,19 +53,24 @@ func git(ctx context.Context, r runner.Runner, root string) Result {
 	return Result{ID: IDGit, Level: OK, Message: "git repository, clean working tree"}
 }
 
-// herdrAvailable reports whether herdr can host sessions (SPEC §11.3).
-func herdrAvailable(ctx context.Context, b Availability) Result {
+// backendAvailable reports whether the backend can host sessions
+// (SPEC §11.3).
+func backendAvailable(ctx context.Context, b Availability) Result {
 	if err := b.Available(ctx); err != nil {
-		return Result{ID: IDHerdrAvailable, Level: Fail, Message: err.Error()}
+		return Result{ID: IDBackend, Level: Fail, Message: err.Error()}
 	}
-	return Result{ID: IDHerdrAvailable, Level: OK, Message: "herdr is running and igris is inside a herdr pane"}
+	if b.Name() == "tmux" {
+		return Result{ID: IDBackend, Level: OK, Message: "tmux is running and igris is inside it"}
+	}
+	return Result{ID: IDBackend, Level: OK, Message: "herdr is running and igris is inside a herdr pane"}
 }
 
-// herdrIntegration warns when herdr's Claude Code integration isn't
-// installed (SPEC §11.2).
+// herdrIntegration says whether herdr's Claude Code integration is
+// installed (SPEC §11.2). Without it igris reads the agent state from
+// Claude Code's hooks (SPEC §6.3), so it is information, not a problem.
 func herdrIntegration(ctx context.Context, i Integration) Result {
 	if hint := i.IntegrationHint(ctx); hint != "" {
-		return Result{ID: IDHerdrIntegration, Level: Warn, Message: hint, Next: "herdr integration install claude"}
+		return Result{ID: IDHerdrIntegration, Level: OK, Message: hint}
 	}
 	return Result{ID: IDHerdrIntegration, Level: OK, Message: "no problem found with herdr's Claude Code integration"}
 }

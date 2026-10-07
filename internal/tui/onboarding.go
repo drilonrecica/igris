@@ -186,7 +186,7 @@ func (s *initScreen) body(w int) []string {
 		glyph := glyphs[plan.Done]
 		label := st.Path
 		if st.ID == report.StepHerdrHint {
-			glyph, label = "·", "herdr"
+			glyph, label = "·", "backend"
 		}
 		out = append(out, hang(th.paint(lookAccent, glyph)+" "+th.paint(lookTitle, label)+"  ", st.Message, w)...)
 	}

@@ -77,14 +77,15 @@ type fakeHerdr struct {
 	hint string
 }
 
+func (f fakeHerdr) Name() string                           { return "herdr" }
 func (f fakeHerdr) Available(context.Context) error        { return f.err }
 func (f fakeHerdr) IntegrationHint(context.Context) string { return f.hint }
 
 func TestHerdr(t *testing.T) {
-	ids := []string{IDHerdrIntegration, IDHerdrAvailable}
+	ids := []string{IDHerdrIntegration, IDBackend}
 	ok := fakeHerdr{}
 	got := Run(context.Background(), Options{IDs: ids, Backend: ok, Integration: ok})
-	if len(got) != 2 || got[0].ID != IDHerdrAvailable || len(Problems(got)) != 0 {
+	if len(got) != 2 || got[0].ID != IDBackend || len(Problems(got)) != 0 {
 		t.Fatalf("all fine: %+v", got)
 	}
 	bad := fakeHerdr{err: errors.New("herdr is not installed\x1b[2J"), hint: "run `herdr integration install claude`"}
@@ -92,7 +93,8 @@ func TestHerdr(t *testing.T) {
 	if got[0].Level != Fail || got[0].Message != "herdr is not installed" {
 		t.Errorf("availability = %+v", got[0])
 	}
-	if got[1].Level != Warn || got[1].Next != "herdr integration install claude" {
+	// Hooks cover a missing integration (SPEC §6.3): information only.
+	if got[1].Level != OK || got[1].Message != bad.hint {
 		t.Errorf("integration = %+v", got[1])
 	}
 	if got := Run(context.Background(), Options{IDs: ids}); len(got) != 0 {

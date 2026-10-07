@@ -277,7 +277,7 @@ func (m *homeScreen) checkStep() tea.Cmd {
 	l.step = wizChecking
 	m.dialog = &dialog{
 		title:   "Checking…",
-		detail:  "Running arise's start-up checks: herdr, Claude Code, the config, the plan, git.",
+		detail:  "Running arise's start-up checks: the backend, Claude Code, the config, the plan, git.",
 		options: []option{{"Cancel", actClose}},
 		cancel:  actClose,
 	}
@@ -379,7 +379,7 @@ func (m *homeScreen) start() tea.Cmd {
 	l.step, l.cancelled = wizStarting, false
 	m.dialog = &dialog{
 		title:   "Starting…",
-		detail:  "checking herdr, taking the lock",
+		detail:  "checking the backend, taking the lock",
 		options: []option{{"Cancel", actClose}},
 		cancel:  actClose,
 	}

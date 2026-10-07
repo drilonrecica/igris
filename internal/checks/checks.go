@@ -34,9 +34,10 @@ const (
 // (plan checks on a plan that can't be read or isn't valid).
 const (
 	IDClaude           = "claude"            // Claude Code found, version
-	IDHerdr            = "herdr"             // herdr found, version
+	IDHerdr            = "herdr"             // herdr found, version (when herdr is the backend)
+	IDTmux             = "tmux"              // tmux found, version (when tmux is the backend)
 	IDAPIKey           = "api-key"           // ANTHROPIC_API_KEY set
-	IDHerdrAvailable   = "herdr-available"   // herdr reachable, igris inside a pane
+	IDBackend          = "backend"           // the backend can host sessions (herdr pane, tmux session)
 	IDHerdrIntegration = "herdr-integration" // herdr's Claude Code integration installed
 	IDGit              = "git"               // git repository, clean working tree
 	IDConfig           = "config"            // igris.toml settings that have no effect
@@ -47,7 +48,7 @@ const (
 
 // order is the one order of the checks.
 var order = []string{
-	IDClaude, IDHerdr, IDAPIKey, IDHerdrAvailable, IDHerdrIntegration, IDGit,
+	IDClaude, IDHerdr, IDTmux, IDAPIKey, IDBackend, IDHerdrIntegration, IDGit,
 	IDConfig, IDProject, IDPlanHints, IDDrift,
 }
 
@@ -84,6 +85,7 @@ func (r Result) String() string {
 
 // Availability is a backend that can say whether it can host sessions.
 type Availability interface {
+	Name() string
 	Available(ctx context.Context) error
 }
 
@@ -109,8 +111,11 @@ type Options struct {
 	// Versions checks the tool versions; usually ToolVersions. A seam for
 	// tests, which must not run the real claude and herdr.
 	Versions func(context.Context, runner.Runner) []Result
-	// Backend and Integration are the herdr checks (the herdr backend
-	// implements both).
+	// BackendName is the backend chosen for the project ("herdr", "tmux";
+	// "" when none can be chosen): only its tool version is checked.
+	BackendName string
+	// Backend answers the availability check; Integration herdr's
+	// integration check (the herdr backend implements both).
 	Backend     Availability
 	Integration Integration
 	// Config is the project's config (the defaults without igris.toml).
@@ -143,8 +148,8 @@ func Run(ctx context.Context, o Options) []Result {
 			continue
 		}
 		switch id {
-		case IDClaude, IDHerdr:
-			if o.Versions == nil {
+		case IDClaude, IDHerdr, IDTmux:
+			if o.Versions == nil || (id != IDClaude && id != o.BackendName) {
 				continue
 			}
 			if versions == nil {
@@ -155,9 +160,9 @@ func Run(ctx context.Context, o Options) []Result {
 			if o.Getenv != nil {
 				add(apiKey(o.Getenv))
 			}
-		case IDHerdrAvailable:
+		case IDBackend:
 			if o.Backend != nil {
-				add(herdrAvailable(ctx, o.Backend))
+				add(backendAvailable(ctx, o.Backend))
 			}
 		case IDHerdrIntegration:
 			if o.Integration != nil {

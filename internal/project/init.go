@@ -13,6 +13,7 @@ import (
 
 	"github.com/drilonrecica/igris/examples"
 	"github.com/drilonrecica/igris/internal/backend/herdr"
+	"github.com/drilonrecica/igris/internal/backend/tmux"
 	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/report"
@@ -22,7 +23,7 @@ import (
 const (
 	// ClaudeSettingsPath holds the `igris done` allow rules init writes.
 	ClaudeSettingsPath = ".claude/settings.local.json"
-	integrationHint    = "recommended: run `herdr integration install claude` so herdr reports Claude's state accurately"
+	integrationHint    = "runs in herdr or tmux; igris reads Claude's state from Claude Code hooks (in herdr, `herdr integration install claude` adds herdr's own)"
 )
 
 // initStep is one step of Init: the file it touches and what it does.
@@ -239,11 +240,14 @@ func containsAny(list []any, s string) bool {
 // that is possible (inside a herdr pane) and otherwise recommends it.
 func herdrHint(ctx context.Context, env Env) string {
 	getenv := env.getenv()
-	if getenv(herdr.WorkspaceEnv) != "" {
+	switch {
+	case getenv(herdr.WorkspaceEnv) != "":
 		b := herdr.NewFromEnv(env.runner(), getenv)
 		if b.IntegrationHint(ctx) == "" {
 			return "herdr's Claude Code integration is installed"
 		}
+	case getenv(tmux.Env) != "":
+		return "inside tmux: sessions open in tmux windows; igris reads Claude's state from Claude Code hooks"
 	}
 	return integrationHint
 }

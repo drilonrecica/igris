@@ -602,7 +602,7 @@ func TestEmbeddedRunCancelWhileStarting(t *testing.T) {
 	tm, _ := launchProgram(t, st)
 	seen(t, tm, "READY")
 	ariseM2(t, tm)
-	seen(t, tm, "checking herdr, taking the lock")
+	seen(t, tm, "checking the backend, taking the lock")
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter}) // Cancel
 	seen(t, tm, "nothing was started")
 	tm.Type("q")
@@ -621,7 +621,7 @@ func TestEmbeddedRunQuitWhileStartingWaits(t *testing.T) {
 	tm, _ := launchProgram(t, st)
 	seen(t, tm, "READY")
 	ariseM2(t, tm)
-	seen(t, tm, "checking herdr, taking the lock")
+	seen(t, tm, "checking the backend, taking the lock")
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	a := finalApp(t, tm)
 	if a.run == nil {

@@ -148,6 +148,7 @@ func TestParseErrors(t *testing.T) {
 		{"unknown tui key", "[tui]\nmice = false", []string{"tui.mice"}},
 		{"tui mouse not bool", "[tui]\nmouse = \"no\"", []string{"parse igris.toml"}},
 		{"bad theme", "[tui]\ntheme = \"neon\"", []string{`tui.theme = "neon"`, "auto, dark, light"}},
+		{"bad backend", `backend = "zellij"`, []string{`backend = "zellij"`, "auto, herdr, tmux"}},
 		{"rank color by name", "[tui.rank_colors]\nopus = \"purple\"", []string{`tui.rank_colors.opus = "purple"`, "#rrggbb"}},
 		{"rank color short hex", "[tui.rank_colors]\nopus = \"#fff\"", []string{"tui.rank_colors.opus"}},
 		{"rank color bad hex", "[tui.rank_colors]\nopus = \"#12345g\"", []string{"tui.rank_colors.opus"}},
@@ -384,7 +385,7 @@ func TestWarnings(t *testing.T) {
 		{"", ""},
 		{"[claude]\ncommand = \"claude\"\n", ""},
 		{"[claude]\ncommand = \"\"\n", `claude.command = "" is ignored`},
-		{"[claude]\ncommand = \"/opt/claude\"\n", `claude.command = "/opt/claude" is ignored: herdr always starts claude from PATH`},
+		{"[claude]\ncommand = \"/opt/claude\"\n", `claude.command = "/opt/claude" is ignored: igris always starts claude from PATH`},
 	}
 	for _, tt := range tests {
 		cfg, err := Parse([]byte(tt.toml), "igris.toml")

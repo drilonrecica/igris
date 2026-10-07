@@ -86,8 +86,9 @@ func TestToolVersions(t *testing.T) {
 			r := &runner.Fake{}
 			r.On([]string{"claude", "--version"}, tt.claude.res, tt.claude.err)
 			r.On([]string{"herdr", "--version"}, tt.herdr.res, tt.herdr.err)
+			r.On([]string{"tmux", "-V"}, runner.Result{Stdout: fixture(t, "version_tmux.txt")}, nil)
 			all := ToolVersions(context.Background(), r)
-			if len(all) != len(Tools) || all[0].ID != IDClaude || all[1].ID != IDHerdr {
+			if len(all) != len(Tools) || all[0].ID != IDClaude || all[1].ID != IDHerdr || all[2].ID != IDTmux {
 				t.Fatalf("results = %+v, want one per tool", all)
 			}
 			got := Problems(all)
@@ -110,5 +111,20 @@ func TestToolVersions(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// tmux prints its version with -V (V03-P2).
+func TestTmuxVersion(t *testing.T) {
+	for in, warn := range map[string]bool{"tmux 3.7c\n": false, "tmux 3.1b\n": true, "tmux next-3.8\n": false} {
+		r := &runner.Fake{}
+		r.Func(func(c runner.Cmd) (runner.Result, error) {
+			return runner.Result{Stdout: []byte("2.1.292\n0.9.1\n")}, nil
+		})
+		r.On([]string{"tmux", "-V"}, runner.Result{Stdout: []byte(in)}, nil)
+		got := Pick(ToolVersions(context.Background(), r), IDTmux)
+		if len(got) != 1 || (got[0].Level == Warn) != warn {
+			t.Errorf("%q: %+v, want warn=%v", in, got, warn)
+		}
 	}
 }

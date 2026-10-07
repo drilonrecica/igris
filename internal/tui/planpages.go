@@ -478,7 +478,7 @@ func shortDur(sec int) string {
 
 // checkIDs are the checks `igris check` lists as warnings.
 var checkIDs = []string{
-	checks.IDClaude, checks.IDHerdr, checks.IDConfig, checks.IDAPIKey, checks.IDProject, checks.IDPlanHints, checks.IDDrift,
+	checks.IDClaude, checks.IDHerdr, checks.IDTmux, checks.IDConfig, checks.IDAPIKey, checks.IDProject, checks.IDPlanHints, checks.IDDrift,
 }
 
 // checkScreen is the Check page: the plan's problems as file:line:

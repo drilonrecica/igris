@@ -47,14 +47,23 @@ func TestRunOrder(t *testing.T) {
 	r.On([]string{"git", "status", "--porcelain"}, runner.Result{}, nil)
 	h := fakeHerdr{}
 	versions := func(context.Context, runner.Runner) []Result {
-		return []Result{{ID: IDClaude, Level: OK, Message: "Claude Code 2.1.292"}, {ID: IDHerdr, Level: OK, Message: "herdr 0.9.1"}}
+		return []Result{{ID: IDClaude, Level: OK, Message: "Claude Code 2.1.292"}, {ID: IDHerdr, Level: OK, Message: "herdr 0.9.1"}, {ID: IDTmux, Level: Warn, Message: "tmux not found in PATH"}}
 	}
 	got := Run(context.Background(), Options{
 		Root: writePlan(t, driftPlan), Runner: r, Getenv: func(string) string { return "" },
-		Versions: versions, Backend: h, Integration: h, Config: config.Default(),
+		Versions: versions, BackendName: IDHerdr, Backend: h, Integration: h, Config: config.Default(),
 	})
-	if want := order; !slices.Equal(slices.Compact(ids(got)), want) {
+	// Only the chosen backend's tool is checked: no tmux row on herdr.
+	want := slices.DeleteFunc(slices.Clone(order), func(id string) bool { return id == IDTmux })
+	if !slices.Equal(slices.Compact(ids(got)), want) {
 		t.Errorf("ids = %v, want %v", ids(got), want)
+	}
+	got = Run(context.Background(), Options{IDs: []string{IDClaude, IDHerdr, IDTmux}, Versions: versions, BackendName: IDTmux})
+	if !slices.Equal(ids(got), []string{IDClaude, IDTmux}) {
+		t.Errorf("tmux backend: ids = %v", ids(got))
+	}
+	if got := Run(context.Background(), Options{IDs: []string{IDClaude, IDHerdr, IDTmux}, Versions: versions}); !slices.Equal(ids(got), []string{IDClaude}) {
+		t.Errorf("no backend chosen: ids = %v", ids(got))
 	}
 	// IDs given in another order don't change the order of the results.
 	got = Run(context.Background(), Options{IDs: []string{IDDrift, IDAPIKey}, Getenv: func(string) string { return "" }, Root: writePlan(t, driftPlan), Config: config.Default()})
@@ -69,7 +78,7 @@ func TestRunOrder(t *testing.T) {
 
 // A check without its input gives no result.
 func TestRunSkipsChecksWithoutInput(t *testing.T) {
-	if got := Run(context.Background(), Options{IDs: []string{IDClaude, IDHerdr, IDAPIKey, IDHerdrAvailable, IDHerdrIntegration, IDGit, IDConfig, IDPlanHints, IDDrift}}); len(got) != 0 {
+	if got := Run(context.Background(), Options{IDs: []string{IDClaude, IDHerdr, IDTmux, IDAPIKey, IDBackend, IDHerdrIntegration, IDGit, IDConfig, IDPlanHints, IDDrift}}); len(got) != 0 {
 		t.Errorf("results = %+v", got)
 	}
 }

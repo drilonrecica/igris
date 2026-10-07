@@ -185,7 +185,7 @@ func (m *homeScreen) runDoctor() tea.Cmd {
 
 func (m *homeScreen) helpKeys() []helpEntry {
 	return []helpEntry{
-		{"a", "Arise… / Resume…", "start a run, or resume the last one (when the plan and igris.toml are valid and herdr is reachable)"},
+		{"a", "Arise… / Resume…", "start a run, or resume the last one (when the plan and igris.toml are valid and herdr or tmux is reachable)"},
 		{"v", "Preview", "the dry run: what a run would do"},
 		{"c", "Check", "the plan's problems and warnings"},
 		{"i", "Doctor", "what is wrong with the setup, and what fixes it"},
