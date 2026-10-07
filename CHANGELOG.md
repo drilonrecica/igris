@@ -4,6 +4,26 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-10-07
+
+Windows through WSL2: documented, and tested by reproducing WSL conditions on Linux (not yet on a real Windows machine). One parser fix for plans saved by Windows editors. No change to the plan format, config keys, CLI flags or file formats.
+
+### Added
+
+- README and project page: a "Windows (WSL2)" section. Install herdr, Claude Code and igris inside WSL, and keep the project on the Linux filesystem rather than under `/mnt/c`. SPEC §1 lists native Windows as a non-goal.
+- `docs/check-wsl.md`: a checklist for running the herdr smoke test on a real WSL2 machine (Linux filesystem, a project on the Windows drive, files from Windows editors). It also records the v0.1.3 run that reproduced these conditions on Linux, which passed: a path with spaces, the plan a symlink onto another filesystem, BOM and CRLF in `tasks.md` and `igris.toml`, and `core.autocrlf`.
+
+### Fixed
+
+- A plan starting with a UTF-8 byte order mark (as some Windows editors save it) was invalid when its first line was a `##` phase heading or a table: the BOM hid the heading, so the first table was "outside a phase". igris now skips a leading BOM when parsing and keeps it in the file when it writes a Status cell. The parser and writer fuzz targets have a BOM seed.
+
+### Known limitations
+
+- herdr only; a tmux backend is planned.
+- Linux and macOS; Windows through WSL2 only, and WSL2 is not yet verified on a real Windows machine.
+- Release artifacts are not signed (checksums only); signing is planned.
+- No Homebrew tap yet.
+
 ## [0.1.2] - 2026-10-07
 
 Robustness: warnings when Claude Code or herdr drift from the versions igris was verified with, fuzzing of the parser and the plan writer, and error messages that say what to do next. No change to the plan format, CLI flags or file formats; one config key is deprecated (it never had an effect).
@@ -125,7 +145,8 @@ First release. Linux and macOS, herdr backend only. The full behavior is specifi
 - Release artifacts are not signed (checksums only); signing is planned.
 - No Homebrew tap yet.
 
-[Unreleased]: https://github.com/drilonrecica/igris/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/drilonrecica/igris/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/drilonrecica/igris/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/drilonrecica/igris/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/drilonrecica/igris/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/drilonrecica/igris/releases/tag/v0.1.0
