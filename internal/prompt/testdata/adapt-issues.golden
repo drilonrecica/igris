@@ -114,6 +114,7 @@ A task table is a GitHub-flavored markdown table whose header row contains at le
 - Otherwise a comma-separated list of task IDs.
 - **Ranges:** `A…B`, `A...B` or `A..B` expands to every task ID from `A` to `B` inclusive, **in file order**. Both endpoints must exist and `A` must precede `B`. An entry that is itself a task ID is never read as a range (IDs may contain dots). Duplicate entries are ignored.
 - Dependencies may point to tasks in other phases.
+- **External blockers.** A task blocked on something outside the plan (an owner input, a date, a deploy, an answer from a client) depends on a `user` task that names the blocker, e.g. `X-00 · **Wait for API keys from client** · user · —`. Igris notifies when it is the user's turn (§8, §10) and continues once that task is done. The plan format has no other way to say "waiting on the outside", and none is added.
 - Validation errors: unknown ID, self-dependency, dependency cycle, malformed range.
 
 ### 3.5 Owners and models

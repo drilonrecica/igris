@@ -24,6 +24,7 @@ Versions and release dates are from the Go module proxy (checked 2026-10-06). Li
 - `github.com/charmbracelet/lipgloss`
 - `github.com/charmbracelet/x/exp/teatest` (tests only)
 - `github.com/BurntSushi/toml`
+- `github.com/aymanbagabas/go-osc52/v2` (added by V02-P1, 2026-10-07: promoted from indirect to direct; already in the module graph through Lip Gloss)
 
 Anything else (including their transitive dependencies being swapped, or adding cobra/a diff library later) needs a new decision task first (AGENTS §4). No CGO.
 
@@ -191,3 +192,33 @@ Decided:
 ## Plans without a task table
 
 **Approved by owner** (2026-10-06), raised during M6-02. `igris check` used to accept a plan without any task table ("OK, 0 tasks"), although such a plan is almost always in another format: exactly what `igris adapt` is for. It is now a validation error, reported only when nothing else explains it (a misplaced table is reported as misplaced). SPEC §3.1 and §9.2 amended; `igris adapt` drops its own special case for it.
+
+## V02-P1 — Onboarding scope
+
+**Approved by owner** (2026-10-07), for v0.2. Records the onboarding decisions of the v0.2 plan (2–5) and the details of `doctor`, completions and clipboard copy. SPEC §3.4, §9, §14 and §18 are amended. Tasks V02-01…V02-08, V02-27…V02-29 build on it.
+
+| Option | Pros | Cons |
+|---|---|---|
+| **`doctor` read-only, prints the fix command** | Safe to run anywhere, any time; one mental model (`check`-like) | The owner types the fix |
+| `doctor --fix` | One step | Writes behind the owner's back; a second way to do what `init` and `adapt` already do |
+
+| Option | Pros | Cons |
+|---|---|---|
+| **Blocker = a `user` task the waiting task depends on** | No plan-format change; igris already notifies on user tasks and waits | A row per blocker |
+| New `Blocked by` / `Waits` column or status | Reads naturally | Format change, parser, adapt and docs changes; `blocked` already means "deps unmet" |
+
+| Option | Pros | Cons |
+|---|---|---|
+| **Hand-written completions + hidden `igris __complete`** | No dependency (cobra stays rejected, P0-01); IDs always match the plan | Three templates to keep in step with the flags |
+| cobra's generator | Free scripts | Rewrites the CLI for a feature |
+
+Decided:
+- **`igris doctor` is read-only forever.** It never writes and has no `--fix`; every problem comes with the exact command that fixes it. It reports, outside a project, that there is no `igris.toml`, and does not fail for that alone.
+- **Check list, in order:** `claude` found + version; `ANTHROPIC_API_KEY`; herdr reachable / inside a pane / integration installed; git repository and dirty tree; `igris.toml` valid, all problems; plan valid, all problems, and drift; `.claude/settings.local.json` has the `igris done` allow rule (as `init` writes it) and warns if any rule allow-lists `igris skip` (SPEC §6.2: skip is deliberately never allow-listed, so a skip always goes through a permission prompt); `.igris/` modes 0700 / 0600; stale or foreign lock; project under `/mnt/` (WSL, points to `docs/check-wsl.md`); notification channels configured — never sent to.
+- **Levels** `ok` / `warn` / `fail`; exit 0 unless any `fail` (exit 1); `--json` prints the results.
+- **External blockers** (an owner input, a date, a deploy) are a `user` task that names the blocker, with the waiting task depending on it. No plan-format change; `igris adapt` converts prose blockers the same way and says so in `## Adapt notes`.
+- **Homebrew:** the tap repository `drilonrecica/homebrew-tap` exists. GoReleaser `brews` with `skip_upload: true` writes the formula to `dist/` during `make release-local`; the owner pushes the formula commit by hand. Nothing publishes automatically (P0-04 stays true).
+- **Column-aware adapt review** and **hiding Task mode on user tasks** are in v0.2.
+- **Completions** are hand-written per shell (bash, zsh, fish), embedded as templates, no cobra. A hidden `igris __complete <kind>` supplies phase and task IDs; it reads the plan only (no `.igris/`, no network), prints one candidate per line, and prints nothing and exits 0 on an invalid plan. It is not listed in help.
+- **OSC 52 copy** on `y`: new direct dependency `github.com/aymanbagabas/go-osc52/v2` (v2.0.1, MIT), already in the module graph through Lip Gloss, so nothing new is downloaded; it is promoted from indirect to direct and added to the P0-01 approved list. Terminals without OSC 52 ignore the sequence.
+- **SPEC amended:** §14 (`doctor`, `history`, `completion`, `init --example`, current run in `status`), §18 (Homebrew), §3.4 and §9 (blocker convention: "a task blocked on something outside the plan depends on a `user` task that names it").

@@ -90,6 +90,7 @@ A task table is a GitHub-flavored markdown table whose header row contains at le
 - Otherwise a comma-separated list of task IDs.
 - **Ranges:** `A…B`, `A...B` or `A..B` expands to every task ID from `A` to `B` inclusive, **in file order**. Both endpoints must exist and `A` must precede `B`. An entry that is itself a task ID is never read as a range (IDs may contain dots). Duplicate entries are ignored.
 - Dependencies may point to tasks in other phases.
+- **External blockers.** A task blocked on something outside the plan (an owner input, a date, a deploy, an answer from a client) depends on a `user` task that names the blocker, e.g. `X-00 · **Wait for API keys from client** · user · —`. Igris notifies when it is the user's turn (§8, §10) and continues once that task is done. The plan format has no other way to say "waiting on the outside", and none is added.
 - Validation errors: unknown ID, self-dependency, dependency cycle, malformed range.
 
 ### 3.5 Owners and models
@@ -287,7 +288,7 @@ For plans that fail `igris check` or use a different format.
 
 1. `igris adapt [--model sonnet|opus] [--plan PATH]` (default model from `adapt.model`, default `sonnet`). Only `sonnet` and `opus` are offered.
 2. Igris runs `igris check` and captures every validation error; a plan that passes has nothing to adapt (exit 0). `adapt` takes the run lock (§13), so it never runs alongside `arise`.
-3. It opens a session (same backend, mode `default`) with the adapt prompt: the canonical format (§3, embedded), the validation errors, the config's `[models]` aliases, and the job — **write a converted copy to `.igris/adapt/<plan-name>.proposed.md`**, preserving every task, ID, description, dependency, status and model. Allowed: restructure headings and tables, rename columns, normalize statuses, convert prose dependencies into IDs. Not allowed: inventing or changing models, dropping tasks, rewriting descriptions. Tasks with missing or unknown models are listed in a `## Adapt notes` section at the end of the proposal and given Model `?` — which `check` rejects, so the owner must fill them in. The adapt session gets its own rules instead of the task rules (§6.1): write only the proposal file, never edit the original, never guess a model, ask when the original is ambiguous, finish with `igris done ADAPT`.
+3. It opens a session (same backend, mode `default`) with the adapt prompt: the canonical format (§3, embedded), the validation errors, the config's `[models]` aliases, and the job — **write a converted copy to `.igris/adapt/<plan-name>.proposed.md`**, preserving every task, ID, description, dependency, status and model. Allowed: restructure headings and tables, rename columns, normalize statuses, convert prose dependencies into IDs; turn prose that waits on something outside the plan ("waits on", "after the client…", "blocked by deploy") into a `user` task naming the blocker plus a dependency on it (§3.4), mentioned in `## Adapt notes`. Not allowed: inventing or changing models, dropping tasks, rewriting descriptions. Tasks with missing or unknown models are listed in a `## Adapt notes` section at the end of the proposal and given Model `?` — which `check` rejects, so the owner must fill them in. The adapt session gets its own rules instead of the task rules (§6.1): write only the proposal file, never edit the original, never guess a model, ask when the original is ambiguous, finish with `igris done ADAPT`.
 4. The session can ask the owner questions like any other session (`needs_input` and `session_lost` are notified as in §10). It finishes with `igris done ADAPT`, which `igris done` accepts without reading the plan (unless the plan has a task `ADAPT`). Interrupting `adapt` leaves the session open; a session that ends without `done` is an error and nothing changes.
 5. Igris validates the proposal with the normal parser, then shows a **diff view** (original vs proposal) in the TUI with the validation result: a line diff (hand-rolled LCS, P0-01) with `-`/`+`/space markers on every row, unchanged stretches folded to 3 lines of context, the proposal's problems above it, and **Reject** / **Accept** buttons (keys `r`/`esc`/`q` and `a`; Reject has the focus first). Text from the plan or proposal is drawn with control characters replaced, so a proposal can't send escape sequences to the terminal.
 6. Owner accepts → the original is backed up to `.igris/adapt/<plan-name>.<timestamp>.bak.md` (UTC, `20060102-150405`) and replaced atomically, keeping its file mode; if the plan changed on disk since it was read, nothing is replaced. Accepting a proposal that doesn't pass `check` (e.g. models left at `?`) needs a second confirmation, which starts on "Keep reviewing", and igris prints what is left to fix. Owner rejects (or quits the review) → nothing changes; the proposal stays in `.igris/adapt/`.
@@ -481,10 +482,13 @@ Quitting the TUI (`q`) never kills a running session; it saves state and exits. 
 ## 14. CLI
 
 ```
-igris init                                  create igris.toml, .igris/, .gitignore entry, Claude allow rules
+igris init [--example]                      create igris.toml, .igris/, .gitignore entry, Claude allow rules;
+                                            --example also writes the example plan when there is none
+igris doctor [--json]                       read-only health check of this project and machine
 igris check [--plan PATH] [--json]          validate the plan; exit 0 valid, 1 invalid, 2 usage error
 igris phases [--plan PATH] [--json]         list phases with task counts per status
 igris status [PHASE] [--plan PATH] [--json] tasks with status/rank/owner, current run, unmet deps
+igris history [TASK-ID] [-n N] [--json]     past runs from .igris/runs.jsonl; with a task ID, its attempts
 igris arise [PHASE] [--through PHASE]       run (or resume) with the TUI
            [--mode default|accept|auto|plan|yolo] [--no-tui] [--dry-run]
            [--force-unlock]
@@ -493,12 +497,13 @@ igris skip ID --reason TEXT                 signal that a task is skipped
 igris notify test [--event NAME]            send a sample of each notification to the configured channels
 igris adapt [--model sonnet|opus]           AI-assisted conversion with diff review
            [--plan PATH]
+igris completion bash|zsh|fish              print a shell completion script
 igris version
 ```
 
 - `arise`, `adapt` and `notify test` work in the project root: the nearest directory, from the working directory up, that holds `igris.toml` or `.igris/`. Without one, the working directory is the root only if it holds the plan (`adapt --plan`, else `tasks.md`); otherwise they exit 1 with a hint to run `igris init` and create nothing.
 - The plan file is `--plan`, else `plan` in `igris.toml` in the working directory, else `tasks.md`. `check`, `phases` and `status` read the plan only; `phases` and `status` refuse an invalid plan (exit 1, listing the problems) and report to stdout, errors to stderr. `--json` prints one JSON document instead of text.
-- `check` prints each validation problem as `file:line: message` and each readiness drift (§5.2) and ignored dependency-like column (§3.2) as `warning: file:line: …`, and each Claude Code or herdr version problem (§11.4), a set `ANTHROPIC_API_KEY` (§7.4) and an `igris.toml` in a parent directory (which `check`, `phases` and `status` don't read: they use the working directory's) as `warning: …` (in `--json`, a warning without `file` and `line`), and each deprecated config setting as `warning: igris.toml: …` (§12); warnings never fail the check. Without any `igris.toml`, `check` prints `note: no igris.toml here; using the defaults` (text only, not a warning). `phases` and `status` print the parent-directory hint as a `note:` on stderr. `status` shows, per phase, how many tasks are finished, the §5.1 outcome (`next`, `complete`, `stuck`) and, for each task, the dependencies it waits on. The current run (needs `.igris/` state, §13) is added to `status` once runs exist.
+- `check` prints each validation problem as `file:line: message` and each readiness drift (§5.2) and ignored dependency-like column (§3.2) as `warning: file:line: …`, and each Claude Code or herdr version problem (§11.4), a set `ANTHROPIC_API_KEY` (§7.4) and an `igris.toml` in a parent directory (which `check`, `phases` and `status` don't read: they use the working directory's) as `warning: …` (in `--json`, a warning without `file` and `line`), and each deprecated config setting as `warning: igris.toml: …` (§12); warnings never fail the check. Without any `igris.toml`, `check` prints `note: no igris.toml here; using the defaults` (text only, not a warning). `phases` and `status` print the parent-directory hint as a `note:` on stderr. `status` shows, per phase, how many tasks are finished, the §5.1 outcome (`next`, `complete`, `stuck`) and, for each task, the dependencies it waits on. The current run (needs `.igris/` state, §13) is added to `status` once runs exist: phase range, current task, mode, since when, session reference and lock state (running here, running elsewhere, stale, none), plus pending signals. In text it is a short `Run` block above the phase table; in `--json` it is a `run` object, omitted when there is none. A state file that can't be read or doesn't have the expected shape is reported as "state unreadable", never a crash.
 - `--no-tui` prints plain timestamped log lines and reads owner commands from stdin, one per line, for scripting or very small terminals:
   - `y` / `n` answer the question igris asked (commit? confirm a session's skip request?);
   - `done [note]` marks the current task done (an agent task is not verified, §6.4), `skip <reason>` skips it;
@@ -506,6 +511,23 @@ igris version
   - `pause` toggles pause-after-task like `p` in the TUI (§15.3), `stop` stops igris and leaves the session open;
   - `mode <m>` sets the run mode for the next sessions, `mode <task> <m>` overrides one task's mode for its next session (§7.2); `yolo` then asks to type `skip permissions` (§7.3);
   - `help` lists them. Ctrl-C is `stop`.
+- `init --example` also writes the canonical example plan (the one in `examples/tasks.md`) as the configured plan path when no plan exists; it never overwrites (`kept existing tasks.md`). Without `--example`, `init` behaves as before.
+- `doctor` is **read-only, now and later**: it never writes, creates or fixes anything (no `--fix`), and for every problem it prints the exact command that would fix it. It works outside a project (it reports "no igris.toml" and checks the machine). Checks, in this order:
+  1. `claude` found, with its version (§11.4);
+  2. `ANTHROPIC_API_KEY` set in the environment (§7.4);
+  3. herdr reachable, whether igris runs inside a herdr pane, and whether the Claude Code integration is installed (§11);
+  4. the project is a git repository, and whether its tree is dirty (§7.3);
+  5. `igris.toml` is valid — every problem listed, not only the first (§12);
+  6. the plan is valid (every problem) and has no readiness drift (§5.2);
+  7. `.claude/settings.local.json` holds the allow rules for `igris done` (`Bash(igris done:*)` / `Bash(igris done *)`, as `init` writes them), and no rule allow-lists `igris skip`: `warn` if one does, because that bypasses the skip confirmation (§6.2);
+  8. `.igris/` has mode 0700 and its files 0600 (§13, §16);
+  9. no stale or foreign lock (§13);
+  10. the project is not under `/mnt/` (WSL on a Windows filesystem; points to `docs/check-wsl.md`);
+  11. notification channels are configured (§10) — **never sent to**; sending is `notify test`.
+
+  Each check prints one line: a glyph, a level and a message; a problem is followed by its next command. Levels are `ok`, `warn` and `fail`. The exit code is 0 unless some check is `fail` (then 1); `--json` prints the results as a JSON array (`id`, `level`, `message`, `next`). Text from the plan, config, lock or command output is cleaned before it is printed (§16).
+- `history` reads `.igris/runs.jsonl` (§13) read-only and never creates `.igris/`. It lists the last N runs (default 10), each with its phases, tasks done and skipped, per-task duration, verify attempts, commits and how it ended; a run without a stop event is shown as interrupted, and a truncated last line is ignored. With a task ID it lists every attempt of that task across runs.
+- `completion` prints a hand-written script per shell (no CLI framework, P0-01). It completes subcommands, each subcommand's flags, and phase and task IDs. IDs come from a hidden `igris __complete <kind>`, which is not listed in help: it reads the plan only (never `.igris/`, never the network) and prints one candidate per line; on a missing or invalid plan it prints nothing and exits 0.
 - `notify test` sends one sample message per event to every channel set up for it (the herdr toast is included when herdr is reachable) and prints `ok` or `FAILED: <reason>` per event and channel; secrets never appear in the output. It exits 1 if a delivery failed or no channel is set up. `--event` limits it to one event.
 - `--force-unlock` clears a stale `.igris/igris.lock` (its process is gone, the file is unreadable, or it comes from another host); a lock held by a live process on this host is always refused (§13).
 - `--dry-run` uses the fake backend: walks the phase, prints which task would launch with which model and mode, writes nothing. It runs the real engine on a temporary copy of the plan, with every session finishing at once, user tasks done, verify and commits off. Drift and skip-permissions tasks are shown as warnings instead of asked about; a task already in progress is shown as resumed with a fresh session. Without a phase it walks the last run's phases. It never touches `.igris/`.
@@ -622,5 +644,5 @@ Modelled on Claude Code's choice prompts and herdr's clickable UI.
 - `go install github.com/drilonrecica/igris/cmd/igris@latest` works; such builds have no ldflags, so `igris version` falls back to the module version from the binary's build info (`v0.1.0` → `0.1.0`).
 - CI (P0-07): GitHub Actions on push to `master` and on PRs — gofmt check, `go vet`, golangci-lint, `go test -race ./...` on Linux and macOS. Read-only token, no secrets, never builds or publishes releases.
 - Project page (P0-09): `https://drilonrecica.github.io/igris/`, a static page built from `site/` and deployed by `.github/workflows/pages.yml`. That is the only workflow with write permissions (`pages`, `id-token`, for the deploy job only); it has no secrets and never builds or publishes releases.
-- Homebrew tap: post-v1 nice-to-have.
+- Homebrew tap (V02-P1): `brew install drilonrecica/tap/igris`, from the repository `drilonrecica/homebrew-tap`. GoReleaser's `brews` section writes the formula into `dist/` during `make release-local` (`skip_upload: true`); the owner copies it into the tap and pushes it by hand. Nothing is published automatically, as for the archives.
 - MIT license.
