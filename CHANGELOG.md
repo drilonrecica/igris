@@ -16,6 +16,10 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 - An unknown status that is a common synonym gets a hint: `unknown status "dropped" (did you mean skipped?)`, likewise for `completed` → done and `wip` → in progress. It is still an error.
 - A dependency column under another name (`Depends`, `Depends on`, `Requires`, …) without a `[columns]` alias was silently read as an extra column, so the plan ran with no dependencies at all. `igris check` and `igris arise` now warn about it and say how to alias it.
+- Errors for cells wrapped in markdown say what was meant: `` `M0-01` `` → write it as M0-01; `✅ Done` → did you mean done?; `**Opus**` → did you mean opus?
+- "Second task table" errors under `###` sub-headings say that only `##` headings start a phase.
+- "No task table found" names a table that has an ID column but lacks Status or Model, and how to alias the column.
+- `igris status` no longer prints `Overview — :` for a phase heading without a title.
 - The "agent task needs a Model" error no longer tells you to set Owner `user` when the table has no Owner column; it says to add one.
 
 ## [0.1.0] - 2026-10-07

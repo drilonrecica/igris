@@ -48,9 +48,10 @@ type Plan struct {
 	Phases []*Phase // phases with a task table, in file order
 	Tasks  []*Task  // all tasks in file order
 
-	lines  []line
-	issues []Issue // structural problems found while parsing
-	byID   map[string]*Task
+	lines    []line
+	issues   []Issue    // structural problems found while parsing
+	nearMiss []nearMiss // tables with an ID column that lack Status or Model
+	byID     map[string]*Task
 }
 
 // Phase is a "##" section holding one task table.
@@ -64,6 +65,13 @@ type Phase struct {
 
 	tableLine int // line of the table header
 	rows      []row
+}
+
+// nearMiss is a table that looks like a task table but lacks the Status or
+// the Model column, e.g. one with "State" instead of "Status".
+type nearMiss struct {
+	line      int
+	hasStatus bool
 }
 
 // row is one data row of a task table.
@@ -138,6 +146,8 @@ func Parse(name string, data []byte, opts Options) *Plan {
 		}
 		if isTask {
 			p.addTable(cur, cols, l.num, p.lines[i+2:end], firstPhase)
+		} else if hasCol(cols, ColID) && (hasCol(cols, ColStatus) || hasCol(cols, ColModel)) {
+			p.nearMiss = append(p.nearMiss, nearMiss{line: l.num, hasStatus: hasCol(cols, ColStatus)})
 		}
 		i = end - 1
 	}
