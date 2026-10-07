@@ -520,7 +520,7 @@ igris version
 - `doctor` is **read-only, now and later**: it never writes, creates or fixes anything (no `--fix`), and for every problem it prints the exact command that would fix it. It works outside a project (it reports "no igris.toml" and checks the machine). Checks, in this order:
   1. `claude` found, with its version (§11.4);
   2. `ANTHROPIC_API_KEY` set in the environment (§7.4);
-  3. herdr reachable, whether igris runs inside a herdr pane, and whether the Claude Code integration is installed (§11);
+  3. herdr reachable, whether igris runs inside a herdr pane, and whether the Claude Code integration is installed (§11); not running inside a herdr pane is a `warn` here, not a `fail`, because `doctor` is usually run from a plain shell;
   4. the project is a git repository, and whether its tree is dirty (§7.3);
   5. `igris.toml` is valid — every problem listed, not only the first (§12);
   6. the plan is valid (every problem) and has no readiness drift (§5.2);

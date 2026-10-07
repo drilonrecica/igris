@@ -14,13 +14,10 @@ import (
 	"strings"
 
 	"github.com/drilonrecica/igris/internal/backend/herdr"
+	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/state"
 )
-
-// doneAllowRules let a session run `igris done` without a permission prompt
-// (SPEC §6.2, §7.1). `igris skip` is deliberately not among them.
-var doneAllowRules = []string{"Bash(igris done:*)", "Bash(igris done *)"}
 
 const (
 	claudeSettingsPath = ".claude/settings.local.json"
@@ -129,7 +126,7 @@ func initClaudeSettings(root string) (string, error) {
 		return "", fmt.Errorf("%s: \"permissions.allow\" is not a list; fix it and run `igris init` again", claudeSettingsPath)
 	}
 	added := 0
-	for _, rule := range doneAllowRules {
+	for _, rule := range checks.DoneAllowRules {
 		if !containsAny(allow, rule) {
 			allow = append(allow, rule)
 			added++

@@ -113,12 +113,15 @@ So far WSL2 support has been tested by reproducing these conditions on Linux (`d
 ```sh
 cd your-project
 igris init          # creates igris.toml and .igris/, ignores .igris/ in git, allows `igris done` for Claude
+igris doctor        # is everything in place? one line per check, the fix command for each problem
 igris check         # validates your plan
 igris status        # shows phases, tasks, what's ready and what's blocked
 igris arise M0      # runs phase M0 (inside a herdr pane)
 ```
 
 `igris arise M0 --dry-run` shows the launch order with each task's model and mode without starting anything or writing a byte. `igris arise M0 --no-tui` runs with plain log lines instead of the TUI and reads your answers and commands from stdin (`y`/`n`, `done [note]`, `skip <reason>`, `retry [continue|fresh]`, `pause`, `stop`, `mode [task] <m>`, `help`).
+
+`igris doctor` checks the machine and the project without changing anything (it never writes or creates `.igris/`, and has no `--fix`): Claude Code and herdr, `ANTHROPIC_API_KEY`, git, `igris.toml` and the plan (every problem), the `igris done` allow rules in `.claude/settings.local.json` (and a warning if `igris skip` is allowed there), the modes of `.igris/`, a stale or foreign lock, a project under `/mnt/` (WSL), and whether a notification channel is set up (nothing is sent; `igris notify test` sends). Each line is `ok`, `warn` or `fail`; a problem is followed by the command that fixes it. It exits 1 only if some check is `fail`, works outside a project, and `--json` prints the results as an array. Not running inside a herdr pane is a `warn` here, since you usually run `doctor` from a plain shell.
 
 Before a run starts, igris warns if `ANTHROPIC_API_KEY` is set (your sessions would bill the API, not your subscription; it asks you to confirm), if the project isn't a git repository, or if the tree has uncommitted changes.
 

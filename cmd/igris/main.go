@@ -41,6 +41,7 @@ Usage:
 
 Commands:
   init                                  create igris.toml, .igris/, .gitignore entry, Claude allow rules
+  doctor [--json]                       read-only health check of this project and machine; exit 1 on a failure
   check [--plan PATH] [--json]          validate the plan; exit 0 valid, 1 invalid, 2 usage error
   phases [--plan PATH] [--json]         list phases with task counts per status
   status [PHASE] [--plan PATH] [--json] tasks with status/rank/owner, current run, unmet deps
@@ -72,6 +73,7 @@ var runModes = []string{"default", "accept", "auto", "plan", "yolo"}
 func commands() []command {
 	return []command{
 		{name: "init", setup: noFlags(0), exec: execInit},
+		{name: "doctor", setup: doctorArgs, exec: execDoctor},
 		{name: "check", setup: planFlags(0), exec: execCheck},
 		{name: "phases", setup: planFlags(0), exec: execPhases},
 		{name: "status", setup: planFlags(1), exec: execStatus},
