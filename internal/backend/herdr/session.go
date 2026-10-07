@@ -79,6 +79,21 @@ func (s *Session) Prompt(ctx context.Context, text string) error {
 	return s.send(ctx, text)
 }
 
+// PromptPending implements backend.PromptHolder.
+func (s *Session) PromptPending() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.hasPending
+}
+
+// HoldPrompt implements backend.PromptHolder: text goes out once the agent
+// is idle, from State, as after a startup prompt.
+func (s *Session) HoldPrompt(text string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.pending, s.hasPending, s.startupBlocked = text, true, true
+}
+
 // send submits text with `agent prompt`. The caller holds s.mu.
 func (s *Session) send(ctx context.Context, text string) error {
 	_, err := s.c.AgentPrompt(ctx, s.ref.Agent, text)

@@ -16,8 +16,9 @@ import (
 const Name = "fake"
 
 var (
-	_ backend.Backend = (*Backend)(nil)
-	_ backend.Session = (*Session)(nil)
+	_ backend.Backend      = (*Backend)(nil)
+	_ backend.Session      = (*Session)(nil)
+	_ backend.PromptHolder = (*Session)(nil)
 )
 
 // AutoSignalFunc is called after a session's first prompt (the task prompt),
@@ -32,6 +33,7 @@ type Backend struct {
 	autoSignal AutoSignalFunc
 	scripts    map[string][][]backend.AgentState // per task: one sequence per future session
 	sessions   map[string]*Session               // by PaneID
+	startup    map[string]bool                   // task IDs whose next session holds its first prompt
 	next       int
 
 	opened        []backend.SessionSpec
@@ -46,9 +48,21 @@ type Backend struct {
 func New() *Backend {
 	return &Backend{
 		scripts:  map[string][][]backend.AgentState{},
+		startup:  map[string]bool{},
 		sessions: map[string]*Session{},
 		prompts:  map[string][]string{},
 	}
+}
+
+// StartupPrompt makes the next session opened for taskID sit at a startup
+// prompt (like Claude Code's folder-trust question): its first prompt is
+// held until a State call reports Idle or Done, then delivered, and that
+// State reports Working. Like herdr, a reattached session forgets a held
+// prompt; the engine hands it back with HoldPrompt.
+func (b *Backend) StartupPrompt(taskID string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.startup[taskID] = true
 }
 
 // Script queues the agent states for the next session opened for taskID.
@@ -169,11 +183,13 @@ func (b *Backend) OpenSession(ctx context.Context, spec backend.SessionSpec) (ba
 	}
 	b.next++
 	s := &Session{
-		b:      b,
-		taskID: spec.TaskID,
-		ref:    backend.SessionRef{Backend: Name, PaneID: fmt.Sprintf("fake-%d", b.next), Agent: spec.TaskID},
-		states: states,
+		b:       b,
+		taskID:  spec.TaskID,
+		ref:     backend.SessionRef{Backend: Name, PaneID: fmt.Sprintf("fake-%d", b.next), Agent: spec.TaskID},
+		states:  states,
+		holding: b.startup[spec.TaskID],
 	}
+	delete(b.startup, spec.TaskID)
 	b.sessions[s.ref.PaneID] = s
 	spec.Args = slices.Clone(spec.Args)
 	spec.Env = slices.Clone(spec.Env)
@@ -196,6 +212,7 @@ func (b *Backend) Attach(ctx context.Context, ref backend.SessionRef) (backend.S
 	if s == nil || s.gone {
 		return nil, fmt.Errorf("attach session %s: %w", ref.PaneID, backend.ErrSessionGone)
 	}
+	s.pending, s.hasPending = "", false // a restarted igris doesn't know it
 	return s, nil
 }
 
@@ -218,6 +235,24 @@ type Session struct {
 	states   []backend.AgentState // next state first; the last one repeats
 	prompted bool
 	gone     bool
+
+	holding    bool // at a startup prompt: the first prompt is held
+	pending    string
+	hasPending bool
+}
+
+// PromptPending implements backend.PromptHolder.
+func (s *Session) PromptPending() bool {
+	s.b.mu.Lock()
+	defer s.b.mu.Unlock()
+	return s.hasPending
+}
+
+// HoldPrompt implements backend.PromptHolder.
+func (s *Session) HoldPrompt(text string) {
+	s.b.mu.Lock()
+	defer s.b.mu.Unlock()
+	s.pending, s.hasPending = text, true
 }
 
 // Ref returns the session's ref.
@@ -233,6 +268,17 @@ func (s *Session) Prompt(ctx context.Context, text string) error {
 		s.b.mu.Unlock()
 		return s.goneErr("prompt")
 	}
+	if s.holding && !s.prompted {
+		s.pending, s.hasPending = text, true
+		s.b.mu.Unlock()
+		return nil
+	}
+	return s.deliver(ctx, text)
+}
+
+// deliver records text; the first prompt triggers the auto-signal function.
+// It is called with the backend's lock held and releases it.
+func (s *Session) deliver(ctx context.Context, text string) error {
 	s.b.prompts[s.taskID] = append(s.b.prompts[s.taskID], text)
 	first := !s.prompted
 	s.prompted = true
@@ -254,8 +300,8 @@ func (s *Session) State(ctx context.Context) (backend.AgentState, error) {
 		return backend.Unknown, err
 	}
 	s.b.mu.Lock()
-	defer s.b.mu.Unlock()
 	if s.gone {
+		s.b.mu.Unlock()
 		return backend.Exited, nil
 	}
 	st := s.states[0]
@@ -265,6 +311,15 @@ func (s *Session) State(ctx context.Context) (backend.AgentState, error) {
 	if st == backend.Exited {
 		s.gone = true
 	}
+	if s.hasPending && (st == backend.Idle || st == backend.Done) {
+		text := s.pending
+		s.pending, s.hasPending, s.holding = "", false, false
+		if err := s.deliver(ctx, text); err != nil { // releases the lock
+			return backend.Unknown, err
+		}
+		return backend.Working, nil
+	}
+	s.b.mu.Unlock()
 	return st, nil
 }
 

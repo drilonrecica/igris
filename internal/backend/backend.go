@@ -46,6 +46,19 @@ type Session interface {
 	Close(ctx context.Context) error
 }
 
+// PromptHolder is implemented by sessions that hold the first prompt back
+// while the agent sits at a startup prompt (e.g. Claude Code's folder-trust
+// question) and deliver it once the agent is ready. The held prompt lives in
+// the session; a reattached session doesn't know it, so the engine records
+// it and hands it back with HoldPrompt.
+type PromptHolder interface {
+	// PromptPending reports a prompt that is held and not delivered yet.
+	PromptPending() bool
+	// HoldPrompt holds text until the agent is ready, as Prompt does at a
+	// startup prompt.
+	HoldPrompt(text string)
+}
+
 // AgentState is the agent state reported by the backend. The values match
 // herdr's agent_status, plus Exited for a session that is gone.
 type AgentState string

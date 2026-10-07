@@ -350,7 +350,7 @@ Igris itself runs in a herdr pane. It uses the herdr CLI (JSON output), never th
 | Open pane | `herdr tab create --workspace $HERDR_WORKSPACE_ID --cwd <root> --label "<ID> · <rank>" --no-focus` → `.result.tab.tab_id`, `.result.root_pane.pane_id` |
 | Start Claude | `herdr agent start <name> --kind claude --pane <pane_id> --timeout 120000 -- <claude args>`; `<name>` = `igris-<id>` lowercased, sanitized to `[a-z][a-z0-9_-]{0,31}`. Timeout must be > 3000 and ≤ 300000 ms. Returns `.result.agent` (`agent_status`, `interactive_ready`, `name`, `pane_id`) and `argv` |
 | Shell not ready yet | `agent_pane_busy` ("is not an available shell"): the new tab's shell hasn't reached its prompt (slow rc file, fresh herdr server) → retry `agent start` every 250 ms for up to 15 s, then fail the start (and close the tab) |
-| Startup blocked (e.g. folder-trust prompt) | `agent_not_ready` (exit 2, message "blocked during startup"; the name stays usable) → mark **Needs you**, poll state until the agent is past the prompt, then continue |
+| Startup blocked (e.g. folder-trust prompt) | `agent_not_ready` (exit 2, message "blocked during startup"; the name stays usable) → mark **Needs you**, hold the task prompt, poll state until the agent is past the prompt, then deliver it. The held prompt is also recorded in `state.json`, so a reattach after an igris restart still delivers it (§13) |
 | Wait for state | `herdr agent wait <name> [--until STATUS]… [--timeout MS]`. Without `--until` it returns at the first settled state (`idle`, `done` **or `blocked`**), so check `.result.agent.agent_status` on return; it returns at once if already settled. `timeout` error code on expiry. Replaces tight polling for "is it ready for feedback"; `Needs you` still needs `pane get` polling |
 | Send follow-up / task prompt | `herdr agent prompt <name> <text> [--wait --timeout MS]`. Multi-line text works (bracketed paste). Rejected with `agent_blocked` if the agent is at an approval/question UI. Without `--wait` the returned status is the pre-turn one |
 | Read state | `herdr pane get <pane_id>` → `.result.pane.agent_status` ∈ `unknown` (plain shell / unclassified), `idle`, `working`, `blocked`, `done`; `pane_not_found` → session lost. `herdr agent read <name> --source recent-unwrapped --lines N` returns plain text (empty while a blocking prompt is drawn on the alternate screen — use `--source visible`) |
@@ -441,13 +441,13 @@ events = ["needs_input", "session_lost", "phase_done", "phase_stuck", "run_error
 | Path | Content |
 |---|---|
 | `igris.lock` | PID + host + start time, created complete (written to a temp file and hard-linked into place) so a concurrent `--force-unlock` never mistakes a fresh lock for a damaged one. A second `igris arise` refuses to start while the PID is alive; a stale lock is reported and can be cleared with `--force-unlock`. If the PID was reused by another program (after a reboot, say), the error says to delete the file. |
-| `state.json` | Current run: phases, current task ID, session ref (backend name, pane/tab IDs, agent name), Claude session UUID, mode, attempt counters, started-at, hash of the config snapshot. Written atomically on every change. Values that become command arguments (session ref IDs, the session UUID) are checked for their expected shape when read back; a file that fails is reported as damaged. |
+| `state.json` | Current run: phases, current task ID, session ref (backend name, pane/tab IDs, agent name), Claude session UUID, mode, attempt counters, started-at, hash of the config snapshot, and the task prompt while it is held at a startup prompt. Written atomically on every change. Values that become command arguments (session ref IDs, the session UUID) are checked for their expected shape when read back; a file that fails is reported as damaged. |
 | `signals/` | Pending signal files (§6.2). |
 | `runs.jsonl` | Append-only log: one JSON line per event (task started/done/skipped, verify result, notifications, errors) with timestamps, task ID, rank and model. |
 | `adapt/` | Adapt proposals and backups (§9). |
 
 **Resume.** `igris arise` (any phase argument, or none to resume the last run) reads `state.json`:
-- current task still `in progress` and its session reattachable → reattach and keep watching;
+- current task still `in progress` and its session reattachable → reattach and keep watching; if its task prompt was still held at a startup prompt (`pending_prompt` in `state.json`), it is handed back and delivered once Claude Code is ready;
 - session gone → offer (TUI, or `--no-tui` stdin; default fresh): **continue** the previous conversation (`claude --resume <uuid>`, same model) or start a **fresh** session with `Resumed=true`;
 - pending signal for the current task → process it first.
 

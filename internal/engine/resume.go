@@ -53,7 +53,18 @@ func (e *Engine) resume(ctx context.Context) (stopped bool, err error) {
 		default:
 			if st, err := sess.State(ctx); err != nil || st != backend.Exited {
 				l.sess = sess
-				e.emit(Event{Kind: TaskResumed, Detail: "reattached to its session"})
+				detail := "reattached to its session"
+				if cur.PendingPrompt != "" {
+					// The session never got its task: it was held at a
+					// startup prompt when the last run stopped.
+					detail = "reattached to its session; its task prompt goes out once Claude Code is ready"
+					if h, ok := sess.(backend.PromptHolder); ok {
+						h.HoldPrompt(cur.PendingPrompt)
+					} else if err := sess.Prompt(ctx, cur.PendingPrompt); err != nil && !errors.Is(err, backend.ErrSessionGone) {
+						return false, fmt.Errorf("send the task prompt to %s: %w", t.ID, err)
+					}
+				}
+				e.emit(Event{Kind: TaskResumed, Detail: detail})
 				return e.drive(ctx, l)
 			}
 		}

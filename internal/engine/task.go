@@ -176,7 +176,7 @@ func (e *Engine) prepareSession(l *launch, how startKind) (sessionStart, error) 
 // the prompt arrives leaves l lost rather than failing the run (SPEC §11.1).
 func (e *Engine) openSession(ctx context.Context, l *launch, st sessionStart) error {
 	t := l.t
-	l.mode, l.cur.Mode, l.cur.ClaudeSession, l.cur.Session = st.mode, st.mode, st.sessionID, nil
+	l.mode, l.cur.Mode, l.cur.ClaudeSession, l.cur.Session, l.cur.PendingPrompt = st.mode, st.mode, st.sessionID, nil, ""
 	l.sess, l.lost = nil, false
 	if err := e.dir.SaveRun(e.run); err != nil {
 		return err
@@ -206,7 +206,28 @@ func (e *Engine) openSession(ctx context.Context, l *launch, st sessionStart) er
 	case err != nil:
 		return fmt.Errorf("send the task prompt to %s: %w", t.ID, err)
 	}
+	if h, ok := sess.(backend.PromptHolder); ok && h.PromptPending() {
+		// Held at a startup prompt: if igris stops before it goes out, the
+		// next run hands it back to the reattached session.
+		l.cur.PendingPrompt = st.text
+		return e.dir.SaveRun(e.run)
+	}
 	return nil
+}
+
+// promptDelivered forgets the recorded first prompt once l's session has
+// delivered it.
+func (e *Engine) promptDelivered(l *launch) {
+	if l.cur.PendingPrompt == "" {
+		return
+	}
+	if h, ok := l.sess.(backend.PromptHolder); ok && h.PromptPending() {
+		return
+	}
+	l.cur.PendingPrompt = ""
+	if err := e.dir.SaveRun(e.run); err != nil {
+		e.warn(err.Error())
+	}
 }
 
 // drive watches l's session until the task is finished or the run stops,

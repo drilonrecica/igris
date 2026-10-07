@@ -525,3 +525,37 @@ func TestAttach(t *testing.T) {
 		}
 	})
 }
+
+// After an igris restart the engine hands a held first prompt back with
+// HoldPrompt: it waits through the startup prompt and goes out once the
+// agent is idle, like a prompt held since OpenSession.
+func TestHoldPromptAfterAttach(t *testing.T) {
+	ctx := context.Background()
+	f := &runner.Fake{}
+	f.On(cmd("pane", "get", "w2B:p3"), ok(t, "pane_get_blocked.json"), nil) // Attach
+	s, err := New(f, "w2B").Attach(ctx, backend.SessionRef{Backend: Name, TabID: "w2B:t3", PaneID: "w2B:p3", Agent: "igris-t-01"})
+	if err != nil {
+		t.Fatalf("Attach: %v", err)
+	}
+	h, isHolder := s.(backend.PromptHolder)
+	if !isHolder {
+		t.Fatal("herdr session is not a backend.PromptHolder")
+	}
+	h.HoldPrompt("task\nprompt")
+	if !h.PromptPending() {
+		t.Fatal("PromptPending = false after HoldPrompt")
+	}
+
+	f.On(cmd("pane", "get"), ok(t, "pane_get_blocked.json"), nil)
+	if st, err := s.State(ctx); err != nil || st != backend.Blocked || len(prompts(f)) != 0 {
+		t.Fatalf("State = %s, %v, prompts %q; want blocked and nothing sent", st, err, prompts(f))
+	}
+	f.On(cmd("pane", "get"), ok(t, "pane_get_idle.json"), nil)
+	f.On(cmd("agent", "prompt", "igris-t-01", "task\nprompt"), ok(t, "agent_prompt_nowait.json"), nil)
+	if st, err := s.State(ctx); err != nil || st != backend.Working {
+		t.Fatalf("State = %s, %v; want working after delivery", st, err)
+	}
+	if h.PromptPending() || !slices.Equal(prompts(f), []string{"task\nprompt"}) {
+		t.Errorf("pending %v, prompts %q; want delivered once", h.PromptPending(), prompts(f))
+	}
+}

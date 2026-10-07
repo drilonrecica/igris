@@ -35,7 +35,10 @@ type Current struct {
 	ClaudeSession  string              `json:"claude_session"` // Claude Code session UUID
 	Session        *backend.SessionRef `json:"session,omitempty"`
 	VerifyAttempts int                 `json:"verify_attempts"` // consecutive verify failures
-	StartedAt      time.Time           `json:"started_at"`
+	// PendingPrompt is the first prompt while the session holds it back at a
+	// startup prompt, so a reattached session still gets it (SPEC §13).
+	PendingPrompt string    `json:"pending_prompt,omitempty"`
+	StartedAt     time.Time `json:"started_at"`
 }
 
 // SaveRun writes r to state.json atomically.

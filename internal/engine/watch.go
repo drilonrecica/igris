@@ -105,6 +105,7 @@ func (e *Engine) watch(ctx context.Context, l *launch) (verdict, error) {
 				e.lose(ctx, l)
 			default:
 				stateErr = ""
+				e.promptDelivered(l)
 				e.observe(ctx, st, &ep)
 			}
 		}

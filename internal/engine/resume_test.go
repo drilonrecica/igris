@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/prompt"
 	"github.com/drilonrecica/igris/internal/state"
 )
@@ -303,5 +304,65 @@ func TestAdoptUserTaskInProgressWithoutState(t *testing.T) {
 	}
 	if got := h.statuses(); got != "A-1=done A-2=done" {
 		t.Errorf("statuses = %s", got)
+	}
+}
+
+// Found in gate M5-06: igris stopped while the session sat at Claude Code's
+// folder-trust prompt, holding back the task prompt. The next run reattached
+// to a session that never got its task and waited forever. The held prompt is
+// recorded in state.json and handed back to the reattached session.
+func TestResumeDeliversAPromptHeldAtStartup(t *testing.T) {
+	h := newHarness(t, chainPlan, "")
+	h.autoSignalExcept("A-1")
+	h.be.StartupPrompt("A-1")
+	// Polled every 2s: at the trust prompt until 20s, then ready.
+	h.be.Script("A-1", append(states(backend.Blocked, 9), backend.Idle, backend.Working)...)
+	h.stopMidTask(6 * time.Second)
+
+	if got := h.be.Prompts("A-1"); len(got) != 0 {
+		t.Fatalf("prompt delivered at the startup prompt: %q", got)
+	}
+	run, err := h.dir.LoadRun()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(run.Current.PendingPrompt, "A-1") {
+		t.Fatalf("state.json pending_prompt = %q, want the task prompt", run.Current.PendingPrompt)
+	}
+
+	h.signalAt(40*time.Second, "A-1")
+	res, err := h.run(resumeLast)
+	if err != nil || res.Outcome != Completed {
+		t.Fatalf("resumed run = %s, %v", res.Outcome, err)
+	}
+	if got := h.be.Prompts("A-1"); len(got) != 1 || !strings.Contains(got[0], "A-1") {
+		t.Errorf("A-1 prompts = %q, want the task prompt delivered once", got)
+	}
+	if ev := h.event(TaskResumed, "A-1"); !strings.Contains(ev.Detail, "task prompt goes out once Claude Code is ready") {
+		t.Errorf("task_resumed = %q", ev.Detail)
+	}
+	if got := h.opened(); got != "A-1 A-2 A-3" {
+		t.Errorf("sessions opened for %q, want the A-1 session reused", got)
+	}
+}
+
+// Once the held prompt went out, state.json forgets it: a later reattach
+// must not send the task a second time.
+func TestPendingPromptClearedOnDelivery(t *testing.T) {
+	h := newHarness(t, chainPlan, "")
+	h.autoSignalExcept("A-1")
+	h.be.StartupPrompt("A-1")
+	h.be.Script("A-1", backend.Blocked, backend.Idle, backend.Working)
+	h.stopMidTask(10 * time.Second)
+
+	run, err := h.dir.LoadRun()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if run.Current.PendingPrompt != "" {
+		t.Errorf("pending_prompt kept after delivery: %q", run.Current.PendingPrompt)
+	}
+	if got := h.be.Prompts("A-1"); len(got) != 1 {
+		t.Errorf("A-1 prompts = %q, want one", got)
 	}
 }
