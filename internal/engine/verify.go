@@ -69,8 +69,8 @@ func (e *Engine) verify(ctx context.Context, l *launch) (bool, error) {
 	e.emit(Event{Kind: VerifyFailed, Detail: fmt.Sprintf("`%s` failed (%s), attempt %d of %d", script, why, n, max)})
 
 	if n >= max {
-		e.emit(Event{Kind: VerifyLimit, Detail: fmt.Sprintf("verify failed %d times in a row; igris stops sending failures to the session", n)})
-		e.needsYou(ctx, notifyVerifyLimit, fmt.Sprintf("verification failed %d times; fix it, retry or skip the task", n), "")
+		e.emit(Event{Kind: VerifyLimit, Detail: fmt.Sprintf("verify failed %s in a row; igris stops sending failures to the session", times(n))})
+		e.needsYou(ctx, notifyVerifyLimit, fmt.Sprintf("verification failed %s; fix it, retry or skip the task", times(n)), "")
 		return false, nil
 	}
 	if l.lost {
@@ -105,4 +105,12 @@ func tail(out string, n int) string {
 		lines = lines[len(lines)-n:]
 	}
 	return strings.Join(lines, "\n")
+}
+
+// times is "once", "2 times", …
+func times(n int) string {
+	if n == 1 {
+		return "once"
+	}
+	return fmt.Sprintf("%d times", n)
 }

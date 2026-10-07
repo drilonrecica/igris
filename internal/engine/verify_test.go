@@ -247,3 +247,12 @@ func TestTail(t *testing.T) {
 		}
 	}
 }
+
+// Found in gate M5-06 with verify_max_attempts = 1: "verify failed 1 times".
+func TestTimes(t *testing.T) {
+	for n, want := range map[int]string{1: "once", 2: "2 times", 3: "3 times"} {
+		if got := times(n); got != want {
+			t.Errorf("times(%d) = %q, want %q", n, got, want)
+		}
+	}
+}
