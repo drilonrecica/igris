@@ -1,0 +1,40 @@
+Preview · M2 through M3 · v runs again
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+note: the last run stopped during M2-02; a real run picks it up first
+warning: M2-04 asks for model fable, which igris.toml doesn't define
+nothing is written and no session starts
+
+  1. M2-02 sonnet → sonnet · mode plan · resumed: fresh session
+     Parse widgets with a title long enough to wrap in the narrow layouts
+  2. M2-04 opus → opus · mode yolo [SKIP PERMISSIONS]
+     Wire the dispatcher
+  3. M2-05 user task: waits for you
+     Buy the domain
+      phase M2 complete
+      mode of M3 follows the Mode column
+  4. M3-01 haiku → haiku · mode default
+     Release notes
+warning: phase M3 is stuck: M3-02 waits for M9-01
+
+Total: 3 sessions · 1 user task
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[Arise with these settings] [Preview again] [Close]

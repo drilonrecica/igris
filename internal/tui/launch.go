@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -121,6 +122,24 @@ func (m *homeScreen) openWizard(pre Wizard) tea.Cmd {
 	return m.phaseStep()
 }
 
+// ariseFrom opens the wizard with the choices of a previewed request: its
+// phase is selected (resume stays the first choice), its through and mode
+// are the ones to start on.
+func (m *homeScreen) ariseFrom(req report.RunRequest) tea.Cmd {
+	if !m.offers(actArise) {
+		m.setStatus("Arise isn't available here; the card says why")
+		return nil
+	}
+	if req.Phase == "" {
+		return m.openWizard(Wizard{Mode: req.Mode, Through: req.Through})
+	}
+	if m.launch != nil || m.run != nil {
+		return nil
+	}
+	m.launch = &launch{req: report.RunRequest{Phase: req.Phase, Through: req.Through, Mode: req.Mode}}
+	return m.phaseStep()
+}
+
 // openPending opens the wizard `igris arise` asked for once home knows
 // whether a run can start here.
 func (m *homeScreen) openPending() tea.Cmd {
@@ -165,6 +184,7 @@ func (m *homeScreen) resumeFirst() string {
 // The selected phase is the default when it has work.
 func (m *homeScreen) phaseStep() tea.Cmd {
 	l := m.launch
+	want := cmp.Or(l.req.Phase, m.phaseID) // a previewed phase starts selected
 	l.step, l.resume, l.req.Phase = wizPhase, false, ""
 	d := &dialog{title: "Phase", detail: "Which phase to run.", cancel: actClose}
 	var work, complete []option
@@ -187,7 +207,7 @@ func (m *homeScreen) phaseStep() tea.Cmd {
 	}
 	// The phases with work come first, so the first is the default when
 	// the selected phase has none.
-	d.selected = max(slices.Index(workIDs, m.phaseID), 0)
+	d.selected = max(slices.Index(workIDs, want), 0)
 	m.dialog = d
 	return nil
 }
@@ -571,8 +591,9 @@ func (m *homeScreen) wizardPick(a action) tea.Cmd {
 			l.confirm = 0
 			return m.nextConfirm()
 		case actPreview:
+			req := l.req // resuming has no phase: the last run's
 			m.closeWizard()
-			return m.activate(actPreview)
+			return m.openPreview(req)
 		}
 	case wizConfirm:
 		if a == actWizConfirm {

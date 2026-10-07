@@ -230,6 +230,8 @@ func (m *homeScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			l.pre = &pre
 			m.summaryStep()
 		}
+	case ariseMsg:
+		return m, m.ariseFrom(msg.req)
 	case launchedMsg:
 		return m, m.launched(msg)
 	case launchFailedMsg:
@@ -528,10 +530,27 @@ func (m *homeScreen) activate(a action) tea.Cmd {
 	if label == "" {
 		return nil // not offered right now
 	}
-	if a == actArise {
+	switch a {
+	case actArise:
 		return m.openWizard(Wizard{})
+	case actPreview:
+		return m.openPreview(m.previewRequest())
 	}
 	return m.notYet(label)
+}
+
+// previewRequest is what `v` previews: the last run's phases while there
+// is one to resume, else the selected phase.
+func (m *homeScreen) previewRequest() report.RunRequest {
+	if m.resumable() {
+		return report.RunRequest{}
+	}
+	return report.RunRequest{Phase: m.phaseID}
+}
+
+// openPreview pushes the dry run page for req over home.
+func (m *homeScreen) openPreview(req report.RunRequest) tea.Cmd {
+	return push(newPreview(m.ctx, m.svc, m.th, req))
 }
 
 // notYet says on the status line that name's page isn't in this build:

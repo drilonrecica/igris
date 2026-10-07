@@ -404,9 +404,8 @@ func TestHomeActionsThreeWays(t *testing.T) {
 	// The focused button.
 	m.status = ""
 	send(keyMsg("right"))
-	send(keyMsg("enter"))
-	if !strings.Contains(m.status, "Preview") {
-		t.Errorf("enter on Preview: status %q", m.status)
+	if _, ok := send(keyMsg("enter")).(pushMsg); !ok {
+		t.Errorf("enter on Preview didn't push the preview page (status %q)", m.status)
 	}
 	// A click.
 	m.status = ""

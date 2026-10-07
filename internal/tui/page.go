@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -11,9 +12,19 @@ import (
 type page struct {
 	title string
 	body  func(w int) []string // the text, laid out for w cells
-	top   int                  // first body line shown; clamped when drawn
-	rows  int                  // body lines shown in the last frame
-	total int                  // body lines in the last frame
+	// buttons stand left of Close in the footer; the screen holding the
+	// page acts on their zones.
+	buttons []pageButton
+	top     int // first body line shown; clamped when drawn
+	rows    int // body lines shown in the last frame
+	total   int // body lines in the last frame
+}
+
+// pageButton is a footer button of a page.
+type pageButton struct {
+	label string
+	short string // used when the labels don't fit w; "" keeps label
+	act   action
 }
 
 // key handles a key press and reports whether it closes the page.
@@ -73,13 +84,30 @@ func (p *page) render(th *theme, w, h int) ([]string, zones) {
 	for i := range rows {
 		out = append(out, fit(line(body, p.top+i), w))
 	}
-	close := th.button("Close", btnNormal)
-	where := ""
-	if len(body) > rows {
-		where = th.paint(lookDim, fmt.Sprintf("  %d–%d of %d · ↑↓ scroll", p.top+1, min(p.top+rows, len(body)), len(body)))
+	foot, x := "", 0
+	btns := append(slices.Clone(p.buttons), pageButton{label: "Close", act: actClose})
+	short := false
+	if n := len(btns) - 1; n > 0 {
+		for _, b := range btns {
+			n += textWidth(th.button(b.label, btnNormal))
+		}
+		short = n > w
 	}
-	z.add(rect{0, h - 1, textWidth(close), 1}, target{act: actClose})
-	out = append(out, fit(close+where, w))
+	for _, b := range btns {
+		label := b.label
+		if short && b.short != "" {
+			label = b.short
+		}
+		btn := th.button(label, btnNormal)
+		z.add(rect{x, h - 1, min(textWidth(btn), max(w-x, 0)), 1}, target{act: b.act})
+		foot += btn + " "
+		x += textWidth(btn) + 1
+	}
+	foot = strings.TrimSuffix(foot, " ")
+	if len(body) > rows && len(p.buttons) == 0 {
+		foot += th.paint(lookDim, fmt.Sprintf("  %d–%d of %d · ↑↓ scroll", p.top+1, min(p.top+rows, len(body)), len(body)))
+	}
+	out = append(out, fit(foot, w))
 	return out, z
 }
 
