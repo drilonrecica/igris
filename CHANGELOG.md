@@ -4,6 +4,21 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-07
+
+Robustness: warnings when Claude Code or herdr drift from the versions igris was verified with, fuzzing of the parser and the plan writer, and error messages that say what to do next. No change to the plan format, config keys, CLI flags or file formats.
+
+### Added
+
+- `igris check` and `igris arise` (also `--dry-run`) run `claude --version` and `herdr --version` and warn when a tool is not in `PATH`, its version can't be read, it is older than the oldest version igris is verified with (Claude Code 2.1.291, herdr 0.9.1), or it is a newer major version than the newest one re-verified (Claude Code 2.1.292, herdr 0.9.1). A warning only: igris never refuses to run because of a version. In `check --json` these warnings have no `file` or `line` (SPEC §11.4).
+- `docs/reverify.md`: the Claude Code and herdr checks from P0-02/P0-03 as a repeatable checklist, with the commands, the expected output shapes and how to refresh the herdr fixtures. It ran clean against Claude Code 2.1.292 and herdr 0.9.1.
+- Fuzz targets (Go's built-in fuzzing) for the table tokenizer and plan parser, the Status writer, the config loader and the signal reader. The writer's target checks the core promise for any input: a status change touches nothing but that task's Status cell. `make fuzz` runs them (`FUZZTIME`, default 1m); `make test` replays the seeds.
+
+### Changed
+
+- Error messages say what to do next. Among them: `arise` without a plan file, herdr not installed (instead of a long "not reachable" chain), a session that fails to start or can't get its prompt, a failing `git commit` (e.g. a hook), a broken `run.commit_message`, a lock that can't be cleared, an invalid task ID in `igris done`/`skip`, usage errors (`see igris <command> -h`), and a TUI failure (`igris arise --no-tui`). `check`, `phases` and `status` now prefix their errors with the command (`igris check: …`).
+- `igris done` and `igris skip` say when no igris run is active in the project: the signal is kept, and the next `igris arise` applies it.
+
 ## [0.1.1] - 2026-10-07
 
 Fixes from running the v0.1.0 owner gates on real plans, a phone and real notification channels. No change to the config keys, CLI flags or file formats; one relaxation of the plan format (finished tasks need no Model).
@@ -104,6 +119,7 @@ First release. Linux and macOS, herdr backend only. The full behavior is specifi
 - Release artifacts are not signed (checksums only); signing is planned.
 - No Homebrew tap yet.
 
-[Unreleased]: https://github.com/drilonrecica/igris/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/drilonrecica/igris/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/drilonrecica/igris/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/drilonrecica/igris/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/drilonrecica/igris/releases/tag/v0.1.0
