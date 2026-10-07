@@ -7,11 +7,15 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"text/tabwriter"
 
 	"github.com/drilonrecica/igris/internal/config"
+	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/plan"
+	"github.com/drilonrecica/igris/internal/state"
 )
 
 // configFile is the config looked up in the working directory.
@@ -24,15 +28,23 @@ var statuses = []plan.Status{plan.Ready, plan.Blocked, plan.InProgress, plan.Don
 type loaded struct {
 	cfg  *config.Config
 	plan *plan.Plan
+	// noConfig: there is no igris.toml here, so the defaults apply.
+	noConfig bool
+	// parentConfig is the igris.toml of a parent directory, which these
+	// commands don't read: they were run from inside the project.
+	parentConfig string
 }
 
 // loadPlan resolves the plan path (--plan, else igris.toml, else tasks.md)
 // and parses it. A non-zero code means the error was already reported.
 func loadPlan(fs *flag.FlagSet, stderr io.Writer) (*loaded, int) {
+	l := &loaded{}
 	cfg, err := config.Load(configFile)
 	switch {
 	case errors.Is(err, config.ErrNotFound):
 		cfg = config.Default()
+		l.noConfig = true
+		l.parentConfig = parentConfig()
 	case err != nil:
 		fmt.Fprintf(stderr, "%s: %v\n", fs.Name(), err)
 		return nil, exitFail
@@ -43,10 +55,40 @@ func loadPlan(fs *flag.FlagSet, stderr io.Writer) (*loaded, int) {
 	}
 	p, err := plan.Load(path, plan.Options{Columns: cfg.Columns})
 	if err != nil {
-		fmt.Fprintf(stderr, "%s: %v; pass --plan PATH or set plan in %s\n", fs.Name(), err, configFile)
+		hint := ""
+		if l.parentConfig != "" {
+			hint = fmt.Sprintf(" (%s)", parentHint(l.parentConfig))
+		}
+		fmt.Fprintf(stderr, "%s: %v; pass --plan PATH or set plan in %s%s\n", fs.Name(), err, configFile, hint)
 		return nil, exitFail
 	}
-	return &loaded{cfg: cfg, plan: p}, exitOK
+	if l.parentConfig != "" && fs.Name() != "igris check" { // check lists it as a warning
+		fmt.Fprintf(stderr, "note: %s\n", parentHint(l.parentConfig))
+	}
+	l.cfg, l.plan = cfg, p
+	return l, exitOK
+}
+
+// parentConfig returns the igris.toml of the nearest parent directory that
+// has one, or "".
+func parentConfig() string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	root, err := state.FindRoot(cwd)
+	if err != nil || root == cwd {
+		return ""
+	}
+	path := filepath.Join(root, configFile)
+	if _, err := os.Stat(path); err != nil {
+		return ""
+	}
+	return path
+}
+
+func parentHint(path string) string {
+	return fmt.Sprintf("%s found in %s; run igris from there (this directory uses the defaults)", configFile, filepath.Dir(path))
 }
 
 func jsonFlag(fs *flag.FlagSet) bool { return fs.Lookup("json").Value.String() == "true" }
@@ -115,6 +157,12 @@ func execCheck(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	for _, w := range l.cfg.Warnings() {
 		warnings = append(warnings, warningJSON{File: configFile, Message: w})
 	}
+	if ariseGetenv(engine.APIKeyVar) != "" {
+		warnings = append(warnings, warningJSON{Message: engine.APIKeyWarning})
+	}
+	if l.parentConfig != "" {
+		warnings = append(warnings, warningJSON{Message: parentHint(l.parentConfig)})
+	}
 	if valid {
 		for _, h := range l.plan.Hints() {
 			warnings = append(warnings, warningJSON{File: h.File, Line: h.Line, Message: h.Msg})
@@ -147,6 +195,10 @@ func execCheck(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 				continue
 			}
 			fmt.Fprintf(stdout, "warning: %s:%d: %s\n", w.File, w.Line, w.Message)
+		}
+		if l.noConfig && l.parentConfig == "" {
+			// Not a warning: a directory with just a plan is a valid project.
+			fmt.Fprintf(stdout, "note: no %s here; using the defaults (`igris init` creates one)\n", configFile)
 		}
 		if valid {
 			fmt.Fprintf(stdout, "%s: OK (%d phases, %d tasks, %d warnings)\n", l.plan.Path, len(l.plan.Phases), len(l.plan.Tasks), len(warnings))

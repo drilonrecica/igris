@@ -330,3 +330,88 @@ func TestCheckWarnsAboutClaudeCommand(t *testing.T) {
 		t.Errorf("warning = %v, want file igris.toml and no line", w)
 	}
 }
+
+const hintPlan = "## M0 — One\n\n| ID | Status | Model | Deps |\n|---|---|---|---|\n| a | ready | sonnet | — |\n"
+
+func TestCheckWarnsAboutAPIKey(t *testing.T) {
+	dir := inDir(t)
+	if err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(hintPlan), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	saved := ariseGetenv
+	t.Cleanup(func() { ariseGetenv = saved })
+	ariseGetenv = func(k string) string {
+		if k == engine.APIKeyVar {
+			return "sk-secret"
+		}
+		return ""
+	}
+	code, out, _ := runCmd("check")
+	if code != exitOK || !strings.Contains(out, "warning: ANTHROPIC_API_KEY is set") || !strings.Contains(out, "1 warnings") || strings.Contains(out, "sk-secret") {
+		t.Errorf("code %d, out:\n%s", code, out)
+	}
+	code, out, _ = runCmd("check", "--json")
+	if code != exitOK || !strings.Contains(out, `"message": "ANTHROPIC_API_KEY is set`) || strings.Contains(out, "sk-secret") {
+		t.Errorf("json: code %d, out:\n%s", code, out)
+	}
+}
+
+// From a subdirectory of a project, check, phases and status read no
+// igris.toml; they say where it is.
+func TestConfigInParent(t *testing.T) {
+	// Resolved: on macOS the temp dir is under /var → /private/var, and the
+	// hint names the directory as os.Getwd sees it.
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	sub := filepath.Join(root, "docs")
+	if err := os.MkdirAll(sub, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, configFile), []byte("plan = \"tasks.md\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(sub)
+	want := "igris.toml found in " + root + "; run igris from there"
+
+	// No plan here: the error carries the hint.
+	if code, _, errs := runCmd("status"); code != exitFail || !strings.Contains(errs, want) {
+		t.Errorf("status without plan: code %d, stderr %q", code, errs)
+	}
+
+	if err := os.WriteFile(filepath.Join(sub, "tasks.md"), []byte(hintPlan), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	code, out, _ := runCmd("check")
+	if code != exitOK || !strings.Contains(out, "warning: "+want) || strings.Contains(out, "note:") {
+		t.Errorf("check: code %d, out:\n%s", code, out)
+	}
+	for _, cmd := range []string{"phases", "status"} {
+		code, out, errs := runCmd(cmd)
+		if code != exitOK || !strings.Contains(errs, "note: "+want) || strings.Contains(out, want) {
+			t.Errorf("%s: code %d, stdout %q, stderr %q", cmd, code, out, errs)
+		}
+	}
+}
+
+// A directory with just a plan is fine: a note, not a warning.
+func TestCheckNotesMissingConfig(t *testing.T) {
+	dir := inDir(t)
+	if err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(hintPlan), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	code, out, _ := runCmd("check")
+	if code != exitOK || !strings.Contains(out, "note: no igris.toml here; using the defaults") || !strings.Contains(out, "0 warnings") {
+		t.Errorf("code %d, out:\n%s", code, out)
+	}
+	if _, out, _ := runCmd("check", "--json"); strings.Contains(out, "note") || strings.Contains(out, "defaults") {
+		t.Errorf("json mentions the note:\n%s", out)
+	}
+	if err := os.WriteFile(filepath.Join(dir, configFile), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, out, _ := runCmd("check"); strings.Contains(out, "note:") {
+		t.Errorf("with igris.toml:\n%s", out)
+	}
+}

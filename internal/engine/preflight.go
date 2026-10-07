@@ -12,6 +12,10 @@ import (
 // the owner's subscription login (SPEC §7.4).
 const APIKeyVar = "ANTHROPIC_API_KEY" //nolint:gosec // G101: a variable name, not a credential
 
+// APIKeyWarning is the warning when APIKeyVar is set, for every command that
+// mentions it (never the value: it is a secret).
+const APIKeyWarning = APIKeyVar + " is set: Claude Code would bill the API instead of your subscription login. Unset it unless that is what you want."
+
 // preflightTimeout bounds each git call of Preflight.
 const preflightTimeout = 30 * time.Second
 
@@ -29,11 +33,7 @@ type StartWarning struct {
 func Preflight(ctx context.Context, r runner.Runner, root string, getenv func(string) string) []StartWarning {
 	var out []StartWarning
 	if getenv(APIKeyVar) != "" {
-		// Never the value: it is a secret.
-		out = append(out, StartWarning{
-			Text:    APIKeyVar + " is set: Claude Code would bill the API instead of your subscription login. Unset it unless that is what you want.",
-			Confirm: true,
-		})
+		out = append(out, StartWarning{Text: APIKeyWarning, Confirm: true})
 	}
 	git := func(args ...string) (string, bool) {
 		res, err := r.Run(ctx, runner.Cmd{Name: "git", Args: args, Dir: root, Timeout: preflightTimeout})

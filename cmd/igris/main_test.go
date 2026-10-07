@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/runner"
 )
 
@@ -15,6 +16,13 @@ import (
 // runs unless a test asks for one (see withVersions).
 func TestMain(m *testing.M) {
 	compatWarnings = func(context.Context, runner.Runner) []string { return nil }
+	// Nor on the developer's ANTHROPIC_API_KEY: check would warn about it.
+	ariseGetenv = func(k string) string {
+		if k == engine.APIKeyVar {
+			return ""
+		}
+		return os.Getenv(k)
+	}
 	os.Exit(m.Run())
 }
 

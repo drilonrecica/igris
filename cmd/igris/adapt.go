@@ -69,7 +69,7 @@ func execAdapt(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 		return fail("%v", err)
 	}
 	if ariseGetenv(engine.APIKeyVar) != "" {
-		fmt.Fprintf(stdout, "warning: %s is set: Claude Code bills the API instead of your subscription login.\n", engine.APIKeyVar)
+		fmt.Fprintf(stdout, "warning: %s\n", engine.APIKeyWarning)
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
