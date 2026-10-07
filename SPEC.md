@@ -25,6 +25,7 @@ This document is the normative source for igris v1. If code and this spec disagr
 - Multiplexers other than herdr (tmux etc. come later via the backend interface, §11).
 - Hosted service, web UI, accounts, telemetry. Igris makes no network calls except to the notification endpoints the user configures.
 - Estimating or tracking token cost. Igris enforces the model; it does not meter usage.
+- Native Windows. Windows is supported through WSL2, with herdr and Claude Code inside WSL as well; release builds are for Linux and macOS only.
 
 ---
 

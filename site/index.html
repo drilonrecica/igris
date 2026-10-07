@@ -133,7 +133,7 @@
             <code>go install github.com/drilonrecica/<wbr>igris/cmd/igris@latest</code>
             <button type="button" class="copy" hidden>Copy</button>
           </div>
-          <p>Or download a static binary for Linux or macOS (amd64, arm64) from <a href="https://github.com/drilonrecica/igris/releases/latest">Releases</a> and check it against <code>checksums.txt</code>.</p>
+          <p>Or download a static binary for Linux or macOS (amd64, arm64; on Windows, the Linux one inside WSL2) from <a href="https://github.com/drilonrecica/igris/releases/latest">Releases</a> and check it against <code>checksums.txt</code>.</p>
           <p>Then, in a herdr pane in your project:</p>
           <div class="cmd"><code>igris init &amp;&amp; igris check &amp;&amp; igris arise M0</code></div>
           <p class="note"><a href="https://github.com/drilonrecica/igris#quick-start">Quick start and herdr setup in the README</a></p>
@@ -144,7 +144,7 @@
             <li><strong>Claude Code</strong>, logged in the way you normally use it (Pro/Max subscription).</li>
             <li><strong><a href="https://herdr.dev">herdr</a></strong>, which keeps sessions alive across disconnects. tmux support is planned.</li>
             <li><strong>git</strong>, recommended.</li>
-            <li><strong>Linux or macOS</strong>.</li>
+            <li><strong>Linux or macOS</strong>, or Windows through WSL2 (<a href="https://github.com/drilonrecica/igris#windows-wsl2">notes</a>).</li>
           </ul>
           <p class="callout">If <code>ANTHROPIC_API_KEY</code> is set, Claude Code bills the API instead of your subscription. igris warns you at start.</p>
           <div class="faq">

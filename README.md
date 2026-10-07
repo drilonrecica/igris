@@ -22,7 +22,7 @@
 
 You write the plan. You decide which tasks need Fable, which need Opus and which are fine on Sonnet. Igris makes sure that's what actually happens: it never runs a Sonnet task on a more expensive model, never lets one task's context bleed into the next, and stops to wait for you whenever a task needs a decision.
 
-> **Status:** v0.1.1. Linux and macOS, herdr backend only. The full behavior is specified in [`SPEC.md`](SPEC.md).
+> **Status:** v0.1.3. Linux and macOS, Windows through WSL2; herdr backend only. The full behavior is specified in [`SPEC.md`](SPEC.md).
 
 ---
 
@@ -63,7 +63,7 @@ Rank aliases are configurable in `igris.toml`. Every key is optional; unknown ke
   > If `ANTHROPIC_API_KEY` is set in your environment, Claude Code bills the API instead of your subscription. Igris warns you about this at start.
 - **[herdr](https://herdr.dev)** — v1 runs sessions in herdr tabs, so everything survives disconnects and you can reconnect over SSH (e.g. from your phone). tmux support is planned. See [herdr setup](#herdr-setup).
 - **git** (recommended): igris can commit after each task and warns when the tree is dirty.
-- Linux or macOS (amd64 or arm64).
+- Linux or macOS (amd64 or arm64). On Windows, use WSL2: see [Windows (WSL2)](#windows-wsl2).
 
 igris is verified with Claude Code 2.1.291 and herdr 0.9.1 or later. `igris check` and `igris arise` warn when either is missing, older, or a newer major version; they never refuse to run because of it.
 
@@ -95,6 +95,18 @@ Igris starts every Claude Code session in its own herdr tab, so `igris arise` mu
 3. In a herdr pane, `cd` to your project and run igris (see Quick start).
 
 Outside herdr, `igris arise` exits and says so. `init`, `check`, `phases`, `status`, `done`, `skip` and `notify test` need no herdr (`adapt` does).
+
+## Windows (WSL2)
+
+igris doesn't run natively on Windows. It runs inside [WSL2](https://learn.microsoft.com/windows/wsl/install), like herdr and Claude Code:
+
+1. Install WSL2 with a Linux distribution (Ubuntu is fine) and open it in Windows Terminal.
+2. **Inside WSL**, install herdr, Claude Code and igris (the `linux_amd64` binary, or `linux_arm64` on ARM), as described above. Don't mix them: an igris in WSL can't drive a Claude Code or herdr installed on the Windows side.
+3. Keep the project in the Linux filesystem (`~/code/…`), not under `/mnt/c`. Files on the Windows drive are much slower from WSL, and Windows tools touching the same checkout (an IDE's git, `core.autocrlf`) make for surprising diffs. If your editor is on Windows, open the WSL folder through `\\wsl$\` or VS Code's WSL extension.
+
+Plans and `igris.toml` saved by Windows editors work: CRLF line endings and a UTF-8 byte order mark are fine, and igris keeps both when it writes a Status cell. Windows Terminal supports the colors and mouse input the TUI uses.
+
+So far WSL2 support has been tested by reproducing these conditions on Linux (`docs/check-wsl.md`), not yet on a real Windows machine. Reports, good or bad, are welcome in an issue.
 
 ## Quick start
 
@@ -223,6 +235,9 @@ Igris treats sessions as untrusted. `igris.toml` is read once per run; if it cha
 
 **I don't use herdr.**
 v1 needs it. A tmux backend is on the roadmap.
+
+**Does it run on Windows?**
+Through WSL2, with herdr and Claude Code installed inside WSL too; see [Windows (WSL2)](#windows-wsl2). A native Windows build is not planned.
 
 ## Roadmap
 
