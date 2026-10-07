@@ -92,7 +92,7 @@ A task table is a GitHub-flavored markdown table whose header row contains at le
 - Validation errors: unknown ID, self-dependency, dependency cycle, malformed range.
 
 ### 3.5 Owners and models
-- `user` tasks must have Model `—`. `agent` and `agent + user` tasks must have a Model that resolves through `[models]` config. Violations are validation errors (igris never guesses a model).
+- `user` tasks must have Model `—`. `agent` and `agent + user` tasks must have a Model that resolves through `[models]` config, except finished ones (`done`, `skipped`): igris never starts a session for them, so their Model may be `—`. Violations are validation errors (igris never guesses a model).
 - An unknown Owner or Mode value is a validation error.
 - A control character (other than tab) in a task row or a phase heading — an escape sequence, say — is a validation error. Parsed cell text never carries one: the TUI, the prompts and the notifications only ever see cleaned text.
 

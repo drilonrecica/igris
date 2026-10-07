@@ -114,6 +114,9 @@ func (v *validator) checkTask(t *Task) {
 	switch {
 	case t.Owner == OwnerUser && t.Rank != "":
 		v.add(at, "%s: user tasks must have Model —, not %q (igris runs no session for them)", name, t.Rank)
+	case t.Owner.IsAgent() && t.Rank == "" && t.Status.Satisfied():
+		// A finished task never gets a session, so it needs no model (SPEC
+		// §3.5). If it goes back to ready or blocked, this check catches it.
 	case t.Owner.IsAgent() && t.Rank == "":
 		hint := "use Owner user for tasks without a session"
 		if t.Phase != nil && !contains(t.Phase.Columns, ColOwner) {

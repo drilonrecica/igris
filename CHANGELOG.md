@@ -8,6 +8,15 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 - `CONTRIBUTING.md`, `SECURITY.md` (private vulnerability reporting through GitHub), a bug report template that asks for the igris, Claude Code and herdr versions, and a pull request template.
 
+### Changed
+
+- Finished agent tasks (`done`, `skipped`) no longer need a Model: igris never starts a session for them. A task that goes back to `ready` or `blocked` needs one again, and `igris check` says so. Plans that were valid stay valid.
+
+### Fixed
+
+- An unknown status that is a common synonym gets a hint: `unknown status "dropped" (did you mean skipped?)`, likewise for `completed` → done and `wip` → in progress. It is still an error.
+- The "agent task needs a Model" error no longer tells you to set Owner `user` when the table has no Owner column; it says to add one.
+
 ## [0.1.0] - 2026-10-07
 
 First release. Linux and macOS, herdr backend only. The full behavior is specified in [`SPEC.md`](SPEC.md).

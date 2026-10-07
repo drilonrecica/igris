@@ -29,6 +29,9 @@ func TestValidateValid(t *testing.T) {
 		"| b | a | ready | — | user | |",
 		"| c | a, b | blocked | opus | agent + user | yolo |",
 		"| d | a…c | blocked | haiku | Agent | Accept |",
+		// Finished agent tasks never get a session, so they need no model.
+		"| e | | done | — | agent | |",
+		"| f | | skipped (not needed) | | agent + user | |",
 	)
 	if issues := Parse("tasks.md", []byte(in), Options{}).Validate(testModels); len(issues) > 0 {
 		t.Fatalf("unexpected issues: %v", issueMsgs(issues))
@@ -76,10 +79,12 @@ func TestValidateErrors(t *testing.T) {
 			[]string{`tasks.md:5: a: model not set yet ("?"); fill in one of: fable, haiku, opus, sonnet`}},
 		{"user with model", table("| a | | ready | sonnet | user | |"),
 			[]string{`tasks.md:5: a: user tasks must have Model —, not "sonnet" (igris runs no session for them)`}},
-		{"agent without model", table("| a | | ready | — | agent | |", "| b | | ready | | agent + user | |"),
+		{"agent without model", table("| a | | ready | — | agent | |", "| b | | ready | | agent + user | |", "| c | | in progress | — | agent | |", "| d | | blocked | — | agent | |"),
 			[]string{
 				"tasks.md:5: a: agent task needs a Model (a rank from [models], e.g. sonnet); use Owner user for tasks without a session",
 				"tasks.md:6: b: agent + user task needs a Model (a rank from [models], e.g. sonnet); use Owner user for tasks without a session",
+				"tasks.md:7: c: agent task needs a Model (a rank from [models], e.g. sonnet); use Owner user for tasks without a session",
+				"tasks.md:8: d: agent task needs a Model (a rank from [models], e.g. sonnet); use Owner user for tasks without a session",
 			}},
 		{"agent without model in a table without Owner", "## M0\n\n| ID | Status | Model |\n|---|---|---|\n| a | ready | — |\n",
 			[]string{
