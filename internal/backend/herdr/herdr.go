@@ -111,8 +111,9 @@ func (b *Backend) OpenSession(ctx context.Context, spec backend.SessionSpec) (ba
 		return nil, fmt.Errorf("open a herdr tab for %s: %w", spec.TaskID, err)
 	}
 	s := &Session{
-		c:  b.c,
-		id: spec.TaskID,
+		c:     b.c,
+		id:    spec.TaskID,
+		sleep: b.sleep,
 		ref: backend.SessionRef{
 			Backend: Name,
 			TabID:   tab.TabID,
@@ -165,7 +166,7 @@ func (b *Backend) Attach(ctx context.Context, ref backend.SessionRef) (backend.S
 	if !refIDPattern.MatchString(ref.TabID) || !refIDPattern.MatchString(ref.PaneID) || !refAgentPattern.MatchString(ref.Agent) {
 		return nil, fmt.Errorf("attach: session ref (tab %q, pane %q, agent %q) is incomplete or malformed; state.json looks damaged, delete it to start a new run", ref.TabID, ref.PaneID, ref.Agent)
 	}
-	s := &Session{c: b.c, id: ref.Agent, ref: ref}
+	s := &Session{c: b.c, id: ref.Agent, ref: ref, sleep: b.sleep}
 	p, err := b.c.PaneGet(ctx, ref.PaneID)
 	switch {
 	case gone(err):

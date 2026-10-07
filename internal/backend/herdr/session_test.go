@@ -32,8 +32,13 @@ func open(t *testing.T, f *runner.Fake) *Session {
 	if err != nil {
 		t.Fatalf("OpenSession: %v", err)
 	}
-	return s.(*Session)
+	hs := s.(*Session)
+	hs.sleep = noSleep
+	return hs
 }
+
+// noSleep stands in for the settle wait before a held prompt goes out.
+func noSleep(context.Context, time.Duration) error { return nil }
 
 func started(t *testing.T) *runner.Fake {
 	t.Helper()
@@ -322,6 +327,7 @@ func TestStartupBlocked(t *testing.T) {
 
 	// Past the prompt: the held prompt goes out and the agent works.
 	f.On(cmd("pane", "get"), ok(t, "pane_get_idle.json"), nil)
+	f.On(cmd("pane", "get"), ok(t, "pane_get_idle.json"), nil) // still idle after promptSettle
 	f.On(cmd("agent", "prompt", "igris-t-01", "task\nprompt"), ok(t, "agent_prompt_nowait.json"), nil)
 	if st, err := s.State(ctx); err != nil || st != backend.Working {
 		t.Fatalf("State = %s, %v; want working after delivery", st, err)
@@ -364,6 +370,7 @@ func TestStartupBlockedVariants(t *testing.T) {
 		f := startupBlocked(t)
 		s := open(t, f)
 		f.On(cmd("pane", "get"), ok(t, "pane_get_idle.json"), nil)
+		f.On(cmd("pane", "get"), ok(t, "pane_get_idle.json"), nil) // after promptSettle
 		f.On(cmd("agent", "prompt"), ok(t, "agent_prompt_nowait.json"), nil)
 		if err := s.Prompt(ctx, "task"); err != nil {
 			t.Fatalf("Prompt: %v", err)
@@ -380,11 +387,13 @@ func TestStartupBlockedVariants(t *testing.T) {
 			t.Fatalf("Prompt: %v", err)
 		}
 		f.On(cmd("pane", "get"), ok(t, "pane_get_idle.json"), nil)
+		f.On(cmd("pane", "get"), ok(t, "pane_get_idle.json"), nil)
 		f.On(cmd("agent", "prompt"), fail(t, "error_agent_blocked.json", 1), nil)
 		if st, err := s.State(ctx); err != nil || st != backend.Blocked {
 			t.Fatalf("State = %s, %v; want blocked", st, err)
 		}
 		// Still held: the next idle poll delivers it.
+		f.On(cmd("pane", "get"), ok(t, "pane_get_idle.json"), nil)
 		f.On(cmd("pane", "get"), ok(t, "pane_get_idle.json"), nil)
 		f.On(cmd("agent", "prompt"), ok(t, "agent_prompt_nowait.json"), nil)
 		if st, err := s.State(ctx); err != nil || st != backend.Working {
@@ -537,6 +546,7 @@ func TestHoldPromptAfterAttach(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Attach: %v", err)
 	}
+	s.(*Session).sleep = noSleep
 	h, isHolder := s.(backend.PromptHolder)
 	if !isHolder {
 		t.Fatal("herdr session is not a backend.PromptHolder")
@@ -551,11 +561,48 @@ func TestHoldPromptAfterAttach(t *testing.T) {
 		t.Fatalf("State = %s, %v, prompts %q; want blocked and nothing sent", st, err, prompts(f))
 	}
 	f.On(cmd("pane", "get"), ok(t, "pane_get_idle.json"), nil)
+	f.On(cmd("pane", "get"), ok(t, "pane_get_idle.json"), nil)
 	f.On(cmd("agent", "prompt", "igris-t-01", "task\nprompt"), ok(t, "agent_prompt_nowait.json"), nil)
 	if st, err := s.State(ctx); err != nil || st != backend.Working {
 		t.Fatalf("State = %s, %v; want working after delivery", st, err)
 	}
 	if h.PromptPending() || !slices.Equal(prompts(f), []string{"task\nprompt"}) {
 		t.Errorf("pending %v, prompts %q; want delivered once", h.PromptPending(), prompts(f))
+	}
+}
+
+// Found in gate M5-06: right after the folder-trust question closes, Claude
+// Code shows its input box before it takes input, and a prompt sent then is
+// lost although herdr accepts it. A held prompt waits promptSettle and goes
+// out only if the agent is still idle; otherwise it stays held.
+func TestHeldPromptWaitsToSettle(t *testing.T) {
+	ctx := context.Background()
+	f := startupBlocked(t)
+	s := open(t, f)
+	var slept []time.Duration
+	s.sleep = func(_ context.Context, d time.Duration) error { slept = append(slept, d); return nil }
+
+	f.On(cmd("pane", "get"), ok(t, "pane_get_blocked.json"), nil)
+	if err := s.Prompt(ctx, "task"); err != nil {
+		t.Fatalf("Prompt: %v", err)
+	}
+	// Idle for a moment, then busy again by the time the wait is over.
+	f.On(cmd("pane", "get"), ok(t, "pane_get_idle.json"), nil)
+	f.On(cmd("pane", "get"), ok(t, "pane_get_blocked.json"), nil)
+	if st, err := s.State(ctx); err != nil || st != backend.Unknown || len(prompts(f)) != 0 {
+		t.Fatalf("State = %s, %v, prompts %q; want unknown and nothing sent", st, err, prompts(f))
+	}
+	if !s.PromptPending() {
+		t.Fatal("the prompt is no longer held")
+	}
+	// Idle and still idle after the wait: now it goes out.
+	f.On(cmd("pane", "get"), ok(t, "pane_get_idle.json"), nil)
+	f.On(cmd("pane", "get"), ok(t, "pane_get_idle.json"), nil)
+	f.On(cmd("agent", "prompt"), ok(t, "agent_prompt_nowait.json"), nil)
+	if st, err := s.State(ctx); err != nil || st != backend.Working {
+		t.Fatalf("State = %s, %v; want working", st, err)
+	}
+	if !slices.Equal(prompts(f), []string{"task"}) || !slices.Equal(slept, []time.Duration{promptSettle, promptSettle}) {
+		t.Errorf("prompts %q, slept %v; want one prompt after two settle waits", prompts(f), slept)
 	}
 }

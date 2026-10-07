@@ -18,14 +18,23 @@ var ErrAgentBlocked = errors.New("the agent is waiting at a prompt in its pane; 
 // submits anyway (Claude Code queues input typed while it works).
 const promptWait = 10 * time.Second
 
+// promptSettle is how long a prompt held at a startup prompt waits once
+// the agent looks idle, before it is sent. Right after the folder-trust
+// question closes, Claude Code draws its input box (herdr reports idle) a
+// moment before it takes input: in gate M5-06, prompts sent within ~0.4 s
+// were dropped although `agent prompt` succeeded, from 0.5 s on they landed
+// (Claude Code 2.1.292, herdr 0.9.1). 2 s leaves a wide margin.
+const promptSettle = 2 * time.Second
+
 var _ backend.Session = (*Session)(nil)
 
 // Session is one Claude Code agent in a herdr tab. It is safe for
 // concurrent use.
 type Session struct {
-	c   *Client
-	id  string // task ID, for error messages
-	ref backend.SessionRef
+	c     *Client
+	id    string // task ID, for error messages
+	ref   backend.SessionRef
+	sleep func(ctx context.Context, d time.Duration) error // the backend's; tests replace it
 
 	mu sync.Mutex
 	// startupBlocked is set while Claude Code may still sit at a startup
@@ -61,8 +70,15 @@ func (s *Session) Prompt(ctx context.Context, text string) error {
 			s.pending, s.hasPending = text, true
 			return nil
 		}
+		switch sent, err := s.sendHeld(ctx, text); {
+		case err != nil:
+			return err
+		case !sent:
+			s.pending, s.hasPending = text, true
+			return nil
+		}
 		s.startupBlocked = false
-		return s.send(ctx, text)
+		return nil
 	}
 
 	a, err := s.c.AgentWait(ctx, s.ref.Agent, nil, promptWait)
@@ -92,6 +108,28 @@ func (s *Session) HoldPrompt(text string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.pending, s.hasPending, s.startupBlocked = text, true, true
+}
+
+// sendHeld sends a prompt held at a startup prompt once the agent has
+// stayed idle for promptSettle (see there). It reports false, sending
+// nothing, if the agent is no longer idle by then (another prompt came up).
+// The caller holds s.mu.
+func (s *Session) sendHeld(ctx context.Context, text string) (bool, error) {
+	if err := s.sleep(ctx, promptSettle); err != nil {
+		return false, err
+	}
+	p, err := s.c.PaneGet(ctx, s.ref.PaneID)
+	switch {
+	case gone(err):
+		return false, s.goneErr("prompt", err)
+	case err != nil:
+		return false, fmt.Errorf("prompt %s: %w", s.id, err)
+	case p.Agent == "":
+		return false, s.goneErr("prompt", errors.New("claude code is no longer running in the pane"))
+	case p.Status != StatusIdle && p.Status != StatusDone:
+		return false, nil
+	}
+	return true, s.send(ctx, text)
 }
 
 // send submits text with `agent prompt`. The caller holds s.mu.
@@ -129,13 +167,15 @@ func (s *Session) State(ctx context.Context) (backend.AgentState, error) {
 	st := agentState(p.Status)
 
 	if s.hasPending && (st == backend.Idle || st == backend.Done) {
-		switch err := s.send(ctx, s.pending); {
+		switch sent, err := s.sendHeld(ctx, s.pending); {
 		case errors.Is(err, backend.ErrSessionGone):
 			return backend.Exited, nil
 		case errors.Is(err, ErrAgentBlocked):
 			return backend.Blocked, nil // blocked again; try on a later poll
 		case err != nil:
 			return backend.Unknown, fmt.Errorf("deliver the first prompt to %s: %w", s.id, err)
+		case !sent:
+			return backend.Unknown, nil // busy again; try on a later poll
 		}
 		s.pending, s.hasPending, s.startupBlocked = "", false, false
 		return backend.Working, nil
