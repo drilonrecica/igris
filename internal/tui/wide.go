@@ -176,6 +176,10 @@ func (m *model) cardLines(w, x, y int, record bool) []string {
 	return m.renderCard(w, x, y, -1, record)
 }
 
+// yourTurnText follows YOUR TURN: a user task is the owner's own work,
+// and how it ends. Each part wraps on its own, so the keys stay together.
+var yourTurnText = []string{"Yours to do outside igris (no session).", "Then: d done · s skip"}
+
 // openHint follows NEEDS YOU when the session can be opened.
 const openHint = " — o opens the session"
 
@@ -227,6 +231,14 @@ func (m *model) renderCard(w, x, y, rows int, record bool) []string {
 		}
 	}
 	head = append(head, fit(state, w))
+	if c.state == stateYourTurn {
+		// A user task has no session: say whose it is and how it ends.
+		for _, part := range yourTurnText {
+			for _, l := range wrap(part, w) {
+				head = append(head, m.th.paint(m.stateLook(), l))
+			}
+		}
+	}
 	if c.state == stateNeedsYou || c.state == stateLost {
 		head = append(head, fit(c.detail, w))
 	}
@@ -245,6 +257,9 @@ func (m *model) renderCard(w, x, y, rows int, record bool) []string {
 	}
 
 	btns := []option{{"[t] Details", actDetails}}
+	if c.user {
+		btns = append([]option{{"[d] Done…", actDone}, {"[s] Skip…", actSkip}}, btns...)
+	}
 	if c.session != nil {
 		btns = append([]option{{"[o] Open session", actOpen}}, btns...)
 	}

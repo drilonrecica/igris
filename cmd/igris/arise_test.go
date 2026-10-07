@@ -426,6 +426,7 @@ func TestAriseNoTUI(t *testing.T) {
 		"A-1 committed: A-1: One",
 		"A-1 done · did A-1",
 		"A-2 YOUR TURN: **Buy a domain**",
+		"  do it outside igris (no session), then type `done [note]` or `skip <reason>`",
 		"A-2 done · bought it",
 		"phase A complete",
 		"run stopped: completed",

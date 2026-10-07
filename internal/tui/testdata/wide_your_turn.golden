@@ -3,14 +3,14 @@
 │  ✓ M0-01  Go module                               sonnet │ M0-05 Buy the domain                                      │
 │  ✓ M0-02  Entrypoint                              sonnet │ user task · 0s                                            │
 │  ● M0-03  Makefile                                sonnet │ state: YOUR TURN                                          │
-│  · M0-04  Config loader                           opus   │ pick a registrar, buy it, then press d                    │
-│  ! M0-05  Buy the domain                          user   │ [t] Details                                               │
-│  ⨯ M0-13  Static assets                           sonnet │                                                           │
-│    waits on P0-05                                        │                                                           │
+│  · M0-04  Config loader                           opus   │ Yours to do outside igris (no session).                   │
+│  ! M0-05  Buy the domain                          user   │ Then: d done · s skip                                     │
+│  ⨯ M0-13  Static assets                           sonnet │ pick a registrar, buy it, then press d                    │
+│    waits on P0-05                                        │ [d] Done…  [s] Skip…  [t] Details                         │
 │  – M0-14  Old idea                                haiku  │                                                           │
 ├─ LOG ────────────────────────────────────────────────────┴───────────────────────────────────────────────────────────┤
 │ 09:41 M0-05 started (user task) · Buy the domain                                                                     │
-│ 09:41 M0-05 is your turn                                                                                             │
+│ 09:41 M0-05 is your turn: do it outside igris, then d (done) or s (skip)                                             │
 │                                                                                                                      │
 │                                                                                                                      │
 │                                                                                                                      │

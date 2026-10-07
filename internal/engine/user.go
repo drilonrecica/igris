@@ -22,7 +22,7 @@ func (e *Engine) runUserTask(ctx context.Context, l *launch) (stopped bool, err 
 // they finish it.
 func (e *Engine) yourTurn(ctx context.Context, l *launch) (stopped bool, err error) {
 	e.emit(Event{Kind: YourTurn, Detail: l.t.Text})
-	e.toast(ctx, notifyNeedsInput, "your turn")
+	e.toast(ctx, notifyNeedsInput, "your turn: do it, then mark it done or skipped in igris")
 	v := e.waitForOwner(ctx, l)
 	switch v.kind {
 	case verdictDone:

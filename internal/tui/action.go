@@ -66,13 +66,14 @@ const (
 	actLine        // a HEALTH or RECENT line; the zone's option is its index
 	// The start-run wizard's choices (launch.go); a phase or through
 	// option is the dialog's selected one.
-	actWizResume  // resume the last run
-	actWizPhase   // start a phase: pick it next, or the picked phase
-	actWizThrough // the picked last phase
-	actWizPlanned // run mode as planned
-	actWizArise   // the summary's Arise
-	actWizConfirm // the confirming choice of a start-up question
-	actDetails    // the selected task's details page (t, the card)
+	actWizResume   // resume the last run
+	actWizPhase    // start a phase: pick it next, or the picked phase
+	actWizThrough  // the picked last phase
+	actWizPlanned  // run mode as planned
+	actWizArise    // the summary's Arise
+	actWizConfirm  // the confirming choice of a start-up question
+	actDetails     // the selected task's details page (t, the card)
+	actDoneConfirm // done with the note typed into a user task's done dialog
 )
 
 // modeActs maps the mode picker's actions to their modes, in the order
@@ -146,7 +147,7 @@ var helpActions = []helpEntry{
 	{"m", "Mode", "run mode for the sessions launched from now on; yolo needs the typed phrase"},
 	{"M", "Task mode", "mode for the selected agent task's next session, over its Mode column (not for user tasks)"},
 	{"p", "Pause / Resume", "pause after the current task; igris waits until you resume"},
-	{"d", "Done", "mark the current task done (your decision: verify is skipped)"},
+	{"d", "Done", "mark the current task done (your decision: verify is skipped); a user task asks for an optional note"},
 	{"s", "Skip", "skip the current task; asks for a reason and closes its session"},
 	{"r", "Retry", "close the session and start fresh or continue the conversation"},
 	{"x", "Stop", "stop igris after confirming; the session stays open"},

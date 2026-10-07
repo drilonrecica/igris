@@ -26,7 +26,7 @@ func logLines(ev engine.Event) []string {
 	case engine.SessionOpened:
 		return []string{id + " session open" + badge(ev.Mode)}
 	case engine.YourTurn:
-		return []string{id + " is your turn"}
+		return []string{id + " is your turn: do it outside igris, then d (done) or s (skip)"}
 	case engine.NeedsYou:
 		return []string{id + " needs you: " + ev.Detail}
 	case engine.NeedsYouClear:

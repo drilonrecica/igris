@@ -458,7 +458,7 @@ func formatEvent(ev engine.Event) []string {
 	case engine.YourTurn:
 		return []string{
 			id + " YOUR TURN: " + ev.Detail,
-			"  finish it, then type `done [note]` or `skip <reason>` (or run `igris done " + id + "` anywhere in the project)",
+			"  do it outside igris (no session), then type `done [note]` or `skip <reason>` (or run `igris done " + id + "` anywhere in the project)",
 		}
 	case engine.NeedsYou:
 		return []string{id + " NEEDS YOU: " + ev.Detail}

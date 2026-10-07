@@ -75,7 +75,7 @@ func TestUserTask(t *testing.T) {
 			if turn.Detail != "**Buy a domain** — any registrar" || !turn.At.Equal(t0) {
 				t.Errorf("your_turn = %+v", turn)
 			}
-			if got := h.toasts(); len(got) < 1 || got[0] != "request: phase A · A-1 Buy a domain: your turn" {
+			if got := h.toasts(); len(got) < 1 || got[0] != "request: phase A · A-1 Buy a domain: your turn: do it, then mark it done or skipped in igris" {
 				t.Errorf("toasts = %q", got)
 			}
 			if got := h.logged(); !strings.HasPrefix(got, "run_started task_started notification "+tt.wantLog) {

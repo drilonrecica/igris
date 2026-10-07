@@ -26,6 +26,9 @@ type dialog struct {
 	// is set it has the focus and takes the typed keys.
 	input   *field
 	inField bool
+	// submit is what enter in the field picks; actNone leaves the field
+	// for the options instead.
+	submit action
 	// task is the task a dialog the TUI opened is about; it closes when
 	// that task ends.
 	task string
@@ -112,6 +115,21 @@ func skipDialog(id string, agent bool) *dialog {
 		input:   &field{label: "Reason: "},
 		inField: true,
 		options: []option{{"Cancel", actClose}, {"Skip", actSkipConfirm}},
+		cancel:  actClose,
+		task:    id,
+	}
+}
+
+// doneDialog asks before marking user task id done, with an optional
+// note. Done isn't destructive, so enter in the field confirms.
+func doneDialog(id string) *dialog {
+	return &dialog{
+		title:   "Mark " + id + " done?",
+		detail:  "You did it outside igris. Add a note if there is something to remember; it goes into igris history.",
+		input:   &field{label: "Note (optional): "},
+		inField: true,
+		submit:  actDoneConfirm,
+		options: []option{{"Done", actDoneConfirm}, {"Cancel", actClose}},
 		cancel:  actClose,
 		task:    id,
 	}
@@ -211,6 +229,9 @@ func (d *dialog) fieldKey(msg tea.KeyMsg) (action, bool) {
 		}
 		return actNone, true
 	case tea.KeyEnter, tea.KeyTab, tea.KeyDown:
+		if msg.Type == tea.KeyEnter && d.submit != actNone {
+			return d.submit, true
+		}
 		d.inField, d.selected = false, 0
 		return actNone, true
 	case tea.KeyEsc:

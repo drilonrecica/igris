@@ -29,6 +29,7 @@ igris v0.2 gets an app: bare `igris` on a terminal opens a home screen, and the 
 - **`igris arise` with no phase and nothing to resume** opens the start-run wizard on a terminal (with `--mode`, `--through` and `--force-unlock` prefilled) instead of exiting 1 and asking for a phase. With `--no-tui`, `--dry-run` or no terminal it behaves as before. `igris arise PHASE` is unchanged.
 - The task mode can't be set for `user` tasks (they have no session): the key and button are hidden, and `--no-tui` answers `mode <task> <m>` with "is a user task".
 - The example plan (`examples/tasks.md`, written by `igris init --example`) starts with P1-01 "Project skeleton" `ready` instead of `done`, so the first session builds the skeleton a fresh project doesn't have.
+- YOUR TURN says what it means: the card, the log, `--no-tui` and the notification say a user task is yours to do outside igris and how to finish it (`d` done · `s` skip); the card gets **[d] Done…** and **[s] Skip…**. `d` on a user task asks **Mark ID done?** with an optional note (`enter` confirms), recorded like `igris done --note`; an agent task's `d` is unchanged.
 - One click on a task row in the run view opens its details (it used to select the row, and a second click opened them).
 - The TUI's run view is shared with the app; it looks and behaves as before, with **Home** where **Quit** was when the run was started from home.
 

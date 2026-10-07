@@ -275,9 +275,9 @@ Mode changes in the TUI apply to the **next** session launched; a running sessio
 ## 8. User tasks
 
 For a task with Owner `user`:
-1. Igris shows the full task text in the TUI, marks it **Your turn**, and sends a `needs_input` notification.
+1. Igris shows the full task text in the TUI, marks it **Your turn** and says what that means — `Yours to do outside igris (no session). Then: d done · s skip` on the card, the same in the log and in `--no-tui` — and sends a `needs_input` notification (`your turn: do it, then mark it done or skipped in igris`).
 2. No pane, no Claude session.
-3. The owner completes it outside igris, then presses `d` (done) or `s` (skip, with a reason) in the TUI, or runs `igris done <ID>` / `igris skip <ID> --reason …` from any terminal.
+3. The owner completes it outside igris, then presses `d` (done; asks **Mark ID done?** with an optional note, recorded like `igris done --note`; `enter` confirms) or `s` (skip, with a reason) in the TUI — or the card's `[d] Done…` / `[s] Skip…` — or runs `igris done <ID> [--note …]` / `igris skip <ID> --reason …` from any terminal.
 4. Igris marks the status and continues. User tasks are never verified or committed; `state.json` records the task (without a session) so a restarted `arise` comes back to it.
 
 ---
@@ -582,7 +582,7 @@ Built with Bubble Tea / Lip Gloss. Runs in the igris pane; the Claude sessions l
 Single column: header, current task card, compact task list (ID + status glyph + rank), last 3 log lines, action bar. Must stay usable at 50×20. The action bar wraps to a second row or folds its less common actions into a `More…` button; an open dialog (§15.5) takes the whole screen.
 
 ### 15.3 Actions
-**The current-task card** shows the task's ID and title, its rank → model and mode (or "user task"), how long it has run, and its state; then the task's text (the Task cell without its bold title, from the plan as last loaded; for a user task, the text igris sent with Your turn) and the card's buttons: `[o] Open session` while a session exists, `[t] Details`, and `[Answer…]` while a question is pending. The text gets only the rows the head and the buttons leave; when it doesn't fit it ends with `… t: details`. While the session needs the owner the state reads `NEEDS YOU (idle …) — o opens the session` (the hint on its own line when the card is too narrow) and Open session is drawn in bold. Clicking the card's title opens the details too.
+**The current-task card** shows the task's ID and title, its rank → model and mode (or "user task"), how long it has run, and its state; then the task's text (the Task cell without its bold title, from the plan as last loaded; for a user task, the text igris sent with Your turn) and the card's buttons: `[o] Open session` while a session exists, `[d] Done…` and `[s] Skip…` for a user task, `[t] Details`, and `[Answer…]` while a question is pending. A user task's card adds, under YOUR TURN, `Yours to do outside igris (no session).` and `Then: d done · s skip`. The text gets only the rows the head and the buttons leave; when it doesn't fit it ends with `… t: details`. While the session needs the owner the state reads `NEEDS YOU (idle …) — o opens the session` (the hint on its own line when the card is too narrow) and Open session is drawn in bold. Clicking the card's title opens the details too.
 
 Every action is reachable three ways: **clicking** its button (or tapping it, e.g. in Termius), **moving the focus** to it and pressing `enter`, and its **shortcut key**. The action bar shows only the actions that apply right now (e.g. `Done` only while a task is running, `Open session` only while a session exists); it never shows buttons that do nothing.
 
@@ -593,7 +593,7 @@ Every action is reachable three ways: **clicking** its button (or tapping it, e.
 | Mode | `m` | Change run mode for upcoming sessions (choice list; `yolo` needs the typed confirmation, §15.5) |
 | Task mode | `M` | Override mode for the selected agent task (same choice list); hidden for user tasks |
 | Pause / Resume | `p` | Pause after the current task (toggle): the task finishes normally, then igris launches nothing and waits — the run stays alive — until pause is toggled off. The button label shows the current state |
-| Done | `d` | Mark the current task done (a user task, or an agent task as the owner's decision, §6.4) |
+| Done | `d` | Mark the current task done (a user task, or an agent task as the owner's decision, §6.4). For a user task it asks first, with an optional note (§8) |
 | Skip | `s` | Skip the current task: asks for a reason; for agent tasks also closes the session after confirmation |
 | Retry | `r` | Retry: close the current session, then choose **Continue conversation** or **Start fresh** (`Resumed=true`) |
 | Stop | `x` | Stop now: leave the session open, stop igris after confirmation |

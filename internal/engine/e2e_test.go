@@ -131,7 +131,7 @@ const (
 )
 
 const (
-	toastYourTurn = "request: phase P1 · P1-03 Domain: your turn"
+	toastYourTurn = "request: phase P1 · P1-03 Domain: your turn: do it, then mark it done or skipped in igris"
 	toastP1Done   = "done: phase P1: complete"
 	toastP2Done   = "done: phase P2: complete"
 )

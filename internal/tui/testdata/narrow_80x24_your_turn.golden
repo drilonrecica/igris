@@ -3,8 +3,10 @@ igris · sinjal · phase M0 · mode: plan · herdr
 M0-05 Buy the domain
 user task · 0s
 state: YOUR TURN
+Yours to do outside igris (no session).
+Then: d done · s skip
 pick a registrar, buy it, then press d
-[t] Details
+[d] Done…  [s] Skip…  [t] Details
 ── TASKS ───────────────────────────────────────────────────────────────────────
  ✓ M0-01 sonnet  ✓ M0-02 sonnet  ● M0-03 sonnet  · M0-04 opus    ! M0-05 user
  ⨯ M0-13 sonnet  – M0-14 haiku
@@ -15,10 +17,8 @@ pick a registrar, buy it, then press d
 
 
 
-
-
 ── LOG ─────────────────────────────────────────────────────────────────────────
 09:41 M0-05 started (user task) · Buy the domain
-09:41 M0-05 is your turn
+09:41 M0-05 is your turn: do it outside igris, then d (done) or s (skip)
 
 [›Mode‹] [Pause] [Done] [Skip] [Stop] [?] [Quit]

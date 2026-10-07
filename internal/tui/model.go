@@ -437,6 +437,11 @@ func (m *model) pick(a action) tea.Cmd {
 		m.opts.Sender.Send(engine.Command{Kind: engine.CmdSkip, Text: reason})
 		return nil
 	}
+	if a == actDoneConfirm && d != nil && d.input != nil {
+		m.dialog = nil
+		m.opts.Sender.Send(engine.Command{Kind: engine.CmdDone, Text: strings.TrimSpace(d.input.value)})
+		return nil
+	}
 	if mode, ok := modeOf(a); ok && d != nil {
 		m.dialog = nil
 		if mode == engine.ModeYolo {
@@ -553,6 +558,10 @@ func (m *model) activate(a action) tea.Cmd {
 		return nil
 	case actDone:
 		if m.cur == nil {
+			return nil
+		}
+		if m.cur.user && !m.ended {
+			m.dialog = doneDialog(m.cur.id) // the owner's own work: a note may say how
 			return nil
 		}
 	}
