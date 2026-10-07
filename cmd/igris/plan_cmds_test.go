@@ -3,10 +3,15 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/drilonrecica/igris/internal/engine"
+	"github.com/drilonrecica/igris/internal/runner"
 )
 
 // Fixture paths are absolute because the tests change directory.
@@ -233,5 +238,71 @@ func TestStatus(t *testing.T) {
 	}
 	if code, _, _ := runCmd("status", "--plan", invalidPlan); code != exitFail {
 		t.Errorf("invalid plan: code %d", code)
+	}
+}
+
+// withVersions turns the real version check back on (TestMain stubs it),
+// with claude and herdr answering --version from a fake runner; other
+// commands (git) succeed with no output.
+func withVersions(t *testing.T, claude, herdr string) {
+	t.Helper()
+	savedCompat, savedRunner := compatWarnings, ariseRunner
+	t.Cleanup(func() { compatWarnings, ariseRunner = savedCompat, savedRunner })
+	r := &runner.Fake{}
+	r.Func(func(c runner.Cmd) (runner.Result, error) {
+		switch {
+		case c.Name == "claude" && claude == "":
+			return runner.Result{}, fmt.Errorf("run claude: %w", exec.ErrNotFound)
+		case c.Name == "claude":
+			return runner.Result{Stdout: []byte(claude)}, nil
+		case c.Name == "herdr":
+			return runner.Result{Stdout: []byte(herdr)}, nil
+		}
+		return runner.Result{}, nil
+	})
+	compatWarnings, ariseRunner = engine.CompatWarnings, r
+}
+
+func TestCheckWarnsAboutVersions(t *testing.T) {
+	dir := inDir(t)
+	plan := "## M0 — One\n\n| ID | Status | Model | Deps |\n|---|---|---|---|\n| a | ready | sonnet | — |\n"
+	if err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(plan), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	withVersions(t, "2.1.292 (Claude Code)\n", "herdr 0.9.1\n")
+	if code, out, _ := runCmd("check"); code != exitOK || strings.Contains(out, "warning:") {
+		t.Errorf("verified versions: code %d, out:\n%s", code, out)
+	}
+
+	withVersions(t, "", "herdr 1.0.0\n")
+	code, out, _ := runCmd("check")
+	for _, want := range []string{
+		"warning: claude not found in PATH; igris arise needs Claude Code",
+		"warning: herdr 1.0.0 is a newer major version",
+		"OK (1 phases, 1 tasks, 2 warnings)",
+	} {
+		if code != exitOK || !strings.Contains(out, want) {
+			t.Errorf("code %d, output missing %q:\n%s", code, want, out)
+		}
+	}
+
+	code, out, _ = runCmd("check", "--json")
+	var doc struct {
+		Warnings []map[string]any `json:"warnings"`
+	}
+	if err := json.Unmarshal([]byte(out), &doc); err != nil || code != exitOK {
+		t.Fatalf("json: code %d, %v:\n%s", code, err, out)
+	}
+	if len(doc.Warnings) != 2 {
+		t.Fatalf("json warnings = %v", doc.Warnings)
+	}
+	for _, w := range doc.Warnings {
+		if _, ok := w["file"]; ok {
+			t.Errorf("a version warning has a file: %v", w)
+		}
+		if _, ok := w["line"]; ok {
+			t.Errorf("a version warning has a line: %v", w)
+		}
 	}
 }

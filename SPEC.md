@@ -239,7 +239,7 @@ After a task is accepted, igris waits up to 30 s for the agent to become idle (s
 | Plan | `plan` | `--permission-mode plan` | Session plans first; owner approves the plan in Claude Code, then it implements. `igris done` only becomes possible after approval, since plan mode blocks commands. |
 | Skip permissions | `yolo` | `--dangerously-skip-permissions` | Shown with a red badge everywhere; needs per-run confirmation (§7.3). |
 
-Exact flag spellings are verified against the installed Claude Code (P0-02, 2.1.291) and kept in one table in code. `--permission-mode` accepts `acceptEdits`, `auto`, `bypassPermissions`, `manual`, `dontAsk`, `plan`; there is no `default` value, so Default mode passes **no** permission flag (`manual` behaves the same but is not used).
+Exact flag spellings are verified against the installed Claude Code (P0-02, 2.1.291; the verified versions are in §11.4) and kept in one table in code. `--permission-mode` accepts `acceptEdits`, `auto`, `bypassPermissions`, `manual`, `dontAsk`, `plan`; there is no `default` value, so Default mode passes **no** permission flag (`manual` behaves the same but is not used).
 
 Verified behavior that the design relies on:
 - **`auto` does not pre-approve `igris done`.** An unfamiliar shell command still prompts (headless: denied; interactive: "This command requires approval"). `igris done` must therefore be allow-listed (below) in every mode that is not `yolo`.
@@ -358,7 +358,7 @@ Igris itself runs in a herdr pane. It uses the herdr CLI (JSON output), never th
 | Close | `herdr tab close <tab_id>` → `{"result":{"type":"ok"}}`; closing again gives `tab_not_found` |
 | Notify | `herdr notification show <title> --body <body> --sound request|done|none` → `.result.shown` |
 
-- Exact JSON shapes and flags were verified against herdr 0.9.1 (P0-03); recorded responses live in `internal/backend/herdr/testdata/` and drive the fixture tests.
+- Exact JSON shapes and flags were verified against herdr 0.9.1 (P0-03; the verified versions are in §11.4); recorded responses live in `internal/backend/herdr/testdata/` and drive the fixture tests.
 - **Arguments after `--` must not contain control characters** (newline, tab, CR): herdr rejects them with `invalid_agent_argument` ("cannot be encoded safely for the target shell"). So the multi-line task prompt can **not** be a positional argument of `agent start`. Igris starts Claude with its flags only (no prompt), waits for `idle`, then submits the task prompt with `agent prompt` (§6.1).
 - Error shape: JSON on stderr `{"error":{"code","message"},"id"}`, exit 1 (syntax errors exit 2; `agent_not_ready` exits 2). Codes seen: `agent_not_ready`, `agent_pane_busy`, `agent_blocked`, `agent_not_found`, `pane_not_found`, `tab_not_found`, `timeout`, `invalid_agent_argument`, `invalid_agent_timeout`.
 - `igris init` recommends `herdr integration install claude` for accurate agent state, and `igris check` warns if it's missing (where detectable).
@@ -366,6 +366,19 @@ Igris itself runs in a herdr pane. It uses the herdr CLI (JSON output), never th
 
 ### 11.3 Running without herdr (v1 behavior)
 If herdr isn't available, `igris arise` exits with a clear message explaining that v1 requires herdr and that tmux support is planned. `check`, `status`, `phases`, `done`, `skip` and `adapt --check`-style validation work without any backend.
+
+### 11.4 Verified versions
+Claude Code and herdr change often, and igris relies on their flags and output shapes. The versions igris was verified with live in one table in code (`engine.Tools`) and here:
+
+| Tool | Oldest verified (`Min`) | Newest re-verified (`Tested`) | Verified in |
+|---|---|---|---|
+| Claude Code (`claude`) | 2.1.291 | 2.1.291 | P0-02 |
+| herdr (`herdr`) | 0.9.1 | 0.9.1 | P0-03 |
+
+- `igris check` and `igris arise` (including `--dry-run`) run `claude --version` and `herdr --version` through the command runner, 5 s timeout each, and print a `warning:` when a tool is not in `PATH`, its version can't be determined (no version in the output, a non-zero exit, a timeout), it is older than `Min`, or its major version is newer than `Tested`'s. Newer minor and patch versions don't warn.
+- The version is the first `N.N` or `N.N.N` in the output; anything around it is ignored.
+- These are warnings only: they never fail `check`, never ask for confirmation in `arise`, and igris never refuses to run because of a version.
+- `docs/reverify.md` re-runs the P0-02/P0-03 checks. After a clean run against a newer version, `Tested` (code and this table) is raised to it; `Min` changes only when igris starts to depend on something newer.
 
 ---
 
@@ -483,7 +496,7 @@ igris version
 ```
 
 - The plan file is `--plan`, else `plan` in `igris.toml` in the working directory, else `tasks.md`. `check`, `phases` and `status` read the plan only; `phases` and `status` refuse an invalid plan (exit 1, listing the problems) and report to stdout, errors to stderr. `--json` prints one JSON document instead of text.
-- `check` prints each validation problem as `file:line: message` and each readiness drift (§5.2) and ignored dependency-like column (§3.2) as `warning: file:line: …`; warnings never fail the check. `status` shows, per phase, how many tasks are finished, the §5.1 outcome (`next`, `complete`, `stuck`) and, for each task, the dependencies it waits on. The current run (needs `.igris/` state, §13) is added to `status` once runs exist.
+- `check` prints each validation problem as `file:line: message` and each readiness drift (§5.2) and ignored dependency-like column (§3.2) as `warning: file:line: …`, and each Claude Code or herdr version problem (§11.4) as `warning: …` (in `--json`, a warning without `file` and `line`); warnings never fail the check. `status` shows, per phase, how many tasks are finished, the §5.1 outcome (`next`, `complete`, `stuck`) and, for each task, the dependencies it waits on. The current run (needs `.igris/` state, §13) is added to `status` once runs exist.
 - `--no-tui` prints plain timestamped log lines and reads owner commands from stdin, one per line, for scripting or very small terminals:
   - `y` / `n` answer the question igris asked (commit? confirm a session's skip request?);
   - `done [note]` marks the current task done (an agent task is not verified, §6.4), `skip <reason>` skips it;
@@ -494,7 +507,7 @@ igris version
 - `notify test` sends one sample message per event to every channel set up for it (the herdr toast is included when herdr is reachable) and prints `ok` or `FAILED: <reason>` per event and channel; secrets never appear in the output. It exits 1 if a delivery failed or no channel is set up. `--event` limits it to one event.
 - `--force-unlock` clears a stale `.igris/igris.lock` (its process is gone, the file is unreadable, or it comes from another host); a lock held by a live process on this host is always refused (§13).
 - `--dry-run` uses the fake backend: walks the phase, prints which task would launch with which model and mode, writes nothing. It runs the real engine on a temporary copy of the plan, with every session finishing at once, user tasks done, verify and commits off. Drift and skip-permissions tasks are shown as warnings instead of asked about; a task already in progress is shown as resumed with a fresh session. Without a phase it walks the last run's phases. It never touches `.igris/`.
-- On start, `arise` warns if `ANTHROPIC_API_KEY` is set in the environment (Claude Code would bill the API instead of the subscription) and asks for confirmation. It also warns, without asking, if the project is not a git repository or has uncommitted changes (§7.3).
+- On start, `arise` warns if `ANTHROPIC_API_KEY` is set in the environment (Claude Code would bill the API instead of the subscription) and asks for confirmation. It also warns, without asking, if the project is not a git repository or has uncommitted changes (§7.3), and about the Claude Code and herdr versions (§11.4).
 - Before its first write `arise` asks to confirm readiness drift (§5.2), and asks for the typed `skip permissions` confirmation when a task would run in `yolo` mode (§7.3). Declining any of these exits 1 with nothing started. With `--no-tui` the answers come from stdin (`y` for the questions). With the TUI they are asked the same way, as plain prompts before the TUI takes over the terminal. `--dry-run` prints the warnings and never asks.
 
 ---

@@ -2,10 +2,21 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"os"
 	"runtime/debug"
 	"strings"
 	"testing"
+
+	"github.com/drilonrecica/igris/internal/runner"
 )
+
+// TestMain keeps the tests off the real claude and herdr: no version check
+// runs unless a test asks for one (see withVersions).
+func TestMain(m *testing.M) {
+	compatWarnings = func(context.Context, runner.Runner) []string { return nil }
+	os.Exit(m.Run())
+}
 
 func TestRun(t *testing.T) {
 	tests := []struct {

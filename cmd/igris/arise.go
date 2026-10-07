@@ -33,6 +33,8 @@ var (
 	ariseBackend               = newBackend
 	ariseRunner  runner.Runner // nil means real processes
 	ariseGetenv  = os.Getenv
+	// compatWarnings checks the Claude Code and herdr versions (SPEC §11.4).
+	compatWarnings = engine.CompatWarnings
 )
 
 // newBackend returns the backend named in the config.
@@ -93,6 +95,9 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		if hint := h.IntegrationHint(ctx); hint != "" {
 			fmt.Fprintf(out, "warning: %s\n", hint)
 		}
+	}
+	for _, w := range compatWarnings(ctx, commandRunner()) {
+		fmt.Fprintf(out, "warning: %s\n", w)
 	}
 	// With --no-tui, stdin carries the owner's commands for the whole run.
 	// The TUI owns the terminal once it starts, so until then each answer
@@ -612,6 +617,9 @@ func dryRun(f ariseFlags, out, stderr io.Writer) int {
 		}
 	}
 
+	for _, w := range compatWarnings(context.Background(), commandRunner()) {
+		fmt.Fprintf(out, "warning: %s\n", w)
+	}
 	for _, h := range planHints(f) {
 		fmt.Fprintf(out, "warning: %s\n", h)
 	}

@@ -65,6 +65,8 @@ Rank aliases are configurable in `igris.toml`. Every key is optional; unknown ke
 - **git** (recommended): igris can commit after each task and warns when the tree is dirty.
 - Linux or macOS (amd64 or arm64).
 
+igris is verified with Claude Code 2.1.291 and herdr 0.9.1 or later. `igris check` and `igris arise` warn when either is missing, older, or a newer major version; they never refuse to run because of it.
+
 ## Install
 
 With Go (the version pinned in `go.mod` or newer):

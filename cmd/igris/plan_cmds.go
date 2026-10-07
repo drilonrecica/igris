@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -99,14 +100,17 @@ func execCheck(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	// Drift is only meaningful when the plan is valid: unknown or cyclic
 	// dependencies make readiness undefined.
 	type warningJSON struct {
-		File    string `json:"file"`
-		Line    int    `json:"line"`
+		File    string `json:"file,omitempty"` // empty for a tool version
+		Line    int    `json:"line,omitempty"`
 		Task    string `json:"task,omitempty"`
 		From    string `json:"from,omitempty"`
 		To      string `json:"to,omitempty"`
 		Message string `json:"message"`
 	}
 	warnings := []warningJSON{}
+	for _, w := range compatWarnings(context.Background(), commandRunner()) {
+		warnings = append(warnings, warningJSON{Message: w})
+	}
 	if valid {
 		for _, h := range l.plan.Hints() {
 			warnings = append(warnings, warningJSON{File: h.File, Line: h.Line, Message: h.Msg})
@@ -130,6 +134,10 @@ func execCheck(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 			fmt.Fprintln(stdout, is)
 		}
 		for _, w := range warnings {
+			if w.File == "" {
+				fmt.Fprintf(stdout, "warning: %s\n", w.Message)
+				continue
+			}
 			fmt.Fprintf(stdout, "warning: %s:%d: %s\n", w.File, w.Line, w.Message)
 		}
 		if valid {

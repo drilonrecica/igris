@@ -150,6 +150,7 @@ func writeProject(t *testing.T, files map[string]string) string {
 }
 
 func TestDryRun(t *testing.T) {
+	withVersions(t, "2.0.5 (Claude Code)\n", "herdr 0.9.1\n")
 	root := writeProject(t, map[string]string{
 		"plans/tasks.md": dryPlan,
 		"igris.toml":     "plan = \"plans/tasks.md\"\n[run]\nverify = \"false\"\ncommit = \"auto\"\nprompt_template = \"p.tmpl\"\n",
@@ -163,6 +164,7 @@ func TestDryRun(t *testing.T) {
 	}
 	got := out.String()
 	want := []string{
+		"warning: Claude Code 2.0.5 is older than 2.1.291",
 		"warning: drift: A-3: ready → blocked",
 		"dry run of phase A through B",
 		"  1. A-0        opus    → model opus    mode default Half done  (resumed: fresh session)",
