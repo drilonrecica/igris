@@ -607,6 +607,7 @@ Modelled on Claude Code's choice prompts and herdr's clickable UI.
 - **herdr backend:** command construction + JSON parsing against recorded fixtures; a manual smoke checklist on a real herdr install.
 - **TUI:** model update tests (teatest) for key handling and both layouts.
 - **Notifications:** httptest servers for ntfy and Discord; secret redaction.
+- **Fuzzing** (stdlib `testing.F`): the table tokenizer and parser (no panic, deterministic, validation never crashes), the Status writer (only the target Status cell changes, for any input), the config loader and the signal reader (arbitrary bytes give an error, never a panic). `make test` replays the seeds; `make fuzz` runs each target (10 minutes each before a release); a failing input is committed under `testdata/fuzz/` as a regression seed.
 - `go test -race ./...` clean.
 
 ---
