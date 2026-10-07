@@ -91,6 +91,7 @@ type section struct {
 	phase      *Phase
 	tableFound bool
 	control    bool // the heading line holds a control character
+	subLine    int  // line of the last "###"-or-deeper heading in the section
 }
 
 // Parse parses data. It never fails outright: structural problems are
@@ -122,6 +123,9 @@ func Parse(name string, data []byte, opts Options) *Plan {
 			cur = &section{phase: newPhase(textsafe.Line(text), l.num), control: textsafe.HasControl(l.text)}
 			continue
 		}
+		if cur != nil && strings.HasPrefix(trimIndent(l.text), "###") {
+			cur.subLine = l.num
+		}
 		if !isTableStart(p.lines, i) {
 			continue
 		}
@@ -152,6 +156,11 @@ func (p *Plan) addTable(cur *section, cols []string, at int, rows []line, firstP
 		p.addIssue(at, "task table under an empty \"##\" heading; give the heading a phase ID")
 		return
 	case cur.tableFound:
+		if cur.subLine > cur.phase.tableLine {
+			// "### M1 — …" sub-sections under one "## V1" heading.
+			p.addIssue(at, "phase %s has a second task table (first at line %d); only \"##\" headings start a phase, so make the heading at line %d a \"##\" heading", cur.phase.ID, cur.phase.tableLine, cur.subLine)
+			return
+		}
 		p.addIssue(at, "phase %s has a second task table (first at line %d); a phase may contain only one", cur.phase.ID, cur.phase.tableLine)
 		return
 	}
