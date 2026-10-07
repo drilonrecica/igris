@@ -141,8 +141,11 @@ func TestValidateErrors(t *testing.T) {
 			[]string{"tasks.md:7: phase M0 has a second task table (first at line 3); a phase may contain only one"}},
 		{"no task table, but one without Status", "## M0\n\n| ID | Task | Model | State |\n|---|---|---|---|\n| a | x | sonnet | ready |\n",
 			[]string{`tasks.md:3: no task table found: this table has an ID column but no Status column; rename that column to Status or alias it under [columns] in igris.toml (e.g. "State" = "Status")`}},
-		{"no task table, but one without Model", "## M0\n\n| ID | Status | Agent |\n|---|---|---|\n| a | ready | sonnet |\n",
-			[]string{`tasks.md:3: no task table found: this table has an ID column but no Model column; rename that column to Model or alias it under [columns] in igris.toml (e.g. "Agent" = "Model")`}},
+		{"no task table, but one without Model and one without Status", "## M0\n\n| ID | Status | Agent |\n|---|---|---|\n| a | ready | sonnet |\n\n| ID | Model | State |\n|---|---|---|\n| b | sonnet | ready |\n",
+			[]string{
+				`tasks.md:3: no task table found: this table has an ID column but no Model column; rename that column to Model or alias it under [columns] in igris.toml (e.g. "Agent" = "Model")`,
+				`tasks.md:7: no task table found: this table has an ID column but no Status column; rename that column to Status or alias it under [columns] in igris.toml (e.g. "State" = "Status")`,
+			}},
 		{"second table under a ### heading", "## V1\n\n### M0\n\n| ID | Status | Model |\n|---|---|---|\n| a | ready | sonnet |\n\n### M1\n\n| ID | Status | Model |\n|---|---|---|\n| b | ready | sonnet |\n",
 			[]string{`tasks.md:11: phase V1 has a second task table (first at line 5); only "##" headings start a phase, so make the heading at line 9 a "##" heading`}},
 	}

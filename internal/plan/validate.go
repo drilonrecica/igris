@@ -50,14 +50,14 @@ func (p *Plan) Validate(models map[string]string) []Issue {
 	if len(p.Tasks) == 0 && len(v.issues) == 0 {
 		// Nothing igris can run: most likely a plan in another format. A
 		// misplaced table is reported as such instead.
-		if len(p.nearMiss) > 0 {
-			nm := p.nearMiss[0]
+		for _, nm := range p.nearMiss {
 			missing, example := "Status", `"State" = "Status"`
 			if nm.hasStatus {
 				missing, example = "Model", `"Agent" = "Model"`
 			}
 			v.add(nm.line, "no task table found: this table has an ID column but no %s column; rename that column to %s or alias it under [columns] in igris.toml (e.g. %s)", missing, missing, example)
-		} else {
+		}
+		if len(p.nearMiss) == 0 {
 			v.add(0, "no task table found; add a table with ID, Status and Model columns under a ## heading")
 		}
 	}
