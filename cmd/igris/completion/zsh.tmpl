@@ -1,0 +1,46 @@
+#compdef igris
+# zsh completion for igris. Load it with:  source <(igris completion zsh)
+_igris() {
+    local cmd prev
+    if (( CURRENT == 2 )); then
+        compadd -- {{.Words}}
+        return
+    fi
+    cmd=$words[2]
+    prev=$words[CURRENT-1]
+    case "$cmd:$prev" in
+{{- range $c := .Cmds}}{{range $c.ValueFlags}}
+        {{$c.Name}}:{{.Dash}})
+{{- if eq .Arg.Kind "file"}} _files ; return ;;
+{{- else if eq .Arg.Kind "phases"}} compadd -- ${(f)"$(igris __complete phases 2>/dev/null)"} ; return ;;
+{{- else if eq .Arg.Kind "tasks"}} compadd -- ${(f)"$(igris __complete tasks 2>/dev/null)"} ; return ;;
+{{- else if eq .Arg.Kind "values"}} compadd -- {{range $i, $v := .Arg.Values}}{{if $i}} {{end}}{{$v}}{{end}} ; return ;;
+{{- else}} return ;;
+{{- end}}
+{{- end}}{{end}}
+    esac
+    if [[ $PREFIX == -* ]]; then
+        case "$cmd" in
+{{- range .Cmds}}{{if .Flags}}
+            {{.Name}}) compadd -- {{.FlagWords}} ;;
+{{- end}}{{end}}
+        esac
+        return
+    fi
+    case "$cmd" in
+{{- range .Positional}}
+{{- if eq .Pos.Kind "phases"}}
+        {{.Name}}) compadd -- ${(f)"$(igris __complete phases 2>/dev/null)"} ;;
+{{- else if eq .Pos.Kind "tasks"}}
+        {{.Name}}) compadd -- ${(f)"$(igris __complete tasks 2>/dev/null)"} ;;
+{{- else if eq .Pos.Kind "values"}}
+        {{.Name}}) compadd -- {{range $i, $v := .Pos.Values}}{{if $i}} {{end}}{{$v}}{{end}} ;;
+{{- end}}
+{{- end}}
+    esac
+}
+if [[ $funcstack[1] == _igris ]]; then
+    _igris "$@"
+else
+    compdef _igris igris
+fi

@@ -1,0 +1,46 @@
+# fish completion for igris. Load it with:  igris completion fish | source
+function __igris_ids
+    igris __complete $argv[1] 2>/dev/null
+end
+
+complete -c igris -f
+complete -c igris -n __fish_use_subcommand -a init -d 'create igris.toml, .igris/, the .gitignore entry and Claude allow rules'
+complete -c igris -n __fish_use_subcommand -a doctor -d 'read-only health check of this project and machine'
+complete -c igris -n __fish_use_subcommand -a check -d 'validate the plan'
+complete -c igris -n __fish_use_subcommand -a phases -d 'list phases with task counts per status'
+complete -c igris -n __fish_use_subcommand -a status -d 'tasks with status, rank, owner, current run and unmet deps'
+complete -c igris -n __fish_use_subcommand -a history -d 'past runs from .igris/runs.jsonl'
+complete -c igris -n __fish_use_subcommand -a arise -d 'run (or resume) with the TUI'
+complete -c igris -n __fish_use_subcommand -a done -d 'signal that a task is finished'
+complete -c igris -n __fish_use_subcommand -a skip -d 'signal that a task is skipped'
+complete -c igris -n __fish_use_subcommand -a notify -d 'send a sample of each notification'
+complete -c igris -n __fish_use_subcommand -a adapt -d 'AI-assisted conversion of a plan with diff review'
+complete -c igris -n __fish_use_subcommand -a completion -d 'print a shell completion script'
+complete -c igris -n __fish_use_subcommand -a help -d 'show the help'
+complete -c igris -n __fish_use_subcommand -a version -d 'print the version'
+complete -c igris -n '__fish_seen_subcommand_from doctor' -l json
+complete -c igris -n '__fish_seen_subcommand_from check' -l json
+complete -c igris -n '__fish_seen_subcommand_from check' -l plan -r -F
+complete -c igris -n '__fish_seen_subcommand_from phases' -l json
+complete -c igris -n '__fish_seen_subcommand_from phases' -l plan -r -F
+complete -c igris -n '__fish_seen_subcommand_from status' -l json
+complete -c igris -n '__fish_seen_subcommand_from status' -l plan -r -F
+complete -c igris -n '__fish_seen_subcommand_from status' -a '(__igris_ids phases)'
+complete -c igris -n '__fish_seen_subcommand_from history' -l json
+complete -c igris -n '__fish_seen_subcommand_from history' -s n -x
+complete -c igris -n '__fish_seen_subcommand_from history' -a '(__igris_ids tasks)'
+complete -c igris -n '__fish_seen_subcommand_from arise' -l dry-run
+complete -c igris -n '__fish_seen_subcommand_from arise' -l force-unlock
+complete -c igris -n '__fish_seen_subcommand_from arise' -l mode -x -a 'default accept auto plan yolo'
+complete -c igris -n '__fish_seen_subcommand_from arise' -l no-tui
+complete -c igris -n '__fish_seen_subcommand_from arise' -l through -x -a '(__igris_ids phases)'
+complete -c igris -n '__fish_seen_subcommand_from arise' -a '(__igris_ids phases)'
+complete -c igris -n '__fish_seen_subcommand_from done' -l note -x
+complete -c igris -n '__fish_seen_subcommand_from done' -a '(__igris_ids tasks)'
+complete -c igris -n '__fish_seen_subcommand_from skip' -l reason -x
+complete -c igris -n '__fish_seen_subcommand_from skip' -a '(__igris_ids tasks)'
+complete -c igris -n '__fish_seen_subcommand_from notify' -l event -x -a 'needs_input session_lost verify_failed_limit task_done phase_done phase_stuck run_error'
+complete -c igris -n '__fish_seen_subcommand_from notify' -a 'test'
+complete -c igris -n '__fish_seen_subcommand_from adapt' -l model -x -a 'sonnet opus'
+complete -c igris -n '__fish_seen_subcommand_from adapt' -l plan -r -F
+complete -c igris -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'

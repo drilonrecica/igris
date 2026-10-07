@@ -1,0 +1,56 @@
+# bash completion for igris. Load it with:  source <(igris completion bash)
+_igris() {
+    local cur prev cmd i
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    COMPREPLY=()
+    cmd=
+    for ((i = 1; i < COMP_CWORD; i++)); do
+        case "${COMP_WORDS[i]}" in
+            -*) ;;
+            *) cmd="${COMP_WORDS[i]}"; break ;;
+        esac
+    done
+    if [[ -z $cmd ]]; then
+        COMPREPLY=($(compgen -W "init doctor check phases status history arise done skip notify adapt completion help version" -- "$cur"))
+        return
+    fi
+    case "$cmd:$prev" in
+        check:--plan) COMPREPLY=($(compgen -f -- "$cur")) ; return ;;
+        phases:--plan) COMPREPLY=($(compgen -f -- "$cur")) ; return ;;
+        status:--plan) COMPREPLY=($(compgen -f -- "$cur")) ; return ;;
+        history:-n) return ;;
+        arise:--mode) COMPREPLY=($(compgen -W "default accept auto plan yolo" -- "$cur")) ; return ;;
+        arise:--through) COMPREPLY=($(compgen -W "$(igris __complete phases 2>/dev/null)" -- "$cur")) ; return ;;
+        done:--note) return ;;
+        skip:--reason) return ;;
+        notify:--event) COMPREPLY=($(compgen -W "needs_input session_lost verify_failed_limit task_done phase_done phase_stuck run_error" -- "$cur")) ; return ;;
+        adapt:--model) COMPREPLY=($(compgen -W "sonnet opus" -- "$cur")) ; return ;;
+        adapt:--plan) COMPREPLY=($(compgen -f -- "$cur")) ; return ;;
+    esac
+    if [[ $cur == -* ]]; then
+        case "$cmd" in
+            doctor) COMPREPLY=($(compgen -W "--json" -- "$cur")) ;;
+            check) COMPREPLY=($(compgen -W "--json --plan" -- "$cur")) ;;
+            phases) COMPREPLY=($(compgen -W "--json --plan" -- "$cur")) ;;
+            status) COMPREPLY=($(compgen -W "--json --plan" -- "$cur")) ;;
+            history) COMPREPLY=($(compgen -W "--json -n" -- "$cur")) ;;
+            arise) COMPREPLY=($(compgen -W "--dry-run --force-unlock --mode --no-tui --through" -- "$cur")) ;;
+            done) COMPREPLY=($(compgen -W "--note" -- "$cur")) ;;
+            skip) COMPREPLY=($(compgen -W "--reason" -- "$cur")) ;;
+            notify) COMPREPLY=($(compgen -W "--event" -- "$cur")) ;;
+            adapt) COMPREPLY=($(compgen -W "--model --plan" -- "$cur")) ;;
+        esac
+        return
+    fi
+    case "$cmd" in
+        status) COMPREPLY=($(compgen -W "$(igris __complete phases 2>/dev/null)" -- "$cur")) ;;
+        history) COMPREPLY=($(compgen -W "$(igris __complete tasks 2>/dev/null)" -- "$cur")) ;;
+        arise) COMPREPLY=($(compgen -W "$(igris __complete phases 2>/dev/null)" -- "$cur")) ;;
+        done) COMPREPLY=($(compgen -W "$(igris __complete tasks 2>/dev/null)" -- "$cur")) ;;
+        skip) COMPREPLY=($(compgen -W "$(igris __complete tasks 2>/dev/null)" -- "$cur")) ;;
+        notify) COMPREPLY=($(compgen -W "test" -- "$cur")) ;;
+        completion) COMPREPLY=($(compgen -W "bash zsh fish" -- "$cur")) ;;
+    esac
+}
+complete -F _igris igris

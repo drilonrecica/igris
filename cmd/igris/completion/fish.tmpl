@@ -1,0 +1,29 @@
+# fish completion for igris. Load it with:  igris completion fish | source
+function __igris_ids
+    igris __complete $argv[1] 2>/dev/null
+end
+
+complete -c igris -f
+{{- range .Cmds}}
+complete -c igris -n __fish_use_subcommand -a {{.Name}} -d '{{.Desc}}'
+{{- end}}
+complete -c igris -n __fish_use_subcommand -a help -d 'show the help'
+complete -c igris -n __fish_use_subcommand -a version -d 'print the version'
+{{- range $c := .Cmds}}
+{{- range $c.Flags}}
+complete -c igris -n '__fish_seen_subcommand_from {{$c.Name}}' {{if eq (len .Name) 1}}-s{{else}}-l{{end}} {{.Name}}
+{{- if .Takes}}{{if eq .Arg.Kind "file"}} -r -F
+{{- else if eq .Arg.Kind "phases"}} -x -a '(__igris_ids phases)'
+{{- else if eq .Arg.Kind "tasks"}} -x -a '(__igris_ids tasks)'
+{{- else if eq .Arg.Kind "values"}} -x -a '{{range $i, $v := .Arg.Values}}{{if $i}} {{end}}{{$v}}{{end}}'
+{{- else}} -x
+{{- end}}{{end}}
+{{- end}}
+{{- if eq $c.Pos.Kind "phases"}}
+complete -c igris -n '__fish_seen_subcommand_from {{$c.Name}}' -a '(__igris_ids phases)'
+{{- else if eq $c.Pos.Kind "tasks"}}
+complete -c igris -n '__fish_seen_subcommand_from {{$c.Name}}' -a '(__igris_ids tasks)'
+{{- else if eq $c.Pos.Kind "values"}}
+complete -c igris -n '__fish_seen_subcommand_from {{$c.Name}}' -a '{{range $i, $v := $c.Pos.Values}}{{if $i}} {{end}}{{$v}}{{end}}'
+{{- end}}
+{{- end}}

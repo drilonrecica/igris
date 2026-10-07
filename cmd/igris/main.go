@@ -54,6 +54,7 @@ Commands:
   notify test [--event NAME]            send a sample of each notification to the configured channels
   adapt [--model sonnet|opus]           AI-assisted conversion with diff review
         [--plan PATH]
+  completion bash|zsh|fish              print a shell completion script
   version                               print the version
 
 Run "igris <command> -h" for the flags of a command.
@@ -110,6 +111,7 @@ func commands() []command {
 		}, exec: execSkip},
 		{name: "notify", setup: notifyArgs, exec: execNotify},
 		{name: "adapt", setup: adaptArgs, exec: execAdapt},
+		{name: "completion", setup: completionArgs, exec: execCompletion},
 	}
 }
 
@@ -131,6 +133,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 		info, ok := debug.ReadBuildInfo()
 		fmt.Fprintf(stdout, "igris %s\n", resolveVersion(version, info, ok))
 		return exitOK
+	}
+	if args[0] == "__complete" { // hidden: not in the help, SPEC §14
+		return execComplete(args[1:], stdout)
 	}
 	for _, c := range commands() {
 		if c.name == args[0] {

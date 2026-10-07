@@ -1,0 +1,49 @@
+# bash completion for igris. Load it with:  source <(igris completion bash)
+_igris() {
+    local cur prev cmd i
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    COMPREPLY=()
+    cmd=
+    for ((i = 1; i < COMP_CWORD; i++)); do
+        case "${COMP_WORDS[i]}" in
+            -*) ;;
+            *) cmd="${COMP_WORDS[i]}"; break ;;
+        esac
+    done
+    if [[ -z $cmd ]]; then
+        COMPREPLY=($(compgen -W "{{.Words}}" -- "$cur"))
+        return
+    fi
+    case "$cmd:$prev" in
+{{- range $c := .Cmds}}{{range $c.ValueFlags}}
+        {{$c.Name}}:{{.Dash}})
+{{- if eq .Arg.Kind "file"}} COMPREPLY=($(compgen -f -- "$cur")) ; return ;;
+{{- else if eq .Arg.Kind "phases"}} COMPREPLY=($(compgen -W "$(igris __complete phases 2>/dev/null)" -- "$cur")) ; return ;;
+{{- else if eq .Arg.Kind "tasks"}} COMPREPLY=($(compgen -W "$(igris __complete tasks 2>/dev/null)" -- "$cur")) ; return ;;
+{{- else if eq .Arg.Kind "values"}} COMPREPLY=($(compgen -W "{{range $i, $v := .Arg.Values}}{{if $i}} {{end}}{{$v}}{{end}}" -- "$cur")) ; return ;;
+{{- else}} return ;;
+{{- end}}
+{{- end}}{{end}}
+    esac
+    if [[ $cur == -* ]]; then
+        case "$cmd" in
+{{- range .Cmds}}{{if .Flags}}
+            {{.Name}}) COMPREPLY=($(compgen -W "{{.FlagWords}}" -- "$cur")) ;;
+{{- end}}{{end}}
+        esac
+        return
+    fi
+    case "$cmd" in
+{{- range .Positional}}
+{{- if eq .Pos.Kind "phases"}}
+        {{.Name}}) COMPREPLY=($(compgen -W "$(igris __complete phases 2>/dev/null)" -- "$cur")) ;;
+{{- else if eq .Pos.Kind "tasks"}}
+        {{.Name}}) COMPREPLY=($(compgen -W "$(igris __complete tasks 2>/dev/null)" -- "$cur")) ;;
+{{- else if eq .Pos.Kind "values"}}
+        {{.Name}}) COMPREPLY=($(compgen -W "{{range $i, $v := .Pos.Values}}{{if $i}} {{end}}{{$v}}{{end}}" -- "$cur")) ;;
+{{- end}}
+{{- end}}
+    esac
+}
+complete -F _igris igris

@@ -86,6 +86,21 @@ igris version
 
 The binaries are static and not signed yet; the checksums guard against a corrupted download.
 
+## Shell completion
+
+`igris completion bash|zsh|fish` prints a completion script for subcommands, flags, and phase and task IDs from your plan (read from `tasks.md` or the `plan` in `igris.toml` of the current directory; nothing is offered while the plan is invalid).
+
+```sh
+# bash: add to ~/.bashrc
+source <(igris completion bash)
+
+# zsh: add to ~/.zshrc, after compinit
+source <(igris completion zsh)
+
+# fish: install once
+igris completion fish > ~/.config/fish/completions/igris.fish
+```
+
 ## herdr setup
 
 Igris starts every Claude Code session in its own herdr tab, so `igris arise` must run **inside a herdr pane** with the herdr server running:

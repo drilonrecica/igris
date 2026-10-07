@@ -1,0 +1,53 @@
+#compdef igris
+# zsh completion for igris. Load it with:  source <(igris completion zsh)
+_igris() {
+    local cmd prev
+    if (( CURRENT == 2 )); then
+        compadd -- init doctor check phases status history arise done skip notify adapt completion help version
+        return
+    fi
+    cmd=$words[2]
+    prev=$words[CURRENT-1]
+    case "$cmd:$prev" in
+        check:--plan) _files ; return ;;
+        phases:--plan) _files ; return ;;
+        status:--plan) _files ; return ;;
+        history:-n) return ;;
+        arise:--mode) compadd -- default accept auto plan yolo ; return ;;
+        arise:--through) compadd -- ${(f)"$(igris __complete phases 2>/dev/null)"} ; return ;;
+        done:--note) return ;;
+        skip:--reason) return ;;
+        notify:--event) compadd -- needs_input session_lost verify_failed_limit task_done phase_done phase_stuck run_error ; return ;;
+        adapt:--model) compadd -- sonnet opus ; return ;;
+        adapt:--plan) _files ; return ;;
+    esac
+    if [[ $PREFIX == -* ]]; then
+        case "$cmd" in
+            doctor) compadd -- --json ;;
+            check) compadd -- --json --plan ;;
+            phases) compadd -- --json --plan ;;
+            status) compadd -- --json --plan ;;
+            history) compadd -- --json -n ;;
+            arise) compadd -- --dry-run --force-unlock --mode --no-tui --through ;;
+            done) compadd -- --note ;;
+            skip) compadd -- --reason ;;
+            notify) compadd -- --event ;;
+            adapt) compadd -- --model --plan ;;
+        esac
+        return
+    fi
+    case "$cmd" in
+        status) compadd -- ${(f)"$(igris __complete phases 2>/dev/null)"} ;;
+        history) compadd -- ${(f)"$(igris __complete tasks 2>/dev/null)"} ;;
+        arise) compadd -- ${(f)"$(igris __complete phases 2>/dev/null)"} ;;
+        done) compadd -- ${(f)"$(igris __complete tasks 2>/dev/null)"} ;;
+        skip) compadd -- ${(f)"$(igris __complete tasks 2>/dev/null)"} ;;
+        notify) compadd -- test ;;
+        completion) compadd -- bash zsh fish ;;
+    esac
+}
+if [[ $funcstack[1] == _igris ]]; then
+    _igris "$@"
+else
+    compdef _igris igris
+fi
