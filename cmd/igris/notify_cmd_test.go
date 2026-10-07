@@ -32,11 +32,11 @@ func notifyProject(t *testing.T, toml string) {
 
 func TestNotifyTest(t *testing.T) {
 	var mu sync.Mutex
-	var titles []string
+	var titles, bodies []string
 	ntfy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = io.Copy(io.Discard, r.Body)
+		b, _ := io.ReadAll(r.Body)
 		mu.Lock()
-		titles = append(titles, r.Header.Get("Priority"))
+		titles, bodies = append(titles, r.Header.Get("Priority")), append(bodies, string(b))
 		mu.Unlock()
 	}))
 	defer ntfy.Close()
@@ -68,6 +68,19 @@ func TestNotifyTest(t *testing.T) {
 	}
 	if len(titles) != 6 {
 		t.Errorf("ntfy got %d messages, want 6", len(titles))
+	}
+	// Each sample names its event and says what a real one would.
+	for i, want := range []string{
+		"phase TEST · TEST-1 Notification check: test of needs_input: needs you",
+		"phase TEST · TEST-1 Notification check: test of session_lost: session lost",
+		"phase TEST · TEST-1 Notification check: test of verify_failed_limit: verification keeps failing; needs you",
+		"phase TEST: test of phase_done: complete",
+		"phase TEST: test of phase_stuck: stuck: 2 unfinished task(s), none can start",
+		"phase TEST: test of run_error: the run stopped with an error",
+	} {
+		if i >= len(bodies) || bodies[i] != want {
+			t.Errorf("ntfy body %d = %q, want %q", i, bodies[i:min(i+1, len(bodies))], want)
+		}
 	}
 }
 

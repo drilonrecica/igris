@@ -73,6 +73,18 @@ func isEvent(e notify.Event) bool {
 // sendTestMessages sends one sample message per event that some channel
 // wants (or just only) and prints how each delivery went. It reports whether
 // something was sent and nothing failed.
+// testWhat is what a real notification of each event says (internal/engine),
+// so a test shows the owner what to expect and each sample is told apart.
+var testWhat = map[notify.Event]string{
+	notify.NeedsInput:        "needs you",
+	notify.SessionLost:       "session lost",
+	notify.VerifyFailedLimit: "verification keeps failing; needs you",
+	notify.TaskDone:          "done",
+	notify.PhaseDone:         "complete",
+	notify.PhaseStuck:        "stuck: 2 unfinished task(s), none can start",
+	notify.RunError:          "the run stopped with an error",
+}
+
 func sendTestMessages(ctx context.Context, r *notify.Router, project string, only notify.Event, out io.Writer) bool {
 	ok, sent := true, 0
 	for _, ev := range notify.AllEvents {
@@ -81,7 +93,10 @@ func sendTestMessages(ctx context.Context, r *notify.Router, project string, onl
 		}
 		m := notify.Message{
 			Event: ev, Project: project, Phase: "TEST", TaskID: "TEST-1", Title: "Notification check",
-			What: "test message from `igris notify test`",
+			What: "test of " + string(ev) + ": " + testWhat[ev],
+		}
+		if ev == notify.PhaseDone || ev == notify.PhaseStuck || ev == notify.RunError {
+			m.TaskID, m.Title = "", "" // these belong to no task in a real run
 		}
 		for _, res := range r.Notify(ctx, m) {
 			sent++
