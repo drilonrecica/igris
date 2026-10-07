@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
@@ -35,6 +36,31 @@ func FuzzParseSignal(f *testing.F) {
 		}
 		if textsafe.HasControl(s.Note) || strings.ContainsAny(s.Note, "\n\t") {
 			t.Fatalf("note not cleaned: %q", s.Note)
+		}
+	})
+}
+
+// FuzzParseAgentState: sessions can write into .igris/agent-state/, so
+// arbitrary bytes must give an error or one of the states `igris hook`
+// writes, never a panic (SPEC §6.3).
+func FuzzParseAgentState(f *testing.F) {
+	for _, s := range []string{
+		`{"state":"idle","event":"Stop","at":"2026-10-07T10:00:00Z"}`,
+		`{"state":"blocked","event":"PermissionRequest"}`,
+		`{"state":"done"}`, `{"state":"--model"}`, `{"state":1}`,
+		`[1]`, `null`, ``,
+	} {
+		f.Add([]byte(s))
+	}
+	f.Fuzz(func(t *testing.T, data []byte) {
+		s, err := ParseAgentState(data)
+		if err != nil {
+			return
+		}
+		switch s.State {
+		case backend.Working, backend.Idle, backend.Blocked, backend.Exited:
+		default:
+			t.Fatalf("accepted state %q", s.State)
 		}
 	})
 }

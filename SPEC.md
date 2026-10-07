@@ -198,7 +198,7 @@ The default prompt must tell the session:
 ### 6.3 Watching a session
 Igris polls the backend every 2 s (configurable) for the pane's agent state and checks for signals.
 
-**Hook state (V03-P1).** Before every session (fresh, continue, adapt) igris writes `.igris/hooks/<ID>.settings.json` (0600), a Claude Code settings file that contains only `hooks`, and passes it with `--settings`. Each hook runs `'<absolute path of igris>' hook <Event>` (timeout 5 s); the hidden `igris hook` reads the event JSON from stdin and writes the agent state to `.igris/agent-state/<session uuid>.json` (§13). Events map to states:
+**Hook state (V03-P1).** Before every session (fresh, continue, adapt) igris writes `.igris/hooks/<ID>.settings.json` (0600), a Claude Code settings file that contains only `hooks`, and passes it with `--settings`. Each hook runs `'<absolute path of igris>' hook --root '<project root>' <Event>` (single-quoted for the shell Claude Code runs hooks with; timeout 5 s); the hidden `igris hook` reads the event JSON from stdin and writes the agent state to `.igris/agent-state/<session uuid>.json` (§13). Events map to states:
 
 | Claude Code event | State |
 |---|---|

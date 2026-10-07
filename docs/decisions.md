@@ -274,8 +274,8 @@ Verified behavior:
 
 Decided:
 - **Event → state:** `SessionStart` (startup, resume, clear) → `idle` (`compact` is ignored: it fires mid-turn); `UserPromptSubmit`, `PreToolUse`, `PostToolUse` → `working`; `PreToolUse` for `AskUserQuestion` or `ExitPlanMode`, `PermissionRequest`, `Notification` other than `idle_prompt` → `blocked`; `Notification` `idle_prompt` and `Stop` → `idle`; `SessionEnd` → `exited`. Other events are ignored.
-- igris writes `.igris/hooks/<ID>.settings.json` (0600) before each session (fresh, continue and adapt) and adds `--settings <file>` to the argv. The hook command is the absolute path of the running igris (single-quoted) plus `hook <Event>`, timeout 5 s.
-- `igris hook <event>` (hidden): reads at most 64 KiB of stdin, needs a UUID-shaped `session_id`, finds the project root from the payload's `cwd` (falling back to its own working directory), writes `.igris/agent-state/<uuid>.json` atomically (`{"state","event","at"}`, 0600, directory 0700), prints nothing, does no network I/O, gives up after 2 s and always exits 0.
+- igris writes `.igris/hooks/<ID>.settings.json` (0600) before each session (fresh, continue and adapt) and adds `--settings <file>` to the argv. The hook command is the absolute path of the running igris plus `hook --root <project root> <Event>`, both paths single-quoted, timeout 5 s.
+- `igris hook <event>` (hidden): reads at most 64 KiB of stdin, needs a UUID-shaped `session_id`, takes the project root from `--root` (falling back to walking up from its working directory), writes `.igris/agent-state/<uuid>.json` atomically (`{"state","event","at"}`, 0600, directory 0700), prints nothing, does no network I/O, gives up after 2 s and always exits 0.
 - Hook state is untrusted (a session can write the files): read only as a regular file of at most 4 KiB, shape-checked, and keyed by the UUID igris generated. It can at worst raise or clear **Needs you**; only a signal or an owner action advances a task (invariant 3).
 - On herdr, herdr's `agent_status` wins; hook state is used only when herdr reports `unknown` (no integration). On tmux, hook state is the state source.
 

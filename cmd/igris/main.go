@@ -146,6 +146,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 	if args[0] == "__complete" { // hidden: not in the help, SPEC §14
 		return execComplete(args[1:], stdout)
 	}
+	if args[0] == "hook" { // hidden: run by Claude Code hooks, SPEC §6.3
+		return execHook(args[1:], os.Stdin)
+	}
 	for _, c := range commands() {
 		if c.name == args[0] {
 			return runCommand(c, args[1:], stdout, stderr)
