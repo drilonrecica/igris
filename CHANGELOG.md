@@ -6,18 +6,24 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [0.1.2] - 2026-10-07
 
-Robustness: warnings when Claude Code or herdr drift from the versions igris was verified with, fuzzing of the parser and the plan writer, and error messages that say what to do next. No change to the plan format, config keys, CLI flags or file formats.
+Robustness: warnings when Claude Code or herdr drift from the versions igris was verified with, fuzzing of the parser and the plan writer, and error messages that say what to do next. No change to the plan format, CLI flags or file formats; one config key is deprecated (it never had an effect).
 
 ### Added
 
 - `igris check` and `igris arise` (also `--dry-run`) run `claude --version` and `herdr --version` and warn when a tool is not in `PATH`, its version can't be read, it is older than the oldest version igris is verified with (Claude Code 2.1.291, herdr 0.9.1), or it is a newer major version than the newest one re-verified (Claude Code 2.1.292, herdr 0.9.1). A warning only: igris never refuses to run because of a version. In `check --json` these warnings have no `file` or `line` (SPEC §11.4).
 - `docs/reverify.md`: the Claude Code and herdr checks from P0-02/P0-03 as a repeatable checklist, with the commands, the expected output shapes and how to refresh the herdr fixtures. It ran clean against Claude Code 2.1.292 and herdr 0.9.1.
 - Fuzz targets (Go's built-in fuzzing) for the table tokenizer and plan parser, the Status writer, the config loader and the signal reader. The writer's target checks the core promise for any input: a status change touches nothing but that task's Status cell. `make fuzz` runs them (`FUZZTIME`, default 1m); `make test` replays the seeds.
+- `igris check` warns when `ANTHROPIC_API_KEY` is set (as SPEC §7.4 always said; only `arise` and `adapt` did), and when it runs in a subdirectory of a project, where it reads no `igris.toml` and silently used the defaults. Without any `igris.toml` it prints a note (not a warning): a folder with just a plan stays a valid project. `phases` and `status` show the subdirectory hint on stderr.
 
 ### Changed
 
 - Error messages say what to do next. Among them: `arise` without a plan file, herdr not installed (instead of a long "not reachable" chain), a session that fails to start or can't get its prompt, a failing `git commit` (e.g. a hook), a broken `run.commit_message`, a lock that can't be cleared, an invalid task ID in `igris done`/`skip`, usage errors (`see igris <command> -h`), and a TUI failure (`igris arise --no-tui`). `check`, `phases` and `status` now prefix their errors with the command (`igris check: …`).
 - `igris done` and `igris skip` say when no igris run is active in the project: the signal is kept, and the next `igris arise` applies it.
+- `igris arise`, `adapt` and `notify test` outside a project (no `igris.toml` or `.igris/` here or in a parent, and no plan file here) exit with a hint to run `igris init`. Before, they used the current directory and created `.igris/` in it.
+
+### Deprecated
+
+- `claude.command` in `igris.toml`: it was required but never used, since herdr always starts `claude` from `PATH`. Any value other than `"claude"` now loads with a warning in `check` and `arise` instead of having no effect silently, and an empty value is no longer an error. The key is removed in v0.2.
 
 ## [0.1.1] - 2026-10-07
 
