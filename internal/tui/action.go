@@ -52,6 +52,8 @@ const (
 	actEdit       // open the screen's file in the owner's editor
 	actEditConfig // open igris.toml in the owner's editor, from Doctor
 	actSettings   // the settings page
+	actEditAnyway // edit the plan although a run holds it
+	actEditVi     // open the file with vi: no editor is set
 	actNotify     // the notify test page
 	actAdapt      // igris adapt
 	actInit       // igris init

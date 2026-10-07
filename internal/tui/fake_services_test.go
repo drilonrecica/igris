@@ -39,6 +39,7 @@ type fakeServices struct {
 	backup     string
 	acceptErr  error
 	edit       func(path string) (tea.ExecCommand, error)
+	vi         func(path string) tea.ExecCommand
 	focusErr   error
 }
 
@@ -146,6 +147,14 @@ func (f *fakeServices) EditCommand(path string) (tea.ExecCommand, error) {
 		return nil, errors.New("fake: no editor")
 	}
 	return f.edit(path)
+}
+
+func (f *fakeServices) ViCommand(path string) tea.ExecCommand {
+	f.count("ViCommand")
+	if f.vi == nil {
+		return nil
+	}
+	return f.vi(path)
 }
 
 func (f *fakeServices) Focus(context.Context, backend.SessionRef) error {

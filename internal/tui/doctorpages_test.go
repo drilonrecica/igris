@@ -165,8 +165,7 @@ func TestDoctorPageCopyAndAgain(t *testing.T) {
 }
 
 func TestDoctorPageRowActions(t *testing.T) {
-	a, _ := planApp(t, doctorFix(doctorMixed))
-	home := a.stack[0].(*homeScreen)
+	a, svc := planApp(t, doctorFix(doctorMixed))
 	press(a, "i")
 	// The failing config row: Edit config goes home.
 	if v := a.View(); !strings.Contains(v, "Edit config") || strings.Contains(v, "Init") {
@@ -177,8 +176,8 @@ func TestDoctorPageRowActions(t *testing.T) {
 		t.Fatal("I left the page on the config row")
 	}
 	press(a, "e")
-	if len(a.stack) != 1 || !strings.Contains(home.status, "Edit config") {
-		t.Errorf("e: %d screens, status %q", len(a.stack), home.status)
+	if len(a.stack) != 1 || svc.called("EditCommand") != 1 {
+		t.Errorf("e: %d screens, %d editors", len(a.stack), svc.called("EditCommand"))
 	}
 	// The allow-rule row: Init, which home does not offer while igris.toml
 	// exists, so the button is absent too.

@@ -199,7 +199,7 @@ func largeHome(tb testing.TB) *homeScreen {
 		tb.Fatal(err)
 	}
 	cfg := config.Default()
-	s := &report.Snapshot{Root: "/src/large", Project: "large", Found: true, Config: cfg, PlanPath: "/src/large/tasks.md", Recent: homeRecent()}
+	s := &report.Snapshot{Root: "/src/large", Project: "large", Found: true, Config: cfg, ConfigPath: "/src/large/igris.toml", PlanPath: "/src/large/tasks.md", Recent: homeRecent()}
 	s.Plan = plan.Parse("tasks.md", raw, plan.Options{})
 	if s.Issues = report.Issues(s.Plan.Validate(cfg.Models)); len(s.Issues) > 0 {
 		tb.Fatalf("large fixture invalid: %v", s.Issues)

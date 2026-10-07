@@ -1,0 +1,40 @@
+Settings · igris.toml · e edits
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+/src/sinjal/igris.toml
+
+PROBLEMS
+  ⨯ fail  default_mode = "fast" is invalid; use one of: default, accept, auto, plan, yolo
+  ⨯ fail  run.verify_max_attempts must be at least 1
+Until igris.toml is fixed, igris uses the defaults below.
+
+plan              = "tasks.md" · default
+backend           = "herdr" · default
+default_mode      = "default" · default
+needs_input_after = "30s" · default
+poll_interval     = "2s" · default
+
+[models]
+fable  = "fable" · default
+haiku  = "haiku" · default
+opus   = "opus" · default
+sonnet = "sonnet" · default
+
+[columns]
+# none set
+
+[claude]
+command    = "claude" · default
+extra_args = [] · default
+
+[run]
+verify              = "" · default
+verify_timeout      = "15m0s" · default
+verify_max_attempts = 3 · default
+commit              = "ask" · default
+commit_message      = "{{.ID}}: {{.Title}}" · default
+prompt_template     = "" · default
+
+[adapt]
+model = "sonnet" · default
+
+[Edit igris.toml] [Doctor] [Close]

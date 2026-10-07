@@ -231,6 +231,15 @@ func (s *Services) EditCommand(path string) (tea.ExecCommand, error) {
 	return newEditorCmd(argv), nil
 }
 
+// ViCommand implements tui.Services.
+func (s *Services) ViCommand(path string) tea.ExecCommand {
+	argv := viArgv(s.env.lookPath(), path)
+	if argv == nil {
+		return nil
+	}
+	return newEditorCmd(argv)
+}
+
 // Focus implements tui.Services.
 func (s *Services) Focus(ctx context.Context, ref backend.SessionRef) error {
 	p, err := s.open()

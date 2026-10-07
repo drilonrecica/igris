@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -428,6 +429,26 @@ func TestEditorArgv(t *testing.T) {
 	if ec := c.(*editorCmd); ec.cmd.Args[0] != "true" || !filepath.IsAbs(ec.cmd.Args[1]) {
 		t.Errorf("args = %q", ec.cmd.Args)
 	}
+
+	// vi is offered only when it is on PATH, and gets the absolute path.
+	for _, found := range []bool{false, true} {
+		env, _ := testEnv(nil)
+		env.LookPath = func(name string) (string, error) {
+			if !found || name != "vi" {
+				return "", exec.ErrNotFound
+			}
+			return "/usr/bin/vi", nil
+		}
+		c := NewServices(t.TempDir(), env).ViCommand("x.md")
+		if found != (c != nil) {
+			t.Fatalf("vi on PATH %v: command %v", found, c)
+		}
+		if c != nil {
+			if args := c.(*editorCmd).cmd.Args; len(args) != 2 || args[0] != "/usr/bin/vi" || !filepath.IsAbs(args[1]) {
+				t.Errorf("vi args = %q", args)
+			}
+		}
+	}
 }
 
 func TestReadsNeverCreateState(t *testing.T) {
@@ -443,4 +464,47 @@ func TestReadsNeverCreateState(t *testing.T) {
 	_, _ = svc.Preview(ctx, report.RunRequest{Phase: "M0"})
 	_ = svc.BackendAvailable(ctx)
 	noStateDir(t, root)
+}
+
+// The snapshot carries igris.toml's path and the settings home shows:
+// the owner's keys apart from the defaults, secrets hidden, warnings.
+func TestSnapshotSettings(t *testing.T) {
+	root := newProject(t, "[claude]\ncommand = \"claudex\"\n[notify.ntfy]\ntopic = \"t\"\ntoken = \"env:NTFY_TOKEN\"\n")
+	env, _ := testEnv(map[string]string{"NTFY_TOKEN": "tk_secret"})
+	s, err := NewServices(root, env).Snapshot(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.ConfigPath != filepath.Join(root, "igris.toml") || len(s.ConfigWarnings) != 1 {
+		t.Errorf("path %q, warnings %q", s.ConfigPath, s.ConfigWarnings)
+	}
+	got := map[string]report.Setting{}
+	for _, sec := range s.Settings {
+		for _, r := range sec.Rows {
+			got[sec.Name+"."+r.Key] = r
+			if strings.Contains(r.Value, "tk_secret") {
+				t.Errorf("%s.%s shows the secret", sec.Name, r.Key)
+			}
+		}
+	}
+	if r := got["notify.ntfy.token"]; r.Value != "set (env:NTFY_TOKEN)" || r.Default {
+		t.Errorf("token: %+v", r)
+	}
+	if got["notify.ntfy.topic"].Default || !got["notify.ntfy.server"].Default || got["claude.command"].Default {
+		t.Errorf("defaults marked wrong: %+v", got)
+	}
+
+	// An invalid igris.toml: the defaults, every one marked so.
+	bad := newProject(t, "default_mode = \"fast\"\n")
+	s, err = NewServices(bad, env).Snapshot(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, sec := range s.Settings {
+		for _, r := range sec.Rows {
+			if !r.Default {
+				t.Errorf("invalid config: %s.%s not a default", sec.Name, r.Key)
+			}
+		}
+	}
 }

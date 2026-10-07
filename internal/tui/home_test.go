@@ -81,7 +81,7 @@ func homeSnap(status string) *report.Snapshot {
 	cfg.Notify.Ntfy.Topic = "igris" // a channel is set up
 	text := strings.ReplaceAll(homePlan, "STATUS", status)
 	s := &report.Snapshot{
-		Root: "/src/sinjal", Project: "sinjal", Found: true, Config: cfg, PlanPath: "/src/sinjal/tasks.md",
+		Root: "/src/sinjal", Project: "sinjal", Found: true, Config: cfg, PlanPath: "/src/sinjal/tasks.md", ConfigPath: "/src/sinjal/igris.toml",
 		Lock:   state.LockState{Path: "/src/sinjal/.igris/igris.lock"},
 		Recent: homeRecent(),
 	}
@@ -149,7 +149,7 @@ var homeStates = []struct {
 		return homeFixture{snap: homeSnap("ready"), backend: errors.New("herdr not found on PATH"), doctor: homeDoctor, doctorDone: true}
 	}},
 	{"get_started", func() homeFixture {
-		s := &report.Snapshot{Root: "/home/me/code/newproj", Project: "newproj", Config: config.Default(), NoConfig: true, PlanPath: "/home/me/code/newproj/tasks.md", PlanMissing: true}
+		s := &report.Snapshot{Root: "/home/me/code/newproj", Project: "newproj", Config: config.Default(), NoConfig: true, ConfigPath: "/home/me/code/newproj/igris.toml", PlanPath: "/home/me/code/newproj/tasks.md", PlanMissing: true}
 		return homeFixture{snap: s, doctor: []checks.Result{{ID: "config", Level: checks.Fail, Message: "igris.toml not found", Next: "igris init"}}, doctorDone: true}
 	}},
 	{"plan_missing", func() homeFixture {
@@ -565,9 +565,8 @@ func TestHomeMoreFolds(t *testing.T) {
 		t.Fatalf("Settings should be folded:\n%s", v)
 	}
 	_, cmd := m.Update(keyMsg(","))
-	run(cmd)
-	if !strings.Contains(m.status, "Settings") {
-		t.Errorf("a folded action's key still works: status %q", m.status)
+	if msg, ok := run(cmd).(pushMsg); !ok {
+		t.Errorf("a folded action's key still works: got %T", msg.s)
 	}
 	m.status = ""
 	for m.focusedButton() != actMore {
@@ -586,8 +585,7 @@ func TestHomeMoreFolds(t *testing.T) {
 	m.Update(keyMsg("enter"))
 	m.Update(keyMsg("down"))
 	_, cmd = m.Update(keyMsg("enter"))
-	run(cmd)
-	if m.dialog != nil || m.status == "" {
+	if m.dialog != nil || (run(cmd) == nil && m.status == "") {
 		t.Errorf("picking from More… doesn't run the action: dialog %v, status %q", m.dialog != nil, m.status)
 	}
 }

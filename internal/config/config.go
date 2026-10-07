@@ -201,36 +201,64 @@ func Default() *Config {
 // Load reads and validates the config file at path. A missing file wraps
 // ErrNotFound.
 func Load(path string) (*Config, error) {
+	cfg, _, err := LoadKeys(path)
+	return cfg, err
+}
+
+// LoadKeys is Load that also returns the keys the file sets (see Keys), so
+// the effective config can tell the owner's values from the defaults.
+func LoadKeys(path string) (*Config, Keys, error) {
 	data, err := os.ReadFile(path) //nolint:gosec // path is the owner's own config file
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("%s: %w (run `igris init` to create it)", path, ErrNotFound)
+			return nil, nil, fmt.Errorf("%s: %w (run `igris init` to create it)", path, ErrNotFound)
 		}
-		return nil, fmt.Errorf("read %s: %w", path, err)
+		return nil, nil, fmt.Errorf("read %s: %w", path, err)
 	}
-	return Parse(data, path)
+	return parse(data, path)
 }
 
 // Parse decodes data over the defaults, rejects unknown keys and validates.
 // name is only used in error messages.
 func Parse(data []byte, name string) (*Config, error) {
+	cfg, _, err := parse(data, name)
+	return cfg, err
+}
+
+func parse(data []byte, name string) (*Config, Keys, error) {
 	cfg := Default()
 	md, err := toml.Decode(string(data), cfg)
 	if err != nil {
-		return nil, fmt.Errorf("parse %s: %w; fix that line and run the command again", name, err)
+		return nil, nil, fmt.Errorf("parse %s: %w; fix that line and run the command again", name, err)
 	}
 	if undec := md.Undecoded(); len(undec) > 0 {
 		keys := make([]string, len(undec))
 		for i, k := range undec {
 			keys[i] = fmt.Sprintf("%q", k.String())
 		}
-		return nil, fmt.Errorf("%s: unknown key(s) %s; check spelling against SPEC §12", name, strings.Join(keys, ", "))
+		return nil, nil, fmt.Errorf("%s: unknown key(s) %s; check spelling against SPEC §12", name, strings.Join(keys, ", "))
 	}
 	if err := cfg.Validate(); err != nil {
-		return nil, fmt.Errorf("%s: %w", name, err)
+		return nil, nil, fmt.Errorf("%s: %w", name, err)
 	}
-	return cfg, nil
+	keys := Keys{}
+	for _, k := range md.Keys() {
+		keys[keyName(k...)] = true
+	}
+	return cfg, keys, nil
 }
+
+// Keys are the keys an igris.toml sets, tables and values alike, by their
+// parts ("run", "verify"); a map such as [models] has one per entry. A
+// key missing from it has its default value.
+type Keys map[string]bool
+
+// Set says the file sets the key with these parts.
+func (k Keys) Set(parts ...string) bool { return k[keyName(parts...)] }
+
+// keyName joins a key's parts with NUL, so a quoted key holding a dot
+// ("a.b") doesn't read as two parts.
+func keyName(parts ...string) string { return strings.Join(parts, "\x00") }
 
 // Validate checks every value and reports all problems at once.
 func (c *Config) Validate() error {

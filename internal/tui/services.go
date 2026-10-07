@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"io"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -51,11 +52,19 @@ type Services interface {
 	// the backup's path.
 	Adapt(ctx context.Context, model string, out io.Writer) (*adapt.Result, error)
 	AcceptAdapt(res *adapt.Result) (string, error)
-	// EditCommand is the owner's editor on path ($VISUAL, else $EDITOR).
+	// EditCommand is the owner's editor on path ($VISUAL, else $EDITOR);
+	// ErrNoEditor when neither is set.
 	EditCommand(path string) (tea.ExecCommand, error)
+	// ViCommand is vi on path, offered when no editor is set; nil when vi
+	// isn't on PATH.
+	ViCommand(path string) tea.ExecCommand
 	// Focus brings a session's pane to the front.
 	Focus(ctx context.Context, ref backend.SessionRef) error
 }
+
+// ErrNoEditor says neither $VISUAL nor $EDITOR is set: home then asks,
+// and never falls back to vi on its own (SPEC §15.6).
+var ErrNoEditor = errors.New("neither $VISUAL nor $EDITOR is set")
 
 // Runner is a built engine: Run runs it until it ends, Send takes the
 // owner's commands meanwhile. *engine.Engine is one.

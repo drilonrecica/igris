@@ -1,0 +1,20 @@
+Settings · igris.toml · e edits
+──────────────────────────────────────────────────
+/src/sinjal/igris.toml
+
+plan              = "tasks.md" · default
+backend           = "herdr" · default
+default_mode      = "default" · default
+needs_input_after = "30s" · default
+poll_interval     = "2s" · default
+
+[models]
+fable  = "fable" · default
+haiku  = "haiku" · default
+opus   = "opus" · default
+sonnet = "sonnet" · default
+
+[columns]
+# none set
+
+[Edit igris.toml] [Doctor] [Close]

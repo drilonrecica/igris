@@ -1,16 +1,17 @@
 package project
 
 import (
-	"errors"
 	"io"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/drilonrecica/igris/internal/tui"
 )
 
 // ErrNoEditor says neither $VISUAL nor $EDITOR is set. igris then asks;
 // it never falls back to vi on its own (SPEC §15.6).
-var ErrNoEditor = errors.New("neither $VISUAL nor $EDITOR is set")
+var ErrNoEditor = tui.ErrNoEditor
 
 // EditorArgv is the owner's editor command for path (SPEC §16): $VISUAL,
 // else $EDITOR, split with strings.Fields (no shell, so quoted arguments
@@ -28,6 +29,20 @@ func EditorArgv(getenv func(string) string, path string) ([]string, error) {
 		return nil, err
 	}
 	return append(argv, abs), nil
+}
+
+// viArgv is vi on path, the editor home offers when neither $VISUAL nor
+// $EDITOR is set; nil when lookPath doesn't find vi.
+func viArgv(lookPath func(string) (string, error), path string) []string {
+	vi, err := lookPath("vi")
+	if err != nil {
+		return nil
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return nil
+	}
+	return []string{vi, abs}
 }
 
 // editorCmd runs the editor as a tea.ExecCommand. It is the one process

@@ -69,11 +69,15 @@ func Doctor(ctx context.Context, dir string, env Env) []checks.Result {
 func (p *Project) Snapshot() *report.Snapshot {
 	s := &report.Snapshot{
 		Root: p.Root, Project: textsafe.Line(p.Name()), Found: p.Found,
-		Config: p.Cfg, NoConfig: p.NoConfig, PlanPath: p.PlanPath,
-		Stamp: p.Stamp(),
+		Config: p.Cfg, NoConfig: p.NoConfig, ConfigPath: p.ConfigPath(), PlanPath: p.PlanPath,
+		Settings: report.NewSettings(p.Cfg, p.CfgKeys, p.env.getenv()),
+		Stamp:    p.Stamp(),
 	}
 	if p.CfgErr != nil {
 		s.ConfigProblems = problemLines(p.CfgErr)
+	}
+	for _, w := range p.Cfg.Warnings() {
+		s.ConfigWarnings = append(s.ConfigWarnings, textsafe.Line(w))
 	}
 	pl, err := plan.Load(p.PlanPath, plan.Options{Columns: p.Cfg.Columns})
 	switch {

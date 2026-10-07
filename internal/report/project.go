@@ -94,6 +94,13 @@ type Snapshot struct {
 	Config         *config.Config
 	NoConfig       bool
 	ConfigProblems []string
+	// ConfigPath is igris.toml's absolute path, whether or not it exists.
+	ConfigPath string
+	// ConfigWarnings are settings that are accepted but do nothing, one
+	// cleaned line each.
+	ConfigWarnings []string
+	// Settings is Config laid out for the Settings page, secrets hidden.
+	Settings []SettingsSection
 
 	PlanPath    string // absolute
 	PlanMissing bool

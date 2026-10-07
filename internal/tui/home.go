@@ -67,6 +67,12 @@ type homeScreen struct {
 	pending *Wizard
 	setRun  func(*runHandle)
 
+	// editing is the file an editor dialog (no editor set, a run holds
+	// the plan) is about, while it is open; afterEdit is the editor that
+	// closed, until the read after it is back.
+	editing   *editTarget
+	afterEdit *editedMsg
+
 	status   string // the last action's result
 	statusAt time.Time
 	zones    zones
@@ -215,6 +221,10 @@ func (m *homeScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.reading = false
 		m.snap, m.snapErr = msg.s, msg.err
 		m.keepSelection()
+		if m.afterEdit != nil {
+			m.setStatus(m.editStatus(*m.afterEdit))
+			m.afterEdit = nil
+		}
 		if msg.s != nil {
 			m.stamp = msg.s.Stamp
 			if msg.s.Config != nil && len(msg.s.ConfigProblems) == 0 {
@@ -236,6 +246,8 @@ func (m *homeScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.ariseFrom(msg.req)
 	case doMsg:
 		return m, m.activate(msg.a)
+	case editedMsg:
+		return m, m.edited(msg)
 	case launchedMsg:
 		return m, m.launched(msg)
 	case launchFailedMsg:
@@ -304,6 +316,9 @@ func (m *homeScreen) phaseIndex() int {
 func (m *homeScreen) key(msg tea.KeyMsg) tea.Cmd {
 	k := msg.String()
 	if m.dialog != nil {
+		if k == "y" && m.editing != nil {
+			return m.pick(actCopy)
+		}
 		a, _ := m.dialog.key(msg)
 		return m.pick(a)
 	}
@@ -350,6 +365,9 @@ func (m *homeScreen) key(msg tea.KeyMsg) tea.Cmd {
 func (m *homeScreen) pick(a action) tea.Cmd {
 	if m.launch != nil {
 		return m.wizardPick(a)
+	}
+	if m.editing != nil {
+		return m.editPick(a)
 	}
 	if a == actNone {
 		return nil
@@ -526,8 +544,11 @@ func (m *homeScreen) activate(a action) tea.Cmd {
 		return nil
 	}
 	if a == actEditConfig {
-		// Doctor's row action; the editor itself comes with Settings.
-		return m.notYet("Edit config")
+		// Doctor's and Settings' action: igris.toml can always be edited.
+		if t, ok := m.configTarget(); ok {
+			return m.edit(t)
+		}
+		return nil
 	}
 	label := ""
 	for _, b := range m.buttons() {
@@ -549,6 +570,13 @@ func (m *homeScreen) activate(a action) tea.Cmd {
 		return push(newDoctorScreen(m))
 	case actHistory:
 		return push(newHistoryScreen(m))
+	case actSettings:
+		return push(newSettingsScreen(m))
+	case actEdit:
+		if t, ok := m.planTarget(); ok {
+			return m.edit(t)
+		}
+		return nil
 	}
 	return m.notYet(label)
 }

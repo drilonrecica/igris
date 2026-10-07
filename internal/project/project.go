@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -40,6 +41,9 @@ type Env struct {
 	// Clock paces adapt's polling and stamps its backups. nil means the
 	// system clock.
 	Clock engine.Clock
+	// LookPath finds a program on PATH: vi, offered when no editor is
+	// set. nil means exec.LookPath.
+	LookPath func(string) (string, error)
 	// Format renders an event as the lines the dry run shows for it; the
 	// CLI's plain log format. nil shows the event's kind and detail.
 	Format func(engine.Event) []string
@@ -50,6 +54,13 @@ func (e Env) getenv() func(string) string {
 		return e.Getenv
 	}
 	return os.Getenv
+}
+
+func (e Env) lookPath() func(string) (string, error) {
+	if e.LookPath != nil {
+		return e.LookPath
+	}
+	return exec.LookPath
 }
 
 // runner is the runner for igris's own checks: never nil.
@@ -110,6 +121,8 @@ type Project struct {
 	Cfg      *config.Config
 	CfgErr   error
 	NoConfig bool
+	// CfgKeys are the keys igris.toml sets; nil unless it is valid.
+	CfgKeys config.Keys
 	// PlanPath is the plan's absolute path.
 	PlanPath string
 
@@ -128,10 +141,10 @@ func Open(cwd string, env Env) (*Project, error) {
 	if root, err := state.FindRoot(cwd); err == nil {
 		p.Root, p.Found = root, true
 	}
-	cfg, err := config.Load(filepath.Join(p.Root, state.ConfigFile))
+	cfg, keys, err := config.LoadKeys(p.ConfigPath())
 	switch {
 	case err == nil:
-		p.Cfg = cfg
+		p.Cfg, p.CfgKeys = cfg, keys
 	case errors.Is(err, config.ErrNotFound):
 		p.Cfg, p.NoConfig = config.Default(), true
 	default:
@@ -173,6 +186,9 @@ func InRoot(root, path string) string {
 	}
 	return filepath.Join(root, path)
 }
+
+// ConfigPath is igris.toml's absolute path.
+func (p *Project) ConfigPath() string { return filepath.Join(p.Root, state.ConfigFile) }
 
 // Backend builds the project's backend.
 func (p *Project) Backend() (backend.Backend, error) { return p.env.backend(p.Cfg) }

@@ -313,6 +313,34 @@ func TestLoad(t *testing.T) {
 	}
 }
 
+func TestLoadKeys(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "igris.toml")
+	text := "plan = \"p.md\"\n[run]\nverify = \"make\"\n[columns]\n\"a.b\" = \"Deps\"\n[notify.ntfy]\ntoken = \"env:T\"\n"
+	if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, keys, err := LoadKeys(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, k := range [][]string{{"plan"}, {"run"}, {"run", "verify"}, {"columns", "a.b"}, {"notify", "ntfy", "token"}} {
+		if !keys.Set(k...) {
+			t.Errorf("%q not set", k)
+		}
+	}
+	for _, k := range [][]string{{"backend"}, {"run", "commit"}, {"columns", "a", "b"}, {"notify", "discord"}, {"models", "opus"}} {
+		if keys.Set(k...) {
+			t.Errorf("%q set", k)
+		}
+	}
+	if err := os.WriteFile(path, []byte("bogus = 1"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, keys, err := LoadKeys(path); err == nil || keys != nil {
+		t.Errorf("invalid file: %v, %v", keys, err)
+	}
+}
+
 func TestForbiddenExtraArg(t *testing.T) {
 	for arg, want := range map[string]bool{
 		"--model": true, "--model=haiku": true, "--resume": true, "--append-system-prompt-file=x": true,

@@ -206,7 +206,7 @@ func TestPhasePageActions(t *testing.T) {
 }
 
 func TestPhasePageAriseAndEdit(t *testing.T) {
-	a, _ := planApp(t, readyFix())
+	a, svc := planApp(t, readyFix())
 	home := a.stack[0].(*homeScreen)
 	focusPhases(a)
 	press(a, "enter", "a")
@@ -216,14 +216,14 @@ func TestPhasePageAriseAndEdit(t *testing.T) {
 	if d := home.dialog; d.title != "Phase" || !strings.HasPrefix(d.options[d.selected].label, "M2 ") {
 		t.Errorf("the wizard doesn't start on this phase: %+v", d)
 	}
-	// Edit plan goes home, which owns the editor (not in this build yet).
+	// Edit plan goes home, which owns the editor.
 	press(a, "esc") // the wizard's dialog
 	for home.launch != nil {
 		home.launch, home.dialog = nil, nil
 	}
 	focusPhases(a)
 	press(a, "enter", "e")
-	if len(a.stack) != 1 || !strings.Contains(home.status, "Edit plan") {
+	if len(a.stack) != 1 || svc.called("EditCommand") != 1 {
 		t.Errorf("e: %d screens, status %q", len(a.stack), home.status)
 	}
 }
@@ -326,7 +326,7 @@ func TestCheckPageAgainAndHandOver(t *testing.T) {
 	}
 	press(a, "e")
 	home := a.stack[0].(*homeScreen)
-	if len(a.stack) != 1 || !strings.Contains(home.status, "Edit plan") {
+	if len(a.stack) != 1 || svc.called("EditCommand") != 1 {
 		t.Errorf("e: %d screens, status %q", len(a.stack), home.status)
 	}
 	press(a, "c", "A")
