@@ -467,7 +467,7 @@ events = ["needs_input", "session_lost", "phase_done", "phase_stuck", "run_error
 - pending signal for the current task → process it first.
 
 Details:
-- With no phase argument the previous run's phase range (and `--through`) is used again; with no previous run, `arise` asks for a phase. A resumed run starts in the phase of the interrupted task.
+- With no phase argument the previous run's phase range (and `--through`) is used again; with no previous run, `arise` opens the home screen's start-run wizard on a terminal (§14, §15.6) and otherwise exits 1 asking for a phase. A resumed run starts in the phase of the interrupted task.
 - The interrupted task is picked up before anything else, also when a different phase is named.
 - If the plan no longer says `in progress` for it (the owner settled it while igris was down), igris warns, forgets it and goes on.
 - A task the plan says is `in progress` without any record in `state.json` is treated like a lost session with nothing to continue: the owner can start a fresh session (`Resumed=true`), mark it done, skip it or stop.
@@ -477,11 +477,14 @@ Details:
 
 Quitting the TUI (`q`) never kills a running session; it saves state and exits. Stopping a session requires an explicit action.
 
+**Reading state without a run.** `doctor`, `status`, `history` and the home screen (§15.6) read `.igris/` without taking the lock and never create it: `state.PeekRun` for `state.json`, `state.PeekEvents` for `runs.jsonl` (a truncated or malformed last line is skipped), and `state.PeekLock` for `igris.lock`. `PeekLock` classifies the lock the same way `arise` does when it takes it (one shared classification): none, held by a live igris on this host, stale (its process is gone, or the file is unreadable) or remote (another host; igris can't tell if it is alive). While a live igris on this host holds the lock, the home screen is **read-only**: it shows that run (state, current task, the last `runs.jsonl` events) and offers to open its session, but offers no Arise, Init or Adapt, and editing the plan asks first, because an edit holds that run (§5.4). A stale or remote lock is only shown; clearing it is offered inside the start-run wizard (§15.6), never on its own.
+
 ---
 
 ## 14. CLI
 
 ```
+igris                                       on a terminal: the home screen (§15.6); otherwise help, exit 2
 igris init [--example]                      create igris.toml, .igris/, .gitignore entry, Claude allow rules;
                                             --example also writes the example plan when there is none
 igris doctor [--json]                       read-only health check of this project and machine
@@ -501,8 +504,10 @@ igris completion bash|zsh|fish              print a shell completion script
 igris version
 ```
 
+- **Bare `igris`** opens the home screen (§15.6) only when both stdin and stdout are terminals (character devices, `ModeCharDevice`), stdin is not `/dev/null` (which is also a character device), and `TERM` is not `dumb`. Otherwise — piped, scripted, under cron — it prints the help to stderr and exits 2, as before. Home exits 0, or 1 if the TUI fails. It works in the project root found as for `arise` (below); outside a project it shows the get-started steps. Every subcommand is unchanged by home.
+- **`igris arise` without a phase and with nothing to resume** (no `state.json`, or one without phases) opens the app in the start-run wizard (§15.6) when it runs on a terminal (as for bare `igris`) without `--no-tui` or `--dry-run`; `--mode`, `--through` and `--force-unlock` are prefilled, and `esc` leaves the wizard for home instead of exiting. In every other case it exits 1 and asks for a phase, as before. `igris arise PHASE` goes straight to the run view, as before.
 - `arise`, `adapt` and `notify test` work in the project root: the nearest directory, from the working directory up, that holds `igris.toml` or `.igris/`. Without one, the working directory is the root only if it holds the plan (`adapt --plan`, else `tasks.md`); otherwise they exit 1 with a hint to run `igris init` and create nothing.
-- The plan file is `--plan`, else `plan` in `igris.toml` in the working directory, else `tasks.md`. `check`, `phases` and `status` read the plan only; `phases` and `status` refuse an invalid plan (exit 1, listing the problems) and report to stdout, errors to stderr. `--json` prints one JSON document instead of text.
+- The plan file is `--plan`, else `plan` in `igris.toml` in the working directory, else `tasks.md`. `check`, `phases` and `status` stay working-directory-based (they don't search upward like `arise` and home do). `check` and `phases` read the plan only; `status` reads the plan plus the `.igris/` run state, read-only (§13), and never creates `.igris/`; `phases` and `status` refuse an invalid plan (exit 1, listing the problems) and report to stdout, errors to stderr. `--json` prints one JSON document instead of text.
 - `check` prints each validation problem as `file:line: message` and each readiness drift (§5.2) and ignored dependency-like column (§3.2) as `warning: file:line: …`, and each Claude Code or herdr version problem (§11.4), a set `ANTHROPIC_API_KEY` (§7.4) and an `igris.toml` in a parent directory (which `check`, `phases` and `status` don't read: they use the working directory's) as `warning: …` (in `--json`, a warning without `file` and `line`), and each deprecated config setting as `warning: igris.toml: …` (§12); warnings never fail the check. Without any `igris.toml`, `check` prints `note: no igris.toml here; using the defaults` (text only, not a warning). `phases` and `status` print the parent-directory hint as a `note:` on stderr. `status` shows, per phase, how many tasks are finished, the §5.1 outcome (`next`, `complete`, `stuck`) and, for each task, the dependencies it waits on. The current run (needs `.igris/` state, §13) is added to `status` once runs exist: phase range, current task, mode, since when, session reference and lock state (running here, running elsewhere, stale, none), plus pending signals. In text it is a short `Run` block above the phase table; in `--json` it is a `run` object, omitted when there is none. A state file that can't be read or doesn't have the expected shape is reported as "state unreadable", never a crash.
 - `--no-tui` prints plain timestamped log lines and reads owner commands from stdin, one per line, for scripting or very small terminals:
   - `y` / `n` answer the question igris asked (commit? confirm a session's skip request?);
@@ -529,16 +534,18 @@ igris version
 - `history` reads `.igris/runs.jsonl` (§13) read-only and never creates `.igris/`. It lists the last N runs (default 10), each with its phases, tasks done and skipped, per-task duration, verify attempts, commits and how it ended; a run without a stop event is shown as interrupted, and a truncated last line is ignored. With a task ID it lists every attempt of that task across runs.
 - `completion` prints a hand-written script per shell (no CLI framework, P0-01). It completes subcommands, each subcommand's flags, and phase and task IDs. IDs come from a hidden `igris __complete <kind>`, which is not listed in help: it reads the plan only (never `.igris/`, never the network) and prints one candidate per line; on a missing or invalid plan it prints nothing and exits 0.
 - `notify test` sends one sample message per event to every channel set up for it (the herdr toast is included when herdr is reachable) and prints `ok` or `FAILED: <reason>` per event and channel; secrets never appear in the output. It exits 1 if a delivery failed or no channel is set up. `--event` limits it to one event.
-- `--force-unlock` clears a stale `.igris/igris.lock` (its process is gone, the file is unreadable, or it comes from another host); a lock held by a live process on this host is always refused (§13).
+- `--force-unlock` clears a stale `.igris/igris.lock` (its process is gone, the file is unreadable, or it comes from another host); a lock held by a live process on this host is always refused (§13). The CLI never asks about a stale lock: `arise` exits 1 saying to rerun with `--force-unlock`. The start-run wizard's **Clear the lock and start** dialog (**Cancel** is the default; asked per launch, never remembered) is the TUI equivalent of the flag, not a new prompt.
 - `--dry-run` uses the fake backend: walks the phase, prints which task would launch with which model and mode, writes nothing. It runs the real engine on a temporary copy of the plan, with every session finishing at once, user tasks done, verify and commits off. Drift and skip-permissions tasks are shown as warnings instead of asked about; a task already in progress is shown as resumed with a fresh session. Without a phase it walks the last run's phases. It never touches `.igris/`.
 - On start, `arise` warns if `ANTHROPIC_API_KEY` is set in the environment (Claude Code would bill the API instead of the subscription) and asks for confirmation. It also warns, without asking, if the project is not a git repository or has uncommitted changes (§7.3), and about the Claude Code and herdr versions (§11.4).
-- Before its first write `arise` asks to confirm readiness drift (§5.2), and asks for the typed `skip permissions` confirmation when a task would run in `yolo` mode (§7.3). Declining any of these exits 1 with nothing started. With `--no-tui` the answers come from stdin (`y` for the questions). With the TUI they are asked the same way, as plain prompts before the TUI takes over the terminal. `--dry-run` prints the warnings and never asks.
+- Before its first write `arise` asks to confirm readiness drift (§5.2), and asks for the typed `skip permissions` confirmation when a task would run in `yolo` mode (§7.3). Declining any of these exits 1 with nothing started. With `--no-tui` the answers come from stdin (`y` for the questions). With the TUI they are asked the same way, as plain prompts before the TUI takes over the terminal; in the start-run wizard (§15.6) they are dialogs with the same defaults and meaning. `--dry-run` prints the warnings and never asks.
 
 ---
 
 ## 15. TUI
 
 Built with Bubble Tea / Lip Gloss. Runs in the igris pane; the Claude sessions live in their own herdr tabs.
+
+**One program, a stack of screens.** Igris's TUI is one Bubble Tea program (one alt-screen session, one background-colour detection, stable mouse and focus modes) holding a stack of screens: home at the bottom (§15.6), with pages, the start-run wizard, the run view (§15.1–§15.5) and the adapt review pushed on top. `esc` closes an open dialog first, otherwise it pops the screen; `q` pops a pushed screen and quits on home; `ctrl+c` quits the whole app from anywhere (with a run going, it stops igris and leaves the session open, exactly like quitting `arise`). A resize reaches every screen on the stack. While the run view is on the stack it owns the only engine; there is no background run. `igris arise PHASE` opens the run view on its own, with no home beneath it, and behaves as before.
 
 ### 15.1 Layout (≥ 100 columns)
 ```
@@ -575,8 +582,11 @@ Every action is reachable three ways: **clicking** its button (or tapping it, e.
 | Retry | `r` | Retry: close the current session, then choose **Continue conversation** or **Start fresh** (`Resumed=true`) |
 | Stop | `x` | Stop now: leave the session open, stop igris after confirmation |
 | — | `↑/↓`, `enter`, click | Browse tasks / show task details (full text, deps, extra columns) |
-| Quit | `q` | Quit the TUI; sessions keep running, `igris arise` resumes |
+| Quit / Home | `q` | Quit the TUI; sessions keep running, `igris arise` resumes. When the run was started from home the button reads **Home**: igris stops, the session keeps running, and home comes back with fresh data |
+| — | `y` | Copy the selected item (a task ID, a fix command, a path) to the clipboard with OSC 52; terminals without OSC 52 ignore it |
 | ? | `?` | Help: every action, its key, and the focus keys |
+
+When a run ends on its own (complete, stuck, error) the run view stays open with its end banner and **Home** focused, so the reason can be read; a Stop the owner confirmed (`x`) returns to home on its own once igris has stopped.
 
 ### 15.4 Visual rules
 - Status glyphs: `✓` done, `●` running, `!` needs you, `·` ready, `⨯` blocked, `–` skipped. Never color alone: every state, badge and marker is also a glyph or a word, and color and weight only add emphasis (what runs or needs the owner stands out; what is done, skipped or blocked is dimmed).
@@ -605,6 +615,75 @@ Modelled on Claude Code's choice prompts and herdr's clickable UI.
 - **Skip permissions** (§7.3) is never a single click or key: picking `yolo` in a mode list opens a text field that only accepts the typed phrase `skip permissions`.
 - `--no-tui` (§14) remains the plain stdin interface with the same actions as typed commands.
 
+### 15.6 Home screen
+
+Bare `igris` on a terminal (§14) opens home: the project at a glance and the way into everything else. Home itself never writes the plan or `igris.toml`; it starts runs, `init` and `adapt`, and opens files in the owner's editor.
+
+**Layout.** A header (project, plan file, herdr `…` / `✓` / `⨯`, default mode, and the run state on the right), then **PHASES** (glyph, ID, title, progress bar, `done/total`, the §5.1 outcome word), **NOW** (the card below), **HEALTH** (the check result and the doctor summary) and **RECENT** (the last 2–3 runs from `runs.jsonl`), a status line with the last action's result, and the action bar. Wide (≥ 100×13) puts PHASES left and NOW/HEALTH/RECENT right; narrow is one column (NOW, PHASES, HEALTH, RECENT) and must stay usable at 50×20, with the bar folding into `More…`; below 60 columns the bars are dropped and the numbers stay; below 40×12 only `igris — terminal too small (need 50×20, now W×H) · q quits` is shown.
+
+**NOW card**, one state at a time:
+
+| State | Card | Default action |
+|---|---|---|
+| No `igris.toml` | **GET STARTED**: numbered steps `igris.toml`, plan, check, preview, arise, each turning `✓` as data refreshes; after init, the plan step offers **Example plan** (`init --example`), or **Check** / **Adapt** when a non-canonical plan exists | Init |
+| Plan invalid | **PLAN INVALID**: file, problem count, the first few `file:line: message`, "… N more — Check shows all"; without herdr, why Adapt is unavailable | Check |
+| Ready | **READY**: the phase with work, `next` and `then` tasks with rank, tasks left and how many wait on what | Arise… |
+| Interrupted | **INTERRUPTED**: last run's range, the interrupted task, its session and whether Resume reattaches; **STOPPED** when `state.json` has phases but no current task | Resume… |
+| Running elsewhere | **RUNNING** in another igris (pid, host, since): current task, the last 3 run-log events, "This screen only watches. Use that terminal to control the run." Read-only (§13) | Open session |
+| Remote / stale lock | `LOCKED by a run on host H …; igris can't tell if it is alive` / `LAST RUN DID NOT CLEAN UP (pid N gone)`; Arise stays available and its wizard asks before clearing (below) | Arise… |
+
+**Pages** (pushed on home; each page's own key runs it again):
+
+| Page | Key | Shows | Actions |
+|---|---|---|---|
+| Phase detail | `enter` / second click on a phase | that phase's task rows (as in the run view), the §5.1 outcome, counts | Arise this phase…, Preview this phase, Edit plan |
+| Task detail | `enter` on a task | the run view's detail page plus the task's last attempts from history | Copy ID (`y`) |
+| Check | `c` | `check`'s problems, then its warnings | Edit plan, Adapt (when invalid) |
+| Doctor | `i` | `doctor`'s rows (§14); the selected row shows its next step | the row's safe home equivalent (Edit igris.toml, Init, Check, Adapt), Copy fix command (`y`) |
+| History | `h` | `history`'s runs; `enter` drills into a run's tasks and a task's attempts | — (read-only) |
+| Settings | `,` | problems first, then the effective config in TOML-shaped sections; defaults marked `· default` in words; secrets never shown (`token = set (env:NTFY_TOKEN)` / `set (hidden)`) | Edit igris.toml (`e`), Doctor, Init (no file) |
+| Preview | `v` | the dry run (§14) as numbered steps: task, rank → model, mode, `[SKIP PERMISSIONS]`, resumed; warnings, totals | Arise with these settings |
+| Notify test | `n` | after a confirm dialog, one row per event × channel filled in live (`· sending` → `✓ ok` / `⨯ FAILED: reason`), as `notify test` (§14) | Cancel while sending, Send again |
+| Init | `I` | after a confirm dialog listing the files it touches (**Create files** · Cancel; never overwrites), each step's result as `init` prints it | — |
+| Adapt | `A` | after a confirm dialog (**Cancel** · Adapt with sonnet · Adapt with opus; the `ANTHROPIC_API_KEY` warning when it applies), `adapt`'s progress, then the adapt review (§9) | Open session, Cancel; then Accept / Reject as in §9 |
+
+**Keys on home.** The run view's letters (`o m M p d s r x q ?`) never mean something else on home; `y` is copy and `j`/`k` navigate everywhere. Actions appear only when they apply (§15.3):
+
+| Key | Action | Shown when |
+|---|---|---|
+| `a` | **Arise…** / **Resume…** (the label follows the state) | config and plan valid, herdr reachable, no live lock held by another igris |
+| `v` | Preview | plan valid |
+| `c` | Check | a plan file exists |
+| `i` | Doctor | always |
+| `h` | History | `runs.jsonl` exists |
+| `e` | Edit the file this screen is about (the plan on home and phase detail, `igris.toml` on Settings) | the file or its directory exists |
+| `,` | Settings | always |
+| `n` | Notify test | a channel is set up |
+| `A` | Adapt | the plan exists, is invalid, and herdr is reachable |
+| `I` | Init | there is no `igris.toml` |
+| `o` | Open session | another igris runs here and `state.json` has a session ref |
+| `?` `q` `esc` `ctrl+c` | help, back or quit, back, quit the app | always |
+
+Focus regions in tab order: PHASES → action bar → HEALTH/RECENT (each line opens its page). The selected phase is the wizard's default. Mouse as in §15.5: a click selects a phase and a second click opens it; a click on a HEALTH or RECENT line opens its page.
+
+**Start-run wizard** (`a`, or `igris arise` with nothing to resume, §14). A sequence of dialogs over home (full-screen when narrow), each with the CLI's default and meaning:
+1. **What to run** — only when something can be resumed: **Resume last run (T first)** · Start a phase…. Resume continues the previous range with the interrupted task first (§13); the session-lost question then comes in the run view.
+2. **Phase** — phases with work first, each with `n/m` and its outcome word; complete phases last, labelled `complete`. Default: the selected phase if it has work, else the first with work.
+3. **Through** — **Only P** · P through Q … (later phases only).
+4. **Mode** — **As planned** (Mode column, then `default_mode`) · default · accept · auto · plan · yolo `[SKIP PERMISSIONS]`. yolo opens the typed-phrase field (§7.3, §15.5).
+5. **Summary** — `Arise P through Q · mode M · N tasks · first T rank`, with the warnings `arise` prints (plan hints, the integration hint, not a git repository, uncommitted changes, the interrupted task first): **Arise** · Preview · Cancel.
+6. **Confirmations** — every start warning that `arise` asks about becomes a dialog, Cancel first (e.g. `ANTHROPIC_API_KEY`: **Cancel** · Start anyway).
+7. **Launch** — "starting… checking herdr, taking the lock" with Cancel. An error before the run starts becomes the matching dialog and the launch is retried: readiness drift → the list of changes, **Cancel** · Let igris fix them; a task needing yolo → the typed phrase (unless typed in step 4 of this launch); a stale or remote lock → **Cancel** · Clear the lock and start (the `--force-unlock` equivalent, §14). A live local lock, an unavailable backend or any other error → an error dialog with the next step and a link to Doctor; no retry. A failed launch leaves no engine behind.
+8. **Started** — the run view is pushed (§15.3, Quit labelled **Home**).
+
+Every answer belongs to that one launch and is thrown away afterwards; nothing — in particular no skip-permissions confirmation — carries over to the next run.
+
+**Edit.** `e` suspends the TUI and runs `$VISUAL`, else `$EDITOR`, on the file's absolute path (§16). With neither set, a dialog shows the path: **Close** · Open with vi (only if `vi` is on `PATH`) · Copy path (`y`); igris never falls back to `vi` silently. On return igris reloads and re-validates (`✓ igris.toml valid` / `⨯ igris.toml: N problems — Settings`); a non-zero exit reads `editor exited with status N; file reloaded`; theme, mouse and rank colours apply at once. Under a live local lock, editing the plan asks first: **Cancel** · Edit anyway.
+
+**Refresh.** Every 2 s home compares size and modification time of `igris.toml`, the plan, `.igris/state.json`, `.igris/igris.lock` and `.igris/runs.jsonl`, and reloads only what changed (the plan is parsed and validated only when its file changed). It also refreshes on returning from the editor, when a run, review, init or adapt ends, and when the terminal regains focus. Slow checks (herdr availability, doctor's process calls) run asynchronously when home opens and on demand, never on the poll. Lists draw only their visible rows.
+
+**`NO_COLOR` and mouse off** change only the look and the input method (§15.4, §15.5): states are glyph plus word everywhere, bars are `█░` with the numbers beside them.
+
 ---
 
 ## 16. Errors and safety
@@ -613,12 +692,12 @@ Modelled on Claude Code's choice prompts and herdr's clickable UI.
 
 - The plan is never written while it fails validation.
 - Sessions can't change igris's behavior mid-run: config is snapshotted (§13), `igris skip` from a session needs owner confirmation (§6.2), model/mode flags can't be smuggled in via `extra_args` (§7.4), values read back from `state.json` are checked before they become arguments (§7.4, §13), and plan edits igris didn't make hold the run until the owner looks (§5.4).
-- Every external command (herdr, claude, git, verify) has a timeout; failures are shown with the command and exit code. Captured output is bounded (§6.4).
+- Every external command (herdr, claude, git, verify) has a timeout; failures are shown with the command and exit code. Captured output is bounded (§6.4). The one exception is the owner's editor opened from home (§15.6): it is interactive and owner-configured, so it has no timeout. `$VISUAL` / `$EDITOR` is split into argv with `strings.Fields` (arguments like `code --wait` work; quoted arguments don't), the file's absolute path is the last argument, no shell is involved, and with neither variable set igris asks instead of falling back to `vi`.
 - Igris never runs commands from the plan's content, and never passes plan text through a shell — prompts go to herdr as argv, not interpolated into shell strings.
-- Text igris did not write — plan cells, done notes, command output, backend errors — is cleaned of escape sequences and control characters before it is drawn in the TUI or the `--no-tui` log, sent as a notification, used in a commit message, or typed into a session's pane (§3.5, §6.2, §6.4, §9.5).
+- Text igris did not write — plan cells, done notes, command output, backend errors, and on home also run-log details, the lock's host, notify errors and config string values — is cleaned of escape sequences and control characters before it is drawn in the TUI or the `--no-tui` log, sent as a notification, used in a commit message, or typed into a session's pane (§3.5, §6.2, §6.4, §9.5).
 - Signal and state files are written atomically, with `0600` files and `0700` directories; signals are read only as regular files of bounded size (§6.2).
 - Every user-facing error says what to do next (the command to run, the setting to change, the file to fix or delete).
-- Igris never reads or logs Claude Code credentials, and never sets `ANTHROPIC_API_KEY`. Notification secrets never enter the config hash, the run log or error messages (§10). An ntfy `token` is sent as a bearer header, so use an `https://` server for it.
+- Igris never reads or logs Claude Code credentials, and never sets `ANTHROPIC_API_KEY`. Notification secrets never enter the config hash, the run log or error messages (§10), and never appear on home's Settings, Doctor or Notify test pages (§15.6), which say only whether a secret is set and where from. An ntfy `token` is sent as a bearer header, so use an `https://` server for it.
 
 ---
 
@@ -629,7 +708,7 @@ Modelled on Claude Code's choice prompts and herdr's clickable UI.
 - **Scheduler:** selection order, resume, stuck detection, readiness sync, `--through`.
 - **Engine:** full phase runs on the fake backend covering done, verify failure + retry, verify limit, session lost, user tasks, skip, pause, resume after restart, stray signals.
 - **herdr backend:** command construction + JSON parsing against recorded fixtures; a manual smoke checklist on a real herdr install.
-- **TUI:** model update tests (teatest) for key handling and both layouts.
+- **TUI:** model update tests (teatest) for key handling and both layouts. Home, its pages and the wizard (§15.6) have teatest goldens at 120×40, 80×24 and 50×20, run against a fake of the services seam; a golden test injects escape sequences into every untrusted text source and checks they are cleaned; the existing run-view goldens stay unchanged. A benchmark on the large fixture keeps home's `View` under 2 ms at 120×40.
 - **Notifications:** httptest servers for ntfy and Discord; secret redaction.
 - **Fuzzing** (stdlib `testing.F`): the table tokenizer and parser (no panic, deterministic, validation never crashes), the Status writer (only the target Status cell changes, for any input), the config loader and the signal reader (arbitrary bytes give an error, never a panic). `make test` replays the seeds; `make fuzz` runs each target (10 minutes each before a release); a failing input is committed under `testdata/fuzz/` as a regression seed.
 - `go test -race ./...` clean.

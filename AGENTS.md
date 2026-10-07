@@ -28,6 +28,9 @@ These rules apply to every coding agent working in this repository (Claude Code 
   - `internal/tui/` — Bubble Tea UI
   - `internal/adapt/` — `igris adapt`
   - `internal/prompt/` — embedded templates
+  - `internal/checks/` — the ordered check list shared by `check`, `arise`, `doctor` and home; results only, no printing
+  - `internal/report/` — pure data the CLI and home render (check, phases, status, run info, history, dry run); no printing
+  - `internal/project/` — opens a project (root, config, plan) tolerantly, builds the engine for `arise` and home, implements the home screen's services
   - `internal/textsafe/` — cleans untrusted text (plan cells, notes, command output) of escape sequences before it is drawn or typed into a pane
 - Small concrete types, plain functions. Interfaces only at real seams (`Backend`, `Session`, notifier, clock, command runner).
 - Every external process call goes through one injectable command runner with a timeout. Never build shell strings from plan text; pass argv.

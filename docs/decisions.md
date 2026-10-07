@@ -222,3 +222,31 @@ Decided:
 - **Completions** are hand-written per shell (bash, zsh, fish), embedded as templates, no cobra. A hidden `igris __complete <kind>` supplies phase and task IDs; it reads the plan only (no `.igris/`, no network), prints one candidate per line, and prints nothing and exits 0 on an invalid plan. It is not listed in help.
 - **OSC 52 copy** on `y`: new direct dependency `github.com/aymanbagabas/go-osc52/v2` (v2.0.1, MIT), already in the module graph through Lip Gloss, so nothing new is downloaded; it is promoted from indirect to direct and added to the P0-01 approved list. Terminals without OSC 52 ignore the sequence.
 - **SPEC amended:** §14 (`doctor`, `history`, `completion`, `init --example`, current run in `status`), §18 (Homebrew), §3.4 and §9 (blocker convention: "a task blocked on something outside the plan depends on a `user` task that names it").
+
+## V02-P2 — Home screen
+
+**Approved by owner** (2026-10-07), for v0.2. The home-screen design (private design note, accepted as written) is transcribed into SPEC §13, §14, §15 (new §15.6), §16 and §17; AGENTS §3 gains `internal/checks`, `internal/report` and `internal/project`. Tasks V02-10…V02-26 build on it.
+
+| Option | Pros | Cons |
+|---|---|---|
+| **One Bubble Tea program with a screen stack** | One alt-screen session and one background detection (no flicker or misdetection over SSH); home keeps its selection across runs; `tea.Exec` for the editor just works | The run view must be embeddable (a `Leave` hook; Quit becomes **Home**) |
+| One program after another, driven from `cmd/igris` | Run view untouched | A driver loop, state lost on every switch, the alt screen re-entered each time |
+
+| Option | Pros | Cons |
+|---|---|---|
+| **`check` / `phases` / `status` stay working-directory-based** | No silent behaviour change in v0.2 | They differ from `arise` and home, which search upward for the root |
+| Search upward like `arise` | One rule everywhere | Changes what an existing command reads without the owner asking |
+
+Decided:
+- **Entry.** Bare `igris` opens home only when stdin and stdout are character devices (`ModeCharDevice`), stdin is not `/dev/null`, and `TERM` is not `dumb`; otherwise help to stderr and exit 2, as today. No isatty dependency; the detection is a test seam. `igris arise` with no phase and nothing to resume opens the start-run wizard on a terminal (not with `--no-tui` or `--dry-run`); `igris arise PHASE` and every subcommand are unchanged.
+- **One app.** Starting a run from home pushes the existing run view; leaving it (the session keeps running), a confirmed Stop, or a run ending brings the owner back to home with fresh data. At most one engine, only while the run view is on the stack; no background run in v0.2. The adapt review is embedded the same way.
+- **Home keymap** `a v c i h e , n A I o`, plus `? q esc ctrl+c`. The run view's letters (`o m M p d s r x q ?`) keep their meaning; `y` is OSC 52 copy everywhere (V02-P1); `j`/`k` navigate.
+- **Read-only under a foreign lock.** A new `state.PeekLock` classifies the lock without taking it (sharing the classification with `Lock`) and never creates `.igris/`. While a live igris on this host holds the lock, home offers no Arise, Init or Adapt, and asks before editing the plan.
+- **Stale locks.** Today the CLI has no stale-lock prompt: `StaleLockError` (and a remote `LockedError`) say to rerun with `--force-unlock`. The wizard's **Clear the lock and start** dialog — **Cancel** default, asked per launch, never remembered — is the TUI equivalent of that flag, not a new behaviour. Home never clears a lock outside the wizard.
+- **Wizard confirmations** mirror `arise`: same defaults (Cancel), same meaning; yolo always needs the typed phrase; all answers belong to one launch and are thrown away (SPEC §7.3 holds).
+- **Settings is read-only; editing goes through the owner's editor.** Igris never rewrites `igris.toml`, and writes the plan only in Status cells, as before. `$VISUAL`, else `$EDITOR`, split with `strings.Fields`, absolute path last, no shell; with neither set igris asks (no silent `vi`). The editor is the one external process without a timeout (SPEC §16).
+- **Secrets** never appear on Settings, Doctor or Notify test; they show only whether a secret is set and from where.
+- **Plan commands stay working-directory-based** in v0.2 (`check`, `phases`, `status`, `--plan` as today).
+- **Tests:** teatest goldens for home, pages and wizard at 120×40, 80×24 and 50×20 against a fake services seam; escape-sequence injection into every untrusted source; existing run-view goldens unchanged.
+- **Layout:** everything stays in `internal/tui` (new `app_*`, `home_*`, `page_*` files); a subpackage would export internals for no gain. New packages `internal/checks`, `internal/report`, `internal/project` (AGENTS §3).
+- **SPEC amended:** §13 (reading state without a run, `PeekLock`, read-only home), §14 (bare `igris`, `arise` wizard fallback, stale lock vs `--force-unlock`, plan commands stay cwd-based), §15 (screen stack, **Home** label, `y`, new §15.6), §16 (editor exception, secrets on home), §17 (home goldens).
