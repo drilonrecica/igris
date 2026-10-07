@@ -70,3 +70,11 @@ Scratch project ready for the owner: `…/scratchpad/proj-termius` (planned like
 - **V02-32 (38fb4be):** YOUR TURN says the task is the owner's to do outside igris and how to finish it (`d` done · `s` skip), and `d` on a user task takes an optional note that lands in `igris history`.
 
 Both were checked live in herdr tabs (a card-demo run with an agent task that asks, a user task, `t`, `o` focusing the session tab, `d` with a note, `history` showing it) and the owner reviewed the card demo. Gate signed off by the owner on 2026-10-07.
+
+# v0.2.1 check
+
+Run 2026-10-07 on Linux (Fedora) with HEAD after V021-01…04 (`v0.2.0-4-g9262294`), herdr 0.9.1; `make fmt lint` and an uncached `go test -race ./...` green. Phase V021 itself ran through igris (`igris arise V021 --no-tui`, four sonnet sessions, verify `make fmt lint test-race`, each commit confirmed).
+
+- **Finding 3:** in this repository, right after the V021 run completed, home (80×24) read `COMPLETE · every phase is done` with `last run V021 completed` instead of `STOPPED · … Resume continues V021`.
+- **Finding 4:** scratch project from `init --example` with P1-01…03 set `done`, so the run sat on the user task P1-04. During the live run `igris history` listed `P1-04 running` (`--json`: `"result":"running"`), and a second terminal's home at 50×20 showed `RUNNING ELSEWHERE` with `recent: P1-04 running`.
+- **Unchanged:** after `ctrl+c` in that run, home showed `INTERRUPTED · last run P1` with **Resume…** as the default button, and `history` listed P1-04 as `unfinished`.
