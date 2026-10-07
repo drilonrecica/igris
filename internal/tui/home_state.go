@@ -425,10 +425,7 @@ func (m *homeScreen) runningCard(w int) []string {
 	case s.Run == nil || s.Run.Unreadable != "":
 		out = append(out, m.th.paint(lookDim, fit("state.json: "+orText(s.Run, "not written yet"), w)))
 	case s.Run.Task != "":
-		tail := ""
-		if s.Run.Mode != "" { // a user task has no session, so no mode
-			tail = " · mode " + s.Run.Mode + badge(s.Run.Mode)
-		}
+		tail := modeTail(s.Run.Mode)
 		if t, err := time.Parse(time.RFC3339, s.Run.Since); err == nil {
 			tail += " · " + shortSince(m.now(), t)
 		}
@@ -501,13 +498,23 @@ func (m *homeScreen) interruptedCard(w int) []string {
 	return append(out, wrap("Resume continues "+rangeText(r.Phases, r.Through)+".", w)...)
 }
 
+// modeTail is " · mode M" for a task line, or "" when the run recorded no
+// mode: a user task has no session, and an agent task has none until its
+// session launches.
+func modeTail(mode string) string {
+	if mode == "" {
+		return ""
+	}
+	return " · mode " + mode + badge(mode)
+}
+
 // runLines describe the recorded run's task and session.
 func (m *homeScreen) runLines(w int) []string {
 	r := m.snap.Run
 	if r == nil || r.Task == "" {
 		return nil
 	}
-	out := []string{m.th.marks(m.taskLine(glyphs[plan.InProgress], r.Task, " · mode "+r.Mode+badge(r.Mode), w))}
+	out := []string{m.th.marks(m.taskLine(glyphs[plan.InProgress], r.Task, modeTail(r.Mode), w))}
 	for _, l := range wrap("session: "+r.Session+" (Resume reattaches if it is still open)", w) {
 		if r.Session != "" {
 			out = append(out, m.th.paint(lookDim, l))
