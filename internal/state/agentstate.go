@@ -73,6 +73,21 @@ func WriteAgentState(root, uuid string, s AgentState) error {
 	return writeFileAtomic(filepath.Join(dir, uuid+".json"), append(data, '\n'))
 }
 
+// ClearAgentState forgets the recorded state of the session uuid, before a
+// session with that UUID opens: a continued session (--resume) reuses its
+// UUID, and its previous state (e.g. exited) must not count. A missing file
+// is not an error.
+func ClearAgentState(root, uuid string) error {
+	if !ValidSessionUUID(uuid) {
+		return fmt.Errorf("clear agent state: invalid session id %q", uuid)
+	}
+	err := os.Remove(filepath.Join(AgentStateDir(root), uuid+".json"))
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("clear agent state: %w", err)
+	}
+	return nil
+}
+
 // ReadAgentState returns the last agent state recorded for the session
 // uuid, and false if there is none. Sessions can write into .igris/, so the
 // file is opened without following symlinks and without blocking (a FIFO

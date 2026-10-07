@@ -186,6 +186,9 @@ func (e *Engine) openSession(ctx context.Context, l *launch, st sessionStart) er
 	if err := e.dir.SaveRun(e.run); err != nil {
 		return err
 	}
+	if err := state.ClearAgentState(e.dir.Root(), st.sessionID); err != nil {
+		return err
+	}
 	sess, err := e.be.OpenSession(ctx, backend.SessionSpec{
 		TaskID: t.ID,
 		Dir:    e.dir.Root(),

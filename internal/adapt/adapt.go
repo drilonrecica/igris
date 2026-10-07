@@ -211,6 +211,9 @@ func (r *runner) open(ctx context.Context, issues []plan.Issue, proposal string)
 	if err := r.o.Backend.Available(ctx); err != nil {
 		return nil, err
 	}
+	if err := state.ClearAgentState(d.Root(), sid); err != nil {
+		return nil, err
+	}
 	sess, err := r.o.Backend.OpenSession(ctx, backend.SessionSpec{
 		TaskID: ID,
 		Dir:    d.Root(),
