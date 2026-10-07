@@ -6,6 +6,7 @@ package tui
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"time"
 
@@ -43,6 +44,9 @@ type Options struct {
 	Sender Sender // where the owner's commands go
 	// Focus brings a session's pane to the front (Open session).
 	Focus func(context.Context, backend.SessionRef) error
+	// Out is where the clipboard sequence goes (OSC 52); nil means
+	// os.Stdout, the terminal the program draws on.
+	Out io.Writer
 	// Now is the clock for elapsed times; nil means time.Now.
 	Now func() time.Time
 }

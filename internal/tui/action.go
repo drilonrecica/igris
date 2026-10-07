@@ -41,6 +41,7 @@ const (
 	actAccept       // replace the plan with the proposal
 	actAcceptAnyway // replace it although the proposal doesn't pass check
 	actReject       // keep the plan as it is
+	actCopy         // copy the selected item with OSC 52 (y)
 )
 
 // modeActs maps the mode picker's actions to their modes, in the order
@@ -97,6 +98,7 @@ var shortcuts = map[string]action{
 	"s":      actSkip,
 	"r":      actRetry,
 	"x":      actStopAsk,
+	"y":      actCopy,
 	"?":      actHelp,
 	"q":      actQuit,
 	"ctrl+c": actQuit,
@@ -115,6 +117,7 @@ var helpActions = []helpEntry{
 	{"s", "Skip", "skip the current task; asks for a reason and closes its session"},
 	{"r", "Retry", "close the session and start fresh or continue the conversation"},
 	{"x", "Stop", "stop igris after confirming; the session stays open"},
+	{"y", "Copy", "copy claude --resume for the current session, or the log line at the bottom when the log has the focus"},
 	{"q", "Quit", "quit the TUI; sessions keep running, igris arise resumes"},
 	{"?", "Help", "this page"},
 }

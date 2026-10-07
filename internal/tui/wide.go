@@ -107,6 +107,9 @@ func (m *model) facts() string {
 	if m.paused {
 		parts = append(parts, m.th.paint(lookTitle, "PAUSE AFTER TASK"))
 	}
+	if m.notice != "" {
+		parts = append(parts, m.th.paint(lookAccent, m.notice))
+	}
 	return strings.Join(parts, " · ")
 }
 

@@ -197,7 +197,7 @@ func (e *Engine) openSession(ctx context.Context, l *launch, st sessionStart) er
 		return err
 	}
 	opened := ref
-	e.emit(Event{Kind: SessionOpened, Session: &opened})
+	e.emit(Event{Kind: SessionOpened, Session: &opened, ClaudeSession: st.sessionID})
 
 	// The prompt is submitted, never passed as an argument (SPEC §6, §11.2).
 	switch err := sess.Prompt(ctx, st.text); {

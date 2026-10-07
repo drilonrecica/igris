@@ -99,11 +99,12 @@ func execAdapt(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 		issues[i] = is.Error()
 	}
 	accepted, err := adaptReview(ctx, tui.ReviewOptions{
-		Mouse:    cfg.TUI.Mouse,
-		Theme:    cfg.TUI.Theme,
-		PlanPath: rel(root, planPath),
-		Diff:     adapt.Diff(adapt.Lines(res.Original), adapt.Lines(res.Proposed)),
-		Issues:   issues,
+		Mouse:        cfg.TUI.Mouse,
+		Theme:        cfg.TUI.Theme,
+		PlanPath:     rel(root, planPath),
+		ProposalPath: res.ProposalPath,
+		Diff:         adapt.Diff(adapt.Lines(res.Original), adapt.Lines(res.Proposed)),
+		Issues:       issues,
 	})
 	if err != nil {
 		return fail("review: %v; the plan is unchanged, the proposal is in %s", err, res.ProposalPath)

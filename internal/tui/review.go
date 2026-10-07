@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"unicode"
@@ -21,7 +22,11 @@ type ReviewOptions struct {
 	Theme string // "auto", "dark" or "light", as [tui] theme
 	// PlanPath is the plan the proposal would replace, as shown.
 	PlanPath string
-	Diff     []adapt.Line
+	// ProposalPath is where the proposal was written; `y` copies it.
+	ProposalPath string
+	Diff         []adapt.Line
+	// Out is where the clipboard sequence goes; nil means os.Stdout.
+	Out io.Writer
 	// Issues are the proposal's `igris check` problems; none means it
 	// passes.
 	Issues []string
@@ -59,6 +64,7 @@ type review struct {
 	dialog   *dialog
 	zones    zones
 	accepted bool
+	notice   string // "copied" after y
 }
 
 func newReview(o ReviewOptions) *review {
@@ -95,6 +101,9 @@ func (r *review) key(msg tea.KeyMsg) tea.Cmd {
 	switch k {
 	case "a":
 		return r.activate(actAccept)
+	case "y":
+		r.notice = copyNotice(r.o.Out, r.o.ProposalPath)
+		return nil
 	case "r", "esc", "q":
 		return r.activate(actReject)
 	case "tab", "shift+tab", "left", "right", "h", "l":
@@ -211,10 +220,14 @@ func (r *review) View() string {
 
 // status is the proposal's validation result.
 func (r *review) status() string {
-	if len(r.o.Issues) == 0 {
-		return r.th.paint(lookAccent, "✓ the proposal passes igris check")
+	s := r.th.paint(lookAccent, "✓ the proposal passes igris check")
+	if len(r.o.Issues) > 0 {
+		s = r.th.paint(lookAlert, fmt.Sprintf("⨯ the proposal has %d problem(s) igris check rejects", len(r.o.Issues)))
 	}
-	return r.th.paint(lookAlert, fmt.Sprintf("⨯ the proposal has %d problem(s) igris check rejects", len(r.o.Issues)))
+	if r.notice != "" {
+		s += r.th.paint(lookDim, " · "+r.notice)
+	}
+	return s
 }
 
 // diffContext is how many unchanged lines are shown around a change.

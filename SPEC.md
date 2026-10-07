@@ -595,7 +595,7 @@ Every action is reachable three ways: **clicking** its button (or tapping it, e.
 | Stop | `x` | Stop now: leave the session open, stop igris after confirmation |
 | — | `↑/↓`, `enter`, click | Browse tasks / show task details (full text, deps, extra columns) |
 | Quit / Home | `q` | Quit the TUI; sessions keep running, `igris arise` resumes. When the run was started from home the button reads **Home**: igris stops, the session keeps running, and home comes back with fresh data |
-| — | `y` | Copy the selected item (a task ID, a fix command, a path) to the clipboard with OSC 52; terminals without OSC 52 ignore it |
+| — | `y` | Copy the selected item to the clipboard with OSC 52, and say "copied" in the header: `claude --resume <uuid>` of the current session (current-task card), the log line at the bottom of the view (log focused), the proposal path (adapt review). Terminals without OSC 52 ignore it, so "copied" only means the sequence was written |
 | ? | `?` | Help: every action, its key, and the focus keys |
 
 When a run ends on its own (complete, stuck, error) the run view stays open with its end banner and **Home** focused, so the reason can be read; a Stop the owner confirmed (`x`) returns to home on its own once igris has stopped.

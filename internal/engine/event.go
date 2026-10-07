@@ -69,6 +69,9 @@ type Event struct {
 	Changes []plan.Change
 	Waiting []plan.Waiting
 	Session *backend.SessionRef
+	// ClaudeSession is the Claude Code session UUID; set on SessionOpened so
+	// a UI can offer `claude --resume <uuid>`.
+	ClaudeSession string
 	// Question is set on Asked events.
 	Question Question
 }

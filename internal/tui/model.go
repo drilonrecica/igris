@@ -36,6 +36,7 @@ type current struct {
 	since                        time.Time // when state began
 	detail                       string    // why it needs the owner
 	session                      *backend.SessionRef
+	claudeSession                string // the session's Claude UUID, for claude --resume
 }
 
 // area is a focus region (SPEC §15.5); tab moves between them.
@@ -95,6 +96,9 @@ type model struct {
 	// overrides are the per-task modes the owner chose, as the engine
 	// confirmed them.
 	overrides map[string]string
+
+	notice   string // what the last y copied, shown in the header
+	noticeAt time.Time
 
 	zones zones // of the last frame
 	th    *theme
@@ -186,6 +190,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.plan = msg.p
 	case tickMsg:
+		if m.notice != "" && m.opts.Now().Sub(m.noticeAt) >= noticeFor {
+			m.notice = ""
+		}
 		return m, tick()
 	case focusErrMsg:
 		m.addLog(m.opts.Now(), "could not open the session: "+msg.err.Error(), lookTitle)
@@ -201,6 +208,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // page, then the focused region; shortcut keys work outside text fields.
 func (m *model) key(msg tea.KeyMsg) tea.Cmd {
 	k := msg.String()
+	m.notice = "" // a notice lasts until the next key
 	if k == "ctrl+c" || (k == "q" && (m.dialog == nil || !m.dialog.inField)) {
 		return m.activate(actQuit)
 	}
@@ -533,6 +541,9 @@ func (m *model) activate(a action) tea.Cmd {
 			m.dialog = retryDialog(m.cur.id)
 		}
 		return nil
+	case actCopy:
+		m.copySelected()
+		return nil
 	case actDone:
 		if m.cur == nil {
 			return nil
@@ -585,7 +596,7 @@ func (m *model) event(ev engine.Event) {
 		m.settle()
 	case engine.SessionOpened:
 		if m.cur != nil {
-			m.cur.session, m.cur.mode = ev.Session, ev.Mode
+			m.cur.session, m.cur.mode, m.cur.claudeSession = ev.Session, ev.Mode, ev.ClaudeSession
 		}
 	case engine.YourTurn:
 		m.setState(stateYourTurn, ev)
