@@ -2,6 +2,8 @@
 
 `brew install drilonrecica/tap/igris` installs from the formula `Formula/igris.rb` in the repository [`drilonrecica/homebrew-tap`](https://github.com/drilonrecica/homebrew-tap). GoReleaser's `brews` section is deprecated in 2.x, so the formula is rendered by `tools/genformula` from `tools/genformula/igris.rb.tmpl`, using `dist/metadata.json` (version) and `dist/checksums.txt` (SHA-256 per archive). `make release-local` runs it right after GoReleaser and writes `dist/igris.rb`. Nothing is pushed anywhere.
 
+**Not before v0.2.0.** The owner decided (2026-10-07) that igris goes to Homebrew only with the v0.2.0 release: the first `Formula/igris.rb` is pushed as part of publishing v0.2.0 (task V02-R), never from a snapshot or an earlier release. Until then the README doesn't mention Homebrew; the v0.2 docs task (V02-09) adds the install line.
+
 ## Publishing a release's formula
 
 1. Tag the release, then build it from the tag: `git checkout vX.Y.Z && make release-local`. A build from an untagged commit is a snapshot, and its formula carries a `-SNAPSHOT-…` version that must not be published.

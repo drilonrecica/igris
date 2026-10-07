@@ -75,12 +75,6 @@ With Go (the version pinned in `go.mod` or newer):
 go install github.com/drilonrecica/igris/cmd/igris@latest
 ```
 
-With Homebrew (macOS and Linux):
-
-```sh
-brew install drilonrecica/tap/igris
-```
-
 Or download a prebuilt binary from the [Releases](https://github.com/drilonrecica/igris/releases) page: `igris_<version>_<os>_<arch>.tar.gz` for linux and darwin on amd64 and arm64. Check the download against `checksums.txt` (SHA-256), then put the binary on your `PATH`:
 
 ```sh
