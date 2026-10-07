@@ -50,6 +50,8 @@ Verified on Claude Code 2.1.291 (2026-10-06) in a scratch git repo outside this 
 
 SPEC changes: §7.1 (flag notes, `auto`/plan/allow-rule findings), §7.4 (alias list, resume model precedence, API-key warning).
 
+Re-verified on Claude Code 2.1.292 (2026-10-07) with `docs/reverify.md`: unchanged.
+
 Follow-ups for dependent tasks: M2-05 builds argv from these flags; the "needs trust" and "needs approval" states both surface as herdr `blocked` and must map to **Needs you**.
 
 ## P0-03 — herdr CLI verification
@@ -81,6 +83,8 @@ Verified on herdr 0.9.1 (server running, `private_protocol` 22) from inside a he
 4. `herdr integration install claude` stays a recommendation in `init`/`check` (optional), matching §11.2.
 
 Open for the owner: whether to run `herdr integration install claude` on this machine.
+
+Re-verified on herdr 0.9.1 (2026-10-07) with `docs/reverify.md`: shapes unchanged except new, additive `agent_session` objects; `agent_not_ready` now exits 1 (igris reads only the error code). The integration is installed on this machine now (`claude: current (v10)`, fixture `integration_status_current.txt`).
 
 ## P0-04 — Release tooling
 

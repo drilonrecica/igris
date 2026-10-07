@@ -22,7 +22,7 @@ make fuzz         # every fuzz target, FUZZTIME=1m each (10m before a release)
 
 `make test` never needs herdr or Claude Code: the herdr backend replays recorded JSON fixtures, and the engine runs against a fake backend and a fake clock. Please keep it that way — no sleeps in tests, no network, no real sessions.
 
-A change is done when it has code, table-driven tests next to it, `make fmt lint test` and `go test -race ./...` pass, and `SPEC.md`/`README.md` are updated if behavior changed. Golden files under `testdata/` are updated only with `-update`, and the diff is reviewed. The plan parser and Status writer, the config loader and the signal reader have fuzz targets; a change to them should survive `make fuzz`, and an input it finds is committed under `testdata/fuzz/` with the fix.
+A change is done when it has code, table-driven tests next to it, `make fmt lint test` and `go test -race ./...` pass, and `SPEC.md`/`README.md` are updated if behavior changed. Golden files under `testdata/` are updated only with `-update`, and the diff is reviewed. Before a release, and after upgrading Claude Code or herdr, run [`docs/reverify.md`](docs/reverify.md): it re-checks the flags and JSON shapes igris relies on. The plan parser and Status writer, the config loader and the signal reader have fuzz targets; a change to them should survive `make fuzz`, and an input it finds is committed under `testdata/fuzz/` with the fix.
 
 ## Workflow
 

@@ -70,10 +70,15 @@ func TestIntegrationHint(t *testing.T) {
 		t.Errorf("hint = %q", h)
 	}
 
-	f = &runner.Fake{}
-	f.On(cmd("integration", "status"), runner.Result{Stdout: []byte("claude: installed (/x)\n")}, nil)
-	if h := New(f, "w").IntegrationHint(context.Background()); h != "" {
-		t.Errorf("hint with the integration installed = %q, want none", h)
+	for _, out := range []runner.Result{
+		{Stdout: []byte("claude: installed (/x)\n")},
+		ok(t, "integration_status_current.txt"), // "claude: current (v10)", herdr 0.9.1 (docs/reverify.md)
+	} {
+		f = &runner.Fake{}
+		f.On(cmd("integration", "status"), out, nil)
+		if h := New(f, "w").IntegrationHint(context.Background()); h != "" {
+			t.Errorf("hint with the integration installed = %q, want none", h)
+		}
 	}
 
 	f = &runner.Fake{}
