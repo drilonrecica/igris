@@ -15,6 +15,7 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 ### Fixed
 
 - An unknown status that is a common synonym gets a hint: `unknown status "dropped" (did you mean skipped?)`, likewise for `completed` → done and `wip` → in progress. It is still an error.
+- Notifications show task titles without markdown: `` `hello.txt` `` and `**bold**` appeared as raw characters on the phone, and a trailing period ran into the `:` after it.
 - "Needs you" notifications say why in a few words — `(waiting for a permission or an answer)`, `(idle 20s without igris done)`, `(the session asks to skip)` — so two in a row can be told apart.
 - `igris notify test` sent seven identical messages; each sample now names its event and says what a real one would (`test of needs_input: needs you`).
 - The `task_done` notification was accepted in `events` but never sent. It is now sent when an agent task is done, to the channels that list it (the herdr toast keeps its default events).

@@ -58,6 +58,9 @@ func TestMessageBody(t *testing.T) {
 		{"phase event", Message{Phase: "M5", What: "complete"}, "phase M5: complete"},
 		{"what only", Message{What: "the run stopped"}, "the run stopped"},
 		{"id without title", Message{Phase: "P", TaskID: "X-1", What: "w"}, "phase P · X-1: w"},
+		{"markdown in the title", Message{Phase: "S0", TaskID: "S0-01", Title: "Create `hello.txt` containing the word `hello`.", What: "done"},
+			"phase S0 · S0-01 Create hello.txt containing the word hello: done"},
+		{"bold title", Message{TaskID: "M0-02", Title: "**Entrypoint**", What: "done"}, "M0-02 Entrypoint: done"},
 	}
 	for _, tt := range tests {
 		if got := tt.m.Body(); got != tt.want {
