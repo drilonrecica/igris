@@ -250,3 +250,53 @@ Decided:
 - **Tests:** teatest goldens for home, pages and wizard at 120×40, 80×24 and 50×20 against a fake services seam; escape-sequence injection into every untrusted source; existing run-view goldens unchanged.
 - **Layout:** everything stays in `internal/tui` (new `app_*`, `home_*`, `page_*` files); a subpackage would export internals for no gain. New packages `internal/checks`, `internal/report`, `internal/project` (AGENTS §3).
 - **SPEC amended:** §13 (reading state without a run, `PeekLock`, read-only home), §14 (bare `igris`, `arise` wizard fallback, stale lock vs `--force-unlock`, plan commands stay cwd-based), §15 (screen stack, **Home** label, `y`, new §15.6), §16 (editor exception, secrets on home), §17 (home goldens).
+
+## V03-P1 — Hook-based agent state
+
+**Approved by owner** (2026-10-07), for v0.3. Verified on Claude Code 2.1.293 in a scratch repository, sessions driven through a scratch tmux server; sanitized payloads are in `internal/hook/testdata/`. SPEC §6.3, §7.4, §11, §13 and §14 are amended. Tasks V03-01…V03-03 build on it.
+
+| Option | Pros | Cons |
+|---|---|---|
+| **Per-session `--settings` file, written by igris, containing only `hooks`** | Nothing persistent; the owner's own sessions never run `igris hook`; nothing for `init`/`doctor` to repair; the hook command names the exact igris binary | igris passes `--settings` itself (still forbidden in `extra_args`) |
+| Merge hooks into `.claude/settings.local.json` in `igris init` | Visible, one place | Every Claude session in the project runs the hooks; existing projects need `init` again; the binary path goes stale after an upgrade |
+
+| Option | Pros | Cons |
+|---|---|---|
+| **On herdr, hook state only fills in when herdr says `unknown`** | herdr's integration (screen-based) stays authoritative where installed; no behavior change for current users | Two sources to reason about |
+| Hook state always wins | One source everywhere | Changes working herdr setups for no gain |
+
+Verified behavior:
+- A hooks-only file passed with `--settings` merges with the project's settings: the `Bash(…)` allow rules in `.claude/settings.local.json` still apply.
+- Hooks run through `/bin/sh -c` with the event JSON on stdin. A failing hook command (exit ≠ 0 and ≠ 2) is non-blocking: Claude Code shows "Failed with non-blocking status code" and carries on. Exit 2 would block a `UserPromptSubmit`, so `igris hook` always exits 0.
+- No hook fires while the folder-trust question is shown; `SessionStart` (`source` `startup`, `resume`, `clear`, `compact`) fires once the input box is up.
+- `session_id` is the UUID igris passes with `--session-id`.
+- Event order for a turn: `UserPromptSubmit` → (`PreToolUse` → `PostToolUse`)… → `Stop`. A permission prompt: `PreToolUse` → `PermissionRequest` → `Notification` (`notification_type` `permission_prompt`, ~6 s later). An `AskUserQuestion` question: `PreToolUse` (`tool_name` `AskUserQuestion`) → `PermissionRequest` → `Notification` `permission_prompt`. After ~60 s idle: `Notification` `idle_prompt`. `/exit`: `SessionEnd` (`reason` `prompt_input_exit`).
+
+Decided:
+- **Event → state:** `SessionStart` (startup, resume, clear) → `idle` (`compact` is ignored: it fires mid-turn); `UserPromptSubmit`, `PreToolUse`, `PostToolUse` → `working`; `PreToolUse` for `AskUserQuestion` or `ExitPlanMode`, `PermissionRequest`, `Notification` other than `idle_prompt` → `blocked`; `Notification` `idle_prompt` and `Stop` → `idle`; `SessionEnd` → `exited`. Other events are ignored.
+- igris writes `.igris/hooks/<ID>.settings.json` (0600) before each session (fresh, continue and adapt) and adds `--settings <file>` to the argv. The hook command is the absolute path of the running igris (single-quoted) plus `hook <Event>`, timeout 5 s.
+- `igris hook <event>` (hidden): reads at most 64 KiB of stdin, needs a UUID-shaped `session_id`, finds the project root from the payload's `cwd` (falling back to its own working directory), writes `.igris/agent-state/<uuid>.json` atomically (`{"state","event","at"}`, 0600, directory 0700), prints nothing, does no network I/O, gives up after 2 s and always exits 0.
+- Hook state is untrusted (a session can write the files): read only as a regular file of at most 4 KiB, shape-checked, and keyed by the UUID igris generated. It can at worst raise or clear **Needs you**; only a signal or an owner action advances a task (invariant 3).
+- On herdr, herdr's `agent_status` wins; hook state is used only when herdr reports `unknown` (no integration). On tmux, hook state is the state source.
+
+## V03-P2 — tmux behavior
+
+**Approved by owner** (2026-10-07), for v0.3. Verified on tmux 3.7c in a scratch server (`tmux -L … -f /dev/null`); outputs are in `internal/backend/tmux/testdata/`. SPEC §11 is amended. Tasks V03-04…V03-06 build on it.
+
+Verified behavior:
+- `new-window -d -P -F '#{window_id} #{pane_id}' -c DIR -n NAME -- prog arg…` prints `@N %N` and execs a multi-argument command **directly, without a shell**: arguments with spaces, `;` and `$HOME` arrive unchanged.
+- **`-n` is format-expanded**: `#{pane_id}` expands and `#(cmd)` runs a shell command. `-c` is not expanded. `display-message` text is a format too. So igris escapes every `#` as `##` in window names and toasts (renders as a literal `#`).
+- `load-buffer -b NAME -` reads the buffer from stdin (no argv, no expansion); `paste-buffer -p -d -b NAME -t PANE` pastes it with bracketed paste (if the application asked for it, as Claude Code does) and deletes the buffer; `send-keys -t PANE Enter` submits. A multi-line prompt arrives as one prompt.
+- `list-panes -t %N -F '#{pane_id}\t#{pane_dead}\t#{pane_dead_status}\t#{pane_current_command}'` describes a pane; a missing one gives `can't find pane: %N` on stderr and exit 1. `display-message -p -t %N` on a missing pane prints an empty line and **exits 0**, so it is not used to detect a gone pane.
+- Without `remain-on-exit` a window disappears when its command exits; with `set-option -w -t @N remain-on-exit on` the dead pane stays (`pane_dead` 1, `pane_dead_status` the exit code) until `kill-window`.
+- `kill-window -t @N` again → `can't find window: @N`, exit 1. `select-window` on a missing window: same message.
+- Outside a reachable server: `error connecting to <socket> (No such file or directory)`, exit 1.
+- `tmux -V` prints `tmux 3.7c`; `display-message -p '#{version}'` prints `3.7c`.
+
+Decided:
+- The tmux backend needs `$TMUX` (igris runs inside a tmux client) and a reachable server; minimum version **3.2** (older warns via the version table, like herdr; igris never refuses for a version).
+- One window per task, named `<ID> · <rank>` (escaped), started detached in the project root with `claude <args…>` as the window command, `remain-on-exit on` set on it right after creation. Window and pane IDs (`@N`, `%N`) are the session ref, shape-checked on attach.
+- Prompts go `load-buffer` (stdin) → `paste-buffer -p -d` → `send-keys Enter`; the text is cleaned of control characters except newlines (as for herdr).
+- `exited` when the pane is missing or dead, or the hook state says so; otherwise the hook state; `unknown` until the first hook.
+- Startup: the session waits for the first hook (`SessionStart`); without one after 15 s (the folder-trust question, or a slow start) it holds the task prompt and reports `blocked`, like herdr's startup handling, and delivers it once the hook state turns `idle`.
+- Errors are classified from stderr: `can't find pane`/`can't find window` → session gone.
