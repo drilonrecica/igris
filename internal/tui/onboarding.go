@@ -36,7 +36,7 @@ func (m *homeScreen) openInit(example bool) tea.Cmd {
 	d := &dialog{cancel: actClose}
 	if example {
 		d.title = "Example plan"
-		d.detail = "Writes the example plan to " + m.planName() + " (" + m.snap.PlanPath + "). A file that is already there is never overwritten."
+		d.detail = "Writes the example plan to " + m.planName() + " (" + m.planPath() + "). A file that is already there is never overwritten."
 		d.options = []option{{"Create example plan", actInitCreate}, {"Cancel", actClose}}
 	} else {
 		d.title = "Init"

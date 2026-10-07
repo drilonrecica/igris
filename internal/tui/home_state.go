@@ -10,6 +10,7 @@ import (
 	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/report"
+	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
 // What home shows is derived from the snapshot, the herdr check and doctor
@@ -121,13 +122,17 @@ func (m *homeScreen) channels() bool {
 	return n.Ntfy.Topic != "" || n.Discord.WebhookURL != "" || (n.Backend.Enabled && m.herdr())
 }
 
-// planName is the plan file's base name.
+// planName is the plan file's base name, cleaned for the terminal: the
+// path is a config string (SPEC §16).
 func (m *homeScreen) planName() string {
 	if m.snap == nil || m.snap.PlanPath == "" {
 		return "tasks.md"
 	}
-	return filepath.Base(m.snap.PlanPath)
+	return textsafe.Line(filepath.Base(m.snap.PlanPath))
 }
+
+// planPath is the plan's path as drawn (see planName).
+func (m *homeScreen) planPath() string { return textsafe.Line(m.snap.PlanPath) }
 
 // buttons are the actions the bar offers right now (SPEC §15.6, "shown
 // when"), the state's own action first.
@@ -282,7 +287,7 @@ func (m *homeScreen) cardLines(w int) []string {
 	case nowLoading:
 		return []string{m.th.paint(lookDim, "reading the project…")}
 	case nowUnreadable:
-		out := wrap("could not read the project: "+m.snapErr.Error(), w)
+		out := wrap("could not read the project: "+textsafe.Line(m.snapErr.Error()), w)
 		return append(out, wrap("Doctor may say why.", w)...)
 	case nowGetStarted, nowPlanMissing:
 		return m.getStartedCard(w)
@@ -350,7 +355,7 @@ func (m *homeScreen) getStartedCard(w int) []string {
 	hint := "Init creates igris.toml, .igris/, a .gitignore entry and the Claude allow rule for `igris done`."
 	switch {
 	case !s.NoConfig && !m.planFile():
-		hint = "Example plan writes a small canonical plan to try igris on; or write your own at " + s.PlanPath + "."
+		hint = "Example plan writes a small canonical plan to try igris on; or write your own at " + m.planPath() + "."
 	case m.planFile() && !m.planValid():
 		hint += " The plan has problems: Check lists them, Adapt proposes a canonical one."
 	}
