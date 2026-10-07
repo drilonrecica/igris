@@ -288,7 +288,7 @@ func TestE2ESkip(t *testing.T) {
 	want["P1-02"] = "skipped"
 	h.check(want,
 		"run_started"+logAgentDone+" task_started notification task_skipped"+logUserTask+logAgentDone+" notification"+logAgentDone+logAgentDone+" notification run_stopped",
-		"request: phase P1 · P1-02 Config: needs you", toastYourTurn, toastP1Done, toastP2Done)
+		"request: phase P1 · P1-02 Config: needs you (the session asks to skip)", toastYourTurn, toastP1Done, toastP2Done)
 	if got := h.commits(); strings.Contains(got, "P1-02") {
 		t.Errorf("a skipped task was committed: %s", got)
 	}

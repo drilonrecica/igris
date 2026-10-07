@@ -89,7 +89,7 @@ func (e *Engine) watch(ctx context.Context, l *launch) (verdict, error) {
 		case skip == nil || !skip.At.Equal(sig.At):
 			// A skip from an agent session is only a request (SPEC §6.2).
 			skip = sig
-			e.needsYou(ctx, notifyNeedsInput, "the session asks to skip the task")
+			e.needsYou(ctx, notifyNeedsInput, "the session asks to skip the task", "the session asks to skip")
 			e.emit(Event{Kind: Asked, Question: QuestionConfirmSkip, Detail: fmt.Sprintf("skip %s? the session's reason: %s", t.ID, sig.Note)})
 		}
 
@@ -128,7 +128,11 @@ func (e *Engine) observe(ctx context.Context, st backend.AgentState, ep *episode
 		}
 		if after := e.cfg.NeedsInputAfter.Std(); !ep.needsYou && now.Sub(ep.since) >= after {
 			ep.needsYou = true
-			e.needsYou(ctx, notifyNeedsInput, fmt.Sprintf("the agent is %s and has not run `igris done` for %s", st, after))
+			reason := fmt.Sprintf("idle %s without igris done", after)
+			if st == backend.Blocked {
+				reason = "waiting for a permission or an answer"
+			}
+			e.needsYou(ctx, notifyNeedsInput, fmt.Sprintf("the agent is %s and has not run `igris done` for %s", st, after), reason)
 		}
 	}
 	// Unknown tells nothing about the agent; the episode stays as it is.
@@ -136,11 +140,14 @@ func (e *Engine) observe(ctx context.Context, st backend.AgentState, ep *episode
 
 // needsYou marks the task Needs you and sends the notification event. why
 // is shown in the UI; the notification only says that igris waits.
-func (e *Engine) needsYou(ctx context.Context, event notify.Event, why string) {
+func (e *Engine) needsYou(ctx context.Context, event notify.Event, why, reason string) {
 	e.emit(Event{Kind: NeedsYou, Detail: why})
 	what := "needs you"
 	if event == notifyVerifyLimit {
 		what = "verification keeps failing; needs you"
+	} else if reason != "" {
+		// A few words, so two notifications in a row can be told apart.
+		what += " (" + reason + ")"
 	}
 	e.toast(ctx, event, what)
 }

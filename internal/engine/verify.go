@@ -70,7 +70,7 @@ func (e *Engine) verify(ctx context.Context, l *launch) (bool, error) {
 
 	if n >= max {
 		e.emit(Event{Kind: VerifyLimit, Detail: fmt.Sprintf("verify failed %d times in a row; igris stops sending failures to the session", n)})
-		e.needsYou(ctx, notifyVerifyLimit, fmt.Sprintf("verification failed %d times; fix it, retry or skip the task", n))
+		e.needsYou(ctx, notifyVerifyLimit, fmt.Sprintf("verification failed %d times; fix it, retry or skip the task", n), "")
 		return false, nil
 	}
 	if l.lost {
@@ -89,7 +89,7 @@ func (e *Engine) verify(ctx context.Context, l *launch) (bool, error) {
 			return false, err
 		}
 		e.warn(fmt.Sprintf("send the verify failure to %s: %v", t.ID, err))
-		e.needsYou(ctx, notifyNeedsInput, "the verify failure could not be sent to the session; tell it yourself")
+		e.needsYou(ctx, notifyNeedsInput, "the verify failure could not be sent to the session; tell it yourself", "verify failure not sent to the session")
 	}
 	return false, nil
 }

@@ -68,12 +68,27 @@ func TestNeedsYouOncePerIdleEpisode(t *testing.T) {
 	}
 	needs := 0
 	for _, toast := range h.toasts() {
-		if strings.HasPrefix(toast, "request: ") && strings.Contains(toast, "A-1 One: needs you") {
+		if strings.HasPrefix(toast, "request: ") && strings.Contains(toast, "A-1 One: needs you (idle 30s without igris done)") {
 			needs++
 		}
 	}
 	if needs != 2 {
 		t.Errorf("toasts = %q, want two needs-you toasts for A-1", h.toasts())
+	}
+}
+
+// A blocked agent (a permission prompt, a question) gets its own reason, so
+// the owner knows what to look for.
+func TestNeedsYouBlockedReason(t *testing.T) {
+	h := newHarness(t, chainPlan, "")
+	h.autoSignalExcept("A-1")
+	h.be.Script("A-1", states(backend.Blocked, 20)...)
+	h.signalAt(60*time.Second, "A-1")
+	if _, err := h.run(); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if got := h.toasts(); len(got) == 0 || got[0] != "request: phase A · A-1 One: needs you (waiting for a permission or an answer)" {
+		t.Errorf("toasts = %q", got)
 	}
 }
 
