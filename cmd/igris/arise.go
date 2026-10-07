@@ -111,6 +111,9 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		r := bufio.NewReader(ariseStdin)
 		ask = func() (string, bool) { return readLine(ctx, r) }
 	}
+	for _, w := range f.cfg.Warnings() {
+		fmt.Fprintf(out, "warning: %s: %s\n", state.ConfigFile, w)
+	}
 	for _, h := range planHints(f) {
 		fmt.Fprintf(out, "warning: %s\n", h)
 	}
@@ -619,6 +622,9 @@ func dryRun(f ariseFlags, out, stderr io.Writer) int {
 
 	for _, w := range compatWarnings(context.Background(), commandRunner()) {
 		fmt.Fprintf(out, "warning: %s\n", w)
+	}
+	for _, w := range f.cfg.Warnings() {
+		fmt.Fprintf(out, "warning: %s: %s\n", state.ConfigFile, w)
 	}
 	for _, h := range planHints(f) {
 		fmt.Fprintf(out, "warning: %s\n", h)

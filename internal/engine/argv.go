@@ -19,8 +19,9 @@ type ClaudeParams struct {
 	Resume    bool // continue session SessionID instead of starting it
 }
 
-// ClaudeArgs builds the argument list for `claude` (the command itself,
-// config's claude.command, is the caller's). It contains no prompt: the rules
+// ClaudeArgs builds the argument list for `claude` (the command itself is
+// the backend's: herdr starts claude from PATH, and the deprecated
+// claude.command is ignored). It contains no prompt: the rules
 // travel as a file and the task prompt through the backend's prompt call,
 // because herdr rejects newlines in agent arguments (SPEC §6, §11.2).
 //

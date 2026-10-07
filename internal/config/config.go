@@ -58,8 +58,13 @@ type Config struct {
 	Notify          Notify            `toml:"notify"`
 }
 
+// defaultClaudeCommand is claude.command's only meaningful value: herdr
+// starts claude itself, so any other value is ignored (and warned about).
+const defaultClaudeCommand = "claude"
+
 // Claude configures how Claude Code is launched.
 type Claude struct {
+	// Command is deprecated and ignored (Warnings); it goes away in v0.2.
 	Command   string   `toml:"command"`
 	ExtraArgs []string `toml:"extra_args"`
 }
@@ -176,7 +181,7 @@ func Default() *Config {
 		PollInterval:    Duration(2 * time.Second),
 		Models:          map[string]string{"sonnet": "sonnet", "opus": "opus", "fable": "fable", "haiku": "haiku"},
 		Columns:         map[string]string{},
-		Claude:          Claude{Command: "claude", ExtraArgs: []string{}},
+		Claude:          Claude{Command: defaultClaudeCommand, ExtraArgs: []string{}},
 		Run: Run{
 			VerifyTimeout:     Duration(15 * time.Minute),
 			VerifyMaxAttempts: 3,
@@ -264,10 +269,6 @@ func (c *Config) Validate() error {
 			add("tui.rank_colors.%s = %q is not a color; use \"#rrggbb\" or an ANSI color number \"0\" to \"255\"", rank, v)
 		}
 	}
-	if strings.TrimSpace(c.Claude.Command) == "" {
-		add("claude.command must not be empty; use \"claude\"")
-	}
-
 	for _, alias := range sortedKeys(c.Models) {
 		if strings.TrimSpace(c.Models[alias]) == "" {
 			add("models.%s must not be empty; give the claude --model value for this rank", alias)
@@ -292,6 +293,17 @@ func (c *Config) Validate() error {
 	}
 
 	return errors.Join(errs...)
+}
+
+// Warnings reports settings that are accepted but have no effect: they never
+// fail a command (SPEC §12).
+func (c *Config) Warnings() []string {
+	var out []string
+	if c.Claude.Command != defaultClaudeCommand {
+		// herdr's `agent start --kind claude` always starts claude from PATH.
+		out = append(out, fmt.Sprintf("claude.command = %q is ignored: herdr always starts claude from PATH; remove it from igris.toml (the key goes away in v0.2)", c.Claude.Command))
+	}
+	return out
 }
 
 // Resolve expands env:VAR references in the secret fields. A reference to an

@@ -333,3 +333,30 @@ func TestWriteRoundTrips(t *testing.T) {
 		}
 	}
 }
+
+// claude.command is deprecated: any value but "claude" loads with a
+// warning, never an error.
+func TestWarnings(t *testing.T) {
+	tests := []struct {
+		toml string
+		want string // "" = no warning
+	}{
+		{"", ""},
+		{"[claude]\ncommand = \"claude\"\n", ""},
+		{"[claude]\ncommand = \"\"\n", `claude.command = "" is ignored`},
+		{"[claude]\ncommand = \"/opt/claude\"\n", `claude.command = "/opt/claude" is ignored: herdr always starts claude from PATH`},
+	}
+	for _, tt := range tests {
+		cfg, err := Parse([]byte(tt.toml), "igris.toml")
+		if err != nil {
+			t.Fatalf("%q: %v", tt.toml, err)
+		}
+		got := cfg.Warnings()
+		switch {
+		case tt.want == "" && len(got) != 0:
+			t.Errorf("%q: warnings %q, want none", tt.toml, got)
+		case tt.want != "" && (len(got) != 1 || !strings.Contains(got[0], tt.want)):
+			t.Errorf("%q: warnings %q, want %q", tt.toml, got, tt.want)
+		}
+	}
+}

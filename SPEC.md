@@ -404,7 +404,7 @@ haiku = "haiku"
 # "Agent" = "Model"
 
 [claude]
-command = "claude"
+command = "claude"                # deprecated and ignored: herdr always starts claude from PATH; any other value warns; removed in v0.2
 extra_args = []                   # appended to every session launch; model/mode/session flags are rejected (§7.4)
 
 [run]
