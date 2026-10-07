@@ -103,3 +103,31 @@ func TestNotificationsReachEveryChannel(t *testing.T) {
 		t.Errorf("runs.jsonl lacks the deliveries:\n%s", logged)
 	}
 }
+
+// TestTaskDoneNotification: a channel that asks for task_done hears about
+// every finished agent task, then the phase.
+func TestTaskDoneNotification(t *testing.T) {
+	discord, discordSrv := newRecorder(t, http.StatusNoContent)
+	h := newHarness(t, chainPlan, "")
+	cfg := config.Default()
+	cfg.Notify.Discord.Events = []string{"task_done", "phase_done"}
+	secrets := config.Secrets{DiscordWebhook: discordSrv.URL + "/api/webhooks/1/x"}
+	router := notify.FromConfig(cfg.Notify, secrets, h.be, func(o *notify.Options) { o.Sleep = noSleep })
+
+	res, err := h.run(func(o *Options) { o.Notifier = router })
+	if err != nil || res.Outcome != Completed {
+		t.Fatalf("Run = %s, %v", res.Outcome, err)
+	}
+	want := []string{"A-1 One: done (task_done)", "A-2 Two: done (task_done)", "A-3 Three: done (task_done)", "phase A: complete (phase_done)"}
+	if discord.count() != len(want) {
+		t.Fatalf("discord got %d messages, want %d: %q", discord.count(), len(want), discord.bodies)
+	}
+	for i, w := range want {
+		if !strings.Contains(discord.bodies[i], w) {
+			t.Errorf("message %d = %s, want it to contain %q", i, discord.bodies[i], w)
+		}
+	}
+	if got := h.toasts(); len(got) != 1 {
+		t.Errorf("backend toasts = %q, want only phase_done (task_done is not a default event)", got)
+	}
+}

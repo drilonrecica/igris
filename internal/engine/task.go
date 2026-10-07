@@ -298,6 +298,10 @@ func (e *Engine) finish(ctx context.Context, l *launch, to plan.Status, note str
 			e.warn(fmt.Sprintf("close the session of %s: %v; close its pane by hand", t.ID, err))
 		}
 	}
+	if to == plan.Done && t.Owner.IsAgent() {
+		// After the session is closed, so a slow channel doesn't keep it open.
+		e.toast(ctx, notifyTaskDone, "done")
+	}
 	e.run.Current = nil
 	if err := e.dir.SaveRun(e.run); err != nil {
 		return err

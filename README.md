@@ -167,7 +167,7 @@ Choose the permission mode in the TUI, per run or per task: press `m` (or click 
 
 ## Notifications
 
-Igris tells you when it needs you (a question, a plan to approve, a stalled session), when a phase is done or stuck, and when something fails:
+Igris tells you when it needs you (a question, a plan to approve, a stalled session), when a phase is done or stuck, and when something fails; add `task_done` to a channel's `events` to hear about every finished agent task too:
 
 - herdr toasts
 - [ntfy](https://ntfy.sh) push to your phone

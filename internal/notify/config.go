@@ -14,7 +14,9 @@ import (
 func FromConfig(c config.Notify, s config.Secrets, be backend.Backend, tune ...func(*Options)) *Router {
 	var entries []Entry
 	if c.Backend.Enabled && be != nil {
-		entries = append(entries, Entry{Channel: Toast{Backend: be}, Events: AllEvents})
+		// The toast has no events setting: it gets the default events, the
+		// ones that need the owner or end a phase (SPEC §10), not task_done.
+		entries = append(entries, Entry{Channel: Toast{Backend: be}, Events: DefaultEvents})
 	}
 	if c.Ntfy.Topic != "" && len(c.Ntfy.Events) > 0 {
 		entries = append(entries, Entry{

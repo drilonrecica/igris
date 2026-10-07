@@ -121,8 +121,9 @@ func (e *Engine) log(ev state.Event) {
 	}
 }
 
-// Notification events (SPEC §10) the engine raises so far.
+// Notification events (SPEC §10) the engine raises.
 const (
+	notifyTaskDone    = notify.TaskDone
 	notifyNeedsInput  = notify.NeedsInput
 	notifySessionLost = notify.SessionLost
 	notifyVerifyLimit = notify.VerifyFailedLimit

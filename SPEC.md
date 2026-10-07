@@ -302,11 +302,11 @@ Channels (all optional, any combination):
 
 | Channel | Config | Delivery |
 |---|---|---|
-| Backend | `[notify.backend] enabled` | herdr toast via `herdr notification show` (sound `request` for needs-input events, `done` for completions). |
+| Backend | `[notify.backend] enabled` | herdr toast via `herdr notification show` (sound `request` for needs-input events, `done` for completions). It has no `events` list and always gets the default events. |
 | ntfy | `[notify.ntfy] server`, `topic`, optional `token` | HTTP POST, title + body, priority high for `needs_input`/`session_lost`. |
 | Discord | `[notify.discord] webhook_url` | Webhook POST with a short message (`content`), no embeds needed. |
 
-- Each channel has an `events` list; default: `needs_input`, `session_lost`, `phase_done`, `phase_stuck`, `run_error`, `verify_failed_limit`.
+- Each channel has an `events` list; default: `needs_input`, `session_lost`, `phase_done`, `phase_stuck`, `run_error`, `verify_failed_limit`. `task_done` (opt-in) is sent when an `agent` or `agent + user` task is marked done.
 - Messages contain project name, phase, task ID and title, and the event — never file contents, diffs or command output.
 - Delivery is best-effort with a 10 s timeout and one retry; failures are logged and shown in the TUI, never fatal.
 - Secrets (Discord webhook URL, ntfy token) may be given as `env:VAR_NAME` references so they stay out of the repo; igris never logs them.

@@ -15,6 +15,7 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 ### Fixed
 
 - An unknown status that is a common synonym gets a hint: `unknown status "dropped" (did you mean skipped?)`, likewise for `completed` → done and `wip` → in progress. It is still an error.
+- The `task_done` notification was accepted in `events` but never sent. It is now sent when an agent task is done, to the channels that list it (the herdr toast keeps its default events).
 - A dependency column under another name (`Depends`, `Depends on`, `Requires`, …) without a `[columns]` alias was silently read as an extra column, so the plan ran with no dependencies at all. `igris check` and `igris arise` now warn about it and say how to alias it.
 - Errors for cells wrapped in markdown say what was meant: `` `M0-01` `` → write it as M0-01; `✅ Done` → did you mean done?; `**Opus**` → did you mean opus?
 - "Second task table" errors under `###` sub-headings say that only `##` headings start a phase.
