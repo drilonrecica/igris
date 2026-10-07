@@ -14,6 +14,7 @@ import (
 	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/plan"
+	"github.com/drilonrecica/igris/internal/project"
 	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/state"
 )
@@ -215,13 +216,7 @@ func currentRun() *report.RunInfo {
 	if err != nil {
 		return nil
 	}
-	in := report.RunInput{}
-	in.Run, in.RunErr = state.PeekRun(root)
-	in.Lock, in.LockErr = state.PeekLock(root)
-	var bad []error
-	in.Signals, bad, _ = state.PeekSignals(root) // an unlistable directory shows as no signals
-	in.SignalsBad = len(bad)
-	return report.NewRunInfo(in)
+	return project.RunInfo(root)
 }
 
 func printRun(w io.Writer, r *report.RunInfo) {

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -10,6 +9,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/drilonrecica/igris/internal/plan"
+	"github.com/drilonrecica/igris/internal/project"
 	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/state"
 )
@@ -35,20 +35,17 @@ func historyArgs(fs *flag.FlagSet) func([]string) error {
 // execHistory shows the run log (SPEC §14). It is read-only: it takes no
 // lock and never creates .igris/.
 func execHistory(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
-	in := report.HistoryInput{N: fs.Lookup("n").Value.(flag.Getter).Get().(int)}
+	n := fs.Lookup("n").Value.(flag.Getter).Get().(int)
+	in := report.HistoryInput{N: n}
 	cwd, err := os.Getwd()
 	if err != nil {
 		fmt.Fprintf(stderr, "igris history: %v\n", err)
 		return exitFail
 	}
 	if root, err := state.FindRoot(cwd); err == nil {
-		in.Events, err = state.PeekEvents(root)
-		if err != nil && !errors.Is(err, state.ErrNoLog) {
+		if in, err = project.HistoryInput(root, n); err != nil {
 			fmt.Fprintf(stderr, "igris history: %v\n", err)
 			return exitFail
-		}
-		if l, err := state.PeekLock(root); err == nil {
-			in.Live = l.Alive && !l.Stale && !l.Unreadable
 		}
 	}
 	if len(args) == 1 {

@@ -192,3 +192,69 @@ func TestSecretsAreScrubbedFromErrors(t *testing.T) {
 		t.Errorf("error lost its meaning: %q", msg)
 	}
 }
+
+// gatedChannel waits for its gate before it delivers.
+type gatedChannel struct {
+	name string
+	gate chan struct{}
+}
+
+func (g *gatedChannel) Name() string { return g.name }
+
+func (g *gatedChannel) Send(ctx context.Context, _ Message) error {
+	select {
+	case <-g.gate:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func TestNotifyEachStreamsResults(t *testing.T) {
+	slow := &gatedChannel{name: "slow", gate: make(chan struct{})}
+	bad := &fakeChannel{name: "bad", fail: 9, err: errors.New("down")}
+	skip := &fakeChannel{name: "skip"}
+	r := New(Options{Sleep: noSleep, Channels: []Entry{
+		{Channel: slow}, {Channel: bad}, {Channel: skip, Events: []Event{TaskDone}},
+	}})
+	var got []Result
+	r.NotifyEach(context.Background(), Message{Event: RunError}, func(res Result) {
+		got = append(got, res)
+		if res.Channel == "bad" {
+			close(slow.gate) // the slow delivery ends only after this one was reported
+		}
+	})
+	if len(got) != 2 || got[0].Channel != "bad" || got[0].Err == nil || got[1].Channel != "slow" || got[1].Err != nil {
+		t.Fatalf("results = %+v, want bad (failed) then slow (ok)", got)
+	}
+	if got[0].Event != RunError || skip.count() != 0 {
+		t.Errorf("event = %s, skip channel got %d messages", got[0].Event, skip.count())
+	}
+}
+
+// sentChannel closes sent when it delivers.
+type sentChannel struct {
+	name string
+	sent chan struct{}
+}
+
+func (c *sentChannel) Name() string { return c.name }
+
+func (c *sentChannel) Send(context.Context, Message) error {
+	close(c.sent)
+	return nil
+}
+
+func TestNotifyKeepsChannelOrder(t *testing.T) {
+	slow := &gatedChannel{name: "slow", gate: make(chan struct{})}
+	fast := &sentChannel{name: "fast", sent: make(chan struct{})}
+	r := New(Options{Sleep: noSleep, Channels: []Entry{{Channel: slow}, {Channel: fast}}})
+	go func() {
+		<-fast.sent // slow finishes last
+		close(slow.gate)
+	}()
+	res := r.Notify(context.Background(), Message{Event: RunError})
+	if len(res) != 2 || res[0].Channel != "slow" || res[1].Channel != "fast" {
+		t.Errorf("results = %+v, want slow then fast", res)
+	}
+}

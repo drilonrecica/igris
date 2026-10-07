@@ -7,8 +7,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/drilonrecica/igris/internal/backend/herdr"
 	"github.com/drilonrecica/igris/internal/checks"
+	"github.com/drilonrecica/igris/internal/project"
 )
 
 // doctorArgs registers the flags of `igris doctor`.
@@ -28,16 +28,7 @@ func execDoctor(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "igris doctor: %v\n", err)
 		return exitFail
 	}
-	// herdr is only asked about when it can be: the backend is built from
-	// the environment and answers from the runner.
-	be := herdr.NewFromEnv(commandRunner(), ariseGetenv)
-	rs := checks.Doctor(context.Background(), checks.DoctorOptions{
-		Dir: cwd,
-		Options: checks.Options{
-			Runner: commandRunner(), Getenv: ariseGetenv, Versions: compatWarnings,
-			Backend: be, Integration: be,
-		},
-	})
+	rs := project.Doctor(context.Background(), cwd, projectEnv())
 	failed := false
 	for _, r := range rs {
 		failed = failed || r.Level == checks.Fail

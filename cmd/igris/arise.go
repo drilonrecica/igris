@@ -9,20 +9,17 @@ import (
 	"io"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
 
 	"github.com/drilonrecica/igris/internal/backend"
-	"github.com/drilonrecica/igris/internal/backend/herdr"
 	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/engine"
-	"github.com/drilonrecica/igris/internal/plan"
+	"github.com/drilonrecica/igris/internal/project"
 	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/runner"
-	"github.com/drilonrecica/igris/internal/state"
 	"github.com/drilonrecica/igris/internal/tui"
 )
 
@@ -39,18 +36,26 @@ var (
 
 // newBackend returns the backend named in the config.
 func newBackend(cfg *config.Config) (backend.Backend, error) {
-	if cfg.Backend == "herdr" {
-		return herdr.NewFromEnv(commandRunner(), ariseGetenv), nil
+	return project.NewBackend(cfg, project.Env{Getenv: ariseGetenv, Runner: ariseRunner})
+}
+
+// projectEnv hands this package's seams to the project layer, so the CLI
+// and the home screen talk to the same (in tests: fake) world.
+func projectEnv() project.Env {
+	return project.Env{
+		Getenv: ariseGetenv, Runner: ariseRunner, Backend: ariseBackend, Versions: compatWarnings,
+		Clock: adaptClock, Format: formatEvent,
 	}
-	return nil, fmt.Errorf("unknown backend %q in igris.toml; set backend = \"herdr\": igris v1 runs on herdr (tmux support is planned)", cfg.Backend)
 }
 
 type ariseFlags struct {
 	phase, through, mode       string
 	noTUI, dryRun, forceUnlock bool
-	root                       string
-	cfg                        *config.Config
 	lines                      <-chan string // --no-tui: the owner's stdin lines
+}
+
+func (f ariseFlags) request() report.RunRequest {
+	return report.RunRequest{Phase: f.phase, Through: f.through, Mode: f.mode}
 }
 
 func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
@@ -68,38 +73,23 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "igris arise: %s\n", fmt.Sprintf(format, a...))
 		return exitFail
 	}
-	var err error
-	if f.root, f.cfg, err = loadProject(""); err != nil {
+	proj, err := loadProject("")
+	if err != nil {
 		return fail("%v", err)
 	}
 	out := &lockedWriter{w: stdout}
 	if f.dryRun {
-		return dryRun(f, out, stderr)
+		return dryRun(proj, f.request(), out, stderr)
 	}
-	secrets, err := f.cfg.Resolve(os.Getenv)
-	if err != nil {
-		return fail("%v", err)
-	}
-	be, err := ariseBackend(f.cfg)
-	if err != nil {
-		return fail("%v", err)
-	}
-	dir, err := state.Open(f.root, state.Options{})
+	// The same engine the home screen builds (internal/project).
+	l, err := proj.Launch(f.request())
 	if err != nil {
 		return fail("%v", err)
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel() // Ctrl-C stops the run; the session stays open (SPEC §13)
-	integration, _ := be.(checks.Integration)
-	cs := checks.Run(ctx, checks.Options{
-		IDs:  []string{checks.IDHerdrIntegration, checks.IDClaude, checks.IDHerdr, checks.IDConfig, checks.IDPlanHints, checks.IDAPIKey, checks.IDGit},
-		Root: f.root, Runner: commandRunner(), Getenv: ariseGetenv, Versions: compatWarnings,
-		Integration: integration, Config: f.cfg,
-	})
-	for _, c := range checks.Problems(checks.Pick(cs, checks.IDHerdrIntegration, checks.IDClaude, checks.IDHerdr)) {
-		fmt.Fprintf(out, "warning: %s\n", c)
-	}
+	pre := l.Prelaunch(ctx)
 	// With --no-tui, stdin carries the owner's commands for the whole run.
 	// The TUI owns the terminal once it starts, so until then each answer
 	// is read on demand and nothing keeps reading stdin.
@@ -112,40 +102,29 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		r := bufio.NewReader(ariseStdin)
 		ask = func() (string, bool) { return readLine(ctx, r) }
 	}
-	for _, c := range checks.Problems(checks.Pick(cs, checks.IDConfig, checks.IDPlanHints, checks.IDAPIKey, checks.IDGit)) {
+	for _, c := range pre.Warnings {
 		fmt.Fprintf(out, "warning: %s\n", c)
 		if c.Confirm && !confirm(out, ask, "Start the run anyway?") {
 			return fail("not confirmed; nothing was started")
 		}
 	}
 
-	opts := engine.Options{
-		Config:      f.cfg,
-		Backend:     be,
-		State:       dir,
-		Runner:      ariseRunner,
-		Secrets:     secrets,
-		Phase:       f.phase,
-		Through:     f.through,
-		Mode:        f.mode,
-		ForceUnlock: f.forceUnlock,
-	}
+	conf := report.Confirmations{ForceUnlock: f.forceUnlock}
 	for {
 		var res engine.Result
 		var err error
 		if f.noTUI {
-			opts.Events = func(ev engine.Event) { printEvent(out, ev) }
-			res, err = runOnce(ctx, opts, f.lines, out)
+			res, err = runOnce(ctx, l.Options(conf, func(ev engine.Event) { printEvent(out, ev) }), f.lines, out)
 		} else {
 			var started bool
-			res, started, err = runWithTUI(ctx, f, opts, be, out)
+			res, started, err = runWithTUI(ctx, l, conf, out)
 			if started {
 				return tuiExit(res, err, out, stderr)
 			}
 		}
 		var drift *engine.DriftError
 		switch {
-		case errors.As(err, &drift) && !opts.ConfirmedDrift:
+		case errors.As(err, &drift) && !conf.Drift:
 			// SPEC §5.2: list the drift, ask before the first write fixes it.
 			fmt.Fprintf(out, "The plan's ready/blocked cells don't match its dependencies; igris's first write would change:\n")
 			for _, c := range drift.Changes {
@@ -154,14 +133,14 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 			if !confirm(out, ask, "Let igris fix them?") {
 				return fail("not confirmed; nothing was started")
 			}
-			opts.ConfirmedDrift = true
-		case errors.Is(err, engine.ErrYoloUnconfirmed) && !opts.ConfirmedYolo:
+			conf.Drift = true
+		case errors.Is(err, engine.ErrYoloUnconfirmed) && !conf.Yolo:
 			// SPEC §7.3: typed confirmation, every run.
 			fmt.Fprintf(out, "%v\nSessions in this mode run with --dangerously-skip-permissions: Claude Code acts without asking.\n", err)
 			if !typed(out, ask, engine.YoloPhrase) {
 				return fail("skip-permissions mode not confirmed; nothing was started")
 			}
-			opts.ConfirmedYolo = true
+			conf.Yolo = true
 		case err != nil:
 			return fail("%v", err)
 		case res.Outcome == engine.Stuck:
@@ -180,10 +159,9 @@ var ariseUI = tui.Run
 // fails before that returns with started false, so its error can be
 // answered on the plain terminal (drift, skip-permissions) and the run
 // tried again. Quitting the TUI stops the run; the session stays open.
-func runWithTUI(ctx context.Context, f ariseFlags, opts engine.Options, be backend.Backend, out io.Writer) (engine.Result, bool, error) {
+func runWithTUI(ctx context.Context, l *project.Launch, conf report.Confirmations, out io.Writer) (engine.Result, bool, error) {
 	feed := tui.NewFeed()
-	opts.Events = feed.Push
-	eng, err := engine.New(opts)
+	eng, err := l.Engine(conf, feed.Push)
 	if err != nil {
 		return engine.Result{}, false, err
 	}
@@ -200,20 +178,7 @@ func runWithTUI(ctx context.Context, f ariseFlags, opts engine.Options, be backe
 			return res, false, err
 		}
 	}
-	uiErr := ariseUI(ctx, tui.Options{
-		Project:    filepath.Base(f.root),
-		Backend:    be.Name(),
-		Mode:       f.mode,
-		Mouse:      f.cfg.TUI.Mouse,
-		Theme:      f.cfg.TUI.Theme,
-		RankColors: f.cfg.TUI.RankColors,
-		// The task list reads the plan the engine writes.
-		PlanPath:    rootPath(f.root, f.cfg.Plan),
-		PlanOptions: plan.Options{Columns: f.cfg.Columns},
-		Feed:        feed,
-		Sender:      eng,
-		Focus:       focusSession(be),
-	})
+	uiErr := ariseUI(ctx, l.TUIOptions(feed, eng))
 	stopRun()
 	<-feed.Ended()
 	res, err := feed.Result()
@@ -242,17 +207,6 @@ func tuiExit(res engine.Result, err error, out, stderr io.Writer) int {
 		fmt.Fprintf(out, "run %s\n", res.Outcome)
 	}
 	return exitOK
-}
-
-// focusSession brings a session's pane to the front through the backend.
-func focusSession(be backend.Backend) func(context.Context, backend.SessionRef) error {
-	return func(ctx context.Context, ref backend.SessionRef) error {
-		s, err := be.Attach(ctx, ref)
-		if err != nil {
-			return err
-		}
-		return s.Focus(ctx)
-	}
 }
 
 // runOnce runs one engine with opts while stdin feeds it owner commands.
@@ -329,36 +283,14 @@ func readLine(ctx context.Context, r *bufio.Reader) (string, bool) {
 	}
 }
 
-// loadProject finds the project root (the nearest igris.toml or .igris/,
-// else the working directory if it holds the plan: explicitPlan, or the
-// default tasks.md) and loads its config, the defaults if it has none.
-func loadProject(explicitPlan string) (string, *config.Config, error) {
+// loadProject opens the project the working directory belongs to, for a
+// command that works in it (see project.Load).
+func loadProject(explicitPlan string) (*project.Project, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
-	root, err := state.FindRoot(cwd)
-	if err != nil {
-		// No igris.toml or .igris/ here or above: the working directory is
-		// the project only if it holds the plan, so .igris/ is never
-		// created in an unrelated directory.
-		planPath := explicitPlan
-		if planPath == "" {
-			planPath = config.Default().Plan
-		}
-		if _, serr := os.Stat(planPath); serr != nil {
-			return "", nil, fmt.Errorf("no igris project in %s: no %s or %s here or in a parent, and no %s; run `igris init` in your project (or cd into it)", cwd, state.ConfigFile, state.DirName, planPath)
-		}
-		root = cwd
-	}
-	cfg, err := config.Load(filepath.Join(root, state.ConfigFile))
-	switch {
-	case errors.Is(err, config.ErrNotFound):
-		cfg = config.Default()
-	case err != nil:
-		return "", nil, err
-	}
-	return root, cfg, nil
+	return project.Load(cwd, explicitPlan, projectEnv())
 }
 
 // lockedWriter serializes the run's output and the command prompts.
@@ -605,11 +537,8 @@ func yoloBadge(mode string) string {
 
 // dryRun walks the phases on a copy of the plan (engine.DryRun) and prints
 // which task would launch with which model and mode (SPEC §14).
-func dryRun(f ariseFlags, out, stderr io.Writer) int {
-	r, err := engine.DryRun(context.Background(), engine.DryRunOptions{
-		Root: f.root, Config: f.cfg, Phase: f.phase, Through: f.through, Mode: f.mode,
-		Runner: commandRunner(), Getenv: ariseGetenv, Versions: compatWarnings, Format: formatEvent,
-	})
+func dryRun(p *project.Project, req report.RunRequest, out, stderr io.Writer) int {
+	r, err := p.DryRun(context.Background(), req)
 	printDryRun(out, r)
 	if err != nil {
 		fmt.Fprintf(stderr, "igris arise --dry-run: %v\n", err)

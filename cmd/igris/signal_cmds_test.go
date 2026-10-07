@@ -18,9 +18,9 @@ const signalPlan = `## M0 — Test
 | M0-01 | **First** | — | ready | sonnet |
 `
 
-// project creates a project with a plan and an igris.toml, and makes sub
+// signalProject creates a project with a plan and an igris.toml, and makes sub
 // (a directory below the root) the working directory.
-func project(t *testing.T) (root string) {
+func signalProject(t *testing.T) (root string) {
 	t.Helper()
 	root = t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "tasks.md"), []byte(signalPlan), 0o600); err != nil {
@@ -38,7 +38,7 @@ func project(t *testing.T) (root string) {
 }
 
 func TestDoneAndSkipWriteSignals(t *testing.T) {
-	root := project(t)
+	root := signalProject(t)
 
 	var out, errb bytes.Buffer
 	if got := run([]string{"done", "--note", "all good", "M0-01"}, &out, &errb); got != exitOK {
@@ -74,7 +74,7 @@ func TestDoneAndSkipWriteSignals(t *testing.T) {
 }
 
 func TestSignalErrors(t *testing.T) {
-	project(t)
+	signalProject(t)
 	tests := []struct {
 		name string
 		args []string
@@ -109,7 +109,7 @@ func TestSignalOutsideProject(t *testing.T) {
 }
 
 func TestDoneAdaptNeedsNoPlan(t *testing.T) {
-	root := project(t)
+	root := signalProject(t)
 	// The adapt session's plan doesn't validate, or isn't the configured one.
 	if err := os.Remove(filepath.Join(root, "tasks.md")); err != nil {
 		t.Fatal(err)
@@ -135,7 +135,7 @@ func TestDoneAdaptNeedsNoPlan(t *testing.T) {
 
 // While a run holds the lock, done says nothing about applying it later.
 func TestDoneDuringARun(t *testing.T) {
-	root := project(t)
+	root := signalProject(t)
 	dir, err := state.Open(root, state.Options{})
 	if err != nil {
 		t.Fatal(err)

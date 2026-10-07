@@ -44,11 +44,11 @@ func execAdapt(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "igris adapt: %s\n", fmt.Sprintf(format, a...))
 		return exitFail
 	}
-	root, cfg, err := loadProject(fs.Lookup("plan").Value.String())
+	proj, err := loadProject(fs.Lookup("plan").Value.String())
 	if err != nil {
 		return fail("%v", err)
 	}
-	planPath := rootPath(root, cfg.Plan)
+	root, cfg, planPath := proj.Root, proj.Cfg, proj.PlanPath
 	if p := fs.Lookup("plan").Value.String(); p != "" {
 		if planPath, err = filepath.Abs(p); err != nil {
 			return fail("%v", err)

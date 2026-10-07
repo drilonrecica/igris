@@ -166,23 +166,43 @@ func (r *Router) Enabled(ev Event) bool {
 // is retried once after RetryDelay; it never stops the others and Notify
 // itself never fails.
 func (r *Router) Notify(ctx context.Context, m Message) []Result {
+	var results []Result
+	r.each(ctx, m, func(n int) { results = make([]Result, n) }, func(i int, res Result) { results[i] = res })
+	return results
+}
+
+// NotifyEach delivers m as Notify does and calls fn with each channel's
+// Result as soon as that delivery is over, so the order is the order in
+// which they finish. fn is never called concurrently. NotifyEach returns
+// once every delivery is over.
+func (r *Router) NotifyEach(ctx context.Context, m Message, fn func(Result)) {
+	r.each(ctx, m, func(int) {}, func(_ int, res Result) { fn(res) })
+}
+
+// each delivers m to the channels that want it in parallel. start learns
+// how many there are; done gets each Result with its channel's position,
+// one call at a time.
+func (r *Router) each(ctx context.Context, m Message, start func(n int), done func(i int, res Result)) {
 	var picked []Channel
 	for _, e := range r.o.Channels {
 		if e.wants(m.Event) {
 			picked = append(picked, e.Channel)
 		}
 	}
-	results := make([]Result, len(picked))
+	start(len(picked))
+	var mu sync.Mutex
 	var wg sync.WaitGroup
 	for i, ch := range picked {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			results[i] = Result{Channel: ch.Name(), Event: m.Event, Err: r.deliver(ctx, ch, m)}
+			res := Result{Channel: ch.Name(), Event: m.Event, Err: r.deliver(ctx, ch, m)}
+			mu.Lock()
+			defer mu.Unlock()
+			done(i, res)
 		}()
 	}
 	wg.Wait()
-	return results
 }
 
 // deliver makes up to two attempts.
