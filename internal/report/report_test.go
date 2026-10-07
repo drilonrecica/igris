@@ -1,10 +1,13 @@
 package report
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
 
+	"github.com/drilonrecica/igris/internal/checks"
+	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/plan"
 )
 
@@ -52,12 +55,14 @@ func TestPhasesAndStatus(t *testing.T) {
 
 func TestCheckKeepsJSONKeyOrderAndNeverNull(t *testing.T) {
 	p := load(t, testPlan)
-	r := Check(CheckInput{Plan: p, Models: map[string]string{"sonnet": "sonnet"}, Leading: []Warning{{Message: "x\x1b[2Jy"}}})
+	cs := checks.Run(context.Background(), checks.Options{IDs: []string{checks.IDPlanHints, checks.IDDrift}, Config: config.Default(), Plan: p})
+	cs = append([]checks.Result{{Level: checks.Warn, Message: "x\x1b[2Jy"}, {Level: checks.OK, Message: "not shown"}}, cs...)
+	r := Check(CheckInput{Plan: p, Models: map[string]string{"sonnet": "sonnet"}, Checks: cs})
 	if !r.Valid || len(r.Issues) != 0 {
 		t.Fatalf("report = %+v", r)
 	}
 	if r.Warnings[0].Message != "xy" {
-		t.Errorf("leading warning not cleaned: %q", r.Warnings[0].Message)
+		t.Errorf("warning not cleaned: %q", r.Warnings[0].Message)
 	}
 	out, err := json.Marshal(r)
 	if err != nil {

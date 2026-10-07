@@ -2,8 +2,8 @@ package report
 
 import (
 	"fmt"
-	"strings"
 
+	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/textsafe"
 )
@@ -68,14 +68,15 @@ type CheckReport struct {
 type CheckInput struct {
 	Plan   *plan.Plan
 	Models map[string]string
-	// Leading are the warnings that don't come from the plan (tool versions,
-	// config, environment, a parent igris.toml), in the order to show them.
-	Leading []Warning
+	// Checks are the warnings, in the order to show them: tool versions,
+	// config, environment, a parent igris.toml, the plan's hints and drift
+	// (checks gives the last two only for a valid plan). Results that are
+	// OK are left out.
+	Checks []checks.Result
 }
 
-// Check validates the plan and lists its warnings: Leading, then, only when
-// the plan is valid (unknown or cyclic dependencies make readiness
-// undefined), its hints and its readiness drift (SPEC §5.2).
+// Check validates the plan and lists the problems of in.Checks as its
+// warnings.
 func Check(in CheckInput) CheckReport {
 	p := in.Plan
 	issues := p.Validate(in.Models)
@@ -87,30 +88,11 @@ func Check(in CheckInput) CheckReport {
 		Valid:    len(issues) == 0,
 		Warnings: []Warning{},
 	}
-	for _, w := range in.Leading {
-		w.File, w.Message = textsafe.Line(w.File), textsafe.Line(w.Message)
-		r.Warnings = append(r.Warnings, w)
-	}
-	if !r.Valid {
-		return r
-	}
-	for _, h := range p.Hints() {
-		r.Warnings = append(r.Warnings, Warning{File: textsafe.Line(h.File), Line: h.Line, Message: textsafe.Line(h.Msg)})
-	}
-	for _, c := range p.Readiness() {
-		t := p.Task(c.ID)
+	for _, c := range checks.Problems(in.Checks) {
 		r.Warnings = append(r.Warnings, Warning{
-			File: textsafe.Line(p.Path), Line: t.Line, Task: textsafe.Line(c.ID), From: c.From.String(), To: c.To.String(),
-			Message: textsafe.Line(fmt.Sprintf("%s is %s but %s; igris will set it to %s", c.ID, c.From, DriftReason(p, t, c.To), c.To)),
+			File: textsafe.Line(c.File), Line: c.Line, Task: textsafe.Line(c.Task), From: c.From, To: c.To,
+			Message: textsafe.Line(c.Message),
 		})
 	}
 	return r
-}
-
-// DriftReason says why the readiness sync would flip a task's status.
-func DriftReason(p *plan.Plan, t *plan.Task, to plan.Status) string {
-	if to == plan.Ready {
-		return "all its dependencies are satisfied"
-	}
-	return "waits on " + strings.Join(p.WaitingOn(t).Unmet, ", ")
 }

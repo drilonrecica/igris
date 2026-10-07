@@ -8,17 +8,17 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/drilonrecica/igris/internal/engine"
+	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/runner"
 )
 
 // TestMain keeps the tests off the real claude and herdr: no version check
 // runs unless a test asks for one (see withVersions).
 func TestMain(m *testing.M) {
-	compatWarnings = func(context.Context, runner.Runner) []string { return nil }
+	compatWarnings = func(context.Context, runner.Runner) []checks.Result { return nil }
 	// Nor on the developer's ANTHROPIC_API_KEY: check would warn about it.
 	ariseGetenv = func(k string) string {
-		if k == engine.APIKeyVar {
+		if k == checks.APIKeyVar {
 			return ""
 		}
 		return os.Getenv(k)

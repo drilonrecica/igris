@@ -101,7 +101,7 @@ New keys are fine. A missing key or a renamed code needs a fixture refresh (last
 
 - **Shapes unchanged:** nothing to refresh.
 - **A shape changed:** save the new output over the fixture, scrubbing paths and the home directory to `/work/demo` and `/home/user`. Then run `go test ./internal/backend/herdr/`. Fix the client and its tests in the same change, and note the change in `decisions.md` under P0-03. A changed Claude Code flag goes into `internal/engine/argv.go` / `mode.go` and SPEC §7.
-- **Raise the verified versions:** after a clean run, set `Tested` for the tool in `internal/engine/compat.go` (`Tools`) and in SPEC §11.4 to the version you ran. Change `Min` only when igris starts to need something newer.
+- **Raise the verified versions:** after a clean run, set `Tested` for the tool in `internal/checks/tools.go` (`Tools`) and in SPEC §11.4 to the version you ran. Change `Min` only when igris starts to need something newer.
 - Record the run below.
 
 ## Runs

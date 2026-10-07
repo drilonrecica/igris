@@ -13,6 +13,7 @@ import (
 	"syscall"
 
 	"github.com/drilonrecica/igris/internal/adapt"
+	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/notify"
 	"github.com/drilonrecica/igris/internal/state"
@@ -68,8 +69,8 @@ func execAdapt(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return fail("%v", err)
 	}
-	if ariseGetenv(engine.APIKeyVar) != "" {
-		fmt.Fprintf(stdout, "warning: %s\n", engine.APIKeyWarning)
+	if ariseGetenv(checks.APIKeyVar) != "" {
+		fmt.Fprintf(stdout, "warning: %s\n", checks.APIKeyWarning)
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

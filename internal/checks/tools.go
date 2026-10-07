@@ -1,4 +1,4 @@
-package engine
+package checks
 
 import (
 	"context"
@@ -16,7 +16,7 @@ import (
 // verified with (SPEC §11.4).
 type Tool struct {
 	Name    string // shown to the owner
-	Program string // run as `Program --version`
+	Program string // run as `Program --version`; also the check's ID
 	// Min is the oldest version verified to work; older ones get a warning.
 	Min string
 	// Tested is the newest version re-verified with docs/reverify.md; a
@@ -27,11 +27,11 @@ type Tool struct {
 // Tools is the one table of verified versions. Update it (and SPEC §11.4)
 // after running docs/reverify.md.
 var Tools = []Tool{
-	{Name: "Claude Code", Program: "claude", Min: "2.1.291", Tested: "2.1.292"}, // P0-02; re-verified for v0.1.2
-	{Name: "herdr", Program: "herdr", Min: "0.9.1", Tested: "0.9.1"},            // P0-03; re-verified for v0.1.2
+	{Name: "Claude Code", Program: IDClaude, Min: "2.1.291", Tested: "2.1.292"}, // P0-02; re-verified for v0.1.2
+	{Name: "herdr", Program: IDHerdr, Min: "0.9.1", Tested: "0.9.1"},            // P0-03; re-verified for v0.1.2
 }
 
-// versionTimeout bounds each `--version` call of CompatWarnings.
+// versionTimeout bounds each `--version` call of ToolVersions.
 const versionTimeout = 5 * time.Second
 
 var versionRE = regexp.MustCompile(`(\d+)\.(\d+)(?:\.(\d+))?`)
@@ -74,46 +74,45 @@ func formatVersion(v [3]int) string {
 	return fmt.Sprintf("%d.%d.%d", v[0], v[1], v[2])
 }
 
-// CompatWarnings runs `--version` of every tool in Tools and warns when one
-// is missing, its version can't be read, it is older than the oldest
-// verified version, or it is a newer major version than the newest one
-// (SPEC §11.4). It is a warning only: igris never refuses to run on a
-// version.
-func CompatWarnings(ctx context.Context, r runner.Runner) []string {
-	var out []string
+// ToolVersions runs `--version` of every tool in Tools, one result each. It
+// warns when a tool is missing, its version can't be read, it is older than
+// the oldest verified version, or it is a newer major version than the
+// newest one (SPEC §11.4). It is a warning only: igris never refuses to run
+// on a version.
+func ToolVersions(ctx context.Context, r runner.Runner) []Result {
+	out := make([]Result, 0, len(Tools))
 	for _, t := range Tools {
-		if w := checkTool(ctx, r, t); w != "" {
-			out = append(out, w)
-		}
+		out = append(out, checkTool(ctx, r, t))
 	}
 	return out
 }
 
-func checkTool(ctx context.Context, r runner.Runner, t Tool) string {
+func checkTool(ctx context.Context, r runner.Runner, t Tool) Result {
+	warn := func(msg string) Result { return Result{ID: t.Program, Level: Warn, Message: msg} }
 	res, err := r.Run(ctx, runner.Cmd{Name: t.Program, Args: []string{"--version"}, Timeout: versionTimeout})
 	switch {
 	case errors.Is(err, exec.ErrNotFound):
-		return fmt.Sprintf("%s not found in PATH; igris arise needs %s %s or later", t.Program, t.Name, t.Min)
+		return warn(fmt.Sprintf("%s not found in PATH; igris arise needs %s %s or later", t.Program, t.Name, t.Min))
 	case errors.Is(err, runner.ErrTimeout):
-		return unknownVersion(t, fmt.Sprintf("`%s --version` took longer than %s", t.Program, versionTimeout))
+		return warn(unknownVersion(t, fmt.Sprintf("`%s --version` took longer than %s", t.Program, versionTimeout)))
 	case err != nil:
-		return unknownVersion(t, err.Error())
+		return warn(unknownVersion(t, err.Error()))
 	case res.ExitCode != 0:
-		return unknownVersion(t, fmt.Sprintf("`%s --version` exited with %d", t.Program, res.ExitCode))
+		return warn(unknownVersion(t, fmt.Sprintf("`%s --version` exited with %d", t.Program, res.ExitCode)))
 	}
 	v, ok := parseVersion(string(res.Stdout))
 	if !ok {
-		return unknownVersion(t, fmt.Sprintf("no version in the output of `%s --version`", t.Program))
+		return warn(unknownVersion(t, fmt.Sprintf("no version in the output of `%s --version`", t.Program)))
 	}
 	minV, _ := parseVersion(t.Min)
 	tested, _ := parseVersion(t.Tested)
 	switch {
 	case compareVersions(v, minV) < 0:
-		return fmt.Sprintf("%s %s is older than %s, the oldest version igris is verified with; update %s", t.Name, formatVersion(v), t.Min, t.Program)
+		return warn(fmt.Sprintf("%s %s is older than %s, the oldest version igris is verified with; update %s", t.Name, formatVersion(v), t.Min, t.Program))
 	case v[0] > tested[0]:
-		return fmt.Sprintf("%s %s is a newer major version than igris was verified with (%s); if something breaks, report it with the output of `igris version`, `claude --version` and `herdr --version`", t.Name, formatVersion(v), t.Tested)
+		return warn(fmt.Sprintf("%s %s is a newer major version than igris was verified with (%s); if something breaks, report it with the output of `igris version`, `claude --version` and `herdr --version`", t.Name, formatVersion(v), t.Tested))
 	}
-	return ""
+	return Result{ID: t.Program, Level: OK, Message: fmt.Sprintf("%s %s", t.Name, formatVersion(v))}
 }
 
 func unknownVersion(t Tool, why string) string {

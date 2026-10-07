@@ -1,4 +1,4 @@
-package engine
+package checks
 
 import (
 	"context"
@@ -54,7 +54,7 @@ func fixture(t *testing.T, name string) []byte {
 	return b
 }
 
-func TestCompatWarnings(t *testing.T) {
+func TestToolVersions(t *testing.T) {
 	type answer struct {
 		res runner.Result
 		err error
@@ -86,13 +86,22 @@ func TestCompatWarnings(t *testing.T) {
 			r := &runner.Fake{}
 			r.On([]string{"claude", "--version"}, tt.claude.res, tt.claude.err)
 			r.On([]string{"herdr", "--version"}, tt.herdr.res, tt.herdr.err)
-			got := CompatWarnings(context.Background(), r)
+			all := ToolVersions(context.Background(), r)
+			if len(all) != len(Tools) || all[0].ID != IDClaude || all[1].ID != IDHerdr {
+				t.Fatalf("results = %+v, want one per tool", all)
+			}
+			got := Problems(all)
 			if len(got) != len(tt.want) {
-				t.Fatalf("got %d warnings %q, want %d", len(got), got, len(tt.want))
+				t.Fatalf("got %d warnings %+v, want %d", len(got), got, len(tt.want))
 			}
 			for i, w := range tt.want {
-				if !strings.Contains(got[i], w) {
-					t.Errorf("warning %d = %q, want it to contain %q", i, got[i], w)
+				if got[i].Level != Warn || !strings.Contains(got[i].Message, w) {
+					t.Errorf("warning %d = %+v, want it to contain %q", i, got[i], w)
+				}
+			}
+			for _, res := range all {
+				if res.Level == OK && !strings.Contains(res.Message, ".") {
+					t.Errorf("ok result without a version: %+v", res)
 				}
 			}
 			for _, c := range r.Calls() {

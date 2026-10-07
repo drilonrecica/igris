@@ -16,6 +16,7 @@ import (
 
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/backend/herdr"
+	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/plan"
@@ -33,7 +34,7 @@ var (
 	ariseRunner  runner.Runner // nil means real processes
 	ariseGetenv  = os.Getenv
 	// compatWarnings checks the Claude Code and herdr versions (SPEC §11.4).
-	compatWarnings = engine.CompatWarnings
+	compatWarnings = checks.ToolVersions
 )
 
 // newBackend returns the backend named in the config.
@@ -90,13 +91,14 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel() // Ctrl-C stops the run; the session stays open (SPEC §13)
-	if h, ok := be.(interface{ IntegrationHint(context.Context) string }); ok {
-		if hint := h.IntegrationHint(ctx); hint != "" {
-			fmt.Fprintf(out, "warning: %s\n", hint)
-		}
-	}
-	for _, w := range compatWarnings(ctx, commandRunner()) {
-		fmt.Fprintf(out, "warning: %s\n", w)
+	integration, _ := be.(checks.Integration)
+	cs := checks.Run(ctx, checks.Options{
+		IDs:  []string{checks.IDHerdrIntegration, checks.IDClaude, checks.IDHerdr, checks.IDConfig, checks.IDPlanHints, checks.IDAPIKey, checks.IDGit},
+		Root: f.root, Runner: commandRunner(), Getenv: ariseGetenv, Versions: compatWarnings,
+		Integration: integration, Config: f.cfg,
+	})
+	for _, c := range checks.Problems(checks.Pick(cs, checks.IDHerdrIntegration, checks.IDClaude, checks.IDHerdr)) {
+		fmt.Fprintf(out, "warning: %s\n", c)
 	}
 	// With --no-tui, stdin carries the owner's commands for the whole run.
 	// The TUI owns the terminal once it starts, so until then each answer
@@ -110,15 +112,9 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		r := bufio.NewReader(ariseStdin)
 		ask = func() (string, bool) { return readLine(ctx, r) }
 	}
-	for _, w := range f.cfg.Warnings() {
-		fmt.Fprintf(out, "warning: %s: %s\n", state.ConfigFile, w)
-	}
-	for _, h := range engine.PlanHints(f.root, f.cfg) {
-		fmt.Fprintf(out, "warning: %s\n", h)
-	}
-	for _, w := range engine.Preflight(ctx, commandRunner(), f.root, ariseGetenv) {
-		fmt.Fprintf(out, "warning: %s\n", w.Text)
-		if w.Confirm && !confirm(out, ask, "Start the run anyway?") {
+	for _, c := range checks.Problems(checks.Pick(cs, checks.IDConfig, checks.IDPlanHints, checks.IDAPIKey, checks.IDGit)) {
+		fmt.Fprintf(out, "warning: %s\n", c)
+		if c.Confirm && !confirm(out, ask, "Start the run anyway?") {
 			return fail("not confirmed; nothing was started")
 		}
 	}
@@ -609,7 +605,7 @@ func yoloBadge(mode string) string {
 func dryRun(f ariseFlags, out, stderr io.Writer) int {
 	r, err := engine.DryRun(context.Background(), engine.DryRunOptions{
 		Root: f.root, Config: f.cfg, Phase: f.phase, Through: f.through, Mode: f.mode,
-		Runner: commandRunner(), Getenv: ariseGetenv, Compat: compatWarnings, Format: formatEvent,
+		Runner: commandRunner(), Getenv: ariseGetenv, Versions: compatWarnings, Format: formatEvent,
 	})
 	printDryRun(out, r)
 	if err != nil {

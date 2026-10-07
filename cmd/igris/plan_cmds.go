@@ -8,15 +8,13 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"text/tabwriter"
 
+	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/config"
-	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/report"
-	"github.com/drilonrecica/igris/internal/state"
 )
 
 // configFile is the config looked up in the working directory.
@@ -42,7 +40,9 @@ func loadPlan(fs *flag.FlagSet, stderr io.Writer) (*loaded, int) {
 	case errors.Is(err, config.ErrNotFound):
 		cfg = config.Default()
 		l.noConfig = true
-		l.parentConfig = parentConfig()
+		if cwd, err := os.Getwd(); err == nil {
+			l.parentConfig = checks.ParentConfig(cwd)
+		}
 	case err != nil:
 		fmt.Fprintf(stderr, "%s: %v\n", fs.Name(), err)
 		return nil, exitFail
@@ -55,38 +55,16 @@ func loadPlan(fs *flag.FlagSet, stderr io.Writer) (*loaded, int) {
 	if err != nil {
 		hint := ""
 		if l.parentConfig != "" {
-			hint = fmt.Sprintf(" (%s)", parentHint(l.parentConfig))
+			hint = fmt.Sprintf(" (%s)", checks.ParentHint(l.parentConfig))
 		}
 		fmt.Fprintf(stderr, "%s: %v; pass --plan PATH or set plan in %s%s\n", fs.Name(), err, configFile, hint)
 		return nil, exitFail
 	}
 	if l.parentConfig != "" && fs.Name() != "igris check" { // check lists it as a warning
-		fmt.Fprintf(stderr, "note: %s\n", parentHint(l.parentConfig))
+		fmt.Fprintf(stderr, "note: %s\n", checks.ParentHint(l.parentConfig))
 	}
 	l.cfg, l.plan = cfg, p
 	return l, exitOK
-}
-
-// parentConfig returns the igris.toml of the nearest parent directory that
-// has one, or "".
-func parentConfig() string {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return ""
-	}
-	root, err := state.FindRoot(cwd)
-	if err != nil || root == cwd {
-		return ""
-	}
-	path := filepath.Join(root, configFile)
-	if _, err := os.Stat(path); err != nil {
-		return ""
-	}
-	return path
-}
-
-func parentHint(path string) string {
-	return fmt.Sprintf("%s found in %s; run igris from there (this directory uses the defaults)", configFile, filepath.Dir(path))
 }
 
 func jsonFlag(fs *flag.FlagSet) bool { return fs.Lookup("json").Value.String() == "true" }
@@ -121,20 +99,14 @@ func execCheck(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	if code != exitOK {
 		return code
 	}
-	var leading []report.Warning
-	for _, w := range compatWarnings(context.Background(), commandRunner()) {
-		leading = append(leading, report.Warning{Message: w})
-	}
-	for _, w := range l.cfg.Warnings() {
-		leading = append(leading, report.Warning{File: configFile, Message: w})
-	}
-	if ariseGetenv(engine.APIKeyVar) != "" {
-		leading = append(leading, report.Warning{Message: engine.APIKeyWarning})
-	}
-	if l.parentConfig != "" {
-		leading = append(leading, report.Warning{Message: parentHint(l.parentConfig)})
-	}
-	r := report.Check(report.CheckInput{Plan: l.plan, Models: l.cfg.Models, Leading: leading})
+	// check only warns: it lists ANTHROPIC_API_KEY but asks nothing.
+	cs := checks.Run(context.Background(), checks.Options{
+		IDs:    []string{checks.IDClaude, checks.IDHerdr, checks.IDConfig, checks.IDAPIKey, checks.IDProject, checks.IDPlanHints, checks.IDDrift},
+		Runner: commandRunner(), Getenv: ariseGetenv, Versions: compatWarnings,
+		Config: l.cfg, NoConfig: l.noConfig, ParentConfig: l.parentConfig, Plan: l.plan,
+	})
+	r := report.Check(report.CheckInput{Plan: l.plan, Models: l.cfg.Models, Checks: checks.Pick(cs,
+		checks.IDClaude, checks.IDHerdr, checks.IDConfig, checks.IDAPIKey, checks.IDProject, checks.IDPlanHints, checks.IDDrift)})
 
 	if jsonFlag(fs) {
 		writeJSON(stdout, r)
@@ -153,9 +125,10 @@ func execCheck(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 			}
 			fmt.Fprintf(stdout, "warning: %s:%d: %s\n", w.File, w.Line, w.Message)
 		}
-		if l.noConfig && l.parentConfig == "" {
-			// Not a warning: a directory with just a plan is a valid project.
-			fmt.Fprintf(stdout, "note: no %s here; using the defaults (`igris init` creates one)\n", configFile)
+		for _, c := range checks.Pick(cs, checks.IDProject) {
+			if l.noConfig && c.Level == checks.OK { // no igris.toml: a note, not a warning
+				fmt.Fprintf(stdout, "note: %s\n", c.Message)
+			}
 		}
 		if r.Valid {
 			fmt.Fprintf(stdout, "%s: OK (%d phases, %d tasks, %d warnings)\n", r.Plan, r.Phases, r.Tasks, len(r.Warnings))

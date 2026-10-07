@@ -10,6 +10,7 @@ import (
 
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/backend/fake"
+	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/report"
@@ -28,8 +29,9 @@ type DryRunOptions struct {
 	// Runner and Getenv serve the start-up checks (git, ANTHROPIC_API_KEY).
 	Runner runner.Runner
 	Getenv func(string) string
-	// Compat lists Claude Code and herdr version problems; nil means none.
-	Compat func(context.Context, runner.Runner) []string
+	// Versions checks the Claude Code and herdr versions (usually
+	// checks.ToolVersions); nil checks none.
+	Versions func(context.Context, runner.Runner) []checks.Result
 	// Format renders an event as the lines the walk shows for it.
 	Format func(Event) []string
 }
@@ -59,23 +61,19 @@ func DryRun(ctx context.Context, o DryRunOptions) (report.DryRun, error) {
 	}
 
 	warn := func(s string) { r.Warnings = append(r.Warnings, textsafe.Line(s)) }
-	if f.Compat != nil {
-		for _, w := range f.Compat(ctx, f.Runner) {
-			warn(w)
-		}
+	cs := checks.Run(ctx, checks.Options{
+		IDs:  []string{checks.IDClaude, checks.IDHerdr, checks.IDConfig, checks.IDPlanHints, checks.IDAPIKey, checks.IDGit, checks.IDDrift},
+		Root: f.Root, Runner: f.Runner, Getenv: f.Getenv, Versions: f.Versions, Config: f.Config,
+	})
+	for _, c := range checks.Problems(checks.Pick(cs, checks.IDClaude, checks.IDHerdr, checks.IDConfig, checks.IDPlanHints)) {
+		warn(c.String())
 	}
-	for _, w := range f.Config.Warnings() {
-		warn(fmt.Sprintf("%s: %s", state.ConfigFile, w))
-	}
-	for _, h := range PlanHints(f.Root, f.Config) {
-		warn(h.Error())
-	}
-	for _, w := range Preflight(ctx, f.Runner, f.Root, f.Getenv) {
+	for _, c := range checks.Problems(checks.Pick(cs, checks.IDAPIKey, checks.IDGit)) {
 		asks := ""
-		if w.Confirm {
+		if c.Confirm {
 			asks = " (a real run asks you to confirm)"
 		}
-		warn(w.Text + asks)
+		warn(c.Message + asks)
 	}
 	p, err := plan.Load(inRoot(f.Root, f.Config.Plan), plan.Options{Columns: f.Config.Columns})
 	if err != nil {
@@ -88,8 +86,8 @@ func DryRun(ctx context.Context, o DryRunOptions) (report.DryRun, error) {
 	if _, err := p.PhasesThrough(f.Phase, f.Through); err != nil {
 		return r, err
 	}
-	for _, c := range p.Readiness() {
-		warn(fmt.Sprintf("drift: %s (a real run asks you before fixing it)", c))
+	for _, c := range checks.Problems(checks.Pick(cs, checks.IDDrift)) {
+		warn(fmt.Sprintf("drift: %s (a real run asks you before fixing it)", checks.DriftLine(c)))
 	}
 
 	tmp, err := os.MkdirTemp("", "igris-dry-run-*")
@@ -135,17 +133,6 @@ func DryRun(ctx context.Context, o DryRunOptions) (report.DryRun, error) {
 	}
 	_, err = eng.Run(ctx)
 	return r, err
-}
-
-// PlanHints returns the plan's hints (plan.Hints) for the start of a run. A
-// plan that can't be read or isn't valid gives none: the run reports that
-// itself.
-func PlanHints(root string, cfg *config.Config) []plan.Issue {
-	p, err := plan.Load(inRoot(root, cfg.Plan), plan.Options{Columns: cfg.Columns})
-	if err != nil || len(p.Validate(cfg.Models)) > 0 {
-		return nil
-	}
-	return p.Hints()
 }
 
 // dryRunProject sets up a scratch project in tmp: the plan (and prompt

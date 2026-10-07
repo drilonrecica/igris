@@ -370,7 +370,7 @@ Igris itself runs in a herdr pane. It uses the herdr CLI (JSON output), never th
 If herdr isn't available, `igris arise` exits with a clear message explaining that v1 requires herdr and that tmux support is planned. `check`, `status`, `phases`, `done`, `skip` and `adapt --check`-style validation work without any backend.
 
 ### 11.4 Verified versions
-Claude Code and herdr change often, and igris relies on their flags and output shapes. The versions igris was verified with live in one table in code (`engine.Tools`) and here:
+Claude Code and herdr change often, and igris relies on their flags and output shapes. The versions igris was verified with live in one table in code (`checks.Tools`) and here:
 
 | Tool | Oldest verified (`Min`) | Newest re-verified (`Tested`) | Verified in |
 |---|---|---|---|

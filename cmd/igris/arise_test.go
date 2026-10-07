@@ -14,6 +14,7 @@ import (
 
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/backend/fake"
+	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/plan"
@@ -365,7 +366,7 @@ func (r noTUIRun) run(t *testing.T) (code int, output, root string) {
 	ariseStdin, ariseRunner = stdinR, git
 	ariseBackend = func(*config.Config) (backend.Backend, error) { return be, nil }
 	ariseGetenv = func(k string) string {
-		if k == engine.APIKeyVar {
+		if k == checks.APIKeyVar {
 			return r.apiKey
 		}
 		return ""

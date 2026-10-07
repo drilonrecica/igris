@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/drilonrecica/igris/internal/engine"
+	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/runner"
 )
 
@@ -260,7 +260,7 @@ func withVersions(t *testing.T, claude, herdr string) {
 		}
 		return runner.Result{}, nil
 	})
-	compatWarnings, ariseRunner = engine.CompatWarnings, r
+	compatWarnings, ariseRunner = checks.ToolVersions, r
 }
 
 func TestCheckWarnsAboutVersions(t *testing.T) {
@@ -341,7 +341,7 @@ func TestCheckWarnsAboutAPIKey(t *testing.T) {
 	saved := ariseGetenv
 	t.Cleanup(func() { ariseGetenv = saved })
 	ariseGetenv = func(k string) string {
-		if k == engine.APIKeyVar {
+		if k == checks.APIKeyVar {
 			return "sk-secret"
 		}
 		return ""
