@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -69,14 +71,35 @@ func ClaudeArgs(p ClaudeParams) ([]string, error) {
 	return append(args, p.ExtraArgs...), nil
 }
 
+// igrisPath is the running igris as the hooks should name it: the igris in
+// PATH when it is this binary (a package manager's stable link, e.g.
+// Homebrew's bin/igris, which survives an upgrade while the versioned
+// file it points to doesn't), else the running binary's own path; "" if
+// neither is known.
+func igrisPath() string {
+	self, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	if p, err := exec.LookPath("igris"); err == nil && filepath.IsAbs(p) && sameFile(p, self) {
+		return p
+	}
+	return self
+}
+
+func sameFile(a, b string) bool {
+	ia, err1 := os.Stat(a)
+	ib, err2 := os.Stat(b)
+	return err1 == nil && err2 == nil && os.SameFile(ia, ib)
+}
+
 // WriteHooks writes the hooks-only Claude Code settings file for task id
 // (SPEC §6.3) and returns its path. exe is the igris binary the hooks run;
 // "" means the running one. Without a usable binary path the session runs
 // without hooks ("" and no error): hook state is an aid, never required.
 func WriteHooks(dir *state.Dir, id, exe string) (string, error) {
 	if exe == "" {
-		var err error
-		if exe, err = os.Executable(); err != nil {
+		if exe = igrisPath(); exe == "" {
 			return "", nil
 		}
 	}

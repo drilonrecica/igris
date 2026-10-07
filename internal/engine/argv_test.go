@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strings"
@@ -137,5 +139,31 @@ func TestNewSessionID(t *testing.T) {
 			t.Fatalf("duplicate id %q", id)
 		}
 		seen[id] = true
+	}
+}
+
+// The hooks name igris by its PATH link when that is the running binary,
+// so they keep working after a package manager replaces the versioned file.
+func TestIgrisPath(t *testing.T) {
+	self, err := os.Executable()
+	if err != nil {
+		t.Skip(err)
+	}
+	dir := t.TempDir()
+	link := filepath.Join(dir, "igris")
+	if err := os.Symlink(self, link); err != nil {
+		t.Skip(err)
+	}
+	t.Setenv("PATH", dir)
+	if got := igrisPath(); got != link {
+		t.Errorf("igrisPath() = %q, want the PATH link %q", got, link)
+	}
+	other := t.TempDir()
+	if err := os.WriteFile(filepath.Join(other, "igris"), []byte("#!/bin/sh\n"), 0o700); err != nil { //nolint:gosec // must be executable for LookPath
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", other)
+	if got := igrisPath(); got != self {
+		t.Errorf("igrisPath() = %q with another igris in PATH, want the running %q", got, self)
 	}
 }
