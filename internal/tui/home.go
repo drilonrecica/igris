@@ -72,6 +72,9 @@ type homeScreen struct {
 	// closed, until the read after it is back.
 	editing   *editTarget
 	afterEdit *editedMsg
+	// initing is the Init (or Example plan) dialog while it is open
+	// (onboarding.go).
+	initing *initTarget
 
 	status   string // the last action's result
 	statusAt time.Time
@@ -197,7 +200,7 @@ func (m *homeScreen) helpKeys() []helpEntry {
 // homeShortcuts maps home's keys to their actions (SPEC §15.6).
 var homeShortcuts = map[string]action{
 	"a": actArise, "v": actPreview, "c": actCheck, "i": actDoctor, "h": actHistory,
-	"e": actEdit, ",": actSettings, "n": actNotify, "A": actAdapt, "I": actInit, "o": actOpen,
+	"e": actEdit, ",": actSettings, "n": actNotify, "A": actAdapt, "I": actInit, "E": actExample, "o": actOpen,
 	"?": actHelp, "q": actQuit,
 }
 
@@ -246,6 +249,8 @@ func (m *homeScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.ariseFrom(msg.req)
 	case doMsg:
 		return m, m.activate(msg.a)
+	case initDoneMsg:
+		return m, m.initDone(msg)
 	case editedMsg:
 		return m, m.edited(msg)
 	case launchedMsg:
@@ -368,6 +373,9 @@ func (m *homeScreen) pick(a action) tea.Cmd {
 	}
 	if m.editing != nil {
 		return m.editPick(a)
+	}
+	if m.initing != nil {
+		return m.initPick(a)
 	}
 	if a == actNone {
 		return nil
@@ -577,6 +585,10 @@ func (m *homeScreen) activate(a action) tea.Cmd {
 			return m.edit(t)
 		}
 		return nil
+	case actInit:
+		return m.openInit(false)
+	case actExample:
+		return m.openInit(true)
 	}
 	return m.notYet(label)
 }

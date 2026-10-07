@@ -658,7 +658,7 @@ Bare `igris` on a terminal (§14) opens home: the project at a glance and the wa
 | Settings | `,` | problems first, then the effective config in TOML-shaped sections; defaults marked `· default` in words; secrets never shown (`token = set (env:NTFY_TOKEN)` / `set (hidden)`) | Edit igris.toml (`e`), Doctor, Init (no file) |
 | Preview | `v` | the dry run (§14) as numbered steps: task, rank → model, mode, `[SKIP PERMISSIONS]`, resumed; warnings, totals | Arise with these settings |
 | Notify test | `n` | after a confirm dialog, one row per event × channel filled in live (`· sending` → `✓ ok` / `⨯ FAILED: reason`), as `notify test` (§14) | Cancel while sending, Send again |
-| Init | `I` | after a confirm dialog listing the files it touches (**Create files** · Cancel; never overwrites), each step's result as `init` prints it | — |
+| Init | `I` | after a confirm dialog listing the files it touches (**Create files** · Cancel; never overwrites), each step's result as `init` prints it, then the herdr hint | **Example plan** (`E`; a confirm dialog, then `init --example`, never overwriting a plan), Check, Doctor |
 | Adapt | `A` | after a confirm dialog (**Cancel** · Adapt with sonnet · Adapt with opus; the `ANTHROPIC_API_KEY` warning when it applies), `adapt`'s progress, then the adapt review (§9) | Open session, Cancel; then Accept / Reject as in §9 |
 
 **Keys on home.** The run view's letters (`o m M p d s r x q ?`) never mean something else on home; `y` is copy and `j`/`k` navigate everywhere. Actions appear only when they apply (§15.3):
@@ -675,6 +675,7 @@ Bare `igris` on a terminal (§14) opens home: the project at a glance and the wa
 | `n` | Notify test | a channel is set up |
 | `A` | Adapt | the plan exists, is invalid, and herdr is reachable |
 | `I` | Init | there is no `igris.toml` |
+| `E` | Example plan | `igris.toml` is valid and the plan file is missing |
 | `o` | Open session | another igris runs here and `state.json` has a session ref |
 | `?` `q` `esc` `ctrl+c` | help, back or quit, back, quit the app | always |
 

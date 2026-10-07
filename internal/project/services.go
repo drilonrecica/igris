@@ -145,6 +145,9 @@ func (s *Services) Init(ctx context.Context, example bool) ([]report.Step, error
 	return Init(ctx, p.Root, example, s.env)
 }
 
+// InitFiles implements tui.Services: what Init would touch.
+func (s *Services) InitFiles(example bool) []string { return InitFiles(example) }
+
 // NotifyTest implements tui.Services: `igris notify test` for every event,
 // each delivery reported as soon as it is over. The herdr toast is left out
 // when herdr can't be reached.

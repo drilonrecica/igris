@@ -57,6 +57,8 @@ const (
 	actNotify     // the notify test page
 	actAdapt      // igris adapt
 	actInit       // igris init
+	actExample    // write the example plan (init --example)
+	actInitCreate // the Init dialog's Create files
 	actPhaseRow   // a PHASES row; the zone's option is the phase's index
 	actLine       // a HEALTH or RECENT line; the zone's option is its index
 	// The start-run wizard's choices (launch.go); a phase or through

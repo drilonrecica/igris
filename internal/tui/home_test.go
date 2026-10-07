@@ -310,7 +310,7 @@ func TestHomeButtonsOnlyWhenTheyApply(t *testing.T) {
 		"ready":                 "Arise… Preview Check Doctor History Edit plan Settings Notify ? Quit",
 		"herdr_absent":          "Preview Check Doctor History Edit plan Settings Notify ? Quit",
 		"get_started":           "Init Doctor Settings ? Quit",
-		"plan_missing":          "Doctor Settings Notify ? Quit",
+		"plan_missing":          "Example plan Doctor Settings Notify ? Quit",
 		"plan_invalid":          "Check Adapt Doctor Edit plan Settings Notify ? Quit",
 		"plan_invalid_no_herdr": "Check Doctor Edit plan Settings Notify ? Quit",
 		"config_invalid":        "Settings Preview Check Doctor History Edit plan Notify ? Quit",

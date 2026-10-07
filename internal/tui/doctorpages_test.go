@@ -197,8 +197,8 @@ func TestDoctorPageInitWhereHomeOffersIt(t *testing.T) {
 	}
 	press(a, "I")
 	home := a.stack[0].(*homeScreen)
-	if len(a.stack) != 1 || !strings.Contains(home.status, "Init") {
-		t.Errorf("I: %d screens, status %q", len(a.stack), home.status)
+	if len(a.stack) != 1 || home.initing == nil || !strings.Contains(a.View(), "Create files") {
+		t.Errorf("I: %d screens, init dialog %v", len(a.stack), home.initing)
 	}
 }
 

@@ -156,6 +156,7 @@ func (m *homeScreen) buttons() []option {
 	add(true, "Settings", actSettings)
 	add(m.channels(), "Notify", actNotify)
 	add(found && s.NoConfig && !live, "Init", actInit)
+	add(found && !s.NoConfig && len(s.ConfigProblems) == 0 && s.PlanMissing && !live, "Example plan", actExample)
 	out = append(out, option{"?", actHelp}, option{"Quit", actQuit})
 
 	// The state's own action goes first: it is the one enter runs.
@@ -163,6 +164,8 @@ func (m *homeScreen) buttons() []option {
 	switch k {
 	case nowGetStarted:
 		first = actInit
+	case nowPlanMissing:
+		first = actExample
 	case nowRunningElsewhere:
 		first = actOpen
 	case nowConfigInvalid:
@@ -183,7 +186,7 @@ func (m *homeScreen) buttons() []option {
 
 // homeFold lists the actions the bar folds into More… first when it
 // doesn't fit; the first button (the state's own action) is never folded.
-var homeFold = []action{actNotify, actSettings, actEdit, actHistory, actDoctor, actAdapt, actInit, actCheck, actPreview, actOpen, actHelp, actArise}
+var homeFold = []action{actNotify, actSettings, actEdit, actHistory, actDoctor, actAdapt, actInit, actExample, actCheck, actPreview, actOpen, actHelp, actArise}
 
 // phaseRow is one PHASES row, ready to lay out.
 type phaseRow struct {
@@ -281,15 +284,12 @@ func (m *homeScreen) cardLines(w int) []string {
 	case nowUnreadable:
 		out := wrap("could not read the project: "+m.snapErr.Error(), w)
 		return append(out, wrap("Doctor may say why.", w)...)
-	case nowGetStarted:
+	case nowGetStarted, nowPlanMissing:
 		return m.getStartedCard(w)
 	case nowConfigInvalid:
 		out := []string{title(fmt.Sprintf("CONFIG INVALID · igris.toml · %s", plural(len(s.ConfigProblems), "problem")))}
 		out = append(out, m.firstLines(s.ConfigProblems, 3, "Settings shows all", w)...)
 		return append(out, wrap("igris uses the defaults meanwhile. Edit igris.toml from Settings.", w)...)
-	case nowPlanMissing:
-		out := []string{title("NO PLAN · " + m.planName() + " not found")}
-		return append(out, wrap("Write the plan at "+s.PlanPath+", or point plan = in igris.toml at it.", w)...)
 	case nowPlanInvalid:
 		return m.planInvalidCard(w)
 	case nowRunningElsewhere:
@@ -316,23 +316,30 @@ func (m *homeScreen) firstLines(lines []string, n int, where string, w int) []st
 }
 
 // getStartedCard is the onboarding stepper: each step turns ✓ as the data
-// comes in (SPEC §15.6).
+// comes in (SPEC §15.6). It stands for a project with no igris.toml and,
+// once Init made one, for a project with no plan yet.
 func (m *homeScreen) getStartedCard(w int) []string {
 	s := m.snap
 	type step struct{ glyph, name, state string }
+	cfgStep := step{glyphs[plan.Done], "igris.toml", "found"}
+	if s.NoConfig {
+		cfgStep = step{glyphs[plan.Blocked], "igris.toml", "not found"}
+	}
 	planStep := step{glyphs[plan.Ready], "plan", m.planName() + " not found"}
+	checkStep := step{glyphs[plan.Ready], "check", "—"}
 	switch {
 	case m.planValid():
 		planStep = step{glyphs[plan.Done], "plan", m.planName()}
+		checkStep = step{glyphs[plan.Done], "check", "passes"}
 	case s.PlanErr != "":
 		planStep = step{glyphs[plan.Blocked], "plan", m.planName() + " unreadable"}
 	case m.planFile():
 		planStep = step{glyphs[plan.Blocked], "plan", fmt.Sprintf("%s: %s", m.planName(), plural(len(s.Issues), "problem"))}
 	}
 	steps := []step{
-		{glyphs[plan.Blocked], "igris.toml", "not found"},
+		cfgStep,
 		planStep,
-		{glyphs[plan.Ready], "check", "—"},
+		checkStep,
 		{glyphs[plan.Ready], "preview", "—"},
 		{glyphs[plan.Ready], "arise", "—"},
 	}
@@ -340,7 +347,14 @@ func (m *homeScreen) getStartedCard(w int) []string {
 	for i, st := range steps {
 		out = append(out, fit(st.glyph+" "+strconv.Itoa(i+1)+" "+pad(st.name, 11)+" "+st.state, w))
 	}
-	return append(out, wrap("Init creates igris.toml, .igris/, a .gitignore entry and the Claude allow rule for `igris done`.", w)...)
+	hint := "Init creates igris.toml, .igris/, a .gitignore entry and the Claude allow rule for `igris done`."
+	switch {
+	case !s.NoConfig && !m.planFile():
+		hint = "Example plan writes a small canonical plan to try igris on; or write your own at " + s.PlanPath + "."
+	case m.planFile() && !m.planValid():
+		hint += " The plan has problems: Check lists them, Adapt proposes a canonical one."
+	}
+	return append(out, wrap(hint, w)...)
 }
 
 func (m *homeScreen) planInvalidCard(w int) []string {

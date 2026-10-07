@@ -1,8 +1,13 @@
 igris · sinjal · no plan · herdr ✓ · mode default                                                                NO PLAN
 ─ PHASES ──────────────────────────────────────────────────┬─ NOW ──────────────────────────────────────────────────────
-tasks.md not found                                         │ NO PLAN · tasks.md not found                               
-                                                           │ Write the plan at /src/sinjal/tasks.md, or point plan = in 
-                                                           │ igris.toml at it.                                          
+tasks.md not found                                         │ GET STARTED                                                
+                                                           │ ✓ 1 igris.toml  found                                      
+                                                           │ · 2 plan        tasks.md not found                         
+                                                           │ · 3 check       —                                          
+                                                           │ · 4 preview     —                                          
+                                                           │ · 5 arise       —                                          
+                                                           │ Example plan writes a small canonical plan to try igris on;
+                                                           │ or write your own at /src/sinjal/tasks.md.                 
                                                            ├─ HEALTH ───────────────────────────────────────────────────
                                                            │ ⨯ plan missing · tasks.md not found                        
                                                            │ ! doctor: 1 warning — uncommitted changes                  
@@ -30,11 +35,6 @@ tasks.md not found                                         │ NO PLAN · tasks.
                                                            │
                                                            │
                                                            │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
 ───────────────────────────────────────────────────────────┴────────────────────────────────────────────────────────────
 
-[›Doctor‹] [Settings] [Notify] [?] [Quit]
+[›Example plan‹] [Doctor] [Settings] [Notify] [?] [Quit]

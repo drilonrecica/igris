@@ -1,15 +1,15 @@
 igris · sinjal · herdr ✓                                                 NO PLAN
 ── NOW ─────────────────────────────────────────────────────────────────────────
-NO PLAN · tasks.md not found
-Write the plan at /src/sinjal/tasks.md, or point plan = in igris.toml at it.
+GET STARTED
+✓ 1 igris.toml  found
+· 2 plan        tasks.md not found
+· 3 check       —
+· 4 preview     —
+· 5 arise       —
+Example plan writes a small canonical plan to try igris on; or write your own at
+/src/sinjal/tasks.md.
 ── PHASES ──────────────────────────────────────────────────────────────────────
 tasks.md not found
-
-
-
-
-
-
 
 
 
@@ -21,4 +21,4 @@ tasks.md not found
 ── RECENT ──────────────────────────────────────────────────────────────────────
 no runs yet
 
-[›Doctor‹] [Settings] [Notify] [?] [Quit]
+[›Example plan‹] [Doctor] [Settings] [Notify] [?] [Quit]

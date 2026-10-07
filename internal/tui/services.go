@@ -44,6 +44,9 @@ type Services interface {
 	// Init is `igris init` (--example with example). On an error the steps
 	// finished before it are returned with it.
 	Init(ctx context.Context, example bool) ([]report.Step, error)
+	// InitFiles are the files and directories Init touches, for the dialog
+	// that asks before it runs (with example, the example plan too).
+	InitFiles(example bool) []string
 	// NotifyTest is `igris notify test`: emit gets each delivery as soon
 	// as it is over. The error says why nothing could be sent.
 	NotifyTest(ctx context.Context, emit func(report.NotifyResult)) error
