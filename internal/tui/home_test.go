@@ -399,10 +399,12 @@ func TestHomeActionsThreeWays(t *testing.T) {
 	} else if _, ok := p.s.(*checkScreen); !ok {
 		t.Errorf("c pushed %T", p.s)
 	}
-	send(keyMsg("h"))
-	if !strings.Contains(m.status, "History") {
-		t.Errorf("h: status %q, want History", m.status)
+	if p, ok := send(keyMsg("h")).(pushMsg); !ok {
+		t.Error("h didn't push the history page")
+	} else if _, ok := p.s.(*historyScreen); !ok {
+		t.Errorf("h pushed %T", p.s)
 	}
+	m.setStatus("Settings: not available yet")
 	if v := m.View(); !strings.Contains(v, m.status) || !strings.Contains(v, "09:41") {
 		t.Errorf("the status line isn't drawn with its time:\n%s", v)
 	}
@@ -415,15 +417,16 @@ func TestHomeActionsThreeWays(t *testing.T) {
 	// A click.
 	m.status = ""
 	m.View()
-	clicked := false
+	var clicked tea.Msg
 	for _, z := range m.zones.list {
 		if z.t.act == actDoctor {
-			send(tea.MouseMsg{X: z.r.x, Y: z.r.y, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress})
-			clicked = true
+			clicked = send(tea.MouseMsg{X: z.r.x, Y: z.r.y, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress})
 		}
 	}
-	if !clicked || !strings.Contains(m.status, "Doctor") {
-		t.Errorf("click on Doctor: clicked %v, status %q", clicked, m.status)
+	if p, ok := clicked.(pushMsg); !ok {
+		t.Errorf("click on Doctor didn't push its page (status %q)", m.status)
+	} else if _, ok := p.s.(*doctorScreen); !ok {
+		t.Errorf("click on Doctor pushed %T", p.s)
 	}
 	// A key whose action doesn't apply does nothing.
 	m.status = ""
@@ -479,18 +482,26 @@ func TestHomeMouse(t *testing.T) {
 	} else if ps, ok := p.s.(*phaseScreen); !ok || ps.id != "M3" {
 		t.Errorf("second click pushed %T, want M3's page", p.s)
 	}
-	m.status = ""
-	if !click(func(t target) bool { return t.act == actLine && t.option == 1 }) {
-		t.Fatal("no doctor line to click")
+	clickMsg := func(want func(target) bool) tea.Msg {
+		m.View()
+		for _, z := range m.zones.list {
+			if want(z.t) {
+				_, cmd := m.Update(tea.MouseMsg{X: z.r.x, Y: z.r.y, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress})
+				return run(cmd)
+			}
+		}
+		t.Fatal("no line to click")
+		return nil
 	}
-	if !strings.Contains(m.status, "Doctor") || m.focus != homeLines {
-		t.Errorf("click on the doctor line: status %q, focus %v", m.status, m.focus)
+	if p, ok := clickMsg(func(t target) bool { return t.act == actLine && t.option == 1 }).(pushMsg); !ok {
+		t.Error("click on the doctor line didn't push a page")
+	} else if _, ok := p.s.(*doctorScreen); !ok || m.focus != homeLines {
+		t.Errorf("click on the doctor line pushed %T, focus %v", p.s, m.focus)
 	}
-	if !click(func(t target) bool { return t.act == actLine && t.option == 2 }) {
-		t.Fatal("no recent line to click")
-	}
-	if !strings.Contains(m.status, "History") {
-		t.Errorf("click on a recent run: status %q", m.status)
+	if p, ok := clickMsg(func(t target) bool { return t.act == actLine && t.option == 2 }).(pushMsg); !ok {
+		t.Error("click on a recent run didn't push a page")
+	} else if _, ok := p.s.(*historyScreen); !ok {
+		t.Errorf("click on a recent run pushed %T", p.s)
 	}
 }
 

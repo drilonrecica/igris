@@ -525,6 +525,10 @@ func (m *homeScreen) activate(a action) tea.Cmd {
 	case actNone, actClose:
 		return nil
 	}
+	if a == actEditConfig {
+		// Doctor's row action; the editor itself comes with Settings.
+		return m.notYet("Edit config")
+	}
 	label := ""
 	for _, b := range m.buttons() {
 		if b.act == a {
@@ -541,6 +545,10 @@ func (m *homeScreen) activate(a action) tea.Cmd {
 		return m.openPreview(m.previewRequest())
 	case actCheck:
 		return push(newCheckScreen(m))
+	case actDoctor:
+		return push(newDoctorScreen(m))
+	case actHistory:
+		return push(newHistoryScreen(m))
 	}
 	return m.notYet(label)
 }
