@@ -4,6 +4,10 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-07
+
+Fixes from running the v0.1.0 owner gates on real plans, a phone and real notification channels. No change to the config keys, CLI flags or file formats; one relaxation of the plan format (finished tasks need no Model).
+
 ### Added
 
 - `CONTRIBUTING.md`, `SECURITY.md` (private vulnerability reporting through GitHub), a bug report template that asks for the igris, Claude Code and herdr versions, and a pull request template.
@@ -14,20 +18,20 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ### Fixed
 
-- An unknown status that is a common synonym gets a hint: `unknown status "dropped" (did you mean skipped?)`, likewise for `completed` → done and `wip` → in progress. It is still an error.
-- Notifications show task titles without markdown: `` `hello.txt` `` and `**bold**` appeared as raw characters on the phone, and a trailing period ran into the `:` after it.
-- With `verify_max_attempts = 1` the verify limit said "verify failed 1 times"; it says "once".
-- "Needs you" notifications say why in a few words — `(waiting for a permission or an answer)`, `(idle 20s without igris done)`, `(the session asks to skip)` — so two in a row can be told apart.
 - A task prompt was lost when the folder-trust prompt was accepted and igris polled within a fraction of a second: Claude Code shows its input box a moment before it takes input, and herdr accepted the prompt anyway. The session then sat at an empty prompt. igris now waits until Claude Code has been idle for 2 s before delivering a prompt held at the trust prompt. Seen in `igris arise` and `igris adapt` in new project folders.
 - A task could be lost when igris stopped (quit, Ctrl-C, a crash) while its new session sat at Claude Code's folder-trust prompt: the task prompt was held only in memory, so after `igris arise` reattached, Claude waited at an empty prompt forever. The held prompt is now kept in `state.json` and delivered once Claude Code is ready.
-- `igris notify test` sent seven identical messages; each sample now names its event and says what a real one would (`test of needs_input: needs you`).
-- The `task_done` notification was accepted in `events` but never sent. It is now sent when an agent task is done, to the channels that list it (the herdr toast keeps its default events).
 - A dependency column under another name (`Depends`, `Depends on`, `Requires`, …) without a `[columns]` alias was silently read as an extra column, so the plan ran with no dependencies at all. `igris check` and `igris arise` now warn about it and say how to alias it.
+- The `task_done` notification was accepted in `events` but never sent. It is now sent when an agent task is done, to the channels that list it (the herdr toast keeps its default events).
+- "Needs you" notifications say why in a few words — `(waiting for a permission or an answer)`, `(idle 20s without igris done)`, `(the session asks to skip)` — so two in a row can be told apart.
+- Notifications show task titles without markdown: `` `hello.txt` `` and `**bold**` appeared as raw characters on the phone, and a trailing period ran into the `:` after it.
+- `igris notify test` sent seven identical messages; each sample now names its event and says what a real one would (`test of needs_input: needs you`).
+- With `verify_max_attempts = 1` the verify limit said "verify failed 1 times"; it says "once".
+- An unknown status that is a common synonym gets a hint: `unknown status "dropped" (did you mean skipped?)`, likewise for `completed` → done and `wip` → in progress. It is still an error.
 - Errors for cells wrapped in markdown say what was meant: `` `M0-01` `` → write it as M0-01; `✅ Done` → did you mean done?; `**Opus**` → did you mean opus?
 - "Second task table" errors under `###` sub-headings say that only `##` headings start a phase.
 - "No task table found" names a table that has an ID column but lacks Status or Model, and how to alias the column.
-- `igris status` no longer prints `Overview — :` for a phase heading without a title.
 - The "agent task needs a Model" error no longer tells you to set Owner `user` when the table has no Owner column; it says to add one.
+- `igris status` no longer prints `Overview — :` for a phase heading without a title.
 
 ## [0.1.0] - 2026-10-07
 
@@ -100,5 +104,6 @@ First release. Linux and macOS, herdr backend only. The full behavior is specifi
 - Release artifacts are not signed (checksums only); signing is planned.
 - No Homebrew tap yet.
 
-[Unreleased]: https://github.com/drilonrecica/igris/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/drilonrecica/igris/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/drilonrecica/igris/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/drilonrecica/igris/releases/tag/v0.1.0

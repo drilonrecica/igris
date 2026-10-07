@@ -22,7 +22,7 @@
 
 You write the plan. You decide which tasks need Fable, which need Opus and which are fine on Sonnet. Igris makes sure that's what actually happens: it never runs a Sonnet task on a more expensive model, never lets one task's context bleed into the next, and stops to wait for you whenever a task needs a decision.
 
-> **Status:** v0.1.0, the first release. Linux and macOS, herdr backend only. The full behavior is specified in [`SPEC.md`](SPEC.md).
+> **Status:** v0.1.1. Linux and macOS, herdr backend only. The full behavior is specified in [`SPEC.md`](SPEC.md).
 
 ---
 
@@ -82,7 +82,7 @@ install -m 755 igris ~/.local/bin/igris
 igris version
 ```
 
-The binaries are static and not signed in v0.1.0; the checksums guard against a corrupted download.
+The binaries are static and not signed yet; the checksums guard against a corrupted download.
 
 ## herdr setup
 
