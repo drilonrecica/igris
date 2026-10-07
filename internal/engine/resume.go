@@ -49,7 +49,7 @@ func (e *Engine) resume(ctx context.Context) (stopped bool, err error) {
 		switch {
 		case errors.Is(err, backend.ErrSessionGone):
 		case err != nil:
-			return false, fmt.Errorf("reattach the session of %s: %w", t.ID, err)
+			return false, fmt.Errorf("reattach the session of %s: %w; check that herdr is running, then run `igris arise` again", t.ID, err)
 		default:
 			if st, err := sess.State(ctx); err != nil || st != backend.Exited {
 				l.sess = sess
@@ -61,7 +61,7 @@ func (e *Engine) resume(ctx context.Context) (stopped bool, err error) {
 					if h, ok := sess.(backend.PromptHolder); ok {
 						h.HoldPrompt(cur.PendingPrompt)
 					} else if err := sess.Prompt(ctx, cur.PendingPrompt); err != nil && !errors.Is(err, backend.ErrSessionGone) {
-						return false, fmt.Errorf("send the task prompt to %s: %w", t.ID, err)
+						return false, fmt.Errorf("send the task prompt to %s: %w; its session is still open in its herdr tab: run `igris arise` to retry", t.ID, err)
 					}
 				}
 				e.emit(Event{Kind: TaskResumed, Detail: detail})

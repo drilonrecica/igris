@@ -30,7 +30,7 @@ func sendSignal(action, id, note string, stdout, stderr io.Writer) int {
 		return exitFail
 	}
 	if !plan.ValidID(id) {
-		return fail("invalid task ID %q", id)
+		return fail("invalid task ID %q: IDs are letters, digits, '.', '_' and '-' (e.g. M0-01); check it with `igris status`", id)
 	}
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -66,10 +66,14 @@ func sendSignal(action, id, note string, stdout, stderr io.Writer) int {
 	if err := dir.WriteSignal(state.Signal{ID: id, Action: action, Note: note}); err != nil {
 		return fail("%v", err)
 	}
+	idle := ""
+	if !adapting && !dir.Running() {
+		idle = "; no igris run is active in this project, the next `igris arise` applies it"
+	}
 	if action == state.ActionSkip {
-		fmt.Fprintf(stdout, "igris: skip signal recorded for %s; the owner confirms it in igris\n", id)
+		fmt.Fprintf(stdout, "igris: skip signal recorded for %s; the owner confirms it in igris%s\n", id, idle)
 	} else {
-		fmt.Fprintf(stdout, "igris: done signal recorded for %s\n", id)
+		fmt.Fprintf(stdout, "igris: done signal recorded for %s%s\n", id, idle)
 	}
 	return exitOK
 }

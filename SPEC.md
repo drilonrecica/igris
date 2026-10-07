@@ -185,7 +185,7 @@ The default prompt must tell the session:
 - If `Resumed`: a previous session worked on this task and may have left partial changes; inspect `git status`/`git diff` first and continue from there.
 
 ### 6.2 Completion protocol
-- `igris done <ID> [--note TEXT]` and `igris skip <ID> --reason TEXT` locate the project root (walk up from cwd to the nearest `igris.toml` or `.igris/`), validate that `<ID>` exists, and write a signal file `.igris/signals/<ID>.json` (`{"id","action":"done|skip","note","at"}`) atomically. They print a one-line confirmation and exit 0.
+- `igris done <ID> [--note TEXT]` and `igris skip <ID> --reason TEXT` locate the project root (walk up from cwd to the nearest `igris.toml` or `.igris/`), validate that `<ID>` exists, and write a signal file `.igris/signals/<ID>.json` (`{"id","action":"done|skip","note","at"}`) atomically. They print a one-line confirmation and exit 0; when no igris run holds the project lock (§13), the confirmation adds that the next `igris arise` applies the signal.
 - They do **not** edit the plan themselves; only the running igris consumes signals. This keeps a single writer.
 - A signal for a task that isn't the current one is kept and reported in the TUI; it is never applied silently.
 - Signal files are read only if they are regular files of at most 64 KiB (sessions can write into `signals/`; a FIFO or a huge file must not stall igris); anything else is reported as unreadable. The note is cleaned of control characters before it is shown, logged or used as a commit body.
@@ -593,6 +593,7 @@ Modelled on Claude Code's choice prompts and herdr's clickable UI.
 - Igris never runs commands from the plan's content, and never passes plan text through a shell — prompts go to herdr as argv, not interpolated into shell strings.
 - Text igris did not write — plan cells, done notes, command output, backend errors — is cleaned of escape sequences and control characters before it is drawn in the TUI or the `--no-tui` log, sent as a notification, used in a commit message, or typed into a session's pane (§3.5, §6.2, §6.4, §9.5).
 - Signal and state files are written atomically, with `0600` files and `0700` directories; signals are read only as regular files of bounded size (§6.2).
+- Every user-facing error says what to do next (the command to run, the setting to change, the file to fix or delete).
 - Igris never reads or logs Claude Code credentials, and never sets `ANTHROPIC_API_KEY`. Notification secrets never enter the config hash, the run log or error messages (§10). An ntfy `token` is sent as a bearer header, so use an `https://` server for it.
 
 ---

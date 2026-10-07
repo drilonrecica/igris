@@ -394,3 +394,38 @@ func TestWriteAdaptFile(t *testing.T) {
 		}
 	}
 }
+
+func TestRunning(t *testing.T) {
+	tests := []struct {
+		name     string
+		existing string
+		alive    []int
+		want     bool
+	}{
+		{"no lock", "", nil, false},
+		{"live process", lockJSON(42, "here"), []int{42}, true},
+		{"dead process", lockJSON(42, "here"), nil, false},
+		{"corrupt file", "{nope", nil, false},
+		{"other host", lockJSON(42, "there"), nil, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := testDir(t, tt.alive...)
+			if tt.existing != "" {
+				writeLock(t, d, tt.existing)
+			}
+			if got := d.Running(); got != tt.want {
+				t.Errorf("Running() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestStaleLockNamesTheCommand(t *testing.T) {
+	d := testDir(t)
+	writeLock(t, d, lockJSON(42, "here"))
+	_, err := d.Lock(false)
+	if err == nil || !strings.Contains(err.Error(), "`igris arise --force-unlock`") {
+		t.Errorf("err = %v", err)
+	}
+}

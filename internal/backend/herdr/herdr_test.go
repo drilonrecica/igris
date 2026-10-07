@@ -2,6 +2,8 @@ package herdr
 
 import (
 	"context"
+	"fmt"
+	"os/exec"
 	"slices"
 	"strings"
 	"testing"
@@ -24,6 +26,9 @@ func TestAvailable(t *testing.T) {
 		{"server unreachable", "w2B", func(f *runner.Fake) {
 			f.On(cmd("status", "server"), runner.Result{Stderr: []byte("no socket"), ExitCode: 1}, nil)
 		}, "not reachable", 1},
+		{"herdr not installed", "w2B", func(f *runner.Fake) {
+			f.On(cmd("status", "server"), runner.Result{ExitCode: -1}, fmt.Errorf("run herdr: %w", exec.ErrNotFound))
+		}, "herdr is not installed or not in PATH; install herdr", 1},
 		{"server not running", "w2B", func(f *runner.Fake) { f.On(cmd("status", "server"), notRunning, nil) }, `"stopped"`, 1},
 	}
 	for _, tt := range tests {

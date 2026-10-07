@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os/exec"
 	"regexp"
 	"strings"
 	"time"
@@ -190,6 +191,9 @@ func (b *Backend) Available(ctx context.Context) error {
 		return fmt.Errorf("igris must run inside a herdr pane (%s is not set); start herdr, open a pane and run igris there. %s", WorkspaceEnv, errNeedsHerdr)
 	}
 	st, err := b.c.ServerStatus(ctx)
+	if errors.Is(err, exec.ErrNotFound) {
+		return fmt.Errorf("herdr is not installed or not in PATH; install herdr and run igris inside a herdr pane. %s", errNeedsHerdr)
+	}
 	if err != nil {
 		return fmt.Errorf("the herdr server is not reachable: %w; start herdr first. %s", err, errNeedsHerdr)
 	}

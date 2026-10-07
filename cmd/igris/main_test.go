@@ -41,7 +41,7 @@ func TestRun(t *testing.T) {
 		{"arise help lists force-unlock", []string{"arise", "-h"}, exitOK, "", "-force-unlock"},
 		{"arise bad mode", []string{"arise", "--mode", "wild"}, exitUsage, "", "invalid --mode"},
 		{"done missing id", []string{"done"}, exitUsage, "", "missing ID"},
-		{"skip missing reason", []string{"skip", "M0-01"}, exitUsage, "", "--reason is required"},
+		{"skip missing reason", []string{"skip", "M0-01"}, exitUsage, "", "skip needs a reason: igris skip ID --reason TEXT; see `igris skip -h`"},
 		{"skip missing id", []string{"skip", "--reason", "x"}, exitUsage, "", "missing ID"},
 		{"adapt extra arg", []string{"adapt", "x"}, exitUsage, "", "unexpected argument"},
 		{"adapt help lists plan", []string{"adapt", "-h"}, exitOK, "", "-plan"},

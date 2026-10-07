@@ -656,3 +656,11 @@ func TestAriseTUIConfirmsBeforeTheTUIStarts(t *testing.T) {
 		})
 	}
 }
+
+func TestAriseWithoutPlan(t *testing.T) {
+	writeProject(t, map[string]string{"igris.toml": "plan = \"plans/tasks.md\"\n"})
+	var out, errb bytes.Buffer
+	if code := run([]string{"arise", "A", "--dry-run"}, &out, &errb); code != exitFail || !strings.Contains(errb.String(), "set plan in igris.toml to your plan file") {
+		t.Errorf("exit %d, stderr %q", code, errb.String())
+	}
+}

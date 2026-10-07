@@ -42,7 +42,7 @@ func newBackend(cfg *config.Config) (backend.Backend, error) {
 	if cfg.Backend == "herdr" {
 		return herdr.NewFromEnv(commandRunner(), ariseGetenv), nil
 	}
-	return nil, fmt.Errorf("unknown backend %q in igris.toml; igris v1 runs on herdr (tmux support is planned)", cfg.Backend)
+	return nil, fmt.Errorf("unknown backend %q in igris.toml; set backend = \"herdr\": igris v1 runs on herdr (tmux support is planned)", cfg.Backend)
 }
 
 type ariseFlags struct {
@@ -220,7 +220,7 @@ func runWithTUI(ctx context.Context, f ariseFlags, opts engine.Options, be backe
 	<-feed.Ended()
 	res, err := feed.Result()
 	if uiErr != nil {
-		fmt.Fprintf(out, "the TUI failed: %v\n", uiErr)
+		fmt.Fprintf(out, "the TUI failed: %v; run `igris arise --no-tui` to continue without it\n", uiErr)
 		if err == nil {
 			err = uiErr
 		}
@@ -633,7 +633,7 @@ func dryRun(f ariseFlags, out, stderr io.Writer) int {
 	planPath := rootPath(f.root, f.cfg.Plan)
 	p, err := plan.Load(planPath, plan.Options{Columns: f.cfg.Columns})
 	if err != nil {
-		return fail("%v", err)
+		return fail("%v", engine.PlanLoadError(err))
 	}
 	if err := p.Check(f.cfg.Models); err != nil {
 		return fail("%v", err)

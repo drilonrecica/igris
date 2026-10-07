@@ -136,7 +136,7 @@ func TestPlanErrors(t *testing.T) {
 	dir := inDir(t)
 	for _, cmd := range []string{"check", "phases", "status"} {
 		code, _, errs := runCmd(cmd)
-		if code != exitFail || !strings.Contains(errs, "tasks.md") || !strings.Contains(errs, "--plan") {
+		if code != exitFail || !strings.HasPrefix(errs, "igris "+cmd+": ") || !strings.Contains(errs, "tasks.md") || !strings.Contains(errs, "--plan") {
 			t.Errorf("%s with no plan: code %d, stderr %q", cmd, code, errs)
 		}
 	}

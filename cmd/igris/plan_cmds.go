@@ -34,7 +34,7 @@ func loadPlan(fs *flag.FlagSet, stderr io.Writer) (*loaded, int) {
 	case errors.Is(err, config.ErrNotFound):
 		cfg = config.Default()
 	case err != nil:
-		fmt.Fprintf(stderr, "igris: %v\n", err)
+		fmt.Fprintf(stderr, "%s: %v\n", fs.Name(), err)
 		return nil, exitFail
 	}
 	path := cfg.Plan
@@ -43,7 +43,7 @@ func loadPlan(fs *flag.FlagSet, stderr io.Writer) (*loaded, int) {
 	}
 	p, err := plan.Load(path, plan.Options{Columns: cfg.Columns})
 	if err != nil {
-		fmt.Fprintf(stderr, "igris: %v; pass --plan PATH or set plan in %s\n", err, configFile)
+		fmt.Fprintf(stderr, "%s: %v; pass --plan PATH or set plan in %s\n", fs.Name(), err, configFile)
 		return nil, exitFail
 	}
 	return &loaded{cfg: cfg, plan: p}, exitOK
@@ -73,7 +73,8 @@ func issuesJSON(issues []plan.Issue) []issueJSON {
 
 // requireValid reports an invalid plan's problems and returns exitFail.
 // The status and phases commands refuse to describe a plan igris could not run.
-func requireValid(l *loaded, json bool, stdout, stderr io.Writer) int {
+func requireValid(fs *flag.FlagSet, l *loaded, stdout, stderr io.Writer) int {
+	json := jsonFlag(fs)
 	issues := l.plan.Validate(l.cfg.Models)
 	if len(issues) == 0 {
 		return exitOK
@@ -81,7 +82,7 @@ func requireValid(l *loaded, json bool, stdout, stderr io.Writer) int {
 	if json {
 		writeJSON(stdout, map[string]any{"plan": l.plan.Path, "valid": false, "issues": issuesJSON(issues)})
 	} else {
-		fmt.Fprintf(stderr, "igris: %s is not valid; run `igris check` and fix:\n", l.plan.Path)
+		fmt.Fprintf(stderr, "%s: %s is not valid; run `igris check` and fix:\n", fs.Name(), l.plan.Path)
 		for _, is := range issues {
 			fmt.Fprintf(stderr, "  %s\n", is)
 		}
@@ -183,7 +184,7 @@ func execPhases(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	if code != exitOK {
 		return code
 	}
-	if code := requireValid(l, jsonFlag(fs), stdout, stderr); code != exitOK {
+	if code := requireValid(fs, l, stdout, stderr); code != exitOK {
 		return code
 	}
 	phases := make([]phaseJSON, len(l.plan.Phases))
@@ -233,7 +234,7 @@ func execStatus(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 	if code != exitOK {
 		return code
 	}
-	if code := requireValid(l, jsonFlag(fs), stdout, stderr); code != exitOK {
+	if code := requireValid(fs, l, stdout, stderr); code != exitOK {
 		return code
 	}
 	phases := l.plan.Phases
@@ -241,7 +242,7 @@ func execStatus(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		ph := l.plan.Phase(args[0])
 		if ph == nil {
 			_, err := l.plan.Select(args[0]) // builds the "unknown phase" message
-			fmt.Fprintf(stderr, "igris: %v\n", err)
+			fmt.Fprintf(stderr, "%s: %v\n", fs.Name(), err)
 			return exitFail
 		}
 		phases = []*plan.Phase{ph}
@@ -251,7 +252,7 @@ func execStatus(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 	for i, ph := range phases {
 		sel, err := l.plan.Select(ph.ID)
 		if err != nil {
-			fmt.Fprintf(stderr, "igris: %v\n", err)
+			fmt.Fprintf(stderr, "%s: %v\n", fs.Name(), err)
 			return exitFail
 		}
 		r := phaseStatusJSON{

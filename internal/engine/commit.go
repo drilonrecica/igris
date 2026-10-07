@@ -33,7 +33,7 @@ type CommitVars struct {
 func parseCommitMessage(text string) (*template.Template, error) {
 	tmpl, err := template.New("commit_message").Option("missingkey=error").Parse(text)
 	if err != nil {
-		return nil, fmt.Errorf("run.commit_message in igris.toml: %w", err)
+		return nil, fmt.Errorf("run.commit_message in igris.toml: %w; fix the template in igris.toml", err)
 	}
 	return tmpl, nil
 }
@@ -58,7 +58,7 @@ func (e *Engine) commit(ctx context.Context, l *launch, note string) (stopped bo
 	var subject bytes.Buffer
 	vars := CommitVars{ID: t.ID, Title: t.Title, Phase: e.phase, Rank: t.Rank, Model: l.model, Note: note}
 	if err := e.commitMsg.Execute(&subject, vars); err != nil {
-		return false, fmt.Errorf("render run.commit_message for %s: %w", t.ID, err)
+		return false, fmt.Errorf("render run.commit_message for %s: %w; fix the template in igris.toml", t.ID, err)
 	}
 	msg := strings.TrimSpace(subject.String())
 	if msg == "" {
@@ -84,7 +84,7 @@ func (e *Engine) commit(ctx context.Context, l *launch, note string) (stopped bo
 		args = append(args, "-m", note)
 	}
 	if _, err := e.git(ctx, args...); err != nil {
-		return false, err
+		return false, fmt.Errorf("%w; fix what git reports (e.g. a failing hook), commit the changes of %s by hand or set commit = \"never\" in [run], then run `igris arise` again", err, t.ID)
 	}
 	e.log(state.Event{Type: state.EventCommitted, Detail: msg})
 	e.emit(Event{Kind: Committed, Detail: msg})

@@ -195,7 +195,7 @@ func TestCommitFailureStopsTheRun(t *testing.T) {
 	}
 	_, err := h.run()
 	var exit *runner.ExitError
-	if !errors.As(err, &exit) || !strings.Contains(err.Error(), "pre-commit hook failed") {
+	if !errors.As(err, &exit) || !strings.Contains(err.Error(), "pre-commit hook failed") || !strings.Contains(err.Error(), `set commit = "never"`) {
 		t.Fatalf("err = %v, want the git failure", err)
 	}
 	if got := h.statuses(); !strings.HasPrefix(got, "A-1=in progress") {

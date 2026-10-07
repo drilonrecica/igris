@@ -212,7 +212,7 @@ func Parse(data []byte, name string) (*Config, error) {
 	cfg := Default()
 	md, err := toml.Decode(string(data), cfg)
 	if err != nil {
-		return nil, fmt.Errorf("parse %s: %w", name, err)
+		return nil, fmt.Errorf("parse %s: %w; fix that line and run the command again", name, err)
 	}
 	if undec := md.Undecoded(); len(undec) > 0 {
 		keys := make([]string, len(undec))

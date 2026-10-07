@@ -99,7 +99,7 @@ func commands() []command {
 					return err
 				}
 				if strings.TrimSpace(*reason) == "" {
-					return fmt.Errorf("--reason is required")
+					return fmt.Errorf("skip needs a reason: igris skip ID --reason TEXT")
 				}
 				return nil
 			}
@@ -148,7 +148,7 @@ func runCommand(c command, args []string, stdout, stderr io.Writer) int {
 		return exitUsage
 	}
 	if err := validate(fs.Args()); err != nil {
-		fmt.Fprintf(stderr, "igris %s: %v\n", c.name, err)
+		fmt.Fprintf(stderr, "igris %s: %v; see `igris %s -h`\n", c.name, err, c.name)
 		return exitUsage
 	}
 	if c.exec == nil {

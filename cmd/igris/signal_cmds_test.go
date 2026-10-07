@@ -44,8 +44,8 @@ func TestDoneAndSkipWriteSignals(t *testing.T) {
 	if got := run([]string{"done", "--note", "all good", "M0-01"}, &out, &errb); got != exitOK {
 		t.Fatalf("done exit = %d, stderr: %s", got, errb.String())
 	}
-	if !strings.Contains(out.String(), "M0-01") {
-		t.Errorf("stdout = %q, want task ID", out.String())
+	if !strings.Contains(out.String(), "M0-01") || !strings.Contains(out.String(), "no igris run is active") {
+		t.Errorf("stdout = %q, want task ID and the no-run hint", out.String())
 	}
 	path := filepath.Join(root, ".igris", "signals", "M0-01.json")
 	data, err := os.ReadFile(path) //nolint:gosec // test temp dir
@@ -81,7 +81,7 @@ func TestSignalErrors(t *testing.T) {
 		want string
 	}{
 		{"unknown task", []string{"done", "M9-99"}, "igris status"},
-		{"bad id", []string{"done", "../evil"}, "invalid task ID"},
+		{"bad id", []string{"done", "../evil"}, "invalid task ID \"../evil\": IDs are letters, digits"},
 		{"skip unknown task", []string{"skip", "M9-99", "--reason", "x"}, "not in"},
 	}
 	for _, tt := range tests {
@@ -130,5 +130,26 @@ func TestDoneAdaptNeedsNoPlan(t *testing.T) {
 	// skip ADAPT is not an adapt signal: the plan has to know the task.
 	if got := run([]string{"skip", "ADAPT", "--reason", "x"}, &out, &errb); got != exitFail {
 		t.Errorf("skip ADAPT exit = %d, want %d", got, exitFail)
+	}
+}
+
+// While a run holds the lock, done says nothing about applying it later.
+func TestDoneDuringARun(t *testing.T) {
+	root := project(t)
+	dir, err := state.Open(root, state.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lock, err := dir.Lock(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = lock.Release() }()
+	var out, errb bytes.Buffer
+	if got := run([]string{"done", "M0-01"}, &out, &errb); got != exitOK {
+		t.Fatalf("exit = %d, stderr: %s", got, errb.String())
+	}
+	if out.String() != "igris: done signal recorded for M0-01\n" {
+		t.Errorf("stdout = %q", out.String())
 	}
 }

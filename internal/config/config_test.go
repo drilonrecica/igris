@@ -143,7 +143,7 @@ func TestParseErrors(t *testing.T) {
 		{"rank color negative", "[tui.rank_colors]\nopus = \"-1\"", []string{"tui.rank_colors.opus"}},
 		{"rank color empty", "[tui.rank_colors]\nopus = \"\"", []string{"tui.rank_colors.opus"}},
 		{"rank color not string", "[tui.rank_colors]\nopus = 5", []string{"parse igris.toml"}},
-		{"syntax", "plan = ", []string{"parse igris.toml"}},
+		{"syntax", "plan = ", []string{"parse igris.toml", "fix that line and run the command again"}},
 		{"bad duration", `poll_interval = "soon"`, []string{"invalid duration", "soon"}},
 		{"duration not string", `poll_interval = 5`, []string{"parse igris.toml"}},
 		{"zero duration", `needs_input_after = "0s"`, []string{"needs_input_after must be greater than zero"}},

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -333,11 +334,19 @@ func hasTask(ph *plan.Phase, id string) bool {
 	return false
 }
 
+// PlanLoadError adds the next step to a plan that can't be read.
+func PlanLoadError(err error) error {
+	if errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("%w; set plan in igris.toml to your plan file, or write one there (format: README \"Your plan\"; `igris adapt` converts another format)", err)
+	}
+	return err
+}
+
 // loadPlan re-reads the plan; igris never works from a stale or invalid one.
 func (e *Engine) loadPlan() (*plan.Plan, error) {
 	p, err := plan.Load(e.planPath, e.planOpts)
 	if err != nil {
-		return nil, err
+		return nil, PlanLoadError(err)
 	}
 	if err := p.Check(e.cfg.Models); err != nil {
 		return nil, err

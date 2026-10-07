@@ -32,7 +32,7 @@ type LockedError struct {
 
 func (e *LockedError) Error() string {
 	if e.Remote {
-		return fmt.Sprintf("igris is locked by a run on another host (%s); if that run is gone, rerun with --force-unlock", e.Info)
+		return fmt.Sprintf("igris is locked by a run on another host (%s); if that run is gone, rerun with --force-unlock (e.g. `igris arise --force-unlock`)", e.Info)
 	}
 	// A live PID is all igris can check: after a reboot it may belong to
 	// another program, and only the owner can tell.
@@ -47,7 +47,7 @@ type StaleLockError struct {
 }
 
 func (e *StaleLockError) Error() string {
-	return fmt.Sprintf("stale lock %s; rerun with --force-unlock to clear it", e.Reason)
+	return fmt.Sprintf("stale lock %s; rerun with --force-unlock to clear it (e.g. `igris arise --force-unlock`)", e.Reason)
 }
 
 // Lock is a held run lock.
@@ -83,11 +83,11 @@ func (d *Dir) Lock(force bool) (*Lock, error) {
 		// Forced: clear the stale lock and retry once. If another igris
 		// takes the lock in between, the exclusive create fails again.
 		if err := os.Remove(d.lockPath()); err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return nil, fmt.Errorf("clear stale lock %s: %w", d.lockPath(), err)
+			return nil, fmt.Errorf("clear stale lock %s: %w; delete it by hand and run the command again", d.lockPath(), err)
 		}
 		err = createExclusive(d.lockPath(), data)
 		if errors.Is(err, fs.ErrExist) {
-			return nil, fmt.Errorf("lock %s: another igris took the lock while the stale one was cleared", d.lockPath())
+			return nil, fmt.Errorf("lock %s: another igris took the lock while the stale one was cleared; another run just started: stop it or wait for it to finish", d.lockPath())
 		}
 	}
 	if err != nil {
@@ -121,6 +121,18 @@ func (d *Dir) checkHeld(host string, force bool) error {
 	}
 }
 
+// Running reports whether a run may hold the project's lock: the lock file
+// is readable and its process is alive or on another host (which igris
+// can't check). It only reads, for messages; Lock is the real test.
+func (d *Dir) Running() bool {
+	info, err := readLock(d.lockPath())
+	if err != nil {
+		return false
+	}
+	host, err := d.hostname()
+	return err != nil || info.Host != host || d.alive(info.PID)
+}
+
 // Release removes the lock file if it still holds this lock. A lock cleared
 // and re-taken by someone else is left alone.
 func (l *Lock) Release() error {
@@ -132,7 +144,7 @@ func (l *Lock) Release() error {
 		return nil
 	}
 	if err := os.Remove(l.path); err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return fmt.Errorf("release lock %s: %w", l.path, err)
+		return fmt.Errorf("release lock %s: %w; delete it by hand before the next run", l.path, err)
 	}
 	return nil
 }
