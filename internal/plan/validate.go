@@ -115,7 +115,12 @@ func (v *validator) checkTask(t *Task) {
 	case t.Owner == OwnerUser && t.Rank != "":
 		v.add(at, "%s: user tasks must have Model —, not %q (igris runs no session for them)", name, t.Rank)
 	case t.Owner.IsAgent() && t.Rank == "":
-		v.add(at, "%s: %s task needs a Model (a rank from [models], e.g. sonnet); use Owner user for tasks without a session", name, t.Owner)
+		hint := "use Owner user for tasks without a session"
+		if t.Phase != nil && !contains(t.Phase.Columns, ColOwner) {
+			// Without an Owner column every task is an agent task (SPEC §3.2).
+			hint = "this table has no Owner column, so every task is an agent task; add an Owner column with user for tasks without a session"
+		}
+		v.add(at, "%s: %s task needs a Model (a rank from [models], e.g. sonnet); %s", name, t.Owner, hint)
 	case t.Owner.IsAgent() && t.Rank == "?":
 		// `igris adapt` leaves "?" where the original plan had no usable model.
 		v.add(at, "%s: model not set yet (\"?\"); fill in one of: %s", name, strings.Join(sortedKeys(v.models), ", "))

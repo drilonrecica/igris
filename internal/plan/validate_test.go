@@ -81,6 +81,10 @@ func TestValidateErrors(t *testing.T) {
 				"tasks.md:5: a: agent task needs a Model (a rank from [models], e.g. sonnet); use Owner user for tasks without a session",
 				"tasks.md:6: b: agent + user task needs a Model (a rank from [models], e.g. sonnet); use Owner user for tasks without a session",
 			}},
+		{"agent without model in a table without Owner", "## M0\n\n| ID | Status | Model |\n|---|---|---|\n| a | ready | — |\n",
+			[]string{
+				"tasks.md:5: a: agent task needs a Model (a rank from [models], e.g. sonnet); this table has no Owner column, so every task is an agent task; add an Owner column with user for tasks without a session",
+			}},
 		{"unknown owner", table("| a | | ready | sonnet | robot | |"),
 			[]string{`tasks.md:5: a: unknown owner "robot"; use agent, user or agent + user`}},
 		{"unknown mode", table("| a | | ready | sonnet | agent | turbo |"),
