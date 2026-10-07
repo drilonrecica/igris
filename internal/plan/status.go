@@ -1,6 +1,9 @@
 package plan
 
-import "strings"
+import (
+	"strings"
+	"unicode"
+)
 
 // Status is a task status (SPEC §3.3).
 type Status int
@@ -75,9 +78,14 @@ var statusSynonyms = map[string]Status{
 }
 
 // statusSynonym returns the keyword a known synonym in cell stands for: the
-// cell's first word (or "won't do"), case-insensitive, backticks ignored.
+// cell's first word (or "won't do"), case-insensitive, backticks, '*' and
+// leading symbols such as "✅" ignored.
 func statusSynonym(cell string) (string, bool) {
-	v := strings.ToLower(strings.TrimSpace(strings.ReplaceAll(cell, "`", "")))
+	v := strings.ToLower(strings.TrimSpace(strings.NewReplacer("`", "", "*", "").Replace(cell)))
+	v = strings.TrimLeftFunc(v, func(r rune) bool { return !unicode.IsLetter(r) })
+	if s, _, ok := ParseStatus(v); ok {
+		return s.String(), true // "✅ Done", "**done**"
+	}
 	if s, ok := statusSynonyms[v]; ok {
 		return s.String(), true
 	}

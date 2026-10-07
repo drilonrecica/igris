@@ -83,6 +83,10 @@ func (v *validator) checkTask(t *Task) {
 	case t.ID == "":
 		v.add(at, "row has no ID; every task needs a unique ID")
 	case !idPattern.MatchString(t.ID):
+		if bare := strings.Trim(t.ID, "`*_ "); bare != t.ID && idPattern.MatchString(bare) {
+			v.add(at, "%q is not a valid task ID; write it as %s, without markdown around it", t.ID, bare)
+			break
+		}
 		v.add(at, "%q is not a valid task ID; use letters, digits, '.', '_' and '-', starting with a letter or digit", t.ID)
 	}
 	if t.ID != "" {
@@ -129,7 +133,13 @@ func (v *validator) checkTask(t *Task) {
 		v.add(at, "%s: model not set yet (\"?\"); fill in one of: %s", name, strings.Join(sortedKeys(v.models), ", "))
 	case t.Owner.IsAgent():
 		if _, ok := v.models[t.Rank]; !ok {
-			v.add(at, "%s: unknown model rank %q; add it to [models] in igris.toml or use one of: %s", name, t.Rank, strings.Join(sortedKeys(v.models), ", "))
+			hint := ""
+			if bare := strings.ToLower(strings.Trim(t.Rank, "`*_ ")); bare != t.Rank {
+				if _, ok := v.models[bare]; ok {
+					hint = fmt.Sprintf(" (did you mean %s?)", bare)
+				}
+			}
+			v.add(at, "%s: unknown model rank %q%s; add it to [models] in igris.toml or use one of: %s", name, t.Rank, hint, strings.Join(sortedKeys(v.models), ", "))
 		}
 	}
 
