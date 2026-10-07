@@ -16,6 +16,7 @@ igris v0.2 gets an app: bare `igris` on a terminal opens a home screen, and the 
 - `igris status` shows a `Run` block (phases, current task, mode, since, session, lock, pending signals); `--json` adds a `run` object.
 - `igris completion bash|zsh|fish`: completes subcommands, flags, phase IDs and task IDs from your plan.
 - `igris init --example` also writes the example plan when there is none.
+- Run view: the current-task card shows what the task is about (its text from the plan, cut with `… t: details` when it doesn't fit), with **[t] Details** next to **[o] Open session**; `t` opens the details of the current or selected task, and so does a click on the card's title. While a session needs you the card says `NEEDS YOU — o opens the session`.
 - Copy with OSC 52: `y` copies the resume command (`claude --resume <id>`), the log line at the bottom of the log, or the adapt proposal's path, over SSH and through herdr or tmux where the terminal allows it.
 - `igris adapt` review compares your plan and the proposal table by table (tasks by ID, cells by column name) and lists only what changed; a plan without tables falls back to a line diff.
 - External blockers: the plan convention is a `user` task that names the blocker, with the waiting task depending on it. `igris adapt` turns prose like "waits on" or "blocked by" into such a task.
@@ -27,6 +28,7 @@ igris v0.2 gets an app: bare `igris` on a terminal opens a home screen, and the 
 - **Bare `igris` on a terminal opens the home screen** instead of printing the help. When stdin or stdout isn't a terminal (a pipe, a script, cron), stdin is `/dev/null`, or `TERM` is `dumb`, it still prints the help to stderr and exits 2.
 - **`igris arise` with no phase and nothing to resume** opens the start-run wizard on a terminal (with `--mode`, `--through` and `--force-unlock` prefilled) instead of exiting 1 and asking for a phase. With `--no-tui`, `--dry-run` or no terminal it behaves as before. `igris arise PHASE` is unchanged.
 - The task mode can't be set for `user` tasks (they have no session): the key and button are hidden, and `--no-tui` answers `mode <task> <m>` with "is a user task".
+- One click on a task row in the run view opens its details (it used to select the row, and a second click opened them).
 - The TUI's run view is shared with the app; it looks and behaves as before, with **Home** where **Quit** was when the run was started from home.
 
 ### Migration

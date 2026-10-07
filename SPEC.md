@@ -567,8 +567,9 @@ Built with Bubble Tea / Lip Gloss. Runs in the igris pane; the Claude sessions l
 │ ✓ M0-02  Entrypoint     sonnet │ rank sonnet → model sonnet   │
 │ ● M0-03  Makefile       sonnet │ mode plan · 4m12s            │
 │ · M0-04  Config loader  sonnet │ state: NEEDS YOU (idle 45s)  │
-│ ⨯ M0-13  Static assets  sonnet │ [o] open session             │
-│   waits on P0-05               │                              │
+│ ⨯ M0-13  Static assets  sonnet │ o opens the session          │
+│   waits on P0-05               │ fmt, lint, test targets      │
+│                                │ [o] Open session [t] Details │
 ├─ LOG ──────────────────────────┴──────────────────────────────┤
 │ 09:41 M0-02 done · "subcommand dispatch + tests"              │
 │ 09:41 M0-03 started (sonnet, plan)                            │
@@ -581,11 +582,14 @@ Built with Bubble Tea / Lip Gloss. Runs in the igris pane; the Claude sessions l
 Single column: header, current task card, compact task list (ID + status glyph + rank), last 3 log lines, action bar. Must stay usable at 50×20. The action bar wraps to a second row or folds its less common actions into a `More…` button; an open dialog (§15.5) takes the whole screen.
 
 ### 15.3 Actions
+**The current-task card** shows the task's ID and title, its rank → model and mode (or "user task"), how long it has run, and its state; then the task's text (the Task cell without its bold title, from the plan as last loaded; for a user task, the text igris sent with Your turn) and the card's buttons: `[o] Open session` while a session exists, `[t] Details`, and `[Answer…]` while a question is pending. The text gets only the rows the head and the buttons leave; when it doesn't fit it ends with `… t: details`. While the session needs the owner the state reads `NEEDS YOU (idle …) — o opens the session` (the hint on its own line when the card is too narrow) and Open session is drawn in bold. Clicking the card's title opens the details too.
+
 Every action is reachable three ways: **clicking** its button (or tapping it, e.g. in Termius), **moving the focus** to it and pressing `enter`, and its **shortcut key**. The action bar shows only the actions that apply right now (e.g. `Done` only while a task is running, `Open session` only while a session exists); it never shows buttons that do nothing.
 
 | Button | Key | Action |
 |---|---|---|
 | Open session | `o` | Focus the current session's pane (herdr) |
+| Details | `t` | The selected task's details (full text, deps, extra columns): the current task unless another is selected. Also the card's `[t] Details` and its title |
 | Mode | `m` | Change run mode for upcoming sessions (choice list; `yolo` needs the typed confirmation, §15.5) |
 | Task mode | `M` | Override mode for the selected agent task (same choice list); hidden for user tasks |
 | Pause / Resume | `p` | Pause after the current task (toggle): the task finishes normally, then igris launches nothing and waits — the run stays alive — until pause is toggled off. The button label shows the current state |
@@ -593,7 +597,7 @@ Every action is reachable three ways: **clicking** its button (or tapping it, e.
 | Skip | `s` | Skip the current task: asks for a reason; for agent tasks also closes the session after confirmation |
 | Retry | `r` | Retry: close the current session, then choose **Continue conversation** or **Start fresh** (`Resumed=true`) |
 | Stop | `x` | Stop now: leave the session open, stop igris after confirmation |
-| — | `↑/↓`, `enter`, click | Browse tasks / show task details (full text, deps, extra columns) |
+| — | `↑/↓`, `enter`, click | Browse tasks / show task details (full text, deps, extra columns); one click on a task row opens its details |
 | Quit / Home | `q` | Quit the TUI; sessions keep running, `igris arise` resumes. When the run was started from home the button reads **Home**: igris stops, the session keeps running, and home comes back with fresh data |
 | — | `y` | Copy the selected item to the clipboard with OSC 52, and say "copied" in the header: `claude --resume <uuid>` of the current session (current-task card), the log line at the bottom of the view (log focused), the proposal path (adapt review). Terminals without OSC 52 ignore it, so "copied" only means the sequence was written |
 | ? | `?` | Help: every action, its key, and the focus keys |
@@ -612,7 +616,7 @@ When a run ends on its own (complete, stuck, error) the run view stays open with
 Modelled on Claude Code's choice prompts and herdr's clickable UI.
 
 - **Focus.** `tab` / `shift+tab` move between regions: task list, action bar, log (and the open dialog, which keeps the focus until it closes). Inside a region: `←/→` along the action bar, `↑/↓` (and `j/k`) in lists, dialogs and the log, `pgup/pgdn` to scroll. `enter` or `space` activates the focused element. Shortcut keys (§15.3) work from anywhere outside a text field.
-- **Mouse.** Click or tap activates a button, a task row (select; a second click or `enter` opens details) or a dialog option. The wheel scrolls the list or log under the pointer. Mouse reporting (button presses, wheel and drags; no hover) is on by default; `[tui] mouse = false` turns it off, because while a TUI captures the mouse the terminal's own text selection usually needs `shift`+drag.
+- **Mouse.** Click or tap activates a button, a task row (selects it and opens its details) or a dialog option. The wheel scrolls the list or log under the pointer. Mouse reporting (button presses, wheel and drags; no hover) is on by default; `[tui] mouse = false` turns it off, because while a TUI captures the mouse the terminal's own text selection usually needs `shift`+drag.
 - **Dialogs.** When the engine asks the owner something, a modal choice list opens at once and is focused on the safe default:
 
   | Question | Options (default first) |

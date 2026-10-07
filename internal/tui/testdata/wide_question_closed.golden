@@ -4,8 +4,8 @@
 │  ✓ M0-02  Entrypoint                              sonnet │ rank sonnet → model sonnet                                │
 │  ! M0-03  Makefile                                sonnet │ mode plan · 0s                                            │
 │  · M0-04  Config loader                           opus   │ state: WAITING FOR YOUR ANSWER                            │
-│  · M0-05  Buy the domain                          user   │ [o] Open session                                          │
-│  ⨯ M0-13  Static assets                           sonnet │ [Answer…]                                                 │
+│  · M0-05  Buy the domain                          user   │ fmt, lint, test                                           │
+│  ⨯ M0-13  Static assets                           sonnet │ [o] Open session  [t] Details  [Answer…]                  │
 │    waits on P0-05                                        │                                                           │
 │  – M0-14  Old idea                                haiku  │                                                           │
 ├─ LOG ────────────────────────────────────────────────────┴───────────────────────────────────────────────────────────┤

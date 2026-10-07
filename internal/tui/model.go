@@ -396,18 +396,14 @@ func (m *model) mouse(msg tea.MouseMsg) tea.Cmd {
 	return nil
 }
 
-// clickTask selects the i-th task of the phase; clicking the selected
-// task again opens its details.
+// clickTask selects the i-th task of the phase and opens its details.
 func (m *model) clickTask(i int) {
 	tasks := m.phaseTasks()
 	if i < 0 || i >= len(tasks) {
 		return
 	}
-	if m.focus == focusTasks && m.selected() == i {
-		m.page = m.detailPage(tasks[i].ID)
-		return
-	}
 	m.focus, m.selID = focusTasks, tasks[i].ID
+	m.page = m.detailPage(tasks[i].ID)
 }
 
 // pageMouse handles the mouse while a page is open: the wheel scrolls it
@@ -517,6 +513,11 @@ func (m *model) activate(a action) tea.Cmd {
 		return nil
 	case actHelp:
 		m.page = helpPage(m.th)
+		return nil
+	case actDetails:
+		if i := m.selected(); i >= 0 {
+			m.page = m.detailPage(m.phaseTasks()[i].ID)
+		}
 		return nil
 	case actMode:
 		if !m.ended {

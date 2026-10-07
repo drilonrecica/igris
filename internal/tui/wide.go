@@ -165,65 +165,163 @@ func (m *model) paneNeed(lw, rw int) int {
 }
 
 // card renders the current-task card at (x, y), rows lines of w cells, and
-// records its buttons.
+// records its zones.
 func (m *model) card(x, y, w, rows int) []string {
-	lines := m.cardLines(w, x, y, true)
-	if len(lines) > rows {
-		lines = lines[:rows]
-	}
-	return lines
+	return m.renderCard(w, x, y, rows, true)
 }
 
-// cardLines renders the card; with record set, its buttons' zones are
-// recorded for a card drawn at (x, y).
+// cardLines renders the whole card, its full text included; with record
+// set, its zones are recorded for a card drawn at (x, y).
 func (m *model) cardLines(w, x, y int, record bool) []string {
-	if m.ended {
+	return m.renderCard(w, x, y, -1, record)
+}
+
+// openHint follows NEEDS YOU when the session can be opened.
+const openHint = " — o opens the session"
+
+// moreText ends the task text when the card cut it.
+const moreText = " … t: details"
+
+// renderCard lays the card out in at most rows lines (all of them when
+// rows < 0). The head (title, facts, state) and the buttons come first;
+// the task's text gets the rows left over and is cut with moreText.
+func (m *model) renderCard(w, x, y, rows int, record bool) []string {
+	var lines []string
+	switch {
+	case m.ended:
 		// The run is over; a task it was on stays as the plan says.
 		if m.opts.Leave != nil {
-			return wrap(m.endText+" — press q to go home", w)
+			lines = wrap(m.endText+" — press q to go home", w)
+		} else {
+			lines = wrap(m.endText+" — press q to quit", w)
 		}
-		return wrap(m.endText+" — press q to quit", w)
+	case m.cur == nil && m.holding:
+		lines = []string{"paused before the next task", "press p to continue"}
+	case m.cur == nil:
+		lines = []string{"no task running"}
 	}
-	if m.cur == nil {
-		switch {
-		case m.holding:
-			return []string{"paused before the next task", "press p to continue"}
+	if m.cur == nil || m.ended {
+		if rows >= 0 && len(lines) > rows {
+			lines = lines[:rows]
 		}
-		return []string{"no task running"}
+		return lines
 	}
+
 	c := m.cur
-	out := []string{m.th.paint(lookTitle, fit(c.id+" "+c.title, w))}
+	head := []string{m.th.paint(lookTitle, fit(c.id+" "+c.title, w))}
 	if c.user {
-		out = append(out, "user task · "+since(m.opts.Now(), c.started))
+		head = append(head, "user task · "+since(m.opts.Now(), c.started))
 	} else {
-		out = append(out, fit("rank "+m.th.rank(c.rank, false)+" → model "+c.model, w))
-		out = append(out, fit(m.th.marks("mode "+c.mode+badge(c.mode)+" · "+since(m.opts.Now(), c.started)), w))
+		head = append(head, fit("rank "+m.th.rank(c.rank, false)+" → model "+c.model, w))
+		head = append(head, fit(m.th.marks("mode "+c.mode+badge(c.mode)+" · "+since(m.opts.Now(), c.started)), w))
 	}
-	out = append(out, fit("state: "+m.th.paint(m.stateLook(), m.stateText()), w))
-	switch c.state {
-	case stateYourTurn:
-		out = append(out, wrap(strings.ReplaceAll(c.detail, "**", ""), w)...)
-	case stateNeedsYou, stateLost:
-		out = append(out, fit(c.detail, w))
+	state := "state: " + m.th.paint(m.stateLook(), m.stateText())
+	if c.state == stateNeedsYou && c.session != nil {
+		// Say how to get there, on the state line when it fits.
+		hint := m.th.paint(m.stateLook(), openHint)
+		if textWidth(state)+textWidth(openHint) <= w {
+			state += hint
+		} else {
+			head = append(head, fit(state, w))
+			state = m.th.paint(m.stateLook(), strings.TrimPrefix(openHint, " — "))
+		}
 	}
-	var btns []option
+	head = append(head, fit(state, w))
+	if c.state == stateNeedsYou || c.state == stateLost {
+		head = append(head, fit(c.detail, w))
+	}
+
+	// The task's text: for a user task the engine sends it with Your turn;
+	// otherwise it comes from the plan as last loaded.
+	a := ""
+	if c.state == stateYourTurn && c.detail != "" {
+		a = aboutText(c.detail, c.title)
+	} else if t := m.rows().task(c.id); t != nil {
+		a = about(t)
+	}
+	var text []string
+	if a != "" {
+		text = wrap(a, w)
+	}
+
+	btns := []option{{"[t] Details", actDetails}}
 	if c.session != nil {
-		btns = append(btns, option{"[o] Open session", actOpen})
+		btns = append([]option{{"[o] Open session", actOpen}}, btns...)
 	}
 	if m.asked != nil && m.dialog == nil {
 		btns = append(btns, option{"[Answer…]", actAnswer})
 	}
-	for _, b := range btns {
-		if record {
-			m.zones.add(rect{x, y + len(out), min(textWidth(b.label), w), 1}, target{act: b.act})
+	btnLines, btnZones := m.cardButtons(btns, w)
+
+	if rows >= 0 {
+		free := rows - len(head) - len(btnLines)
+		if free < len(text) {
+			text = m.cutText(text, max(free, 0), w)
 		}
-		l := lookAccent
-		if b.act == actAnswer {
-			l = lookAccentBold // it answers what igris waits for
+		if over := len(head) + len(text) + len(btnLines) - rows; over > 0 {
+			head = head[:max(len(head)-over, 0)]
 		}
-		out = append(out, m.th.paint(l, fit(b.label, w)))
+	}
+	if record && len(head) > 0 {
+		m.zones.add(rect{x, y, min(textWidth(c.id+" "+c.title), w), 1}, target{act: actDetails})
+	}
+	out := append(append(head, text...), btnLines...)
+	if record {
+		top := y + len(head) + len(text)
+		for _, z := range btnZones {
+			if z.r.y < len(btnLines) {
+				m.zones.add(rect{x + z.r.x, top + z.r.y, z.r.w, 1}, z.t)
+			}
+		}
+	}
+	if rows >= 0 && len(out) > rows {
+		out = out[:rows]
 	}
 	return out
+}
+
+// cutText keeps the first n lines of text, the last one ending in
+// moreText, so the owner knows there is more and how to see it.
+func (m *model) cutText(text []string, n, w int) []string {
+	if n <= 0 {
+		return nil
+	}
+	text = append([]string{}, text[:n]...)
+	last := text[n-1]
+	if room := w - textWidth(moreText); textWidth(last) > room {
+		last = strings.TrimSuffix(fit(last, max(room, 0)), "…")
+	}
+	text[n-1] = fit(last+m.th.paint(lookDim, moreText), w)
+	return text
+}
+
+// cardButtons lays the card's buttons out on as few lines of w cells as
+// they fit, and returns their zones relative to the first of those lines.
+func (m *model) cardButtons(btns []option, w int) ([]string, []zone) {
+	var lines []string
+	var zs []zone
+	line, used := "", 0
+	for _, b := range btns {
+		lw := min(textWidth(b.label), w)
+		if used > 0 && used+2+lw > w {
+			lines, line, used = append(lines, line), "", 0
+		}
+		if used > 0 {
+			line += "  "
+			used += 2
+		}
+		l := lookAccent
+		if b.act == actAnswer || (b.act == actOpen && m.cur.state == stateNeedsYou) {
+			l = lookAccentBold // it answers what igris waits for
+		}
+		zs = append(zs, zone{rect{used, len(lines), lw, 1}, target{act: b.act}})
+		line += m.th.paint(l, fit(b.label, w))
+		used += lw
+	}
+	if used > 0 {
+		lines = append(lines, line)
+	}
+	return lines, zs
 }
 
 // pageBody fills rows lines below row y with the open page and records

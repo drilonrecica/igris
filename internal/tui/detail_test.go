@@ -39,43 +39,29 @@ func isRow(i int) func(target) bool {
 	return func(t target) bool { return t.act == actTaskRow && t.option == i }
 }
 
-func TestClickSelectsThenOpensDetails(t *testing.T) {
+// One click on a task row selects it and opens its details (owner request
+// at the v0.2 gate: two clicks were not discoverable).
+func TestClickOpensDetails(t *testing.T) {
 	for _, size := range [][2]int{{120, 30}, {50, 20}} {
 		t.Run(fmt.Sprint(size), func(t *testing.T) {
 			hs := detailHarness(t, size[0], size[1])
 			hs.click(isRow(1))
-			if hs.m.focus != focusTasks || hs.m.selID != "M0-02" || hs.m.page != nil {
-				t.Fatalf("first click: focus %v, selected %q, page %v", hs.m.focus, hs.m.selID, hs.m.page != nil)
-			}
-			if v := hs.m.View(); !strings.Contains(v, "›⨯ M0-02") {
-				t.Errorf("selection not shown:\n%s", v)
-			}
-			hs.click(isRow(0))
-			if hs.m.selID != "M0-01" || hs.m.page != nil {
-				t.Fatalf("clicking another row: selected %q, page %v", hs.m.selID, hs.m.page != nil)
-			}
-			hs.click(isRow(0))
-			if hs.m.page == nil || !strings.Contains(hs.m.View(), "M0-01 — Go module") {
-				t.Fatalf("second click opened no details:\n%s", hs.m.View())
+			if hs.m.page == nil || hs.m.selID != "M0-02" || !strings.Contains(hs.m.View(), "M0-02 — Config loader") {
+				t.Fatalf("one click: selected %q, page %v:\n%s", hs.m.selID, hs.m.page != nil, hs.m.View())
 			}
 			checkFits(t, hs.m.View(), size[0], size[1])
 			hs.key("esc")
-			if hs.m.page != nil {
-				t.Error("esc doesn't close the details")
+			if hs.m.page != nil || hs.m.focus != focusTasks {
+				t.Fatalf("esc: page %v, focus %v", hs.m.page != nil, hs.m.focus)
+			}
+			if v := hs.m.View(); !strings.Contains(v, "›⨯ M0-02") {
+				t.Errorf("selection not kept after closing:\n%s", v)
+			}
+			hs.click(isRow(2)) // the current task
+			if hs.m.page == nil || !strings.Contains(hs.m.View(), "M0-03 — Makefile") {
+				t.Fatalf("clicking the current task opened no details:\n%s", hs.m.View())
 			}
 		})
-	}
-}
-
-func TestClickingTheCurrentTaskFirstSelectsIt(t *testing.T) {
-	hs := detailHarness(t, 120, 30)
-	hs.click(isRow(2)) // M0-03, the current task, but the list has no focus yet
-	if hs.m.page != nil {
-		t.Fatal("the first click opened the details")
-	}
-	hs.click(isRow(2))
-	if hs.m.page == nil {
-		t.Fatal("the second click didn't")
 	}
 }
 
@@ -132,7 +118,6 @@ func TestDetailGolden(t *testing.T) {
 		name := fmt.Sprintf("detail_%dx%d", size[0], size[1])
 		t.Run(name, func(t *testing.T) {
 			hs := detailHarness(t, size[0], size[1])
-			hs.click(isRow(1))
 			hs.click(isRow(1))
 			view := hs.m.View()
 			checkFits(t, view, size[0], size[1])

@@ -72,6 +72,7 @@ const (
 	actWizPlanned // run mode as planned
 	actWizArise   // the summary's Arise
 	actWizConfirm // the confirming choice of a start-up question
+	actDetails    // the selected task's details page (t, the card)
 )
 
 // modeActs maps the mode picker's actions to their modes, in the order
@@ -121,6 +122,7 @@ func (a action) command() (engine.Command, bool) {
 // shortcuts maps the keys of SPEC §15.3 to their actions.
 var shortcuts = map[string]action{
 	"o":      actOpen,
+	"t":      actDetails,
 	"m":      actMode,
 	"M":      actTaskMode,
 	"p":      actPause,
@@ -140,6 +142,7 @@ type helpEntry struct{ key, name, what string }
 // helpActions are the actions the help page lists, in SPEC §15.3 order.
 var helpActions = []helpEntry{
 	{"o", "Open session", "bring the current session's pane to the front"},
+	{"t", "Details", "the selected task's full text and facts: the current one unless you picked another"},
 	{"m", "Mode", "run mode for the sessions launched from now on; yolo needs the typed phrase"},
 	{"M", "Task mode", "mode for the selected agent task's next session, over its Mode column (not for user tasks)"},
 	{"p", "Pause / Resume", "pause after the current task; igris waits until you resume"},
@@ -154,7 +157,7 @@ var helpActions = []helpEntry{
 
 // helpFocus are the focus keys the help page lists (SPEC §15.5).
 var helpFocus = []helpEntry{
-	{"click", "", "select a task; click it again, or press enter, for its details"},
+	{"click", "", "a task for its details; the card's title or [t] Details for the current one"},
 	{"tab", "", "move between the task list, the action bar and the log"},
 	{"← →", "", "move along the action bar"},
 	{"↑ ↓  j k", "", "move in lists and dialogs, scroll the log"},

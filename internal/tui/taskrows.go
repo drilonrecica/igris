@@ -191,10 +191,7 @@ func (r rows) compact(w, sel int) (lines []string, cols, cellW, cur int) {
 // its text, status, rank, owner, mode, dependencies with their states and
 // the extra columns.
 func (r rows) detail(id string, w int) []string {
-	var t *plan.Task
-	if r.plan != nil {
-		t = r.plan.Task(id)
-	}
+	t := r.task(id)
 	if t == nil {
 		return wrap(id+" is no longer in the plan.", w)
 	}
@@ -206,6 +203,30 @@ func (r rows) detail(id string, w int) []string {
 	out = append(out, wrap(strings.ReplaceAll(t.Text, "**", ""), w)...)
 	out = append(out, "")
 	return append(out, fields(r.th, r.facts(t), w)...)
+}
+
+// task is task id in the plan as last loaded, or nil.
+func (r rows) task(id string) *plan.Task {
+	if r.plan == nil {
+		return nil
+	}
+	return r.plan.Task(id)
+}
+
+// about is what t is about: its text without the bold title it starts with
+// (the card shows the title already), and without markdown emphasis.
+func about(t *plan.Task) string { return aboutText(t.Text, t.Title) }
+
+// aboutText is text without the bold title it starts with, and without
+// markdown emphasis.
+func aboutText(text, title string) string {
+	text = strings.TrimSpace(text)
+	if rest, ok := strings.CutPrefix(text, "**"+title+"**"); ok {
+		text = strings.TrimLeft(strings.TrimSpace(rest), "—–:·- ")
+	} else if text == title {
+		text = ""
+	}
+	return strings.TrimSpace(strings.ReplaceAll(text, "**", ""))
 }
 
 // fact is a labelled line of the details; more lines follow under it.

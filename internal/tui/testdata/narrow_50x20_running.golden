@@ -4,12 +4,12 @@ M0-03 Makefile
 rank sonnet → model sonnet
 mode plan · 4m12s
 state: working
-[o] Open session
+fmt, lint, test
+[o] Open session  [t] Details
 ── TASKS ─────────────────────────────────────────
  ✓ M0-01 sonnet  ✓ M0-02 sonnet  ● M0-03 sonnet
  · M0-04 opus    · M0-05 user    ⨯ M0-13 sonnet
  – M0-14 haiku
-
 
 
 ── LOG ───────────────────────────────────────────
