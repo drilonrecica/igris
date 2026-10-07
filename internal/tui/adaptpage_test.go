@@ -291,6 +291,7 @@ func TestAdaptOpenSessionFails(t *testing.T) {
 func TestAppQuitStopsAdapt(t *testing.T) {
 	a := testApp(&fakeServices{}, 80, 24)
 	ctx, stop := context.WithCancel(context.Background())
+	defer stop()
 	done := make(chan struct{})
 	go func() {
 		<-ctx.Done()
@@ -307,6 +308,7 @@ func TestAppQuitStopsAdapt(t *testing.T) {
 
 	// Work that starts while the app is quitting is stopped at once.
 	ctx2, stop2 := context.WithCancel(context.Background())
+	defer stop2()
 	a.Update(bgMsg{&bgWork{stop: stop2, done: ctx2.Done()}})
 	if ctx2.Err() == nil {
 		t.Error("work handed over while quitting wasn't stopped")
