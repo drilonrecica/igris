@@ -77,6 +77,9 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return fail("%v", err)
 	}
+	if wantWizard(f, proj.Root) {
+		return runApp(tui.Wizard{Mode: f.mode, Through: f.through, ForceUnlock: f.forceUnlock}, stdout, stderr)
+	}
 	out := &lockedWriter{w: stdout}
 	if f.dryRun {
 		return dryRun(proj, f.request(), out, stderr)

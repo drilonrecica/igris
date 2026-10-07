@@ -23,6 +23,7 @@ func TestMain(m *testing.M) {
 		}
 		return os.Getenv(k)
 	}
+	interactiveTerm = func() bool { return false } // tests are not on a terminal
 	os.Exit(m.Run())
 }
 

@@ -9,6 +9,8 @@ import (
 	"os"
 	"runtime/debug"
 	"strings"
+
+	"github.com/drilonrecica/igris/internal/tui"
 )
 
 // version is set at build time with -ldflags "-X main.version=...".
@@ -125,6 +127,9 @@ func main() {
 // run dispatches args to a subcommand and returns the process exit code.
 func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
+		if interactiveTerm() {
+			return runApp(tui.Home{}, stdout, stderr)
+		}
 		fmt.Fprint(stderr, usageText)
 		return exitUsage
 	}
