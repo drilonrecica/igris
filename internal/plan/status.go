@@ -64,6 +64,34 @@ func ParseStatus(cell string) (s Status, suffix string, ok bool) {
 	return StatusUnknown, "", false
 }
 
+// statusSynonyms maps words other plans use for a status to the keyword
+// igris expects. They only feed the hint in the validation error: an unknown
+// status stays an error, igris never reads one as another (SPEC §3.3).
+var statusSynonyms = map[string]Status{
+	"dropped": Skipped, "cancelled": Skipped, "canceled": Skipped, "wontfix": Skipped,
+	"abandoned": Skipped, "obsolete": Skipped, "n/a": Skipped,
+	"completed": Done, "complete": Done, "finished": Done, "closed": Done,
+	"wip": InProgress, "doing": InProgress, "started": InProgress, "in-progress": InProgress, "in_progress": InProgress,
+}
+
+// statusSynonym returns the keyword a known synonym in cell stands for: the
+// cell's first word (or "won't do"), case-insensitive, backticks ignored.
+func statusSynonym(cell string) (string, bool) {
+	v := strings.ToLower(strings.TrimSpace(strings.ReplaceAll(cell, "`", "")))
+	if s, ok := statusSynonyms[v]; ok {
+		return s.String(), true
+	}
+	if word, _, _ := strings.Cut(v, " "); word != v {
+		if s, ok := statusSynonyms[strings.TrimRight(word, ":,;")]; ok {
+			return s.String(), true
+		}
+	}
+	if strings.HasPrefix(v, "won't do") {
+		return Skipped.String(), true
+	}
+	return "", false
+}
+
 func isWordByte(c byte) bool {
 	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_'
 }

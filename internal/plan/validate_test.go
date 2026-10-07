@@ -43,6 +43,18 @@ func TestValidateErrors(t *testing.T) {
 	}{
 		{"unknown status", table("| a | | todo | sonnet | agent | |"),
 			[]string{`tasks.md:5: a: unknown status "todo"; use ready, blocked, in progress, done or skipped`}},
+		{"status synonym gets a hint", table(
+			"| a | | dropped | sonnet | agent | |",
+			"| b | | `Completed` | sonnet | agent | |",
+			"| c | | WIP: half done | sonnet | agent | |",
+			"| d | | won't do (not needed) | sonnet | agent | |",
+		),
+			[]string{
+				`tasks.md:5: a: unknown status "dropped" (did you mean skipped?); use ready, blocked, in progress, done or skipped`,
+				`tasks.md:6: b: unknown status "` + "`Completed`" + `" (did you mean done?); use ready, blocked, in progress, done or skipped`,
+				`tasks.md:7: c: unknown status "WIP: half done" (did you mean in progress?); use ready, blocked, in progress, done or skipped`,
+				`tasks.md:8: d: unknown status "won't do (not needed)" (did you mean skipped?); use ready, blocked, in progress, done or skipped`,
+			}},
 		{"empty status", table("| a | |  | sonnet | agent | |"),
 			[]string{`tasks.md:5: a: unknown status ""; use ready, blocked, in progress, done or skipped`}},
 		{"invalid ID", table("| -a | | ready | sonnet | agent | |", "| a b | | ready | sonnet | agent | |"),

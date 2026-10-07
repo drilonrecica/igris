@@ -98,7 +98,11 @@ func (v *validator) checkTask(t *Task) {
 	}
 
 	if t.Status == StatusUnknown {
-		v.add(at, "%s: unknown status %q; use ready, blocked, in progress, done or skipped", name, t.StatusText)
+		hint := ""
+		if s, ok := statusSynonym(t.StatusText); ok {
+			hint = fmt.Sprintf(" (did you mean %s?)", s)
+		}
+		v.add(at, "%s: unknown status %q%s; use ready, blocked, in progress, done or skipped", name, t.StatusText, hint)
 	}
 	if t.Owner == "" {
 		v.add(at, "%s: unknown owner %q; use agent, user or agent + user", name, t.OwnerText)
