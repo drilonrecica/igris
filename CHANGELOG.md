@@ -4,6 +4,8 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-07
+
 igris v0.2 gets an app: bare `igris` on a terminal opens a home screen, and the onboarding steps (`init`, `doctor`, `check`, `status`, `history`, completions) work from the command line and from inside it. Two behaviors change for people who ran `igris` or `igris arise` by hand; see Migration. No change to the plan format, config keys or file formats.
 
 ### Added
@@ -183,7 +185,8 @@ First release. Linux and macOS, herdr backend only. The full behavior is specifi
 - Release artifacts are not signed (checksums only); signing is planned.
 - No Homebrew tap yet.
 
-[Unreleased]: https://github.com/drilonrecica/igris/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/drilonrecica/igris/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/drilonrecica/igris/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/drilonrecica/igris/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/drilonrecica/igris/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/drilonrecica/igris/compare/v0.1.0...v0.1.1
