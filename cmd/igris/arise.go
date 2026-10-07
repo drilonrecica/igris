@@ -106,6 +106,9 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		r := bufio.NewReader(ariseStdin)
 		ask = func() (string, bool) { return readLine(ctx, r) }
 	}
+	for _, h := range planHints(f) {
+		fmt.Fprintf(out, "warning: %s\n", h)
+	}
 	for _, w := range engine.Preflight(ctx, commandRunner(), f.root, ariseGetenv) {
 		fmt.Fprintf(out, "warning: %s\n", w.Text)
 		if w.Confirm && !confirm(out, ask, "Start the run anyway?") {
@@ -609,6 +612,9 @@ func dryRun(f ariseFlags, out, stderr io.Writer) int {
 		}
 	}
 
+	for _, h := range planHints(f) {
+		fmt.Fprintf(out, "warning: %s\n", h)
+	}
 	for _, w := range engine.Preflight(context.Background(), commandRunner(), f.root, ariseGetenv) {
 		asks := ""
 		if w.Confirm {
@@ -765,4 +771,15 @@ func newDryBackend(dir *state.Dir) backend.Backend {
 		return dir.WriteSignal(state.Signal{ID: id, Action: state.ActionDone, Note: "dry run"})
 	})
 	return be
+}
+
+// planHints returns the plan's hints (plan.Hints) for the start of a run. A
+// plan that can't be read or isn't valid gives none: the run reports that
+// itself.
+func planHints(f ariseFlags) []plan.Issue {
+	p, err := plan.Load(rootPath(f.root, f.cfg.Plan), plan.Options{Columns: f.cfg.Columns})
+	if err != nil || len(p.Validate(f.cfg.Models)) > 0 {
+		return nil
+	}
+	return p.Hints()
 }

@@ -101,13 +101,16 @@ func execCheck(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	type warningJSON struct {
 		File    string `json:"file"`
 		Line    int    `json:"line"`
-		Task    string `json:"task"`
-		From    string `json:"from"`
-		To      string `json:"to"`
+		Task    string `json:"task,omitempty"`
+		From    string `json:"from,omitempty"`
+		To      string `json:"to,omitempty"`
 		Message string `json:"message"`
 	}
 	warnings := []warningJSON{}
 	if valid {
+		for _, h := range l.plan.Hints() {
+			warnings = append(warnings, warningJSON{File: h.File, Line: h.Line, Message: h.Msg})
+		}
 		for _, c := range l.plan.Readiness() {
 			t := l.plan.Task(c.ID)
 			warnings = append(warnings, warningJSON{

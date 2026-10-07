@@ -25,7 +25,7 @@ A task table is a GitHub-flavored markdown table whose header row contains at le
 | `Mode` | no | Per-task run-mode override (§7.2): `default`, `accept`, `auto`, `plan`, `yolo`, or `—`. |
 
 - In `Model` and `Mode`, `—`, `-`, `none` (case-insensitive) and an empty cell all mean "no model" / "no override", as in `Deps`. `Owner` is case-insensitive (`Agent + User` = `agent+user` = `agent + user`); an empty cell means `agent`.
-- Column names can be aliased in config (`[columns]`, §12), e.g. `Depends on` → `Deps`.
+- Column names can be aliased in config (`[columns]`, §12), e.g. `Depends on` → `Deps`. A table without a `Deps` column whose header has a column that looks like dependencies (`Depends`, `Depends on`, `Dependencies`, `Requires`, `Blocked by`, …) is still valid, but `check` and `arise` warn that igris reads no dependencies from it.
 - Extra columns (e.g. `Spec`) are preserved untouched and passed to the session prompt as context.
 - Cells are split on **unescaped** pipes only; `\|` inside a cell is literal text (read as `|`; the file keeps `\|`).
 - A table belongs to the phase whose heading most recently preceded it. A phase may contain only one task table; a second one is a validation error, as is a task table before the first `##` heading or a header that names the same column twice. Other tables (e.g. a legend) next to the task table are ignored.

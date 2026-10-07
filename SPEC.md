@@ -72,7 +72,7 @@ A task table is a GitHub-flavored markdown table whose header row contains at le
 | `Mode` | no | Per-task run-mode override (§7.2): `default`, `accept`, `auto`, `plan`, `yolo`, or `—`. |
 
 - In `Model` and `Mode`, `—`, `-`, `none` (case-insensitive) and an empty cell all mean "no model" / "no override", as in `Deps`. `Owner` is case-insensitive (`Agent + User` = `agent+user` = `agent + user`); an empty cell means `agent`.
-- Column names can be aliased in config (`[columns]`, §12), e.g. `Depends on` → `Deps`.
+- Column names can be aliased in config (`[columns]`, §12), e.g. `Depends on` → `Deps`. A table without a `Deps` column whose header has a column that looks like dependencies (`Depends`, `Depends on`, `Dependencies`, `Requires`, `Blocked by`, …) is still valid, but `check` and `arise` warn that igris reads no dependencies from it.
 - Extra columns (e.g. `Spec`) are preserved untouched and passed to the session prompt as context.
 - Cells are split on **unescaped** pipes only; `\|` inside a cell is literal text (read as `|`; the file keeps `\|`).
 - A table belongs to the phase whose heading most recently preceded it. A phase may contain only one task table; a second one is a validation error, as is a task table before the first `##` heading or a header that names the same column twice. Other tables (e.g. a legend) next to the task table are ignored.
@@ -483,7 +483,7 @@ igris version
 ```
 
 - The plan file is `--plan`, else `plan` in `igris.toml` in the working directory, else `tasks.md`. `check`, `phases` and `status` read the plan only; `phases` and `status` refuse an invalid plan (exit 1, listing the problems) and report to stdout, errors to stderr. `--json` prints one JSON document instead of text.
-- `check` prints each validation problem as `file:line: message` and each readiness drift (§5.2) as `warning: file:line: …`; warnings never fail the check. `status` shows, per phase, how many tasks are finished, the §5.1 outcome (`next`, `complete`, `stuck`) and, for each task, the dependencies it waits on. The current run (needs `.igris/` state, §13) is added to `status` once runs exist.
+- `check` prints each validation problem as `file:line: message` and each readiness drift (§5.2) and ignored dependency-like column (§3.2) as `warning: file:line: …`; warnings never fail the check. `status` shows, per phase, how many tasks are finished, the §5.1 outcome (`next`, `complete`, `stuck`) and, for each task, the dependencies it waits on. The current run (needs `.igris/` state, §13) is added to `status` once runs exist.
 - `--no-tui` prints plain timestamped log lines and reads owner commands from stdin, one per line, for scripting or very small terminals:
   - `y` / `n` answer the question igris asked (commit? confirm a session's skip request?);
   - `done [note]` marks the current task done (an agent task is not verified, §6.4), `skip <reason>` skips it;

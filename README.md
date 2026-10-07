@@ -134,7 +134,7 @@ A plan is a markdown file (default `tasks.md`) with one task table per `##` phas
 | M0-G | **M0 gate** — owner smoke test | M0-01…M0-04 | blocked | sonnet | agent + user |
 ```
 
-- **Deps:** comma-separated IDs or ranges (`M0-01…M0-04`), across phases too.
+- **Deps:** comma-separated IDs or ranges (`M0-01…M0-04`), across phases too. If your column has another name (`Depends`, `Depends on`, …), alias it in `igris.toml` (`[columns]` with `"Depends" = "Deps"`); otherwise igris reads no dependencies from it, and `igris check` warns about that.
 - **Status:** `ready`, `blocked`, `in progress`, `done`, `skipped`. Igris keeps this column up to date and touches nothing else in the file.
 - **Owner:** `agent`, `agent + user` (the agent must get your decision or sign-off), or `user` (your own task: igris pauses until you mark it done).
 - **Optional `Mode` column** to force a mode per task (e.g. `plan` for design-heavy tasks).

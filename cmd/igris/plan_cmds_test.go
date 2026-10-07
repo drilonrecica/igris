@@ -101,6 +101,32 @@ func TestCheckUsesConfig(t *testing.T) {
 	}
 }
 
+// A dependency column under another name, not aliased, is read as an extra
+// column: the plan is valid but runs with no dependencies, so check warns.
+func TestCheckWarnsAboutIgnoredDepsColumn(t *testing.T) {
+	dir := inDir(t)
+	plan := "## M0 — One\n\n| ID | Status | Model | Depends |\n|---|---|---|---|\n| a | ready | sonnet | — |\n| b | blocked | sonnet | a |\n"
+	if err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(plan), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	want := `tasks.md:3: column "Depends" looks like dependencies`
+	code, out, _ := runCmd("check")
+	if code != exitOK || !strings.Contains(out, "warning: "+want) || !strings.Contains(out, "OK (1 phases, 2 tasks, 2 warnings)") {
+		t.Errorf("code %d, out:\n%s", code, out)
+	}
+	code, out, _ = runCmd("check", "--json")
+	if code != exitOK || !strings.Contains(out, `"message": "column \"Depends\" looks like dependencies`) || strings.Contains(out, `"from": ""`) {
+		t.Errorf("json: code %d, out:\n%s", code, out)
+	}
+
+	if err := os.WriteFile(filepath.Join(dir, configFile), []byte("[columns]\nDepends = \"Deps\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if code, out, _ := runCmd("check"); code != exitOK || strings.Contains(out, "warning:") {
+		t.Errorf("aliased: code %d, out:\n%s", code, out)
+	}
+}
+
 func TestPlanErrors(t *testing.T) {
 	dir := inDir(t)
 	for _, cmd := range []string{"check", "phases", "status"} {

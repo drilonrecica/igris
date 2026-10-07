@@ -15,6 +15,7 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 ### Fixed
 
 - An unknown status that is a common synonym gets a hint: `unknown status "dropped" (did you mean skipped?)`, likewise for `completed` → done and `wip` → in progress. It is still an error.
+- A dependency column under another name (`Depends`, `Depends on`, `Requires`, …) without a `[columns]` alias was silently read as an extra column, so the plan ran with no dependencies at all. `igris check` and `igris arise` now warn about it and say how to alias it.
 - The "agent task needs a Model" error no longer tells you to set Owner `user` when the table has no Owner column; it says to add one.
 
 ## [0.1.0] - 2026-10-07
