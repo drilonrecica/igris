@@ -55,6 +55,14 @@ const (
 	actInit     // igris init
 	actPhaseRow // a PHASES row; the zone's option is the phase's index
 	actLine     // a HEALTH or RECENT line; the zone's option is its index
+	// The start-run wizard's choices (launch.go); a phase or through
+	// option is the dialog's selected one.
+	actWizResume  // resume the last run
+	actWizPhase   // start a phase: pick it next, or the picked phase
+	actWizThrough // the picked last phase
+	actWizPlanned // run mode as planned
+	actWizArise   // the summary's Arise
+	actWizConfirm // the confirming choice of a start-up question
 )
 
 // modeActs maps the mode picker's actions to their modes, in the order

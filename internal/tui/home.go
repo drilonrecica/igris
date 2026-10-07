@@ -54,7 +54,16 @@ type homeScreen struct {
 	bar      []action
 	folded   []option // the actions behind More… in the last frame
 	lines    []homeLine
-	dialog   *dialog // More…
+	dialog   *dialog // More…, or the wizard's open question
+
+	// launch is the start-run wizard while it is open; run is the run it
+	// started, while its run view is on the stack (launch.go). pending is
+	// the wizard `igris arise` asked for, opened once home has read the
+	// project. setRun tells the app which engine is going.
+	launch  *launch
+	run     *liveRun
+	pending *Wizard
+	setRun  func(*runHandle)
 
 	status   string // the last action's result
 	statusAt time.Time
@@ -208,11 +217,27 @@ func (m *homeScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.stamp = msg.s.Stamp
 			if msg.s.Config != nil && len(msg.s.ConfigProblems) == 0 {
 				tui := msg.s.Config.TUI
-				return m, func() tea.Msg { return configMsg{tui} }
+				return m, tea.Batch(func() tea.Msg { return configMsg{tui} }, m.openPending())
 			}
 		}
+		return m, m.openPending()
 	case backendMsg:
 		m.backendErr, m.backendKnown = msg.err, true
+		return m, m.openPending()
+	case prelaunchMsg:
+		if l := m.launch; l == msg.l && l.step == wizChecking {
+			pre := msg.pre
+			l.pre = &pre
+			m.summaryStep()
+		}
+	case launchedMsg:
+		return m, m.launched(msg)
+	case launchFailedMsg:
+		return m, m.launchFailed(msg)
+	case leaveRunMsg:
+		return m, m.leaveRun()
+	case runEndedMsg:
+		return m, m.runEnded(msg.r)
 	case doctorMsg:
 		m.doctor, m.doctorKnown = msg.results, true
 	case tea.KeyMsg:
@@ -314,8 +339,12 @@ func (m *homeScreen) key(msg tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
-// pick runs what the More… dialog chose and closes it.
+// pick runs what the open dialog chose: the wizard's answer, or a More…
+// action (that dialog closes).
 func (m *homeScreen) pick(a action) tea.Cmd {
+	if m.launch != nil {
+		return m.wizardPick(a)
+	}
 	if a == actNone {
 		return nil
 	}
@@ -408,7 +437,10 @@ func (m *homeScreen) mouse(msg tea.MouseMsg) tea.Cmd {
 		if msg.Button == tea.MouseButtonWheelDown {
 			by = 3
 		}
-		if m.dialog == nil && m.zones.regionAt(msg.X, msg.Y) == regionPhases {
+		switch {
+		case m.dialog != nil:
+			m.dialog.scrollBy(by)
+		case m.zones.regionAt(msg.X, msg.Y) == regionPhases:
 			m.scrollPhases(by)
 		}
 	case tea.MouseButtonLeft:
@@ -416,8 +448,11 @@ func (m *homeScreen) mouse(msg tea.MouseMsg) tea.Cmd {
 			return nil
 		}
 		if m.dialog != nil {
-			if t.act == actOption {
+			switch t.act {
+			case actOption:
 				return m.pick(m.dialog.pick(t.option))
+			case actField:
+				m.dialog.inField = true
 			}
 			return nil // the dialog is modal
 		}
@@ -492,6 +527,9 @@ func (m *homeScreen) activate(a action) tea.Cmd {
 	}
 	if label == "" {
 		return nil // not offered right now
+	}
+	if a == actArise {
+		return m.openWizard(Wizard{})
 	}
 	return m.notYet(label)
 }

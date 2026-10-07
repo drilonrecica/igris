@@ -32,6 +32,9 @@ type dialog struct {
 	// answers is the question a TUI dialog was opened from (the session
 	// lost question's Skip); sending its command answers that question.
 	answers engine.Question
+	// scroll is how many detail lines are scrolled away (pgup/pgdown, the
+	// wheel), for a detail longer than the box.
+	scroll int
 }
 
 type option struct {
@@ -175,6 +178,10 @@ func (d *dialog) key(msg tea.KeyMsg) (action, bool) {
 		return d.options[d.selected].act, true
 	case "esc":
 		return d.cancel, true
+	case "pgup":
+		d.scrollBy(-3)
+	case "pgdown":
+		d.scrollBy(3)
 	default:
 		n, err := strconv.Atoi(k)
 		if err != nil || n < 1 || n > len(d.options) || n > 9 {
@@ -211,6 +218,9 @@ func (d *dialog) fieldKey(msg tea.KeyMsg) (action, bool) {
 	}
 	return actNone, false
 }
+
+// scrollBy scrolls the detail by n lines; render keeps it in range.
+func (d *dialog) scrollBy(n int) { d.scroll = max(d.scroll+n, 0) }
 
 func (d *dialog) move(by int) {
 	d.selected = (d.selected + by + len(d.options)) % len(d.options)
@@ -267,8 +277,18 @@ func (d *dialog) render(th *theme, w, h int) ([]string, zones) {
 		if room < 1 {
 			detail = nil
 		} else if len(detail) > room {
-			detail = detail[:room]
-			detail[room-1] = fit(detail[room-1]+" …", inner)
+			// A long detail scrolls; "…" marks the lines cut on either side.
+			d.scroll = min(d.scroll, len(detail)-room)
+			cutTop, cutBottom := d.scroll > 0, d.scroll+room < len(detail)
+			detail = detail[d.scroll : d.scroll+room]
+			if cutTop {
+				detail[0] = fit("… "+detail[0], inner)
+			}
+			if cutBottom {
+				detail[room-1] = fit(detail[room-1]+" …", inner)
+			}
+		} else {
+			d.scroll = 0
 		}
 	}
 

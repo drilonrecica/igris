@@ -179,6 +179,9 @@ func (m *model) card(x, y, w, rows int) []string {
 func (m *model) cardLines(w, x, y int, record bool) []string {
 	if m.ended {
 		// The run is over; a task it was on stays as the plan says.
+		if m.opts.Leave != nil {
+			return wrap(m.endText+" — press q to go home", w)
+		}
 		return wrap(m.endText+" — press q to quit", w)
 	}
 	if m.cur == nil {

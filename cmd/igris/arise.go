@@ -197,17 +197,14 @@ func runWithTUI(ctx context.Context, l *project.Launch, conf report.Confirmation
 // tuiExit reports how a run shown in the TUI ended, once the terminal is
 // back to normal.
 func tuiExit(res engine.Result, err error, out, stderr io.Writer) int {
-	switch {
-	case err != nil:
+	if err != nil {
 		fmt.Fprintf(stderr, "igris arise: %v\n", err)
 		return exitFail
-	case res.Outcome == engine.Stuck:
-		fmt.Fprintf(out, "phase %s is stuck: unfinished tasks, none can start (see `igris status %s`)\n", res.Phase, res.Phase)
+	}
+	// The same words as home's status line after a run (tui.ExitText).
+	fmt.Fprintln(out, tui.ExitText(res, nil))
+	if res.Outcome == engine.Stuck {
 		return exitFail
-	case res.Outcome == engine.Stopped:
-		fmt.Fprintln(out, "igris stopped; a running session keeps running — `igris arise` resumes")
-	default:
-		fmt.Fprintf(out, "run %s\n", res.Outcome)
 	}
 	return exitOK
 }

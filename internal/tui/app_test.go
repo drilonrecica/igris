@@ -339,9 +339,10 @@ func TestAppAsyncDropsResultsForAPoppedScreen(t *testing.T) {
 	}
 }
 
-// fakeRun is a run handle whose run ends when it is stopped.
+// fakeRun is a run handle of a started run that ends when it is stopped.
 func fakeRun(res engine.Result) (*runHandle, *int) {
 	feed := NewFeed()
+	feed.Push(engine.Event{Kind: engine.RunStarted})
 	stops := 0
 	return &runHandle{feed: feed, stop: func() {
 		stops++

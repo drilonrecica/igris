@@ -103,9 +103,12 @@ type (
 	replaceMsg struct{ s tea.Model }
 	// popMsg closes the top screen; msg, if any, goes to the screen that
 	// comes back (e.g. what a review decided). Popping home quits.
-	popMsg  struct{ msg tea.Msg }
-	helpMsg struct{} // show the help page for the top screen
-	quitMsg struct{} // quit the app; a run going is stopped
+	popMsg struct{ msg tea.Msg }
+	// closeMsg closes screen s and everything above it (the run view when
+	// its run is over), as a pop would.
+	closeMsg struct{ s tea.Model }
+	helpMsg  struct{} // show the help page for the top screen
+	quitMsg  struct{} // quit the app; a run going is stopped
 	// runMsg tells the app which run is going (nil: none any more), so
 	// quitting stops it and App waits for it.
 	runMsg struct{ h *runHandle }
@@ -120,8 +123,11 @@ type (
 func push(s tea.Model) tea.Cmd    { return func() tea.Msg { return pushMsg{s} } }
 func replace(s tea.Model) tea.Cmd { return func() tea.Msg { return replaceMsg{s} } }
 func pop(msg tea.Msg) tea.Cmd     { return func() tea.Msg { return popMsg{msg} } }
-func showHelp() tea.Msg           { return helpMsg{} }
-func quitApp() tea.Msg            { return quitMsg{} }
+func closeScreen(s tea.Model) tea.Cmd {
+	return func() tea.Msg { return closeMsg{s} }
+}
+func showHelp() tea.Msg { return helpMsg{} }
+func quitApp() tea.Msg  { return quitMsg{} }
 
 // runHandle is the one engine the app holds while its run view is on the
 // stack.
@@ -185,8 +191,9 @@ type appModel struct {
 	dark  bool        // the terminal's background, as detected at start
 	w, h  int
 	run   *runHandle // the run going, if any
-	// stopped says quitting stopped a run that was still going.
-	stopped bool
+	// stopped says quitting stopped a run that was still going; quitting
+	// says the app is on its way out.
+	stopped, quitting bool
 
 	seq    uint64              // the last async request's number
 	latest map[asyncKey]uint64 // the newest request per screen and key
@@ -197,11 +204,23 @@ func newApp(ctx context.Context, o AppOptions, th *theme) *appModel {
 		o.Start = Home{}
 	}
 	a := &appModel{ctx: ctx, o: o, th: th, dark: true, w: 80, h: 24, latest: map[asyncKey]uint64{}}
-	// The wizard (Start: Wizard) opens over home once it exists; until
-	// then the app starts on home either way.
+	// The wizard (Start: Wizard) opens over home once home has read the
+	// project; the app starts on home either way.
 	home := newHome(ctx, o.Services, th)
 	if home.poll = o.Poll; home.poll == 0 {
 		home.poll = pollEvery
+	}
+	if w, ok := o.Start.(Wizard); ok {
+		home.pending = &w
+	}
+	// Home tells the app about the engine it starts at once, on the loop,
+	// so a quit that follows always stops it and waits for it.
+	// Once the app quits, the run it stopped stays for finish to report,
+	// whatever home hears about its end meanwhile.
+	home.setRun = func(h *runHandle) {
+		if !a.quitting {
+			a.run = h
+		}
 	}
 	a.stack = []tea.Model{home}
 	return a
@@ -254,6 +273,15 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, back
 		}
 		return a, tea.Batch(a.send(len(a.stack)-1, msg.msg), back)
+	case closeMsg:
+		i := a.index(msg.s)
+		if i <= 0 {
+			return a, nil // gone already; home is never closed this way
+		}
+		for len(a.stack) > i {
+			a.drop()
+		}
+		return a, a.send(len(a.stack)-1, refreshMsg{})
 	case tea.FocusMsg:
 		if len(a.stack) == 0 {
 			return a, nil
@@ -359,6 +387,7 @@ func (a *appModel) index(s tea.Model) int {
 // quit ends the program. A run going is told to stop now; App waits for
 // it once the terminal is back.
 func (a *appModel) quit() tea.Cmd {
+	a.quitting = true
 	if a.run != nil {
 		a.stopped = a.stopped || a.run.stopNow()
 	}
@@ -373,6 +402,11 @@ func (a *appModel) finish() AppResult {
 	}
 	r := AppResult{Stopped: a.run.stopNow() || a.stopped}
 	<-a.run.feed.Ended()
+	select {
+	case <-a.run.feed.Started():
+	default:
+		return AppResult{} // it was still starting: nothing ran
+	}
 	r.Res, r.RunErr = a.run.feed.Result()
 	return r
 }

@@ -1,0 +1,40 @@
+igris · sinjal · tasks.md · herdr ✓ · mode default                                                                  idle
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+                             ╭───────────────────────────────────────────────────────────╮
+                             │ Mode                                                      │
+                             │                                                           │
+                             │ The permission mode of this run's sessions.               │
+                             │                                                           │
+                             │ › 1. As planned (Mode column, then default_mode: default) │
+                             │   2. default — your normal permission prompts             │
+                             │   3. accept — edits are accepted                          │
+                             │   4. auto — Claude Code asks only about risky actions     │
+                             │   5. plan — plan first, you approve, then it implements   │
+                             │   6. yolo [SKIP PERMISSIONS] — no permission prompts      │
+                             ╰───────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+[Arise…] [Preview] [Check] [Doctor] [History] [Edit plan] [Settings] [Notify] [?] [Quit]

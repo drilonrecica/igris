@@ -1,0 +1,19 @@
+╭────────────────────────────────────────────────╮
+│ Let igris fix them?                            │
+│                                                │
+│ The plan's ready/blocked cells don't match its │
+│ dependencies; igris's first write would        │
+│ change:                                        │
+│ · M2-04: ready → blocked                       │
+│ · M3-01: ready → blocked                       │
+│                                                │
+│ › 1. Cancel                                    │
+│   2. Let igris fix them                        │
+╰────────────────────────────────────────────────╯
+
+
+
+
+
+
+
