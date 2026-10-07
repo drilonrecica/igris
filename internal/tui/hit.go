@@ -18,7 +18,8 @@ const (
 	regionNone region = iota
 	regionLog
 	regionTasks
-	regionPage // the body of an open page
+	regionPage   // the body of an open page
+	regionPhases // the home screen's phase list
 )
 
 // target is what a zone stands for: an action (a button), a dialog option,

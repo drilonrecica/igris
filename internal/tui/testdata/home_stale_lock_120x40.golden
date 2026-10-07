@@ -1,0 +1,40 @@
+igris · sinjal · tasks.md · herdr ✓ · mode default                                                            STALE LOCK
+─ PHASES ──────────────────────────────────────────────────┬─ NOW ──────────────────────────────────────────────────────
+  ✓ M0  Foundations                   ██████████ 3/3 done  │ LAST RUN DID NOT CLEAN UP (pid 4242 gone)                  
+  ✓ M1  Plan parser                   ██████████ 2/2 done  │ ● M2-02  Lock file              opus · mode plan           
+› ● M2  Config & state                ██░░░░░░░░ 1/4 next  │ session: herdr tab-3 (Resume reattaches if it is still     
+  ⨯ M3  Engine                        ░░░░░░░░░░ 0/3 wait  │ open)                                                      
+  ⨯ M4  TUI                           ░░░░░░░░░░ 0/2 wait  │ Resume asks before clearing the lock.                      
+                                                           ├─ HEALTH ───────────────────────────────────────────────────
+                                                           │ ✓ plan valid · 5 phases · 14 tasks                         
+                                                           │ ! doctor: 1 warning — uncommitted changes                  
+                                                           ├─ RECENT ───────────────────────────────────────────────────
+                                                           │ Oct 06 21:10  M2  3 done · 1 skipped · stopped             
+                                                           │ Oct 05 18:02  M1  6 done · completed                       
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+───────────────────────────────────────────────────────────┴────────────────────────────────────────────────────────────
+
+[›Resume…‹] [Preview] [Check] [Doctor] [History] [Edit plan] [Settings] [Notify] [?] [Quit]

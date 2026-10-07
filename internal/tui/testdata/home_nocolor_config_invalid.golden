@@ -1,0 +1,40 @@
+[1migris[0m · sinjal · tasks.md · herdr ✓ · mode default                                                        [1mCONFIG INVALID[0m
+─ [1mPHASES[0m ──────────────────────────────────────────────────┬─ [1mNOW[0m ──────────────────────────────────────────────────────
+  ✓ [2mM0[0m  [2mFoundations                  [0m ██████████ [2m3/3 done[0m  │ [1mCONFIG INVALID · igris.toml · 2 problems[0m                   
+  ✓ [2mM1[0m  [2mPlan parser                  [0m ██████████ [2m2/2 done[0m  │ igris.toml:3: default_mode: unknown mode "fast"            
+› · M2  Config & state                ██░░░░░░░░ 1/4 next  │ igris.toml:9: notify.ntfy.events: unknown event "foo"      
+  [2m⨯[0m [2mM3[0m  [2mEngine                       [0m ░░░░░░░░░░ [2m0/3 wait[0m  │ igris uses the defaults meanwhile. Edit igris.toml from    
+  [2m⨯[0m [2mM4[0m  [2mTUI                          [0m ░░░░░░░░░░ [2m0/2 wait[0m  │ Settings.                                                  
+                                                           ├─ [1mHEALTH[0m ───────────────────────────────────────────────────
+                                                           │ [2m✓ plan valid · 5 phases · 14 tasks[0m                         
+                                                           │ [1m⨯ doctor: 1 failure — igris.toml: 2 problems[0m               
+                                                           ├─ [1mRECENT[0m ───────────────────────────────────────────────────
+                                                           │ Oct 06 21:10  M2  3 done · 1 skipped · stopped             
+                                                           │ Oct 05 18:02  M1  6 done · completed                       
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+───────────────────────────────────────────────────────────┴────────────────────────────────────────────────────────────
+
+[1;7m[›Settings‹][0m [Preview] [Check] [Doctor] [History] [Edit plan] [Notify] [?] [Quit]

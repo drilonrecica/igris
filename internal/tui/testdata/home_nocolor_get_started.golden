@@ -1,0 +1,40 @@
+[1migris[0m · newproj · no igris.toml · herdr ✓                                                                    [1mGET STARTED[0m
+─ [1mPHASES[0m ──────────────────────────────────────────────────┬─ [1mNOW[0m ──────────────────────────────────────────────────────
+[2mno plan yet[0m                                                │ [1mGET STARTED[0m                                                
+                                                           │ ⨯ 1 igris.toml  not found                                  
+                                                           │ · 2 plan        tasks.md not found                         
+                                                           │ · 3 check       —                                          
+                                                           │ · 4 preview     —                                          
+                                                           │ · 5 arise       —                                          
+                                                           │ Init creates igris.toml, .igris/, a .gitignore entry and   
+                                                           │ the Claude allow rule for `igris done`.                    
+                                                           ├─ [1mHEALTH[0m ───────────────────────────────────────────────────
+                                                           │ [2m⨯ plan missing · tasks.md not found[0m                        
+                                                           │ [1m⨯ doctor: 1 failure — igris.toml not found[0m                 
+                                                           ├─ [1mRECENT[0m ───────────────────────────────────────────────────
+                                                           │ [2mno runs yet[0m                                                
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+───────────────────────────────────────────────────────────┴────────────────────────────────────────────────────────────
+
+[1;7m[›Init‹][0m [Doctor] [Settings] [?] [Quit]

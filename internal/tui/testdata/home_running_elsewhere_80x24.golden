@@ -1,0 +1,24 @@
+igris · sinjal · herdr ✓                                       RUNNING ELSEWHERE
+── NOW ─────────────────────────────────────────────────────────────────────────
+RUNNING in another igris · pid 4242 on this host · since 09:12
+● M2-02  Lock file              opus · mode plan · 14m
+recent: M2-01 done · M2-02 unfinished
+This screen only watches. Use that terminal to control the run.
+── PHASES ──────────────────────────────────────────────────────────────────────
+  ✓ M0  Foundations                                         ██████████ 3/3 done
+  ✓ M1  Plan parser                                         ██████████ 2/2 done
+› ● M2  Config & state                                      ██░░░░░░░░ 1/4 next
+  ⨯ M3  Engine                                              ░░░░░░░░░░ 0/3 wait
+  ⨯ M4  TUI                                                 ░░░░░░░░░░ 0/2 wait
+
+
+
+── HEALTH ──────────────────────────────────────────────────────────────────────
+✓ plan valid · 5 phases · 14 tasks
+! doctor: 1 warning — uncommitted changes
+── RECENT ──────────────────────────────────────────────────────────────────────
+Oct 07 09:12  M2, M3  1 done · running
+Oct 06 21:10  M2  3 done · 1 skipped · stopped
+
+[›Open session‹] [Preview] [Check] [Doctor] [History] [Edit plan] [Settings]
+[Notify] [?] [Quit]

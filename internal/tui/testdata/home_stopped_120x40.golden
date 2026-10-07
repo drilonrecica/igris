@@ -1,0 +1,40 @@
+igris · sinjal · tasks.md · herdr ✓ · mode default                                                               STOPPED
+─ PHASES ──────────────────────────────────────────────────┬─ NOW ──────────────────────────────────────────────────────
+  ✓ M0  Foundations                   ██████████ 3/3 done  │ STOPPED · last run M2 through M3 · 2h ago                  
+  ✓ M1  Plan parser                   ██████████ 2/2 done  │ Resume continues M2 through M3.                            
+› · M2  Config & state                ██░░░░░░░░ 1/4 next  ├─ HEALTH ───────────────────────────────────────────────────
+  ⨯ M3  Engine                        ░░░░░░░░░░ 0/3 wait  │ ✓ plan valid · 5 phases · 14 tasks                         
+  ⨯ M4  TUI                           ░░░░░░░░░░ 0/2 wait  │ ! doctor: 1 warning — uncommitted changes                  
+                                                           ├─ RECENT ───────────────────────────────────────────────────
+                                                           │ Oct 06 21:10  M2  3 done · 1 skipped · stopped             
+                                                           │ Oct 05 18:02  M1  6 done · completed                       
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+───────────────────────────────────────────────────────────┴────────────────────────────────────────────────────────────
+
+[›Resume…‹] [Preview] [Check] [Doctor] [History] [Edit plan] [Settings] [Notify] [?] [Quit]

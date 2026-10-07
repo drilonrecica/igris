@@ -42,6 +42,19 @@ const (
 	actAcceptAnyway // replace it although the proposal doesn't pass check
 	actReject       // keep the plan as it is
 	actCopy         // copy the selected item with OSC 52 (y)
+	// The home screen's actions (SPEC §15.6, home.go).
+	actArise    // start a run, or resume the last one (the wizard)
+	actPreview  // the dry run page
+	actCheck    // the check page
+	actDoctor   // the doctor page
+	actHistory  // the history page
+	actEdit     // open the screen's file in the owner's editor
+	actSettings // the settings page
+	actNotify   // the notify test page
+	actAdapt    // igris adapt
+	actInit     // igris init
+	actPhaseRow // a PHASES row; the zone's option is the phase's index
+	actLine     // a HEALTH or RECENT line; the zone's option is its index
 )
 
 // modeActs maps the mode picker's actions to their modes, in the order

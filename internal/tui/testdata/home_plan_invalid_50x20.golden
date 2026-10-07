@@ -1,0 +1,20 @@
+igris · sinjal · herdr ✓              PLAN INVALID
+── NOW ───────────────────────────────────────────
+PLAN INVALID · tasks.md · 4 problems
+tasks.md:5: M9-02 depends on unknown task M9-01; …
+tasks.md:6: M9-03: unknown status "wip" (did you …
+tasks.md:7: M9-04: unknown model rank "gpt"; add …
+… 1 more — Check shows all
+── PHASES ────────────────────────────────────────
+plan invalid — Check shows the problems
+
+
+
+
+── HEALTH ────────────────────────────────────────
+⨯ plan invalid  ! doctor: 1 warning
+── RECENT ────────────────────────────────────────
+no runs yet
+
+[›Check‹] [Adapt] [Doctor] [Edit plan] [Settings]
+[Notify] [?] [Quit]

@@ -1,0 +1,24 @@
+igris · sinjal · herdr ✓                                              STALE LOCK
+── NOW ─────────────────────────────────────────────────────────────────────────
+LAST RUN DID NOT CLEAN UP (pid 4242 gone)
+● M2-02  Lock file              opus · mode plan
+session: herdr tab-3 (Resume reattaches if it is still open)
+Resume asks before clearing the lock.
+── PHASES ──────────────────────────────────────────────────────────────────────
+  ✓ M0  Foundations                                         ██████████ 3/3 done
+  ✓ M1  Plan parser                                         ██████████ 2/2 done
+› ● M2  Config & state                                      ██░░░░░░░░ 1/4 next
+  ⨯ M3  Engine                                              ░░░░░░░░░░ 0/3 wait
+  ⨯ M4  TUI                                                 ░░░░░░░░░░ 0/2 wait
+
+
+
+── HEALTH ──────────────────────────────────────────────────────────────────────
+✓ plan valid · 5 phases · 14 tasks
+! doctor: 1 warning — uncommitted changes
+── RECENT ──────────────────────────────────────────────────────────────────────
+Oct 06 21:10  M2  3 done · 1 skipped · stopped
+Oct 05 18:02  M1  6 done · completed
+
+[›Resume…‹] [Preview] [Check] [Doctor] [History] [Edit plan] [Settings] [Notify]
+[?] [Quit]

@@ -1,0 +1,40 @@
+igris · sinjal · tasks.md · herdr ✓ · mode default                                                     RUNNING ELSEWHERE
+─ PHASES ──────────────────────────────────────────────────┬─ NOW ──────────────────────────────────────────────────────
+  ✓ M0  Foundations                   ██████████ 3/3 done  │ RUNNING in another igris · pid 4242 on this host · since   
+  ✓ M1  Plan parser                   ██████████ 2/2 done  │ 09:12                                                      
+› ● M2  Config & state                ██░░░░░░░░ 1/4 next  │ ● M2-02  Lock file              opus · mode plan · 14m     
+  ⨯ M3  Engine                        ░░░░░░░░░░ 0/3 wait  │ recent: M2-01 done · M2-02 unfinished                      
+  ⨯ M4  TUI                           ░░░░░░░░░░ 0/2 wait  │ This screen only watches. Use that terminal to control the 
+                                                           │ run.                                                       
+                                                           ├─ HEALTH ───────────────────────────────────────────────────
+                                                           │ ✓ plan valid · 5 phases · 14 tasks                         
+                                                           │ ! doctor: 1 warning — uncommitted changes                  
+                                                           ├─ RECENT ───────────────────────────────────────────────────
+                                                           │ Oct 07 09:12  M2, M3  1 done · running                     
+                                                           │ Oct 06 21:10  M2  3 done · 1 skipped · stopped             
+                                                           │ Oct 05 18:02  M1  6 done · completed                       
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+───────────────────────────────────────────────────────────┴────────────────────────────────────────────────────────────
+
+[›Open session‹] [Preview] [Check] [Doctor] [History] [Edit plan] [Settings] [Notify] [?] [Quit]

@@ -1,0 +1,20 @@
+igris · sinjal · herdr …                      idle
+── NOW ───────────────────────────────────────────
+READY · phase M2 Config & state
+next  · M2-02  Lock file                    opus
+then  · M2-03  State file                   sonnet
+3 left · 2 wait on M2-02
+checking herdr…
+── PHASES ────────────────────────────────────────
+  ✓ M0  Foundations                      3/3 done
+  ✓ M1  Plan parser                      2/2 done
+› · M2  Config & state                   1/4 next
+  ⨯ M3  Engine                           0/3 wait
+  ⨯ M4  TUI                              0/2 wait
+── HEALTH ────────────────────────────────────────
+✓ plan valid  … doctor: checking
+── RECENT ────────────────────────────────────────
+Oct 06 21:10  M2  3 done · 1 skipped · stopped
+
+[›Preview‹] [Check] [Doctor] [History] [Edit plan]
+[Settings] [Notify] [?] [Quit]

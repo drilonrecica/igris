@@ -4,6 +4,10 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+### Added
+
+- Home screen dashboard (SPEC §15.6): bare `igris` shows the project at a glance — header facts, PHASES with progress bars and outcome words, a NOW card for the state igris is in (get started, plan missing or invalid, config invalid, ready, interrupted, stopped, running elsewhere, stale or remote lock, herdr absent), HEALTH, RECENT, a status line and an action bar that shows only the actions that apply. Wide and narrow layouts, keyboard focus regions and mouse; `NO_COLOR` keeps every state as a glyph plus a word.
+
 ## [0.1.3] - 2026-10-07
 
 Windows through WSL2: documented, and tested by reproducing WSL conditions on Linux (not yet on a real Windows machine). One parser fix for plans saved by Windows editors. No change to the plan format, config keys, CLI flags or file formats.

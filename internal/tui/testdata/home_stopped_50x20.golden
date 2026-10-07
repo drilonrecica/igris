@@ -1,0 +1,20 @@
+igris · sinjal · herdr ✓                   STOPPED
+── NOW ───────────────────────────────────────────
+STOPPED · last run M2 through M3 · 2h ago
+Resume continues M2 through M3.
+── PHASES ────────────────────────────────────────
+  ✓ M0  Foundations                      3/3 done
+  ✓ M1  Plan parser                      2/2 done
+› · M2  Config & state                   1/4 next
+  ⨯ M3  Engine                           0/3 wait
+  ⨯ M4  TUI                              0/2 wait
+
+
+
+── HEALTH ────────────────────────────────────────
+✓ plan valid  ! doctor: 1 warning
+── RECENT ────────────────────────────────────────
+Oct 06 21:10  M2  3 done · 1 skipped · stopped
+
+[›Resume…‹] [Preview] [Check] [Doctor] [History]
+[Edit plan] [Settings] [Notify] [?] [Quit]

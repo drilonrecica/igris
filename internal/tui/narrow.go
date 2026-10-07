@@ -183,9 +183,15 @@ func (l barLayout) has(a action) bool {
 // the focused one. When they don't fit, the less common actions move
 // behind a More… button.
 func fitBar(th *theme, btns []option, w, maxRows int, focused action) barLayout {
+	return fitBarOrder(th, btns, w, maxRows, focused, foldOrder)
+}
+
+// fitBarOrder is fitBar folding the actions in order first; actions not
+// in order are never folded.
+func fitBarOrder(th *theme, btns []option, w, maxRows int, focused action, order []action) barLayout {
 	keep := append([]option{}, btns...)
 	var folded []option
-	for _, a := range foldOrder {
+	for _, a := range order {
 		if l := layoutBar(th, keep, w, focused); len(l.rows) <= maxRows {
 			l.folded = folded
 			return l

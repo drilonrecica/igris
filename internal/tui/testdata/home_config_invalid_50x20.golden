@@ -1,0 +1,20 @@
+igris · sinjal · herdr ✓            CONFIG INVALID
+── NOW ───────────────────────────────────────────
+CONFIG INVALID · igris.toml · 2 problems
+igris.toml:3: default_mode: unknown mode "fast"
+igris.toml:9: notify.ntfy.events: unknown event "…
+igris uses the defaults meanwhile. Edit igris.toml
+from Settings.
+── PHASES ────────────────────────────────────────
+  ✓ M0  Foundations                      3/3 done
+  ✓ M1  Plan parser                      2/2 done
+› · M2  Config & state                   1/4 next
+  ⨯ M3  Engine                           0/3 wait
+  ⨯ M4  TUI                              0/2 wait
+── HEALTH ────────────────────────────────────────
+✓ plan valid  ⨯ doctor: 1 failure
+── RECENT ────────────────────────────────────────
+Oct 06 21:10  M2  3 done · 1 skipped · stopped
+
+[›Settings‹] [Preview] [Check] [Doctor] [History]
+[Edit plan] [Notify] [?] [Quit]

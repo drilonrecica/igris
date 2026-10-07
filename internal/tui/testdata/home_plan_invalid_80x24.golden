@@ -1,0 +1,24 @@
+igris · sinjal · herdr ✓                                            PLAN INVALID
+── NOW ─────────────────────────────────────────────────────────────────────────
+PLAN INVALID · tasks.md · 4 problems
+tasks.md:5: M9-02 depends on unknown task M9-01; check the ID or remove it from…
+tasks.md:6: M9-03: unknown status "wip" (did you mean in progress?); use ready,…
+tasks.md:7: M9-04: unknown model rank "gpt"; add it to [models] in igris.toml o…
+… 1 more — Check shows all
+── PHASES ──────────────────────────────────────────────────────────────────────
+plan invalid — Check shows the problems
+
+
+
+
+
+
+
+
+── HEALTH ──────────────────────────────────────────────────────────────────────
+⨯ plan invalid · 4 problems
+! doctor: 1 warning — uncommitted changes
+── RECENT ──────────────────────────────────────────────────────────────────────
+no runs yet
+
+[›Check‹] [Adapt] [Doctor] [Edit plan] [Settings] [Notify] [?] [Quit]

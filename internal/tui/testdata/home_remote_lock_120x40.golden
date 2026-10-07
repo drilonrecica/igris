@@ -1,0 +1,40 @@
+igris · sinjal · tasks.md · herdr ✓ · mode default                                                                LOCKED
+─ PHASES ──────────────────────────────────────────────────┬─ NOW ──────────────────────────────────────────────────────
+  ✓ M0  Foundations                   ██████████ 3/3 done  │ LOCKED by a run on host mbp (since Oct 06 21:10); igris    
+  ✓ M1  Plan parser                   ██████████ 2/2 done  │ can't tell if it is alive                                  
+› · M2  Config & state                ██░░░░░░░░ 1/4 next  │ Arise asks before clearing the lock.                       
+  ⨯ M3  Engine                        ░░░░░░░░░░ 0/3 wait  ├─ HEALTH ───────────────────────────────────────────────────
+  ⨯ M4  TUI                           ░░░░░░░░░░ 0/2 wait  │ ✓ plan valid · 5 phases · 14 tasks                         
+                                                           │ ! doctor: 1 warning — uncommitted changes                  
+                                                           ├─ RECENT ───────────────────────────────────────────────────
+                                                           │ Oct 06 21:10  M2  3 done · 1 skipped · stopped             
+                                                           │ Oct 05 18:02  M1  6 done · completed                       
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+───────────────────────────────────────────────────────────┴────────────────────────────────────────────────────────────
+
+[›Arise…‹] [Preview] [Check] [Doctor] [History] [Edit plan] [Settings] [Notify] [?] [Quit]

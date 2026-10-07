@@ -1,0 +1,24 @@
+igris · newproj · herdr ✓                                            GET STARTED
+── NOW ─────────────────────────────────────────────────────────────────────────
+GET STARTED
+⨯ 1 igris.toml  not found
+· 2 plan        tasks.md not found
+· 3 check       —
+· 4 preview     —
+· 5 arise       —
+Init creates igris.toml, .igris/, a .gitignore entry and the Claude allow rule
+for `igris done`.
+── PHASES ──────────────────────────────────────────────────────────────────────
+no plan yet
+
+
+
+
+
+── HEALTH ──────────────────────────────────────────────────────────────────────
+⨯ plan missing · tasks.md not found
+⨯ doctor: 1 failure — igris.toml not found
+── RECENT ──────────────────────────────────────────────────────────────────────
+no runs yet
+
+[›Init‹] [Doctor] [Settings] [?] [Quit]

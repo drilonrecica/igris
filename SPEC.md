@@ -631,13 +631,15 @@ Modelled on Claude Code's choice prompts and herdr's clickable UI.
 
 Bare `igris` on a terminal (§14) opens home: the project at a glance and the way into everything else. Home itself never writes the plan or `igris.toml`; it starts runs, `init` and `adapt`, and opens files in the owner's editor.
 
-**Layout.** A header (project, plan file, herdr `…` / `✓` / `⨯`, default mode, and the run state on the right), then **PHASES** (glyph, ID, title, progress bar, `done/total`, the §5.1 outcome word), **NOW** (the card below), **HEALTH** (the check result and the doctor summary) and **RECENT** (the last 2–3 runs from `runs.jsonl`), a status line with the last action's result, and the action bar. Wide (≥ 100×13) puts PHASES left and NOW/HEALTH/RECENT right; narrow is one column (NOW, PHASES, HEALTH, RECENT) and must stay usable at 50×20, with the bar folding into `More…`; below 60 columns the bars are dropped and the numbers stay; below 40×12 only `igris — terminal too small (need 50×20, now W×H) · q quits` is shown.
+**Layout.** A header (project, plan file, herdr `…` / `✓` / `⨯`, default mode, and the run state on the right), then **PHASES** (glyph, ID, title, progress bar, `done/total` counting done and skipped tasks, and the §5.1 outcome as a word: `done`, `next`, `wait` when the phase would complete once the tasks of other phases are done, else `stuck`), **NOW** (the card below), **HEALTH** (the check result and the doctor summary) and **RECENT** (the last 2–3 runs from `runs.jsonl`), a status line with the last action's result, and the action bar. Wide (≥ 100×13) puts PHASES left and NOW/HEALTH/RECENT right; narrow is one column (NOW, PHASES, HEALTH, RECENT) and must stay usable at 50×20, with the bar folding into `More…`; below 60 columns the bars are dropped and the numbers stay; below 40×12 only `igris — terminal too small (need 50×20, now W×H) · q quits` is shown.
 
-**NOW card**, one state at a time:
+**NOW card**, one state at a time. When several hold, the first in this order wins: no `igris.toml`; a live igris on this host holds the lock; `igris.toml` invalid; plan missing; plan invalid or unreadable; a stale or unreadable lock; a remote lock; interrupted; stopped; ready. Without herdr the ready and plan-invalid cards say why Arise or Adapt is missing.
 
 | State | Card | Default action |
 |---|---|---|
 | No `igris.toml` | **GET STARTED**: numbered steps `igris.toml`, plan, check, preview, arise, each turning `✓` as data refreshes; after init, the plan step offers **Example plan** (`init --example`), or **Check** / **Adapt** when a non-canonical plan exists | Init |
+| `igris.toml` invalid | **CONFIG INVALID**: the first few problems, "… N more — Settings shows all"; igris uses the defaults meanwhile | Settings |
+| Plan missing | **NO PLAN**: the path igris looked at | — |
 | Plan invalid | **PLAN INVALID**: file, problem count, the first few `file:line: message`, "… N more — Check shows all"; without herdr, why Adapt is unavailable | Check |
 | Ready | **READY**: the phase with work, `next` and `then` tasks with rank, tasks left and how many wait on what | Arise… |
 | Interrupted | **INTERRUPTED**: last run's range, the interrupted task, its session and whether Resume reattaches; **STOPPED** when `state.json` has phases but no current task | Resume… |

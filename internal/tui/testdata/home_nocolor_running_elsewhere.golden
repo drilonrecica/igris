@@ -1,0 +1,40 @@
+[1migris[0m · sinjal · tasks.md · herdr ✓ · mode default                                                     [1mRUNNING ELSEWHERE[0m
+─ [1mPHASES[0m ──────────────────────────────────────────────────┬─ [1mNOW[0m ──────────────────────────────────────────────────────
+  ✓ [2mM0[0m  [2mFoundations                  [0m ██████████ [2m3/3 done[0m  │ [1mRUNNING in another igris · pid 4242 on this host · since[0m   
+  ✓ [2mM1[0m  [2mPlan parser                  [0m ██████████ [2m2/2 done[0m  │ [1m09:12[0m                                                      
+› [1m●[0m [1mM2[0m  [1mConfig & state               [0m ██░░░░░░░░ [1m1/4 next[0m  │ [1m● M2-02[0m  Lock file              opus · mode plan · 14m     
+  [2m⨯[0m [2mM3[0m  [2mEngine                       [0m ░░░░░░░░░░ [2m0/3 wait[0m  │ [2mrecent: M2-01 done · M2-02 unfinished[0m                      
+  [2m⨯[0m [2mM4[0m  [2mTUI                          [0m ░░░░░░░░░░ [2m0/2 wait[0m  │ This screen only watches. Use that terminal to control the 
+                                                           │ run.                                                       
+                                                           ├─ [1mHEALTH[0m ───────────────────────────────────────────────────
+                                                           │ [2m✓ plan valid · 5 phases · 14 tasks[0m                         
+                                                           │ [1m! doctor: 1 warning — uncommitted changes[0m                  
+                                                           ├─ [1mRECENT[0m ───────────────────────────────────────────────────
+                                                           │ Oct 07 09:12  M2, M3  1 done · running                     
+                                                           │ Oct 06 21:10  M2  3 done · 1 skipped · stopped             
+                                                           │ Oct 05 18:02  M1  6 done · completed                       
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+───────────────────────────────────────────────────────────┴────────────────────────────────────────────────────────────
+
+[1;7m[›Open session‹][0m [Preview] [Check] [Doctor] [History] [Edit plan] [Settings] [Notify] [?] [Quit]

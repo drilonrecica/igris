@@ -88,7 +88,7 @@ func finalApp(t *testing.T, tm *teatest.TestModel) *appModel {
 func TestAppOpensHomeAndReadsTheProject(t *testing.T) {
 	svc := &fakeServices{}
 	tm := appProgram(t, svc, 80, 24)
-	seen(t, tm, "igris · sinjal", "[›?‹]", "[Quit]")
+	seen(t, tm, "igris · sinjal", "[›Doctor‹]", "[Quit]")
 	key(tm, "q")
 	a := finalApp(t, tm)
 	if len(a.stack) != 1 {
@@ -118,7 +118,7 @@ func TestAppQuits(t *testing.T) {
 			case "ctrl+c":
 				tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 			case "click Quit":
-				click(tm, len("[›?‹] "), 23)
+				click(tm, textWidth("[›Doctor‹] [Settings] [?] ")+1, 23)
 			default:
 				key(tm, k)
 			}
