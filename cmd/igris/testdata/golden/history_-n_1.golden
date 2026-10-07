@@ -1,0 +1,7 @@
+exit: 0
+--- stdout
+Run 2026-10-03T08:00:00Z  phase B  interrupted
+  1 done, 0 skipped
+  B-1  done        sonnet  sonnet  3m01s  verify 0 failed, 1 passed
+  B-2  unfinished  sonnet  sonnet  —      
+--- stderr

@@ -461,6 +461,18 @@ events = ["needs_input", "session_lost", "phase_done", "phase_stuck", "run_error
 | `runs.jsonl` | Append-only log: one JSON line per event (task started/done/skipped, verify result, notifications, errors) with timestamps, task ID, rank and model. |
 | `adapt/` | Adapt proposals and backups (§9). |
 
+**`runs.jsonl` record shape** — documented, unversioned until v0.5 (it may change before then; readers ignore unknown types and fields). One JSON object per line:
+
+| Field | Content |
+|---|---|
+| `at` | RFC 3339 UTC timestamp |
+| `type` | `run_started`, `run_stopped`, `task_started`, `task_resumed`, `task_done`, `task_skipped`, `verify_passed`, `verify_failed`, `committed`, `notification` or `error` |
+| `task` | task ID; omitted for events outside a task (`run_started`, `run_stopped`, most `error`s) |
+| `rank`, `model` | the task's rank and resolved model; omitted with `task` |
+| `detail` | free text, never secrets: the phase scope (`phase A, B`) for `run_started`, the outcome (`completed`, `stuck`, `stopped`, `error`) for `run_stopped`, the note or reason for `task_done`/`task_skipped`, `attempt N of M: <why>` for `verify_failed`, the commit subject for `committed` |
+
+A run is the events from a `run_started` to its `run_stopped`, or to the next `run_started` when there is none (the run was interrupted). `igris history` is the reader of this format.
+
 **Resume.** `igris arise` (any phase argument, or none to resume the last run) reads `state.json`:
 - current task still `in progress` and its session reattachable → reattach and keep watching; if its task prompt was still held at a startup prompt (`pending_prompt` in `state.json`), it is handed back and delivered once Claude Code is ready;
 - session gone → offer (TUI, or `--no-tui` stdin; default fresh): **continue** the previous conversation (`claude --resume <uuid>`, same model) or start a **fresh** session with `Resumed=true`;
@@ -531,7 +543,7 @@ igris version
   11. notification channels are configured (§10) — **never sent to**; sending is `notify test`.
 
   Each check prints one line: a glyph, a level and a message; a problem is followed by its next command. Levels are `ok`, `warn` and `fail`. The exit code is 0 unless some check is `fail` (then 1); `--json` prints the results as a JSON array (`id`, `level`, `message`, `next`). Text from the plan, config, lock or command output is cleaned before it is printed (§16).
-- `history` reads `.igris/runs.jsonl` (§13) read-only and never creates `.igris/`. It lists the last N runs (default 10), each with its phases, tasks done and skipped, per-task duration, verify attempts, commits and how it ended; a run without a stop event is shown as interrupted, and a truncated last line is ignored. With a task ID it lists every attempt of that task across runs.
+- `history` reads `.igris/runs.jsonl` (§13) read-only and never creates `.igris/`. It lists the last N runs (default 10, newest first), each with its phases, tasks done and skipped, per-task duration, verify attempts, commits and how it ended; a run without a stop event is shown as interrupted, and a truncated last line is ignored. With a task ID it lists every attempt of that task across runs.
 - `completion` prints a hand-written script per shell (no CLI framework, P0-01). It completes subcommands, each subcommand's flags, and phase and task IDs. IDs come from a hidden `igris __complete <kind>`, which is not listed in help: it reads the plan only (never `.igris/`, never the network) and prints one candidate per line; on a missing or invalid plan it prints nothing and exits 0.
 - `notify test` sends one sample message per event to every channel set up for it (the herdr toast is included when herdr is reachable) and prints `ok` or `FAILED: <reason>` per event and channel; secrets never appear in the output. It exits 1 if a delivery failed or no channel is set up. `--event` limits it to one event.
 - `--force-unlock` clears a stale `.igris/igris.lock` (its process is gone, the file is unreadable, or it comes from another host); a lock held by a live process on this host is always refused (§13). The CLI never asks about a stale lock: `arise` exits 1 saying to rerun with `--force-unlock`. The start-run wizard's **Clear the lock and start** dialog (**Cancel** is the default; asked per launch, never remembered) is the TUI equivalent of the flag, not a new prompt.

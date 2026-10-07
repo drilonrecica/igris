@@ -1,0 +1,4 @@
+exit: 0
+--- stdout
+no attempts of A-9 recorded
+--- stderr

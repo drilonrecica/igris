@@ -1,0 +1,18 @@
+exit: 0
+--- stdout
+Run 2026-10-03T08:00:00Z  phase B  interrupted
+  1 done, 0 skipped
+  B-1  done        sonnet  sonnet  3m01s  verify 0 failed, 1 passed
+  B-2  unfinished  sonnet  sonnet  —      
+
+Run 2026-10-02T10:00:00Z  phase A, B  error  (1m01s)
+  0 done, 0 skipped
+  B-1  unfinished  sonnet  sonnet  —  
+  error: herdr went away
+
+Run 2026-10-01T09:00:00Z  phase A  completed  (5m11s)
+  1 done, 1 skipped
+  A-1  done     sonnet  sonnet  4m04s  verify 1 failed, 1 passed
+  A-2  skipped  opus    opus    1m00s  
+  commit: A-1: the thing
+--- stderr

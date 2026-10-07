@@ -1,0 +1,21 @@
+{"at":"2026-10-01T09:00:00Z","type":"run_started","detail":"phase A"}
+{"at":"2026-10-01T09:00:01Z","type":"task_started","task":"A-1","rank":"sonnet","model":"sonnet"}
+{"at":"2026-10-01T09:02:05Z","type":"verify_failed","task":"A-1","rank":"sonnet","model":"sonnet","detail":"attempt 1 of 3: make test failed"}
+{"at":"2026-10-01T09:04:00Z","type":"verify_passed","task":"A-1","rank":"sonnet","model":"sonnet"}
+{"at":"2026-10-01T09:04:05Z","type":"task_done","task":"A-1","rank":"sonnet","model":"sonnet","detail":"added the thing"}
+{"at":"2026-10-01T09:04:09Z","type":"committed","task":"A-1","detail":"A-1: the thing"}
+{"at":"2026-10-01T09:04:10Z","type":"task_started","task":"A-2","rank":"opus","model":"opus"}
+{"at":"2026-10-01T09:05:10Z","type":"task_skipped","task":"A-2","rank":"opus","model":"opus","detail":"not needed"}
+{"at":"2026-10-01T09:05:11Z","type":"run_stopped","detail":"completed"}
+{"at":"2026-10-02T10:00:00Z","type":"run_started","detail":"phase A, B"}
+{"at":"2026-10-02T10:00:01Z","type":"task_started","task":"B-1","rank":"sonnet","model":"sonnet"}
+{"at":"2026-10-02T10:00:30Z","type":"notification","task":"B-1","detail":"task_done via ntfy"}
+{"at":"2026-10-02T10:01:00Z","type":"error","detail":"herdr went away"}
+{"at":"2026-10-02T10:01:01Z","type":"run_stopped","detail":"error"}
+{"at":"2026-10-03T08:00:00Z","type":"run_started","detail":"phase B"}
+{"at":"2026-10-03T08:00:01Z","type":"task_resumed","task":"B-1","rank":"sonnet","model":"sonnet","detail":"no record of an earlier session"}
+{"at":"2026-10-03T08:03:01Z","type":"verify_passed","task":"B-1","rank":"sonnet","model":"sonnet"}
+{"at":"2026-10-03T08:03:02Z","type":"task_done","task":"B-1","rank":"sonnet","model":"sonnet"}
+{"at":"2026-10-03T08:03:03Z","type":"task_started","task":"B-2","rank":"sonnet","model":"sonnet"}
+{"at":"2026-10-03T08:04:00Z","type":"future_event","task":"B-2"}
+{"at":"2026-10-03T08:04:30Z","type":"task_do

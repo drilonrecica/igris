@@ -117,11 +117,14 @@ igris doctor        # is everything in place? one line per check, the fix comman
 igris check         # validates your plan
 igris status        # shows phases, tasks, what's ready and what's blocked
 igris arise M0      # runs phase M0 (inside a herdr pane)
+igris history       # past runs: tasks done and skipped, durations, verify attempts, commits
 ```
 
 `igris arise M0 --dry-run` shows the launch order with each task's model and mode without starting anything or writing a byte. `igris arise M0 --no-tui` runs with plain log lines instead of the TUI and reads your answers and commands from stdin (`y`/`n`, `done [note]`, `skip <reason>`, `retry [continue|fresh]`, `pause`, `stop`, `mode [task] <m>`, `help`).
 
 `igris doctor` checks the machine and the project without changing anything (it never writes or creates `.igris/`, and has no `--fix`): Claude Code and herdr, `ANTHROPIC_API_KEY`, git, `igris.toml` and the plan (every problem), the `igris done` allow rules in `.claude/settings.local.json` (and a warning if `igris skip` is allowed there), the modes of `.igris/`, a stale or foreign lock, a project under `/mnt/` (WSL), and whether a notification channel is set up (nothing is sent; `igris notify test` sends). Each line is `ok`, `warn` or `fail`; a problem is followed by the command that fixes it. It exits 1 only if some check is `fail`, works outside a project, and `--json` prints the results as an array. Not running inside a herdr pane is a `warn` here, since you usually run `doctor` from a plain shell.
+
+`igris history [TASK-ID] [-n N] [--json]` lists the last N runs (default 10, newest first) from `.igris/runs.jsonl`: phases, tasks done and skipped, how long each task took, verify attempts, commits and how the run ended (`completed`, `stuck`, `stopped`, `error`, or `interrupted` when it has no stop event). With a task ID it lists every attempt of that task across all runs. It is read-only: it takes no lock and never creates `.igris/`, and it ignores a truncated last line.
 
 Before a run starts, igris warns if `ANTHROPIC_API_KEY` is set (your sessions would bill the API, not your subscription; it asks you to confirm), if the project isn't a git repository, or if the tree has uncommitted changes.
 

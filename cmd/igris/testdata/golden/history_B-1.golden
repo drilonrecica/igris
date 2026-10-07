@@ -1,0 +1,11 @@
+exit: 0
+--- stdout
+B-1  run 2026-10-03T08:00:00Z  done  (3m01s)
+  started 2026-10-03T08:00:01Z
+  rank sonnet, model sonnet
+  verify passed
+
+B-1  run 2026-10-02T10:00:00Z  unfinished
+  started 2026-10-02T10:00:01Z
+  rank sonnet, model sonnet
+--- stderr

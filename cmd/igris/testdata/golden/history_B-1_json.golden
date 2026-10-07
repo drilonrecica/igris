@@ -1,0 +1,28 @@
+exit: 0
+--- stdout
+{
+  "task": "B-1",
+  "attempts": [
+    {
+      "run_started_at": "2026-10-03T08:00:00Z",
+      "started_at": "2026-10-03T08:00:01Z",
+      "ended_at": "2026-10-03T08:03:02Z",
+      "duration_s": 181,
+      "rank": "sonnet",
+      "model": "sonnet",
+      "result": "done",
+      "verify": [
+        "passed"
+      ]
+    },
+    {
+      "run_started_at": "2026-10-02T10:00:00Z",
+      "started_at": "2026-10-02T10:00:01Z",
+      "rank": "sonnet",
+      "model": "sonnet",
+      "result": "unfinished",
+      "verify": []
+    }
+  ]
+}
+--- stderr
