@@ -26,3 +26,5 @@ No blocking bugs; nothing needs a fix task before V02-H. Observations, in order 
 2. **`accept` mode still prompts for Bash.** `--mode accept` (acceptEdits) asked for approval on a read-only `rtk grep … ; ls` command, which is Claude Code's behavior and also fired the "needs you" state twice. Worth one sentence in the README mode table (V02-09), not a bug.
 3. **`status` after `q` still shows the Run block** (`Lock none`, task P1-03). Intended per the owner: it is the resume state.
 4. **Task duration includes waiting for the owner** (P1-02 `2m00s`, mostly the trust and Bash prompts). Fine, just not a measure of agent time.
+
+Findings 1-3 are documented in the README (V02-09): the folder-trust note under Quick start, the `accept` row of the mode table, and the resume-state note about `status`.

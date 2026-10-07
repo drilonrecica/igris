@@ -22,7 +22,7 @@
 
 You write the plan. You decide which tasks need Fable, which need Opus and which are fine on Sonnet. Igris makes sure that's what actually happens: it never runs a Sonnet task on a more expensive model, never lets one task's context bleed into the next, and stops to wait for you whenever a task needs a decision.
 
-> **Status:** v0.1.3. Linux and macOS, Windows through WSL2; herdr backend only. The full behavior is specified in [`SPEC.md`](SPEC.md).
+> **Status:** v0.2.0. Linux and macOS, Windows through WSL2; herdr backend only. The full behavior is specified in [`SPEC.md`](SPEC.md).
 
 ---
 
@@ -68,6 +68,12 @@ Rank aliases are configurable in `igris.toml`. Every key is optional; unknown ke
 igris is verified with Claude Code 2.1.291 and herdr 0.9.1 or later. `igris check` and `igris arise` warn when either is missing, older, or a newer major version; they never refuse to run because of it.
 
 ## Install
+
+With Homebrew (Linux and macOS):
+
+```sh
+brew install drilonrecica/tap/igris
+```
 
 With Go (the version pinned in `go.mod` or newer):
 
@@ -125,6 +131,8 @@ So far WSL2 support has been tested by reproducing these conditions on Linux (`d
 
 ## Quick start
 
+Run `igris` in a terminal and the [home screen](#home-screen) walks you through the same steps. On the command line:
+
 ```sh
 cd your-project
 igris init          # creates igris.toml and .igris/, ignores .igris/ in git, allows `igris done` for Claude
@@ -135,6 +143,8 @@ igris arise M0      # runs phase M0 (inside a herdr pane)
 igris history       # past runs: tasks done and skipped, durations, verify attempts, commits
 ```
 
+The first session in a folder Claude Code hasn't seen waits on its own folder-trust prompt ("Is this a project you trust?"). Igris can't answer it for you: the task sits there, and after about 30 seconds igris shows **needs you: the agent is blocked**. Open the session (`o` in the TUI), answer the prompt once, and the task carries on. Later sessions in that folder don't ask again.
+
 `igris arise M0 --dry-run` shows the launch order with each task's model and mode without starting anything or writing a byte. `igris arise M0 --no-tui` runs with plain log lines instead of the TUI and reads your answers and commands from stdin (`y`/`n`, `done [note]`, `skip <reason>`, `retry [continue|fresh]`, `pause`, `stop`, `mode [task] <m>`, `help`).
 
 `igris doctor` checks the machine and the project without changing anything (it never writes or creates `.igris/`, and has no `--fix`): Claude Code and herdr, `ANTHROPIC_API_KEY`, git, `igris.toml` and the plan (every problem), the `igris done` allow rules in `.claude/settings.local.json` (and a warning if `igris skip` is allowed there), the modes of `.igris/`, a stale or foreign lock, a project under `/mnt/` (WSL), and whether a notification channel is set up (nothing is sent; `igris notify test` sends). Each line is `ok`, `warn` or `fail`; a problem is followed by the command that fixes it. It exits 1 only if some check is `fail`, works outside a project, and `--json` prints the results as an array. Not running inside a herdr pane is a `warn` here, since you usually run `doctor` from a plain shell.
@@ -144,6 +154,8 @@ igris history       # past runs: tasks done and skipped, durations, verify attem
 Before a run starts, igris warns if `ANTHROPIC_API_KEY` is set (your sessions would bill the API, not your subscription; it asks you to confirm), if the project isn't a git repository, or if the tree has uncommitted changes.
 
 `igris init` is safe to re-run: it never overwrites an existing `igris.toml`, appends to `.gitignore` only if `.igris/` isn't ignored yet, and merges the `Bash(igris done:*)` allow rule into `.claude/settings.local.json` without touching your other settings. `igris init --example` also writes the example plan as your configured plan path when there is none (it prints `kept tasks.md` and leaves an existing plan alone). `igris skip` is deliberately not allowed, so a session that wants to skip has to ask you.
+
+`status` keeps showing the last run's `Run` block after you quit igris (`Lock none`, the task it was on): that is the resume state, and `igris arise` with no phase picks it up. A task's duration includes the time it waited for you, so it isn't a measure of agent time.
 
 `check`, `phases` and `status` read your plan without changing it. Each takes `--plan PATH` (default: `plan` in `igris.toml`, else `tasks.md`) and `--json`. `check` exits 0 for a valid plan, 1 for an invalid one, and warns when `ready`/`blocked` cells don't match the dependencies, when `ANTHROPIC_API_KEY` is set, and when you run it from a subfolder of a project (it reads `igris.toml` only from the current folder); `phases` lists task counts per phase; `status [PHASE]` lists tasks with rank, owner and what each is waiting on, under a short "Run" block (phases, current task, mode, since, session, lock, pending signals) when a run exists in the project (`--json`: a `run` object, absent when there is none). The run is read from `.igris/` of the project root found upward from the current folder; an unreadable `state.json` is reported there, not as a failure.
 
@@ -196,7 +208,7 @@ Choose the permission mode in the TUI, per run or per task: press `m` (or click 
 | Mode | What it does |
 |---|---|
 | Default | Your normal Claude Code permission prompts. |
-| Accept edits | Edits are accepted automatically. |
+| Accept edits | Edits are accepted automatically. Bash commands still ask, even read-only ones (that is Claude Code's behavior), so igris shows "needs you" when one comes up. |
 | Auto | Claude Code approves routine actions itself and asks you about risky ones. |
 | Plan | Claude plans first; you approve the plan, then it implements. |
 | Skip permissions | `--dangerously-skip-permissions`. Never a single click or key: you type `skip permissions` to confirm, every run, and a red badge shows while it is active. Use it in a worktree or container you trust. |
@@ -222,6 +234,20 @@ events = ["needs_input", "phase_done"]   # default: needs_input, session_lost, p
 Messages carry the project, phase, task ID and title and the event, never file contents, diffs or command output. Each channel has a 10 s timeout and one retry; a channel that fails is shown as a warning and never stops the run. Secrets can be `env:VAR_NAME` references, are never logged, and are scrubbed from error messages. ntfy sends urgent events (`needs_input`, `session_lost`) at high priority.
 
 Check your setup with `igris notify test`: it sends a sample of each event to every configured channel (the herdr toast too, when run inside herdr) and prints `ok` or the reason for each failure. `--event needs_input` sends just one.
+
+## Home screen
+
+<p align="center"><img src="docs/demo/igris-home.png" alt="igris home screen: phases with progress bars, a NOW card with the next tasks and their ranks, HEALTH, RECENT and the action bar" width="900"></p>
+
+Bare `igris` on a terminal opens the home screen (when stdin and stdout are terminals; piped or scripted, it still prints the help and exits 2). A walkthrough, from a new project to a run:
+
+1. **No `igris.toml` yet.** The NOW card is a **GET STARTED** stepper. `I` (**Init**) lists the files it would create and makes only the missing ones; `E` (**Example plan**) writes the example plan when you have none. Nothing is overwritten.
+2. **Look around.** `c` checks the plan, `i` runs the doctor, `h` shows the run history, `,` shows the settings (secrets never in the clear), `e` opens the plan or `igris.toml` in `$VISUAL`/`$EDITOR`. A plan igris can't read offers `A` (**Adapt**) right there.
+3. **Preview.** `v` shows the dry run: the tasks in order with rank → model and mode, and the warnings.
+4. **Arise.** `a` opens the start-run wizard (resume or pick a phase, how far, the mode) and then the run view. **Home** (or `q`) there stops igris and leaves a running session running.
+5. **Check your notifications.** `n` sends a sample of every event to every channel you set up.
+
+The same screen collapses into one column on a phone-width terminal, so it works over SSH from Termius. Details are in [The TUI](#the-tui).
 
 ## The TUI
 

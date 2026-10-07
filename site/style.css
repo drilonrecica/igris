@@ -178,6 +178,10 @@ code {
 .term-bar { display: flex; gap: 6px; align-items: center; height: 28px; padding: 0 12px; background: var(--night); }
 .term-bar i { width: 10px; height: 10px; border-radius: 50%; background: var(--deep); }
 
+.shots { display: grid; grid-template-columns: minmax(0, 2.6fr) minmax(0, 1fr); gap: 20px; align-items: start; margin-top: 24px; }
+.shots img { display: block; width: 100%; height: auto; }
+@media (max-width: 800px) { .shots { grid-template-columns: 1fr; } }
+
 /* Sections */
 .why { padding: 40px 0; border-bottom: 1px solid var(--night); }
 .why p { font-size: 1.2rem; max-width: 46em; margin: 0; color: var(--snow); }

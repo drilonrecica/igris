@@ -124,6 +124,24 @@
       </div>
     </section>
 
+    <section id="home" class="section">
+      <div class="wrap">
+        <h2>Home screen</h2>
+        <p class="section-lead">Run <code>igris</code> in a terminal: the project at a glance. Phases with progress, what runs next and on which rank, the health of your setup and your recent runs, with one button for each thing you can do now.</p>
+        <div class="shots">
+          <figure class="term">
+            <div class="term-bar" aria-hidden="true"><i></i><i></i><i></i></div>
+            <img src="igris-home.png" width="1500" height="420" alt="igris home screen on a wide terminal: phases P1 and P2 with progress bars, a NOW card naming the next tasks P1-02 on sonnet and P1-03 on opus, a HEALTH section with the plan and doctor checks, a RECENT section and an action bar" loading="lazy">
+          </figure>
+          <figure class="term shot-narrow">
+            <div class="term-bar" aria-hidden="true"><i></i><i></i><i></i></div>
+            <img src="igris-home-narrow.png" width="560" height="520" alt="The same home screen on a phone-width terminal, stacked in one column with the action bar wrapped" loading="lazy">
+          </figure>
+        </div>
+        <p class="note">Everything works from the keyboard or by clicking: preview a run, check the plan, open the doctor, edit the plan or settings, adapt a plan, send a test notification, then start. <a href="https://github.com/drilonrecica/igris#the-tui">The home screen in the README</a></p>
+      </div>
+    </section>
+
     <section id="install" class="section">
       <div class="wrap two-col">
         <div>
@@ -131,6 +149,11 @@
           <p>With Go:</p>
           <div class="cmd" data-copy>
             <code>go install github.com/drilonrecica/<wbr>igris/cmd/igris@latest</code>
+            <button type="button" class="copy" hidden>Copy</button>
+          </div>
+          <p>Or with Homebrew (Linux and macOS):</p>
+          <div class="cmd" data-copy>
+            <code>brew install drilonrecica/tap/igris</code>
             <button type="button" class="copy" hidden>Copy</button>
           </div>
           <p>Or download a static binary for Linux or macOS (amd64, arm64; on Windows, the Linux one inside WSL2) from <a href="https://github.com/drilonrecica/igris/releases/latest">Releases</a> and check it against <code>checksums.txt</code>.</p>

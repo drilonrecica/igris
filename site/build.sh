@@ -15,7 +15,7 @@ cp "$root/site/fonts/"* "$out/fonts/"
 for f in igris-logo-dark.svg igris-mark-dark.svg igris-mark-dark-512.png igris-icon-180.png favicon.ico; do
   cp "$root/docs/brand/$f" "$out/brand/"
 done
-cp "$root/docs/demo/igris-demo.gif" "$out/"
+cp "$root/docs/demo/igris-demo.gif" "$root/docs/demo/igris-home.png" "$root/docs/demo/igris-home-narrow.png" "$out/"
 : > "$out/.nojekyll"
 
 echo "site built in $out"

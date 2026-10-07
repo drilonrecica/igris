@@ -39,6 +39,7 @@ const (
 const usageText = `igris - run a markdown task plan through Claude Code sessions
 
 Usage:
+  igris                                 on a terminal: the home screen; otherwise this help, exit 2
   igris <command> [flags]
 
 Commands:

@@ -4,9 +4,39 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+igris v0.2 gets an app: bare `igris` on a terminal opens a home screen, and the onboarding steps (`init`, `doctor`, `check`, `status`, `history`, completions) work from the command line and from inside it. Two behaviors change for people who ran `igris` or `igris arise` by hand; see Migration. No change to the plan format, config keys or file formats.
+
 ### Added
 
-- Home screen dashboard (SPEC §15.6): bare `igris` shows the project at a glance — header facts, PHASES with progress bars and outcome words, a NOW card for the state igris is in (get started, plan missing or invalid, config invalid, ready, interrupted, stopped, running elsewhere, stale or remote lock, herdr absent), HEALTH, RECENT, a status line and an action bar that shows only the actions that apply. Wide and narrow layouts, keyboard focus regions and mouse; `NO_COLOR` keeps every state as a glyph plus a word.
+- Home screen dashboard (SPEC §15.6): bare `igris` shows the project at a glance: header facts, PHASES with progress bars and outcome words, a NOW card for the state igris is in (get started, plan missing or invalid, config invalid, ready, interrupted, stopped, running elsewhere, stale or remote lock, herdr absent), HEALTH, RECENT, a status line and an action bar that shows only the actions that apply. Wide and narrow layouts, keyboard focus regions and mouse; `NO_COLOR` keeps every state as a glyph plus a word.
+- Pages inside the app, each with its safe next actions: **Preview** (the dry run, with **Arise with these settings**), **phase and task** pages, **Check**, **Doctor** (`y` copies the fix command), **History** (runs, tasks, attempts), **Settings** (the effective `igris.toml`; secrets never shown), **Notify test**, and the **start-run wizard** (resume or pick a phase, `--through`, the mode, typed `skip permissions` confirmation). A run opens inside the app with **Home** in place of Quit.
+- Onboarding in the app: with no `igris.toml`, a GET STARTED stepper offers **Init** (lists the files it touches, never overwrites) and **Example plan**; `A` runs `igris adapt` from the app (sonnet or opus) and shows the review; `e` opens the plan or `igris.toml` in `$VISUAL`/`$EDITOR` and reports whether it is valid when it comes back.
+- `igris doctor [--json]`: a read-only health check of the machine and the project (Claude Code, herdr, `ANTHROPIC_API_KEY`, git, `igris.toml`, the plan, the `igris done` allow rules, `.igris/` modes, a stale or foreign lock, `/mnt/` under WSL, notification channels). Each problem is followed by the command that fixes it; it exits 1 only on a `fail`. `check`, `arise`, `doctor` and home share one ordered check list.
+- `igris history [TASK-ID] [-n N] [--json]`: past runs from `.igris/runs.jsonl` with phases, tasks done and skipped, durations, verify attempts, commits and how each run ended; with a task ID, every attempt of that task. Read-only.
+- `igris status` shows a `Run` block (phases, current task, mode, since, session, lock, pending signals); `--json` adds a `run` object.
+- `igris completion bash|zsh|fish`: completes subcommands, flags, phase IDs and task IDs from your plan.
+- `igris init --example` also writes the example plan when there is none.
+- Copy with OSC 52: `y` copies the resume command (`claude --resume <id>`), the log line at the bottom of the log, or the adapt proposal's path, over SSH and through herdr or tmux where the terminal allows it.
+- `igris adapt` review compares your plan and the proposal table by table (tasks by ID, cells by column name) and lists only what changed; a plan without tables falls back to a line diff.
+- External blockers: the plan convention is a `user` task that names the blocker, with the waiting task depending on it. `igris adapt` turns prose like "waits on" or "blocked by" into such a task.
+- Homebrew: `brew install drilonrecica/tap/igris`.
+- README and project page: the home screen walkthrough and screenshots, `doctor`, `history`, the `status` run block, completions, and notes on Claude Code's folder-trust prompt, `accept` mode and the resume state.
+
+### Changed
+
+- **Bare `igris` on a terminal opens the home screen** instead of printing the help. When stdin or stdout isn't a terminal (a pipe, a script, cron), stdin is `/dev/null`, or `TERM` is `dumb`, it still prints the help to stderr and exits 2.
+- **`igris arise` with no phase and nothing to resume** opens the start-run wizard on a terminal (with `--mode`, `--through` and `--force-unlock` prefilled) instead of exiting 1 and asking for a phase. With `--no-tui`, `--dry-run` or no terminal it behaves as before. `igris arise PHASE` is unchanged.
+- The task mode can't be set for `user` tasks (they have no session): the key and button are hidden, and `--no-tui` answers `mode <task> <m>` with "is a user task".
+- The TUI's run view is shared with the app; it looks and behaves as before, with **Home** where **Quit** was when the run was started from home.
+
+### Migration
+
+- **Scripts that call bare `igris`** and expect the help (or a non-zero exit) keep that behavior unless a terminal is attached to both stdin and stdout. Run `igris -h` or `igris help` for the help in any case.
+- **Scripts or habits that run `igris arise` without a phase** to see an error: on a terminal this now opens the start-run wizard. Add `--no-tui`, or run it without a terminal, to keep the old exit.
+
+### Notes
+
+- Claude Code asks "Is this a project you trust?" for a folder it hasn't seen; the first session of a new project waits on it and igris shows "needs you". `accept` mode still asks before Bash commands. `status` keeps showing the last run after you quit, as the resume state.
 
 ## [0.1.3] - 2026-10-07
 
