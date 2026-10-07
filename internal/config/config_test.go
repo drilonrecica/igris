@@ -113,6 +113,18 @@ func TestParseFullSample(t *testing.T) {
 	}
 }
 
+// An igris.toml saved by a Windows editor (UTF-8 BOM, CRLF) loads like any
+// other: the BOM must not swallow the first key.
+func TestParseWindowsEditorFile(t *testing.T) {
+	c, err := Parse([]byte("\xef\xbb\xbfplan = \"plan.md\"\r\nneeds_input_after = \"20s\"\r\n[run]\r\ncommit = \"never\"\r\n"), "igris.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Plan != "plan.md" || c.NeedsInputAfter.Std() != 20*time.Second || c.Run.Commit != "never" {
+		t.Errorf("plan = %q, needs_input_after = %v, commit = %q", c.Plan, c.NeedsInputAfter.Std(), c.Run.Commit)
+	}
+}
+
 func TestParseModelsMergeOverDefaults(t *testing.T) {
 	c, err := Parse([]byte("[models]\nopus = \"claude-opus-5-5\"\n"), "igris.toml")
 	if err != nil {

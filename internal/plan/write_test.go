@@ -320,6 +320,20 @@ func TestWriterErrors(t *testing.T) {
 	}
 }
 
+// A plan saved by a Windows editor keeps its UTF-8 byte order mark and CRLF
+// line endings; only the Status cell changes.
+func TestWriterKeepsBOM(t *testing.T) {
+	in := "\ufeff## M0 — Foundation\r\n\r\n| ID | Task | Status | Model |\r\n|---|---|---|---|\r\n| a | x | ready | sonnet |\r\n"
+	path := writePlan(t, in)
+	if _, err := NewWriter(path, Options{}, testModels).Update(context.Background(), set("a", Done)); err != nil {
+		t.Fatal(err)
+	}
+	want := strings.Replace(in, "| ready |", "| done |", 1)
+	if out := readPlan(t, path); out != want {
+		t.Fatalf("output differs:\n got %q\nwant %q", out, want)
+	}
+}
+
 // A plan that is a symlink stays one: the write replaces the file it points
 // to, byte for byte except the Status cell.
 func TestWriterKeepsSymlink(t *testing.T) {

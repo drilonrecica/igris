@@ -17,6 +17,9 @@ func TestSplitLines(t *testing.T) {
 		{"no trailing newline", "a\nbc", []line{{"a", 0, 1}, {"bc", 2, 2}}},
 		{"blank lines", "a\n\n\nb\n", []line{{"a", 0, 1}, {"", 2, 2}, {"", 3, 3}, {"b", 4, 4}}},
 		{"mixed endings", "a\r\nb\nc", []line{{"a", 0, 1}, {"b", 3, 2}, {"c", 5, 3}}},
+		{"utf-8 bom", "\ufeffa\r\nb\n", []line{{"a", 3, 1}, {"b", 6, 2}}},
+		{"bom only", "\ufeff", nil},
+		{"bom not at start", "a\n\ufeffb\n", []line{{"a", 0, 1}, {"\ufeffb", 2, 2}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

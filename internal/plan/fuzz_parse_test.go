@@ -13,8 +13,8 @@ import (
 // lands in testdata/fuzz/<Target>/; commit it with the fix.
 
 // fuzzPlanSeeds are the shapes the parser and writer must survive: the
-// fixtures plus inline edge cases (CRLF, no trailing newline, escaped
-// pipes, backticks, fenced fake tables, non-ASCII, a very long cell).
+// fixtures plus inline edge cases (CRLF, a UTF-8 BOM, no trailing newline,
+// escaped pipes, backticks, fenced fake tables, non-ASCII, a very long cell).
 func fuzzPlanSeeds(t testing.TB) [][]byte {
 	t.Helper()
 	seeds := [][]byte{[]byte(specExample)}
@@ -40,6 +40,7 @@ func fuzzPlanSeeds(t testing.TB) [][]byte {
 		head + "| a | " + strings.Repeat("long ", 2000) + " | — | ready | sonnet | agent |\n",
 		head + "| a | A | — | ready | sonnet | agent |\n| b | B | a…a | blocked | sonnet | user |\n| c | | |\n",
 		"## Phase 2\n\n| ID | Status | Model | Depends on |\n|---|---|---|---|\n| 1 | ready | sonnet | — |\r",
+		"\ufeff" + strings.ReplaceAll(head+"| a | A | — | ready | sonnet | agent |\n", "\n", "\r\n"),
 	} {
 		seeds = append(seeds, []byte(s))
 	}

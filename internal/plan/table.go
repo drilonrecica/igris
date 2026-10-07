@@ -3,10 +3,14 @@
 package plan
 
 import (
+	"bytes"
 	"strings"
 
 	"github.com/drilonrecica/igris/internal/textsafe"
 )
+
+// utf8BOM is the UTF-8 byte order mark.
+var utf8BOM = []byte{0xEF, 0xBB, 0xBF}
 
 // line is one physical line of the plan file.
 type line struct {
@@ -17,10 +21,15 @@ type line struct {
 
 // splitLines splits data into lines. Line endings are not part of text but
 // stay in the file at their offsets, so splicing within text never touches
-// them. A final line without a trailing newline is kept as is.
+// them. A final line without a trailing newline is kept as is. A UTF-8 byte
+// order mark at the start of the file (Windows editors write one) is skipped
+// the same way: it stays in the file but is not part of the first line.
 func splitLines(data []byte) []line {
 	var lines []line
 	start := 0
+	if bytes.HasPrefix(data, utf8BOM) {
+		start = len(utf8BOM)
+	}
 	for num := 1; start < len(data); num++ {
 		end := start
 		for end < len(data) && data[end] != '\n' {

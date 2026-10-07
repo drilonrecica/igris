@@ -179,6 +179,13 @@ func TestParseStructure(t *testing.T) {
 			in:     strings.ReplaceAll("## M0\n\n"+taskHeader+"| a | x | ready | sonnet |\n", "\n", "\r\n"),
 			phases: []string{"M0"},
 		},
+		{
+			// Windows editors such as Notepad may start the file with a
+			// UTF-8 byte order mark.
+			name:   "bom before the first heading",
+			in:     "\ufeff## M0\r\n\r\n" + strings.ReplaceAll(taskHeader+"| a | x | ready | sonnet |\n", "\n", "\r\n"),
+			phases: []string{"M0"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -117,7 +117,7 @@ Validation reports **every** problem at once, each as `file:line: message` sayin
 
 Igris edits the plan file in place, so writes must be surgical:
 
-1. **Only Status cells change.** Every other byte of the file — whitespace, other cells, other sections, line endings, trailing newline — is preserved exactly.
+1. **Only Status cells change.** Every other byte of the file — whitespace, other cells, other sections, line endings, trailing newline, a leading UTF-8 byte order mark — is preserved exactly.
 2. Within a Status cell, the original padding and backtick style are preserved (`` `ready` `` → `` `done` ``). Any text after the old keyword is dropped (`blocked (waits on vendor)` → `ready`), since it described the old status.
 3. **Re-read before write.** The file is re-read and re-parsed immediately before every write, because the owner or a session may have edited it. If the target row no longer exists, igris stops with an error rather than writing.
 4. **No lost updates.** Igris hashes the bytes it re-read and, immediately before the rename, hashes the file again. If it changed in between, the write is discarded and retried from step 3 (up to 3 times, then stop with an error).
@@ -602,7 +602,7 @@ Modelled on Claude Code's choice prompts and herdr's clickable UI.
 ## 17. Testing requirements
 
 - **Parser:** table splitting (escaped pipes, padding, backticks), phase detection, column aliases, deps incl. ranges and cross-phase, every validation error. Golden tests with realistic plans: at least one large synthetic fixture (10+ phases, 150+ tasks, ranges, escaped pipes, cross-phase deps, user tasks). Never commit private plans as fixtures.
-- **Writer:** byte-for-byte preservation except the target Status cell; CRLF files; files without trailing newline; concurrent-edit detection.
+- **Writer:** byte-for-byte preservation except the target Status cell; CRLF files; a leading UTF-8 BOM; files without trailing newline; concurrent-edit detection.
 - **Scheduler:** selection order, resume, stuck detection, readiness sync, `--through`.
 - **Engine:** full phase runs on the fake backend covering done, verify failure + retry, verify limit, session lost, user tasks, skip, pause, resume after restart, stray signals.
 - **herdr backend:** command construction + JSON parsing against recorded fixtures; a manual smoke checklist on a real herdr install.
