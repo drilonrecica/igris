@@ -16,6 +16,7 @@ import (
 	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/notify"
+	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/state"
 	"github.com/drilonrecica/igris/internal/tui"
 )
@@ -93,7 +94,7 @@ func execAdapt(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 		return fail("%v", err)
 	}
 
-	// The owner decides in the diff review (SPEC §9.5–6).
+	// The owner decides in the review (SPEC §9.5–6).
 	issues := make([]string, len(res.Issues))
 	for i, is := range res.Issues {
 		issues[i] = is.Error()
@@ -103,7 +104,7 @@ func execAdapt(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 		Theme:        cfg.TUI.Theme,
 		PlanPath:     rel(root, planPath),
 		ProposalPath: res.ProposalPath,
-		Diff:         adapt.Diff(adapt.Lines(res.Original), adapt.Lines(res.Proposed)),
+		Review:       adapt.Compare(res.Original, res.Proposed, plan.Options{Columns: cfg.Columns}),
 		Issues:       issues,
 	})
 	if err != nil {

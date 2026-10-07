@@ -2,6 +2,8 @@ package tui
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -9,6 +11,7 @@ import (
 	"github.com/charmbracelet/x/exp/teatest"
 
 	"github.com/drilonrecica/igris/internal/adapt"
+	"github.com/drilonrecica/igris/internal/plan"
 )
 
 const reviewOld = `# Widgets
@@ -28,7 +31,7 @@ const reviewNew = `## W — Widgets
 func reviewOpts(issues ...string) ReviewOptions {
 	return ReviewOptions{
 		PlanPath: "tasks.md",
-		Diff:     adapt.Diff(adapt.Lines([]byte(reviewOld)), adapt.Lines([]byte(reviewNew))),
+		Review:   adapt.LineReview([]byte(reviewOld), []byte(reviewNew)),
 		Issues:   issues,
 	}
 }
@@ -171,7 +174,7 @@ func TestReviewFoldsUnchangedLines(t *testing.T) {
 		proposed = append(proposed, fmt.Sprintf("line %d", i))
 	}
 	proposed[20] = "changed"
-	rh := newReviewHarness(t, 80, 40, ReviewOptions{PlanPath: "p.md", Diff: adapt.Diff(old, proposed)})
+	rh := newReviewHarness(t, 80, 40, ReviewOptions{PlanPath: "p.md", Review: adapt.Review{Prose: adapt.Diff(old, proposed)}})
 	out := rh.r.View()
 	for _, want := range []string{"⋯ 17 unchanged line(s)", "⋯ 16 unchanged line(s)", "  line 17", "- line 20", "+ changed", "  line 23"} {
 		if !strings.Contains(out, want) {
@@ -188,7 +191,7 @@ func TestReviewScrollAndWrap(t *testing.T) {
 	for i := range 100 {
 		proposed = append(proposed, fmt.Sprintf("| T-%d | %s |", i, strings.Repeat("x", 70)))
 	}
-	rh := newReviewHarness(t, 50, 20, ReviewOptions{PlanPath: "p.md", Diff: adapt.Diff(nil, proposed)})
+	rh := newReviewHarness(t, 50, 20, ReviewOptions{PlanPath: "p.md", Review: adapt.Review{Prose: adapt.Diff(nil, proposed)}})
 	out := rh.r.View()
 	if !strings.Contains(out, "1–15 of 200") {
 		t.Errorf("want 2 rows per wrapped line and a scroll position:\n%s", out)
@@ -207,7 +210,7 @@ func TestReviewScrollAndWrap(t *testing.T) {
 }
 
 func TestReviewCleansControlCharacters(t *testing.T) {
-	rh := newReviewHarness(t, 80, 10, ReviewOptions{PlanPath: "p.md", Diff: adapt.Diff(nil, []string{"a\x1b[2Jb\tc"})})
+	rh := newReviewHarness(t, 80, 10, ReviewOptions{PlanPath: "p.md", Review: adapt.Review{Prose: adapt.Diff(nil, []string{"a\x1b[2Jb\tc"})}})
 	out := rh.r.View()
 	if strings.Contains(out, "\x1b") || !strings.Contains(out, "+ a?[2Jb    c") {
 		t.Errorf("control characters reach the terminal: %q", out)
@@ -233,5 +236,119 @@ func TestReviewProgram(t *testing.T) {
 	final := tm.FinalModel(t, teatest.WithFinalTimeout(waitFor)).(*review)
 	if !final.accepted {
 		t.Error("tab, enter did not accept")
+	}
+}
+
+// tableReview compares the synthetic reordered-columns plan of the adapt
+// tests with its proposal.
+func tableReview(t *testing.T) ReviewOptions {
+	t.Helper()
+	read := func(name string) []byte {
+		data, err := os.ReadFile(filepath.Join("..", "adapt", "testdata", "reorder", name)) //nolint:gosec // test fixture
+		if err != nil {
+			t.Fatal(err)
+		}
+		return data
+	}
+	rv := adapt.Compare(read("original.md"), read("proposed.md"), plan.Options{Columns: map[string]string{"Depends on": "Deps"}})
+	if !rv.Tables {
+		t.Fatal("the fixture must compare table by table")
+	}
+	return ReviewOptions{PlanPath: "tasks.md", Review: rv, Issues: []string{`proposed.md:30: L-02: model not set yet ("?")`}}
+}
+
+func TestReviewTablesGolden(t *testing.T) {
+	for _, sz := range []struct {
+		name string
+		w, h int
+	}{{"wide", 100, 50}, {"narrow", 60, 60}} {
+		t.Run(sz.name, func(t *testing.T) {
+			rh := newReviewHarness(t, sz.w, sz.h, tableReview(t))
+			view := rh.r.View()
+			checkFits(t, view, sz.w, sz.h)
+			golden(t, "review_tables_"+sz.name, view)
+		})
+	}
+}
+
+func TestReviewTablesLayout(t *testing.T) {
+	rh := newReviewHarness(t, 100, 60, tableReview(t))
+	out := rh.r.View()
+	for _, want := range []string{
+		"table change(s) · +5 −1 lines outside the tables",
+		"~ phase W1 — Parsing widgets",
+		`  ~ W1-03 Deps         "W1-01" → "W1-01, W1-02"`,
+		"+ phase W3 — Animation",
+		"  + W3-00 Wait for the animation spec from the client",
+		"- phase Later",
+		"Outside the task tables:",
+		"+ Plan for the widget factory. Ship by spring 2027.",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("wide view missing %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "| W1-01") {
+		t.Errorf("table rows must not be line-diffed:\n%s", out)
+	}
+
+	rh = newReviewHarness(t, 60, 60, tableReview(t))
+	out = rh.r.View()
+	for _, want := range []string{
+		`  ~ W1-03 Deps: "W1-01" → "W1-01, W1-02"`,
+		"  ~ columns reordered\n",
+		`  -   "Status, ID, Model, task, Depends on"`,
+		`  +   "ID, Task, Deps, Status, Model"`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("narrow view missing %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestReviewTablesWrapKeepsMarkers(t *testing.T) {
+	long := strings.Repeat("y", 70)
+	o := ReviewOptions{PlanPath: "p.md", Review: adapt.Review{Tables: true, Sections: []adapt.Section{{
+		Op: adapt.Mod, Phase: "A", Heading: "A — x",
+		Changes: []adapt.Change{{Op: adapt.Mod, What: "A-1 Task", Old: "x", New: long + "\x1b[2J"}, {Op: adapt.Add, What: "A-2", New: long}},
+	}}}}
+	rh := newReviewHarness(t, 50, 20, o)
+	out := rh.r.View()
+	for _, want := range []string{`  +   "yyy`, "\n  + yyy", "  + A-2 yyy", "The text outside the task tables is unchanged."} {
+		if !strings.Contains(out, want) {
+			t.Errorf("view missing %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "\x1b") {
+		t.Errorf("control characters reach the terminal: %q", out)
+	}
+	for i, l := range strings.Split(out, "\n") {
+		if w := textWidth(l); w > 50 {
+			t.Errorf("line %d is %d cells wide: %q", i, w, l)
+		}
+	}
+}
+
+func TestReviewTablesUnchanged(t *testing.T) {
+	rh := newReviewHarness(t, 80, 20, ReviewOptions{PlanPath: "p.md", Review: adapt.Review{Tables: true}})
+	if out := rh.r.View(); !strings.Contains(out, "The task tables are unchanged.") {
+		t.Errorf("view:\n%s", out)
+	}
+}
+
+func TestReviewTablesDecisions(t *testing.T) {
+	rh := newReviewHarness(t, 100, 30, tableReview(t))
+	rh.keys("end", "a")
+	if rh.quit || rh.r.dialog == nil {
+		t.Fatal("Accept on an invalid proposal must ask first")
+	}
+	rh.keys("2")
+	if !rh.quit || !rh.r.accepted {
+		t.Error("replace anyway did not accept")
+	}
+	rh = newReviewHarness(t, 60, 20, tableReview(t))
+	rh.keys("pgdown", "enter")
+	if !rh.quit || rh.r.accepted {
+		t.Error("enter did not reject")
 	}
 }

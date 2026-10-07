@@ -61,6 +61,7 @@ type Phase struct {
 	Heading string   // full heading text
 	Line    int      // line of the heading
 	Columns []string // table header in order; canonical names where recognized
+	Header  []string // table header cells as written (emphasis removed), in the order of Columns
 	Tasks   []*Task  // in file order
 
 	tableLine int // line of the table header
@@ -78,6 +79,16 @@ type nearMiss struct {
 type row struct {
 	line  line
 	cells []cell
+}
+
+// TableLines returns the first and the last line of the phase's task
+// table: the header, through the last row (or the delimiter row).
+func (ph *Phase) TableLines() (first, last int) {
+	last = ph.tableLine + 1
+	if n := len(ph.rows); n > 0 {
+		last = ph.rows[n-1].line.num
+	}
+	return ph.tableLine, last
 }
 
 // Phase returns the phase with the given ID (case-insensitive), or nil.
@@ -145,7 +156,7 @@ func Parse(name string, data []byte, opts Options) *Plan {
 			end++
 		}
 		if isTask {
-			p.addTable(cur, cols, l.num, p.lines[i+2:end], firstPhase)
+			p.addTable(cur, header, cols, l.num, p.lines[i+2:end], firstPhase)
 		} else if hasCol(cols, ColID) && (hasCol(cols, ColStatus) || hasCol(cols, ColModel)) {
 			p.nearMiss = append(p.nearMiss, nearMiss{line: l.num, hasStatus: hasCol(cols, ColStatus)})
 		}
@@ -157,7 +168,7 @@ func Parse(name string, data []byte, opts Options) *Plan {
 }
 
 // addTable attaches a task table to the current section.
-func (p *Plan) addTable(cur *section, cols []string, at int, rows []line, firstPhase map[string]int) {
+func (p *Plan) addTable(cur *section, header []cell, cols []string, at int, rows []line, firstPhase map[string]int) {
 	switch {
 	case cur == nil:
 		p.addIssue(at, "task table outside a phase; put it under a \"## <phase ID> — <title>\" heading")
@@ -180,6 +191,9 @@ func (p *Plan) addTable(cur *section, cols []string, at int, rows []line, firstP
 		p.addIssue(ph.Line, "the heading of phase %s contains a control character (an escape sequence?); remove it", ph.ID)
 	}
 	ph.Columns = cols
+	for _, h := range header {
+		ph.Header = append(ph.Header, normalizeHeader(h.value))
+	}
 	ph.tableLine = at
 	for _, l := range rows {
 		ph.rows = append(ph.rows, row{line: l, cells: splitRow(l.text)})

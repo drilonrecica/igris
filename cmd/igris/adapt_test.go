@@ -89,7 +89,7 @@ func TestAdaptCommandAccept(t *testing.T) {
 	if got := run([]string{"adapt"}, &out, &errb); got != exitOK {
 		t.Fatalf("exit = %d, stderr: %s\nstdout: %s", got, errb.String(), out.String())
 	}
-	if shown.PlanPath != "tasks.md" || len(shown.Issues) != 0 || len(shown.Diff) == 0 {
+	if shown.PlanPath != "tasks.md" || len(shown.Issues) != 0 || len(shown.Review.Prose)+len(shown.Review.Sections) == 0 {
 		t.Errorf("review shown %+v", shown)
 	}
 	if opened := be.Opened(); len(opened) != 1 || opened[0].Label != "ADAPT · opus" {

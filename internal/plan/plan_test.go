@@ -261,3 +261,30 @@ func TestFences(t *testing.T) {
 		t.Error("not fences")
 	}
 }
+
+func TestHeaderCellsAndTableLines(t *testing.T) {
+	src := "# P\n\n## A — x\n\n| Status | **ID** | Model | Depends on | Spec |\n|---|---|---|---|---|\n| ready | A-1 | sonnet | — | 3 |\n| todo | A-2 | | A-1 |\n\nafter\n\n## B\n\n| ID | Status | Model |\n|---|---|---|\n"
+	p := Parse("p.md", []byte(src), Options{Columns: map[string]string{"Depends on": "Deps"}})
+	a, b := p.Phase("A"), p.Phase("B")
+	if a == nil || b == nil {
+		t.Fatalf("phases %+v", p.Phases)
+	}
+	if got, want := strings.Join(a.Columns, ","), "Status,ID,Model,Deps,Spec"; got != want {
+		t.Errorf("Columns = %s, want %s", got, want)
+	}
+	if got, want := strings.Join(a.Header, ","), "Status,ID,Model,Depends on,Spec"; got != want {
+		t.Errorf("Header = %s, want %s", got, want)
+	}
+	if got, want := strings.Join(p.Task("A-1").Cells, ","), "ready,A-1,sonnet,—,3"; got != want {
+		t.Errorf("A-1 Cells = %s, want %s", got, want)
+	}
+	if got, want := strings.Join(p.Task("A-2").Cells, ","), "todo,A-2,,A-1,"; got != want {
+		t.Errorf("A-2 Cells = %s, want %s (a missing cell is empty)", got, want)
+	}
+	if first, last := a.TableLines(); first != 5 || last != 8 {
+		t.Errorf("A TableLines = %d, %d, want 5, 8", first, last)
+	}
+	if first, last := b.TableLines(); first != 14 || last != 15 {
+		t.Errorf("B TableLines = %d, %d, want 14, 15 (no rows)", first, last)
+	}
+}

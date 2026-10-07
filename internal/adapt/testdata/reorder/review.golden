@@ -1,0 +1,38 @@
+24 table change(s) · +5 −1 lines outside the tables
+~ phase W1 — Parsing widgets
+  ~ heading: "W1 — Parsing" → "W1 — Parsing widgets"
+  ~ column renamed: "task" → "Task"
+  ~ column renamed: "Depends on" → "Deps"
+  ~ columns reordered: "Status, ID, Model, task, Depends on" → "ID, Task, Deps, Status, Model"
+  ~ W1-02 Status: "todo" → "ready"
+  ~ W1-03 Deps: "W1-01" → "W1-01, W1-02"
+  ~ W1-03 Status: "todo" → "blocked"
+  ~ W1-04 Status: "todo" → "blocked"
+~ phase W2 — Rendering
+  ~ column renamed: "task" → "Task"
+  ~ column renamed: "Depends on" → "Deps"
+  ~ columns reordered: "Status, ID, Model, task, Depends on" → "ID, Task, Deps, Status, Model"
+  ~ task order: "W2-01, W2-02, W2-03" → "W2-02, W2-01, W2-03"
+  ~ W2-02 Status: "todo" → "blocked"
+  ~ W2-01 Status: "todo" → "blocked"
+  ~ W2-03 Status: "todo" → "blocked"
+  ~ L-01 phase: "Later" → "W2"
+  ~ L-01 Status: "todo" → "blocked"
++ phase W3 — Animation
+  + W3-00 Wait for the animation spec from the client
+  ~ L-02 phase: "Later" → "W3"
+  ~ L-02 Deps: "W2-02" → "W2-02, W3-00"
+  ~ L-02 Status: "todo" → "blocked"
+  ~ L-02 Model: "" → "?"
+- phase Later
+prose:
+  # Widget factory
+  
+- Plan for the widget factory. Ship by spring.
++ Plan for the widget factory. Ship by spring 2027.
+  
+  Notes: the schema lives in docs/schema.md.
++ 
++ ## Adapt notes
++ 
++ - L-02 had no model; set to `?`.

@@ -1,6 +1,9 @@
 package adapt
 
-import "strings"
+import (
+	"bytes"
+	"strings"
+)
 
 // Op is what a diff line does.
 type Op int
@@ -9,6 +12,7 @@ const (
 	Equal Op = iota // in both files
 	Del             // only in the original
 	Add             // only in the proposal
+	Mod             // changed in place (a Review change, never a diff line)
 )
 
 // Line is one line of a line diff. Old and New are its 1-based line
@@ -26,8 +30,10 @@ type Line struct {
 const maxCells = 16 << 20
 
 // Lines splits a file into lines without their line endings. A final
-// newline doesn't start another line.
+// newline doesn't start another line, and a UTF-8 byte order mark is not
+// part of the first.
 func Lines(data []byte) []string {
+	data = bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})
 	s := strings.TrimSuffix(string(data), "\n")
 	if s == "" {
 		return nil

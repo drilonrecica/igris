@@ -24,7 +24,9 @@ type ReviewOptions struct {
 	PlanPath string
 	// ProposalPath is where the proposal was written; `y` copies it.
 	ProposalPath string
-	Diff         []adapt.Line
+	// Review is what changed: table by table, or a line diff
+	// (adapt.Compare).
+	Review adapt.Review
 	// Out is where the clipboard sequence goes; nil means os.Stdout.
 	Out io.Writer
 	// Issues are the proposal's `igris check` problems; none means it
@@ -32,7 +34,7 @@ type ReviewOptions struct {
 	Issues []string
 }
 
-// Review shows the diff of the plan and the proposal with its validation
+// Review shows what the proposal changes in the plan with its validation
 // result and returns whether the owner accepted it (SPEC §9). Quitting in
 // any other way rejects it.
 func Review(ctx context.Context, o ReviewOptions) (bool, error) {
@@ -49,13 +51,13 @@ func Review(ctx context.Context, o ReviewOptions) (bool, error) {
 	return ok && r.accepted, nil
 }
 
-// review is the TUI of the adapt review: a scrollable diff over a bar with
-// Reject and Accept. Reject is the safe default and has the focus first.
+// review is the TUI of the adapt review: the scrollable changes over a bar
+// with Reject and Accept. Reject is the safe default and has the focus
+// first.
 type review struct {
-	o              ReviewOptions
-	th             *theme
-	width, height  int
-	added, removed int
+	o             ReviewOptions
+	th            *theme
+	width, height int
 
 	view     page // only its scroll state is used
 	body     []string
@@ -68,9 +70,7 @@ type review struct {
 }
 
 func newReview(o ReviewOptions) *review {
-	r := &review{o: o, th: &theme{}, width: 80, height: 24, focus: actReject}
-	r.added, r.removed = adapt.Counts(o.Diff)
-	return r
+	return &review{o: o, th: &theme{}, width: 80, height: 24, focus: actReject}
 }
 
 func (r *review) Init() tea.Cmd { return nil }
@@ -190,7 +190,7 @@ func (r *review) View() string {
 	}
 
 	out := []string{
-		fit(r.th.paint(lookTitle, "igris adapt · review "+r.o.PlanPath)+r.th.paint(lookDim, fmt.Sprintf(" · +%d −%d lines", r.added, r.removed)), w),
+		fit(r.th.paint(lookTitle, "igris adapt · review "+r.o.PlanPath)+r.th.paint(lookDim, " · "+r.o.Review.Summary()), w),
 		fit(r.status(), w),
 		r.th.paint(lookFrame, strings.Repeat("─", w)),
 	}
@@ -233,9 +233,9 @@ func (r *review) status() string {
 // diffContext is how many unchanged lines are shown around a change.
 const diffContext = 3
 
-// layout lays the problems and the diff out for w cells. Every diff line
-// keeps its -, + or space marker, also when it wraps, so the change never
-// depends on color; long unchanged stretches are folded.
+// layout lays the problems and the changes out for w cells: the task
+// tables change by change, then a line diff of the rest, or only a line
+// diff when the files weren't compared table by table.
 func (r *review) layout(w int) []string {
 	var out []string
 	if len(r.o.Issues) > 0 {
@@ -247,10 +247,87 @@ func (r *review) layout(w int) []string {
 		}
 		out = append(out, "")
 	}
-	if len(r.o.Diff) == 0 {
-		return append(out, r.th.paint(lookDim, "(both files are empty)"))
+	rv := r.o.Review
+	if !rv.Tables {
+		if len(rv.Prose) == 0 {
+			return append(out, r.th.paint(lookDim, "(both files are empty)"))
+		}
+		return append(out, r.lineDiff(rv.Prose, w)...)
 	}
-	d := r.o.Diff
+	if len(rv.Sections) == 0 {
+		out = append(out, r.th.paint(lookDim, fit("The task tables are unchanged.", w)))
+	}
+	for _, s := range rv.Sections {
+		out = append(out, r.marked("", s.Op, "phase "+s.Heading, w)...)
+		out = append(out, r.changes(s.Changes, w)...)
+	}
+	out = append(out, "")
+	if added, removed := adapt.Counts(rv.Prose); added+removed == 0 {
+		return append(out, r.th.paint(lookDim, fit("The text outside the task tables is unchanged.", w)))
+	}
+	out = append(out, r.th.paint(lookDim, fit("Outside the task tables:", w)))
+	return append(out, r.lineDiff(rv.Prose, w)...)
+}
+
+// changeIndent sets a phase's changes off from its heading.
+const changeIndent = "  "
+
+// changes draws the changes of one phase. A changed value takes one row:
+// wide, the values lined up after the widest name; narrow, as
+// `name: "old" → "new"`. When that doesn't fit, the old and the new value
+// get rows of their own, marked - and +.
+func (r *review) changes(cs []adapt.Change, w int) []string {
+	nameW := 0
+	for _, c := range cs {
+		if c.Op == adapt.Mod {
+			nameW = max(nameW, textWidth(clean(c.What)))
+		}
+	}
+	var out []string
+	for _, c := range cs {
+		if c.Op != adapt.Mod {
+			out = append(out, r.marked(changeIndent, c.Op, clean(c.String()), w)...)
+			continue
+		}
+		what := clean(c.What)
+		one := clean(c.String())
+		if w >= wideWidth {
+			one = what + strings.Repeat(" ", nameW-textWidth(what)) + "  " + clean(adapt.Quote(c.Old)+" → "+adapt.Quote(c.New))
+		}
+		if len(changeIndent)+2+textWidth(one) <= w {
+			out = append(out, r.marked(changeIndent, adapt.Mod, one, w)...)
+			continue
+		}
+		out = append(out, r.marked(changeIndent, adapt.Mod, what, w)...)
+		out = append(out, r.marked(changeIndent, adapt.Del, "  "+clean(adapt.Quote(c.Old)), w)...)
+		out = append(out, r.marked(changeIndent, adapt.Add, "  "+clean(adapt.Quote(c.New)), w)...)
+	}
+	return out
+}
+
+// marked draws text after indent and the marker of op in rows of w cells,
+// indent and marker on each, so the change never depends on color.
+func (r *review) marked(indent string, op adapt.Op, text string, w int) []string {
+	mark, lk := "  ", lookPlain
+	switch op {
+	case adapt.Del:
+		mark, lk = "- ", lookAlert
+	case adapt.Add:
+		mark, lk = "+ ", lookAccent
+	case adapt.Mod:
+		mark, lk = "~ ", lookTitle
+	}
+	var out []string
+	for _, part := range chop(text, w-len(indent)-2) {
+		out = append(out, r.th.paint(lk, indent+mark+part))
+	}
+	return out
+}
+
+// lineDiff draws a line diff for w cells. Every line keeps its -, + or
+// space marker, also when it wraps; long unchanged stretches are folded.
+func (r *review) lineDiff(d []adapt.Line, w int) []string {
+	var out []string
 	changed := make([]bool, len(d))
 	for i, l := range d {
 		changed[i] = l.Op != adapt.Equal
@@ -273,24 +350,8 @@ func (r *review) layout(w int) []string {
 			i = j
 			continue
 		}
-		out = append(out, r.diffLine(d[i], w)...)
+		out = append(out, r.marked("", d[i].Op, clean(d[i].Text), w)...)
 		i++
-	}
-	return out
-}
-
-// diffLine draws one diff line in rows of w cells, the marker on each.
-func (r *review) diffLine(l adapt.Line, w int) []string {
-	mark, lk := "  ", lookPlain
-	switch l.Op {
-	case adapt.Del:
-		mark, lk = "- ", lookAlert
-	case adapt.Add:
-		mark, lk = "+ ", lookAccent
-	}
-	var out []string
-	for _, part := range chop(clean(l.Text), w-2) {
-		out = append(out, r.th.paint(lk, mark+part))
 	}
 	return out
 }

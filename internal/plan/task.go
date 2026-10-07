@@ -29,6 +29,7 @@ type Task struct {
 	Deps      []string
 
 	Extra map[string]string // extra columns by header name, e.g. "Spec"
+	Cells []string          // every cell as written, in the order of Phase.Columns
 	Phase *Phase
 	Line  int
 
@@ -71,6 +72,7 @@ func (p *Plan) newTask(ph *Phase, r row) *Task {
 			// Missing trailing cell: anchor at the end of the line.
 			c = cell{start: len(r.line.text), end: len(r.line.text)}
 		}
+		t.Cells = append(t.Cells, c.value)
 		switch col {
 		case ColID:
 			t.ID = c.value

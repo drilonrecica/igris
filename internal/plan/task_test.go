@@ -117,13 +117,17 @@ func TestParseTasks(t *testing.T) {
 	m0 := p.Phases[0]
 	want := []Task{
 		{ID: "M0-01", Title: "Go module", Text: "**Go module** — `a | b`", Status: Done, StatusText: "`done`",
-			Owner: OwnerAgent, OwnerText: "agent", Rank: "sonnet", DepsText: "—", Extra: map[string]string{"Spec": "18"}, Phase: m0, Line: 5},
+			Owner: OwnerAgent, OwnerText: "agent", Rank: "sonnet", DepsText: "—", Extra: map[string]string{"Spec": "18"}, Phase: m0, Line: 5,
+			Cells: []string{"M0-01", "**Go module** — `a | b`", "—", "18", "`done`", "sonnet", "agent", "—"}},
 		{ID: "M0-02", Title: "Plain task", Text: "Plain task", Status: Skipped, StatusText: "Skipped (not needed)", Suffix: "(not needed)",
-			Owner: OwnerAgentUser, OwnerText: "Agent + User", Rank: "opus", Mode: "plan", DepsText: "M0-01", Extra: map[string]string{"Spec": "3.2"}, Phase: m0, Line: 6},
+			Owner: OwnerAgentUser, OwnerText: "Agent + User", Rank: "opus", Mode: "plan", DepsText: "M0-01", Extra: map[string]string{"Spec": "3.2"}, Phase: m0, Line: 6,
+			Cells: []string{"M0-02", "Plain task", "M0-01", "3.2", "Skipped (not needed)", "`opus`", "Agent + User", "Plan"}},
 		{ID: "M0-03", Title: "Owner call", Text: "**Owner call**", Status: Blocked, StatusText: "blocked",
-			Owner: OwnerUser, OwnerText: "user", DepsText: "M0-01, M0-02", Extra: map[string]string{"Spec": ""}, Phase: m0, Line: 7},
+			Owner: OwnerUser, OwnerText: "user", DepsText: "M0-01, M0-02", Extra: map[string]string{"Spec": ""}, Phase: m0, Line: 7,
+			Cells: []string{"M0-03", "**Owner call**", "M0-01, M0-02", "", "blocked", "—", "user", ""}},
 		{ID: "M0-04", Title: "short row", Text: "short row", Status: Ready, StatusText: "ready",
-			Owner: OwnerAgent, DepsText: "none", Extra: map[string]string{"Spec": "1"}, Phase: m0, Line: 8},
+			Owner: OwnerAgent, DepsText: "none", Extra: map[string]string{"Spec": "1"}, Phase: m0, Line: 8,
+			Cells: []string{"M0-04", "short row", "none", "1", "ready", "", "", ""}},
 	}
 	for i, w := range want {
 		got := *p.Tasks[i]
