@@ -33,7 +33,7 @@ type Env struct {
 	// checks, verify). nil means real processes.
 	Runner runner.Runner
 	// Backend builds the backend named in the config. nil means
-	// NewBackend with this Env.
+	// NewBackend with this Env and the project root.
 	Backend func(*config.Config) (backend.Backend, error)
 	// Versions checks the Claude Code and herdr versions (SPEC §11.4).
 	// nil means checks.ToolVersions.
@@ -94,17 +94,19 @@ func (e Env) format() func(engine.Event) []string {
 	}
 }
 
-func (e Env) backend(cfg *config.Config) (backend.Backend, error) {
+func (e Env) backend(cfg *config.Config, root string) (backend.Backend, error) {
 	if e.Backend != nil {
 		return e.Backend(cfg)
 	}
-	return NewBackend(cfg, e)
+	return NewBackend(cfg, root, e)
 }
 
-// NewBackend returns the backend named in the config.
-func NewBackend(cfg *config.Config, env Env) (backend.Backend, error) {
+// NewBackend returns the backend named in the config for the project at
+// root, reading its sessions' hook state from root's .igris/ (SPEC §6.3).
+func NewBackend(cfg *config.Config, root string, env Env) (backend.Backend, error) {
+	hooks := state.HookStates(root)
 	if cfg.Backend == "herdr" {
-		return herdr.NewFromEnv(env.runner(), env.getenv()), nil
+		return herdr.NewFromEnv(env.runner(), env.getenv()).WithHookStates(hooks), nil
 	}
 	return nil, fmt.Errorf("unknown backend %q in igris.toml; set backend = \"herdr\": igris v1 runs on herdr (tmux support is planned)", cfg.Backend)
 }
@@ -191,7 +193,7 @@ func InRoot(root, path string) string {
 func (p *Project) ConfigPath() string { return filepath.Join(p.Root, state.ConfigFile) }
 
 // Backend builds the project's backend.
-func (p *Project) Backend() (backend.Backend, error) { return p.env.backend(p.Cfg) }
+func (p *Project) Backend() (backend.Backend, error) { return p.env.backend(p.Cfg, p.Root) }
 
 // Name is the root's base name, shown in headers and notifications.
 func (p *Project) Name() string { return filepath.Base(p.Root) }

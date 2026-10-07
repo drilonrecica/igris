@@ -3,10 +3,13 @@ package engine
 import (
 	"crypto/rand"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 
 	"github.com/drilonrecica/igris/internal/config"
+	"github.com/drilonrecica/igris/internal/hook"
+	"github.com/drilonrecica/igris/internal/state"
 )
 
 // ClaudeParams describes one Claude Code launch.
@@ -15,8 +18,11 @@ type ClaudeParams struct {
 	SessionID string // Claude session UUID
 	Mode      string // resolved run mode (see ResolveMode)
 	RulesFile string // igris rules file for --append-system-prompt-file
-	ExtraArgs []string
-	Resume    bool // continue session SessionID instead of starting it
+	// SettingsFile is igris's hooks-only settings file for --settings
+	// (SPEC §6.3); "" passes none.
+	SettingsFile string
+	ExtraArgs    []string
+	Resume       bool // continue session SessionID instead of starting it
 }
 
 // ClaudeArgs builds the argument list for `claude` (the command itself is
@@ -57,7 +63,28 @@ func ClaudeArgs(p ClaudeParams) ([]string, error) {
 	args := []string{"--model", p.Model, session, p.SessionID}
 	args = append(args, flags...)
 	args = append(args, "--append-system-prompt-file", p.RulesFile)
+	if p.SettingsFile != "" {
+		args = append(args, "--settings", p.SettingsFile)
+	}
 	return append(args, p.ExtraArgs...), nil
+}
+
+// WriteHooks writes the hooks-only Claude Code settings file for task id
+// (SPEC §6.3) and returns its path. exe is the igris binary the hooks run;
+// "" means the running one. Without a usable binary path the session runs
+// without hooks ("" and no error): hook state is an aid, never required.
+func WriteHooks(dir *state.Dir, id, exe string) (string, error) {
+	if exe == "" {
+		var err error
+		if exe, err = os.Executable(); err != nil {
+			return "", nil
+		}
+	}
+	data, err := hook.Settings(exe, dir.Root())
+	if err != nil {
+		return "", err
+	}
+	return dir.WriteHooksFile(id, data)
 }
 
 var sessionIDPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)

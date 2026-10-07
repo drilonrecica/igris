@@ -606,3 +606,58 @@ func TestHeldPromptWaitsToSettle(t *testing.T) {
 		t.Errorf("prompts %q, slept %v; want one prompt after two settle waits", prompts(f), slept)
 	}
 }
+
+// Without herdr's Claude integration a pane reads `unknown`; the hook state
+// fills in then, and only then (SPEC §6.3, V03-P1).
+func TestStateHookFillIn(t *testing.T) {
+	const uuid = "2b7f3c1e-8d4a-4f6b-9c2e-5a1d0e9f8b7c"
+	unknown := runner.Result{Stdout: []byte(`{"result":{"pane":{"agent":"claude","agent_status":"unknown","pane_id":"w2B:p3"}}}`)}
+	hooks := func(id string) (backend.AgentState, bool) {
+		if id != uuid {
+			t.Errorf("hook state asked for %q", id)
+		}
+		return backend.Blocked, true
+	}
+	tests := []struct {
+		name  string
+		res   runner.Result
+		hooks backend.HookStates
+		uuid  string
+		want  backend.AgentState
+	}{
+		{"unknown uses hooks", unknown, hooks, uuid, backend.Blocked},
+		{"known status wins", ok(t, "pane_get_working.json"), hooks, uuid, backend.Working},
+		{"no hook state", unknown, func(string) (backend.AgentState, bool) { return "", false }, uuid, backend.Unknown},
+		{"no reader", unknown, nil, uuid, backend.Unknown},
+		{"no session uuid", unknown, hooks, "", backend.Unknown},
+		{"pane gone beats hooks", fail(t, "error_pane_not_found.json", 1), hooks, uuid, backend.Exited},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := started(t)
+			sp := spec
+			sp.ClaudeSession = tt.uuid
+			s, err := New(f, "w2B").WithHookStates(tt.hooks).OpenSession(context.Background(), sp)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := s.Ref().ClaudeSession; got != tt.uuid {
+				t.Errorf("ref ClaudeSession %q, want %q", got, tt.uuid)
+			}
+			f.On(cmd("pane", "get", "w2B:p3"), tt.res, nil)
+			if got, err := s.State(context.Background()); err != nil || got != tt.want {
+				t.Errorf("State = %s, %v; want %s", got, err, tt.want)
+			}
+		})
+	}
+}
+
+// A ref read back from state.json with a malformed Claude session is
+// refused before anything runs (SPEC §13).
+func TestAttachChecksClaudeSession(t *testing.T) {
+	f := &runner.Fake{}
+	ref := backend.SessionRef{Backend: Name, TabID: "w2B:t3", PaneID: "w2B:p3", Agent: "igris-t-01", ClaudeSession: "--model"}
+	if _, err := New(f, "w2B").Attach(context.Background(), ref); err == nil || len(f.Calls()) != 0 {
+		t.Errorf("Attach = %v after %d calls, want refusal", err, len(f.Calls()))
+	}
+}

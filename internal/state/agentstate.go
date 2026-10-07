@@ -8,7 +8,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
 	"syscall"
 	"time"
 
@@ -19,12 +18,10 @@ import (
 // anything larger was not written by `igris hook` (SPEC §6.3).
 const maxAgentStateSize = 4 << 10
 
-// sessionUUIDPattern is the shape of a Claude session UUID as igris
-// generates it (engine.NewSessionID). Agent-state files are keyed by it.
-var sessionUUIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
-
-// ValidSessionUUID reports whether s has the shape of a Claude session UUID.
-func ValidSessionUUID(s string) bool { return sessionUUIDPattern.MatchString(s) }
+// ValidSessionUUID reports whether s has the shape of a Claude session UUID
+// as igris generates it (engine.NewSessionID). Agent-state files are keyed
+// by it.
+func ValidSessionUUID(s string) bool { return backend.ValidClaudeSession(s) }
 
 // AgentState is one record written by `igris hook`: the agent state a
 // Claude Code hook event maps to (SPEC §6.3).
@@ -131,6 +128,19 @@ func ParseAgentState(data []byte) (AgentState, error) {
 		s.Event = s.Event[:64]
 	}
 	return s, nil
+}
+
+// HookStates returns a backend.HookStates reading root's agent-state files.
+// A file that can't be read counts as no state: it is untrusted input and
+// says nothing reliable (SPEC §6.3).
+func HookStates(root string) backend.HookStates {
+	return func(uuid string) (backend.AgentState, bool) {
+		s, ok, err := ReadAgentState(root, uuid)
+		if err != nil || !ok {
+			return "", false
+		}
+		return s.State, true
+	}
 }
 
 // mkdirPrivate creates dir (and missing parents) with 0700 and makes sure

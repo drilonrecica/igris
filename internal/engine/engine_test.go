@@ -79,6 +79,16 @@ func TestRunPhase(t *testing.T) {
 			t.Errorf("%s: session ID %q is empty or reused", s.TaskID, id)
 		}
 		seen[id] = true
+		// The hooks-only settings file and the UUID that keys the hook
+		// state (SPEC §6.3).
+		if s.ClaudeSession != id {
+			t.Errorf("%s: spec ClaudeSession %q, want %q", s.TaskID, s.ClaudeSession, id)
+		}
+		if got, want := arg(s, "--settings"), filepath.Join(h.root, state.DirName, "hooks", s.TaskID+".settings.json"); got != want {
+			t.Errorf("%s: settings file %q, want %q", s.TaskID, got, want)
+		} else if hooks := h.read(filepath.Join(state.DirName, "hooks", s.TaskID+".settings.json")); !strings.Contains(hooks, "hook --root") || !strings.Contains(hooks, `"Stop"`) {
+			t.Errorf("%s: settings file holds no igris hooks: %s", s.TaskID, hooks)
+		}
 		// The task prompt never travels as an argument (SPEC §6, §11.2).
 		for _, a := range s.Args {
 			if strings.ContainsAny(a, "\n\t") || strings.Contains(a, "the first thing") {

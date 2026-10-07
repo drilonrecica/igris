@@ -36,7 +36,7 @@ func (p *Project) Launch(req report.RunRequest) (*Launch, error) {
 	if err != nil {
 		return nil, err
 	}
-	be, err := p.env.backend(p.Cfg)
+	be, err := p.env.backend(p.Cfg, p.Root)
 	if err != nil {
 		return nil, err
 	}

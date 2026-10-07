@@ -26,18 +26,15 @@ import (
 // Seams for tests: where owner commands come from, which backend and
 // command runner a real run uses.
 var (
-	ariseStdin   io.Reader     = os.Stdin
-	ariseBackend               = newBackend
+	ariseStdin io.Reader = os.Stdin
+	// ariseBackend, when set, replaces the backend named in the config;
+	// nil builds the real one for the project (project.NewBackend).
+	ariseBackend func(*config.Config) (backend.Backend, error)
 	ariseRunner  runner.Runner // nil means real processes
 	ariseGetenv  = os.Getenv
 	// compatWarnings checks the Claude Code and herdr versions (SPEC §11.4).
 	compatWarnings = checks.ToolVersions
 )
-
-// newBackend returns the backend named in the config.
-func newBackend(cfg *config.Config) (backend.Backend, error) {
-	return project.NewBackend(cfg, project.Env{Getenv: ariseGetenv, Runner: ariseRunner})
-}
 
 // projectEnv hands this package's seams to the project layer, so the CLI
 // and the home screen talk to the same (in tests: fake) world.

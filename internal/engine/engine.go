@@ -67,6 +67,10 @@ type Options struct {
 	// run (SPEC §7.3). Set it only from that explicit, per-run confirmation.
 	ConfirmedYolo bool
 
+	// IgrisPath is the igris binary the session hooks run (SPEC §6.3); ""
+	// means the running one.
+	IgrisPath string
+
 	// Events receives every event, on the goroutine that called Run. It may
 	// call Send.
 	Events func(Event)

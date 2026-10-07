@@ -58,6 +58,11 @@ func TestClaudeArgs(t *testing.T) {
 			[]string{"--model", "opus", "--session-id", id, "--dangerously-skip-permissions", "--append-system-prompt-file", "/p/M0-01.rules.md"}},
 		{"resume keeps model and mode", func(p *ClaudeParams) { p.Resume = true; p.Mode = ModeAccept },
 			[]string{"--model", "opus", "--resume", id, "--permission-mode", "acceptEdits", "--append-system-prompt-file", "/p/M0-01.rules.md"}},
+		{"hooks settings before extra args", func(p *ClaudeParams) {
+			p.SettingsFile = "/p/hooks/M0-01.settings.json"
+			p.ExtraArgs = []string{"--verbose"}
+		},
+			[]string{"--model", "opus", "--session-id", id, "--append-system-prompt-file", "/p/M0-01.rules.md", "--settings", "/p/hooks/M0-01.settings.json", "--verbose"}},
 		{"extra args last, order kept", func(p *ClaudeParams) { p.ExtraArgs = []string{"--verbose", "--add-dir", "../x"} },
 			[]string{"--model", "opus", "--session-id", id, "--append-system-prompt-file", "/p/M0-01.rules.md", "--verbose", "--add-dir", "../x"}},
 	}

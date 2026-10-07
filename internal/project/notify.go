@@ -17,7 +17,7 @@ func (p *Project) NotifyRouter(ctx context.Context) (r *notify.Router, skipped, 
 	}
 	// The toast is part of the check when herdr is there; outside herdr the
 	// remote channels are still worth testing.
-	be, err := p.env.backend(p.Cfg)
+	be, err := p.env.backend(p.Cfg, p.Root)
 	if err == nil {
 		err = be.Available(ctx)
 	}

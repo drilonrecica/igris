@@ -62,7 +62,7 @@ func execAdapt(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return fail("%v", err)
 	}
-	be, err := ariseBackend(cfg)
+	be, err := proj.Backend()
 	if err != nil {
 		return fail("%v", err)
 	}

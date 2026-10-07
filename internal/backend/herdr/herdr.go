@@ -64,6 +64,14 @@ type Backend struct {
 	c         *Client
 	workspace string
 	sleep     func(ctx context.Context, d time.Duration) error // waits between start attempts; tests replace it
+	hooks     backend.HookStates                               // nil: no hook state
+}
+
+// WithHookStates makes sessions fall back to the hook state Claude Code
+// recorded when herdr reports `unknown` (no integration, SPEC §6.3).
+func (b *Backend) WithHookStates(h backend.HookStates) *Backend {
+	b.hooks = h
+	return b
 }
 
 // WorkspaceEnv is the variable herdr sets in every pane it opens.
@@ -115,11 +123,13 @@ func (b *Backend) OpenSession(ctx context.Context, spec backend.SessionSpec) (ba
 		c:     b.c,
 		id:    spec.TaskID,
 		sleep: b.sleep,
+		hooks: b.hooks,
 		ref: backend.SessionRef{
-			Backend: Name,
-			TabID:   tab.TabID,
-			PaneID:  pane.PaneID,
-			Agent:   AgentName(spec.TaskID),
+			Backend:       Name,
+			TabID:         tab.TabID,
+			PaneID:        pane.PaneID,
+			Agent:         AgentName(spec.TaskID),
+			ClaudeSession: spec.ClaudeSession,
 		},
 	}
 
@@ -164,10 +174,11 @@ func (b *Backend) Attach(ctx context.Context, ref backend.SessionRef) (backend.S
 	if ref.Backend != Name {
 		return nil, fmt.Errorf("attach: session ref is for backend %q, not %s", ref.Backend, Name)
 	}
-	if !refIDPattern.MatchString(ref.TabID) || !refIDPattern.MatchString(ref.PaneID) || !refAgentPattern.MatchString(ref.Agent) {
+	if !refIDPattern.MatchString(ref.TabID) || !refIDPattern.MatchString(ref.PaneID) || !refAgentPattern.MatchString(ref.Agent) ||
+		(ref.ClaudeSession != "" && !backend.ValidClaudeSession(ref.ClaudeSession)) {
 		return nil, fmt.Errorf("attach: session ref (tab %q, pane %q, agent %q) is incomplete or malformed; state.json looks damaged, delete it to start a new run", ref.TabID, ref.PaneID, ref.Agent)
 	}
-	s := &Session{c: b.c, id: ref.Agent, ref: ref, sleep: b.sleep}
+	s := &Session{c: b.c, id: ref.Agent, ref: ref, sleep: b.sleep, hooks: b.hooks}
 	p, err := b.c.PaneGet(ctx, ref.PaneID)
 	switch {
 	case gone(err):

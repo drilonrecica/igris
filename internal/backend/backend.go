@@ -6,6 +6,7 @@ package backend
 import (
 	"context"
 	"errors"
+	"regexp"
 )
 
 // ErrSessionGone is wrapped by Session and Backend calls when the session's
@@ -85,6 +86,9 @@ type SessionSpec struct {
 	Label  string   // pane label, "<ID> · <rank>"
 	Args   []string // Claude Code argv without the program name
 	Env    []string // environment additions, KEY=VALUE
+	// ClaudeSession is the session's Claude UUID (--session-id): the key
+	// of its hook state (SPEC §6.3). Backends copy it into the ref.
+	ClaudeSession string
 }
 
 // SessionRef is the serializable identity of a session. Backends fill the
@@ -94,7 +98,23 @@ type SessionRef struct {
 	TabID   string `json:"tab_id,omitempty"`
 	PaneID  string `json:"pane_id,omitempty"`
 	Agent   string `json:"agent,omitempty"`
+	// ClaudeSession is the Claude session UUID, for the hook state. Empty
+	// in refs written before v0.3: such sessions have no hook state.
+	ClaudeSession string `json:"claude_session,omitempty"`
 }
+
+// HookStates returns the agent state Claude Code's hooks last recorded for
+// a Claude session UUID, and false if there is none (SPEC §6.3). Backends
+// that can't read the agent state themselves (tmux), or only sometimes
+// (herdr without its integration), use it.
+type HookStates func(claudeSession string) (AgentState, bool)
+
+var sessionUUIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
+// ValidClaudeSession reports whether s has the shape of a Claude session
+// UUID as igris generates it. Refs read back from state.json are checked
+// with it before the UUID is used (SPEC §13).
+func ValidClaudeSession(s string) bool { return sessionUUIDPattern.MatchString(s) }
 
 // Sound selects the notification sound.
 type Sound string

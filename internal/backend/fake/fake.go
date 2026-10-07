@@ -185,7 +185,7 @@ func (b *Backend) OpenSession(ctx context.Context, spec backend.SessionSpec) (ba
 	s := &Session{
 		b:       b,
 		taskID:  spec.TaskID,
-		ref:     backend.SessionRef{Backend: Name, PaneID: fmt.Sprintf("fake-%d", b.next), Agent: spec.TaskID},
+		ref:     backend.SessionRef{Backend: Name, PaneID: fmt.Sprintf("fake-%d", b.next), Agent: spec.TaskID, ClaudeSession: spec.ClaudeSession},
 		states:  states,
 		holding: b.startup[spec.TaskID],
 	}

@@ -200,7 +200,11 @@ func (r *runner) open(ctx context.Context, issues []plan.Issue, proposal string)
 	if err != nil {
 		return nil, err
 	}
-	args, err := engine.ClaudeArgs(engine.ClaudeParams{Model: model, SessionID: sid, Mode: engine.ModeDefault, RulesFile: rules})
+	hooks, err := engine.WriteHooks(d, ID, "")
+	if err != nil {
+		return nil, err
+	}
+	args, err := engine.ClaudeArgs(engine.ClaudeParams{Model: model, SessionID: sid, Mode: engine.ModeDefault, RulesFile: rules, SettingsFile: hooks})
 	if err != nil {
 		return nil, err
 	}
@@ -212,6 +216,8 @@ func (r *runner) open(ctx context.Context, issues []plan.Issue, proposal string)
 		Dir:    d.Root(),
 		Label:  ID + " · " + r.o.Model,
 		Args:   args,
+		// Keys the session's hook state (SPEC §6.3).
+		ClaudeSession: sid,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("open the adapt session: %w", err)

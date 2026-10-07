@@ -160,13 +160,18 @@ func (e *Engine) prepareSession(l *launch, how startKind) (sessionStart, error) 
 	if err != nil {
 		return st, err
 	}
+	hooks, err := WriteHooks(e.dir, t.ID, e.opts.IgrisPath)
+	if err != nil {
+		return st, err
+	}
 	st.args, err = ClaudeArgs(ClaudeParams{
-		Model:     l.model,
-		SessionID: st.sessionID,
-		Mode:      st.mode,
-		RulesFile: rules,
-		ExtraArgs: e.cfg.Claude.ExtraArgs,
-		Resume:    how == startContinue,
+		Model:        l.model,
+		SessionID:    st.sessionID,
+		Mode:         st.mode,
+		RulesFile:    rules,
+		SettingsFile: hooks,
+		ExtraArgs:    e.cfg.Claude.ExtraArgs,
+		Resume:       how == startContinue,
 	})
 	return st, err
 }
@@ -186,6 +191,8 @@ func (e *Engine) openSession(ctx context.Context, l *launch, st sessionStart) er
 		Dir:    e.dir.Root(),
 		Label:  t.ID + " · " + t.Rank,
 		Args:   st.args,
+		// Keys the session's hook state (SPEC §6.3).
+		ClaudeSession: st.sessionID,
 	})
 	if err != nil {
 		return fmt.Errorf("start the session for %s: %w; check that `claude` starts in a herdr pane (installed, on PATH, logged in), then run `igris arise` again", t.ID, err)

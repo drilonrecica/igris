@@ -35,6 +35,7 @@ type Session struct {
 	id    string // task ID, for error messages
 	ref   backend.SessionRef
 	sleep func(ctx context.Context, d time.Duration) error // the backend's; tests replace it
+	hooks backend.HookStates                               // the backend's; nil: no hook state
 
 	mu sync.Mutex
 	// startupBlocked is set while Claude Code may still sit at a startup
@@ -165,6 +166,9 @@ func (s *Session) State(ctx context.Context) (backend.AgentState, error) {
 		return backend.Exited, nil
 	}
 	st := agentState(p.Status)
+	if st == backend.Unknown {
+		st = s.hookState()
+	}
 
 	if s.hasPending && (st == backend.Idle || st == backend.Done) {
 		switch sent, err := s.sendHeld(ctx, s.pending); {
@@ -181,6 +185,19 @@ func (s *Session) State(ctx context.Context) (backend.AgentState, error) {
 		return backend.Working, nil
 	}
 	return st, nil
+}
+
+// hookState is the agent state Claude Code's hooks recorded for this
+// session, used when herdr can't tell (no integration, SPEC §6.3); Unknown
+// when there is none.
+func (s *Session) hookState() backend.AgentState {
+	if s.hooks == nil || s.ref.ClaudeSession == "" {
+		return backend.Unknown
+	}
+	if st, ok := s.hooks(s.ref.ClaudeSession); ok {
+		return st
+	}
+	return backend.Unknown
 }
 
 // agentState maps herdr's agent_status to a backend state.
