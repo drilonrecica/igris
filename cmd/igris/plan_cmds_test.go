@@ -270,6 +270,16 @@ func TestCheckWarnsAboutVersions(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Inside a herdr pane, so backend = "auto" checks herdr's version
+	// whatever the test machine's environment is (SPEC §11.3).
+	savedGetenv := ariseGetenv
+	t.Cleanup(func() { ariseGetenv = savedGetenv })
+	ariseGetenv = func(k string) string {
+		if k == "HERDR_WORKSPACE_ID" {
+			return "w1"
+		}
+		return ""
+	}
 	withVersions(t, "2.1.292 (Claude Code)\n", "herdr 0.9.1\n")
 	if code, out, _ := runCmd("check"); code != exitOK || strings.Contains(out, "warning:") {
 		t.Errorf("verified versions: code %d, out:\n%s", code, out)
