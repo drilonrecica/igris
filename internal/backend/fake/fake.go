@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/drilonrecica/igris/internal/backend"
+	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
 // Name is the backend name reported by Name and stored in session refs.
@@ -276,10 +277,11 @@ func (s *Session) Prompt(ctx context.Context, text string) error {
 	return s.deliver(ctx, text)
 }
 
-// deliver records text; the first prompt triggers the auto-signal function.
-// It is called with the backend's lock held and releases it.
+// deliver records text, cleaned as the real backends clean what they type
+// into a pane; the first prompt triggers the auto-signal function. It is
+// called with the backend's lock held and releases it.
 func (s *Session) deliver(ctx context.Context, text string) error {
-	s.b.prompts[s.taskID] = append(s.b.prompts[s.taskID], text)
+	s.b.prompts[s.taskID] = append(s.b.prompts[s.taskID], textsafe.Clean(text))
 	first := !s.prompted
 	s.prompted = true
 	auto := s.b.autoSignal
