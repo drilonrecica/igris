@@ -485,6 +485,19 @@ func (m *model) taskMode(t *plan.Task) string {
 	return m.mode
 }
 
+// taskModeTarget is the selected task when Task mode applies to it: nil once
+// the run is over, and for user tasks, which have no session.
+func (m *model) taskModeTarget() *plan.Task {
+	i := m.selected()
+	if i < 0 || m.ended {
+		return nil
+	}
+	if t := m.phaseTasks()[i]; t.Owner.IsAgent() {
+		return t
+	}
+	return nil
+}
+
 // activate runs an action, whether it came from a key, a click or a
 // dialog.
 func (m *model) activate(a action) tea.Cmd {
@@ -517,8 +530,7 @@ func (m *model) activate(a action) tea.Cmd {
 		}
 		return nil
 	case actTaskMode:
-		if i := m.selected(); i >= 0 && !m.ended {
-			t := m.phaseTasks()[i]
+		if t := m.taskModeTarget(); t != nil {
 			m.dialog = modeDialog(t.ID, m.taskMode(t))
 		}
 		return nil

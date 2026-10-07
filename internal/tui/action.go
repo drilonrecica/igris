@@ -111,7 +111,7 @@ type helpEntry struct{ key, name, what string }
 var helpActions = []helpEntry{
 	{"o", "Open session", "bring the current session's pane to the front"},
 	{"m", "Mode", "run mode for the sessions launched from now on; yolo needs the typed phrase"},
-	{"M", "Task mode", "mode for the selected task's next session, over its Mode column"},
+	{"M", "Task mode", "mode for the selected agent task's next session, over its Mode column (not for user tasks)"},
 	{"p", "Pause / Resume", "pause after the current task; igris waits until you resume"},
 	{"d", "Done", "mark the current task done (your decision: verify is skipped)"},
 	{"s", "Skip", "skip the current task; asks for a reason and closes its session"},

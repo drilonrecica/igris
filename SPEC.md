@@ -526,7 +526,7 @@ igris version
   - `done [note]` marks the current task done (an agent task is not verified, §6.4), `skip <reason>` skips it;
   - `retry [continue|fresh]` replaces the current session: continue its conversation or start fresh (`Resumed=true`); bare `retry` is `fresh`. This is also the answer when a session is lost;
   - `pause` toggles pause-after-task like `p` in the TUI (§15.3), `stop` stops igris and leaves the session open;
-  - `mode <m>` sets the run mode for the next sessions, `mode <task> <m>` overrides one task's mode for its next session (§7.2); `yolo` then asks to type `skip permissions` (§7.3);
+  - `mode <m>` sets the run mode for the next sessions, `mode <task> <m>` overrides one task's mode for its next session (§7.2; a user task has no session, so igris answers "<task> is a user task; it has no session"); `yolo` then asks to type `skip permissions` (§7.3);
   - `help` lists them. Ctrl-C is `stop`.
 - `init --example` also writes the canonical example plan (the one in `examples/tasks.md`) as the configured plan path when no plan exists; it never overwrites (`kept existing tasks.md`). Without `--example`, `init` behaves as before.
 - `doctor` is **read-only, now and later**: it never writes, creates or fixes anything (no `--fix`), and for every problem it prints the exact command that would fix it. It works outside a project (it reports "no igris.toml" and checks the machine). Checks, in this order:
@@ -587,7 +587,7 @@ Every action is reachable three ways: **clicking** its button (or tapping it, e.
 |---|---|---|
 | Open session | `o` | Focus the current session's pane (herdr) |
 | Mode | `m` | Change run mode for upcoming sessions (choice list; `yolo` needs the typed confirmation, §15.5) |
-| Task mode | `M` | Override mode for the selected task (same choice list) |
+| Task mode | `M` | Override mode for the selected agent task (same choice list); hidden for user tasks |
 | Pause / Resume | `p` | Pause after the current task (toggle): the task finishes normally, then igris launches nothing and waits — the run stays alive — until pause is toggled off. The button label shows the current state |
 | Done | `d` | Mark the current task done (a user task, or an agent task as the owner's decision, §6.4) |
 | Skip | `s` | Skip the current task: asks for a reason; for agent tasks also closes the session after confirmation |

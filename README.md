@@ -196,7 +196,7 @@ After a task passes, igris commits everything in the tree (`commit = "ask"`, the
 
 ## Modes
 
-Choose the permission mode in the TUI, per run or per task: press `m` (or click **Mode**) for the run, or select a task and press `M` (**Task mode**) to override it for that task. A change applies to the next session; a running one keeps its mode. A task's mode is, in order: your override, its `Mode` column, the run mode, `default_mode` in `igris.toml`. `claude.extra_args` can't carry model, mode, session or settings flags (`--model`, `--permission-mode`, `--settings`, `-c`/`-r`, …); igris sets those itself and rejects a config that has them. `claude.command` is deprecated and ignored (herdr always starts `claude` from your `PATH`); `igris check` warns if it's set to anything else.
+Choose the permission mode in the TUI, per run or per task: press `m` (or click **Mode**) for the run, or select a task and press `M` (**Task mode**) to override it for that task (user tasks have no session, so they have no mode to set). A change applies to the next session; a running one keeps its mode. A task's mode is, in order: your override, its `Mode` column, the run mode, `default_mode` in `igris.toml`. `claude.extra_args` can't carry model, mode, session or settings flags (`--model`, `--permission-mode`, `--settings`, `-c`/`-r`, …); igris sets those itself and rejects a config that has them. `claude.command` is deprecated and ignored (herdr always starts `claude` from your `PATH`); `igris check` warns if it's set to anything else.
 
 | Mode | What it does |
 |---|---|

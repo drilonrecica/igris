@@ -33,6 +33,8 @@ func TestBarShowsOnlyWhatApplies(t *testing.T) {
 		}, []action{actAnswer, actMode, actPause, actDone, actRetry, actSkip, actStopAsk, actHelp, actQuit}},
 		{"plan loaded", func(hs *harness) { hs.withPlan(demoPlan); hs.events(started("M0-03")) },
 			[]action{actMode, actTaskMode, actPause, actDone, actRetry, actSkip, actStopAsk, actHelp, actQuit}},
+		{"user task, plan loaded", func(hs *harness) { hs.withPlan(demoPlan); hs.events(userStarted("M0-05")) },
+			[]action{actMode, actPause, actDone, actSkip, actStopAsk, actHelp, actQuit}},
 		{"run over", func(hs *harness) {
 			hs.events(started("M0-03"), engine.Event{Kind: engine.RunStopped, Detail: "completed"})
 		}, []action{actHelp, actQuit}},
@@ -401,5 +403,24 @@ func TestQuestionOpensOverThePage(t *testing.T) {
 	hs.key("enter")
 	if hs.m.page == nil || !strings.Contains(hs.m.View(), "Help") {
 		t.Error("help gone after answering")
+	}
+}
+
+// A user task has no session, so M does nothing on it.
+func TestTaskModeIgnoresUserTasks(t *testing.T) {
+	hs := newHarness(t, 120, 30)
+	hs.withPlan(demoPlan)
+	hs.events(userStarted("M0-05"))
+	hs.key("M")
+	if hs.m.dialog != nil {
+		t.Errorf("M opened %+v on a user task", hs.m.dialog)
+	}
+	for _, b := range hs.m.buttons() {
+		if b.act == actTaskMode {
+			t.Errorf("the bar offers Task mode on a user task")
+		}
+	}
+	if got := hs.s.take(); len(got) != 0 {
+		t.Errorf("sent %+v", got)
 	}
 }

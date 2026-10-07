@@ -354,6 +354,17 @@ func (e *Engine) loadPlan() (*plan.Plan, error) {
 	return p, nil
 }
 
+// IsUserTask reports whether id is a task in the plan that igris launches
+// no session for (it is false when the plan can't be read or has no such task).
+func (e *Engine) IsUserTask(id string) bool {
+	p, err := plan.Load(e.planPath, e.planOpts)
+	if err != nil {
+		return false
+	}
+	t := p.Task(id)
+	return t != nil && !t.Owner.IsAgent()
+}
+
 // modeFor resolves the run mode of t (SPEC §7.2) and refuses
 // skip-permissions mode the owner didn't confirm.
 func (e *Engine) modeFor(t *plan.Task) (string, error) {

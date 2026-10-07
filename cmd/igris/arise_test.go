@@ -697,3 +697,24 @@ func TestPlanOnlyProject(t *testing.T) {
 		t.Errorf("exit %d, stderr %q", code, errb.String())
 	}
 }
+
+// A user task has no session, so a mode for it is refused without a command
+// reaching the engine (no "next session" line is logged).
+func TestAriseNoTUITaskModeOnUserTask(t *testing.T) {
+	code, got, _ := noTUIRun{
+		args: []string{"A", "--no-tui"},
+		replies: [][2]string{
+			{"A-2 YOUR TURN", "mode A-2 plan"},
+			{"A-2 is a user task; it has no session", "done"},
+		},
+	}.run(t)
+	if code != exitOK {
+		t.Fatalf("exit %d; output:\n%s", code, got)
+	}
+	if !strings.Contains(got, "A-2 is a user task; it has no session") {
+		t.Errorf("output lacks the refusal:\n%s", got)
+	}
+	if strings.Contains(got, "next session") {
+		t.Errorf("a task mode was set for a user task:\n%s", got)
+	}
+}

@@ -396,6 +396,9 @@ func ownerCommands(ctx context.Context, lines <-chan string, eng *engine.Engine,
 			return
 		}
 		c, act, err := parseCommand(line)
+		if err == nil && c.Kind == engine.CmdTaskMode && eng.IsUserTask(c.Task) {
+			err = fmt.Errorf("%s is a user task; it has no session", c.Task)
+		}
 		switch {
 		case err != nil:
 			fmt.Fprintf(out, "%v\n", err)

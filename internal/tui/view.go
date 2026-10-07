@@ -83,7 +83,7 @@ func (m *model) buttons() []option {
 	if !m.ended {
 		out = append(out, option{"Mode", actMode})
 	}
-	if !m.ended && len(m.phaseTasks()) > 0 {
+	if m.taskModeTarget() != nil {
 		out = append(out, option{"Task mode", actTaskMode})
 	}
 	if !m.ended {
