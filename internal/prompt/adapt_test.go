@@ -80,10 +80,11 @@ func TestAliasesSorted(t *testing.T) {
 
 func TestAdaptRules(t *testing.T) {
 	r := AdaptRules()
+	checkGolden(t, "adapt-rules", r)
 	if strings.Contains(r, "{{") {
 		t.Error("adapt rules must not contain template variables")
 	}
-	for _, want := range []string{"igris done ADAPT", "Never edit the original plan", "Model `?`", "## Adapt notes"} {
+	for _, want := range []string{"igris done ADAPT", "Never edit the original plan", "Model `?`", "## Adapt notes", "External blockers", "`user` task"} {
 		if !strings.Contains(r, want) {
 			t.Errorf("adapt rules missing %q", want)
 		}

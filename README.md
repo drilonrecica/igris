@@ -172,6 +172,7 @@ A plan is a markdown file (default `tasks.md`) with one task table per `##` phas
 - **Deps:** comma-separated IDs or ranges (`M0-01…M0-04`), across phases too. If your column has another name (`Depends`, `Depends on`, …), alias it in `igris.toml` (`[columns]` with `"Depends" = "Deps"`); otherwise igris reads no dependencies from it, and `igris check` warns about that.
 - **Status:** `ready`, `blocked`, `in progress`, `done`, `skipped`. Igris keeps this column up to date and touches nothing else in the file.
 - **Owner:** `agent`, `agent + user` (the agent must get your decision or sign-off), or `user` (your own task: igris pauses until you mark it done).
+- **Blocked on something outside the plan?** (API keys from a client, a deploy, a date) Add a `user` task that names the blocker and make the waiting task depend on it, e.g. `| X-00 | **Wait for API keys from client** | — | ready | — | user |`. Igris notifies you when it is your turn and carries on once you mark that task done. There is no other way to say "waiting on the outside"; `igris adapt` turns prose like "waits on" or "blocked by deploy" into such a task and lists it under `## Adapt notes`.
 - **Optional `Mode` column** to force a mode per task (e.g. `plan` for design-heavy tasks).
 
 A complete small plan is in [`examples/tasks.md`](examples/tasks.md) and a commented config in [`examples/igris.toml`](examples/igris.toml); copy them and run `igris check` and `igris arise P1 --dry-run` to see how igris reads them.

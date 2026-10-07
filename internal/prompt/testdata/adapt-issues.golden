@@ -30,12 +30,13 @@ The Model column must hold one of these ranks from the project's `[models]` conf
 - Rename columns to the canonical names (ID, Task, Deps, Status, Model, Owner, Mode); keep any other column as it is.
 - Normalize statuses to `ready`, `blocked`, `in progress`, `done` or `skipped`.
 - Convert prose dependencies ("after the parser", "needs 2 and 3") into task IDs or ID ranges.
+- Turn prose that waits on something outside the plan ("waits on", "after the client…", "blocked by deploy") into a `user` task naming the blocker (e.g. `X-00 · **Wait for API keys from client** · user · —`) and add it to the Deps of the waiting task. Mention each one in `## Adapt notes`.
 - Keep non-task content (introductions, legends, notes) as plain sections without a task table.
 
 ## What you must not change
 
 - Don't invent, guess or change models. Map a model only when the original names it unambiguously (e.g. "Claude Opus" → `opus`).
-- Don't drop, merge, split or reorder tasks, and don't add new ones.
+- Don't drop, merge, split or reorder tasks, and don't add new ones, except the blocker tasks above.
 - Don't rewrite descriptions: the Task cell keeps the original wording (escaping a `|` as `\|` is fine).
 - Don't change task IDs. If a task has no ID or a duplicate one, ask the owner.
 
@@ -50,7 +51,7 @@ Give every agent task whose model is missing or doesn't map to a rank above Mode
 - M2-01: unknown model "gpt-4"
 ```
 
-Use the same section for anything else the owner should check (columns you guessed, prose dependencies you interpreted). Leave it out when there's nothing to note.
+Use the same section for anything else the owner should check (columns you guessed, prose dependencies you interpreted, blocker tasks you added). Leave it out when there's nothing to note.
 
 ## Finish
 
