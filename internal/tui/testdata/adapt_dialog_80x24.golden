@@ -1,0 +1,23 @@
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ Adapt tasks.md?                                                              │
+│                                                                              │
+│ Adapt starts Claude in a herdr tab to propose a canonical plan for tasks.md  │
+│ in .igris/adapt/; nothing changes until you accept it in the review.         │
+│ adapt.model in igris.toml is sonnet.                                         │
+│                                                                              │
+│ warning: ANTHROPIC_API_KEY is set: Claude Code would bill the API instead of │
+│ your subscription login. Unset it unless that is what you want.              │
+│                                                                              │
+│ › 1. Cancel                                                                  │
+│   2. Adapt with sonnet                                                       │
+│   3. Adapt with opus                                                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+

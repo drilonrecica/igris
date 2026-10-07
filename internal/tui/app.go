@@ -7,6 +7,7 @@ import (
 	"io"
 	"maps"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -116,6 +117,9 @@ type (
 	// runMsg tells the app which run is going (nil: none any more), so
 	// quitting stops it and App waits for it.
 	runMsg struct{ h *runHandle }
+	// bgMsg tells the app about work going on off the loop that holds the
+	// run lock (adapt), so quitting stops it and App waits for it.
+	bgMsg struct{ w *bgWork }
 	// ownedMsg is a message for one screen wherever it is on the stack
 	// (the poll's tick); it is dropped when the screen is gone.
 	ownedMsg struct {
@@ -151,6 +155,16 @@ func (h *runHandle) stopNow() bool {
 	h.stop()
 	return going
 }
+
+// bgWork is work off the loop that must end before the app does: stop
+// asks it to end, done is closed once it has.
+type bgWork struct {
+	stop context.CancelFunc
+	done <-chan struct{}
+}
+
+// track hands w to the app; see bgMsg.
+func track(w *bgWork) tea.Cmd { return func() tea.Msg { return bgMsg{w} } }
 
 // Async work. A screen asks for slow work with async; the app numbers the
 // request and hands the result to the screen that asked, unless the screen
@@ -195,6 +209,7 @@ type appModel struct {
 	dark  bool        // the terminal's background, as detected at start
 	w, h  int
 	run   *runHandle // the run going, if any
+	bg    []*bgWork  // work that may still hold the lock
 	// stopped says quitting stopped a run that was still going; quitting
 	// says the app is on its way out.
 	stopped, quitting bool
@@ -306,6 +321,12 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case runMsg:
 		a.run = msg.h
 		return a, nil
+	case bgMsg:
+		a.bg = append(slices.DeleteFunc(a.bg, (*bgWork).over), msg.w)
+		if a.quitting {
+			msg.w.stop()
+		}
+		return a, nil
 	case asyncReq:
 		a.seq++
 		seq, fn := a.seq, msg.fn
@@ -393,15 +414,22 @@ func (a *appModel) index(s tea.Model) int {
 // it once the terminal is back.
 func (a *appModel) quit() tea.Cmd {
 	a.quitting = true
+	for _, w := range a.bg {
+		w.stop()
+	}
 	if a.run != nil {
 		a.stopped = a.stopped || a.run.stopNow()
 	}
 	return tea.Quit
 }
 
-// finish stops the run that is still going and waits for it to end, so
-// the lock is released.
+// finish stops the run and the work that are still going and waits for
+// them to end, so the lock is released.
 func (a *appModel) finish() AppResult {
+	for _, w := range a.bg {
+		w.stop()
+		<-w.done
+	}
 	if a.run == nil {
 		return AppResult{}
 	}
@@ -414,6 +442,16 @@ func (a *appModel) finish() AppResult {
 	}
 	r.Res, r.RunErr = a.run.feed.Result()
 	return r
+}
+
+// over says w has ended.
+func (w *bgWork) over() bool {
+	select {
+	case <-w.done:
+		return true
+	default:
+		return false
+	}
 }
 
 func (a *appModel) tooSmall() bool { return a.w < tooSmallW || a.h < tooSmallH }

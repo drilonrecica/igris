@@ -37,30 +37,32 @@ const (
 	actModeAuto
 	actModePlan
 	actModeYolo
-	// igris adapt's review (adapt.go).
+	// igris adapt's review (review.go).
 	actAccept       // replace the plan with the proposal
 	actAcceptAnyway // replace it although the proposal doesn't pass check
 	actReject       // keep the plan as it is
 	actCopy         // copy the selected item with OSC 52 (y)
 	// The home screen's actions (SPEC §15.6, home.go).
-	actArise      // start a run, or resume the last one (the wizard)
-	actPreview    // the dry run page
-	actAriseWith  // the wizard, with the previewed settings
-	actCheck      // the check page
-	actDoctor     // the doctor page
-	actHistory    // the history page
-	actEdit       // open the screen's file in the owner's editor
-	actEditConfig // open igris.toml in the owner's editor, from Doctor
-	actSettings   // the settings page
-	actEditAnyway // edit the plan although a run holds it
-	actEditVi     // open the file with vi: no editor is set
-	actNotify     // the notify test page
-	actAdapt      // igris adapt
-	actInit       // igris init
-	actExample    // write the example plan (init --example)
-	actInitCreate // the Init dialog's Create files
-	actPhaseRow   // a PHASES row; the zone's option is the phase's index
-	actLine       // a HEALTH or RECENT line; the zone's option is its index
+	actArise       // start a run, or resume the last one (the wizard)
+	actPreview     // the dry run page
+	actAriseWith   // the wizard, with the previewed settings
+	actCheck       // the check page
+	actDoctor      // the doctor page
+	actHistory     // the history page
+	actEdit        // open the screen's file in the owner's editor
+	actEditConfig  // open igris.toml in the owner's editor, from Doctor
+	actSettings    // the settings page
+	actEditAnyway  // edit the plan although a run holds it
+	actEditVi      // open the file with vi: no editor is set
+	actNotify      // the notify test page
+	actAdapt       // igris adapt: the dialog that asks first
+	actAdaptSonnet // the Adapt dialog's Adapt with sonnet
+	actAdaptOpus   // the Adapt dialog's Adapt with opus
+	actInit        // igris init
+	actExample     // write the example plan (init --example)
+	actInitCreate  // the Init dialog's Create files
+	actPhaseRow    // a PHASES row; the zone's option is the phase's index
+	actLine        // a HEALTH or RECENT line; the zone's option is its index
 	// The start-run wizard's choices (launch.go); a phase or through
 	// option is the dialog's selected one.
 	actWizResume  // resume the last run

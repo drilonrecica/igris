@@ -36,7 +36,7 @@ type fakeServices struct {
 	onInit     func(example bool) // runs inside Init, to change what Snapshot reads next
 	notify     []report.NotifyResult
 	notifyErr  error
-	adapt      func(model string, out io.Writer) (*adapt.Result, error)
+	adapt      func(ctx context.Context, model string, out io.Writer, opened func(backend.SessionRef)) (*adapt.Result, error)
 	backup     string
 	acceptErr  error
 	edit       func(path string) (tea.ExecCommand, error)
@@ -141,12 +141,13 @@ func (f *fakeServices) NotifyTest(_ context.Context, emit func(report.NotifyResu
 	return f.notifyErr
 }
 
-func (f *fakeServices) Adapt(_ context.Context, model string, out io.Writer) (*adapt.Result, error) {
+func (f *fakeServices) Adapt(ctx context.Context, model string, out io.Writer, opened func(backend.SessionRef)) (*adapt.Result, error) {
 	f.count("Adapt")
+	f.count("Adapt " + model)
 	if f.adapt == nil {
 		return nil, errors.New("fake: no adapt")
 	}
-	return f.adapt(model, out)
+	return f.adapt(ctx, model, out, opened)
 }
 
 func (f *fakeServices) AcceptAdapt(*adapt.Result) (string, error) {

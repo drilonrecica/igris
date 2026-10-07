@@ -51,9 +51,9 @@ type Services interface {
 	// as it is over. The error says why nothing could be sent.
 	NotifyTest(ctx context.Context, emit func(report.NotifyResult)) error
 	// Adapt runs `igris adapt`'s session with model, writing its progress
-	// to out; AcceptAdapt replaces the plan with the proposal and returns
-	// the backup's path.
-	Adapt(ctx context.Context, model string, out io.Writer) (*adapt.Result, error)
+	// to out; opened gets the session's ref once it is open. AcceptAdapt
+	// replaces the plan with the proposal and returns the backup's path.
+	Adapt(ctx context.Context, model string, out io.Writer, opened func(backend.SessionRef)) (*adapt.Result, error)
 	AcceptAdapt(res *adapt.Result) (string, error)
 	// EditCommand is the owner's editor on path ($VISUAL, else $EDITOR);
 	// ErrNoEditor when neither is set.

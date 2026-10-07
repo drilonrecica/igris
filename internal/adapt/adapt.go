@@ -46,6 +46,9 @@ type Options struct {
 	Clock engine.Clock
 	// Out receives plain progress lines.
 	Out io.Writer
+	// Opened, if set, gets the session's ref as soon as it is open, so a
+	// caller can bring its pane to the front.
+	Opened func(backend.SessionRef)
 }
 
 // Result is a finished adapt session: the original, the proposal and the
@@ -212,6 +215,9 @@ func (r *runner) open(ctx context.Context, issues []plan.Issue, proposal string)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("open the adapt session: %w", err)
+	}
+	if r.o.Opened != nil {
+		r.o.Opened(sess.Ref())
 	}
 	if err := sess.Prompt(ctx, text); err != nil {
 		return nil, fmt.Errorf("send the adapt prompt: %w", err)

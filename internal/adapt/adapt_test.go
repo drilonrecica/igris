@@ -79,6 +79,7 @@ type harness struct {
 	dir   *state.Dir
 	notes *notes
 	out   bytes.Buffer
+	refs  []backend.SessionRef // what Opened got
 }
 
 func newHarness(t *testing.T, planText string) *harness {
@@ -123,6 +124,7 @@ func (h *harness) run(ctx context.Context, model string) (*Result, error) {
 		Notifier: h.notes,
 		Clock:    h.clock,
 		Out:      &h.out,
+		Opened:   func(ref backend.SessionRef) { h.refs = append(h.refs, ref) },
 	})
 }
 
@@ -147,6 +149,9 @@ func TestRunValidProposal(t *testing.T) {
 		t.Error("adapt changed the plan")
 	}
 
+	if len(h.refs) != 1 || h.refs[0].Backend == "" {
+		t.Errorf("Opened got %+v, want the session's ref once", h.refs)
+	}
 	opened := h.be.Opened()
 	if len(opened) != 1 || opened[0].TaskID != ID || opened[0].Dir != h.root || opened[0].Label != "ADAPT · opus" {
 		t.Fatalf("opened = %+v", opened)

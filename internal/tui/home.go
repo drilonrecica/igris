@@ -75,6 +75,8 @@ type homeScreen struct {
 	// initing is the Init (or Example plan) dialog while it is open
 	// (onboarding.go).
 	initing *initTarget
+	// adapting says the Adapt dialog is open (adaptpage.go).
+	adapting bool
 
 	status   string // the last action's result
 	statusAt time.Time
@@ -251,6 +253,10 @@ func (m *homeScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.activate(msg.a)
 	case initDoneMsg:
 		return m, m.initDone(msg)
+	case adaptReviewedMsg:
+		return m, m.adaptReviewed(msg)
+	case adaptAcceptedMsg:
+		return m, m.adaptAccepted(msg)
 	case editedMsg:
 		return m, m.edited(msg)
 	case launchedMsg:
@@ -376,6 +382,9 @@ func (m *homeScreen) pick(a action) tea.Cmd {
 	}
 	if m.initing != nil {
 		return m.initPick(a)
+	}
+	if m.adapting {
+		return m.adaptPick(a)
 	}
 	if a == actNone {
 		return nil
@@ -589,6 +598,8 @@ func (m *homeScreen) activate(a action) tea.Cmd {
 		return m.openInit(false)
 	case actExample:
 		return m.openInit(true)
+	case actAdapt:
+		return m.openAdapt()
 	}
 	return m.notYet(label)
 }

@@ -330,8 +330,8 @@ func TestCheckPageAgainAndHandOver(t *testing.T) {
 		t.Errorf("e: %d screens, status %q", len(a.stack), home.status)
 	}
 	press(a, "c", "A")
-	if len(a.stack) != 1 || !strings.Contains(home.status, "Adapt") {
-		t.Errorf("A: %d screens, status %q", len(a.stack), home.status)
+	if len(a.stack) != 1 || home.dialog == nil || !home.adapting {
+		t.Errorf("A: %d screens, adapt dialog %v", len(a.stack), home.dialog)
 	}
 }
 

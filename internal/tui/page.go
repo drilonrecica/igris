@@ -15,9 +15,11 @@ type page struct {
 	// buttons stand left of Close in the footer; the screen holding the
 	// page acts on their zones.
 	buttons []pageButton
-	top     int // first body line shown; clamped when drawn
-	rows    int // body lines shown in the last frame
-	total   int // body lines in the last frame
+	// closeLabel names the footer's last button (actClose); "" is Close.
+	closeLabel string
+	top        int // first body line shown; clamped when drawn
+	rows       int // body lines shown in the last frame
+	total      int // body lines in the last frame
 }
 
 // pageButton is a footer button of a page.
@@ -85,7 +87,11 @@ func (p *page) render(th *theme, w, h int) ([]string, zones) {
 		out = append(out, fit(line(body, p.top+i), w))
 	}
 	foot, x := "", 0
-	btns := append(slices.Clone(p.buttons), pageButton{label: "Close", act: actClose})
+	closeLabel := p.closeLabel
+	if closeLabel == "" {
+		closeLabel = "Close"
+	}
+	btns := append(slices.Clone(p.buttons), pageButton{label: closeLabel, act: actClose})
 	short := false
 	if n := len(btns) - 1; n > 0 {
 		for _, b := range btns {

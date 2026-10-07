@@ -117,6 +117,10 @@ type Snapshot struct {
 	Lock   state.LockState // with its host and reason cleaned
 	Recent []HistoryRun    // the last runs, newest first
 	Stamp  Stamp           // the files as they were read
+
+	// APIKeySet says ANTHROPIC_API_KEY is set, so the sessions igris
+	// starts would bill the API (checks.APIKeyWarning).
+	APIKeySet bool
 }
 
 // Valid says igris.toml (if any) and the plan are both valid.

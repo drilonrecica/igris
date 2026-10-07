@@ -178,7 +178,7 @@ func (s *Services) NotifyTest(ctx context.Context, emit func(report.NotifyResult
 
 // Adapt implements tui.Services: `igris adapt` on the configured plan; model
 // "" is adapt.model in igris.toml.
-func (s *Services) Adapt(ctx context.Context, model string, out io.Writer) (*adapt.Result, error) {
+func (s *Services) Adapt(ctx context.Context, model string, out io.Writer, opened func(backend.SessionRef)) (*adapt.Result, error) {
 	p, err := Load(s.cwd, "", s.env)
 	if err != nil {
 		return nil, err
@@ -208,6 +208,7 @@ func (s *Services) Adapt(ctx context.Context, model string, out io.Writer) (*ada
 		Notifier: notify.FromConfig(p.Cfg.Notify, secrets, be),
 		Clock:    clock,
 		Out:      out,
+		Opened:   opened,
 	})
 }
 

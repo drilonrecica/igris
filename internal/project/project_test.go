@@ -295,6 +295,24 @@ func TestSnapshot(t *testing.T) {
 		noStateDir(t, root)
 	})
 
+	t.Run("API key", func(t *testing.T) {
+		root := newProject(t, "")
+		for _, set := range []bool{false, true} {
+			vars := map[string]string{}
+			if set {
+				vars[checks.APIKeyVar] = "sk-test"
+			}
+			e, _ := testEnv(vars)
+			s, err := NewServices(root, e).Snapshot(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if s.APIKeySet != set {
+				t.Errorf("%s set %v: APIKeySet = %v", checks.APIKeyVar, set, s.APIKeySet)
+			}
+		}
+	})
+
 	t.Run("invalid config and plan", func(t *testing.T) {
 		root := newProject(t, "plan = 3\n")
 		writeFile(t, filepath.Join(root, "tasks.md"), "## M0 — Test\n\n| ID | Task | Deps | Status | Model |\n|---|---|---|---|---|\n| M0-01 | x | M9-01 | ready | sonnet |\n")

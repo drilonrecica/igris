@@ -70,8 +70,9 @@ func (p *Project) Snapshot() *report.Snapshot {
 	s := &report.Snapshot{
 		Root: p.Root, Project: textsafe.Line(p.Name()), Found: p.Found,
 		Config: p.Cfg, NoConfig: p.NoConfig, ConfigPath: p.ConfigPath(), PlanPath: p.PlanPath,
-		Settings: report.NewSettings(p.Cfg, p.CfgKeys, p.env.getenv()),
-		Stamp:    p.Stamp(),
+		Settings:  report.NewSettings(p.Cfg, p.CfgKeys, p.env.getenv()),
+		Stamp:     p.Stamp(),
+		APIKeySet: p.env.getenv()(checks.APIKeyVar) != "",
 	}
 	if p.CfgErr != nil {
 		s.ConfigProblems = problemLines(p.CfgErr)
