@@ -409,3 +409,88 @@ func TestReplaceRefusesChangedPlan(t *testing.T) {
 		t.Error("want an error for a missing plan")
 	}
 }
+
+// TestWriterResetPreservesBytes covers every reset transition (SPEC §14
+// `reset`): only the Status cells of the reset task and of the dependents
+// readiness moves change, and a task in progress downstream is left alone.
+func TestWriterResetPreservesBytes(t *testing.T) {
+	const tmpl = "# Plan\n\nIntro | with pipes.\n\n## M0 — Phase\n\n" +
+		"| ID | Task | Deps | Status | Model | Owner |\n|:---|---|---|:-:|---|---|\n" +
+		"| p | **Pre** | — |{P}| sonnet | agent |\n" +
+		"| a | **A** `x \\| y` | p |{A}| — | user |\n" +
+		"| b | **B** | a |{B}| opus | agent |\n" +
+		"| c | **C** | a | in progress (agent) | opus | agent |\n\n## Notes\n\n| Status | ready |\n|---|---|\n"
+	tests := []struct {
+		name    string
+		p, a, b string // cells before
+		force   bool
+		wantA   string // a's cell after
+		wantB   string // b's cell after ("" = unchanged)
+		changes []string
+	}{
+		{"in progress to ready", " done ", " in progress ", " blocked ", false, " ready ", "",
+			[]string{"a: in progress → ready"}},
+		{"in progress to blocked", " ready ", "  `in progress` (half)  ", " blocked ", false, "  `blocked`  ", "",
+			[]string{"a: in progress → blocked"}},
+		{"done to ready, dependent blocked", " skipped ", " Done (by hand) ", "\tready\t", true, " ready ", "\tblocked\t",
+			[]string{"a: done → ready", "b: ready → blocked"}},
+		{"done to blocked", " in progress ", "`done`", " ready ", true, "`blocked`", " blocked ",
+			[]string{"a: done → blocked", "b: ready → blocked"}},
+		{"skipped to ready", " done ", " `skipped` (n/a) ", " ready ", true, " `ready` ", " blocked ",
+			[]string{"a: skipped → ready", "b: ready → blocked"}},
+		{"skipped to blocked", " In Progress ", " skipped ", " blocked ", true, " blocked ", "",
+			[]string{"a: skipped → blocked"}},
+	}
+	fill := func(p, a, b string) string {
+		return strings.NewReplacer("{P}", p, "{A}", a, "{B}", b).Replace(tmpl)
+	}
+	for _, ending := range []struct{ name, nl string }{{"lf", "\n"}, {"crlf", "\r\n"}} {
+		for _, tt := range tests {
+			t.Run(ending.name+"/"+tt.name, func(t *testing.T) {
+				in := strings.ReplaceAll(fill(tt.p, tt.a, tt.b), "\n", ending.nl)
+				path := writePlan(t, in)
+				got, err := NewWriter(path, Options{}, testRules).Update(context.Background(), func(p *Plan) ([]Change, error) {
+					return p.Reset("a", tt.force)
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !reflect.DeepEqual(changeStrings(got), tt.changes) {
+					t.Fatalf("changes = %q, want %q", changeStrings(got), tt.changes)
+				}
+				wantB := tt.b
+				if tt.wantB != "" {
+					wantB = tt.wantB
+				}
+				want := strings.ReplaceAll(fill(tt.p, tt.wantA, wantB), "\n", ending.nl)
+				if out := readPlan(t, path); out != want {
+					t.Fatalf("output differs:\n got %q\nwant %q", out, want)
+				}
+				assertNoTempFiles(t, path)
+			})
+		}
+	}
+}
+
+// A reset that changes nothing leaves the file alone: a ready or blocked
+// task, or a done one without force.
+func TestWriterResetNothingToWrite(t *testing.T) {
+	in := "## M0\n\n| ID | Deps | Status | Model |\n|---|---|---|---|\n| a | — | ready | sonnet |\n| b | a | blocked | sonnet |\n| c | — | done | sonnet |\n"
+	for _, tt := range []struct {
+		id    string
+		force bool
+		err   bool
+	}{{"a", false, false}, {"b", true, false}, {"c", false, true}} {
+		path := writePlan(t, in)
+		got, err := NewWriter(path, Options{}, testRules).Update(context.Background(), func(p *Plan) ([]Change, error) {
+			return p.Reset(tt.id, tt.force)
+		})
+		var fe *ForceError
+		if got != nil || (err != nil) != tt.err || (tt.err && (!errors.As(err, &fe) || err.Error() != "c is done; pass --force to reset it")) {
+			t.Errorf("%s: got %v, %v", tt.id, got, err)
+		}
+		if readPlan(t, path) != in {
+			t.Errorf("%s: the file changed", tt.id)
+		}
+	}
+}

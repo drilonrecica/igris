@@ -316,10 +316,14 @@ func (e *Engine) prepare() ([]string, error) {
 	if prev != nil {
 		cur = prev.Current
 	}
+	// An interrupted task with a pending reset is not picked up again: the
+	// reset is applied first (resumeAndRun), so its mode and phase don't
+	// matter.
+	resetting := cur != nil && e.resetPending(cur.TaskID)
 	// A session left running in skip-permissions mode is only reattached
 	// with this run's confirmation too (SPEC §7.3); new sessions are gated
 	// by modeFor.
-	if cur != nil && cur.Mode == ModeYolo && !e.yoloConfirmed() {
+	if cur != nil && !resetting && cur.Mode == ModeYolo && !e.yoloConfirmed() {
 		return nil, fmt.Errorf("the interrupted task %s runs in yolo mode: %w", cur.TaskID, ErrYoloUnconfirmed)
 	}
 	ids := make([]string, 0, len(phases))
@@ -327,7 +331,7 @@ func (e *Engine) prepare() ([]string, error) {
 		// A resumed run starts in the phase of the task it picks up again;
 		// the phases before it have nothing left to do for this run. A
 		// slice keeps them: its earlier tasks may still be left.
-		if cur != nil && rng.Slice == nil && len(ids) > 0 && hasTask(ph, cur.TaskID) {
+		if cur != nil && !resetting && rng.Slice == nil && len(ids) > 0 && hasTask(ph, cur.TaskID) {
 			ids = ids[:0]
 		}
 		ids = append(ids, ph.ID)
@@ -408,6 +412,11 @@ func (e *Engine) modeFor(t *plan.Task) (string, error) {
 // resumeAndRun picks up the task an earlier run was working on, then runs
 // the phases.
 func (e *Engine) resumeAndRun(ctx context.Context, phases []string) (Result, error) {
+	// A reset left pending by an earlier run comes before anything is
+	// selected (SPEC §6.2), the interrupted task included.
+	if _, err := e.applyResets(ctx); err != nil {
+		return Result{Phase: e.phase}, err
+	}
 	if e.run.Current != nil {
 		stopped, err := e.resume(ctx)
 		if err != nil {
@@ -482,6 +491,9 @@ func (e *Engine) runPhase(ctx context.Context, id string) (Result, error) {
 		}
 		for _, c := range e.takeCommands() {
 			e.reject(c, "no task is running")
+		}
+		if _, err := e.applyResets(ctx); err != nil {
+			return res, err
 		}
 		p, err := e.loadPlan()
 		if err != nil {

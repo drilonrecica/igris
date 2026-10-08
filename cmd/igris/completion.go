@@ -115,6 +115,7 @@ var (
 		"arise":      "run (or resume) with the TUI",
 		"done":       "signal that a task is finished",
 		"skip":       "signal that a task is skipped",
+		"reset":      "put a task back to ready or blocked",
 		"notify":     "send a sample of each notification",
 		"adapt":      "AI-assisted conversion of a plan with diff review",
 		"completion": "print a shell completion script",
@@ -141,6 +142,7 @@ var (
 		"history":    {Kind: argTasks},
 		"done":       {Kind: argTasks},
 		"skip":       {Kind: argTasks},
+		"reset":      {Kind: argTasks},
 		"notify":     {Kind: argValues, Values: []string{"test"}},
 		"completion": {Kind: argValues, Values: completionShells},
 	}

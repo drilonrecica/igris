@@ -56,6 +56,7 @@ Commands:
                                         run only part of the phases
   done ID [--note TEXT]                 signal that a task is finished
   skip ID --reason TEXT                 signal that a task is skipped
+  reset ID [--force]                    put a task back to ready/blocked; --force for done/skipped
   notify test [--event NAME]            send a sample of each notification to the configured channels
   adapt [--model sonnet|opus]           AI-assisted conversion with diff review
         [--plan PATH]
@@ -123,6 +124,7 @@ func commands() []command {
 				return nil
 			}
 		}, exec: execSkip},
+		{name: "reset", setup: resetArgs, exec: execReset},
 		{name: "notify", setup: notifyArgs, exec: execNotify},
 		{name: "adapt", setup: adaptArgs, exec: execAdapt},
 		{name: "completion", setup: completionArgs, exec: execCompletion},

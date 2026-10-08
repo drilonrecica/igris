@@ -283,6 +283,8 @@ func (e *Engine) drive(ctx context.Context, l *launch) (stopped bool, err error)
 			return false, e.finish(ctx, l, plan.Done, v.note)
 		case verdictSkip:
 			return false, e.finish(ctx, l, plan.Skipped, v.note)
+		case verdictReset:
+			return false, nil
 		}
 		return true, nil
 	}

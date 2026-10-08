@@ -251,3 +251,51 @@ func TestPhasesThrough(t *testing.T) {
 		}
 	}
 }
+
+func TestReset(t *testing.T) {
+	const spec = `
+M0: a done
+M0: b in_progress a
+M0: c done a
+M0: d skipped x
+M0: x blocked a b
+M0: y ready
+M0: z in_progress b`
+	tests := []struct {
+		id    string
+		force bool
+		want  []string
+		err   string
+	}{
+		{"b", false, []string{"b: in progress → ready"}, ""},
+		{"a", true, []string{"a: done → ready"}, ""}, // b, z in progress and c done stay
+		{"a", false, nil, "a is done; pass --force to reset it"},
+		{"d", false, nil, "d is skipped; pass --force to reset it"},
+		{"d", true, []string{"d: skipped → blocked"}, ""},
+		{"y", true, nil, ""},
+		{"x", false, nil, ""},
+		{"nope", false, nil, "task nope is not in the plan tasks.md"},
+	}
+	for _, tt := range tests {
+		p := schedPlan(t, spec)
+		got, err := p.Reset(tt.id, tt.force)
+		if errText(err) != tt.err || !reflect.DeepEqual(changeStrings(got), tt.want) {
+			t.Errorf("Reset(%s, %v) = %q, %v; want %q, %q", tt.id, tt.force, changeStrings(got), err, tt.want, tt.err)
+		}
+	}
+	p := schedPlan(t, spec)
+	var deps []string
+	for _, d := range p.Dependents("a") {
+		deps = append(deps, d.ID)
+	}
+	if strings.Join(deps, " ") != "b c x" {
+		t.Errorf("Dependents(a) = %v", deps)
+	}
+}
+
+func errText(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
+}

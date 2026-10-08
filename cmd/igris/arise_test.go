@@ -86,6 +86,7 @@ func TestFormatEvent(t *testing.T) {
 		{engine.Event{Kind: engine.TaskDone, Task: "A-1"}, "A-1 done"},
 		{engine.Event{Kind: engine.TaskSkipped, Task: "A-1", Detail: "why"}, "A-1 skipped · why"},
 		{engine.Event{Kind: engine.TaskOverdue, Task: "A-1", Detail: "running longer than its Timeout 45m"}, "A-1 OVERDUE: running longer than its Timeout 45m; its session keeps running"},
+		{engine.Event{Kind: engine.TaskReset, Task: "A-1", Detail: "A-1: in progress → ready"}, "reset A-1: in progress → ready"},
 		{engine.Event{Kind: engine.Warning, Detail: "hm"}, "warning: hm"},
 		{engine.Event{Kind: engine.Asked, Question: engine.QuestionHookFailed, Detail: "failed"}, "? failed\n  type `retry`, `done [note]`, `skip <reason>` or `stop`"},
 		{engine.Event{Kind: engine.HookFailed, Task: "A-1", Detail: "before_task hook failed: exit status 1", Output: []string{"db is down"}}, "A-1 before_task hook failed: exit status 1\n  | db is down"},

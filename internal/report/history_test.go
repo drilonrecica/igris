@@ -114,3 +114,18 @@ func TestHistoryJSONNeverNull(t *testing.T) {
 		t.Errorf("json = %s", out)
 	}
 }
+
+// `igris reset` ends the task's attempt in the live run: it is unfinished,
+// not running, and the next start is a new attempt.
+func TestHistoryResetEndsTheAttempt(t *testing.T) {
+	events := []state.Event{
+		ev(1, state.EventRunStarted, "", "phase A"),
+		ev(2, state.EventTaskStarted, "A-1", ""),
+		ev(4, state.EventTaskReset, "A-1", "in progress"),
+		ev(6, state.EventTaskStarted, "A-1", ""),
+	}
+	h := NewTaskHistory(HistoryInput{Events: events, Live: true}, "A-1")
+	if len(h.Attempts) != 2 || h.Attempts[1].Result != ResultOpen || h.Attempts[1].DurationS != 120 || h.Attempts[0].Result != ResultRunning {
+		t.Errorf("attempts = %+v", h.Attempts)
+	}
+}

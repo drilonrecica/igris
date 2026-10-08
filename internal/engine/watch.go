@@ -16,9 +16,10 @@ import (
 type verdictKind int
 
 const (
-	verdictStop verdictKind = iota // the run stops; the task stays in progress
-	verdictDone                    // the task is finished
-	verdictSkip                    // the task is skipped
+	verdictStop  verdictKind = iota // the run stops; the task stays in progress
+	verdictDone                     // the task is finished
+	verdictSkip                     // the task is skipped
+	verdictReset                    // `igris reset` put the task back; the run lets go of it
 )
 
 type verdict struct {
@@ -82,6 +83,9 @@ func (e *Engine) watch(ctx context.Context, l *launch) (verdict, error) {
 			}
 		}
 
+		if reset, err := e.applyResets(ctx); err != nil || reset {
+			return verdict{kind: verdictReset}, err
+		}
 		switch sig := e.scanSignals(t, l.cur.StartedAt); {
 		case sig == nil:
 			skip = nil // a skip request that disappeared is withdrawn
@@ -204,6 +208,8 @@ func (e *Engine) scanSignals(t *plan.Task, started time.Time) *state.Signal {
 		s := sigs[i]
 		key := s.ID + "|" + s.Action + "|" + s.At.String()
 		switch {
+		case s.Action == state.ActionReset:
+			// Applied by applyResets, for any task.
 		case s.ID != t.ID:
 			e.reportOnce("stray|"+key, StraySignal, fmt.Sprintf("kept, not applied: a %s signal for %s, which is not the current task", s.Action, s.ID))
 		case s.At.Before(started):

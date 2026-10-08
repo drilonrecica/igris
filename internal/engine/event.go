@@ -43,6 +43,7 @@ const (
 	Asked           EventKind = "asked"             // Question waits for the owner's answer; Detail is the question
 	Retrying        EventKind = "retrying"          // the session is replaced; Detail is "continue" or "fresh"
 	TaskSkipped     EventKind = "task_skipped"      // Detail is the reason; Changes holds the cells written
+	TaskReset       EventKind = "task_reset"        // Task was put back to ready/blocked by `igris reset`; Detail is its change, Changes the cells written
 	YourTurn        EventKind = "your_turn"         // a user task waits for the owner; Detail is the full task text
 	VerifyStarted   EventKind = "verify_started"    // Detail is the verify command, Verify its profile
 	VerifyPassed    EventKind = "verify_passed"     // Detail is the verify command, Verify its profile

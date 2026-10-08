@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -84,6 +85,33 @@ func TestSignalRoundTrip(t *testing.T) {
 	must(t, d.RemoveSignal("M0-01")) // already gone is fine
 	if got, err := d.ReadSignal("M0-01"); got != nil || err != nil {
 		t.Errorf("after remove = %v, %v; want nil, nil", got, err)
+	}
+}
+
+// A reset signal always records whether it was forced and replaces a
+// pending done or skip; done and skip signals keep their old shape.
+func TestResetSignal(t *testing.T) {
+	d := testDir(t)
+	must(t, d.WriteSignal(Signal{ID: "M0-01", Action: ActionDone, Note: "ok"}))
+	data, err := os.ReadFile(d.signalPath("M0-01"))
+	must(t, err)
+	if strings.Contains(string(data), "force") {
+		t.Errorf("done signal = %s, want no force field", data)
+	}
+	for _, force := range []bool{false, true} {
+		must(t, d.WriteSignal(Signal{ID: "M0-01", Action: ActionReset, Force: force}))
+		data, err := os.ReadFile(d.signalPath("M0-01"))
+		must(t, err)
+		if want := fmt.Sprintf(`"force":%v`, force); !strings.Contains(string(data), want) || !strings.Contains(string(data), `"action":"reset"`) {
+			t.Errorf("reset signal = %s, want %s", data, want)
+		}
+		got, err := d.ReadSignal("M0-01")
+		if err != nil || got == nil || got.Action != ActionReset || got.Force != force {
+			t.Errorf("ReadSignal = %+v, %v", got, err)
+		}
+	}
+	if err := d.WriteSignal(Signal{ID: "M0-01", Action: "undo"}); err == nil {
+		t.Error("an unknown action was written")
 	}
 }
 
@@ -172,6 +200,9 @@ func TestClassify(t *testing.T) {
 		{"stray done", Signal{ID: "B", Action: ActionDone}, "A", plan.OwnerAgent, Stray},
 		{"stray skip", Signal{ID: "B", Action: ActionSkip}, "A", plan.OwnerUser, Stray},
 		{"no current task", Signal{ID: "B", Action: ActionDone}, "", plan.OwnerAgent, Stray},
+		{"reset current", Signal{ID: "A", Action: ActionReset}, "A", plan.OwnerAgent, Reset},
+		{"reset other task", Signal{ID: "B", Action: ActionReset, Force: true}, "A", plan.OwnerUser, Reset},
+		{"reset between tasks", Signal{ID: "B", Action: ActionReset}, "", plan.OwnerAgent, Reset},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

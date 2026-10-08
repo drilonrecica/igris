@@ -177,6 +177,12 @@ func readRuns(events []state.Event) []*runRec {
 			finish(open[e.Task], e, ResultDone)
 		case state.EventTaskSkipped:
 			finish(open[e.Task], e, ResultSkipped)
+		case state.EventTaskReset:
+			// `igris reset` ended the attempt without a result.
+			if a := open[e.Task]; a != nil {
+				a.end, a.result = e.At, ResultOpen
+				delete(open, a.id)
+			}
 		case state.EventVerifyPassed, state.EventVerifyFailed:
 			if a := open[e.Task]; a != nil {
 				line := "passed"

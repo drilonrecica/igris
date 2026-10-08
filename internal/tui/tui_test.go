@@ -182,6 +182,24 @@ func TestEventsDriveTheCurrentTask(t *testing.T) {
 	}
 }
 
+// A reset of another task leaves the card; a reset of the current one
+// clears it, like done.
+func TestResetEventClearsOnlyItsTask(t *testing.T) {
+	hs := newHarness(t, 80, 24)
+	hs.events(started("M0-03"), opened("M0-03"))
+	hs.events(engine.Event{Kind: engine.TaskReset, Task: "M0-01", Detail: "M0-01: done → ready"})
+	if hs.m.cur == nil || hs.m.cur.id != "M0-03" {
+		t.Fatalf("current = %+v, want M0-03 kept", hs.m.cur)
+	}
+	hs.events(engine.Event{Kind: engine.TaskReset, Task: "M0-03", Detail: "M0-03: in progress → ready"}, engine.Event{Kind: engine.PauseOn})
+	if hs.m.cur != nil {
+		t.Errorf("current task kept after its reset: %+v", hs.m.cur)
+	}
+	if v := hs.m.View(); !strings.Contains(v, "reset M0-03: in progress → ready") || !strings.Contains(v, "no task running") {
+		t.Errorf("view:\n%s", v)
+	}
+}
+
 func TestShortcutKeysSendCommands(t *testing.T) {
 	hs := newHarness(t, 80, 24)
 	hs.key("d") // no task: nothing to mark done

@@ -143,7 +143,7 @@ func (m *model) loadPlan() tea.Cmd {
 // shown changed.
 func changesPlan(ev engine.Event) bool {
 	switch ev.Kind {
-	case engine.PhaseStarted, engine.PhaseDone, engine.TaskStarted, engine.TaskResumed, engine.TaskDone, engine.TaskSkipped:
+	case engine.PhaseStarted, engine.PhaseDone, engine.TaskStarted, engine.TaskResumed, engine.TaskDone, engine.TaskSkipped, engine.TaskReset:
 		return true
 	}
 	return len(ev.Changes) > 0
@@ -646,6 +646,14 @@ func (m *model) event(ev engine.Event) {
 		m.settle()
 	case engine.Committed, engine.NotCommitted:
 		m.settle()
+	case engine.TaskReset:
+		if m.cur != nil && m.cur.id == ev.Task {
+			m.cur = nil // the run let go of it and pauses
+			m.settle()
+			if m.dialog != nil && m.dialog.task == ev.Task {
+				m.dialog = nil
+			}
+		}
 	case engine.TaskDone, engine.TaskSkipped:
 		m.cur = nil
 		m.settle()

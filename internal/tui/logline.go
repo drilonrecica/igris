@@ -53,6 +53,8 @@ func logLines(ev engine.Event) []string {
 		return []string{note(id+" done", ev.Detail)}
 	case engine.TaskSkipped:
 		return []string{note(id+" skipped", ev.Detail)}
+	case engine.TaskReset:
+		return []string{"reset " + ev.Detail}
 	case engine.PhaseDone:
 		return []string{"phase " + ev.Phase + " complete"}
 	case engine.PhaseStuck:
@@ -125,7 +127,7 @@ func logLook(k engine.EventKind) look {
 	switch k {
 	case engine.NeedsYou, engine.TaskOverdue, engine.SessionLost, engine.HookFailed, engine.VerifyFailed, engine.VerifyLimit, engine.PhaseStuck, engine.PlanChanged, engine.RunFailed:
 		return lookAlert
-	case engine.Warning, engine.Asked, engine.YourTurn, engine.Paused, engine.PhaseDone, engine.NotRun:
+	case engine.Warning, engine.Asked, engine.YourTurn, engine.Paused, engine.PhaseDone, engine.NotRun, engine.TaskReset:
 		return lookTitle
 	}
 	return lookPlain

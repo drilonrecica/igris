@@ -215,3 +215,62 @@ func (p *Plan) unknownPhase(id string) error {
 	}
 	return fmt.Errorf("unknown phase %q in %s; phases are: %s", id, p.Path, strings.Join(ids, ", "))
 }
+
+// ForceError says a reset needs --force: the task is done or skipped
+// (SPEC §14 `reset`).
+type ForceError struct {
+	ID     string
+	Status Status
+}
+
+func (e *ForceError) Error() string {
+	return fmt.Sprintf("%s is %s; pass --force to reset it", e.ID, e.Status)
+}
+
+// Resettable says whether a reset changes t (SPEC §14 `reset`): a task in
+// progress is reset, a done or skipped one only with force (else a
+// *ForceError), and a ready or blocked one has nothing to reset.
+func Resettable(t *Task, force bool) (bool, error) {
+	switch {
+	case t.Status == InProgress:
+		return true, nil
+	case t.Status.Satisfied() && !force:
+		return false, &ForceError{ID: t.ID, Status: t.Status}
+	case t.Status.Satisfied():
+		return true, nil
+	}
+	return false, nil
+}
+
+// Reset puts task id back to ready, or blocked if a dependency is unmet
+// (SPEC §5.2), and syncs readiness. It returns the changes like Sync, the
+// target first, or none when the task has nothing to reset. Tasks in
+// progress elsewhere are never changed.
+func (p *Plan) Reset(id string, force bool) ([]Change, error) {
+	t := p.Task(id)
+	if t == nil {
+		return nil, fmt.Errorf("task %s is not in the plan %s", id, p.Path)
+	}
+	if ok, err := Resettable(t, force); !ok || err != nil {
+		return nil, err
+	}
+	to := Ready
+	if len(p.unmet(t)) > 0 {
+		to = Blocked
+	}
+	return p.Sync(id, to)
+}
+
+// Dependents returns the tasks that list id in their Deps, in file order.
+func (p *Plan) Dependents(id string) []*Task {
+	var out []*Task
+	for _, t := range p.Tasks {
+		for _, d := range t.Deps {
+			if d == id {
+				out = append(out, t)
+				break
+			}
+		}
+	}
+	return out
+}

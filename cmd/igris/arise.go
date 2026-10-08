@@ -561,6 +561,8 @@ func formatEvent(ev engine.Event) []string {
 		return []string{withNote(id+" done", ev.Detail)}
 	case engine.TaskSkipped:
 		return []string{withNote(id+" skipped", ev.Detail)}
+	case engine.TaskReset:
+		return []string{"reset " + ev.Detail}
 	case engine.PhaseDone:
 		return []string{"phase " + ev.Phase + " complete"}
 	case engine.PhaseStuck:

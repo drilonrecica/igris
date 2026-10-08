@@ -20,20 +20,27 @@ const maxSignalSize = 64 << 10
 
 // Signal actions (SPEC §6.2).
 const (
-	ActionDone = "done"
-	ActionSkip = "skip"
+	ActionDone  = "done"
+	ActionSkip  = "skip"
+	ActionReset = "reset"
 )
+
+// validAction reports whether a is a signal action igris knows.
+func validAction(a string) bool { return a == ActionDone || a == ActionSkip || a == ActionReset }
 
 // ConfigFile is the config file that marks a project root, next to DirName.
 const ConfigFile = "igris.toml"
 
 // Signal is the content of .igris/signals/<ID>.json, written by
-// `igris done` / `igris skip` and consumed by the running igris.
+// `igris done` / `igris skip` / `igris reset` and consumed by the running
+// igris.
 type Signal struct {
 	ID     string    `json:"id"`
-	Action string    `json:"action"` // ActionDone or ActionSkip
+	Action string    `json:"action"` // ActionDone, ActionSkip or ActionReset
 	Note   string    `json:"note"`   // done note, or the skip reason
 	At     time.Time `json:"at"`
+	// Force is a reset's --force: a done or skipped task is reset too.
+	Force bool `json:"force,omitempty"`
 }
 
 // FindRoot walks up from start to the nearest directory holding igris.toml
@@ -74,14 +81,22 @@ func (d *Dir) WriteSignal(s Signal) error {
 	if err := checkSignalID(s.ID); err != nil {
 		return fmt.Errorf("write signal: %w", err)
 	}
-	if s.Action != ActionDone && s.Action != ActionSkip {
+	if !validAction(s.Action) {
 		return fmt.Errorf("write signal %s: unknown action %q", s.ID, s.Action)
 	}
 	if s.At.IsZero() {
 		s.At = d.now()
 	}
 	s.At = s.At.UTC()
-	data, err := json.Marshal(s)
+	var v any = s
+	if s.Action == ActionReset {
+		// A reset always says whether it was forced (SPEC §6.2).
+		v = struct {
+			Signal
+			Force bool `json:"force"`
+		}{s, s.Force}
+	}
+	data, err := json.Marshal(v)
 	if err != nil {
 		return fmt.Errorf("write signal %s: %w", s.ID, err)
 	}
@@ -128,14 +143,14 @@ func readSignalFile(path, id string) (*Signal, error) {
 }
 
 // parseSignal decodes the content of id's signal file. A session could have
-// written it, so only a done or skip for id is accepted, and the note is
-// cleaned for display.
+// written it, so only a done, skip or reset for id is accepted, and the
+// note is cleaned for display.
 func parseSignal(data []byte, id string) (*Signal, error) {
 	var s Signal
 	if err := json.Unmarshal(data, &s); err != nil {
 		return nil, err
 	}
-	if s.ID != id || (s.Action != ActionDone && s.Action != ActionSkip) {
+	if s.ID != id || !validAction(s.Action) {
 		return nil, fmt.Errorf("unexpected content (id %q, action %q)", s.ID, s.Action)
 	}
 	s.Note = textsafe.Line(s.Note)
@@ -206,6 +221,9 @@ const (
 	// ConfirmSkip: a skip signal for the current agent task. Mark the task
 	// Needs you and apply the skip only after the owner confirms.
 	ConfirmSkip
+	// Reset: a reset signal, for any task. The engine puts the task back
+	// to ready/blocked at its next poll; the time rule doesn't apply.
+	Reset
 )
 
 func (d Disposition) String() string {
@@ -214,6 +232,8 @@ func (d Disposition) String() string {
 		return "apply"
 	case ConfirmSkip:
 		return "confirm-skip"
+	case Reset:
+		return "reset"
 	default:
 		return "stray"
 	}
@@ -222,8 +242,12 @@ func (d Disposition) String() string {
 // Classify decides what to do with s while currentID is the running task.
 // currentOwner is that task's owner; it only matters for skip signals,
 // where only agent tasks (including "agent + user") need confirmation
-// because the owner never acts through a session for them.
+// because the owner never acts through a session for them. A reset signal
+// is a Reset whichever task it names.
 func Classify(s Signal, currentID string, currentOwner plan.Owner) Disposition {
+	if s.Action == ActionReset {
+		return Reset
+	}
 	if s.ID != currentID {
 		return Stray
 	}
