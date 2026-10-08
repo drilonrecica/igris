@@ -49,6 +49,7 @@ const (
 	VerifyLimit     EventKind = "verify_limit"      // verify_max_attempts failures in a row; needs the owner
 	Committed       EventKind = "committed"         // Detail is the commit subject
 	NotCommitted    EventKind = "not_committed"     // Detail says why: nothing to commit, or the owner declined
+	HookFailed      EventKind = "hook_failed"       // a task hook failed (SPEC §6.7); Detail is the short reason, Output its last lines
 	Warning         EventKind = "warning"           // something failed that doesn't stop the run
 	RunFailed       EventKind = "run_error"         // Detail is the error; the run stops
 	RunStopped      EventKind = "run_stopped"       // the run ended; Detail is the outcome or "error"
@@ -77,6 +78,9 @@ type Event struct {
 	ClaudeSession string
 	// Question is set on Asked events.
 	Question Question
+	// Output is the last lines of a failed task hook's output, cleaned for
+	// the terminal; set on HookFailed. It is shown, never logged or sent.
+	Output []string
 }
 
 // Question identifies what an Asked event waits for. The owner answers with
@@ -90,6 +94,10 @@ const (
 	// QuestionSessionLost: the session is gone. CmdRetry (continue or
 	// fresh), CmdDone, CmdSkip or CmdStop.
 	QuestionSessionLost Question = "session_lost"
+	// QuestionHookFailed: the before_task hook failed and no session was
+	// opened (SPEC §6.7). CmdRetry (runs the hook again, then starts a
+	// fresh session), CmdDone, CmdSkip or CmdStop.
+	QuestionHookFailed Question = "hook_failed"
 	// QuestionCommit: commit = "ask" and the task is verified; CmdAnswer
 	// yes commits, no leaves the changes uncommitted.
 	QuestionCommit Question = "commit"

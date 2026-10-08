@@ -175,6 +175,9 @@ func (s *previewScreen) body(w int) []string {
 	}
 	if r.Scope != "" {
 		out = append(out, th.paint(lookDim, fit("nothing is written and no session starts", w)))
+		if len(r.Hooks) > 0 {
+			out = append(out, painted(th, lookDim, "", "task hooks "+strings.Join(r.Hooks, " and ")+" would run around each agent session; the dry run runs none", w)...)
+		}
 		out = append(out, "")
 	}
 	for _, st := range r.Steps {

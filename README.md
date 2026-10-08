@@ -236,6 +236,24 @@ For each task igris uses its Verify cell, else `[phases.<id>] verify` for its ph
 
 After a task passes, igris commits everything in the tree (`commit = "ask"`, the default, asks you first; `auto` just commits; `never` leaves git alone). The message comes from `commit_message`, `{{.ID}}: {{.Title}}` by default, with the session's done note as the body.
 
+### Task hooks
+
+`[hooks]` runs your own commands around every agent session, for example to start a dev database before a task and report its result after:
+
+```toml
+[hooks]
+before_task = ["./scripts/dev-db", "up"]   # argv list: no shell, no globbing, no pipes
+after_task = ["./scripts/post-status"]
+timeout = "2m"                             # per hook run, the default
+```
+
+Each hook runs in the project root with your environment plus `IGRIS_TASK_ID`, `IGRIS_PHASE`, `IGRIS_RANK` (the plan's rank), `IGRIS_MODEL` (the resolved `--model` value) and, for `after_task`, `IGRIS_RESULT` (`done` or `skipped`). Hooks run for agent tasks only, never for user tasks or `adapt`, and `igris arise --dry-run` only says they would run.
+
+- `before_task` runs after the task is marked `in progress` and before its pane opens, for every session igris opens (also a retry); not when igris reattaches to a live session. If it fails (non-zero exit, timeout, or it can't be started), no session is opened: the task stays `in progress`, igris shows **Needs you** and sends `run_error`, and you choose to retry (which runs the hook again), mark the task done, skip it, or stop.
+- `after_task` runs once the task is marked `done` or `skipped` and its session is closed. A failure is a warning plus a `run_error` notification; the run goes on.
+
+On a failure the TUI shows the last 20 lines of the hook's output (escape sequences stripped); the run log and notifications only get the short reason, such as `before_task hook failed: exit status 1`. An empty list means no hook; the first element is the program, and no element may contain a control character.
+
 ## Modes
 
 Choose the permission mode in the TUI, per run or per task: press `m` (or click **Mode**) for the run, or select a task and press `M` (**Task mode**) to override it for that task (user tasks have no session, so they have no mode to set). A change applies to the next session; a running one keeps its mode. A task's mode is, in order: your override, its `Mode` column, the run mode, `default_mode` in `igris.toml`. `claude.extra_args` can't carry model, mode, session or settings flags (`--model`, `--permission-mode`, `--settings`, `-c`/`-r`, …); igris sets those itself and rejects a config that has them. `claude.command` is deprecated and ignored (igris always starts `claude` from your `PATH`); `igris check` warns if it's set to anything else.

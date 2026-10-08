@@ -470,6 +470,8 @@ func formatEvent(ev engine.Event) []string {
 		switch ev.Question {
 		case engine.QuestionSessionLost:
 			return []string{"? " + ev.Detail, "  type `retry continue`, `retry fresh`, `done [note]`, `skip <reason>` or `stop`"}
+		case engine.QuestionHookFailed:
+			return []string{"? " + ev.Detail, "  type `retry`, `done [note]`, `skip <reason>` or `stop`"}
 		default:
 			return []string{"? " + ev.Detail + " [y/n]"}
 		}
@@ -511,6 +513,12 @@ func formatEvent(ev engine.Event) []string {
 		return []string{"mode for " + id + "'s next session: " + ev.Detail + yoloBadge(ev.Detail)}
 	case engine.ConfigChanged, engine.ConfigRestored, engine.PlanChanged, engine.StaleSignal, engine.StraySignal:
 		return []string{ev.Detail}
+	case engine.HookFailed:
+		lines := []string{id + " " + ev.Detail}
+		for _, l := range ev.Output {
+			lines = append(lines, "  | "+l)
+		}
+		return lines
 	case engine.Warning:
 		return []string{"warning: " + ev.Detail}
 	case engine.RunFailed:
@@ -560,6 +568,9 @@ func printDryRun(out io.Writer, r report.DryRun) {
 		return
 	}
 	fmt.Fprintf(out, "dry run of phase %s: nothing is written and no session starts\n", r.Scope)
+	if len(r.Hooks) > 0 {
+		fmt.Fprintf(out, "task hooks %s would run around each agent session; the dry run runs none\n", strings.Join(r.Hooks, " and "))
+	}
 	// The verify column is shown only when some task has a profile.
 	verifies := false
 	for _, s := range r.Steps {

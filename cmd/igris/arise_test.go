@@ -87,6 +87,8 @@ func TestFormatEvent(t *testing.T) {
 		{engine.Event{Kind: engine.TaskSkipped, Task: "A-1", Detail: "why"}, "A-1 skipped · why"},
 		{engine.Event{Kind: engine.TaskOverdue, Task: "A-1", Detail: "running longer than its Timeout 45m"}, "A-1 OVERDUE: running longer than its Timeout 45m; its session keeps running"},
 		{engine.Event{Kind: engine.Warning, Detail: "hm"}, "warning: hm"},
+		{engine.Event{Kind: engine.Asked, Question: engine.QuestionHookFailed, Detail: "failed"}, "? failed\n  type `retry`, `done [note]`, `skip <reason>` or `stop`"},
+		{engine.Event{Kind: engine.HookFailed, Task: "A-1", Detail: "before_task hook failed: exit status 1", Output: []string{"db is down"}}, "A-1 before_task hook failed: exit status 1\n  | db is down"},
 	}
 	for _, tt := range tests {
 		if got := strings.Join(formatEvent(tt.ev), "\n"); got != tt.want {
@@ -199,6 +201,38 @@ func TestDryRun(t *testing.T) {
 				t.Errorf("%s changed", path)
 			}
 		}
+	}
+}
+
+// A dry run names the task hooks and runs none (SPEC §6.7).
+func TestDryRunAnnouncesHooks(t *testing.T) {
+	withVersions(t, "2.1.291 (Claude Code)\n", "herdr 0.9.1\n")
+	root := writeProject(t, map[string]string{
+		"tasks.md":   dryPlan,
+		"igris.toml": "[hooks]\nbefore_task = [\"touch\", \"before-ran\"]\nafter_task = [\"touch\", \"after-ran\"]\n",
+	})
+	before := snapshot(t, root)
+	var out, errb bytes.Buffer
+	if code := run([]string{"arise", "A", "--dry-run"}, &out, &errb); code != exitOK {
+		t.Fatalf("exit %d, stderr: %s", code, errb.String())
+	}
+	if w := "task hooks before_task and after_task would run around each agent session; the dry run runs none"; !strings.Contains(out.String(), w) {
+		t.Errorf("output lacks %q:\n%s", w, out.String())
+	}
+	if after := snapshot(t, root); len(after) != len(before) {
+		t.Errorf("files after the dry run: %d, before: %d (a hook ran?)", len(after), len(before))
+	}
+
+	// Without hooks the line is not there.
+	if err := os.WriteFile(filepath.Join(root, "igris.toml"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	if code := run([]string{"arise", "A", "--dry-run"}, &out, &errb); code != exitOK {
+		t.Fatalf("exit %d, stderr: %s", code, errb.String())
+	}
+	if strings.Contains(out.String(), "task hooks") {
+		t.Errorf("hooks announced without any:\n%s", out.String())
 	}
 }
 

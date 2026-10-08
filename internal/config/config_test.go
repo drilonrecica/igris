@@ -178,6 +178,14 @@ func TestParseErrors(t *testing.T) {
 		{"phase default without run.verify", "[phases.M1]\nverify = \"default\"", []string{"phases.M1.verify", "use one of: none"}},
 		{"unknown phase key", "[phases.M1]\nmodel = \"opus\"", []string{"phases.M1.model"}},
 		{"phase twice", "[phases.m1]\nverify = \"none\"\n[phases.M1]\nverify = \"none\"", []string{"phases.M1 and phases.m1 name the same phase"}},
+		{"hook first element empty", "[hooks]\nbefore_task = [\"\", \"x\"]", []string{"hooks.before_task: the first element is the program"}},
+		{"hook first element blank", "[hooks]\nafter_task = [\" \"]", []string{"hooks.after_task: the first element"}},
+		{"hook control character", "[hooks]\nbefore_task = [\"./x\", \"a\\nb\"]", []string{"hooks.before_task[1] contains a control character"}},
+		{"hook NUL", "[hooks]\nafter_task = [\"./x\\u0000\"]", []string{"hooks.after_task[0] contains a control character"}},
+		{"hook not a list", "[hooks]\nbefore_task = \"make prep\"", []string{"parse igris.toml"}},
+		{"hook zero timeout", "[hooks]\ntimeout = \"0s\"", []string{"hooks.timeout must be greater than zero"}},
+		{"hook negative timeout", "[hooks]\ntimeout = \"-1m\"", []string{"hooks.timeout must be greater than zero"}},
+		{"unknown hooks key", "[hooks]\nbefore = [\"x\"]", []string{"hooks.before"}},
 		{"multiple problems reported together", "default_mode = \"x\"\n[run]\ncommit = \"y\"", []string{"default_mode", "run.commit"}},
 	}
 	for _, tt := range tests {
@@ -317,6 +325,63 @@ func TestHashWithoutProfilesIsUnchanged(t *testing.T) {
 	}
 }
 
+func TestHooks(t *testing.T) {
+	c, err := Parse([]byte("[hooks]\nbefore_task = [\"./scripts/dev-db\", \"up\"]\nafter_task = [\"notify-send\", \"done\"]\ntimeout = \"30s\"\n"), "igris.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(c.Hooks.BeforeTask, " "); got != "./scripts/dev-db up" {
+		t.Errorf("before_task = %q", got)
+	}
+	if got := strings.Join(c.Hooks.AfterTask, " "); got != "notify-send done" {
+		t.Errorf("after_task = %q", got)
+	}
+	if got := c.Hooks.TimeoutOrDefault(); got != 30*time.Second {
+		t.Errorf("timeout = %s", got)
+	}
+	if got := Default().Hooks.TimeoutOrDefault(); got != 2*time.Minute {
+		t.Errorf("default timeout = %s, want 2m", got)
+	}
+}
+
+func TestHashWithoutHooksIsUnchanged(t *testing.T) {
+	// A v0.3 config has no [hooks]; an empty table or empty lists are no
+	// hooks either, so none of them may change the hash.
+	b, err := json.Marshal(Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(b), `"Hooks"`) {
+		t.Errorf("config JSON has Hooks: %s", b)
+	}
+	// igris init writes Default(): no [hooks] table in it.
+	path := filepath.Join(t.TempDir(), "igris.toml")
+	if err := Write(path, Default()); err != nil {
+		t.Fatal(err)
+	}
+	if data, err := os.ReadFile(path); err != nil || strings.Contains(string(data), "hooks") { //nolint:gosec // the test's own temp file
+		t.Errorf("written default config has hooks (%v):\n%s", err, data)
+	}
+	for _, src := range []string{"[hooks]\n", "[hooks]\nbefore_task = []\nafter_task = []\n"} {
+		c, err := Parse([]byte(src), "igris.toml")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c.Hash() != Default().Hash() {
+			t.Errorf("%q changed the hash", src)
+		}
+	}
+	for _, src := range []string{"[hooks]\nbefore_task = [\"x\"]\n", "[hooks]\nafter_task = [\"x\"]\n", "[hooks]\ntimeout = \"2m\"\n"} {
+		c, err := Parse([]byte(src), "igris.toml")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c.Hash() == Default().Hash() {
+			t.Errorf("%q left the hash unchanged", src)
+		}
+	}
+}
+
 func TestVerifyFor(t *testing.T) {
 	const toml = "[run]\nverify = \"make all\"\n[verify]\nfast = \"make fast\"\n[phases.M1]\nverify = \"Fast\"\n[phases.m2]\nverify = \"none\"\n"
 	c, err := Parse([]byte(toml), "igris.toml")
@@ -425,7 +490,7 @@ func TestForbiddenExtraArg(t *testing.T) {
 }
 
 func TestWriteRoundTrips(t *testing.T) {
-	for _, src := range []string{"", "plan = \"x.md\"\n[run]\nverify = \"make test\"\ncommit = \"never\"\n[columns]\n\"Depends on\" = \"Deps\"\n[notify.ntfy]\ntoken = \"env:T\"\n[tui]\ntheme = \"dark\"\n[tui.rank_colors]\nopus = \"5\"\n", "[verify]\nfast = \"go test ./...\"\n[phases.M1]\nverify = \"fast\"\n[phases.\"V1.2\"]\nverify = \"none\"\n"} {
+	for _, src := range []string{"", "plan = \"x.md\"\n[run]\nverify = \"make test\"\ncommit = \"never\"\n[columns]\n\"Depends on\" = \"Deps\"\n[notify.ntfy]\ntoken = \"env:T\"\n[tui]\ntheme = \"dark\"\n[tui.rank_colors]\nopus = \"5\"\n", "[verify]\nfast = \"go test ./...\"\n[phases.M1]\nverify = \"fast\"\n[phases.\"V1.2\"]\nverify = \"none\"\n", "[hooks]\nbefore_task = [\"./prep\", \"a b\"]\nafter_task = [\"post\"]\ntimeout = \"45s\"\n"} {
 		want, err := Parse([]byte(src), "igris.toml")
 		if err != nil {
 			t.Fatal(err)

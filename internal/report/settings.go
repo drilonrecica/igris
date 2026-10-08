@@ -85,6 +85,14 @@ func NewSettings(cfg *config.Config, keys config.Keys, getenv func(string) strin
 		ph.Rows = append(ph.Rows, Setting{Key: "verify", Value: tomlString(cfg.Phases[id].Verify), Default: !keys.Set("phases", id, "verify")})
 	}
 
+	if !cfg.Hooks.IsZero() {
+		// Shown only when set, like [verify] profiles: most configs have none.
+		hk := sec("hooks")
+		set(hk, "before_task", tomlArray(cfg.Hooks.BeforeTask))
+		set(hk, "after_task", tomlArray(cfg.Hooks.AfterTask))
+		set(hk, "timeout", tomlString(cfg.Hooks.TimeoutOrDefault().String()))
+	}
+
 	set(sec("adapt"), "model", tomlString(cfg.Adapt.Model))
 
 	tui := sec("tui")

@@ -254,6 +254,9 @@ func TestQuestionDialogs(t *testing.T) {
 		{name: "lost click continue", q: engine.QuestionSessionLost, clickOp: 1, want: engine.Command{Kind: engine.CmdRetry, Continue: true}},
 		{name: "lost click done", q: engine.QuestionSessionLost, clickOp: 2, want: engine.Command{Kind: engine.CmdDone}},
 		{name: "lost esc closes, stays pending", q: engine.QuestionSessionLost, keys: []string{"esc"}, closed: true},
+		{name: "hook failed default retry", q: engine.QuestionHookFailed, keys: []string{"enter"}, want: engine.Command{Kind: engine.CmdRetry}},
+		{name: "hook failed click done", q: engine.QuestionHookFailed, clickOp: 1, want: engine.Command{Kind: engine.CmdDone}},
+		{name: "hook failed wraps up to stop", q: engine.QuestionHookFailed, keys: []string{"up", "enter"}, want: engine.Command{Kind: engine.CmdStop}},
 		{name: "shortcuts are off in a dialog", q: engine.QuestionCommit, keys: []string{"p", "d", "9"}, open: true},
 	}
 	for _, tt := range tests {

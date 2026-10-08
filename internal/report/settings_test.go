@@ -103,3 +103,25 @@ func loadKeys(t *testing.T, text string) (*config.Config, config.Keys, error) {
 	}
 	return config.LoadKeys(path)
 }
+
+func TestSettingsShowHooksOnlyWhenSet(t *testing.T) {
+	for _, s := range NewSettings(config.Default(), nil, nil) {
+		if s.Name == "hooks" {
+			t.Fatalf("[hooks] shown without hooks: %+v", s)
+		}
+	}
+	cfg, keys, err := loadKeys(t, "[hooks]\nbefore_task = [\"./prep\", \"up\"]\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	secs := NewSettings(cfg, keys, nil)
+	if r := find(t, secs, "hooks", "before_task"); r.Value != `["./prep", "up"]` || r.Default {
+		t.Errorf("before_task = %+v", r)
+	}
+	if r := find(t, secs, "hooks", "after_task"); r.Value != "[]" || !r.Default {
+		t.Errorf("after_task = %+v", r)
+	}
+	if r := find(t, secs, "hooks", "timeout"); r.Value != `"2m0s"` || !r.Default {
+		t.Errorf("timeout = %+v", r)
+	}
+}

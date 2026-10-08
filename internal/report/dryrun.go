@@ -32,6 +32,10 @@ type DryRun struct {
 	// Interrupted is the task an earlier run stopped during, if any.
 	Interrupted string
 	Warnings    []string
+	// Hooks names the task hooks the config sets ("before_task",
+	// "after_task"): a real run runs them around each agent session, a dry
+	// run runs none (SPEC §6.7).
+	Hooks []string
 	// Scope names the phases walked ("A", "A through B"); empty until the walk
 	// started, so a dry run that failed before it has none.
 	Scope    string

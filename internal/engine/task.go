@@ -93,8 +93,14 @@ func (e *Engine) runTask(ctx context.Context, t *plan.Task) (stopped bool, err e
 	if started, err := e.markInProgress(ctx, l, "mode "+l.mode); err != nil || !started {
 		return false, err
 	}
-	if err := e.openSession(ctx, l, start); err != nil {
+	// The hook runs after the mark, so a failure or a crash leaves the
+	// known "in progress, no session" state (SPEC §6.7).
+	if open, err := e.beforeSession(ctx, l); err != nil {
 		return false, err
+	} else if open {
+		if err := e.openSession(ctx, l, start); err != nil {
+			return false, err
+		}
 	}
 	return e.drive(ctx, l)
 }
@@ -300,6 +306,9 @@ func (e *Engine) retry(ctx context.Context, l *launch, cont bool) error {
 	if err != nil {
 		return err
 	}
+	if open, err := e.beforeSession(ctx, l); err != nil || !open {
+		return err
+	}
 	return e.openSession(ctx, l, st)
 }
 
@@ -312,7 +321,7 @@ func (e *Engine) templatePath() string {
 }
 
 // finish marks a task done or skipped, unblocks its dependents, logs it,
-// drops its signal and closes its session.
+// drops its signal, closes its session and runs the after_task hook.
 func (e *Engine) finish(ctx context.Context, l *launch, to plan.Status, note string) error {
 	t := l.t
 	changes, err := e.writer.Update(ctx, func(p *plan.Plan) ([]plan.Change, error) {
@@ -348,6 +357,13 @@ func (e *Engine) finish(ctx context.Context, l *launch, to plan.Status, note str
 		return err
 	}
 	e.emit(Event{Kind: kind, Detail: note, Changes: changes})
+	if t.Owner.IsAgent() {
+		// Once, after the session is closed; a failure is reported and the
+		// run goes on (SPEC §6.7).
+		if _, err := e.runHook(ctx, l, hookAfter, e.cfg.Hooks.AfterTask, to); err != nil {
+			return err
+		}
+	}
 	e.task = nil
 	return nil
 }

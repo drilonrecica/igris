@@ -71,6 +71,8 @@ func logLines(ev engine.Event) []string {
 		return []string{"run mode for the next sessions: " + ev.Detail + badge(ev.Detail)}
 	case engine.TaskModeChanged:
 		return []string{"mode for " + id + "'s next session: " + ev.Detail + badge(ev.Detail)}
+	case engine.HookFailed:
+		return hookLines(id, ev)
 	case engine.Warning:
 		return []string{"warning: " + ev.Detail}
 	case engine.RunFailed:
@@ -81,6 +83,16 @@ func logLines(ev engine.Event) []string {
 		return []string{strings.TrimSpace(id + " " + ev.Detail)}
 	}
 	return []string{strings.TrimSpace(string(ev.Kind) + " " + id + " " + ev.Detail)}
+}
+
+// hookLines are a failed task hook's reason and the last lines of its
+// output (SPEC §6.7).
+func hookLines(id string, ev engine.Event) []string {
+	lines := []string{id + " " + ev.Detail}
+	for _, l := range ev.Output {
+		lines = append(lines, "  | "+l)
+	}
+	return lines
 }
 
 func note(s, n string) string {
@@ -105,7 +117,7 @@ func badge(mode string) string {
 // owner stands out. The words say it either way.
 func logLook(k engine.EventKind) look {
 	switch k {
-	case engine.NeedsYou, engine.TaskOverdue, engine.SessionLost, engine.VerifyFailed, engine.VerifyLimit, engine.PhaseStuck, engine.PlanChanged, engine.RunFailed:
+	case engine.NeedsYou, engine.TaskOverdue, engine.SessionLost, engine.HookFailed, engine.VerifyFailed, engine.VerifyLimit, engine.PhaseStuck, engine.PlanChanged, engine.RunFailed:
 		return lookAlert
 	case engine.Warning, engine.Asked, engine.YourTurn, engine.Paused, engine.PhaseDone:
 		return lookTitle

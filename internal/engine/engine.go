@@ -77,6 +77,7 @@ type Options struct {
 
 	beforeMark func() // test hook: runs just before a task is marked in progress
 	noVerify   bool   // a dry run: verify profiles are shown, never run
+	noHooks    bool   // a dry run: task hooks are announced, never run
 }
 
 // Notifier delivers one notification to the owner's channels and says how

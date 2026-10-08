@@ -120,6 +120,7 @@ func DryRun(ctx context.Context, o DryRunOptions) (report.DryRun, error) {
 		Clock:          clock,
 		Runner:         &runner.Fake{}, // verify and commits are off; nothing may run
 		noVerify:       true,
+		noHooks:        true,
 		Phase:          f.Phase,
 		Through:        f.Through,
 		Mode:           f.Mode,
@@ -129,6 +130,12 @@ func DryRun(ctx context.Context, o DryRunOptions) (report.DryRun, error) {
 	})
 	if err != nil {
 		return r, err
+	}
+	if len(cfg.Hooks.BeforeTask) > 0 {
+		r.Hooks = append(r.Hooks, hookBefore)
+	}
+	if len(cfg.Hooks.AfterTask) > 0 {
+		r.Hooks = append(r.Hooks, hookAfter)
 	}
 	r.Scope = textsafe.Line(f.Phase)
 	if f.Through != "" {
@@ -141,7 +148,8 @@ func DryRun(ctx context.Context, o DryRunOptions) (report.DryRun, error) {
 // dryRunProject sets up a scratch project in tmp: the plan (and prompt
 // template) copied from root, and a config that never commits or toasts.
 // It returns that config. Its verify profiles stay, so the plan validates
-// and the walk shows each task's profile; the engine runs none of them.
+// and the walk shows each task's profile, and so do its task hooks, so the
+// walk can name them; the engine runs none of either.
 func dryRunProject(tmp, root string, orig *config.Config) (*config.Config, error) {
 	cfg := *orig
 	cfg.Run.Commit = CommitNever

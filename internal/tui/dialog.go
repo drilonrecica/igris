@@ -74,6 +74,15 @@ func questionDialog(ev engine.Event) *dialog {
 			{"Stop igris", actStop},
 		}
 		d.cancel = actClose
+	case engine.QuestionHookFailed:
+		d.title = ev.Task + ": before_task hook failed"
+		d.options = []option{
+			{"Retry", actRetryFresh},
+			{"Mark done", actDone},
+			{"Skip…", actSkip},
+			{"Stop igris", actStop},
+		}
+		d.cancel = actClose
 	default:
 		d.title = "Question"
 		d.options = []option{{"Yes", actAnswerYes}, {"No", actAnswerNo}}

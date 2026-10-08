@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/BurntSushi/toml"
 
@@ -62,9 +63,12 @@ type Config struct {
 	Verify map[string]string `toml:"verify,omitempty" json:",omitempty"`
 	// Phases holds per-phase settings by phase ID (case-insensitive).
 	Phases map[string]PhaseConfig `toml:"phases,omitempty" json:",omitempty"`
-	Adapt  Adapt                  `toml:"adapt"`
-	TUI    TUI                    `toml:"tui"`
-	Notify Notify                 `toml:"notify"`
+	// Hooks are the task hooks (SPEC §6.7). Left out when empty (IsZero),
+	// so a config without them hashes as it did before they existed.
+	Hooks  Hooks  `toml:"hooks,omitempty" json:",omitzero"`
+	Adapt  Adapt  `toml:"adapt"`
+	TUI    TUI    `toml:"tui"`
+	Notify Notify `toml:"notify"`
 }
 
 // defaultClaudeCommand is claude.command's only meaningful value: herdr
@@ -93,6 +97,33 @@ type PhaseConfig struct {
 	// Verify is the verify profile of the phase's tasks, or "none"; "" is
 	// not set.
 	Verify string `toml:"verify,omitempty" json:",omitempty"`
+}
+
+// DefaultHookTimeout bounds a task hook when hooks.timeout is not set.
+const DefaultHookTimeout = 2 * time.Minute
+
+// Hooks is the [hooks] table: commands igris runs around every agent
+// session, as argv lists, never through a shell (SPEC §6.7). An empty list
+// means no hook.
+type Hooks struct {
+	BeforeTask []string `toml:"before_task,omitempty" json:",omitempty"`
+	AfterTask  []string `toml:"after_task,omitempty" json:",omitempty"`
+	// Timeout is nil when not set: see TimeoutOrDefault.
+	Timeout *Duration `toml:"timeout,omitempty" json:",omitempty"`
+}
+
+// IsZero reports that nothing in [hooks] is set (an empty list is not a
+// setting), so the table stays out of the config hash and the written file.
+func (h Hooks) IsZero() bool {
+	return len(h.BeforeTask) == 0 && len(h.AfterTask) == 0 && h.Timeout == nil
+}
+
+// TimeoutOrDefault is hooks.timeout, or DefaultHookTimeout when unset.
+func (h Hooks) TimeoutOrDefault() time.Duration {
+	if h.Timeout == nil {
+		return DefaultHookTimeout
+	}
+	return h.Timeout.Std()
 }
 
 // VerifyDefault is the profile run.verify defines.
@@ -386,6 +417,7 @@ func (c *Config) Validate() error {
 	}
 
 	c.validateVerify(add)
+	c.validateHooks(add)
 
 	for _, arg := range c.Claude.ExtraArgs {
 		if ForbiddenExtraArg(arg) {
@@ -435,6 +467,26 @@ func (c *Config) validateVerify(add func(string, ...any)) {
 		if _, ok := profiles[v]; v != "" && v != plan.VerifyNone && !ok {
 			add("phases.%s.verify = %q is not a verify profile; define it under [verify] or use one of: %s", id, c.Phases[id].Verify, strings.Join(names, ", "))
 		}
+	}
+}
+
+// validateHooks checks [hooks] (SPEC §12).
+func (c *Config) validateHooks(add func(string, ...any)) {
+	for _, h := range []struct {
+		key  string
+		argv []string
+	}{{"hooks.before_task", c.Hooks.BeforeTask}, {"hooks.after_task", c.Hooks.AfterTask}} {
+		if len(h.argv) > 0 && strings.TrimSpace(h.argv[0]) == "" {
+			add("%s: the first element is the program and must not be empty; give the command as an argv list, e.g. [\"./scripts/prepare\", \"--quiet\"]", h.key)
+		}
+		for i, a := range h.argv {
+			if strings.ContainsFunc(a, unicode.IsControl) {
+				add("%s[%d] contains a control character; remove it (hooks are argv lists, one argument per element)", h.key, i)
+			}
+		}
+	}
+	if c.Hooks.Timeout != nil && *c.Hooks.Timeout <= 0 {
+		add("hooks.timeout must be greater than zero (e.g. \"2m\")")
 	}
 }
 
