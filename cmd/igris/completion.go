@@ -7,6 +7,8 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
+	"os"
 	"sort"
 	"strings"
 	"text/template"
@@ -14,6 +16,9 @@ import (
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/notify"
 	"github.com/drilonrecica/igris/internal/plan"
+	"github.com/drilonrecica/igris/internal/project"
+	"github.com/drilonrecica/igris/internal/report"
+	"github.com/drilonrecica/igris/internal/state"
 )
 
 //go:embed completion/*.tmpl
@@ -29,6 +34,7 @@ const (
 	argPhases   = "phases"   // phase IDs, from `igris __complete phases`
 	argTasks    = "tasks"    // task IDs, from `igris __complete tasks`
 	argTaskList = "tasklist" // comma-separated task IDs: completes after the last comma
+	argRuns     = "runs"     // run IDs, newest first, from `igris __complete runs`
 	argValues   = "values"   // a fixed list
 )
 
@@ -142,6 +148,7 @@ var (
 		"arise":      {Kind: argPhases},
 		"status":     {Kind: argPhases},
 		"history":    {Kind: argTasks},
+		"report":     {Kind: argRuns},
 		"done":       {Kind: argTasks},
 		"skip":       {Kind: argTasks},
 		"reset":      {Kind: argTasks},
@@ -221,12 +228,18 @@ func execCompletion(_ *flag.FlagSet, args []string, stdout, stderr io.Writer) in
 }
 
 // execComplete is the hidden `igris __complete KIND` the scripts call for
-// phase and task IDs (SPEC §14). It reads the plan only (never .igris/, never
-// the network) and prints one candidate per line. Whatever goes wrong — no
-// plan, an invalid plan, an unknown kind — it prints nothing and exits 0: a
-// completion must never put noise on the owner's prompt.
+// phase, task and run IDs (SPEC §14). Phases and tasks come from the plan
+// only, runs from .igris/runs.jsonl only (read-only, so an invalid plan
+// doesn't matter); never the network. It prints one candidate per line.
+// Whatever goes wrong — no plan, an invalid plan, no run log, an unknown
+// kind — it prints nothing and exits 0: a completion must never put noise
+// on the owner's prompt.
 func execComplete(args []string, stdout io.Writer) int {
 	if len(args) != 1 {
+		return exitOK
+	}
+	if args[0] == argRuns {
+		completeRuns(stdout)
 		return exitOK
 	}
 	cfg, err := config.Load(configFile)
@@ -252,4 +265,26 @@ func execComplete(args []string, stdout io.Writer) int {
 		}
 	}
 	return exitOK
+}
+
+// completeRuns prints the run log's run IDs, newest first; v0 runs, which
+// have none, are left out. It prints nothing on any error.
+func completeRuns(stdout io.Writer) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return
+	}
+	root, err := state.FindRoot(cwd)
+	if err != nil {
+		return
+	}
+	in, err := project.HistoryInput(root, math.MaxInt)
+	if err != nil {
+		return
+	}
+	for _, r := range report.NewHistory(in).Runs {
+		if r.Run != "" {
+			fmt.Fprintln(stdout, r.Run)
+		}
+	}
 }

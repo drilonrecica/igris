@@ -238,6 +238,35 @@ func planFlags(max int) func(*flag.FlagSet) func([]string) error {
 	}
 }
 
+// synopsisUsage makes `igris NAME -h` print the command's lines from
+// usageText, positional arguments included, then its flags.
+func synopsisUsage(fs *flag.FlagSet, name string) {
+	fs.Usage = func() {
+		w := fs.Output()
+		fmt.Fprintf(w, "Usage:\n%s\nFlags:\n", synopsis(name))
+		fs.PrintDefaults()
+	}
+}
+
+// synopsis is the command's entry in usageText, its line and the
+// continuation lines under it, with "igris" in front.
+func synopsis(name string) string {
+	var b strings.Builder
+	in := false
+	for _, l := range strings.Split(usageText, "\n") {
+		switch {
+		case strings.HasPrefix(l, "  "+name+" "):
+			in = true
+			b.WriteString("  igris " + l[2:] + "\n")
+		case in && strings.HasPrefix(l, "    "):
+			b.WriteString("      " + l + "\n")
+		default:
+			in = false
+		}
+	}
+	return b.String()
+}
+
 func maxArgs(_ *flag.FlagSet, n int) func([]string) error {
 	return func(args []string) error { return atMost(args, n) }
 }

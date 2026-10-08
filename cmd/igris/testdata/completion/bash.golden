@@ -52,6 +52,7 @@ _igris() {
     case "$cmd" in
         status) COMPREPLY=($(compgen -W "$(igris __complete phases 2>/dev/null)" -- "$cur")) ;;
         history) COMPREPLY=($(compgen -W "$(igris __complete tasks 2>/dev/null)" -- "$cur")) ;;
+        report) COMPREPLY=($(compgen -W "$(igris __complete runs 2>/dev/null)" -- "$cur")) ;;
         arise) COMPREPLY=($(compgen -W "$(igris __complete phases 2>/dev/null)" -- "$cur")) ;;
         done) COMPREPLY=($(compgen -W "$(igris __complete tasks 2>/dev/null)" -- "$cur")) ;;
         skip) COMPREPLY=($(compgen -W "$(igris __complete tasks 2>/dev/null)" -- "$cur")) ;;

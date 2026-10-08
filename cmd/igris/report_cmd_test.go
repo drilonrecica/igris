@@ -109,3 +109,25 @@ func TestReportEscapesMarkdown(t *testing.T) {
 		t.Errorf("--json keeps the text as cleaned: code %d\n%s", code, out.String())
 	}
 }
+
+// `report -h` and `history -h` show the positional arguments, not only
+// the flags, and exit 0.
+func TestReportHistoryHelp(t *testing.T) {
+	for _, c := range []struct {
+		args []string
+		want []string
+	}{
+		{[]string{"report", "-h"}, []string{"igris report [RUN] [--json]", "-json"}},
+		{[]string{"history", "--help"}, []string{"igris history [TASK-ID] [-n N] [--json]", "-n int"}},
+	} {
+		var out, errb bytes.Buffer
+		if code := run(c.args, &out, &errb); code != exitOK {
+			t.Errorf("%v: exit %d", c.args, code)
+		}
+		for _, w := range c.want {
+			if !strings.Contains(errb.String(), w) {
+				t.Errorf("%v: help lacks %q:\n%s", c.args, w, errb.String())
+			}
+		}
+	}
+}

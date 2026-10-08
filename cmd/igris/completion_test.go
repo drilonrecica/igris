@@ -203,3 +203,99 @@ func TestCompletionOnlyList(t *testing.T) {
 		})
 	}
 }
+
+// __complete runs reads the run log only: it lists run IDs newest first
+// (v0 runs have none) even when the plan is invalid, and nothing without a
+// log.
+func TestCompleteRuns(t *testing.T) {
+	log, err := os.ReadFile(filepath.Join("testdata", "report", "runs.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		name string
+		log  []byte
+		plan string
+		want string
+	}{
+		{"log", log, completePlan, "20261002-100000-00ff\n20261001-090000-3fa2\n"},
+		{"invalid plan", log, completePlan + "| M1-01 | dup | | ready | opus | agent |\n", "20261002-100000-00ff\n20261001-090000-3fa2\n"},
+		{"no plan", log, "", "20261002-100000-00ff\n20261001-090000-3fa2\n"},
+		{"empty log", []byte{}, completePlan, ""},
+		{"no log", nil, completePlan, ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			root := t.TempDir()
+			t.Chdir(root)
+			if c.log != nil {
+				writeLog(t, root, c.log)
+			}
+			if c.plan != "" {
+				if err := os.WriteFile("tasks.md", []byte(c.plan), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			var out, errb bytes.Buffer
+			if code := run([]string{"__complete", "runs"}, &out, &errb); code != exitOK {
+				t.Errorf("exit %d", code)
+			}
+			if out.String() != c.want || errb.Len() != 0 {
+				t.Errorf("stdout %q (want %q), stderr %q", out.String(), c.want, errb.String())
+			}
+			if c.log == nil {
+				if _, err := os.Stat(".igris"); err == nil {
+					t.Error("__complete created .igris/")
+				}
+				return
+			}
+			if got, err := os.ReadFile(filepath.Join(".igris", "runs.jsonl")); err != nil || !bytes.Equal(got, c.log) {
+				t.Errorf("the run log changed: %v", err)
+			}
+		})
+	}
+}
+
+// After `report`, every shell completes run IDs from __complete runs.
+func TestCompletionReportRuns(t *testing.T) {
+	fake := t.TempDir()
+	stub := "#!/bin/sh\n[ \"$1 $2\" = \"__complete runs\" ] && printf '20261002-100000-00ff\\n20261001-090000-3fa2\\n20250101-000000-0000\\n'\n"
+	if err := os.WriteFile(filepath.Join(fake, "igris"), []byte(stub), 0o700); err != nil { //nolint:gosec // an executable test stub
+		t.Fatal(err)
+	}
+	path := fake + string(os.PathListSeparator) + os.Getenv("PATH")
+	tests := []struct {
+		shell, script string
+	}{
+		{"bash", `eval "$SCRIPT"; COMP_WORDS=(igris report 2026); COMP_CWORD=2; _igris; printf '%s\n' "${COMPREPLY[@]}"`},
+		{"fish", `echo $SCRIPT | source; complete -C 'igris report 2026'`},
+		// zsh without compinit: compadd stubbed to print the candidates
+		// matching the prefix.
+		{"zsh", `compdef() { :; }; compadd() { while [[ $1 != -- ]]; do shift; done; shift; print -l -- ${(M)@:#$PREFIX*}; }
+eval "$SCRIPT"; words=(igris report 2026); CURRENT=3; PREFIX=2026; _igris`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.shell, func(t *testing.T) {
+			bin, err := exec.LookPath(tt.shell)
+			if err != nil {
+				t.Skipf("%s not installed", tt.shell)
+			}
+			s, err := completionScript(tt.shell)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cmd := exec.Command(bin, "-c", tt.script) //nolint:gosec // bin is a shell found on PATH
+			cmd.Env = append(os.Environ(), "PATH="+path, "SCRIPT="+s)
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("%v\n%s", err, out)
+			}
+			var got []string
+			for _, l := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+				got = append(got, strings.Fields(l)[0])
+			}
+			if strings.Join(got, " ") != "20261002-100000-00ff 20261001-090000-3fa2" {
+				t.Errorf("completions = %q", out)
+			}
+		})
+	}
+}

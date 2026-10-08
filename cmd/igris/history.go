@@ -18,6 +18,7 @@ import (
 func historyArgs(fs *flag.FlagSet) func([]string) error {
 	n := fs.Int("n", report.DefaultHistoryRuns, "number of runs to show")
 	fs.Bool("json", false, "machine-readable output")
+	synopsisUsage(fs, "history")
 	return func(args []string) error {
 		if *n < 1 {
 			return fmt.Errorf("invalid -n %d (want 1 or more)", *n)

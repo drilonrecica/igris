@@ -32,6 +32,8 @@ complete -c igris -n '__fish_seen_subcommand_from {{$c.Name}}' {{if eq (len .Nam
 complete -c igris -n '__fish_seen_subcommand_from {{$c.Name}}' -a '(__igris_ids phases)'
 {{- else if eq $c.Pos.Kind "tasks"}}
 complete -c igris -n '__fish_seen_subcommand_from {{$c.Name}}' -a '(__igris_ids tasks)'
+{{- else if eq $c.Pos.Kind "runs"}}
+complete -c igris -n '__fish_seen_subcommand_from {{$c.Name}}' -k -a '(__igris_ids runs)'
 {{- else if eq $c.Pos.Kind "values"}}
 complete -c igris -n '__fish_seen_subcommand_from {{$c.Name}}' -a '{{range $i, $v := $c.Pos.Values}}{{if $i}} {{end}}{{$v}}{{end}}'
 {{- end}}

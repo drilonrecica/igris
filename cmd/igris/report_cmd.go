@@ -17,6 +17,7 @@ import (
 // positive integer or a run ID (SPEC §14).
 func reportArgs(fs *flag.FlagSet) func([]string) error {
 	fs.Bool("json", false, "machine-readable output")
+	synopsisUsage(fs, "report")
 	return func(args []string) error {
 		if err := atMost(args, 1); err != nil {
 			return err

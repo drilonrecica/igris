@@ -34,6 +34,8 @@ _igris() {
         {{.Name}}) compadd -- ${(f)"$(igris __complete phases 2>/dev/null)"} ;;
 {{- else if eq .Pos.Kind "tasks"}}
         {{.Name}}) compadd -- ${(f)"$(igris __complete tasks 2>/dev/null)"} ;;
+{{- else if eq .Pos.Kind "runs"}}
+        {{.Name}}) compadd -V runs -- ${(f)"$(igris __complete runs 2>/dev/null)"} ;;
 {{- else if eq .Pos.Kind "values"}}
         {{.Name}}) compadd -- {{range $i, $v := .Pos.Values}}{{if $i}} {{end}}{{$v}}{{end}} ;;
 {{- end}}

@@ -45,6 +45,7 @@ _igris() {
     case "$cmd" in
         status) compadd -- ${(f)"$(igris __complete phases 2>/dev/null)"} ;;
         history) compadd -- ${(f)"$(igris __complete tasks 2>/dev/null)"} ;;
+        report) compadd -V runs -- ${(f)"$(igris __complete runs 2>/dev/null)"} ;;
         arise) compadd -- ${(f)"$(igris __complete phases 2>/dev/null)"} ;;
         done) compadd -- ${(f)"$(igris __complete tasks 2>/dev/null)"} ;;
         skip) compadd -- ${(f)"$(igris __complete tasks 2>/dev/null)"} ;;

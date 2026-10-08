@@ -94,7 +94,7 @@ The binaries are static and not signed yet; the checksums guard against a corrup
 
 ## Shell completion
 
-`igris completion bash|zsh|fish` prints a completion script for subcommands, flags, and phase and task IDs from your plan (read from `tasks.md` or the `plan` in `igris.toml` of the current directory; nothing is offered while the plan is invalid).
+`igris completion bash|zsh|fish` prints a completion script for subcommands, flags, and phase and task IDs from your plan (read from `tasks.md` or the `plan` in `igris.toml` of the current directory; nothing is offered while the plan is invalid). After `igris report` it completes run IDs, newest first, from `.igris/runs.jsonl`.
 
 ```sh
 # bash: add to ~/.bashrc
