@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -178,6 +179,8 @@ func TestParseErrors(t *testing.T) {
 		{"phase default without run.verify", "[phases.M1]\nverify = \"default\"", []string{"phases.M1.verify", "use one of: none"}},
 		{"unknown phase key", "[phases.M1]\nmodel = \"opus\"", []string{"phases.M1.model"}},
 		{"phase twice", "[phases.m1]\nverify = \"none\"\n[phases.M1]\nverify = \"none\"", []string{"phases.M1 and phases.m1 name the same phase"}},
+		{"run key under [verify]", "[verify]\nverify_timeout = \"10m\"", []string{"verify.verify_timeout is a [run] setting, not a verify profile; move it under [run]"}},
+		{"run number under [verify]", "[verify]\nfast = \"x\"\nverify_max_attempts = 5", []string{"verify.verify_max_attempts is a [run] setting, not a verify profile; move it under [run]"}},
 		{"hook first element empty", "[hooks]\nbefore_task = [\"\", \"x\"]", []string{"hooks.before_task: the first element is the program"}},
 		{"hook first element blank", "[hooks]\nafter_task = [\" \"]", []string{"hooks.after_task: the first element"}},
 		{"hook control character", "[hooks]\nbefore_task = [\"./x\", \"a\\nb\"]", []string{"hooks.before_task[1] contains a control character"}},
@@ -519,7 +522,7 @@ func TestWarnings(t *testing.T) {
 		{"", ""},
 		{"[claude]\ncommand = \"claude\"\n", ""},
 		{"[claude]\ncommand = \"\"\n", `claude.command = "" is ignored`},
-		{"[claude]\ncommand = \"/opt/claude\"\n", `claude.command = "/opt/claude" is ignored: igris always starts claude from PATH`},
+		{"[claude]\ncommand = \"/opt/claude\"\n", `claude.command = "/opt/claude" is ignored: igris always starts claude from PATH; remove it from igris.toml (the key is deprecated and goes away before 1.0)`},
 	}
 	for _, tt := range tests {
 		cfg, err := Parse([]byte(tt.toml), "igris.toml")
@@ -533,5 +536,54 @@ func TestWarnings(t *testing.T) {
 		case tt.want != "" && (len(got) != 1 || !strings.Contains(got[0], tt.want)):
 			t.Errorf("%q: warnings %q, want %q", tt.toml, got, tt.want)
 		}
+	}
+}
+
+// The "use one of" list names only usable profiles, and none once.
+func TestPhaseVerifyChoices(t *testing.T) {
+	_, err := Parse([]byte("[verify]\nnone = \"x\"\nBad = \"y\"\nempty = \" \"\nfast = \"z\"\n[phases.M1]\nverify = \"q\"\n"), "igris.toml")
+	want := `phases.M1.verify = "q" is not a verify profile; define it under [verify] or use one of: fast, none`
+	if err == nil || !strings.Contains(err.Error(), want) {
+		t.Errorf("error %v, want %q", err, want)
+	}
+}
+
+// Write leaves out a channel's events when they are the default list, so later default events reach the config (decision V04-P1).
+func TestWriteOmitsDefaultEvents(t *testing.T) {
+	custom := Default()
+	custom.Notify.Discord.Events = []string{"needs_input"}
+	reordered := Default()
+	slices.Reverse(reordered.Notify.Ntfy.Events)
+	silent := Default()
+	silent.Notify.Ntfy.Events = []string{}
+	for _, tt := range []struct {
+		name string
+		cfg  *Config
+		want int // event lists written
+	}{{"defaults", Default(), 0}, {"reordered", reordered, 1}, {"custom", custom, 1}, {"no events", silent, 1}} {
+		t.Run(tt.name, func(t *testing.T) {
+			before := tt.cfg.Hash()
+			path := filepath.Join(t.TempDir(), "igris.toml")
+			if err := Write(path, tt.cfg); err != nil {
+				t.Fatal(err)
+			}
+			if tt.cfg.Hash() != before {
+				t.Errorf("Write changed the caller's config: %+v", tt.cfg.Notify)
+			}
+			data, err := os.ReadFile(path) //nolint:gosec // a temp file
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := strings.Count(string(data), "events"); got != tt.want {
+				t.Errorf("%d events lines, want %d:\n%s", got, tt.want, data)
+			}
+			got, err := Load(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Hash() != tt.cfg.Hash() {
+				t.Errorf("round trip changed the config")
+			}
+		})
 	}
 }

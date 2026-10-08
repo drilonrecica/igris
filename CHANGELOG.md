@@ -6,7 +6,7 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [0.4.0] - 2026-10-08
 
-igris v0.4 lets a plan say more about each task: which checks to run, how long it should take and what to read first. It also runs part of a plan, puts a task back, runs your own commands around each session and lints plans for CI. Every addition is optional, so no plan migration is needed: a v0.3 plan and a v0.3 `igris.toml` mean what they meant before, except that sessions now run in `auto` mode unless `default_mode` says otherwise (see Migration, also for a column that already had one of the new names).
+igris v0.4 lets a plan say more about each task: which checks to run, how long it should take and what to read first. It also runs part of a plan, puts a task back, runs your own commands around each session and lints plans for CI. Every addition is optional, so most plans need no migration: a v0.3 plan and a v0.3 `igris.toml` mean what they meant before, with three exceptions in Migration: sessions now run in `auto` mode unless `default_mode` says otherwise, a column that already had one of the new names is read as the new column, and a config written by v0.3 `igris init` doesn't get the new `task_overdue` notification on ntfy or Discord by itself.
 
 ### Added
 
@@ -33,10 +33,11 @@ igris v0.4 lets a plan say more about each task: which checks to run, how long i
 
 ### Migration
 
-- **No plan migration is needed.** Plans without the new columns, and configs without the new keys, behave as in v0.3, apart from the run mode below.
+- **No plan migration is needed** for plans without a column named `Verify`, `Timeout` or `Context`. Those plans, and configs without the new keys, behave as in v0.3, apart from the run mode and the notification events below.
 - **Configs that don't set `default_mode` now run sessions in auto mode**; set `default_mode = "default"` to keep every prompt going to you. Configs that set it, a task's `Mode` column and the mode you pick for a run are unchanged.
-- **A plan that already has a column named `Verify`, `Timeout` or `Context`** for something else (a command, an estimate, notes) is now read as the new column and may fail `igris check`. Rename that column (e.g. `Verify notes`), or let `igris adapt` do it.
-- **`task_overdue` joins the default notification events and `default_mode` defaults to `auto`**, and the config hash covers the parsed config with its defaults, so the hash of an unchanged `igris.toml` changes. Resuming a run interrupted under v0.3 therefore shows a one-time warning, `igris.toml changed since the interrupted run; this run uses the file as it is now`. It is expected, and the run carries on.
+- **A plan that already has a column named `Verify`, `Timeout` or `Context`** for something else (a command, an estimate, notes) is now read as the new column and may fail `igris check`. Rename that column (e.g. `Verify notes`), or let `igris adapt` do it. To keep the plan as it is, alias the column away in `igris.toml`: `[columns]` `Context = "Background"` keeps it as the extra column `Background`, as before.
+- **Configs written by v0.3 `igris init` list their notification `events`**, so ntfy and Discord don't send the new `task_overdue` until you add it to `events` or remove the `events` line (the default then applies). `igris init` now leaves `events` out while it is the default list, so later defaults reach new configs. Configs without an `events` line (like `examples/minimal`) get `task_overdue` already.
+- **The config hash of a config that doesn't set `default_mode` or an `events` list changes**, since the hash covers the parsed config with its defaults and both defaults changed (`examples/minimal`, say; a config written by v0.3 `igris init` sets both, so its hash stays the same). Resuming a run interrupted under v0.3 with such a config shows a one-time warning, `igris.toml changed since the interrupted run; this run uses the file as it is now`. It is expected, and the run carries on.
 - `check --strict` is new and opt-in: plain `igris check` output and exit codes are unchanged.
 - **Going back to v0.3 with a sliced run interrupted:** v0.3 refuses its `state.json` (`unsupported version 2`) rather than running the whole phases. Finish the run with v0.4, or delete `.igris/state.json`.
 

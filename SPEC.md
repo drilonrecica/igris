@@ -476,7 +476,7 @@ haiku = "haiku"
 # "Agent" = "Model"
 
 [claude]
-command = "claude"                # deprecated and ignored: igris always starts claude from PATH; any other value warns; removed in v0.2
+command = "claude"                # deprecated and ignored: igris always starts claude from PATH; any other value warns; removed before 1.0
 extra_args = []                   # appended to every session launch; model/mode/session flags are rejected (§7.4)
 
 [run]
@@ -525,10 +525,11 @@ events = ["needs_input", "session_lost", "task_overdue", "phase_done", "phase_st
 ```
 
 - Unknown keys are errors (catches typos). Durations use Go syntax.
-- Verify profile names match `[a-z0-9_-]+` and their commands must not be empty. `none` is reserved, and setting both `run.verify` and `[verify] default` is an error (they are the same profile). `run.verify` stays supported.
+- Verify profile names match `[a-z0-9_-]+` and their commands must not be empty. `none` is reserved, and setting both `run.verify` and `[verify] default` is an error (they are the same profile). `verify_timeout` and `verify_max_attempts` under `[verify]` are an error too: they are `[run]` settings (`verify.verify_timeout is a [run] setting, not a verify profile; move it under [run]`). `run.verify` stays supported. An error naming an unknown profile lists only the usable ones (valid names with a command) and `none`.
 - `[phases.<id>]` matches phase IDs case-insensitively; `verify` is its only key, naming a profile or `none`. An unknown profile there is an error. A `[phases.<id>]` that names no phase of the plan is a warning in `check` and `arise` (the config is validated without the plan).
 - `[hooks]`: an empty or missing list means no hook. A non-empty list needs a non-empty first element, and no element may contain a control character.
 - Durations must be greater than zero. `env:VAR` references are accepted for `notify.ntfy.token` and `notify.discord.webhook_url`; an unset or empty variable is an error. Several problems are reported together, each saying what to fix.
+- `igris init` writes the defaults, but leaves a channel's `events` out while it is the default list (any file igris writes does), so events a later version adds to the default reach that file; a file that lists `events` keeps exactly that list.
 - The config hash recorded in the run snapshot (§13) is a SHA-256 of the parsed config as written (defaults applied, `env:` references unresolved), so secret values never enter it.
 - `igris.toml` holds no secrets by default and is safe to commit; `.igris/` is local state and is added to `.gitignore` by `igris init`.
 

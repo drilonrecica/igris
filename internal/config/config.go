@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -77,7 +78,7 @@ const defaultClaudeCommand = "claude"
 
 // Claude configures how Claude Code is launched.
 type Claude struct {
-	// Command is deprecated and ignored (Warnings); it goes away in v0.2.
+	// Command is deprecated and ignored (Warnings); it goes away before 1.0.
 	Command   string   `toml:"command"`
 	ExtraArgs []string `toml:"extra_args"`
 }
@@ -219,16 +220,19 @@ type NotifyBackend struct {
 
 // Ntfy is the ntfy channel.
 type Ntfy struct {
-	Server string   `toml:"server"`
-	Topic  string   `toml:"topic"`
-	Token  string   `toml:"token"`
+	Server string `toml:"server"`
+	Topic  string `toml:"topic"`
+	Token  string `toml:"token"`
+	// Events is left out of a written file when it is the default list
+	// (Write), so default events added later reach the config. An empty
+	// list is written: it turns the channel's events off.
 	Events []string `toml:"events"`
 }
 
 // Discord is the Discord webhook channel.
 type Discord struct {
 	WebhookURL string   `toml:"webhook_url"`
-	Events     []string `toml:"events"`
+	Events     []string `toml:"events"` // see Ntfy.Events
 }
 
 // Secrets are the resolved values of the env:VAR references. They are never
@@ -341,6 +345,9 @@ func Parse(data []byte, name string) (*Config, error) {
 }
 
 func parse(data []byte, name string) (*Config, Keys, error) {
+	if err := misplacedRunKeys(data); err != nil {
+		return nil, nil, fmt.Errorf("%s: %w", name, err)
+	}
 	cfg := Default()
 	md, err := toml.Decode(string(data), cfg)
 	if err != nil {
@@ -361,6 +368,29 @@ func parse(data []byte, name string) (*Config, Keys, error) {
 		keys[keyName(k...)] = true
 	}
 	return cfg, keys, nil
+}
+
+// runVerifyKeys are the [run] settings that are easy to write under
+// [verify] by mistake, where they would read as profiles.
+var runVerifyKeys = []string{"verify_timeout", "verify_max_attempts"}
+
+// misplacedRunKeys reports a [run] setting written under [verify]. It
+// looks before the typed decode, which would reject a number there with
+// a less helpful message; a file that doesn't parse is left to it.
+func misplacedRunKeys(data []byte) error {
+	var raw struct {
+		Verify map[string]any `toml:"verify"`
+	}
+	if _, err := toml.Decode(string(data), &raw); err != nil {
+		return nil
+	}
+	var errs []error
+	for _, k := range runVerifyKeys {
+		if _, ok := raw.Verify[k]; ok {
+			errs = append(errs, fmt.Errorf("verify.%s is a [run] setting, not a verify profile; move it under [run]", k))
+		}
+	}
+	return errors.Join(errs...)
 }
 
 // Keys are the keys an igris.toml sets, tables and values alike, by their
@@ -455,7 +485,13 @@ func (c *Config) validateVerify(add func(string, ...any)) {
 		}
 	}
 	profiles := c.VerifyProfiles()
-	names := append(sortedKeys(profiles), plan.VerifyNone)
+	var names []string // the profiles a phase may name, for the hint
+	for _, name := range sortedKeys(profiles) {
+		if name != plan.VerifyNone && profilePattern.MatchString(name) && strings.TrimSpace(profiles[name]) != "" {
+			names = append(names, name)
+		}
+	}
+	names = append(names, plan.VerifyNone)
 	seen := map[string]string{}
 	for _, id := range sortedKeys(c.Phases) {
 		if first, dup := seen[strings.ToLower(id)]; dup {
@@ -496,7 +532,7 @@ func (c *Config) Warnings() []string {
 	var out []string
 	if c.Claude.Command != defaultClaudeCommand {
 		// Both backends start `claude` from PATH.
-		out = append(out, fmt.Sprintf("claude.command = %q is ignored: igris always starts claude from PATH; remove it from igris.toml (the key goes away in v0.2)", c.Claude.Command))
+		out = append(out, fmt.Sprintf("claude.command = %q is ignored: igris always starts claude from PATH; remove it from igris.toml (the key is deprecated and goes away before 1.0)", c.Claude.Command))
 	}
 	return out
 }
@@ -523,10 +559,18 @@ func (c *Config) Resolve(getenv func(string) string) (Secrets, error) {
 }
 
 // Write stores c as TOML at path (0600). Loading the file gives a config
-// with the same Hash.
+// with the same Hash. A channel's events list equal to the default is left
+// out, so the file follows the default when a later version adds an event.
 func Write(path string, c *Config) error {
+	out := *c
+	if slices.Equal(out.Notify.Ntfy.Events, defaultEvents()) {
+		out.Notify.Ntfy.Events = nil
+	}
+	if slices.Equal(out.Notify.Discord.Events, defaultEvents()) {
+		out.Notify.Discord.Events = nil
+	}
 	var buf bytes.Buffer
-	if err := toml.NewEncoder(&buf).Encode(c); err != nil {
+	if err := toml.NewEncoder(&buf).Encode(&out); err != nil {
 		return fmt.Errorf("encode %s: %w", path, err)
 	}
 	if err := os.WriteFile(path, buf.Bytes(), 0o600); err != nil {
