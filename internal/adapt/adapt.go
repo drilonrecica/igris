@@ -184,6 +184,7 @@ func (r *runner) open(ctx context.Context, issues []plan.Issue, proposal string)
 		PlanFile:     rel(r.o.PlanPath),
 		ProposalFile: rel(proposal),
 		Models:       prompt.Aliases(cfg.Models),
+		Verify:       cfg.Rules("").Verify,
 	}
 	for _, is := range issues {
 		vars.Issues = append(vars.Issues, is.Error())

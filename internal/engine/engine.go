@@ -82,6 +82,10 @@ type Options struct {
 	beforeMark func() // test hook: runs just before a task is marked in progress
 	noVerify   bool   // a dry run: verify profiles are shown, never run
 	noHooks    bool   // a dry run: task hooks are announced, never run
+	// contextRoot, when set, is the directory Context paths are checked
+	// against instead of the state root: a dry run walks a scratch copy of
+	// the plan, but its Context names the owner's files.
+	contextRoot string
 }
 
 // Notifier delivers one notification to the owner's channels and says how
@@ -208,7 +212,7 @@ func New(opts Options) (*Engine, error) {
 		runMode:   opts.Mode,
 		overrides: map[string]string{},
 	}
-	e.writer = plan.NewWriter(e.planPath, e.planOpts, e.cfg.Rules(e.dir.Root()))
+	e.writer = plan.NewWriter(e.planPath, e.planOpts, e.rules())
 	return e, nil
 }
 
@@ -379,10 +383,19 @@ func (e *Engine) loadPlan() (*plan.Plan, error) {
 	if err != nil {
 		return nil, PlanLoadError(err)
 	}
-	if err := p.Check(e.cfg.Rules(e.dir.Root())); err != nil {
+	if err := p.Check(e.rules()); err != nil {
 		return nil, err
 	}
 	return p, nil
+}
+
+// rules are the plan rules the engine validates with (SPEC §3.2).
+func (e *Engine) rules() plan.Rules {
+	root := e.opts.contextRoot
+	if root == "" {
+		root = e.dir.Root()
+	}
+	return e.cfg.Rules(root)
 }
 
 // IsUserTask reports whether id is a task in the plan that igris launches

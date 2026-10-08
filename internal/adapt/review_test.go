@@ -121,6 +121,20 @@ func TestCompare(t *testing.T) {
 			not:    []string{"reordered", "A-1 Owner", "A-2 Spec"},
 		},
 		{
+			name: "v0.4 columns are compared by name like any other",
+			a: "## A\n\n| ID | Task | Status | Model | Verify | Timeout | Context |\n|---|---|---|---|---|---|---|\n" +
+				"| A-1 | x | ready | sonnet | fast | 45m | docs/a.md |\n| A-2 | y | ready | sonnet | go test ./... | | |\n",
+			b: "## A\n\n| ID | Task | Status | Model | Verify notes | Timeout | Verify |\n|---|---|---|---|---|---|---|\n" +
+				"| A-1 | x | ready | sonnet | | 1h | fast |\n| A-2 | y | ready | sonnet | go test ./... | | |\n",
+			tables: true,
+			want: []string{
+				"  + column Verify notes", "  - column Context",
+				`  ~ A-1 Timeout: "45m" → "1h"`, `  ~ A-1 Context: "docs/a.md" → ""`,
+				`  ~ A-2 Verify notes: "" → "go test ./..."`, `  ~ A-2 Verify: "go test ./..." → ""`,
+			},
+			not: []string{"A-1 Verify:"},
+		},
+		{
 			name:   "extra columns match case-insensitively",
 			a:      "## A\n\n| ID | Task | Status | Model | spec |\n|---|---|---|---|---|\n| A-1 | x | ready | sonnet | 3 |\n",
 			b:      "## A\n\n| ID | Task | Status | Model | Spec |\n|---|---|---|---|---|\n| A-1 | x | ready | sonnet | 3 |\n",

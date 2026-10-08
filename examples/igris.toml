@@ -23,12 +23,24 @@ command = "claude"                # deprecated and ignored (herdr starts claude 
 extra_args = []                   # appended to every session launch; model/mode/session flags are rejected
 
 [run]
-verify = "make test"              # checks to run when a session says it is done; empty = none
-verify_timeout = "15m"
+verify = "make test"              # checks to run when a session says it is done (the profile "default"); empty = none
+verify_timeout = "15m"            # for every verify profile
 verify_max_attempts = 3
 commit = "ask"                    # ask | auto | never
 commit_message = "{{.ID}}: {{.Title}}"
 prompt_template = ""              # path to a custom task prompt template
+
+[verify]                          # optional verify profiles: name -> shell command; a plan's Verify cell names one
+# fast = "go test ./internal/..."
+# full = "make fmt lint test"
+
+# [phases.P2]                     # optional, per phase: the verify profile of its tasks
+# verify = "full"                 # a profile, or "none"
+
+[hooks]                           # optional task hooks, argv lists run without a shell
+# before_task = ["./scripts/dev-db", "up"]
+# after_task = ["./scripts/post-status"]
+# timeout = "2m"
 
 [adapt]
 model = "sonnet"                  # sonnet | opus

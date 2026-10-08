@@ -20,6 +20,7 @@ func TestRenderAdaptGolden(t *testing.T) {
 				"docs/plan.md:12: T-3: unknown status \"wip\"; use ready, blocked, in progress, done or skipped",
 			},
 			Models: models,
+			Verify: []string{"default", "fast"},
 		}},
 		{"adapt-no-issues", AdaptVars{
 			PlanFile:     "tasks.md",
@@ -51,6 +52,7 @@ func TestRenderAdaptContent(t *testing.T) {
 		ProposalFile: ".igris/adapt/plan.proposed.md",
 		Issues:       []string{"plan.md:3: boom"},
 		Models:       Aliases(map[string]string{"opus": "claude-opus-5-5"}),
+		Verify:       []string{"full"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -63,7 +65,23 @@ func TestRenderAdaptContent(t *testing.T) {
 		"## Adapt notes",
 		"igris done ADAPT --note",
 		"igris check --plan .igris/adapt/plan.proposed.md",
+		"- `full`",
+		"never put a command in a Verify cell",
+		"Verify, Timeout, Context",
 		"## 3.6 Example", // the embedded canonical format
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("adapt prompt missing %q", want)
+		}
+	}
+
+	// Without profiles, the prompt says only none is allowed.
+	got, err = RenderAdapt(AdaptVars{PlanFile: "plan.md", ProposalFile: "p.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"defines no verify profiles, so a Verify cell may only be `none`.",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("adapt prompt missing %q", want)
@@ -84,7 +102,7 @@ func TestAdaptRules(t *testing.T) {
 	if strings.Contains(r, "{{") {
 		t.Error("adapt rules must not contain template variables")
 	}
-	for _, want := range []string{"igris done ADAPT", "Never edit the original plan", "Model `?`", "## Adapt notes", "External blockers", "`user` task"} {
+	for _, want := range []string{"igris done ADAPT", "Never edit the original plan", "Model `?`", "## Adapt notes", "External blockers", "`user` task", "never invent one"} {
 		if !strings.Contains(r, want) {
 			t.Errorf("adapt rules missing %q", want)
 		}

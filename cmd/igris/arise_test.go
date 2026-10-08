@@ -237,6 +237,24 @@ func TestDryRunAnnouncesHooks(t *testing.T) {
 	}
 }
 
+// A dry run walks a scratch copy of the plan, but its Context cells name
+// the owner's files: they are checked against the project (SPEC §3.2).
+func TestDryRunContext(t *testing.T) {
+	withVersions(t, "2.1.291 (Claude Code)\n", "herdr 0.9.1\n")
+	writeProject(t, map[string]string{
+		"tasks.md": "## A — First\n\n| ID | Task | Status | Model | Context |\n|---|---|---|---|---|\n" +
+			"| A-1 | **One** | ready | sonnet | docs/spec.md, docs/ |\n",
+		"docs/spec.md": "# spec\n",
+	})
+	var out, errb bytes.Buffer
+	if code := run([]string{"arise", "A", "--dry-run"}, &out, &errb); code != exitOK {
+		t.Fatalf("exit %d, stdout: %s\nstderr: %s", code, out.String(), errb.String())
+	}
+	if strings.Contains(out.String()+errb.String(), "does not exist") {
+		t.Errorf("Context checked against the scratch copy:\n%s%s", out.String(), errb.String())
+	}
+}
+
 func TestDryRunUnknownPhase(t *testing.T) {
 	root := writeProject(t, map[string]string{"tasks.md": dryPlan})
 	var out, errb bytes.Buffer

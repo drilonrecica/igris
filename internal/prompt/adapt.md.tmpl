@@ -26,10 +26,22 @@ The Model column must hold one of these ranks from the project's `[models]` conf
 {{end -}}
 - `—` for tasks without a session (Owner `user`)
 
+## Verify profiles
+
+{{if .Verify -}}
+A Verify cell may name one of these profiles from the project's `[verify]` config, or `none`:
+{{range .Verify}}
+- `{{.}}`
+{{- end}}
+{{- else -}}
+The project's config defines no verify profiles, so a Verify cell may only be `none`.
+{{- end}}
+
 ## What you may change
 
 - Restructure headings and tables: one `##` heading per phase, one task table per phase.
-- Rename columns to the canonical names (ID, Task, Deps, Status, Model, Owner, Mode); keep any other column as it is.
+- Rename columns to the canonical names (ID, Task, Deps, Status, Model, Owner, Mode, Verify, Timeout, Context); keep any other column as it is.
+- When a column named Verify, Timeout or Context holds something igris would misread (a command under Verify, an estimate like `2 days` under Timeout, prose under Context), give it another name so it stays an extra column (e.g. `Verify notes`), and mention it in `## Adapt notes`.
 - Normalize statuses to `ready`, `blocked`, `in progress`, `done` or `skipped`.
 - Convert prose dependencies ("after the parser", "needs 2 and 3") into task IDs or ID ranges.
 - Turn prose that waits on something outside the plan ("waits on", "after the client…", "blocked by deploy") into a `user` task naming the blocker (e.g. `X-00 · **Wait for API keys from client** · user · —`) and add it to the Deps of the waiting task. Mention each one in `## Adapt notes`.
@@ -38,6 +50,7 @@ The Model column must hold one of these ranks from the project's `[models]` conf
 ## What you must not change
 
 - Don't invent, guess or change models. Map a model only when the original names it unambiguously (e.g. "Claude Opus" → `opus`).
+- Keep the Verify, Timeout and Context columns and their cells as written. Don't add these columns or fill a cell the original leaves empty: never invent a verify profile, a timeout or a context path, and never put a command in a Verify cell (commands live in the owner's `igris.toml`). A Verify cell naming a profile that isn't listed above stays as it is; list it in `## Adapt notes`.
 - Don't drop, merge, split or reorder tasks, and don't add new ones, except the blocker tasks above.
 - Don't rewrite descriptions: the Task cell keeps the original wording (escaping a `|` as `\|` is fine).
 - Don't change task IDs. If a task has no ID or a duplicate one, ask the owner.

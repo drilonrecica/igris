@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -128,6 +129,7 @@ func DryRun(ctx context.Context, o DryRunOptions) (report.DryRun, error) {
 		Runner:         &runner.Fake{}, // verify and commits are off; nothing may run
 		noVerify:       true,
 		noHooks:        true,
+		contextRoot:    cmp.Or(f.Root, "."), // the owner's files, not the copy's
 		Phase:          f.Phase,
 		Through:        f.Through,
 		Mode:           f.Mode,

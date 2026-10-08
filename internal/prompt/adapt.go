@@ -50,6 +50,7 @@ type AdaptVars struct {
 	ProposalFile string       // where the session writes the converted copy
 	Issues       []string     // `igris check` problems, "file:line: message"
 	Models       []ModelAlias // the config's [models], sorted
+	Verify       []string     // the config's verify profile names, sorted; never their commands
 	DoneCommand  string       // default: "igris done ADAPT"
 }
 
