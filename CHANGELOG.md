@@ -4,6 +4,38 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-08
+
+igris v0.4 lets a plan say more about each task: which checks to run, how long it should take and what to read first. It also runs part of a plan, puts a task back, runs your own commands around each session and lints plans for CI. Every addition is optional, so no plan migration is needed: a v0.3 plan and a v0.3 `igris.toml` mean what they meant before (but see Migration for a column that already had one of the new names).
+
+### Added
+
+- **Verify profiles** (SPEC §6.4): `[verify]` in `igris.toml` names shell commands (`fast = "go test ./internal/..."`, `full = "make fmt lint test"`); `run.verify` is the profile `default` and stays supported. `[phases.<id>] verify` sets a phase's profile, and the plan's new optional **`Verify`** column picks one per task, or `none` to skip verification for it. Plans name profiles, never commands. An unknown profile in a cell fails `check` and `arise`; a `[phases.<id>]` naming no phase is a warning.
+- **`Timeout` column** (SPEC §6.3): a Go duration (`45m`, `1h30m`). A session running longer is marked **overdue** on the task card and **Needs you**, logged as `task_overdue` and notified once per attempt. igris never stops or closes the session for it; a retry starts a new clock.
+- **`task_overdue` notification event**, urgent like `needs_input` (ntfy priority high, the toast's `request` sound), in every channel's default `events`.
+- **`Context` column** (SPEC §3.2, §6.1): comma-separated repo-relative files or directories (at most 20) that the default task prompt lists as required reading; custom templates get `.Context`. igris names the paths only and never reads or sends their contents. Every path must exist and stay inside the project (no absolute paths, no `..`, no symlinks out).
+- **Task hooks** (SPEC §6.7): `[hooks] before_task` and `after_task` run your own commands, as argv lists without a shell, around every agent session, with `IGRIS_TASK_ID`, `IGRIS_PHASE`, `IGRIS_RANK`, `IGRIS_MODEL` and (after) `IGRIS_RESULT` in the environment and a `timeout` (default 2 m). A failing `before_task` opens no session and offers retry, done, skip or stop; a failing `after_task` is a warning and a `run_error` notification. Hooks never run for user tasks, `adapt` or `--dry-run`.
+- **`igris arise --only ID[,ID…]`, `--from ID`, `--until ID`** (SPEC §5.5): run a slice of the plan. Without a phase the range comes from the named tasks. Bad IDs or a task outside the range stop `arise` before anything is written; a slice task that waits on unfinished work is reported as `not run: …` and never marked. A bare `arise` resumes the same slice, and `--dry-run` walks it.
+- **`igris reset ID [--force]`**: puts a task back to `ready` or `blocked`; `in progress` tasks directly, `done` and `skipped` ones with `--force`. With no igris running it rewrites the Status cell itself; with one running it hands the reset over as a signal, and resetting the current task closes its session and pauses the run. The run log gets `task_reset`.
+- **`igris check --strict`**: lints the plan (a Task cell without a `**bold**` title or over 400 characters, an `agent + user` row that never says what the owner does, a `-G` gate missing some of its phase's tasks, `yolo` mode, a lone `fable` task) and exits 1 on any plan or config warning. Machine warnings never fail it, so it suits CI without Claude Code installed. `--json` adds `"strict": true` and a `"lint"` name per hint.
+- `igris status` shows VERIFY, TIMEOUT and CONTEXT columns when some task sets them; `status --json` adds `verify`, `timeout` and `context` per task.
+- `examples/advanced/`: the example plan with Verify profiles, Timeouts and Context paths, and the `igris.toml` that defines its profiles. `examples/igris.toml` lists the new `[verify]`, `[phases.<id>]` and `[hooks]` keys.
+- Shell completion for `reset`, `check --strict` and the `arise` slice flags (task IDs from your plan).
+
+### Changed
+
+- `Verify`, `Timeout` and `Context` are canonical columns now: matched case-insensitively and aliasable through `[columns]`, they no longer reach the session prompt as extra columns. They are checked only on tasks that aren't `done` or `skipped`; on a `user` task they are ignored with a warning.
+- The verify failure sent into a session, the run log's `verify_passed`/`verify_failed` detail and the dry run name the verify profile.
+- `run_started` in the run log and `state.json` record the slice of a sliced run.
+- `igris adapt` keeps Verify, Timeout and Context cells as written and never invents a profile, a timeout or a path; its prompt lists your verify profile names (never their commands). A column of one of those names that holds something else (a command under Verify, say) is renamed so it stays an extra column, and noted.
+
+### Migration
+
+- **No plan migration is needed.** Plans without the new columns, and configs without the new keys, behave as in v0.3.
+- **A plan that already has a column named `Verify`, `Timeout` or `Context`** for something else (a command, an estimate, notes) is now read as the new column and may fail `igris check`. Rename that column (e.g. `Verify notes`), or let `igris adapt` do it.
+- **`task_overdue` joins the default notification events**, and the config hash covers the parsed config with its defaults, so the hash of an unchanged `igris.toml` changes. Resuming a run interrupted under v0.3 therefore shows a one-time warning, `igris.toml changed since the interrupted run; this run uses the file as it is now`. It is expected, and the run carries on.
+- `check --strict` is new and opt-in: plain `igris check` output and exit codes are unchanged.
+
 ## [0.3.0] - 2026-10-08
 
 igris runs on tmux as well as herdr, and knows what Claude Code is doing from Claude Code's own hooks instead of depending on herdr's integration. One config default and two check IDs change; see Migration. No change to the plan format.
@@ -220,7 +252,8 @@ First release. Linux and macOS, herdr backend only. The full behavior is specifi
 - Release artifacts are not signed (checksums only); signing is planned.
 - No Homebrew tap yet.
 
-[Unreleased]: https://github.com/drilonrecica/igris/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/drilonrecica/igris/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/drilonrecica/igris/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/drilonrecica/igris/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/drilonrecica/igris/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/drilonrecica/igris/compare/v0.1.3...v0.2.0

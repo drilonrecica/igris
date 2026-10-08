@@ -22,7 +22,7 @@
 
 You write the plan. You decide which tasks need Fable, which need Opus and which are fine on Sonnet. Igris makes sure that's what actually happens: it never runs a Sonnet task on a more expensive model, never lets one task's context bleed into the next, and stops to wait for you whenever a task needs a decision.
 
-> **Status:** v0.3.0. Linux and macOS, Windows through WSL2; runs in herdr or tmux. The full behavior is specified in [`SPEC.md`](SPEC.md).
+> **Status:** v0.4.0. Linux and macOS, Windows through WSL2; runs in herdr or tmux. The full behavior is specified in [`SPEC.md`](SPEC.md).
 
 ---
 
@@ -161,7 +161,7 @@ igris history       # past runs: tasks done and skipped, durations, verify attem
 
 The first session in a folder Claude Code hasn't seen waits on its own folder-trust prompt ("Is this a project you trust?"). Igris can't answer it for you: the task sits there, and after about 30 seconds igris shows **needs you: the agent is blocked**. Open the session (`o` in the TUI), answer the prompt once, and the task carries on. Later sessions in that folder don't ask again.
 
-`igris arise M0 --dry-run` shows the launch order with each task's model and mode without starting anything or writing a byte. `igris arise M0 --no-tui` runs with plain log lines instead of the TUI and reads your answers and commands from stdin (`y`/`n`, `done [note]`, `skip <reason>`, `retry [continue|fresh]`, `pause`, `stop`, `mode [task] <m>`, `help`).
+`igris arise M0 --dry-run` shows the launch order with each task's model, mode and verify profile (and whether task hooks would run) without starting anything or writing a byte. `igris arise M0 --no-tui` runs with plain log lines instead of the TUI and reads your answers and commands from stdin (`y`/`n`, `done [note]`, `skip <reason>`, `retry [continue|fresh]`, `pause`, `stop`, `mode [task] <m>`, `help`).
 
 To run part of the phases, name the tasks: `igris arise --only M1-03,M1-05` runs just those, `--from M1-03` starts at a task and `--until M2-02` stops after one (`--from` and `--until` combine; `--only` doesn't combine with them). Without a phase the range comes from the tasks you name (`--through` still sets the last phase); with one, every named task must lie inside it and `--through`. A wrong ID, a task outside the range or a `--from` after the `--until` stops `arise` before it asks or writes anything. Tasks still run in plan order and dependencies still count: a task of the slice that waits on unfinished work is reported as `not run: M1-05 waits on M1-04 (ready, phase M1)`, never marked, and the run goes on; that is not a stuck phase. An interrupted task from an earlier run is still picked up first, even outside the slice. A bare `igris arise` resumes the same slice, and `--dry-run` walks it.
 

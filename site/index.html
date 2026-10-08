@@ -106,7 +106,7 @@
 | P1-02 | **Flag parsing**     | P1-01       | ready   | <span class="m-sonnet">sonnet</span> |
 | P1-03 | **Greeting design**  | P1-01       | ready   | <span class="m-opus">opus</span>   |
 | P1-G  | **P1 gate**          | P1-01…P1-03 | blocked | <span class="m-sonnet">sonnet</span> |</pre>
-        <p class="note">igris only ever changes Status cells, byte for byte. <code>igris check</code> validates the plan; a plan in another format can be converted with <code>igris adapt</code>, and you review the diff first. <a href="https://github.com/drilonrecica/igris/blob/master/examples/tasks.md">See the full example plan</a>.</p>
+        <p class="note">igris only ever changes Status cells, byte for byte. <code>igris check</code> validates the plan; a plan in another format can be converted with <code>igris adapt</code>, and you review the diff first. Optional columns give a task its own mode, verify profile, timeout and files to read first. <a href="https://github.com/drilonrecica/igris/blob/master/examples/tasks.md">See the full example plan</a>.</p>
       </div>
     </section>
 
@@ -116,8 +116,8 @@
         <div class="features">
           <div class="feature"><h3>A fresh session per task</h3><p>No context bleed from one task into the next. Each session gets the task, the plan and your rules.</p></div>
           <div class="feature"><h3>Your plan stays yours</h3><p>Only Status cells change. Unexpected edits to the plan pause the run.</p></div>
-          <div class="feature"><h3>Stops when it needs you</h3><p>Questions, approvals, stalled sessions and failed checks notify you via herdr or tmux toasts, ntfy or Discord.</p></div>
-          <div class="feature"><h3>Verify and commit</h3><p>Your <code>verify</code> command runs on every done; failures go back to the same session. Commits are <code>ask</code>, <code>auto</code> or <code>never</code>.</p></div>
+          <div class="feature"><h3>Stops when it needs you</h3><p>Questions, approvals, stalled or overdue sessions and failed checks notify you via herdr or tmux toasts, ntfy or Discord.</p></div>
+          <div class="feature"><h3>Verify and commit</h3><p>Your checks run on every done, with a verify profile per task or phase: a fast check here, the full suite there. Failures go back to the same session. Commits are <code>ask</code>, <code>auto</code> or <code>never</code>.</p></div>
           <div class="feature"><h3>Works from your phone</h3><p>Mouse and keyboard, choice dialogs, and a single-column layout for small terminals over SSH.</p></div>
           <div class="feature"><h3>Resumable</h3><p>Quit any time. <code>igris arise</code> reattaches to the running session or continues where it left off.</p></div>
         </div>
