@@ -290,11 +290,11 @@ topic = "my-igris-topic"          # leave empty to turn ntfy off
 token = "env:NTFY_TOKEN"          # optional
 
 [notify.discord]
-webhook_url = "env:IGRIS_DISCORD_WEBHOOK"
+webhook_url = "env:IGRIS_DISCORD_WEBHOOK"   # https only, as Discord gives it
 events = ["needs_input", "phase_done"]   # default: needs_input, session_lost, task_overdue, phase_done, phase_stuck, run_error, verify_failed_limit
 
 [notify.slack]
-webhook_url = "env:IGRIS_SLACK_WEBHOOK"
+webhook_url = "env:IGRIS_SLACK_WEBHOOK"     # https only
 
 [notify.gotify]
 server = "https://gotify.example.org"
@@ -307,7 +307,7 @@ secret = "env:IGRIS_WEBHOOK_SECRET"   # optional: signs the body
 
 The webhook POSTs JSON with every key present (`""` when unknown): `{"v":1,"event","project","phase","task","title","what","run","at","urgent","text"}`, where `run` is the run ID, `at` an RFC 3339 UTC time and `text` the message as other channels show it. The event is also in the `X-Igris-Event` header. With a `secret`, `X-Igris-Signature: sha256=<hex>` is the HMAC-SHA256 of the raw body with the secret; check it before trusting the payload.
 
-Messages carry the project, phase, task ID and title and the event, never file contents, diffs or command output. Each channel has a 10 s timeout and one retry; a channel that fails is shown as a warning and never stops the run. Secrets (the ntfy and Gotify tokens, the Discord, Slack and webhook URLs, the webhook secret) can be `env:VAR_NAME` references, are never logged, and are scrubbed from error messages. ntfy sends urgent events (`needs_input`, `session_lost`, `task_overdue`) at high priority; Gotify sends them at priority 8, `task_done` at 3 and everything else at 5. Slack messages have `&`, `<` and `>` escaped, so a task title can't ping `@channel` or add links.
+Messages carry the project, phase, task ID and title and the event, never file contents, diffs or command output. Each channel has a 10 s timeout and one retry; a channel that fails is shown as a warning and never stops the run. Secrets (the ntfy and Gotify tokens, the Discord, Slack and webhook URLs, the webhook secret) can be `env:VAR_NAME` references, are never logged, and are scrubbed from error messages. igris doesn't follow redirects (a `3xx` is reported as a failure: set the final URL), and a failure says only what went wrong (`connection refused`, `TLS failed`, `server answered 403 Forbidden`, …), never the URL. Plain `http://` works for ntfy, Gotify and the webhook (a server on your LAN), with a warning from `igris check` where a token or the payload would go unencrypted. ntfy sends urgent events (`needs_input`, `session_lost`, `task_overdue`) at high priority; Gotify sends them at priority 8, `task_done` at 3 and everything else at 5. Slack messages have `&`, `<` and `>` escaped, so a task title can't ping `@channel` or add links.
 
 ### Templates, quiet hours and digests
 

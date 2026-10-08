@@ -52,11 +52,11 @@ func (g *Gotify) Send(ctx context.Context, m Message) error {
 	}
 	u, err := url.JoinPath(g.Server, "message")
 	if err != nil {
-		return fmt.Errorf("gotify server is not a URL: %w", transportError(err))
+		return invalidURL("notify.gotify.server")
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
 	if err != nil {
-		return fmt.Errorf("build gotify request: %w", transportError(err))
+		return invalidURL("notify.gotify.server")
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "igris")

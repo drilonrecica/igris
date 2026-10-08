@@ -428,7 +428,7 @@ func TestHash(t *testing.T) {
 
 	// Resolving secrets must not influence the hash.
 	before := a.Hash()
-	if _, err := a.Resolve(func(string) string { return "v" }); err != nil {
+	if _, err := a.Resolve(func(string) string { return "https://v.test/x" }); err != nil {
 		t.Fatal(err)
 	}
 	if a.Hash() != before {
@@ -860,6 +860,60 @@ func TestWriteRoundTripsHoldSettings(t *testing.T) {
 		}
 		if got.Hash() != want.Hash() {
 			t.Errorf("round trip of %q changed the config:\n%s", tt.src, data)
+		}
+	}
+}
+
+// Slack and Discord webhook URLs are secrets that must be https with a
+// host: checked when the file loads for a literal, after Resolve for an
+// env: reference, never quoted.
+func TestChatWebhookURLs(t *testing.T) {
+	for _, ch := range []struct{ table, key string }{{"discord", "notify.discord.webhook_url"}, {"slack", "notify.slack.webhook_url"}} {
+		for _, bad := range []string{"http://hooks.test/SECRET", "hooks.test/SECRET", "https:///SECRET", "https://h/%zzSECRET", "ftp://h/SECRET"} {
+			_, err := Parse([]byte("[notify."+ch.table+"]\nwebhook_url = \""+bad+"\"\n"), "igris.toml")
+			if err == nil || !strings.Contains(err.Error(), ch.key+" is not an https URL with a host") || strings.Contains(err.Error(), "SECRET") || strings.Contains(err.Error(), "zz") {
+				t.Errorf("%s = %q: %v", ch.key, bad, err)
+			}
+			c, err := Parse([]byte("[notify."+ch.table+"]\nwebhook_url = \"env:HOOK\"\n"), "igris.toml")
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = c.Resolve(func(string) string { return bad })
+			if err == nil || !strings.Contains(err.Error(), ch.key+" is not an https URL with a host") || strings.Contains(err.Error(), "SECRET") {
+				t.Errorf("env %s = %q: %v", ch.key, bad, err)
+			}
+		}
+		c, err := Parse([]byte("[notify."+ch.table+"]\nwebhook_url = \"https://hooks.test/x\"\n"), "igris.toml")
+		if err != nil {
+			t.Fatalf("%s: %v", ch.key, err)
+		}
+		if _, err := c.Resolve(func(string) string { return "" }); err != nil {
+			t.Errorf("%s literal: %v", ch.key, err)
+		}
+	}
+}
+
+// Plain http works for ntfy, Gotify and the webhook, with a warning where a
+// secret would cross the network unencrypted.
+func TestHTTPWarnings(t *testing.T) {
+	for _, tt := range []struct{ toml, want string }{
+		{"[notify.ntfy]\nserver = \"http://ntfy.lan\"\ntopic = \"t\"\n", ""},
+		{"[notify.ntfy]\nserver = \"http://ntfy.lan\"\ntopic = \"t\"\ntoken = \"env:T\"\n", "notify.ntfy.server uses http://, so the token goes unencrypted; use an https:// server"},
+		{"[notify.gotify]\nserver = \"http://gotify.lan\"\ntoken = \"env:T\"\n", "notify.gotify.server uses http://, so the token goes unencrypted; use an https:// server"},
+		{"[notify.gotify]\nserver = \"https://gotify.lan\"\ntoken = \"env:T\"\n", ""},
+		{"[notify.webhook]\nurl = \"http://hooks.lan/x\"\n", "notify.webhook.url uses http://, so the payload (and its signature) go unencrypted; use an https:// URL"},
+		{"[notify.webhook]\nurl = \"env:U\"\n", ""},
+	} {
+		c, err := Parse([]byte(tt.toml), "igris.toml")
+		if err != nil {
+			t.Fatalf("%q: %v", tt.toml, err)
+		}
+		got := c.Warnings()
+		switch {
+		case tt.want == "" && len(got) != 0:
+			t.Errorf("%q: warnings %q, want none", tt.toml, got)
+		case tt.want != "" && (len(got) != 1 || got[0] != tt.want):
+			t.Errorf("%q: warnings %q, want %q", tt.toml, got, tt.want)
 		}
 	}
 }

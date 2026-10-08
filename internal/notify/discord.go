@@ -46,7 +46,7 @@ func (d *Discord) Send(ctx context.Context, m Message) error {
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, d.WebhookURL, bytes.NewReader(body))
 	if err != nil {
-		return fmt.Errorf("discord webhook_url is not a valid URL: %w", transportError(err))
+		return invalidURL("notify.discord.webhook_url")
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "igris")

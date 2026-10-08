@@ -570,6 +570,38 @@ func (c *Config) validateChannels(add func(string, ...any)) {
 	if g.Server != "" && !httpURL(g.Server) {
 		add("notify.gotify.server is not an http or https URL with a host; use e.g. \"https://gotify.example.org\"")
 	}
+	for _, h := range c.chatHooks() {
+		if h.val != "" && !isEnvRef(h.val) && !httpsURL(h.val) {
+			add("%s", badHTTPS(h.key))
+		}
+	}
+}
+
+// chatHooks are the Discord and Slack webhook URLs by config key.
+func (c *Config) chatHooks() []struct{ key, val string } {
+	return []struct{ key, val string }{
+		{"notify.discord.webhook_url", c.Notify.Discord.WebhookURL},
+		{"notify.slack.webhook_url", c.Notify.Slack.WebhookURL},
+	}
+}
+
+// badHTTPS is the error text for a Discord or Slack webhook URL that isn't
+// https with a host. Both services only take https, and the URL is the
+// secret, so plain http would send it in the clear.
+func badHTTPS(key string) string {
+	return key + " is not an https URL with a host (the value is a secret, so it isn't shown); copy the webhook URL again into igris.toml or the environment variable"
+}
+
+// httpsURL reports whether s is an absolute https URL with a host.
+func httpsURL(s string) bool {
+	u, err := url.Parse(s)
+	return err == nil && u.Scheme == "https" && u.Host != ""
+}
+
+// plainHTTP reports whether s is an http:// URL.
+func plainHTTP(s string) bool {
+	u, err := url.Parse(s)
+	return err == nil && u.Scheme == "http"
 }
 
 // badURL is the error text for a secret URL that isn't http(s) with a host.
@@ -650,6 +682,19 @@ func (c *Config) Warnings() []string {
 		// Both backends start `claude` from PATH.
 		out = append(out, fmt.Sprintf("claude.command = %q is ignored: igris always starts claude from PATH; remove it from igris.toml (the key is deprecated and goes away before 1.0)", c.Claude.Command))
 	}
+	// Plain http is allowed (a server on the LAN), but a secret then
+	// crosses the network unencrypted (SPEC §16). An env: URL is not known
+	// here.
+	n := c.Notify
+	if n.Ntfy.Topic != "" && n.Ntfy.Token != "" && plainHTTP(n.Ntfy.Server) {
+		out = append(out, "notify.ntfy.server uses http://, so the token goes unencrypted; use an https:// server")
+	}
+	if n.Gotify.Token != "" && plainHTTP(n.Gotify.Server) {
+		out = append(out, "notify.gotify.server uses http://, so the token goes unencrypted; use an https:// server")
+	}
+	if !isEnvRef(n.Webhook.URL) && plainHTTP(n.Webhook.URL) {
+		out = append(out, "notify.webhook.url uses http://, so the payload (and its signature) go unencrypted; use an https:// URL")
+	}
 	return out
 }
 
@@ -679,6 +724,12 @@ func (c *Config) Resolve(getenv func(string) string) (Secrets, error) {
 	// is checked here, once it is known.
 	if isEnvRef(c.Notify.Webhook.URL) && s.WebhookURL != "" && !httpURL(s.WebhookURL) {
 		errs = append(errs, errors.New(badURL("notify.webhook.url")))
+	}
+	resolved := map[string]string{"notify.discord.webhook_url": s.DiscordWebhook, "notify.slack.webhook_url": s.SlackWebhook}
+	for _, h := range c.chatHooks() {
+		if v := resolved[h.key]; isEnvRef(h.val) && v != "" && !httpsURL(v) {
+			errs = append(errs, errors.New(badHTTPS(h.key)))
+		}
 	}
 	return s, errors.Join(errs...)
 }

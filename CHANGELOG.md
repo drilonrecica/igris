@@ -21,8 +21,9 @@ igris v0.5 shows you what a run is doing and what it did. The run view gets the 
 - **Message templates**: `template` on ntfy, Discord, Slack, Gotify and the webhook, a Go `text/template` over `.Event`, `.Project`, `.Phase`, `.TaskID`, `.Title`, `.What`, `.RunID` and `.At`. It is tried on a sample message when `igris.toml` loads, so a typo is a config error naming the channel; its output is cleaned and cut to the channel's limit.
 - **Quiet hours**: `[notify] quiet = "22:00-07:00"` (local time, may cross midnight) holds messages to the remote channels, except the `break_through` events (default `needs_input`, `session_lost`, `task_overdue`); each channel gets one digest when the window ends, and whatever is still held when the run stops. The herdr or tmux toast is never held.
 - **`[notify] task_done_digest`**: `N` (≥ 2) sends one `task_done` message per N finished tasks (`3 tasks done: M1-01, M1-02, M1-03`), `"phase"` one per phase; the rest is flushed at phase end and run stop.
-- `secret`, `token` and URL keys of the new channels accept `env:VAR` references, are never logged and are scrubbed from errors; `igris doctor` lists the new channels and `igris notify test` sends to them (ignoring quiet hours and `task_done_digest`).
+- `secret`, `token` and URL keys of the new channels accept `env:VAR` references, are never logged and are scrubbed from errors (the longest secret first); `igris doctor` lists the new channels and `igris notify test` sends to them (ignoring quiet hours and `task_done_digest`).
 - Shell completion for `report` and its `--json` flag.
+- `igris check` (and `arise`, `doctor`) warns when ntfy with a token, Gotify or a webhook `url` written in `igris.toml` uses plain `http://`.
 - `examples/igris.toml` lists `[tui] tail`, the `[notify]` quiet-hours and digest keys, the Slack, Gotify and webhook channels and a template.
 
 ### Changed
@@ -31,6 +32,9 @@ igris v0.5 shows you what a run is doing and what it did. The run view gets the 
 - The narrow run view's top line shows the phase's progress (`M0 · 3/7`) instead of `phase M0`.
 - The run log records how each notification went: `<event> via <channel>`, `<event> held for <channel> (quiet hours)` or `digest of N via <channel>`.
 - `docs/reverify.md` probes use `sonnet` instead of `haiku`.
+- **Notification channels no longer follow redirects** (ntfy and Discord included): following one could carry a token, the webhook signature or a secret URL to another host, and its `200` counted as delivered. A `3xx` is now a failure, `server answered 307 (redirect); set the final URL in igris.toml`.
+- **Notification failures are told in fixed words** (`can't resolve host`, `connection refused`, `TLS failed`, `timed out`, `connection failed`, `server answered 500 Internal Server Error`, `<key> is not a valid URL`): net/http's own text, which names the URL and host, and the server's reason phrase are no longer shown.
+- **Discord and Slack webhook URLs must be `https` with a host**, checked when `igris.toml` loads (or, for an `env:` reference, when it is resolved); the error never shows the URL.
 
 ### Migration
 

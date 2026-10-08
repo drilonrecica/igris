@@ -36,11 +36,11 @@ func (n *Ntfy) Send(ctx context.Context, m Message) error {
 	}
 	u, err := url.JoinPath(n.Server, url.PathEscape(n.Topic))
 	if err != nil {
-		return fmt.Errorf("ntfy server %q is not a URL: %w", n.Server, err)
+		return invalidURL("notify.ntfy.server")
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, strings.NewReader(body))
 	if err != nil {
-		return fmt.Errorf("build ntfy request: %w", transportError(err))
+		return invalidURL("notify.ntfy.server")
 	}
 	req.Header.Set("Title", mime.BEncoding.Encode("UTF-8", m.Subject()))
 	req.Header.Set("Priority", ntfyPriority(m.Event))

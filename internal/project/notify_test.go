@@ -3,6 +3,7 @@ package project
 import (
 	"context"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -20,7 +21,13 @@ func TestNotifyTestRedactsSecrets(t *testing.T) {
 		http.Error(w, "bad request for "+r.URL.Path+" with token tk_SECRET", http.StatusBadRequest)
 	}))
 	defer srv.Close()
-	hook := srv.URL + "/api/webhooks/1/SECRETTOKEN"
+	// Discord takes https only; this server's certificate is not trusted,
+	// so that delivery fails too.
+	tlsSrv := httptest.NewUnstartedServer(srv.Config.Handler)
+	tlsSrv.Config.ErrorLog = log.New(io.Discard, "", 0)
+	tlsSrv.StartTLS()
+	defer tlsSrv.Close()
+	hook := tlsSrv.URL + "/api/webhooks/1/SECRETTOKEN"
 
 	root := newProject(t, `
 [notify.backend]
@@ -47,7 +54,7 @@ events = ["needs_input"]
 		if r.Err == "" {
 			t.Errorf("%s: delivery to a failing server reported ok", r.Channel)
 		}
-		for _, secret := range []string{"SECRETTOKEN", "tk_SECRET", srv.URL, hook} {
+		for _, secret := range []string{"SECRETTOKEN", "tk_SECRET", srv.URL, tlsSrv.URL, hook} {
 			if strings.Contains(r.Err, secret) {
 				t.Errorf("%s: error %q leaks %q", r.Channel, r.Err, secret)
 			}

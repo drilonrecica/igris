@@ -356,15 +356,15 @@ Channels (all optional, any combination):
 |---|---|---|
 | Backend | `[notify.backend] enabled` | the backend's toast: herdr's `herdr notification show`, tmux's `display-message` (no sound) (sound `request` for needs-input events and `task_overdue`, `done` for completions). It has no `events` list and always gets the default events. |
 | ntfy | `[notify.ntfy] server`, `topic`, optional `token` | HTTP POST, title + body, priority high for `needs_input`/`session_lost`/`task_overdue`. |
-| Discord | `[notify.discord] webhook_url` | Webhook POST with a short message (`content`), no embeds needed. |
+| Discord | `[notify.discord] webhook_url` | Webhook POST with a short message (`content`), no embeds needed. `webhook_url` must be `https`. |
 | Webhook | `[notify.webhook] url`, optional `secret` | JSON POST (below), signed when a secret is set. Since v0.5. |
-| Slack | `[notify.slack] webhook_url` | Incoming-webhook POST `{"text": …}`; `&`, `<`, `>` escaped, so a title can't mention `<!channel>` or make links. Since v0.5. |
+| Slack | `[notify.slack] webhook_url` | Incoming-webhook POST `{"text": …}`; `&`, `<`, `>` escaped, so a title can't mention `<!channel>` or make links. `webhook_url` must be `https`. Since v0.5. |
 | Gotify | `[notify.gotify] server`, `token` | POST `<server>/message` with header `X-Gotify-Key: <token>`, JSON `{"title","message","priority"}`; priority 8 for urgent events, 5 for `verify_failed_limit`, `phase_stuck`, `run_error`, `phase_done` and digests, 3 for `task_done`. Both keys or neither. Since v0.5. |
 
 - Each channel has an `events` list; default: `needs_input`, `session_lost`, `task_overdue`, `phase_done`, `phase_stuck`, `run_error`, `verify_failed_limit`. `task_done` (opt-in) is sent when an `agent` or `agent + user` task is marked done. `task_overdue` is sent once per attempt when a task runs longer than its Timeout (§6.3); like `needs_input` and `session_lost` it is urgent (the toast's `request` sound, ntfy priority high). `run_error` also covers a failed task hook (§6.7), which doesn't stop the run.
 - Messages contain project name, phase, task ID and title, the event and the run ID — never file contents, diffs or command output.
-- Delivery is best-effort with a 10 s timeout and one retry; failures are logged and shown in the TUI, never fatal.
-- Secrets (ntfy token, Discord and Slack webhook URLs, webhook URL and secret, Gotify token) may be given as `env:VAR_NAME` references so they stay out of the repo; igris never logs them, and they are scrubbed from every error it reports.
+- Delivery is best-effort with a 10 s timeout and one retry; failures are logged and shown in the TUI, never fatal. Redirects are not followed: following one would carry a token, the signature or a secret URL (as `Referer`) to whatever host it names, so a 3xx is a failure, `server answered 307 (redirect); set the final URL in igris.toml`. A failure is told in fixed words — `can't resolve host`, `connection refused`, `TLS failed`, `timed out`, `connection failed`, `server answered <code> <standard status text>`, or `<key> is not a valid URL` — never with the URL, the host, a `Location`, the server's reason phrase or its response body.
+- Secrets (ntfy token, Discord and Slack webhook URLs, webhook URL and secret, Gotify token) may be given as `env:VAR_NAME` references so they stay out of the repo; igris never logs them, and they are scrubbed from every error it reports (the longest first, so a secret that contains another never shows in part). The Discord and Slack webhook URLs must be `https` with a host: a literal one is checked when the config loads, an `env:` one once it is resolved, and the error never shows the value.
 - **Webhook payload.** `POST <url>`, `Content-Type: application/json`, `User-Agent: igris`, `X-Igris-Event: <event>`, and with a `secret` `X-Igris-Signature: sha256=<lowercase hex HMAC-SHA256 of the raw body with the secret>`. The body has every key, `""` when unknown: `{"v":1,"event","project","phase","task","title","what","run","at","urgent","text"}` (`at` RFC 3339 UTC, `run` the run ID §13, `urgent` true for `needs_input`/`session_lost`/`task_overdue`, `text` the message text). A digest has `"event":"digest"` (also in `X-Igris-Event`), empty `task`/`title`/`what`, the digest as `text`, and a `messages` array with one payload object (without `text`) per held message. The resolved URL must be `http` or `https`.
 - **Templates.** ntfy, Discord, webhook, Slack and Gotify take an optional `template` (Go `text/template`, no extra functions) that replaces the message text: the ntfy body, Discord `content`, Slack `text` (escaped after rendering), Gotify `message`, webhook `text`; titles stay `igris · <project>`; the backend toast has none. Its variables are exactly `.Event`, `.Project`, `.Phase`, `.TaskID`, `.Title` (markdown stripped), `.What`, `.RunID` and `.At` (a local `time.Time`, e.g. `{{.At.Format "15:04"}}`) — never file contents or output. It is parsed and executed against a sample message when the config is loaded, so a bad template or an unknown variable is a config error naming the channel; at most 1000 characters. The output is cleaned of control characters (newlines kept), trimmed and cut to the channel's limit (ntfy 4096 bytes, Discord 2000 characters, Slack, Gotify and webhook 4000); an empty result falls back to the default text. Empty `template` = the default text (as before v0.5).
 - **Quiet hours.** `[notify] quiet = "22:00-07:00"` (24-hour local time, wall clock, `[start, end)`, crossing midnight when start > end; empty = off). Inside the window a message to ntfy, Discord, webhook, Slack or Gotify whose event is not in `[notify] break_through` (default `needs_input`, `session_lost`, `task_overdue`) is held per channel instead of sent; the backend toast is never held. When the window ends — checked by the run loop's clock at every poll, also while igris waits on a question — each channel that holds messages gets one digest: `quiet hours 22:00–07:00: N held`, then `HH:MM <event>: <text>` per message (default text, no template; at most 20 lines, then `… and K more`). Held messages are also sent as a digest when the run stops. The run log records held messages and digests as `notification` events.
@@ -543,7 +543,7 @@ token = ""                        # or "env:NTFY_TOKEN"
 events = ["needs_input", "session_lost", "task_overdue", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]
 
 [notify.discord]
-webhook_url = ""                  # or "env:IGRIS_DISCORD_WEBHOOK"
+webhook_url = ""                  # or "env:IGRIS_DISCORD_WEBHOOK"; https only
 events = ["needs_input", "session_lost", "task_overdue", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]
 
 [notify.webhook]                  # since v0.5; also for ntfy, discord, slack, gotify: template = "" (§10)
@@ -552,7 +552,7 @@ secret = ""                       # or "env:IGRIS_WEBHOOK_SECRET"; signs the bod
 # template = "{{.Event}} {{.TaskID}}: {{.What}}"
 
 [notify.slack]
-webhook_url = ""                  # or "env:IGRIS_SLACK_WEBHOOK"
+webhook_url = ""                  # or "env:IGRIS_SLACK_WEBHOOK"; https only
 
 [notify.gotify]
 server = ""                       # e.g. "https://gotify.example.org"
@@ -905,7 +905,7 @@ Every answer belongs to that one launch and is thrown away afterwards; nothing �
 - Text igris did not write — plan cells, done notes, command output, backend errors, and on home also run-log details, the lock's host, notify errors and config string values — is cleaned of escape sequences and control characters before it is drawn in the TUI or the `--no-tui` log, sent as a notification, used in a commit message, or typed into a session's pane (§3.5, §6.2, §6.4, §9.5).
 - Signal and state files are written atomically, with `0600` files and `0700` directories; signals are read only as regular files of bounded size (§6.2).
 - Every user-facing error says what to do next (the command to run, the setting to change, the file to fix or delete).
-- Igris never reads or logs Claude Code credentials, and never sets `ANTHROPIC_API_KEY`. Notification secrets never enter the config hash, the run log or error messages (§10), and never appear on home's Settings, Doctor or Notify test pages (§15.6), which say only whether a secret is set and where from. An ntfy `token` is sent as a bearer header, so use an `https://` server for it.
+- Igris never reads or logs Claude Code credentials, and never sets `ANTHROPIC_API_KEY`. Notification secrets never enter the config hash, the run log or error messages (§10), and never appear on home's Settings, Doctor or Notify test pages (§15.6), which say only whether a secret is set and where from. An ntfy `token` is sent as a bearer header and a Gotify `token` as `X-Gotify-Key`, so use an `https://` server for them; plain `http://` works (a server on the LAN), but `check`, `arise` and `doctor` warn about it for ntfy with a token, Gotify, and a webhook `url` written in `igris.toml` (the payload and its signature go unencrypted).
 
 ---
 
