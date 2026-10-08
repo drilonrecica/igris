@@ -15,7 +15,7 @@ _igris() {
         history:-n) return ;;
         arise:--from) compadd -- ${(f)"$(igris __complete tasks 2>/dev/null)"} ; return ;;
         arise:--mode) compadd -- default accept auto plan yolo ; return ;;
-        arise:--only) compadd -- ${(f)"$(igris __complete tasks 2>/dev/null)"} ; return ;;
+        arise:--only) compset -P '*,' ; compadd -- ${(f)"$(igris __complete tasks 2>/dev/null)"} ; return ;;
         arise:--through) compadd -- ${(f)"$(igris __complete phases 2>/dev/null)"} ; return ;;
         arise:--until) compadd -- ${(f)"$(igris __complete tasks 2>/dev/null)"} ; return ;;
         done:--note) return ;;

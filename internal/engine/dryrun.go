@@ -209,9 +209,13 @@ func (w *dryWalk) event(eng *Engine, dir *state.Dir, ev Event) {
 	switch ev.Kind {
 	case SessionOpened:
 		r.Sessions++
+		verify := ev.Verify
+		if verify == "" && eng.task != nil && eng.verifyOff(eng.task.t) {
+			verify = plan.VerifyNone
+		}
 		r.Steps = append(r.Steps, report.DryStep{
 			Kind: report.StepSession, N: r.Sessions + r.Users, Task: textsafe.Line(ev.Task),
-			Rank: textsafe.Line(ev.Rank), Model: textsafe.Line(ev.Model), Mode: textsafe.Line(ev.Mode), Verify: textsafe.Line(ev.Verify),
+			Rank: textsafe.Line(ev.Rank), Model: textsafe.Line(ev.Model), Mode: textsafe.Line(ev.Mode), Verify: textsafe.Line(verify),
 			Title: textsafe.Line(ev.Title), Resumed: w.resumed[ev.Task],
 		})
 	case YourTurn:

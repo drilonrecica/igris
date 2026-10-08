@@ -15,9 +15,20 @@ import (
 	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
+// resetArgs checks `igris reset ID`: a malformed ID is a usage error
+// (SPEC §14), like one in `arise --only`.
 func resetArgs(fs *flag.FlagSet) func([]string) error {
 	fs.Bool("force", false, "also reset a done or skipped task")
-	return exactArgs("ID", 1)
+	one := exactArgs("ID", 1)
+	return func(args []string) error {
+		if err := one(args); err != nil {
+			return err
+		}
+		if !plan.ValidID(args[0]) {
+			return fmt.Errorf("invalid task ID %q: IDs are letters, digits, '.', '_' and '-' (e.g. M0-01); check it with `igris status`", args[0])
+		}
+		return nil
+	}
 }
 
 // execReset puts a task back to ready/blocked (SPEC §14 `reset`): through
@@ -28,9 +39,6 @@ func execReset(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 	fail := func(format string, a ...any) int {
 		fmt.Fprintf(stderr, "igris reset: %s\n", fmt.Sprintf(format, a...))
 		return exitFail
-	}
-	if !plan.ValidID(id) {
-		return fail("invalid task ID %q: IDs are letters, digits, '.', '_' and '-' (e.g. M0-01); check it with `igris status`", id)
 	}
 	cwd, err := os.Getwd()
 	if err != nil {

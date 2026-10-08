@@ -24,11 +24,12 @@ var completionShells = []string{"bash", "zsh", "fish"}
 
 // Argument kinds a flag value or a positional argument is completed with.
 const (
-	argNone   = ""       // nothing to offer (a free-form value)
-	argFile   = "file"   // file names
-	argPhases = "phases" // phase IDs, from `igris __complete phases`
-	argTasks  = "tasks"  // task IDs, from `igris __complete tasks`
-	argValues = "values" // a fixed list
+	argNone     = ""         // nothing to offer (a free-form value)
+	argFile     = "file"     // file names
+	argPhases   = "phases"   // phase IDs, from `igris __complete phases`
+	argTasks    = "tasks"    // task IDs, from `igris __complete tasks`
+	argTaskList = "tasklist" // comma-separated task IDs: completes after the last comma
+	argValues   = "values"   // a fixed list
 )
 
 // compArg says how a flag's value, or a command's positional argument, is
@@ -129,7 +130,7 @@ var (
 		"*:plan":        {Kind: argFile},
 		"arise:through": {Kind: argPhases},
 		"arise:mode":    {Kind: argValues, Values: runModes},
-		"arise:only":    {Kind: argTasks},
+		"arise:only":    {Kind: argTaskList},
 		"arise:from":    {Kind: argTasks},
 		"arise:until":   {Kind: argTasks},
 		"adapt:model":   {Kind: argValues, Values: []string{"sonnet", "opus"}},

@@ -34,6 +34,16 @@ func (e *Engine) verifyProfile(t *plan.Task) (profile, command string) {
 	return e.cfg.VerifyFor(t.Verify, phase)
 }
 
+// verifyOff reports whether t's Verify cell or its phase turns
+// verification off with "none" (SPEC §6.4), as the dry run shows it.
+func (e *Engine) verifyOff(t *plan.Task) bool {
+	phase := ""
+	if t.Phase != nil {
+		phase = t.Phase.ID
+	}
+	return e.cfg.VerifyChoice(t.Verify, phase) == plan.VerifyNone
+}
+
 // verifies reports whether a done signal for t is verified: it has a
 // verify profile and this is no dry run, which only shows the profile.
 func (e *Engine) verifies(t *plan.Task) bool {

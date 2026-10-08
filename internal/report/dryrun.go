@@ -19,7 +19,7 @@ type DryStep struct {
 	Rank    string
 	Model   string
 	Mode    string
-	Verify  string // the task's verify profile; "" for none (SPEC §6.4)
+	Verify  string // the task's verify profile; "none" when its cell or phase turns it off, "" when nothing applies (SPEC §6.4)
 	Title   string
 	Resumed bool   // the task was in progress: it gets a fresh session
 	Phase   string // StepPhaseDone

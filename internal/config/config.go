@@ -164,19 +164,26 @@ func (c *Config) PhaseVerify(id string) string {
 	return ""
 }
 
+// VerifyChoice is the verify setting that applies to a task, as written:
+// its Verify cell, else [phases.<id>] verify, else "default". It may be
+// "none" or a profile that isn't defined; VerifyFor resolves it.
+func (c *Config) VerifyChoice(cell, phase string) string {
+	if cell != "" {
+		return cell
+	}
+	if v := c.PhaseVerify(phase); v != "" {
+		return v
+	}
+	return VerifyDefault
+}
+
 // VerifyFor resolves the verify profile of a task (SPEC §6.4) from its
 // Verify cell (plan.Task.Verify) and its phase: the cell, then
 // [phases.<id>] verify, then "default". "none" at either of the first two
 // levels, or nothing set at all, means no verification: profile and
 // command are then "".
 func (c *Config) VerifyFor(cell, phase string) (profile, command string) {
-	profile = cell
-	if profile == "" {
-		profile = c.PhaseVerify(phase)
-	}
-	if profile == "" {
-		profile = VerifyDefault
-	}
+	profile = c.VerifyChoice(cell, phase)
 	if profile == plan.VerifyNone {
 		return "", ""
 	}

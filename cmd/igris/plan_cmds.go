@@ -242,6 +242,9 @@ func printRun(w io.Writer, r *report.RunInfo) {
 			phases += " (through " + r.Through + ")"
 		}
 		row("Phases", phases)
+		if r.Selection != nil {
+			row("Slice", r.Selection.String())
+		}
 		row("Started", r.StartedAt)
 		task := r.Task
 		if task == "" {

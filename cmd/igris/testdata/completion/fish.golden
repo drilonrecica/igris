@@ -3,6 +3,14 @@ function __igris_ids
     igris __complete $argv[1] 2>/dev/null
 end
 
+# Task IDs for a comma-separated list: the IDs after the token's last comma.
+function __igris_id_list
+    set -l pre (commandline -ct | string replace -r -- '^--[^=]*=' '' | string match -r -- '^.*,')
+    for id in (igris __complete tasks 2>/dev/null)
+        echo $pre$id
+    end
+end
+
 complete -c igris -f
 complete -c igris -n __fish_use_subcommand -a init -d 'create igris.toml, .igris/, the .gitignore entry and Claude allow rules'
 complete -c igris -n __fish_use_subcommand -a doctor -d 'read-only health check of this project and machine'
@@ -37,7 +45,7 @@ complete -c igris -n '__fish_seen_subcommand_from arise' -l force-unlock
 complete -c igris -n '__fish_seen_subcommand_from arise' -l from -x -a '(__igris_ids tasks)'
 complete -c igris -n '__fish_seen_subcommand_from arise' -l mode -x -a 'default accept auto plan yolo'
 complete -c igris -n '__fish_seen_subcommand_from arise' -l no-tui
-complete -c igris -n '__fish_seen_subcommand_from arise' -l only -x -a '(__igris_ids tasks)'
+complete -c igris -n '__fish_seen_subcommand_from arise' -l only -x -a '(__igris_id_list)'
 complete -c igris -n '__fish_seen_subcommand_from arise' -l through -x -a '(__igris_ids phases)'
 complete -c igris -n '__fish_seen_subcommand_from arise' -l until -x -a '(__igris_ids tasks)'
 complete -c igris -n '__fish_seen_subcommand_from arise' -a '(__igris_ids phases)'

@@ -21,6 +21,7 @@ _igris() {
 {{- if eq .Arg.Kind "file"}} COMPREPLY=($(compgen -f -- "$cur")) ; return ;;
 {{- else if eq .Arg.Kind "phases"}} COMPREPLY=($(compgen -W "$(igris __complete phases 2>/dev/null)" -- "$cur")) ; return ;;
 {{- else if eq .Arg.Kind "tasks"}} COMPREPLY=($(compgen -W "$(igris __complete tasks 2>/dev/null)" -- "$cur")) ; return ;;
+{{- else if eq .Arg.Kind "tasklist"}} local pre=; [[ $cur == *,* ]] && pre="${cur%,*},"; COMPREPLY=($(compgen -P "$pre" -W "$(igris __complete tasks 2>/dev/null)" -- "${cur##*,}")) ; return ;;
 {{- else if eq .Arg.Kind "values"}} COMPREPLY=($(compgen -W "{{range $i, $v := .Arg.Values}}{{if $i}} {{end}}{{$v}}{{end}}" -- "$cur")) ; return ;;
 {{- else}} return ;;
 {{- end}}

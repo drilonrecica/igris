@@ -3,6 +3,7 @@ package report
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/drilonrecica/igris/internal/plan"
@@ -30,14 +31,17 @@ type RunInfo struct {
 	Unreadable string   `json:"unreadable,omitempty"`
 	Phases     []string `json:"phases,omitempty"`
 	Through    string   `json:"through,omitempty"`
-	StartedAt  string   `json:"started_at,omitempty"` // RFC 3339, UTC
-	Task       string   `json:"task,omitempty"`       // "" between tasks
-	Mode       string   `json:"mode,omitempty"`
-	Since      string   `json:"since,omitempty"` // the task's start, RFC 3339, UTC
-	Session    string   `json:"session,omitempty"`
-	Lock       string   `json:"lock"`
-	LockDetail string   `json:"lock_detail,omitempty"` // holder, or why it's stale or unreadable
-	Signals    []string `json:"signals"`               // "<ID> done|skip", sorted by task ID
+	// Selection is the slice of a sliced run (SPEC §5.5), nil for whole
+	// phases.
+	Selection  *state.Selection `json:"selection,omitempty"`
+	StartedAt  string           `json:"started_at,omitempty"` // RFC 3339, UTC
+	Task       string           `json:"task,omitempty"`       // "" between tasks
+	Mode       string           `json:"mode,omitempty"`
+	Since      string           `json:"since,omitempty"` // the task's start, RFC 3339, UTC
+	Session    string           `json:"session,omitempty"`
+	Lock       string           `json:"lock"`
+	LockDetail string           `json:"lock_detail,omitempty"` // holder, or why it's stale or unreadable
+	Signals    []string         `json:"signals"`               // "<ID> done|skip", sorted by task ID
 }
 
 // RunInput is what NewRunInfo reads. Run and RunErr come from state.PeekRun,
@@ -90,6 +94,13 @@ func checkShape(run *state.Run) string {
 			return "state unreadable: malformed phase ID in state.json"
 		}
 	}
+	if sel := run.Selection; sel != nil {
+		for _, id := range append([]string{sel.From, sel.Until}, sel.Only...) {
+			if id != "" && !plan.ValidID(id) {
+				return "state unreadable: malformed task ID in state.json"
+			}
+		}
+	}
 	if c := run.Current; c != nil {
 		if !plan.ValidID(c.TaskID) {
 			return "state unreadable: malformed task ID in state.json"
@@ -106,6 +117,9 @@ func checkShape(run *state.Run) string {
 func (r *RunInfo) fillRun(run *state.Run) {
 	r.Phases = append([]string{}, run.Phases...)
 	r.Through = run.Through
+	if sel := run.Selection; sel != nil && !sel.Empty() {
+		r.Selection = &state.Selection{Only: slices.Clone(sel.Only), From: sel.From, Until: sel.Until}
+	}
 	r.StartedAt = stamp(run.StartedAt)
 	if c := run.Current; c != nil {
 		r.Task, r.Mode, r.Since = c.TaskID, c.Mode, stamp(c.StartedAt)

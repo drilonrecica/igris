@@ -487,6 +487,33 @@ func TestStatusCurrentRun(t *testing.T) {
 	}
 }
 
+// A sliced run shows its slice: a Slice row, a "selection" object.
+func TestStatusSlicedRun(t *testing.T) {
+	dir := inDir(t)
+	writeRunState(t, dir, "state.json", `{"version":2,"started_at":"2026-10-07T09:30:00Z","phases":["F1"],"selection":{"only":["F1-13","F1-14"]},"config_hash":"h"}`)
+	_, out, _ := runCmd("status", "--plan", largePlan)
+	if !strings.Contains(out, "  Slice    only F1-13, F1-14\n") {
+		t.Errorf("no Slice row:\n%s", out)
+	}
+	_, out, _ = runCmd("status", "--json", "--plan", largePlan)
+	var got struct {
+		Run struct {
+			Selection struct{ Only []string }
+		}
+	}
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(got.Run.Selection.Only, ",") != "F1-13,F1-14" {
+		t.Errorf("selection = %+v\n%s", got.Run.Selection, out)
+	}
+	// A whole-phase run has neither.
+	writeRunState(t, dir, "state.json", runStateJSON)
+	if _, out, _ = runCmd("status", "--json", "--plan", largePlan); strings.Contains(out, `"selection"`) {
+		t.Errorf("selection on a whole-phase run:\n%s", out)
+	}
+}
+
 func TestStatusRunFromSubdirAndBadState(t *testing.T) {
 	dir := inDir(t)
 	writeRunState(t, dir, "state.json", `{"version":1,"phases":["F1"],"current":{"task_id":"F1-13","mode":"turbo"}}`)

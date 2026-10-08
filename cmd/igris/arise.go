@@ -77,7 +77,7 @@ func parseSelection(fs *flag.FlagSet) (state.Selection, error) {
 		if set["from"] || set["until"] {
 			return sel, errors.New("--only can't be combined with --from or --until; use one or the other")
 		}
-		if strings.TrimSpace(value("only")) == "" {
+		if strings.Trim(value("only"), " \t,") == "" {
 			return sel, errors.New("--only needs at least one task ID, e.g. --only M1-03,M1-05")
 		}
 		seen := map[string]bool{}
@@ -684,7 +684,7 @@ func printDryRun(out io.Writer, r report.DryRun) {
 	if len(r.Hooks) > 0 {
 		fmt.Fprintf(out, "task hooks %s would run around each agent session; the dry run runs none\n", strings.Join(r.Hooks, " and "))
 	}
-	// The verify column is shown only when some task has a profile.
+	// The verify column is shown only when some task has a profile or none.
 	verifies := false
 	for _, s := range r.Steps {
 		verifies = verifies || s.Verify != ""

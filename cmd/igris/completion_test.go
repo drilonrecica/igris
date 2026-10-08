@@ -161,3 +161,45 @@ func TestCompleteBrokenConfig(t *testing.T) {
 		t.Errorf("exit %d, stdout %q, stderr %q", code, out.String(), errb.String())
 	}
 }
+
+// --only takes a comma-separated list: bash and fish complete the ID after
+// the last comma and keep what comes before it (zsh does it with compset).
+func TestCompletionOnlyList(t *testing.T) {
+	fake := t.TempDir()
+	stub := "#!/bin/sh\n[ \"$1 $2\" = \"__complete tasks\" ] && printf 'M1-01\\nM1-02\\nM2-01\\n'\n"
+	if err := os.WriteFile(filepath.Join(fake, "igris"), []byte(stub), 0o700); err != nil { //nolint:gosec // an executable test stub
+		t.Fatal(err)
+	}
+	path := fake + string(os.PathListSeparator) + os.Getenv("PATH")
+	tests := []struct {
+		shell, script string
+	}{
+		{"bash", `eval "$SCRIPT"; COMP_WORDS=(igris arise --only M1-01,M1-0); COMP_CWORD=3; _igris; printf '%s\n' "${COMPREPLY[@]}"`},
+		{"fish", `echo $SCRIPT | source; complete -C 'igris arise --only M1-01,M1-0'`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.shell, func(t *testing.T) {
+			bin, err := exec.LookPath(tt.shell)
+			if err != nil {
+				t.Skipf("%s not installed", tt.shell)
+			}
+			s, err := completionScript(tt.shell)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cmd := exec.Command(bin, "-c", tt.script) //nolint:gosec // bin is a shell found on PATH
+			cmd.Env = append(os.Environ(), "PATH="+path, "SCRIPT="+s)
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("%v\n%s", err, out)
+			}
+			var got []string
+			for _, l := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+				got = append(got, strings.Fields(l)[0]) // fish adds a description column
+			}
+			if strings.Join(got, " ") != "M1-01,M1-01 M1-01,M1-02" {
+				t.Errorf("completions = %q", out)
+			}
+		})
+	}
+}

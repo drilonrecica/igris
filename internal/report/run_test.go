@@ -43,6 +43,8 @@ func TestNewRunInfo(t *testing.T) {
 		{"stale between tasks", RunInput{Run: &state.Run{Version: 1, StartedAt: t0, Phases: []string{"A"}},
 			Lock: state.LockState{Held: true, Stale: true, Reason: "process no longer running", Info: state.LockInfo{PID: 9}}, SignalsBad: 1},
 			RunInfo{Phases: []string{"A"}, StartedAt: "2026-10-07T09:30:00Z", Lock: LockStale, LockDetail: "pid 9: process no longer running", Signals: []string{"1 unreadable"}}},
+		{"sliced", RunInput{Run: &state.Run{Version: 2, StartedAt: t0, Phases: []string{"A"}, Selection: &state.Selection{From: "A-2", Until: "A-4"}}},
+			RunInfo{Phases: []string{"A"}, Selection: &state.Selection{From: "A-2", Until: "A-4"}, StartedAt: "2026-10-07T09:30:00Z", Lock: LockNone, Signals: []string{}}},
 		{"lock only", RunInput{RunErr: state.ErrNoRun, Lock: state.LockState{Held: true, Unreadable: true, Reason: "bad json"}},
 			RunInfo{Lock: LockUnreadable, LockDetail: "bad json", Signals: []string{}}},
 		{"state without lock", RunInput{Run: &state.Run{Version: 1, StartedAt: t0, Phases: []string{"A"}}},
@@ -69,6 +71,8 @@ func TestNewRunInfoUnreadableState(t *testing.T) {
 	badTask.Current.TaskID = "../etc"
 	badPhase.Phases = []string{"ok", "bad id"}
 	badThrough.Through = "x\x1b[31m"
+	badSlice := goodRun()
+	badSlice.Selection = &state.Selection{Only: []string{"A-1", "x\x1b[31m"}}
 	tests := []struct {
 		name string
 		in   RunInput
@@ -78,6 +82,7 @@ func TestNewRunInfoUnreadableState(t *testing.T) {
 		{"task", RunInput{Run: badTask}, "malformed task ID"},
 		{"phase", RunInput{Run: badPhase}, "malformed phase ID"},
 		{"through", RunInput{Run: badThrough}, "malformed phase ID"},
+		{"slice", RunInput{Run: badSlice}, "malformed task ID"},
 		{"parse error", RunInput{RunErr: errors.New("read run state: boom\x1b[2J")}, "boom"},
 	}
 	for _, tt := range tests {

@@ -17,7 +17,7 @@ func TestAriseSelectionUsage(t *testing.T) {
 		want string
 	}{
 		{[]string{"arise", "--only", ""}, "--only needs at least one task ID, e.g. --only M1-03,M1-05"},
-		{[]string{"arise", "--only", " , "}, `invalid task ID "" in --only`},
+		{[]string{"arise", "--only", " , "}, "--only needs at least one task ID, e.g. --only M1-03,M1-05"},
 		{[]string{"arise", "--only", "A-1,,A-2"}, `invalid task ID "" in --only`},
 		{[]string{"arise", "--only", "A-1", "--from", "A-1"}, "--only can't be combined with --from or --until; use one or the other"},
 		{[]string{"arise", "A", "--until", "B-1", "--only", "A-1"}, "--only can't be combined with --from or --until"},

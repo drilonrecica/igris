@@ -22,7 +22,7 @@ _igris() {
         history:-n) return ;;
         arise:--from) COMPREPLY=($(compgen -W "$(igris __complete tasks 2>/dev/null)" -- "$cur")) ; return ;;
         arise:--mode) COMPREPLY=($(compgen -W "default accept auto plan yolo" -- "$cur")) ; return ;;
-        arise:--only) COMPREPLY=($(compgen -W "$(igris __complete tasks 2>/dev/null)" -- "$cur")) ; return ;;
+        arise:--only) local pre=; [[ $cur == *,* ]] && pre="${cur%,*},"; COMPREPLY=($(compgen -P "$pre" -W "$(igris __complete tasks 2>/dev/null)" -- "${cur##*,}")) ; return ;;
         arise:--through) COMPREPLY=($(compgen -W "$(igris __complete phases 2>/dev/null)" -- "$cur")) ; return ;;
         arise:--until) COMPREPLY=($(compgen -W "$(igris __complete tasks 2>/dev/null)" -- "$cur")) ; return ;;
         done:--note) return ;;

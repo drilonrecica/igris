@@ -14,6 +14,7 @@ _igris() {
 {{- if eq .Arg.Kind "file"}} _files ; return ;;
 {{- else if eq .Arg.Kind "phases"}} compadd -- ${(f)"$(igris __complete phases 2>/dev/null)"} ; return ;;
 {{- else if eq .Arg.Kind "tasks"}} compadd -- ${(f)"$(igris __complete tasks 2>/dev/null)"} ; return ;;
+{{- else if eq .Arg.Kind "tasklist"}} compset -P '*,' ; compadd -- ${(f)"$(igris __complete tasks 2>/dev/null)"} ; return ;;
 {{- else if eq .Arg.Kind "values"}} compadd -- {{range $i, $v := .Arg.Values}}{{if $i}} {{end}}{{$v}}{{end}} ; return ;;
 {{- else}} return ;;
 {{- end}}

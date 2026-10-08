@@ -65,7 +65,8 @@ func TestResetDirect(t *testing.T) {
 		{name: "ready", args: []string{"reset", "M0-03"}, code: exitOK, out: "M0-03 is ready: nothing to reset\n"},
 		{name: "blocked user task", args: []string{"reset", "M0-04", "--force"}, code: exitOK, out: "M0-04 is blocked: nothing to reset\n"},
 		{name: "unknown task", args: []string{"reset", "M9-99"}, code: exitFail, errText: "is not in"},
-		{name: "bad id", args: []string{"reset", "../x"}, code: exitFail, errText: "invalid task ID"},
+		{name: "bad id", args: []string{"reset", "../x"}, code: exitUsage, errText: "invalid task ID"},
+		{name: "id with a space", args: []string{"reset", "bad id"}, code: exitUsage, errText: `invalid task ID "bad id"`},
 		{name: "no id", args: []string{"reset"}, code: exitUsage, errText: "missing ID argument"},
 	}
 	for _, tt := range tests {

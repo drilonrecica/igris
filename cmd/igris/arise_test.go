@@ -781,6 +781,27 @@ func TestAriseNoTUITaskModeOnUserTask(t *testing.T) {
 	}
 }
 
+// Verify none alone shows the column too, so the plan's choice is visible.
+func TestDryRunShowsVerifyNone(t *testing.T) {
+	withVersions(t, "2.1.291 (Claude Code)\n", "herdr 0.9.1\n")
+	writeProject(t, map[string]string{
+		"tasks.md":   "## A — First\n\n| ID | Task | Deps | Status | Model | Verify |\n|---|---|---|---|---|---|\n| A-1 | **One** | — | ready | sonnet | none |\n| A-2 | **Two** | A-1 | blocked | sonnet | — |\n",
+		"igris.toml": "",
+	})
+	var out, errb bytes.Buffer
+	if code := run([]string{"arise", "A", "--dry-run"}, &out, &errb); code != exitOK {
+		t.Fatalf("exit %d, stderr: %s", code, errb.String())
+	}
+	for _, w := range []string{
+		"  1. A-1        sonnet  → model sonnet  mode auto    verify none    One",
+		"  2. A-2        sonnet  → model sonnet  mode auto    verify —       Two",
+	} {
+		if !strings.Contains(out.String(), w) {
+			t.Errorf("output lacks %q:\n%s", w, out.String())
+		}
+	}
+}
+
 func TestDryRunShowsVerifyProfiles(t *testing.T) {
 	withVersions(t, "2.1.291 (Claude Code)\n", "herdr 0.9.1\n")
 	writeProject(t, map[string]string{
@@ -794,7 +815,7 @@ func TestDryRunShowsVerifyProfiles(t *testing.T) {
 	}
 	for _, w := range []string{
 		"  1. A-1        sonnet  → model sonnet  mode auto    verify fast    One",
-		"  2. A-2        opus    → model opus    mode auto    verify —       Two",
+		"  2. A-2        opus    → model opus    mode auto    verify none    Two",
 		"  3. A-3        sonnet  → model sonnet  mode auto    verify slow    Three",
 	} {
 		if !strings.Contains(out.String(), w) {
