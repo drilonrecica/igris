@@ -41,6 +41,9 @@ type AppOptions struct {
 	// Out is where the clipboard sequence (OSC 52) goes; nil means
 	// os.Stdout.
 	Out io.Writer
+	// Ending, when set, is called once the program has ended, before App
+	// waits for a run still going to stop; waiting says there is one.
+	Ending func(waiting bool)
 }
 
 // Start is where the app opens: Home or Wizard.
@@ -90,6 +93,9 @@ func App(ctx context.Context, o AppOptions) (AppResult, error) {
 	}
 	if f, ok := final.(*appModel); ok {
 		a = f
+	}
+	if o.Ending != nil {
+		o.Ending(a.waiting())
 	}
 	return a.finish(), err
 }
@@ -421,6 +427,19 @@ func (a *appModel) quit() tea.Cmd {
 		a.stopped = a.stopped || a.run.stopNow()
 	}
 	return tea.Quit
+}
+
+// waiting says the app holds a run that has not ended yet.
+func (a *appModel) waiting() bool {
+	if a.run == nil {
+		return false
+	}
+	select {
+	case <-a.run.feed.Ended():
+		return false
+	default:
+		return true
+	}
 }
 
 // finish stops the run and the work that are still going and waits for

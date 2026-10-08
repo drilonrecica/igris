@@ -5,9 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/drilonrecica/igris/internal/notify"
 	"github.com/drilonrecica/igris/internal/project"
@@ -37,7 +34,7 @@ func execNotify(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return fail("%v", err)
 	}
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, cancel, _ := interruptContext() // a second Ctrl-C exits at once
 	defer cancel()
 	router, skipped, err := proj.NotifyRouter(ctx)
 	if err != nil {

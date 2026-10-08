@@ -146,7 +146,7 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		return fail("%v", err)
 	}
 
-	ctx, cancel := interruptContext()
+	ctx, cancel, release := interruptContext()
 	defer cancel() // Ctrl-C stops the run; the session stays open (SPEC §13)
 	pre := l.Prelaunch(ctx)
 	// With --no-tui, stdin carries the owner's commands for the whole run.
@@ -176,7 +176,7 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 			res, err = runOnce(ctx, l.Options(conf, func(ev engine.Event) { printEvent(out, ev) }), f.lines, out)
 		} else {
 			var started bool
-			res, started, err = runWithTUI(ctx, l, conf, out)
+			res, started, err = runWithTUI(ctx, release, l, conf, out)
 			if started {
 				return tuiExit(res, err, out, stderr)
 			}
@@ -214,11 +214,14 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 // interruptContext is cancelled by the first SIGINT or SIGTERM, which
 // stops the run. It then stops catching them, so a second one exits igris
 // at once, as the default handling does, also while the run is still
-// winding down (the final notifications, SPEC §10).
-func interruptContext() (context.Context, context.CancelFunc) {
-	ctx, cancel := context.WithCancel(context.Background())
+// winding down (the final notifications, SPEC §10). release stops catching
+// them without ending ctx: once the owner has quit the TUI, the first
+// Ctrl-C on the plain terminal exits while the run winds down.
+func interruptContext() (ctx context.Context, cancel context.CancelFunc, release func()) {
+	ctx, cancelCtx := context.WithCancel(context.Background())
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
+	release = func() { signal.Stop(sigs) } // a no-op once stopped
 	go func() {
 		select {
 		case <-sigs:
@@ -226,10 +229,28 @@ func interruptContext() (context.Context, context.CancelFunc) {
 		}
 		// Before ctx ends, so that whoever sees it end can count on the
 		// default handling being back.
-		signal.Stop(sigs)
-		cancel()
+		release()
+		cancelCtx()
 	}()
-	return ctx, cancel
+	cancel = func() {
+		release()
+		cancelCtx()
+	}
+	return ctx, cancel, release
+}
+
+// stoppingText is what igris says on the plain terminal while a run the
+// owner left winds down.
+const stoppingText = "stopping… (Ctrl-C again to quit now)"
+
+// windingDown is called once the TUI is gone: it stops catching Ctrl-C
+// (release) and, when the run is still going (waiting), says it is
+// stopping and how to quit at once.
+func windingDown(release func(), waiting bool, out io.Writer) {
+	release()
+	if waiting {
+		fmt.Fprintln(out, stoppingText)
+	}
 }
 
 // ariseUI shows the TUI; a seam for tests.
@@ -240,7 +261,9 @@ var ariseUI = tui.Run
 // fails before that returns with started false, so its error can be
 // answered on the plain terminal (drift, skip-permissions) and the run
 // tried again. Quitting the TUI stops the run; the session stays open.
-func runWithTUI(ctx context.Context, l *project.Launch, conf report.Confirmations, out io.Writer) (engine.Result, bool, error) {
+// While the run winds down after that, release has stopped catching
+// Ctrl-C, so one exits at once.
+func runWithTUI(ctx context.Context, release func(), l *project.Launch, conf report.Confirmations, out io.Writer) (engine.Result, bool, error) {
 	feed := tui.NewFeed()
 	eng, err := l.Engine(conf, feed.Push)
 	if err != nil {
@@ -261,6 +284,7 @@ func runWithTUI(ctx context.Context, l *project.Launch, conf report.Confirmation
 	}
 	uiErr := ariseUI(ctx, l.TUIOptions(feed, eng))
 	stopRun()
+	windingDown(release, !ended(feed.Ended()), out)
 	<-feed.Ended()
 	res, err := feed.Result()
 	if uiErr != nil {
@@ -270,6 +294,16 @@ func runWithTUI(ctx context.Context, l *project.Launch, conf report.Confirmation
 		}
 	}
 	return res, true, err
+}
+
+// ended says ch is closed.
+func ended(ch <-chan struct{}) bool {
+	select {
+	case <-ch:
+		return true
+	default:
+		return false
+	}
 }
 
 // tuiExit reports how a run shown in the TUI ended, once the terminal is

@@ -412,3 +412,21 @@ func TestAppStart(t *testing.T) {
 		}
 	}
 }
+
+// waiting tells App's Ending whether a run is still going, so that igris
+// says it is stopping while App waits for it.
+func TestAppWaiting(t *testing.T) {
+	a := testApp(&fakeServices{}, 80, 24)
+	if a.waiting() {
+		t.Error("no run: waiting")
+	}
+	h, _ := fakeRun(engine.Result{})
+	a.Update(runMsg{h})
+	if !a.waiting() {
+		t.Error("a run going: not waiting")
+	}
+	h.feed.End(engine.Result{Outcome: engine.Completed}, nil)
+	if a.waiting() {
+		t.Error("the run ended: still waiting")
+	}
+}

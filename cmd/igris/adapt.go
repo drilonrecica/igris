@@ -1,16 +1,12 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
-	"os"
-	"os/signal"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/drilonrecica/igris/internal/adapt"
 	"github.com/drilonrecica/igris/internal/checks"
@@ -74,8 +70,8 @@ func execAdapt(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "warning: %s\n", checks.APIKeyWarning)
 	}
 
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer cancel() // Ctrl-C stops waiting; the session stays open
+	ctx, cancel, _ := interruptContext() // a second Ctrl-C exits at once
+	defer cancel()                       // Ctrl-C stops waiting; the session stays open
 	res, err := adapt.Run(ctx, adapt.Options{
 		Config:   cfg,
 		PlanPath: planPath,

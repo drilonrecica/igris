@@ -1,13 +1,10 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
 	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/project"
@@ -78,8 +75,11 @@ func runApp(start tui.Start, stdout, stderr io.Writer) int {
 	if p, err := project.Open(cwd, env); err == nil {
 		opts.Mouse, opts.Theme, opts.RankColors = p.Cfg.TUI.Mouse, p.Cfg.TUI.Theme, p.Cfg.TUI.RankColors
 	}
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM)
+	// SIGINT or SIGTERM ends the app and stops its run; once the app is
+	// gone, a Ctrl-C exits at once while the run winds down.
+	ctx, cancel, release := interruptContext()
 	defer cancel()
+	opts.Ending = func(waiting bool) { windingDown(release, waiting, stdout) }
 	res, err := appUI(ctx, opts)
 	if err != nil {
 		fmt.Fprintf(stderr, "igris: the TUI failed: %v; `igris arise --no-tui` runs without it\n", err)
