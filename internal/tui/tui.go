@@ -97,9 +97,13 @@ func darkTheme(setting string, detect func() bool) bool {
 	return detect()
 }
 
-// programOptions are the Bubble Tea options for a run.
+// programOptions are the Bubble Tea options for a run, the home screen and
+// the adapt review. igris owns SIGINT and SIGTERM: the caller's ctx is
+// cancelled by them (cmd/igris interruptContext). Bubble Tea's own handler
+// is off, as it could block forever handing its quit message to a program
+// that already stopped on ctx.
 func programOptions(ctx context.Context, mouse bool) []tea.ProgramOption {
-	opts := []tea.ProgramOption{tea.WithAltScreen(), tea.WithContext(ctx)}
+	opts := []tea.ProgramOption{tea.WithAltScreen(), tea.WithContext(ctx), tea.WithoutSignalHandler()}
 	if mouse {
 		opts = append(opts, tea.WithMouseCellMotion())
 	}

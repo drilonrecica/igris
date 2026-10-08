@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -387,6 +388,25 @@ func TestRunEnd(t *testing.T) {
 	v := hs.m.View()
 	if !strings.Contains(v, "the run stopped: completed — press q to quit") || strings.Contains(v, "[Pause]") || strings.Contains(v, "[Done]") {
 		t.Errorf("end not shown:\n%s", v)
+	}
+}
+
+// igris owns SIGINT and SIGTERM (cmd/igris interruptContext cancels ctx).
+// Bubble Tea's own handler would block forever sending its quit message to
+// a program that already stopped on ctx, hanging the TUI on an external
+// interrupt; every program (run, home, adapt review) must go without it.
+func TestProgramOptionsWithoutSignalHandler(t *testing.T) {
+	want := reflect.ValueOf(tea.WithoutSignalHandler()).Pointer()
+	for _, mouse := range []bool{false, true} {
+		found := false
+		for _, o := range programOptions(context.Background(), mouse) {
+			if reflect.ValueOf(o).Pointer() == want {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("programOptions(mouse=%v) lacks tea.WithoutSignalHandler", mouse)
+		}
 	}
 }
 

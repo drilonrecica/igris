@@ -6,7 +6,7 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [0.5.1] - 2026-10-08
 
-A patch for four small bugs found at the v0.5 gate: a first prompt that stays unsubmitted, blank tail rows, `report` help and completion, and a second Ctrl-C. No change to the plan format, config keys or file formats.
+A patch for small bugs found at the v0.5 gate and its review: a first prompt that stays unsubmitted, blank tail rows, `report` help and completion, a second Ctrl-C, and an external interrupt that could hang the TUI. No change to the plan format, config keys or file formats.
 
 ### Fixed
 
@@ -14,6 +14,7 @@ A patch for four small bugs found at the v0.5 gate: a first prompt that stays un
 - Live tail: a line wider than the card, such as Claude Code's right-aligned `◐ medium · /effort`, loses its leading spaces instead of showing as a blank row ending in `…` (SPEC §15.3).
 - `igris report -h` and `igris history -h` show the positional `RUN` argument, and shell completion offers run IDs from `.igris/runs.jsonl` after `igris report`, newest first (SPEC §14).
 - A second Ctrl-C exits at once on every path: while `arise` or a run started from home winds down it prints `stopping… (Ctrl-C again to quit now)`, and `adapt` and `notify test` exit on a second SIGINT too (SPEC §13, §15).
+- An external SIGINT or SIGTERM (`kill -INT`, `kill`) no longer hangs the home screen, the run view or the `adapt` review now and then with the alternate screen left on: Bubble Tea's own signal handler is off, igris handles both signals itself.
 
 ## [0.5.0] - 2026-10-08
 
