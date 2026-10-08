@@ -129,3 +129,19 @@ func TestHistoryResetEndsTheAttempt(t *testing.T) {
 		t.Errorf("attempts = %+v", h.Attempts)
 	}
 }
+
+// A sliced run's run_started detail carries the selection after "; "
+// (SPEC §13): the phases are what comes before it.
+func TestScopePhases(t *testing.T) {
+	for detail, want := range map[string]string{
+		"phase A":                              "A",
+		"phase A, B":                           "A B",
+		"phase M1; only M1-03, M1-05":          "M1",
+		"phase M1, M2; from M1-03 until M2-02": "M1 M2",
+		"":                                     "",
+	} {
+		if got := strings.Join(scopePhases(detail), " "); got != want {
+			t.Errorf("scopePhases(%q) = %q, want %q", detail, got, want)
+		}
+	}
+}

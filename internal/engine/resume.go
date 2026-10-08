@@ -62,17 +62,21 @@ func (e *Engine) resume(ctx context.Context) (stopped bool, err error) {
 		default:
 			if st, err := sess.State(ctx); err != nil || st != backend.Exited {
 				l.sess = sess
-				l.startAttempt(e.clock.Now()) // elapsed time is not saved (SPEC §6.3)
 				detail := "reattached to its session"
+				held := false
 				if cur.PendingPrompt != "" {
 					// The session never got its task: it was held at a
 					// startup prompt when the last run stopped.
 					detail = "reattached to its session; its task prompt goes out once Claude Code is ready"
 					if h, ok := sess.(backend.PromptHolder); ok {
 						h.HoldPrompt(cur.PendingPrompt)
+						held = true // the clock starts at its delivery
 					} else if err := sess.Prompt(ctx, cur.PendingPrompt); err != nil && !errors.Is(err, backend.ErrSessionGone) {
 						return false, fmt.Errorf("send the task prompt to %s: %w; its session is still open in %s: run `igris arise` to retry", t.ID, err, e.be.Name())
 					}
+				}
+				if !held {
+					l.startAttempt(e.clock.Now()) // elapsed time is not saved (SPEC §6.3)
 				}
 				e.emit(Event{Kind: TaskResumed, Detail: detail})
 				return e.drive(ctx, l)

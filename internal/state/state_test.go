@@ -303,6 +303,17 @@ func TestRunSelection(t *testing.T) {
 	if got, err := d.LoadRun(); err != nil || !reflect.DeepEqual(got, want) {
 		t.Errorf("LoadRun = %+v, %v\nwant %+v", got, err, want)
 	}
+	// A sliced run is version 2, which v0.3 refuses ("unsupported version")
+	// instead of silently running the whole phases; a whole run stays 1.
+	if data := readFile(t, d.runPath()); !strings.Contains(data, `"version": 2`) {
+		t.Errorf("sliced state.json = %s, want version 2", data)
+	}
+	if err := d.SaveRun(&Run{StartedAt: t0, Phases: []string{"M1"}}); err != nil {
+		t.Fatal(err)
+	}
+	if data := readFile(t, d.runPath()); !strings.Contains(data, `"version": 1`) {
+		t.Errorf("whole-phase state.json = %s, want version 1", data)
+	}
 
 	v03 := `{"version": 1, "started_at": "2026-10-06T12:00:00Z", "phases": ["M1", "M2"], "through": "M2", "config_hash": "abc"}`
 	if err := os.WriteFile(d.runPath(), []byte(v03), 0o600); err != nil {
@@ -339,6 +350,11 @@ func TestLoadRunErrors(t *testing.T) {
 		"bad json":    "{",
 		"bad version": `{"version": 99}`,
 		"no version":  `{}`,
+		// Selection IDs reach messages and the terminal: a damaged one is
+		// refused like a damaged session ref.
+		"bad only":  `{"version": 2, "phases": ["M1"], "selection": {"only": ["M1-01", "\u001b[2Jx"]}}`,
+		"bad from":  `{"version": 2, "phases": ["M1"], "selection": {"from": "a b"}}`,
+		"bad until": `{"version": 2, "phases": ["M1"], "selection": {"until": "../x"}}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			d := testDir(t)
@@ -470,4 +486,13 @@ func TestStaleLockNamesTheCommand(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "`igris arise --force-unlock`") {
 		t.Errorf("err = %v", err)
 	}
+}
+
+func readFile(t *testing.T, path string) string {
+	t.Helper()
+	data, err := os.ReadFile(path) //nolint:gosec // test file
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
 }

@@ -143,3 +143,23 @@ func TestTaskOverdueResumeRestartsTheClock(t *testing.T) {
 		t.Errorf("task_overdue at %s after a resume at %s, want once, over a minute after it", durations(over...), resumedAt)
 	}
 }
+
+// A first prompt held at a startup prompt (SPEC §6.3) starts the clock
+// when it is delivered, not when igris handed it over.
+func TestTaskOverdueClockStartsAtDelivery(t *testing.T) {
+	h := newHarness(t, timeoutPlan, "")
+	h.autoSignalExcept("A-1")
+	h.be.StartupPrompt("A-1")
+	states := make([]backend.AgentState, 30) // a minute at the folder-trust question
+	for i := range states {
+		states[i] = backend.Blocked
+	}
+	h.be.Script("A-1", append(states, backend.Idle, backend.Working)...)
+	h.signalAt(5*time.Minute, "A-1")
+	if _, err := h.run(); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if got, want := durations(h.times(TaskOverdue)...), "2m2s"; got != want {
+		t.Errorf("task_overdue at %s, want %s (a minute after the delivery at 1m0s)", got, want)
+	}
+}

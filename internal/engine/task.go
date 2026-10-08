@@ -224,8 +224,8 @@ func (e *Engine) openSession(ctx context.Context, l *launch, st sessionStart) er
 	e.emit(Event{Kind: SessionOpened, Session: &opened, ClaudeSession: st.sessionID})
 
 	// The prompt is submitted, never passed as an argument (SPEC §6, §11.2).
-	// The attempt's clock starts with it (SPEC §6.3).
-	l.startAttempt(e.clock.Now())
+	// The attempt's clock starts when it is delivered (SPEC §6.3).
+	l.attemptAt, l.overdue = time.Time{}, false
 	switch err := sess.Prompt(ctx, st.text); {
 	case errors.Is(err, backend.ErrSessionGone):
 		e.lose(ctx, l)
@@ -234,15 +234,17 @@ func (e *Engine) openSession(ctx context.Context, l *launch, st sessionStart) er
 	}
 	if h, ok := sess.(backend.PromptHolder); ok && h.PromptPending() {
 		// Held at a startup prompt: if igris stops before it goes out, the
-		// next run hands it back to the reattached session.
+		// next run hands it back to the reattached session. The clock
+		// starts once it goes out (promptDelivered).
 		l.cur.PendingPrompt = st.text
 		return e.dir.SaveRun(e.run)
 	}
+	l.startAttempt(e.clock.Now())
 	return nil
 }
 
 // promptDelivered forgets the recorded first prompt once l's session has
-// delivered it.
+// delivered it, and starts the attempt's clock then.
 func (e *Engine) promptDelivered(l *launch) {
 	if l.cur.PendingPrompt == "" {
 		return
@@ -251,6 +253,7 @@ func (e *Engine) promptDelivered(l *launch) {
 		return
 	}
 	l.cur.PendingPrompt = ""
+	l.startAttempt(e.clock.Now())
 	if err := e.dir.SaveRun(e.run); err != nil {
 		e.warn(err.Error())
 	}

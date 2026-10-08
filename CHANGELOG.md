@@ -11,7 +11,7 @@ igris v0.4 lets a plan say more about each task: which checks to run, how long i
 ### Added
 
 - **Verify profiles** (SPEC §6.4): `[verify]` in `igris.toml` names shell commands (`fast = "go test ./internal/..."`, `full = "make fmt lint test"`); `run.verify` is the profile `default` and stays supported. `[phases.<id>] verify` sets a phase's profile, and the plan's new optional **`Verify`** column picks one per task, or `none` to skip verification for it. Plans name profiles, never commands. An unknown profile in a cell fails `check` and `arise`; a `[phases.<id>]` naming no phase is a warning.
-- **`Timeout` column** (SPEC §6.3): a Go duration (`45m`, `1h30m`). A session running longer is marked **overdue** on the task card and **Needs you**, logged as `task_overdue` and notified once per attempt. igris never stops or closes the session for it; a retry starts a new clock.
+- **`Timeout` column** (SPEC §6.3): a Go duration (`45m`, `1h30m`). The clock starts when the session's first prompt is delivered (also one Claude Code held back at a startup question). A session running longer is marked **overdue** on the task card and **Needs you**, logged as `task_overdue` and notified once per attempt. igris never stops or closes the session for it; a retry starts a new clock.
 - **`task_overdue` notification event**, urgent like `needs_input` (ntfy priority high, the toast's `request` sound), in every channel's default `events`.
 - **`Context` column** (SPEC §3.2, §6.1): comma-separated repo-relative files or directories (at most 20) that the default task prompt lists as required reading; custom templates get `.Context`. igris names the paths only and never reads or sends their contents. Every path must exist and stay inside the project (no absolute paths, no `..`, no symlinks out).
 - **Task hooks** (SPEC §6.7): `[hooks] before_task` and `after_task` run your own commands, as argv lists without a shell, around every agent session, with `IGRIS_TASK_ID`, `IGRIS_PHASE`, `IGRIS_RANK`, `IGRIS_MODEL` and (after) `IGRIS_RESULT` in the environment and a `timeout` (default 2 m). A failing `before_task` opens no session and offers retry, done, skip or stop; a failing `after_task` is a warning and a `run_error` notification. The log says when a hook starts and shows the end of a failed hook's output; the run log and notifications get a short fixed reason (`exit status 1`, `not found`, `killed by signal 9 (killed)`, …), never the command line. A hook that exits 0 but leaves a background helper running passes. Hooks never run for user tasks, `adapt` or `--dry-run`.
@@ -27,7 +27,8 @@ igris v0.4 lets a plan say more about each task: which checks to run, how long i
 - **`auto` is the default run mode** (SPEC §7.1, §12): `default_mode` defaults to `auto` (Claude Code `--permission-mode auto`) instead of `default`, and `igris init` writes `default_mode = "auto"`. Sessions approve routine actions themselves and still ask you about risky ones; skip-permissions (`yolo`) still needs the typed confirmation every run.
 - `Verify`, `Timeout` and `Context` are canonical columns now: matched case-insensitively and aliasable through `[columns]`, they no longer reach the session prompt as extra columns. They are checked only on tasks that aren't `done` or `skipped`; on a `user` task they are ignored with a warning.
 - The verify failure sent into a session, the run log's `verify_passed`/`verify_failed` detail and the dry run name the verify profile.
-- `run_started` in the run log and `state.json` record the slice of a sliced run.
+- `run_started` in the run log and `state.json` record the slice of a sliced run. Such a `state.json` is version 2 (a whole-phase run stays 1), and its task IDs are checked when it is read back.
+- Plan edits igris didn't make (SPEC §5.4) include the Verify, Timeout and Context cells, so a session turning a later task's verification off holds the run like any other edit.
 - `igris adapt` keeps Verify, Timeout and Context cells as written and never invents a profile, a timeout or a path; its prompt lists your verify profile names (never their commands). A column of one of those names that holds something else (a command under Verify, say) is renamed so it stays an extra column, and noted.
 
 ### Migration
@@ -37,6 +38,7 @@ igris v0.4 lets a plan say more about each task: which checks to run, how long i
 - **A plan that already has a column named `Verify`, `Timeout` or `Context`** for something else (a command, an estimate, notes) is now read as the new column and may fail `igris check`. Rename that column (e.g. `Verify notes`), or let `igris adapt` do it.
 - **`task_overdue` joins the default notification events and `default_mode` defaults to `auto`**, and the config hash covers the parsed config with its defaults, so the hash of an unchanged `igris.toml` changes. Resuming a run interrupted under v0.3 therefore shows a one-time warning, `igris.toml changed since the interrupted run; this run uses the file as it is now`. It is expected, and the run carries on.
 - `check --strict` is new and opt-in: plain `igris check` output and exit codes are unchanged.
+- **Going back to v0.3 with a sliced run interrupted:** v0.3 refuses its `state.json` (`unsupported version 2`) rather than running the whole phases. Finish the run with v0.4, or delete `.igris/state.json`.
 
 ## [0.3.0] - 2026-10-08
 

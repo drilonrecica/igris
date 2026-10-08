@@ -17,11 +17,15 @@ const maxPlanChanges = 8
 type rowSig struct {
 	status                  plan.Status
 	rank, mode, owner, deps string
+	verify, timeout, paths  string
 	text                    string
 }
 
 func sigOf(t *plan.Task) rowSig {
-	return rowSig{status: t.Status, rank: t.Rank, mode: t.Mode, owner: string(t.Owner), deps: t.DepsText, text: t.Text}
+	return rowSig{
+		status: t.Status, rank: t.Rank, mode: t.Mode, owner: string(t.Owner), deps: t.DepsText,
+		verify: t.Verify, timeout: t.TimeoutText, paths: t.ContextText, text: t.Text,
+	}
 }
 
 // planWatch remembers every row as igris last saw or wrote it.
@@ -93,6 +97,11 @@ func rowChanges(id string, a, b rowSig) []string {
 	cell("Mode", a.mode, b.mode)
 	cell("Owner", a.owner, b.owner)
 	cell("Deps", a.deps, b.deps)
+	// A session could turn a later task's verification off, or widen its
+	// Timeout, without anyone noticing.
+	cell("Verify", a.verify, b.verify)
+	cell("Timeout", a.timeout, b.timeout)
+	cell("Context", a.paths, b.paths)
 	if a.text != b.text {
 		out = append(out, id+" Task text changed")
 	}

@@ -310,10 +310,14 @@ func (e *Engine) prepare() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	rng, err := ResolveRange(p, from, through, sel)
+	origin := ""
+	if resumed {
+		origin = "the last run's "
+	}
+	rng, err := resolveRange(p, from, through, sel, origin)
 	if err != nil {
 		if resumed && !sel.Empty() {
-			return nil, fmt.Errorf("resume the last run's %s: %w; or name a phase to start a new run", sel, err)
+			return nil, fmt.Errorf("%w; or name a phase to start a new run", err)
 		}
 		return nil, err
 	}

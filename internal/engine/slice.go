@@ -6,6 +6,7 @@ import (
 
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/state"
+	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
 // Range is the phases a run walks and, with a selection, the slice of their
@@ -45,16 +46,23 @@ func (r Range) Scope() string {
 // phase of the latest. It fails, saying what to change, when a named ID is
 // not in the plan or outside the range, or --from comes after --until.
 func ResolveRange(p *plan.Plan, phase, through string, sel state.Selection) (Range, error) {
+	return resolveRange(p, phase, through, sel, "")
+}
+
+// resolveRange is ResolveRange with origin before each flag in the errors:
+// "" for the command line, "the last run's " for a selection resumed from
+// state.json. The IDs are cleaned for the terminal either way.
+func resolveRange(p *plan.Plan, phase, through string, sel state.Selection, origin string) (Range, error) {
 	type named struct{ flag, id string }
 	var names []named
 	for _, id := range sel.Only {
-		names = append(names, named{"--only", id})
+		names = append(names, named{origin + "--only", id})
 	}
 	if sel.From != "" {
-		names = append(names, named{"--from", sel.From})
+		names = append(names, named{origin + "--from", sel.From})
 	}
 	if sel.Until != "" {
-		names = append(names, named{"--until", sel.Until})
+		names = append(names, named{origin + "--until", sel.Until})
 	}
 	index := make(map[string]int, len(p.Tasks))
 	for i, t := range p.Tasks {
@@ -66,7 +74,7 @@ func ResolveRange(p *plan.Plan, phase, through string, sel state.Selection) (Ran
 	for _, n := range names {
 		i, ok := index[n.id]
 		if !ok {
-			return Range{}, fmt.Errorf("%s %s is not a task in %s; check the ID with `igris status`", n.flag, n.id, p.Path)
+			return Range{}, fmt.Errorf("%s %s is not a task in %s; check the ID with `igris status`", n.flag, textsafe.Line(n.id), p.Path)
 		}
 		if first < 0 || i < first {
 			first = i
@@ -107,10 +115,10 @@ func ResolveRange(p *plan.Plan, phase, through string, sel state.Selection) (Ran
 		if phaseIndex(p, t.Phase) < phaseIndex(p, phases[0]) {
 			hint = "start at an earlier phase or drop it"
 		}
-		return Range{}, fmt.Errorf("%s %s is in phase %s, outside the run's %s; %s", n.flag, n.id, t.Phase.ID, phaseSpan(phases), hint)
+		return Range{}, fmt.Errorf("%s %s is in phase %s, outside the run's %s; %s", n.flag, textsafe.Line(n.id), t.Phase.ID, phaseSpan(phases), hint)
 	}
 	if sel.From != "" && sel.Until != "" && index[sel.From] > index[sel.Until] {
-		return Range{}, fmt.Errorf("--from %s comes after --until %s in the plan; swap them", sel.From, sel.Until)
+		return Range{}, fmt.Errorf("%s--from %s comes after --until %s in the plan; swap them", origin, textsafe.Line(sel.From), textsafe.Line(sel.Until))
 	}
 
 	r.Slice = map[string]bool{}

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/state"
 )
 
@@ -320,7 +321,7 @@ func TestSliceResumeAfterThePlanChanged(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err := h.run(resumeLast)
-	if err == nil || !strings.Contains(err.Error(), "resume the last run's only M1-09: --only M1-09 is not a task in") ||
+	if err == nil || !strings.Contains(err.Error(), "the last run's --only M1-09 is not a task in") ||
 		!strings.Contains(err.Error(), "name a phase to start a new run") {
 		t.Fatalf("Run error %v", err)
 	}
@@ -342,5 +343,14 @@ func TestSliceYoloOutsideIt(t *testing.T) {
 	h = newHarness(t, yoloPlan, "")
 	if _, err := h.run(slice("", "", only("M1-02"))); !errors.Is(err, ErrYoloUnconfirmed) {
 		t.Fatalf("run error %v, want ErrYoloUnconfirmed", err)
+	}
+}
+
+// Range errors clean the IDs they quote, whatever wrote them.
+func TestResolveRangeCleansIDs(t *testing.T) {
+	p := plan.Parse("tasks.md", []byte(slicePlan), plan.Options{})
+	_, err := ResolveRange(p, "M1", "", state.Selection{Only: []string{"M1-0\x1b[2J9"}})
+	if err == nil || strings.ContainsRune(err.Error(), 0x1b) {
+		t.Errorf("err = %q, want one without the escape", err)
 	}
 }

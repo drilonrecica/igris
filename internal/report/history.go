@@ -207,9 +207,10 @@ func readRuns(events []state.Event) []*runRec {
 }
 
 // scopePhases reads the phase IDs out of the run_started detail
-// ("phase A, B").
+// ("phase A, B", or "phase M1; only M1-03, M1-05" for a slice).
 func scopePhases(detail string) []string {
 	out := []string{}
+	detail, _, _ = strings.Cut(detail, "; ")
 	for _, p := range strings.Split(strings.TrimPrefix(detail, "phase "), ", ") {
 		if p = textsafe.Line(strings.TrimSpace(p)); p != "" {
 			out = append(out, p)

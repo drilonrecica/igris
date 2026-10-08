@@ -7,14 +7,22 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/drilonrecica/igris/internal/backend"
+	"github.com/drilonrecica/igris/internal/plan"
+	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
-// runVersion is the state.json format version.
-const runVersion = 1
+// State file format versions. A run with a selection (SPEC §5.5) is saved
+// as version 2, so igris v0.3, which knows only 1, refuses it instead of
+// resuming it without its slice; a whole-phase run stays readable by v0.3.
+const (
+	runVersion      = 1
+	runVersionSlice = 2
+)
 
 // ErrNoRun is returned by LoadRun when there is no state.json.
 var ErrNoRun = errors.New("no previous run")
@@ -75,6 +83,9 @@ type Current struct {
 // SaveRun writes r to state.json atomically.
 func (d *Dir) SaveRun(r *Run) error {
 	r.Version = runVersion
+	if r.Selection != nil {
+		r.Version = runVersionSlice
+	}
 	data, err := json.MarshalIndent(r, "", "  ")
 	if err != nil {
 		return fmt.Errorf("save run state: %w", err)
@@ -103,8 +114,23 @@ func loadRun(path string) (*Run, error) {
 	if err := json.Unmarshal(data, &r); err != nil {
 		return nil, fmt.Errorf("read run state %s: %w; delete the file to start a new run", path, err)
 	}
-	if r.Version != runVersion {
-		return nil, fmt.Errorf("read run state %s: unsupported version %d (want %d); delete the file to start a new run", path, r.Version, runVersion)
+	if r.Version != runVersion && r.Version != runVersionSlice {
+		return nil, fmt.Errorf("read run state %s: unsupported version %d (want %d or %d); delete the file to start a new run", path, r.Version, runVersion, runVersionSlice)
+	}
+	if r.Selection != nil {
+		// The IDs end up in messages and on the terminal: a session could
+		// have written anything here.
+		ids := slices.Clone(r.Selection.Only)
+		for _, id := range []string{r.Selection.From, r.Selection.Until} {
+			if id != "" {
+				ids = append(ids, id)
+			}
+		}
+		for _, id := range ids {
+			if !plan.ValidID(id) {
+				return nil, fmt.Errorf("read run state %s: damaged: the selection names %q, which is not a task ID; delete the file to start a new run", path, textsafe.Line(id))
+			}
+		}
 	}
 	return &r, nil
 }

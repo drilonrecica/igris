@@ -116,3 +116,56 @@ func TestOwnWritesAreNotPlanChanges(t *testing.T) {
 		t.Errorf("%d plan_changed events, want none in %s", got, h.kinds())
 	}
 }
+
+// The Verify, Timeout and Context cells are watched too (SPEC §5.4): a
+// session turning a later task's verification off is a plan change.
+func TestPlanWatchDiffV04Columns(t *testing.T) {
+	const base = `## A
+
+| ID | Task | Deps | Status | Model | Owner | Verify | Timeout | Context |
+|---|---|---|---|---|---|---|---|---|
+| A-1 | **One** | — | ready | sonnet | agent | default | 45m | docs/a.md |
+`
+	tests := []struct{ from, to, want string }{
+		{"| default |", "| none |", "A-1 Verify default → none"},
+		{"| 45m |", "| 10h |", "A-1 Timeout 45m → 10h"},
+		{"| docs/a.md |", "| — |", "A-1 Context docs/a.md → —"},
+	}
+	for _, tt := range tests {
+		var w planWatch
+		w.reset(plan.Parse("tasks.md", []byte(base), plan.Options{}))
+		got := strings.Join(w.diff(plan.Parse("tasks.md", []byte(strings.Replace(base, tt.from, tt.to, 1)), plan.Options{})), "; ")
+		if got != tt.want {
+			t.Errorf("%s → %s: diff = %q, want %q", tt.from, tt.to, got, tt.want)
+		}
+	}
+}
+
+// A session editing a later task's Verify cell holds the run like any other
+// plan change: it is not accepted unverified behind the owner's back.
+func TestSessionDisablingLaterVerifyHoldsTheRun(t *testing.T) {
+	const verifyColPlan = `## A — First phase
+
+| ID | Task | Deps | Status | Model | Owner | Verify |
+|---|---|---|---|---|---|---|
+| A-1 | **One** | — | ready | sonnet | agent | default |
+| A-2 | **Two** | A-1 | blocked | sonnet | agent | default |
+`
+	h := newHarness(t, verifyColPlan, "[run]\nverify = \"make test\"\n")
+	h.verifyResults(pass)
+	h.onEvent = func(ev Event) {
+		if ev.Kind == TaskStarted && ev.Task == "A-1" {
+			h.write("tasks.md", strings.Replace(h.read("tasks.md"), "| A-1 | blocked | sonnet | agent | default |", "| A-1 | blocked | sonnet | agent | none |", 1))
+		}
+	}
+	h.clock.At(time.Minute, func() { h.eng.Send(Command{Kind: CmdPause}) })
+	if _, err := h.run(); err != nil {
+		t.Fatal(err)
+	}
+	if ev := h.event(PlanChanged, ""); !strings.Contains(ev.Detail, "A-2 Verify default → none") {
+		t.Errorf("plan_changed = %q", ev.Detail)
+	}
+	if got, want := h.event(TaskStarted, "A-2").At, t0.Add(time.Minute); !got.Equal(want) {
+		t.Errorf("A-2 started at %v, want %v (when the owner resumed)", got, want)
+	}
+}

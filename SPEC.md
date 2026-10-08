@@ -159,7 +159,7 @@ After every status change igris recomputes readiness for **all** tasks in the pl
 - Gate tasks have no special treatment; they're ordinary (usually `agent + user`) tasks.
 
 ### 5.4 Plan edits igris didn't make
-Igris remembers every row as it last read or wrote it (Status, Model, Mode, Owner, Deps, Task text; rows added or removed). Whenever it re-reads the plan to select a task and finds a difference it did not write itself — a session editing a later task's Mode or Model, marking tasks done, or the owner's own edit; igris can't tell them apart — it reports the changed cells (`M1-03 Mode — → auto`), sends `needs_input`, and **holds**: pause-after-task goes on and nothing is selected, not even "phase complete", until the owner resumes (`p`, or `pause` with `--no-tui`). The current task is not interrupted. Ready/blocked cells igris recomputes itself (§5.2) are never reported.
+Igris remembers every row as it last read or wrote it (Status, Model, Mode, Owner, Deps, Verify, Timeout, Context, Task text; rows added or removed). Whenever it re-reads the plan to select a task and finds a difference it did not write itself — a session editing a later task's Mode, Model or Verify (turning its verification off), marking tasks done, or the owner's own edit; igris can't tell them apart — it reports the changed cells (`M1-03 Mode — → auto`), sends `needs_input`, and **holds**: pause-after-task goes on and nothing is selected, not even "phase complete", until the owner resumes (`p`, or `pause` with `--no-tui`). The current task is not interrupted. Ready/blocked cells igris recomputes itself (§5.2) are never reported.
 
 ### 5.5 Running a slice
 `arise --only ID[,ID…]`, `--from ID` and `--until ID` run part of the phase range.
@@ -170,7 +170,7 @@ Igris remembers every row as it last read or wrote it (Status, Model, Mode, Owne
 - When unsatisfied slice tasks are left in a phase but none qualifies, each is reported as **not run** with its unmet dependencies (`not run: M1-05 waits on M1-04 (ready, phase M1)`), in the TUI and the run's final summary. It is never marked. The run goes on with the next phase of the range; this is not a stuck phase and sends no `phase_stuck`. The run ends when the slice has nothing left to run.
 - `phase_done` is sent only for a phase whose tasks are all satisfied. Tasks outside the slice change only through readiness sync (§5.2).
 - The interrupted task of an earlier run is still picked up first (§13), also when it is outside the slice; `arise` says so.
-- `state.json` records the selection with the phases, so a bare `arise` resumes the same slice. `--dry-run` walks the slice.
+- `state.json` records the selection with the phases, so a bare `arise` resumes the same slice; a selection that can't be resumed (a task left the plan, say) is named as the last run's (`the last run's --only M1-09 is not a task in tasks.md…`). `--dry-run` walks the slice.
 
 ---
 
@@ -241,7 +241,7 @@ The tmux backend takes the agent state from these files; the herdr backend uses 
 | Agent `unknown` | Nothing; it says nothing about the agent (e.g. no hook has fired yet and herdr's integration is missing). |
 | Pane gone or Claude Code exited without a signal | Mark **Session lost**, notify, and offer: continue the conversation (`claude --resume <uuid>`, with a short fixed prompt telling the session to pick the task up again), retry fresh (`Resumed=true`), mark done, skip, or stop. A done signal written before the session went away still counts. |
 
-**Timeout.** The clock starts when igris sends the session's first prompt: the task prompt of a fresh session, the continue prompt of `retry continue`, or, on resume, when igris reattaches to a live session (elapsed time is not saved). Each session igris opens or reattaches for the task is one attempt, so a retry starts a new clock. It is checked while igris watches the session. User tasks ignore Timeout (§3.2).
+**Timeout.** The clock starts when the session's first prompt is delivered: the task prompt of a fresh session, the continue prompt of `retry continue`, or, on resume, when igris reattaches to a live session (elapsed time is not saved). A prompt held back at a startup prompt (§13, `pending_prompt`) counts from when it goes out. Each session igris opens or reattaches for the task is one attempt, so a retry starts a new clock. It is checked while igris watches the session. User tasks ignore Timeout (§3.2).
 
 Igris never advances on agent state alone — only on a signal or an explicit owner action. A signal for another task, or one igris can't read, is reported once and kept. A skip signal from an agent session is asked about once; declining it deletes the signal and the session carries on.
 
@@ -541,7 +541,7 @@ events = ["needs_input", "session_lost", "task_overdue", "phase_done", "phase_st
 | Path | Content |
 |---|---|
 | `igris.lock` | PID + host + start time, created complete (written to a temp file and hard-linked into place) so a concurrent `--force-unlock` never mistakes a fresh lock for a damaged one. A second `igris arise` refuses to start while the PID is alive; a stale lock is reported and can be cleared with `--force-unlock`. If the PID was reused by another program (after a reboot, say), the error says to delete the file. |
-| `state.json` | Current run: phases, the selection (§5.5), current task ID, session ref (backend name, pane/tab IDs, agent name), Claude session UUID, mode, attempt counters, started-at, hash of the config snapshot, and the task prompt while it is held at a startup prompt. Written atomically on every change. Values that become command arguments (session ref IDs, the session UUID) are checked for their expected shape when read back; a file that fails is reported as damaged. |
+| `state.json` | Current run: phases, the selection (§5.5), current task ID, session ref (backend name, pane/tab IDs, agent name), Claude session UUID, mode, attempt counters, started-at, hash of the config snapshot, and the task prompt while it is held at a startup prompt. Written atomically on every change. Values that become command arguments (session ref IDs, the session UUID) and the selection's task IDs are checked for their expected shape when read back; a file that fails is reported as damaged. `version` is 1, or 2 when the run has a selection, so igris v0.3 (which knows only 1) refuses a sliced run instead of resuming it whole; igris reads both. |
 | `signals/` | Pending signal files (§6.2): `<ID>.json` for `done` and `skip`, `<ID>.reset.json` for `reset`. |
 | `hooks/` | `<ID>.settings.json`: the hooks-only Claude Code settings file igris passes with `--settings` (§6.3). Rewritten before every session. |
 | `agent-state/` | `<session uuid>.json`: `{"state","event","at"}`, the agent state written by `igris hook` (§6.3). Untrusted; read bounded and shape-checked. |
