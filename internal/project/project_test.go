@@ -183,6 +183,17 @@ func TestLaunchBuildsArisesEngine(t *testing.T) {
 		uo.PlanPath != filepath.Join(root, "tasks.md") || uo.Feed != feed || uo.Focus == nil {
 		t.Errorf("tui options = %+v", uo)
 	}
+	if uo.RankDurations != nil {
+		t.Errorf("no run log, yet rank durations %v", uo.RankDurations)
+	}
+	writeFile(t, filepath.Join(root, state.DirName, "runs.jsonl"),
+		`{"at":"2026-10-01T09:00:00Z","type":"run_started","detail":"phase M0"}
+{"at":"2026-10-01T09:00:00Z","type":"task_started","task":"M0-01","rank":"sonnet","model":"sonnet"}
+{"at":"2026-10-01T09:12:00Z","type":"task_done","task":"M0-01","rank":"sonnet","model":"sonnet"}
+`)
+	if d := l.TUIOptions(feed, nil).RankDurations["sonnet"]; len(d) != 1 || d[0] != 12*time.Minute {
+		t.Errorf("rank durations from the log = %v", d)
+	}
 
 	// An unresolvable secret fails before anything is created.
 	other := newProject(t, "[notify.ntfy]\ntopic = \"t\"\ntoken = \"env:NTFY_TOKEN\"\n")

@@ -26,6 +26,22 @@ type Range struct {
 // In says whether t belongs to the run's slice.
 func (r Range) In(t *plan.Task) bool { return r.Slice == nil || r.Slice[t.ID] }
 
+// sliceIDs lists the slice's tasks in plan order; nil without a slice.
+func (r Range) sliceIDs() []string {
+	if r.Slice == nil {
+		return nil
+	}
+	ids := []string{}
+	for _, ph := range r.Phases {
+		for _, t := range ph.Tasks {
+			if r.Slice[t.ID] {
+				ids = append(ids, t.ID)
+			}
+		}
+	}
+	return ids
+}
+
 // Scope names the range as run_started does: "phase A, B", plus the
 // selection ("phase M1; only M1-03, M1-05").
 func (r Range) Scope() string {

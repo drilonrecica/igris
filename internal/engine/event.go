@@ -82,6 +82,9 @@ type Event struct {
 	// ClaudeSession is the Claude Code session UUID; set on SessionOpened so
 	// a UI can offer `claude --resume <uuid>`.
 	ClaudeSession string
+	// Slice is set on RunStarted for a sliced run (SPEC §5.5): the IDs of
+	// the tasks it may run, in plan order. Nil runs the phases whole.
+	Slice []string
 	// Question is set on Asked events.
 	Question Question
 	// Output is the last lines of a failed task hook's output, cleaned for

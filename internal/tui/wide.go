@@ -81,7 +81,13 @@ func line(lines []string, i int) string {
 // facts on the right.
 func (m *model) topRule(w int) string {
 	title := " " + m.th.paint(lookAccentBold, "igris") + " · " + m.opts.Project + " "
-	facts := " " + m.facts() + " "
+	facts := ""
+	for level := range progressLevels {
+		facts = " " + m.facts(false, level) + " "
+		if w-2-textWidth(title)-textWidth(facts) >= 1 {
+			break
+		}
+	}
 	fill := w - 2 - textWidth(title) - textWidth(facts)
 	if fill < 1 {
 		facts = " " + fit(strings.TrimSpace(facts), max(w-4-textWidth(title)-1, 0)) + " "
@@ -90,11 +96,25 @@ func (m *model) topRule(w int) string {
 	return fit(m.th.paint(lookFrame, "┌")+title+m.th.paint(lookFrame, strings.Repeat("─", fill))+facts+m.th.paint(lookFrame, "┐"), w)
 }
 
-// facts are the header's run facts: phase, mode, backend, pause.
-func (m *model) facts() string {
+// facts are the header's run facts: phase and its progress, mode,
+// backend, pause. The narrow status bar has the shorter bar and, next to
+// the progress, the phase without "phase"; level says how much of the
+// progress to show.
+func (m *model) facts(narrow bool, level int) string {
 	var parts []string
 	if m.phase != "" {
-		parts = append(parts, "phase "+m.phase)
+		cells := wideProgressBar
+		if narrow {
+			cells = narrowProgressBar
+		}
+		switch p := m.progressText(level, cells); {
+		case p == "":
+			parts = append(parts, "phase "+m.phase)
+		case narrow:
+			parts = append(parts, m.phase, p) // "M1 · 7/12 · 58% ██████"
+		default:
+			parts = append(parts, "phase "+m.phase, p)
+		}
 	}
 	if m.mode != "" {
 		parts = append(parts, m.th.marks("mode: "+m.mode+badge(m.mode)))
@@ -217,7 +237,11 @@ func (m *model) renderCard(w, x, y, rows int, record bool) []string {
 		head = append(head, "user task · "+since(m.opts.Now(), c.started))
 	} else {
 		head = append(head, fit("rank "+m.th.rank(c.rank, false)+" → model "+c.model, w))
-		head = append(head, fit(m.th.marks("mode "+c.mode+badge(c.mode)+" · "+since(m.opts.Now(), c.started)), w))
+		timing := since(m.opts.Now(), c.started)
+		if eta := m.eta(c); eta != "" {
+			timing += " · " + eta
+		}
+		head = append(head, fit(m.th.marks("mode "+c.mode+badge(c.mode)+" · "+timing), w))
 	}
 	state := "state: " + m.th.paint(m.stateLook(), m.stateText())
 	if c.state == stateNeedsYou && c.session != nil {

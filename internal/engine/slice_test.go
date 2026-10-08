@@ -189,6 +189,9 @@ func TestSliceRuns(t *testing.T) {
 			if got := h.event(RunStarted, "").Detail; got != tt.scope {
 				t.Errorf("run_started %q, want %q", got, tt.scope)
 			}
+			if got := h.event(RunStarted, "").Slice; (got == nil) != !strings.Contains(tt.scope, ";") {
+				t.Errorf("run_started slice %q for scope %q", got, tt.scope)
+			}
 			events, err := h.dir.Events()
 			if err != nil {
 				t.Fatal(err)
@@ -267,8 +270,8 @@ func TestSliceResumes(t *testing.T) {
 	if got := h.opened(); got != "M1-01 M1-03" {
 		t.Errorf("sessions opened for %q, want nothing outside the slice", got)
 	}
-	if got := h.event(RunStarted, "").Detail; got != "phase M1; only M1-01, M1-03" {
-		t.Errorf("run_started %q", got)
+	if got := h.event(RunStarted, ""); got.Detail != "phase M1; only M1-01, M1-03" || !reflect.DeepEqual(got.Slice, []string{"M1-01", "M1-03"}) {
+		t.Errorf("run_started %q, slice %q", got.Detail, got.Slice)
 	}
 	if ev := h.event(TaskResumed, "M1-03"); ev.Detail != "reattached to its session" {
 		t.Errorf("task_resumed %q", ev.Detail)

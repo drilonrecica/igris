@@ -37,7 +37,7 @@ func (m *model) narrowView() string {
 	taskRows := max(rest-logRows-cardRows, 0)
 
 	var out []string
-	out = append(out, fit(m.th.paint(lookAccentBold, "igris")+" · "+m.opts.Project+" · "+m.facts(), w))
+	out = append(out, m.statusBar(w))
 	out = append(out, m.rule(m.th.paint(lookTitle, "CURRENT"), w))
 	out = append(out, m.card(0, len(out), w, cardRows)...)
 	out = append(out, m.rule(m.areaTitle("TASKS", focusTasks), w))
@@ -64,6 +64,19 @@ func (m *model) narrowView() string {
 		out = out[:h]
 	}
 	return strings.Join(out, "\n")
+}
+
+// statusBar is the narrow layout's top line: igris, the project and the
+// run's facts, the progress shortened first when they don't fit.
+func (m *model) statusBar(w int) string {
+	head := m.th.paint(lookAccentBold, "igris") + " · " + m.opts.Project + " · "
+	s := ""
+	for level := range progressLevels {
+		if s = head + m.facts(true, level); textWidth(s) <= w {
+			break
+		}
+	}
+	return fit(s, w)
 }
 
 // rule is a section rule with its title: "── TASKS ─────".

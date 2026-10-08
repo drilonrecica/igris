@@ -47,6 +47,10 @@ type Options struct {
 	// Out is where the clipboard sequence goes (OSC 52); nil means
 	// os.Stdout, the terminal the program draws on.
 	Out io.Writer
+	// RankDurations are how long finished tasks of each rank took in
+	// earlier runs (report.RankDurations), loaded once when the run
+	// starts; the current task's ETA is their median (SPEC §15.3).
+	RankDurations map[string][]time.Duration
 	// Now is the clock for elapsed times; nil means time.Now.
 	Now func() time.Time
 	// Leave, when set, is how the run view is left when the owner quits it

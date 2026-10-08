@@ -66,7 +66,10 @@ type model struct {
 
 	width, height int
 
-	phase   string
+	phase string
+	// slice holds the IDs of a sliced run's tasks (SPEC §5.5), from
+	// RunStarted; nil when the run takes its phases whole.
+	slice   map[string]bool
 	mode    string
 	paused  bool // pause-after-task is on
 	holding bool // the run holds because of the pause
@@ -617,6 +620,14 @@ func (m *model) event(ev engine.Event) {
 		m.phase = ev.Phase
 	}
 	switch ev.Kind {
+	case engine.RunStarted:
+		m.slice = nil
+		if ev.Slice != nil {
+			m.slice = map[string]bool{}
+			for _, id := range ev.Slice {
+				m.slice[id] = true
+			}
+		}
 	case engine.TaskStarted, engine.TaskResumed:
 		if m.cur == nil || m.cur.id != ev.Task {
 			m.cur = &current{id: ev.Task, started: ev.At}

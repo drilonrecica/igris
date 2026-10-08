@@ -115,6 +115,18 @@ var layoutStates = []struct {
 	{"dialog", func(hs *harness) {
 		hs.events(started("M0-03"), opened("M0-03"), asked(engine.QuestionCommit, `commit the changes of M0-03 as "M0-03: Makefile"?`))
 	}},
+	{"slice_eta", func(hs *harness) {
+		// A sliced run (SPEC §5.5) and an ETA from three earlier sonnet tasks.
+		hs.m.opts.RankDurations = map[string][]time.Duration{"sonnet": {10 * time.Minute, 14 * time.Minute, 30 * time.Minute}}
+		hs.events(engine.Event{Kind: engine.RunStarted, Phase: "M0", Detail: "phase M0; from M0-02 until M0-04", Slice: []string{"M0-02", "M0-03", "M0-04"}},
+			started("M0-03"), opened("M0-03"))
+		hs.now = t0.Add(4*time.Minute + 12*time.Second)
+	}},
+	{"eta_over", func(hs *harness) {
+		hs.m.opts.RankDurations = map[string][]time.Duration{"sonnet": {10 * time.Minute, 14 * time.Minute, 30 * time.Minute}}
+		hs.events(engine.Event{Kind: engine.RunStarted, Phase: "M0", Detail: "phase M0"}, started("M0-03"), opened("M0-03"))
+		hs.now = t0.Add(18*time.Minute + 5*time.Second)
+	}},
 	{"question_closed", func(hs *harness) {
 		hs.events(started("M0-03"), opened("M0-03"), asked(engine.QuestionSessionLost, "the session of M0-03 is gone"))
 		hs.key("esc")

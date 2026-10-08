@@ -268,7 +268,7 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 	}
 	scope := e.rng.Scope()
 	e.log(state.Event{Type: state.EventRunStarted, Detail: scope})
-	e.emit(Event{Kind: RunStarted, Detail: scope})
+	e.emit(Event{Kind: RunStarted, Detail: scope, Slice: e.rng.sliceIDs()})
 
 	if e.configMoved {
 		e.warn("igris.toml changed since the interrupted run; this run uses the file as it is now")

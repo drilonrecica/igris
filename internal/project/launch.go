@@ -2,6 +2,7 @@ package project
 
 import (
 	"context"
+	"time"
 
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/checks"
@@ -118,7 +119,20 @@ func (l *Launch) TUIOptions(feed *tui.Feed, sender tui.Sender) tui.Options {
 		Feed:        feed,
 		Sender:      sender,
 		Focus:       Focus(l.Backend),
+		// The ETA's history, read once as the run starts (SPEC §15.3).
+		RankDurations: rankDurations(l.p.Root),
 	}
+}
+
+// rankDurations reads the finished tasks' durations per rank from the run
+// log; none when there is no log or it can't be read (the card then shows
+// no ETA, which is not worth a warning).
+func rankDurations(root string) map[string][]time.Duration {
+	events, err := state.PeekEvents(root)
+	if err != nil {
+		return nil
+	}
+	return report.RankDurations(events)
 }
 
 // DryRun is `igris arise --dry-run` for req (SPEC §14): it walks the phases
