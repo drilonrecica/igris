@@ -12,7 +12,7 @@ _igris() {
         esac
     done
     if [[ -z $cmd ]]; then
-        COMPREPLY=($(compgen -W "init doctor check phases status history arise done skip reset notify adapt completion help version" -- "$cur"))
+        COMPREPLY=($(compgen -W "init doctor check phases status history report arise done skip reset notify adapt completion help version" -- "$cur"))
         return
     fi
     case "$cmd:$prev" in
@@ -39,6 +39,7 @@ _igris() {
             phases) COMPREPLY=($(compgen -W "--json --plan" -- "$cur")) ;;
             status) COMPREPLY=($(compgen -W "--json --plan" -- "$cur")) ;;
             history) COMPREPLY=($(compgen -W "--json -n" -- "$cur")) ;;
+            report) COMPREPLY=($(compgen -W "--json" -- "$cur")) ;;
             arise) COMPREPLY=($(compgen -W "--dry-run --force-unlock --from --mode --no-tui --only --through --until" -- "$cur")) ;;
             done) COMPREPLY=($(compgen -W "--note" -- "$cur")) ;;
             skip) COMPREPLY=($(compgen -W "--reason" -- "$cur")) ;;

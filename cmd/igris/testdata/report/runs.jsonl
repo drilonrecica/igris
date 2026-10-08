@@ -1,0 +1,29 @@
+{"at":"2026-09-30T09:00:00Z","type":"run_started","detail":"phase A"}
+{"at":"2026-09-30T09:00:01Z","type":"task_started","task":"A-1","rank":"sonnet","model":"sonnet"}
+{"at":"2026-09-30T09:01:00Z","type":"verify_failed","task":"A-1","rank":"sonnet","model":"sonnet","detail":"profile fast: attempt 1 of 3: exit status 1"}
+{"at":"2026-09-30T09:02:00Z","type":"verify_passed","task":"A-1","rank":"sonnet","model":"sonnet","detail":"profile fast"}
+{"at":"2026-09-30T09:02:05Z","type":"committed","task":"A-1","rank":"sonnet","model":"sonnet","detail":"A-1: v0 thing"}
+{"at":"2026-09-30T09:03:00Z","type":"task_done","task":"A-1","rank":"sonnet","model":"sonnet","detail":"v0 line"}
+{"at":"2026-09-30T09:03:01Z","type":"task_started","task":"A-2","rank":"opus","model":"opus"}
+{"v":1,"at":"2026-10-01T09:00:00Z","type":"run_started","run":"20261001-090000-3fa2","detail":"phase M1, M2; only M1-03, M1-05, M2-01"}
+{"v":1,"at":"2026-10-01T09:00:01Z","type":"task_started","run":"20261001-090000-3fa2","task":"M1-03","rank":"sonnet","model":"sonnet","attempt":1,"session":"0f6c2a3e-5b1d-4c7e-9a8f-1d2e3f4a5b6c","phase":"M1","title":"Config | loader","owner":"agent","detail":"mode auto"}
+{"v":1,"at":"2026-10-01T09:05:00Z","type":"needs_you","run":"20261001-090000-3fa2","task":"M1-03","rank":"sonnet","model":"sonnet","attempt":1,"reason":"idle","detail":"needs you (idle 5m0s without igris done)"}
+{"v":1,"at":"2026-10-01T09:06:00Z","type":"needs_you","run":"20261001-090000-3fa2","task":"M1-03","rank":"sonnet","model":"sonnet","attempt":1,"reason":"task_overdue","detail":"running longer than its Timeout 5m"}
+{"v":1,"at":"2026-10-01T09:07:00Z","type":"needs_you_clear","run":"20261001-090000-3fa2","task":"M1-03","rank":"sonnet","model":"sonnet","attempt":1,"reason":"idle"}
+{"v":1,"at":"2026-10-01T09:08:00Z","type":"verify_failed","run":"20261001-090000-3fa2","task":"M1-03","rank":"sonnet","model":"sonnet","attempt":1,"profile":"fast","duration_ms":12000,"detail":"profile fast: attempt 1 of 3: exit status 1"}
+{"v":1,"at":"2026-10-01T09:09:00Z","type":"task_retried","run":"20261001-090000-3fa2","task":"M1-03","rank":"sonnet","model":"sonnet","attempt":2,"session":"7d1e9b20-3c4a-4f5e-8b6d-0a1b2c3d4e5f","detail":"fresh"}
+{"v":1,"at":"2026-10-01T09:12:00Z","type":"verify_passed","run":"20261001-090000-3fa2","task":"M1-03","rank":"sonnet","model":"sonnet","attempt":2,"profile":"fast","duration_ms":11000,"detail":"profile fast"}
+{"v":1,"at":"2026-10-01T09:12:05Z","type":"committed","run":"20261001-090000-3fa2","task":"M1-03","rank":"sonnet","model":"sonnet","attempt":2,"commit":"3fa29c1e0b6d4a8f9c2e7b1d5a0f6e3c8b9d2a4f","detail":"M1-03: Config | loader"}
+{"v":1,"at":"2026-10-01T09:14:03Z","type":"task_done","run":"20261001-090000-3fa2","task":"M1-03","rank":"sonnet","model":"sonnet","attempt":2,"duration_ms":842000,"detail":"tests added"}
+{"v":1,"at":"2026-10-01T09:14:04Z","type":"task_started","run":"20261001-090000-3fa2","task":"M1-05","rank":"user","phase":"M1","title":"Check the docs","owner":"user","detail":"user task"}
+{"v":1,"at":"2026-10-01T09:17:44Z","type":"task_skipped","run":"20261001-090000-3fa2","task":"M1-05","rank":"user","duration_ms":220000,"detail":"covered by M1-03"}
+{"v":1,"at":"2026-10-01T09:18:00Z","type":"needs_you","run":"20261001-090000-3fa2","reason":"plan_changed","detail":"plan changed outside igris"}
+{"v":1,"at":"2026-10-01T09:20:00Z","type":"needs_you_clear","run":"20261001-090000-3fa2","reason":"plan_changed"}
+{"v":1,"at":"2026-10-01T09:20:01Z","type":"task_started","run":"20261001-090000-3fa2","task":"M2-01","rank":"opus","model":"opus","attempt":1,"session":"9aa07c5e-d5cc-43b5-812b-1a20c5336f67","phase":"M2","title":"Wire \u001b[31mit\u001b[0m up","owner":"agent","detail":"mode auto"}
+{"v":1,"at":"2026-10-01T09:21:00Z","type":"error","run":"20261001-090000-3fa2","task":"M2-01","rank":"opus","model":"opus","attempt":1,"detail":"after_task hook failed: exit status 1"}
+{"v":1,"at":"2026-10-01T09:25:00Z","type":"needs_you","run":"20261001-090000-3fa2","task":"M2-01","rank":"opus","model":"opus","attempt":1,"reason":"blocked","detail":"needs you (blocked)"}
+{"v":1,"at":"2026-10-01T09:30:00Z","type":"run_stopped","run":"20261001-090000-3fa2","duration_ms":1800000,"detail":"stopped"}
+{"v":1,"at":"2026-10-02T10:00:00Z","type":"run_started","run":"20261002-100000-00ff","detail":"phase M2"}
+{"v":1,"at":"2026-10-02T10:00:01Z","type":"task_resumed","run":"20261002-100000-00ff","task":"M2-01","rank":"opus","model":"opus","attempt":1,"session":"9aa07c5e-d5cc-43b5-812b-1a20c5336f67","phase":"M2","title":"Wire it up","owner":"agent"}
+{"v":1,"at":"2026-10-02T10:01:00Z","type":"needs_you","run":"20261002-100000-00ff","task":"M2-01","rank":"opus","model":"opus","attempt":1,"reason":"session_lost","detail":"session lost"}
+{"v":1,"at":"2026-10-02T10:03:00Z","type":"notification","run":"20261002-100000-00ff","task":"M2-01","detail":"session_lost via ntfy"}

@@ -110,6 +110,7 @@ type runRec struct {
 	open       map[string]*attempt // the attempts without a result yet, by task
 	commits    []string
 	errors     []string
+	events     []state.Event // the run's lines, in log order, for NewReport
 }
 
 // NewHistory summarises the last in.N runs of the log.
@@ -188,6 +189,7 @@ func readRuns(events []state.Event) []*runRec {
 			continue
 		}
 		r.add(e)
+		r.events = append(r.events, e)
 		if e.Type == state.EventRunStopped && r == cur {
 			cur = nil
 		}

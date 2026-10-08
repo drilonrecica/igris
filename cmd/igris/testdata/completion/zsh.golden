@@ -3,7 +3,7 @@
 _igris() {
     local cmd prev
     if (( CURRENT == 2 )); then
-        compadd -- init doctor check phases status history arise done skip reset notify adapt completion help version
+        compadd -- init doctor check phases status history report arise done skip reset notify adapt completion help version
         return
     fi
     cmd=$words[2]
@@ -32,6 +32,7 @@ _igris() {
             phases) compadd -- --json --plan ;;
             status) compadd -- --json --plan ;;
             history) compadd -- --json -n ;;
+            report) compadd -- --json ;;
             arise) compadd -- --dry-run --force-unlock --from --mode --no-tui --only --through --until ;;
             done) compadd -- --note ;;
             skip) compadd -- --reason ;;

@@ -1,0 +1,22 @@
+exit: 0
+--- stdout
+# igris report · demo
+
+note: runs.jsonl has lines from a newer igris (v2); some details may be missing
+
+Run 20261001-090000-3fa2 · 2026-10-01T09:00:00Z → 2026-10-01T09:12:07Z (12m07s) · completed
+Phase A · only A-2
+1 done · 0 skipped · 0 unfinished · 1 commit · needs you 1m00s
+
+## Phase A
+
+| Task | Result | Duration | Attempts | Verify | Commit | Needs you |
+|---|---|---|---|---|---|---|
+| A-2 Two | done | 12m05s | 2 | fast ✗ ✓ | 3fa29c1 | 1m00s |
+
+Notes
+- A-2 done: did the second thing
+
+Resume
+- A-2: `claude --resume 7d1e9b20-3c4a-4f5e-8b6d-0a1b2c3d4e5f` (run it in the project root)
+--- stderr

@@ -1,0 +1,16 @@
+exit: 0
+--- stdout
+# igris report · demo
+
+note: runs.jsonl has lines from a newer igris (v2); some details may be missing
+
+Run 20261002-100000-00ff · 2026-10-02T10:00:00Z → — · interrupted
+Phase A
+0 done · 0 skipped · 1 unfinished · 0 commits · needs you 0s
+
+## Phase A
+
+| Task | Result | Duration | Attempts | Verify | Commit | Needs you |
+|---|---|---|---|---|---|---|
+| A-2 Two | unfinished | — | 1 | — | — | — |
+--- stderr

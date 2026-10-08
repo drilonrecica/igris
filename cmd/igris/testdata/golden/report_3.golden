@@ -1,0 +1,18 @@
+exit: 0
+--- stdout
+# igris report · demo
+
+Run 2026-09-30T09:00:00Z → — · interrupted
+Phase A
+1 done · 0 skipped · 1 unfinished · 1 commit
+
+## Tasks
+
+| Task | Result | Duration | Attempts | Verify | Commit | Needs you |
+|---|---|---|---|---|---|---|
+| A-1 | done | 2m59s | 1 | fast ✗ ✓ | — | — |
+| A-2 | unfinished | — | 1 | — | — | — |
+
+Notes
+- A-1 done: v0 line
+--- stderr

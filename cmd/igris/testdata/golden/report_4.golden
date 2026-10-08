@@ -1,0 +1,4 @@
+exit: 1
+--- stdout
+--- stderr
+igris report: only 3 runs recorded

@@ -1,0 +1,19 @@
+exit: 0
+--- stdout
+# igris report · demo
+
+note: runs.jsonl has lines from a newer igris (v2); some details may be missing
+
+Run 2026-09-30T09:00:00Z → 2026-09-30T09:03:01Z (3m01s) · completed
+Phase A
+1 done · 0 skipped · 0 unfinished · 0 commits
+
+## Tasks
+
+| Task | Result | Duration | Attempts | Verify | Commit | Needs you |
+|---|---|---|---|---|---|---|
+| A-1 | done | 2m59s | 1 | — | — | — |
+
+Notes
+- A-1 done: v0 line
+--- stderr

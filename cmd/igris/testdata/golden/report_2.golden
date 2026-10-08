@@ -1,0 +1,34 @@
+exit: 0
+--- stdout
+# igris report · demo
+
+Run 20261001-090000-3fa2 · 2026-10-01T09:00:00Z → 2026-10-01T09:30:00Z (30m00s) · stopped
+Phases M1, M2 · only M1-03, M1-05, M2-01
+1 done · 1 skipped · 1 unfinished · 1 commit · needs you 11m00s
+
+## Phase M1
+
+| Task | Result | Duration | Attempts | Verify | Commit | Needs you |
+|---|---|---|---|---|---|---|
+| M1-03 Config \| loader | done | 14m02s | 2 | fast ✗ ✓ | 3fa29c1 | 4m00s |
+| M1-05 Check the docs | skipped | 3m40s | 1 | — | — | — |
+
+Notes
+- M1-03 done: tests added
+- M1-05 skipped: covered by M1-03
+
+Resume
+- M1-03: `claude --resume 7d1e9b20-3c4a-4f5e-8b6d-0a1b2c3d4e5f` (run it in the project root)
+
+## Phase M2
+
+| Task | Result | Duration | Attempts | Verify | Commit | Needs you |
+|---|---|---|---|---|---|---|
+| M2-01 Wire it up | unfinished | — | 1 | — | — | 5m00s |
+
+Resume
+- M2-01: `claude --resume 9aa07c5e-d5cc-43b5-812b-1a20c5336f67` (run it in the project root)
+
+Errors
+- after_task hook failed: exit status 1
+--- stderr

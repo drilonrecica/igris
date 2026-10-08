@@ -113,6 +113,7 @@ var (
 		"phases":     "list phases with task counts per status",
 		"status":     "tasks with status, rank, owner, current run and unmet deps",
 		"history":    "past runs from .igris/runs.jsonl",
+		"report":     "one run as markdown or JSON",
 		"arise":      "run (or resume) with the TUI",
 		"done":       "signal that a task is finished",
 		"skip":       "signal that a task is skipped",

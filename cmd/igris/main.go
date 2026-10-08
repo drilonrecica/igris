@@ -50,6 +50,7 @@ Commands:
   phases [--plan PATH] [--json]         list phases with task counts per status
   status [PHASE] [--plan PATH] [--json] tasks with status/rank/owner, current run, unmet deps
   history [TASK-ID] [-n N] [--json]     past runs from .igris/runs.jsonl; with a task ID, its attempts
+  report [RUN] [--json]                 one run as markdown (or JSON): RUN is 1 (the newest, default), 2, … or a run ID
   arise [PHASE] [--through PHASE]       run (or resume) with the TUI
         [--mode default|accept|auto|plan|yolo] [--no-tui] [--dry-run]
         [--force-unlock]
@@ -93,6 +94,7 @@ func commands() []command {
 		{name: "phases", setup: planFlags(0), exec: execPhases},
 		{name: "status", setup: planFlags(1), exec: execStatus},
 		{name: "history", setup: historyArgs, exec: execHistory},
+		{name: "report", setup: reportArgs, exec: execReport},
 		{name: "arise", setup: func(fs *flag.FlagSet) func([]string) error {
 			fs.String("through", "", "last phase to run")
 			mode := fs.String("mode", "", "run mode: "+strings.Join(runModes, "|"))

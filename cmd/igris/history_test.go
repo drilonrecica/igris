@@ -50,7 +50,11 @@ func historyGolden(t *testing.T, goldenDir, prefix string, log []byte, args []st
 	t.Helper()
 	name := strings.TrimSuffix(prefix+"_"+strings.ReplaceAll(strings.Join(args[1:], "_"), "--", ""), "_")
 	t.Run(name, func(t *testing.T) {
-		root := t.TempDir()
+		// A fixed directory name: `report` names the project after it.
+		root := filepath.Join(t.TempDir(), "demo")
+		if err := os.Mkdir(root, 0o700); err != nil {
+			t.Fatal(err)
+		}
 		t.Chdir(root)
 		writeLog(t, root, log)
 		var out, errb bytes.Buffer

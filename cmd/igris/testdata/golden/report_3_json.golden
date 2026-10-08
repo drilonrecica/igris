@@ -1,0 +1,51 @@
+exit: 0
+--- stdout
+{
+  "started_at": "2026-09-30T09:00:00Z",
+  "end": "interrupted",
+  "phases": [
+    "A"
+  ],
+  "done": 1,
+  "skipped": 0,
+  "unfinished": 1,
+  "commits": [
+    {
+      "task": "A-1",
+      "subject": "A-1: v0 thing"
+    }
+  ],
+  "errors": [],
+  "tasks": [
+    {
+      "id": "A-1",
+      "rank": "sonnet",
+      "model": "sonnet",
+      "result": "done",
+      "duration_s": 179,
+      "attempts": 1,
+      "verify": [
+        {
+          "profile": "fast",
+          "passed": false
+        },
+        {
+          "profile": "fast",
+          "passed": true
+        }
+      ],
+      "note": "v0 line",
+      "sessions": []
+    },
+    {
+      "id": "A-2",
+      "rank": "opus",
+      "model": "opus",
+      "result": "unfinished",
+      "attempts": 1,
+      "verify": [],
+      "sessions": []
+    }
+  ]
+}
+--- stderr

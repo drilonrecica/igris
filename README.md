@@ -127,7 +127,7 @@ Igris's toasts show in tmux's status line; ntfy or Discord reach you when you're
 
 ## Which backend: `backend = "auto"`
 
-`igris init` writes `backend = "auto"`: igris uses herdr when it runs inside a herdr pane, else tmux when it runs inside tmux. Set `backend = "herdr"` or `backend = "tmux"` in `igris.toml` to pin one. Outside both, `igris arise` exits and says where to run it. `init`, `check`, `phases`, `status`, `history`, `done`, `skip` and `notify test` need neither (`adapt` does). An interrupted run resumed under the other backend can't reattach its session; igris then offers the usual choices (continue the conversation, start fresh, done, skip).
+`igris init` writes `backend = "auto"`: igris uses herdr when it runs inside a herdr pane, else tmux when it runs inside tmux. Set `backend = "herdr"` or `backend = "tmux"` in `igris.toml` to pin one. Outside both, `igris arise` exits and says where to run it. `init`, `check`, `phases`, `status`, `history`, `report`, `done`, `skip` and `notify test` need neither (`adapt` does). An interrupted run resumed under the other backend can't reattach its session; igris then offers the usual choices (continue the conversation, start fresh, done, skip).
 
 ## How igris knows what Claude is doing
 
@@ -157,6 +157,7 @@ igris check         # validates your plan
 igris status        # shows phases, tasks, what's ready and what's blocked
 igris arise M0      # runs phase M0 (inside a herdr pane or tmux)
 igris history       # past runs: tasks done and skipped, durations, verify attempts, commits
+igris report        # the last run as markdown, ready for a PR description
 ```
 
 The first session in a folder Claude Code hasn't seen waits on its own folder-trust prompt ("Is this a project you trust?"). Igris can't answer it for you: the task sits there, and after about 30 seconds igris shows **needs you: the agent is blocked**. Open the session (`o` in the TUI), answer the prompt once, and the task carries on. Later sessions in that folder don't ask again.
@@ -168,6 +169,8 @@ To run part of the phases, name the tasks: `igris arise --only M1-03,M1-05` runs
 `igris doctor` checks the machine and the project without changing anything (it never writes or creates `.igris/`, and has no `--fix`): Claude Code, the backend (herdr or tmux: version, whether igris runs inside it), `ANTHROPIC_API_KEY`, git, `igris.toml` and the plan (every problem), the `igris done` allow rules in `.claude/settings.local.json` (and a warning if `igris skip` is allowed there), the modes of `.igris/`, a stale or foreign lock, a project under `/mnt/` (WSL), and whether a notification channel is set up (nothing is sent; `igris notify test` sends). Each line is `ok`, `warn` or `fail`; a problem is followed by the command that fixes it. It exits 1 only if some check is `fail`, works outside a project, and `--json` prints the results as an array. Not running inside herdr or tmux is a `warn` here, since you usually run `doctor` from a plain shell.
 
 `igris history [TASK-ID] [-n N] [--json]` lists the last N runs (default 10, newest first) from `.igris/runs.jsonl`: phases, tasks done and skipped, how long each task took, verify attempts, commits and how the run ended (`completed`, `stuck`, `stopped`, `error`, or `interrupted` when it has no stop event). Each run shows its run ID (e.g. `20261008-091500-3fa2`) when the log has one (`"run"` in `--json`). With a task ID it lists every attempt of that task across all runs. It is read-only: it takes no lock and never creates `.igris/`, and it ignores a truncated last line. The log format, one JSON object per line, is documented in [`docs/runlog.md`](docs/runlog.md); logs written by igris v0.4 and earlier still read.
+
+`igris report [RUN] [--json]` prints one run as markdown, to paste into a PR description or a journal: the run's ID, start, end and how it ended, its phases and slice, the counts (done, skipped, unfinished, commits) and how long igris waited on you (*needs you*), then per phase a table with each task's result, duration, attempts (retries and resumes count), verify results (`fast ✗ ✓`: the profile, one ✗ per failure, ✓ per pass), short commit SHA and needs-you time, followed by the done notes and skip reasons and a `claude --resume <uuid>` line per agent session you can reopen (run it in the project root). `RUN` is `1` (the newest run, the default), `2` for the one before, and so on, or a run ID from `igris history`. `--json` prints the same as one object. Runs from igris v0.4 and earlier lack some of these details; the report shows `—` for them. Like `history` it is read-only and never creates `.igris/`; it exits 1 when there is no such run.
 
 Before a run starts, igris warns if `ANTHROPIC_API_KEY` is set (your sessions would bill the API, not your subscription; it asks you to confirm), if the project isn't a git repository, or if the tree has uncommitted changes.
 

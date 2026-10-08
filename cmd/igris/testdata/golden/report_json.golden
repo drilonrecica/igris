@@ -1,0 +1,35 @@
+exit: 0
+--- stdout
+{
+  "run": "20261002-100000-00ff",
+  "started_at": "2026-10-02T10:00:00Z",
+  "end": "interrupted",
+  "phases": [
+    "M2"
+  ],
+  "done": 0,
+  "skipped": 0,
+  "unfinished": 1,
+  "needs_you_s": 120,
+  "commits": [],
+  "errors": [],
+  "tasks": [
+    {
+      "id": "M2-01",
+      "phase": "M2",
+      "title": "Wire it up",
+      "owner": "agent",
+      "rank": "opus",
+      "model": "opus",
+      "result": "unfinished",
+      "attempts": 1,
+      "verify": [],
+      "sessions": [
+        "9aa07c5e-d5cc-43b5-812b-1a20c5336f67"
+      ],
+      "resume": "claude --resume 9aa07c5e-d5cc-43b5-812b-1a20c5336f67",
+      "needs_you_s": 120
+    }
+  ]
+}
+--- stderr

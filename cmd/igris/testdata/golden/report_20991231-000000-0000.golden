@@ -1,0 +1,4 @@
+exit: 1
+--- stdout
+--- stderr
+igris report: no run 20991231-000000-0000 in .igris/runs.jsonl; igris history lists them

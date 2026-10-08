@@ -1,0 +1,33 @@
+exit: 0
+--- stdout
+{
+  "run": "20261002-100000-00ff",
+  "started_at": "2026-10-02T10:00:00Z",
+  "end": "interrupted",
+  "phases": [
+    "A"
+  ],
+  "done": 0,
+  "skipped": 0,
+  "unfinished": 1,
+  "needs_you_s": 0,
+  "commits": [],
+  "errors": [],
+  "tasks": [
+    {
+      "id": "A-2",
+      "phase": "A",
+      "title": "Two",
+      "owner": "agent",
+      "rank": "opus",
+      "model": "opus",
+      "result": "unfinished",
+      "attempts": 1,
+      "verify": [],
+      "sessions": [],
+      "needs_you_s": 0
+    }
+  ],
+  "note": "runs.jsonl has lines from a newer igris (v2); some details may be missing"
+}
+--- stderr

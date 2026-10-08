@@ -18,6 +18,7 @@ complete -c igris -n __fish_use_subcommand -a check -d 'validate the plan'
 complete -c igris -n __fish_use_subcommand -a phases -d 'list phases with task counts per status'
 complete -c igris -n __fish_use_subcommand -a status -d 'tasks with status, rank, owner, current run and unmet deps'
 complete -c igris -n __fish_use_subcommand -a history -d 'past runs from .igris/runs.jsonl'
+complete -c igris -n __fish_use_subcommand -a report -d 'one run as markdown or JSON'
 complete -c igris -n __fish_use_subcommand -a arise -d 'run (or resume) with the TUI'
 complete -c igris -n __fish_use_subcommand -a done -d 'signal that a task is finished'
 complete -c igris -n __fish_use_subcommand -a skip -d 'signal that a task is skipped'
@@ -40,6 +41,7 @@ complete -c igris -n '__fish_seen_subcommand_from status' -a '(__igris_ids phase
 complete -c igris -n '__fish_seen_subcommand_from history' -l json
 complete -c igris -n '__fish_seen_subcommand_from history' -s n -x
 complete -c igris -n '__fish_seen_subcommand_from history' -a '(__igris_ids tasks)'
+complete -c igris -n '__fish_seen_subcommand_from report' -l json
 complete -c igris -n '__fish_seen_subcommand_from arise' -l dry-run
 complete -c igris -n '__fish_seen_subcommand_from arise' -l force-unlock
 complete -c igris -n '__fish_seen_subcommand_from arise' -l from -x -a '(__igris_ids tasks)'
