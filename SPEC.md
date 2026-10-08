@@ -357,11 +357,19 @@ Channels (all optional, any combination):
 | Backend | `[notify.backend] enabled` | the backend's toast: herdr's `herdr notification show`, tmux's `display-message` (no sound) (sound `request` for needs-input events and `task_overdue`, `done` for completions). It has no `events` list and always gets the default events. |
 | ntfy | `[notify.ntfy] server`, `topic`, optional `token` | HTTP POST, title + body, priority high for `needs_input`/`session_lost`/`task_overdue`. |
 | Discord | `[notify.discord] webhook_url` | Webhook POST with a short message (`content`), no embeds needed. |
+| Webhook | `[notify.webhook] url`, optional `secret` | JSON POST (below), signed when a secret is set. Since v0.5. |
+| Slack | `[notify.slack] webhook_url` | Incoming-webhook POST `{"text": …}`; `&`, `<`, `>` escaped, so a title can't mention `<!channel>` or make links. Since v0.5. |
+| Gotify | `[notify.gotify] server`, `token` | POST `<server>/message` with header `X-Gotify-Key: <token>`, JSON `{"title","message","priority"}`; priority 8 for urgent events, 5 for `verify_failed_limit`, `phase_stuck`, `run_error`, `phase_done` and digests, 3 for `task_done`. Both keys or neither. Since v0.5. |
 
 - Each channel has an `events` list; default: `needs_input`, `session_lost`, `task_overdue`, `phase_done`, `phase_stuck`, `run_error`, `verify_failed_limit`. `task_done` (opt-in) is sent when an `agent` or `agent + user` task is marked done. `task_overdue` is sent once per attempt when a task runs longer than its Timeout (§6.3); like `needs_input` and `session_lost` it is urgent (the toast's `request` sound, ntfy priority high). `run_error` also covers a failed task hook (§6.7), which doesn't stop the run.
-- Messages contain project name, phase, task ID and title, and the event — never file contents, diffs or command output.
+- Messages contain project name, phase, task ID and title, the event and the run ID — never file contents, diffs or command output.
 - Delivery is best-effort with a 10 s timeout and one retry; failures are logged and shown in the TUI, never fatal.
-- Secrets (Discord webhook URL, ntfy token) may be given as `env:VAR_NAME` references so they stay out of the repo; igris never logs them.
+- Secrets (ntfy token, Discord and Slack webhook URLs, webhook URL and secret, Gotify token) may be given as `env:VAR_NAME` references so they stay out of the repo; igris never logs them, and they are scrubbed from every error it reports.
+- **Webhook payload.** `POST <url>`, `Content-Type: application/json`, `User-Agent: igris`, `X-Igris-Event: <event>`, and with a `secret` `X-Igris-Signature: sha256=<lowercase hex HMAC-SHA256 of the raw body with the secret>`. The body has every key, `""` when unknown: `{"v":1,"event","project","phase","task","title","what","run","at","urgent","text"}` (`at` RFC 3339 UTC, `run` the run ID §13, `urgent` true for `needs_input`/`session_lost`/`task_overdue`, `text` the message text). A digest has `"event":"digest"` (also in `X-Igris-Event`), empty `task`/`title`/`what`, the digest as `text`, and a `messages` array with one payload object (without `text`) per held message. The resolved URL must be `http` or `https`.
+- **Templates.** ntfy, Discord, webhook, Slack and Gotify take an optional `template` (Go `text/template`, no extra functions) that replaces the message text: the ntfy body, Discord `content`, Slack `text` (escaped after rendering), Gotify `message`, webhook `text`; titles stay `igris · <project>`; the backend toast has none. Its variables are exactly `.Event`, `.Project`, `.Phase`, `.TaskID`, `.Title` (markdown stripped), `.What`, `.RunID` and `.At` (a local `time.Time`, e.g. `{{.At.Format "15:04"}}`) — never file contents or output. It is parsed and executed against a sample message when the config is loaded, so a bad template or an unknown variable is a config error naming the channel; at most 1000 characters. The output is cleaned of control characters (newlines kept), trimmed and cut to the channel's limit (ntfy 4096 bytes, Discord 2000 characters, Slack, Gotify and webhook 4000); an empty result falls back to the default text. Empty `template` = the default text (as before v0.5).
+- **Quiet hours.** `[notify] quiet = "22:00-07:00"` (24-hour local time, wall clock, `[start, end)`, crossing midnight when start > end; empty = off). Inside the window a message to ntfy, Discord, webhook, Slack or Gotify whose event is not in `[notify] break_through` (default `needs_input`, `session_lost`, `task_overdue`) is held per channel instead of sent; the backend toast is never held. When the window ends — checked by the run loop's clock at every poll, also while igris waits on a question — each channel that holds messages gets one digest: `quiet hours 22:00–07:00: N held`, then `HH:MM <event>: <text>` per message (default text, no template; at most 20 lines, then `… and K more`). Held messages are also sent as a digest when the run stops. The run log records held messages and digests as `notification` events.
+- **`task_done` digest.** `[notify] task_done_digest` is `0` (default: one message per task), N ≥ 2 (one `task_done` message per N tasks) or `"phase"`. Collected `task_done` messages go out as one message `N tasks done: ID, ID, …` (no task ID or title; templates apply) when N are collected (N only), when the phase ends (before `phase_done`/`phase_stuck`, or when the run moves on) and when the run stops. In quiet hours the grouped message is held like any `task_done`.
+- `notify test` sends each sample at once: it bypasses quiet hours and `task_done_digest`.
 
 ---
 
@@ -385,13 +393,20 @@ type Session interface {
     Focus(ctx context.Context) error                     // bring the session pane to front
     Close(ctx context.Context) error
 }
+
+// Optional (since v0.5), checked with a type assertion like PromptHolder.
+type Tailer interface {
+    Tail(ctx context.Context, n int) ([]string, error) // up to n last lines, oldest first
+}
 ```
 
 `SessionSpec` holds: task ID (backends derive session names from it, e.g. herdr's `igris-<id>`), working directory, label, Claude Code argv (model, mode flags, extra args), environment additions.
 
+`Tailer` feeds the live tail (§15.3): the last lines the session shows, trailing blank lines dropped, raw (the TUI cleans them); a gone session yields a "session gone" error. herdr and tmux implement it, and so does the fake; a backend without it simply has no tail. Its output is never logged, notified or stored.
+
 `State` reports a vanished pane or exited Claude Code as `exited` rather than an error; `Prompt`, `Focus` and `Attach` fail with a "session gone" error for it, and `Close` on a gone session is a no-op. The engine treats both as **Session lost** (§6.3).
 
-Igris ships `herdr` (§11.2), `tmux` (§11.5, since v0.3) and `fake` (in-process, used by tests and `--dry-run`); tmux fits this interface without engine changes. `SessionSpec` and `SessionRef` also carry the Claude session UUID, so a backend can read the session's hook state (§6.3); in a ref it is shape-checked like the other IDs. A backend conformance suite (`internal/backend/conformance`) runs the same behavioral tests against every backend: open, prompt, state, focus, close, a gone session, attach after a restart, a multi-line prompt with control characters.
+Igris ships `herdr` (§11.2), `tmux` (§11.5, since v0.3) and `fake` (in-process, used by tests and `--dry-run`); tmux fits this interface without engine changes. `SessionSpec` and `SessionRef` also carry the Claude session UUID, so a backend can read the session's hook state (§6.3); in a ref it is shape-checked like the other IDs. A backend conformance suite (`internal/backend/conformance`) runs the same behavioral tests against every backend: open, prompt, state, focus, close, a gone session, attach after a restart, a multi-line prompt with control characters, and, for a `Tailer`, `Tail` after a prompt (at most n lines, no error) and on a gone session.
 
 ### 11.2 herdr backend (v1)
 Igris itself runs in a herdr pane. It uses the herdr CLI (JSON output), never the raw socket in v1:
@@ -406,6 +421,7 @@ Igris itself runs in a herdr pane. It uses the herdr CLI (JSON output), never th
 | Wait for state | `herdr agent wait <name> [--until STATUS]… [--timeout MS]`. Without `--until` it returns at the first settled state (`idle`, `done` **or `blocked`**), so check `.result.agent.agent_status` on return; it returns at once if already settled. `timeout` error code on expiry. Replaces tight polling for "is it ready for feedback"; `Needs you` still needs `pane get` polling |
 | Send follow-up / task prompt | `herdr agent prompt <name> <text> [--wait --timeout MS]`. Multi-line text works (bracketed paste). Rejected with `agent_blocked` if the agent is at an approval/question UI. Without `--wait` the returned status is the pre-turn one |
 | Read state | `herdr pane get <pane_id>` → `.result.pane.agent_status` ∈ `unknown` (plain shell / unclassified), `idle`, `working`, `blocked`, `done`; `pane_not_found` → session lost. `herdr agent read <name> --source recent-unwrapped --lines N` returns plain text (empty while a blocking prompt is drawn on the alternate screen — use `--source visible`) |
+| Tail | `herdr agent read <name> --source recent-unwrapped --lines N`; when that is empty or blank (a dialog on the alternate screen), `--source visible --lines N` |
 | Focus | `herdr tab focus <tab_id>` |
 | Close | `herdr tab close <tab_id>` → `{"result":{"type":"ok"}}`; closing again gives `tab_not_found` |
 | Notify | `herdr notification show <title> --body <body> --sound request|done|none` → `.result.shown` |
@@ -417,7 +433,7 @@ Igris itself runs in a herdr pane. It uses the herdr CLI (JSON output), never th
 - All herdr calls have timeouts (10 s default; agent start uses its own). Command failures surface the herdr error code in the TUI.
 
 ### 11.3 Choosing a backend
-`backend` in `igris.toml` (§12) is `auto` (the default, and what `igris init` writes), `herdr` or `tmux`. `auto` picks **herdr** when igris runs inside a herdr pane (`HERDR_WORKSPACE_ID` set), else **tmux** when it runs inside tmux (`TMUX` set), else it fails with a message naming both ("run igris inside a herdr pane or a tmux session"). An explicit value is used as is; if that backend isn't available, `igris arise` says what's missing for it. A run resumed after a restart reattaches through the backend recorded in `state.json`; if that differs from the backend chosen now, `arise` says so and offers the usual session-lost choices instead of reattaching. `check`, `status`, `phases`, `history`, `done`, `skip` and `adapt --check`-style validation work without any backend.
+`backend` in `igris.toml` (§12) is `auto` (the default, and what `igris init` writes), `herdr` or `tmux`. `auto` picks **herdr** when igris runs inside a herdr pane (`HERDR_WORKSPACE_ID` set), else **tmux** when it runs inside tmux (`TMUX` set), else it fails with a message naming both ("run igris inside a herdr pane or a tmux session"). An explicit value is used as is; if that backend isn't available, `igris arise` says what's missing for it. A run resumed after a restart reattaches through the backend recorded in `state.json`; if that differs from the backend chosen now, `arise` says so and offers the usual session-lost choices instead of reattaching. `check`, `status`, `phases`, `history`, `report`, `done`, `skip` and `adapt --check`-style validation work without any backend.
 
 ### 11.4 Verified versions
 Claude Code and herdr change often, and igris relies on their flags and output shapes. The versions igris was verified with live in one table in code (`checks.Tools`) and here:
@@ -443,6 +459,7 @@ Igris runs inside a tmux client (`TMUX` set) and drives that server with the `tm
 | Startup | wait for the first hook state (`SessionStart` → `idle`); without one after 15 s (folder-trust question, slow start) hold the task prompt, report `blocked`, deliver it once the hook state is `idle` (also recorded in `state.json`, as for herdr) |
 | Prompt | `tmux load-buffer -b igris-<id> -` (text on stdin) → `paste-buffer -p -d -b igris-<id> -t %N` (bracketed paste) → `send-keys -t %N Enter`. Refused while the hook state is `blocked` |
 | State | `list-panes -t %N -F '#{pane_id}\t#{pane_dead}…'`: missing or dead pane → `exited`; else the hook state (§6.3); `unknown` before the first hook |
+| Tail | `capture-pane -p -J -t %N -S -<N>` (the history tail plus the visible screen, wrapped lines joined); trailing blank lines dropped, the last N kept |
 | Focus | `select-window -t @N` |
 | Close | `kill-window -t @N`; `can't find window` is not an error |
 | Notify | `display-message -d 5000 '<title>: <body>'` on the current client, plus the router's other channels |
@@ -503,12 +520,18 @@ timeout = "2m"
 model = "sonnet"                  # sonnet | opus
 
 [tui]
+tail = true                       # live tail of the current session in the task card (§15.3)
 mouse = true                      # click/tap and wheel in the TUI (§15.5); false keeps the terminal's own text selection
 theme = "auto"                    # auto | dark | light: which colors to use (§15.4); auto goes by the terminal's background
 
 [tui.rank_colors]                 # optional: rank -> color, "#rrggbb" or an ANSI color number "0"–"255" (§15.4)
 # opus = "#B48CFF"
 # fable = "220"
+
+[notify]
+quiet = ""                        # e.g. "22:00-07:00", local time, may cross midnight; held messages go out as a digest (§10)
+break_through = ["needs_input", "session_lost", "task_overdue"]   # never held in quiet hours
+task_done_digest = 0              # 0: one task_done message per task; N: one per N tasks; "phase": one per phase
 
 [notify.backend]
 enabled = true
@@ -522,13 +545,27 @@ events = ["needs_input", "session_lost", "task_overdue", "phase_done", "phase_st
 [notify.discord]
 webhook_url = ""                  # or "env:IGRIS_DISCORD_WEBHOOK"
 events = ["needs_input", "session_lost", "task_overdue", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]
+
+[notify.webhook]                  # since v0.5; also for ntfy, discord, slack, gotify: template = "" (§10)
+url = ""                          # or "env:IGRIS_WEBHOOK_URL"; http or https
+secret = ""                       # or "env:IGRIS_WEBHOOK_SECRET"; signs the body (X-Igris-Signature)
+# template = "{{.Event}} {{.TaskID}}: {{.What}}"
+
+[notify.slack]
+webhook_url = ""                  # or "env:IGRIS_SLACK_WEBHOOK"
+
+[notify.gotify]
+server = ""                       # e.g. "https://gotify.example.org"
+token = ""                        # application token, or "env:GOTIFY_TOKEN"
 ```
 
 - Unknown keys are errors (catches typos). Durations use Go syntax.
 - Verify profile names match `[a-z0-9_-]+` and their commands must not be empty. `none` is reserved, and setting both `run.verify` and `[verify] default` is an error (they are the same profile). `verify_timeout` and `verify_max_attempts` under `[verify]` are an error too: they are `[run]` settings (`verify.verify_timeout is a [run] setting, not a verify profile; move it under [run]`). `run.verify` stays supported. An error naming an unknown profile lists only the usable ones (valid names with a command) and `none`.
 - `[phases.<id>]` matches phase IDs case-insensitively; `verify` is its only key, naming a profile or `none`. An unknown profile there is an error. A `[phases.<id>]` that names no phase of the plan is a warning in `check` and `arise` (the config is validated without the plan).
 - `[hooks]`: an empty or missing list means no hook. A non-empty list needs a non-empty first element, and no element may contain a control character.
-- Durations must be greater than zero. `env:VAR` references are accepted for `notify.ntfy.token` and `notify.discord.webhook_url`; an unset or empty variable is an error. Several problems are reported together, each saying what to fix.
+- Durations must be greater than zero. `env:VAR` references are accepted for `notify.ntfy.token`, `notify.discord.webhook_url`, `notify.webhook.url`, `notify.webhook.secret`, `notify.slack.webhook_url` and `notify.gotify.token`; an unset or empty variable is an error.
+- `[notify.webhook]`, `[notify.slack]` and `[notify.gotify]` take `events` like the other channels (default list when left out) and are on once set up: the webhook with a `url` (a `secret` without one is an error; the resolved URL must be `http`/`https` with a host), Slack with a `webhook_url`, Gotify with both `server` and `token` (only one of them is an error). A `template` that doesn't parse, uses an unknown variable or is longer than 1000 characters is an error naming the channel (§10).
+- `[notify] quiet` is `HH:MM-HH:MM` with different start and end, or empty; `break_through` names events like `events` (`[]` holds everything) and is left out of a written file while it is the default; `task_done_digest` is an integer (`0` or `1`: off; N ≥ 2) or `"phase"`, anything else is an error. Several problems are reported together, each saying what to fix.
 - `igris init` writes the defaults, but leaves a channel's `events` out while it is the default list (any file igris writes does), so events a later version adds to the default reach that file; a file that lists `events` keeps exactly that list.
 - The config hash recorded in the run snapshot (§13) is a SHA-256 of the parsed config as written (defaults applied, `env:` references unresolved), so secret values never enter it.
 - `igris.toml` holds no secrets by default and is safe to commit; `.igris/` is local state and is added to `.gitignore` by `igris init`.
@@ -546,20 +583,31 @@ events = ["needs_input", "session_lost", "task_overdue", "phase_done", "phase_st
 | `signals/` | Pending signal files (§6.2): `<ID>.json` for `done` and `skip`, `<ID>.reset.json` for `reset`. |
 | `hooks/` | `<ID>.settings.json`: the hooks-only Claude Code settings file igris passes with `--settings` (§6.3). Rewritten before every session. |
 | `agent-state/` | `<session uuid>.json`: `{"state","event","at"}`, the agent state written by `igris hook` (§6.3). Untrusted; read bounded and shape-checked. |
-| `runs.jsonl` | Append-only log: one JSON line per event (task started/done/skipped, verify result, notifications, errors) with timestamps, task ID, rank and model. |
+| `runs.jsonl` | Append-only log: one JSON line per event (task started/done/skipped, verify result, commits, needs-you waits, notifications, errors) with timestamps, run ID, task ID, rank and model; schema v1 below. |
 | `adapt/` | Adapt proposals and backups (§9). |
 
-**`runs.jsonl` record shape** — documented, unversioned until v0.5 (it may change before then; readers ignore unknown types and fields). One JSON object per line:
+**`runs.jsonl` schema v1** (since v0.5; the full reference with an example line per type is `docs/runlog.md`). One JSON object per line; every line igris writes has `"v":1`. Fields other than `v`, `at` and `type` are omitted when empty:
 
 | Field | Content |
 |---|---|
+| `v` | schema version, `1` |
 | `at` | RFC 3339 UTC timestamp |
-| `type` | `run_started`, `run_stopped`, `task_started`, `task_resumed`, `task_done`, `task_skipped`, `task_overdue`, `task_reset`, `verify_passed`, `verify_failed`, `committed`, `notification` or `error` |
+| `type` | `run_started`, `run_stopped`, `task_started`, `task_resumed`, `task_retried`, `task_done`, `task_skipped`, `task_overdue`, `task_reset`, `verify_passed`, `verify_failed`, `committed`, `needs_you`, `needs_you_clear`, `notification` or `error` |
+| `run` | the run ID, `YYYYMMDD-HHMMSS-xxxx` (start in UTC + 4 random hex characters), on every line a run writes; absent on lines written outside a run (`igris reset` with no igris running) |
 | `task` | task ID; omitted for events outside a task (`run_started`, `run_stopped`, most `error`s) |
 | `rank`, `model` | the task's rank and resolved model; omitted with `task` |
-| `detail` | free text, never secrets: the phase scope (`phase A, B`, plus the selection, e.g. `phase M1; only M1-03, M1-05`) for `run_started`, the outcome (`completed`, `stuck`, `stopped`, `error`) for `run_stopped`, the note or reason for `task_done`/`task_skipped`, the profile for `verify_passed` and `verify_failed` (`profile fast: attempt N of M: <why>`), the old status for `task_reset`, the reason for a task hook's `error`, the commit subject for `committed` |
+| `attempt` | the agent task's attempt within this run: 1 for the session of `task_started` or the one `task_resumed` reattaches, +1 per `task_retried` (§6.3: every session opened or reattached is an attempt) |
+| `session` | the Claude session UUID, on `task_started` and `task_retried` (agent tasks) and on `task_resumed` when `state.json` has one |
+| `phase`, `title`, `owner` | on `task_started` and `task_resumed`: the phase ID, the title (markdown stripped, cleaned, at most 80 characters) and the owner |
+| `profile` | the verify profile, on `verify_passed` and `verify_failed` |
+| `commit` | the full commit SHA, on `committed` |
+| `duration_ms` | on `task_done`/`task_skipped`: since this run's `task_started` or `task_resumed` of the task; on `verify_*`: the verify command's run time; on `run_stopped`: the run's length |
+| `reason` | on `needs_you` and `needs_you_clear`: `idle`, `blocked`, `skip_request`, `session_lost`, `task_overdue`, `verify_limit`, `verify_not_sent`, `hook_failed`, `commit`, `reset_request` or `plan_changed` |
+| `detail` | free text, never secrets: the phase scope (`phase A, B`, plus the selection, e.g. `phase M1; only M1-03, M1-05`) for `run_started`, the outcome (`completed`, `stuck`, `stopped`, `error`) for `run_stopped`, the note or reason for `task_done`/`task_skipped`, `fresh` or `continue` for `task_retried`, the profile for `verify_passed` and `verify_failed` (`profile fast: attempt N of M: <why>`), the old status for `task_reset`, the reason for a task hook's `error`, the commit subject for `committed`, a few words for `needs_you` |
 
-A run is the events from a `run_started` to its `run_stopped`, or to the next `run_started` when there is none (the run was interrupted). `igris history` is the reader of this format.
+`needs_you` is logged whenever igris marks Needs you (§6.3, §6.4, §6.7, §5.4, the commit question under `commit = "ask"`, a reset request) or loses a session; `needs_you_clear` when that wait ends while the task goes on (the agent works again, the owner answers, a retry).
+
+**Compatibility.** A line without `v` is v0 (igris v0.2–v0.4: `at`, `type`, `task`, `rank`, `model`, `detail` only). Readers accept v0 and v1 lines mixed in one file, ignore unknown types and fields, and read lines with a larger `v` best effort, with a note that some details may be missing. Within v1 fields and types are only ever added, never removed, renamed or given a new meaning; anything else is a new version. `run`, `session` and IDs are shape-checked when read (a bad value counts as absent). A run is the lines with one `run` ID; for v0 lines it is the events from a `run_started` to its `run_stopped`, or to the next `run_started` when there is none (the run was interrupted). `igris history` and `igris report` are the readers of this format.
 
 **Resume.** `igris arise` (any phase argument, or none to resume the last run) reads `state.json`:
 - current task still `in progress` and its session reattachable → reattach and keep watching; if its task prompt was still held at a startup prompt (`pending_prompt` in `state.json`), it is handed back and delivered once Claude Code is ready;
@@ -577,7 +625,7 @@ Details:
 
 Quitting the TUI (`q`) never kills a running session; it saves state and exits. Stopping a session requires an explicit action.
 
-**Reading state without a run.** `doctor`, `status`, `history` and the home screen (§15.6) read `.igris/` without taking the lock and never create it: `state.PeekRun` for `state.json`, `state.PeekEvents` for `runs.jsonl` (a truncated or malformed last line is skipped), and `state.PeekLock` for `igris.lock`. `PeekLock` classifies the lock the same way `arise` does when it takes it (one shared classification): none, held by a live igris on this host, stale (its process is gone, or the file is unreadable) or remote (another host; igris can't tell if it is alive). While a live igris on this host holds the lock, the home screen is **read-only**: it shows that run (state, current task, the last `runs.jsonl` events) and offers to open its session, but offers no Arise, Init or Adapt, and editing the plan asks first, because an edit holds that run (§5.4). A stale or remote lock is only shown; clearing it is offered inside the start-run wizard (§15.6), never on its own.
+**Reading state without a run.** `doctor`, `status`, `history`, `report` and the home screen (§15.6) read `.igris/` without taking the lock and never create it: `state.PeekRun` for `state.json`, `state.PeekEvents` for `runs.jsonl` (a truncated or malformed last line is skipped), and `state.PeekLock` for `igris.lock`. `PeekLock` classifies the lock the same way `arise` does when it takes it (one shared classification): none, held by a live igris on this host, stale (its process is gone, or the file is unreadable) or remote (another host; igris can't tell if it is alive). While a live igris on this host holds the lock, the home screen is **read-only**: it shows that run (state, current task, the last `runs.jsonl` events) and offers to open its session, but offers no Arise, Init or Adapt, and editing the plan asks first, because an edit holds that run (§5.4). A stale or remote lock is only shown; clearing it is offered inside the start-run wizard (§15.6), never on its own.
 
 ---
 
@@ -593,6 +641,7 @@ igris check [--plan PATH] [--json]          validate the plan; exit 0 valid, 1 i
 igris phases [--plan PATH] [--json]         list phases with task counts per status
 igris status [PHASE] [--plan PATH] [--json] tasks with status/rank/owner, current run, unmet deps
 igris history [TASK-ID] [-n N] [--json]     past runs from .igris/runs.jsonl; with a task ID, its attempts
+igris report [RUN] [--json]                 one run as markdown (or JSON): RUN is 1 (the newest, default), 2, … or a run ID
 igris arise [PHASE] [--through PHASE]       run (or resume) with the TUI
            [--mode default|accept|auto|plan|yolo] [--no-tui] [--dry-run]
            [--force-unlock]
@@ -654,7 +703,28 @@ igris version
   11. notification channels are configured (§10) — **never sent to**; sending is `notify test`.
 
   Each check prints one line: a glyph, a level and a message; a problem is followed by its next command. Levels are `ok`, `warn` and `fail`. The exit code is 0 unless some check is `fail` (then 1); `--json` prints the results as a JSON array (`id`, `level`, `message`, `next`). Text from the plan, config, lock or command output is cleaned before it is printed (§16).
-- `history` reads `.igris/runs.jsonl` (§13) read-only and never creates `.igris/`. It lists the last N runs (default 10, newest first), each with its phases, tasks done and skipped, per-task duration, verify attempts, commits and how it ended; a run without a stop event is shown as interrupted (or `running` while a live igris holds the lock), and a truncated last line is ignored. A task's result is `done`, `skipped`, `running` (no result yet in the live run) or `unfinished` (no result when its run ended). With a task ID it lists every attempt of that task across runs.
+- `history` reads `.igris/runs.jsonl` (§13) read-only and never creates `.igris/`. It lists the last N runs (default 10, newest first), each with its phases, tasks done and skipped, per-task duration, verify attempts, commits and how it ended; a run without a stop event is shown as interrupted (or `running` while a live igris holds the lock), and a truncated last line is ignored. A task's result is `done`, `skipped`, `running` (no result yet in the live run) or `unfinished` (no result when its run ended). With a task ID it lists every attempt of that task across runs. Each run shows its run ID when the log has one (§13; `"run"` in `--json`), for `report`.
+- **`report [RUN] [--json]`** summarises one run from `.igris/runs.jsonl` (§13): read-only, no lock, never creates `.igris/`; it finds the project root like `history`. `RUN` is a positive integer (1 = the newest run, the default) or a run ID; anything else is a usage error (exit 2). No runs (`no runs recorded yet`), an index past the end (`only N runs recorded`) or an unknown ID (`no run <id> in .igris/runs.jsonl; igris history lists them`) exit 1. The markdown, meant to be pasted into a PR description or a journal:
+  ```
+  # igris report · <project>
+
+  Run 20261008-091500-3fa2 · 2026-10-08T09:15:00Z → 2026-10-08T11:02:13Z (1h47m) · completed
+  Phases M1, M2 · only M1-03, M1-05
+  5 done · 1 skipped · 0 unfinished · 3 commits · needs you 12m30s
+
+  ## Phase M1
+
+  | Task | Result | Duration | Attempts | Verify | Commit | Needs you |
+  |---|---|---|---|---|---|---|
+  | M1-03 Config loader | done | 14m02s | 2 | fast ✗ ✓ | 3fa29c1 | 2m10s |
+
+  Notes
+  - M1-03 done: tests added
+
+  Resume
+  - M1-03: `claude --resume <uuid>` (run it in the project root)
+  ```
+  Tasks are grouped by phase (`## Tasks` when the log doesn't say, as in v0 lines); Verify lists the profile and one ✗ per failure, ✓ per pass; Commit is the short SHA of the task's last commit; Notes are the done notes and skip reasons; Resume lists one `claude --resume <uuid>` per agent task whose last session UUID is known, and is left out otherwise; `Errors` bullets follow when the run had errors. Needs-you time is how long igris waited on the owner: from each `needs_you` to its `needs_you_clear`, or to the task's next `task_retried`, `task_done`, `task_skipped` or `task_reset`, or the run's end, overlaps counted once; user tasks have none (their time is their duration). Anything the log doesn't record (v0 lines, an interrupted run) is shown as `—`. A run without a stop is `interrupted`, or `running` while a live igris holds the lock. Text from the log (titles, notes, details) is cleaned and `|` escaped in table cells. `--json` prints one object: `run`, `started_at`, `ended_at`, `duration_s`, `end`, `phases`, `selection`, `done`, `skipped`, `unfinished`, `needs_you_s`, `commits` (`task`, `sha`, `subject`), `errors`, and `tasks`, each with `id`, `phase`, `title`, `owner`, `rank`, `model`, `result`, `duration_s`, `attempts`, `verify` (`profile`, `passed`, `duration_s`), `commit`, `note`, `sessions`, `resume`, `needs_you_s`; unknown values are omitted.
 - `completion` prints a hand-written script per shell (no CLI framework, P0-01). It completes subcommands, each subcommand's flags, and phase and task IDs; for `arise --only`, which takes a comma-separated list, it completes the ID after the last comma. IDs come from a hidden `igris __complete <kind>`, which is not listed in help: it reads the plan only (never `.igris/`, never the network) and prints one candidate per line; on a missing or invalid plan it prints nothing and exits 0.
 - `hook <event>` is hidden too: Claude Code runs it from the hooks file igris passes to each session (§6.3). It is not meant to be run by hand.
 - `notify test` sends one sample message per event to every channel set up for it (the backend's toast is included when the backend is reachable) and prints `ok` or `FAILED: <reason>` per event and channel; secrets never appear in the output. It exits 1 if a delivery failed or no channel is set up. `--event` limits it to one event.
@@ -690,11 +760,16 @@ Built with Bubble Tea / Lip Gloss. Runs in the igris pane; the Claude sessions l
 └───────────────────────────────────────────────────────────────┘
 ```
 
+**Progress** (since v0.5). The header shows the current phase's progress after the phase: `phase M0 · 7/12 · 58% ██████░░░░` — n/m as text, the percentage (rounded down) and a 10-cell bar (`█` done, `░` to do), so it never relies on colour. m counts the run's tasks of the phase: all of them, or for a sliced run (§5.5) the slice's tasks in that phase, then labelled `slice 2/3 · 66%`; n counts those `done` or `skipped` in the plan as last loaded. It is hidden when m is 0. With too little width the bar is dropped first, then the percentage.
+
 ### 15.2 Narrow layout (< 100 columns, e.g. Termius on a phone)
-Single column: header, current task card, compact task list (ID + status glyph + rank), last 3 log lines, action bar. Must stay usable at 50×20. The action bar wraps to a second row or folds its less common actions into a `More…` button; an open dialog (§15.5) takes the whole screen.
+Single column: header, current task card, compact task list (ID + status glyph + rank), last 3 log lines, action bar. The status bar shows the progress as `M1 · 7/12 · 58%` with a 6-cell bar, under the same rules. Must stay usable at 50×20. The action bar wraps to a second row or folds its less common actions into a `More…` button; an open dialog (§15.5) takes the whole screen.
 
 ### 15.3 Actions
-**The current-task card** shows the task's ID and title, its rank → model and mode (or "user task"), how long it has run, and its state; then the task's text (the Task cell without its bold title, from the plan as last loaded; for a user task, the text igris sent with Your turn) and the card's buttons: `[o] Open session` while a session exists, `[d] Done…` and `[s] Skip…` for a user task, `[t] Details`, and `[Answer…]` while a question is pending. While the attempt runs past the task's Timeout (§6.3) the card adds a line `OVERDUE: running longer than its Timeout 45m` until the attempt ends. A user task's card adds, under YOUR TURN, `Yours to do outside igris (no session).` and `Then: d done · s skip`. The text gets only the rows the head and the buttons leave; when it doesn't fit it ends with `… t: details`. While the session needs the owner the state reads `NEEDS YOU (idle …) — o opens the session` (the hint on its own line when the card is too narrow) and Open session is drawn in bold. Clicking the card's title opens the details too.
+**The current-task card** shows the task's ID and title, its rank → model and mode (or "user task"), how long it has run, an ETA, and its state; then the live tail; then the task's text (the Task cell without its bold title, from the plan as last loaded; for a user task, the text igris sent with Your turn) and the card's buttons: `[o] Open session` while a session exists, `[d] Done…` and `[s] Skip…` for a user task, `[t] Details`, and `[Answer…]` while a question is pending. While the attempt runs past the task's Timeout (§6.3) the card adds a line `OVERDUE: running longer than its Timeout 45m` until the attempt ends. A user task's card adds, under YOUR TURN, `Yours to do outside igris (no session).` and `Then: d done · s skip`. The text gets only the rows the head and the buttons leave; when it doesn't fit it ends with `… t: details`. While the session needs the owner the state reads `NEEDS YOU (idle …) — o opens the session` (the hint on its own line when the card is too narrow) and Open session is drawn in bold. Clicking the card's title opens the details too.
+
+- **ETA** (agent tasks, since v0.5): the median duration of finished tasks of the same rank in `runs.jsonl` — `task_done` of tasks started (not resumed) in their run, verify and waits included, the 20 most recent per rank, loaded once when the run starts. Shown only with at least 3 such tasks, always approximate: `4m12s · ≈ 14m left`, and `· over ≈ 18m typical` once the task runs longer; minutes resolution. There is no phase ETA.
+- **Live tail** (since v0.5, `[tui] tail = true` by default): when the session's backend can tail it (§11.1), the last lines of the session — 6 in the wide layout, 3 in the narrow one, fewer when the card has no room (the task text gives way first) — refreshed every `poll_interval`. Each line is cleaned of escape sequences and control characters (§16), blank lines are dropped and lines are clipped to the card width. Any error, an empty result, a lost session or a user task hides it without a warning. The tail is display only: never logged, notified or stored. `tail = false` turns it off.
 
 Every action is reachable three ways: **clicking** its button (or tapping it, e.g. in Termius), **moving the focus** to it and pressing `enter`, and its **shortcut key**. The action bar shows only the actions that apply right now (e.g. `Done` only while a task is running, `Open session` only while a session exists); it never shows buttons that do nothing.
 
