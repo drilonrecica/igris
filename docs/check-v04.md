@@ -184,8 +184,10 @@ M1-02 depends on M1-01 and is in progress; reset leaves it as it is
 
 With igris running, on the current user task (`p3`, M1-03 waiting for the owner):
 
+(This was the behavior of `8969f1d`. After review the running igris no longer applies a reset at once: `igris reset` now prints `reset requested; confirm it in the running igris` and the run asks first. See "Re-gate after review fixes" below.)
+
 ```
-$ igris reset M1-03            → M1-03: reset sent to the running igris
+$ igris reset M1-03            → M1-03: reset sent to the running igris   # changed after review, see the re-gate below
 10:19:20 reset M1-03: in progress → ready
 10:19:20 pause after task: on (type `pause` again to turn it off)
 10:19:20 paused before M1-03; type `pause` to continue
@@ -223,3 +225,93 @@ On HEAD `8969f1d`, `make fmt lint test` passed (exit 0, tree unchanged). `go tes
 - In the earlier haiku/`accept` pass, herdr reported A-01 and A-03 as `blocked` for about a minute while the machine's global Claude Code PreToolUse hooks ran. This raised **Needs you** after `needs_input_after`, and it cleared without any action. In the sonnet/`auto` re-run no Needs you came up.
 
 No fixes were needed. Nothing blocks v0.4.0.
+
+## Re-gate after review fixes (2026-10-08)
+
+The review fixes `dbee9d1..b7535ea` changed reset (own signal slot, owner confirmation), task hooks, Context, plan watch, sliced state and lints. This re-gate ran them live on HEAD `b7535ea` (`0.3.1-0.20261008093351-b7535eac79e2`), herdr 0.9.1, Claude Code 2.1.294, tmux 3.7c, from the owner's Claude Code session in its own herdr tabs. The scratch projects (`gate04b/r1`, `h1`, `c1`, `sh`, `st`, `rv`) are synthetic `git init` repos. Every config maps all `[models]` ranks to `sonnet`, sets `default_mode = "auto"` and `[notify.backend] enabled = false`, with ntfy on a random `igris-gate04b-<16 hex>` topic.
+
+| # | Check | Result |
+|---|---|---|
+| 1 | Reset during a live run: TUI dialog, `--no-tui` `reset yes\|no`, forged request, reset during verify, direct reset, locks | pass |
+| 2 | Hooks: backgrounded helper, fixed failure reason, "running before_task hook…" | pass |
+| 3 | Context from a symlinked cwd | pass |
+| 4 | Slice in `status`, `state.json` version 2 | pass |
+| 5 | `check --strict` on `imp-docs/tasks.md` | pass |
+| 6 | `docs/reverify.md` checklist | pass (with sonnet for haiku) |
+| 7 | `make fmt lint test`, `go test -race ./...` | pass |
+
+### 1. Reset
+
+Project `r1`: R-01 runs `sleep 240` first, R-02's Verify is the profile `slow` (`sleep 15`), R-03 is a user task.
+
+TUI (`arise R`, R-01's session open), `igris reset R-01` from another pane:
+
+```
+R-01: reset requested; confirm it in the running igris (if none is running, the next `igris arise` asks)
+```
+
+`.igris/signals/R-01.reset.json` appeared, and the TUI opened **Reset R-01?** ("reset R-01 (in progress) to ready/blocked; its session is closed and the run pauses? `igris reset` asks for it, but a session can write the request too: confirm only if you ran it") with `› 1. Keep it as it is` selected. Enter logged `not reset: you declined; R-01 is left as it is`. The plan still said `in progress`, the `R-01 · sonnet` tab stayed open, and the signal file was gone. A `reset` signal written by hand (`{"id":"R-01","action":"reset",…,"force":true}`) raised the same dialog, worded "(forced)", and nothing changed before an answer. Choosing `2. Reset R-01` logged `reset R-01: in progress → ready`, `pause after task: on`, `paused before R-01`. The session tab closed, `state.json` had no current task, the plan said `ready`, and the run log had `task_reset`. Each request also sent a `needs_input` ntfy (`a reset of R-01 waits for your confirmation`, priority 4).
+
+`--no-tui` (`arise --only R-01`): `reset no` → `not reset: you declined; R-01 is left as it is`, session still open. A second request plus `reset yes` → `reset R-01: in progress → ready`, paused, tab closed.
+
+Reset while verify runs (`arise --only R-02 --no-tui`, reset sent 2 s into the 15 s `slow` verify): both slots were on disk side by side (`R-02.json` with the session's done, `R-02.reset.json`). The verify ran to the end (`slow-start`, `slow-end` in `verify.log`). Then, before R-02 was accepted:
+
+```
+11:39:04 R-02 verify passed (slow)
+11:39:04 ? reset R-02 (in progress) to ready/blocked; …
+11:39:04   type `reset yes R-02` or `reset no R-02`
+11:39:13 reset R-02: in progress → ready
+11:39:13 paused before R-02; type `pause` to continue
+```
+
+R-02 stayed `in progress` until the answer, and was not marked done. After `pause`, R-02 restarted, and the old done signal was ignored (`ignoring a done signal for R-02 written before the task started`). The new session finished normally.
+
+With no igris running: `reset R-02` on a done task → exit 1, `R-02 is done; pass --force to reset it`. With `--force` → `R-02: done → ready`. Only that Status cell changed, and the run log had `task_reset`. A stale lock (dead PID, this host) doesn't stop a direct reset, which leaves the lock for `--force-unlock`. A lock from another host fails with exit 1 and `igris is running for this project on another host (pid 1234 on other-host since …); run `igris reset R-02` there, or, if that run is gone, clear the lock with `igris arise --force-unlock``, writing nothing. (The race where `arise` takes the lock during a direct reset is covered by `TestResetDirectTakesTheLock`.)
+
+### 2. Hooks
+
+Project `h1`, `before_task = ["sh", "-c", "sleep 30 >/dev/null 2>&1 & echo started"]`, `timeout = "10s"`. The feed showed `H-01 running before_task hook…`, then `H-01 session open`. The hook returned while its `sleep 30` was still running (`pgrep` showed it), with no timeout, and the task completed.
+
+A failing hook whose argv and output carry a marker (`… echo ARGV-MARKER-output; exit 3", "ARGV-MARKER-arg"`):
+
+```
+11:44:18 H-02 running before_task hook…
+11:44:18 H-02 before_task hook failed: exit status 3
+11:44:18   | ARGV-MARKER-output
+11:44:18 H-02 NEEDS YOU: before_task hook failed: exit status 3; no session was opened
+```
+
+The output appears in the owner's feed only. The run log `error` is `before_task hook failed: exit status 3`, and `ARGV-MARKER` appears 0 times in `runs.jsonl`. ntfy got `3 | igris · h1 | phase H · H-02 Second file: before_task hook failed: exit status 3`. `retry` with the helper variant opened the session 4 s later and the phase completed.
+
+### 3. Context from a symlinked cwd
+
+`c1` has Context `docs/req.md, `docs/`, docs/inner/x.md` (`docs/inner` is a symlink to `docs/sub` inside the project). `igris check` and `arise C --dry-run` pass from `c1`, from a symlink to it (`c1-link`) and from a symlinked parent (`linkparent/proj`), with `$PWD` the symlinked path. A `docs/etclink/hosts` added through a symlink to `/etc` is still rejected from the symlinked cwd (`leads outside the project through a symlink`).
+
+### 4. Slice
+
+After `arise --only R-01` in `r1` (and `--only H-02` in `h1`), `state.json` has `"version": 2` and `"selection": {"only": ["R-01"]}`, and `igris status` shows:
+
+```
+Run
+  Phases   R
+  Slice    only R-01
+```
+
+### 5. `check --strict`
+
+`igris check --strict --plan imp-docs/tasks.md` → `OK (23 phases, 160 tasks, 0 warnings)`, exit 0.
+
+### 6. `docs/reverify.md`
+
+Run as far as it goes here, with `sonnet` in place of `haiku` in every probe (owner rule), so the `haiku` alias itself was not checked. Details are in the Runs table of `docs/reverify.md`. Claude Code: aliases resolve (`claude-fable-5-1`, `claude-opus-5-5`, `claude-sonnet-5-5`). `--help` lists the permission modes (no `default`) and the flags. `--append-system-prompt-file` works (PERSIMMON). `--session-id`/`--resume` keep the session (KUMQUAT). `--model` beats the settings model. `Bash(igris done:*)` lets a headless session run `igris done` (no permission denials). A bogus `ANTHROPIC_API_KEY` gives `Invalid API key`. herdr: every probe matches its fixture's shape, except the additive `agent_session` already recorded. That includes `agent_not_ready` (exit 1, `blocked`), `invalid_agent_argument`, a multi-line prompt arriving intact, `timeout`, `agent_blocked` in a `manual` session, `tab_not_found` and `pane_not_found`. Claude Code hooks: SessionStart `startup` with the passed UUID; an allow-listed command gives UserPromptSubmit → PreToolUse → PostToolUse → Stop (no PermissionRequest); `touch` gives PermissionRequest + `permission_prompt`; AskUserQuestion gives PreToolUse + PermissionRequest; `idle_prompt` comes about 60 s after a finished turn; `/exit` gives SessionEnd. A missing hook binary is reported as non-blocking and the session goes on. tmux: argv is preserved (`a b|c;d|$HOME|`), `-n` is still a format (`pwn` created, name ` #x`), `-c` with `#` is literal, and paste-buffer works with the buffer deleted. List-panes and the error strings match the fixtures. End to end, smoke S0 (trust → Needs you → working again, verify fails once then passes, user task, S0-03) completed on herdr and on tmux. Without a multiplexer igris exits 1 with the documented messages. The S1 part of the smoke tests (reattach, session lost) and the TUI/toast items were not re-run. Claude Code `Tested` was raised to 2.1.294 (`internal/checks/tools.go`, SPEC §11.4).
+
+### 7. Test suite
+
+On HEAD `b7535ea`, and again with this change (the `Tested` bump), `make fmt lint test` passed (exit 0, tree unchanged), and so did `go test -race -count=1 ./...` (20 packages ok, 2 with no test files).
+
+### Observations (not blocking)
+
+- A new scratch folder still starts at Claude Code's folder-trust question. igris reports it as **Needs you** (`blocked`) and carries on once it is answered, as documented.
+- A before_task hook's output is shown in the owner's feed (cleaned), but not in the run log or notifications.
+
+No bugs were found and no fixes were needed. No blockers for v0.4.0.

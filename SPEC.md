@@ -424,8 +424,8 @@ Claude Code and herdr change often, and igris relies on their flags and output s
 
 | Tool | Oldest verified (`Min`) | Newest re-verified (`Tested`) | Verified in |
 |---|---|---|---|
-| Claude Code (`claude`) | 2.1.291 | 2.1.292 | P0-02; `docs/reverify.md` 2026-10-07 |
-| herdr (`herdr`) | 0.9.1 | 0.9.1 | P0-03; `docs/reverify.md` 2026-10-07 |
+| Claude Code (`claude`) | 2.1.291 | 2.1.294 | P0-02; `docs/reverify.md` 2026-10-08 |
+| herdr (`herdr`) | 0.9.1 | 0.9.1 | P0-03; `docs/reverify.md` 2026-10-08 |
 | tmux (`tmux`) | 3.2 | 3.7 | V03-P2 (3.7c) |
 
 - `igris check` and `igris arise` (including `--dry-run`) run `claude --version` and the chosen backend's version command (`herdr --version`, `tmux -V`) through the command runner, 5 s timeout each, and print a `warning:` when a tool is not in `PATH`, its version can't be determined (no version in the output, a non-zero exit, a timeout), it is older than `Min`, or its major version is newer than `Tested`'s. Newer minor and patch versions don't warn.

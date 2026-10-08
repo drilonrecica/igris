@@ -30,7 +30,7 @@ type Tool struct {
 // Tools is the one table of verified versions. Update it (and SPEC §11.4)
 // after running docs/reverify.md.
 var Tools = []Tool{
-	{Name: "Claude Code", Program: IDClaude, Min: "2.1.291", Tested: "2.1.292"},             // P0-02; re-verified for v0.1.2
+	{Name: "Claude Code", Program: IDClaude, Min: "2.1.291", Tested: "2.1.294"},             // P0-02; re-verified for v0.4.0
 	{Name: "herdr", Program: IDHerdr, Min: "0.9.1", Tested: "0.9.1"},                        // P0-03; re-verified for v0.1.2
 	{Name: "tmux", Program: IDTmux, VersionArgs: []string{"-V"}, Min: "3.2", Tested: "3.7"}, // V03-P2 (3.7c)
 }

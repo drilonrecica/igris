@@ -29,6 +29,7 @@ igris v0.4 lets a plan say more about each task: which checks to run, how long i
 - The verify failure sent into a session, the run log's `verify_passed`/`verify_failed` detail and the dry run name the verify profile; the dry run shows `none` for a task whose verification is turned off.
 - `run_started` in the run log and `state.json` record the slice of a sliced run. Such a `state.json` is version 2 (a whole-phase run stays 1), and its task IDs are checked when it is read back.
 - Plan edits igris didn't make (SPEC §5.4) include the Verify, Timeout and Context cells, so a session turning a later task's verification off holds the run like any other edit.
+- Claude Code 2.1.294 is the newest version re-verified with `docs/reverify.md` (SPEC §11.4); herdr 0.9.1 and tmux 3.7 are unchanged.
 - `igris adapt` keeps Verify, Timeout and Context cells as written and never invents a profile, a timeout or a path; its prompt lists your verify profile names (never their commands). A column of one of those names that holds something else (a command under Verify, say) is renamed so it stays an extra column, and noted.
 
 ### Migration
