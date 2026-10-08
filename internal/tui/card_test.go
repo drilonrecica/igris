@@ -146,3 +146,27 @@ func TestUserTaskCardHasNoSession(t *testing.T) {
 		t.Errorf("user task card offers a session:\n%s", v)
 	}
 }
+
+// An overdue task says so on its card until the attempt ends (SPEC §6.3).
+func TestCardShowsOverdueUntilTheAttemptEnds(t *testing.T) {
+	for _, size := range cardSizes {
+		t.Run(fmt.Sprint(size), func(t *testing.T) {
+			hs := cardHarness(t, size[0], size[1], "M0-02")
+			hs.events(engine.Event{Kind: engine.TaskOverdue, Task: "M0-02", Detail: "running longer than its Timeout 45m"},
+				engine.Event{Kind: engine.NeedsYou, Task: "M0-02", Detail: "the task is running longer than its Timeout 45m; igris leaves its session running"})
+			v := hs.m.View()
+			checkFits(t, v, size[0], size[1])
+			if !strings.Contains(v, "OVERDUE: running longer") {
+				t.Errorf("card lacks the overdue line:\n%s", v)
+			}
+			hs.events(engine.Event{Kind: engine.NeedsYouClear, Task: "M0-02"})
+			if v := hs.m.View(); !strings.Contains(v, "OVERDUE") {
+				t.Errorf("overdue cleared while the attempt runs:\n%s", v)
+			}
+			hs.events(engine.Event{Kind: engine.Retrying, Task: "M0-02", Detail: "fresh"})
+			if v := hs.m.View(); strings.Contains(v, "OVERDUE") {
+				t.Errorf("overdue kept after the attempt ended:\n%s", v)
+			}
+		})
+	}
+}

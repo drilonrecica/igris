@@ -28,7 +28,15 @@ type launch struct {
 	cur   *state.Current  // the task's record in state.json
 	sess  backend.Session // nil until a session is open
 	lost  bool            // the session is gone; the owner decides what's next
+	// attemptAt is when the current attempt's clock started (SPEC §6.3):
+	// the session's first prompt, or the reattach on resume. overdue is
+	// set once the attempt ran past the task's Timeout.
+	attemptAt time.Time
+	overdue   bool
 }
+
+// startAttempt starts a new attempt's Timeout clock at now.
+func (l *launch) startAttempt(now time.Time) { l.attemptAt, l.overdue = now, false }
 
 func (l *launch) fill(ev Event) Event {
 	ev.Task, ev.Title, ev.Rank, ev.Model, ev.Mode = l.t.ID, l.t.Title, l.t.Rank, l.model, l.mode
@@ -210,6 +218,8 @@ func (e *Engine) openSession(ctx context.Context, l *launch, st sessionStart) er
 	e.emit(Event{Kind: SessionOpened, Session: &opened, ClaudeSession: st.sessionID})
 
 	// The prompt is submitted, never passed as an argument (SPEC §6, §11.2).
+	// The attempt's clock starts with it (SPEC §6.3).
+	l.startAttempt(e.clock.Now())
 	switch err := sess.Prompt(ctx, st.text); {
 	case errors.Is(err, backend.ErrSessionGone):
 		e.lose(ctx, l)

@@ -38,6 +38,7 @@ const (
 	NeedsYou        EventKind = "needs_you"         // the task waits on the owner; Detail says why
 	NeedsYouClear   EventKind = "needs_you_clear"   // the agent is working again
 	SessionLost     EventKind = "session_lost"      // the pane is gone or Claude Code exited without a signal
+	TaskOverdue     EventKind = "task_overdue"      // the attempt runs longer than the task's Timeout; Detail says how long
 	Asked           EventKind = "asked"             // Question waits for the owner's answer; Detail is the question
 	Retrying        EventKind = "retrying"          // the session is replaced; Detail is "continue" or "fresh"
 	TaskSkipped     EventKind = "task_skipped"      // Detail is the reason; Changes holds the cells written
@@ -132,6 +133,7 @@ const (
 	notifyTaskDone    = notify.TaskDone
 	notifyNeedsInput  = notify.NeedsInput
 	notifySessionLost = notify.SessionLost
+	notifyTaskOverdue = notify.TaskOverdue
 	notifyVerifyLimit = notify.VerifyFailedLimit
 	notifyPhaseDone   = notify.PhaseDone
 	notifyPhaseStuck  = notify.PhaseStuck

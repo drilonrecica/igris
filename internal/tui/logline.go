@@ -31,6 +31,8 @@ func logLines(ev engine.Event) []string {
 		return []string{id + " needs you: " + ev.Detail}
 	case engine.NeedsYouClear:
 		return []string{id + " is working again"}
+	case engine.TaskOverdue:
+		return []string{id + " overdue: " + ev.Detail}
 	case engine.SessionLost:
 		return []string{id + " session lost: " + ev.Detail}
 	case engine.Asked:
@@ -103,7 +105,7 @@ func badge(mode string) string {
 // owner stands out. The words say it either way.
 func logLook(k engine.EventKind) look {
 	switch k {
-	case engine.NeedsYou, engine.SessionLost, engine.VerifyFailed, engine.VerifyLimit, engine.PhaseStuck, engine.PlanChanged, engine.RunFailed:
+	case engine.NeedsYou, engine.TaskOverdue, engine.SessionLost, engine.VerifyFailed, engine.VerifyLimit, engine.PhaseStuck, engine.PlanChanged, engine.RunFailed:
 		return lookAlert
 	case engine.Warning, engine.Asked, engine.YourTurn, engine.Paused, engine.PhaseDone:
 		return lookTitle

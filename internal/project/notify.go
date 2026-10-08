@@ -32,6 +32,7 @@ func (p *Project) NotifyRouter(ctx context.Context) (r *notify.Router, skipped, 
 var testWhat = map[notify.Event]string{
 	notify.NeedsInput:        "needs you",
 	notify.SessionLost:       "session lost",
+	notify.TaskOverdue:       "needs you (running longer than its Timeout 45m)",
 	notify.VerifyFailedLimit: "verification keeps failing; needs you",
 	notify.TaskDone:          "done",
 	notify.PhaseDone:         "complete",

@@ -22,6 +22,7 @@ const (
 	EventTaskResumed  EventType = "task_resumed"
 	EventTaskDone     EventType = "task_done"
 	EventTaskSkipped  EventType = "task_skipped"
+	EventTaskOverdue  EventType = "task_overdue"
 	EventVerifyPassed EventType = "verify_passed"
 	EventVerifyFailed EventType = "verify_failed"
 	EventCommitted    EventType = "committed"

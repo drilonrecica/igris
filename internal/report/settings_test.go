@@ -78,7 +78,7 @@ func TestSettingsMarkDefaults(t *testing.T) {
 		{"models", "x", `"claude-x"`, false},
 		{"columns", `"Depends on"`, `"Deps"`, false},
 		{"tui", "mouse", "true", true},
-		{"notify.ntfy", "events", `["needs_input", "session_lost", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]`, true},
+		{"notify.ntfy", "events", `["needs_input", "session_lost", "task_overdue", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]`, true},
 	} {
 		if r := find(t, secs, tt.sec, tt.key); r.Value != tt.value || r.Default != tt.def {
 			t.Errorf("[%s] %s: %+v, want %s default %v", tt.sec, tt.key, r, tt.value, tt.def)

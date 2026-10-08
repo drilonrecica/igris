@@ -40,7 +40,7 @@ complete -c igris -n '__fish_seen_subcommand_from done' -l note -x
 complete -c igris -n '__fish_seen_subcommand_from done' -a '(__igris_ids tasks)'
 complete -c igris -n '__fish_seen_subcommand_from skip' -l reason -x
 complete -c igris -n '__fish_seen_subcommand_from skip' -a '(__igris_ids tasks)'
-complete -c igris -n '__fish_seen_subcommand_from notify' -l event -x -a 'needs_input session_lost verify_failed_limit task_done phase_done phase_stuck run_error'
+complete -c igris -n '__fish_seen_subcommand_from notify' -l event -x -a 'needs_input session_lost task_overdue verify_failed_limit task_done phase_done phase_stuck run_error'
 complete -c igris -n '__fish_seen_subcommand_from notify' -a 'test'
 complete -c igris -n '__fish_seen_subcommand_from adapt' -l model -x -a 'sonnet opus'
 complete -c igris -n '__fish_seen_subcommand_from adapt' -l plan -r -F

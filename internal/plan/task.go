@@ -3,6 +3,7 @@ package plan
 import (
 	"slices"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/drilonrecica/igris/internal/textsafe"
@@ -36,6 +37,9 @@ type Task struct {
 	// written, "" when not set (empty, — or -).
 	TimeoutText string
 	ContextText string
+	// Timeout is TimeoutText as a duration; 0 when not set or not a
+	// duration greater than zero (a validation error, SPEC §3.2).
+	Timeout time.Duration
 	// Context is the Context cell's paths as written: split at commas,
 	// trimmed, backticks stripped, empty entries and duplicates dropped.
 	Context []string
@@ -115,6 +119,9 @@ func (p *Plan) newTask(ph *Phase, r row) *Task {
 		case ColTimeout:
 			if !unset(c.value) {
 				t.TimeoutText = c.value
+				if d, err := time.ParseDuration(strings.Trim(c.value, " `")); err == nil && d > 0 {
+					t.Timeout = d
+				}
 			}
 		case ColContext:
 			if !unset(c.value) {

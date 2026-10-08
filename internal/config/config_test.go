@@ -58,7 +58,7 @@ enabled = false
 server = "https://ntfy.example"
 topic = "igris"
 token = "env:NTFY_TOKEN"
-events = ["needs_input", "task_done"]
+events = ["needs_input", "task_overdue", "task_done"]
 
 [notify.discord]
 webhook_url = "env:IGRIS_DISCORD_WEBHOOK"
@@ -106,7 +106,7 @@ func TestParseFullSample(t *testing.T) {
 	if c.Adapt.Model != "opus" || c.Notify.Backend.Enabled {
 		t.Errorf("adapt/notify.backend: %+v %+v", c.Adapt, c.Notify.Backend)
 	}
-	if got := strings.Join(c.Notify.Ntfy.Events, ","); got != "needs_input,task_done" {
+	if got := strings.Join(c.Notify.Ntfy.Events, ","); got != "needs_input,task_overdue,task_done" {
 		t.Errorf("ntfy events = %s", got)
 	}
 	if got := strings.Join(c.Claude.ExtraArgs, ","); got != "--verbose" {

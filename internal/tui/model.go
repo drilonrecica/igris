@@ -35,6 +35,7 @@ type current struct {
 	state                        taskState
 	since                        time.Time // when state began
 	detail                       string    // why it needs the owner
+	overdue                      string    // the overdue detail while the attempt runs past its Timeout
 	session                      *backend.SessionRef
 	claudeSession                string // the session's Claude UUID, for claude --resume
 }
@@ -613,6 +614,11 @@ func (m *model) event(ev engine.Event) {
 	case engine.SessionOpened:
 		if m.cur != nil {
 			m.cur.session, m.cur.mode, m.cur.claudeSession = ev.Session, ev.Mode, ev.ClaudeSession
+			m.cur.overdue = "" // a new attempt
+		}
+	case engine.TaskOverdue:
+		if m.cur != nil {
+			m.cur.overdue = ev.Detail
 		}
 	case engine.YourTurn:
 		m.setState(stateYourTurn, ev)
@@ -625,7 +631,7 @@ func (m *model) event(ev engine.Event) {
 	case engine.SessionLost:
 		m.setState(stateLost, ev)
 		if m.cur != nil {
-			m.cur.session = nil
+			m.cur.session, m.cur.overdue = nil, "" // the attempt ended
 		}
 	case engine.Asked:
 		e := ev
@@ -634,7 +640,7 @@ func (m *model) event(ev engine.Event) {
 		m.setState(stateQuestion, ev)
 	case engine.Retrying:
 		if m.cur != nil {
-			m.cur.session = nil
+			m.cur.session, m.cur.overdue = nil, ""
 		}
 		m.setState(stateWorking, ev)
 		m.settle()

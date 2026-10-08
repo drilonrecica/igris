@@ -59,6 +59,7 @@ func (e *Engine) resume(ctx context.Context) (stopped bool, err error) {
 		default:
 			if st, err := sess.State(ctx); err != nil || st != backend.Exited {
 				l.sess = sess
+				l.startAttempt(e.clock.Now()) // elapsed time is not saved (SPEC §6.3)
 				detail := "reattached to its session"
 				if cur.PendingPrompt != "" {
 					// The session never got its task: it was held at a

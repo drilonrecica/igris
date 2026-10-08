@@ -24,7 +24,7 @@ _igris() {
         arise:--through) COMPREPLY=($(compgen -W "$(igris __complete phases 2>/dev/null)" -- "$cur")) ; return ;;
         done:--note) return ;;
         skip:--reason) return ;;
-        notify:--event) COMPREPLY=($(compgen -W "needs_input session_lost verify_failed_limit task_done phase_done phase_stuck run_error" -- "$cur")) ; return ;;
+        notify:--event) COMPREPLY=($(compgen -W "needs_input session_lost task_overdue verify_failed_limit task_done phase_done phase_stuck run_error" -- "$cur")) ; return ;;
         adapt:--model) COMPREPLY=($(compgen -W "sonnet opus" -- "$cur")) ; return ;;
         adapt:--plan) COMPREPLY=($(compgen -f -- "$cur")) ; return ;;
     esac

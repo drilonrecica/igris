@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 var testModels = map[string]string{"sonnet": "sonnet", "opus": "opus", "fable": "fable", "haiku": "haiku"}
@@ -288,5 +289,38 @@ func TestVerifyProfileValidation(t *testing.T) {
 	got := issueMsgs(Parse("tasks.md", []byte(head+"| a | ready | sonnet | agent | default |\n"), Options{}).Validate(testRules))
 	if len(got) != 1 || !strings.HasSuffix(got[0], "or use one of: none") {
 		t.Errorf("issues = %q", got)
+	}
+}
+
+func TestTimeoutValidation(t *testing.T) {
+	const head = "## M1\n\n| ID | Status | Model | Owner | Timeout |\n|---|---|---|---|---|\n"
+	tests := []struct {
+		name string
+		row  string
+		want time.Duration
+		msgs []string
+	}{
+		{"minutes", "| a | ready | sonnet | agent | 45m |", 45 * time.Minute, nil},
+		{"compound, backticks", "| a | ready | sonnet | agent | `1h30m` |", 90 * time.Minute, nil},
+		{"not set", "| a | ready | sonnet | agent | — |", 0, nil},
+		{"bare number", "| a | ready | sonnet | agent | 45 |", 0, []string{`tasks.md:5: a: Timeout "45" is not a duration; write e.g. 45m or 1h30m`}},
+		{"words", "| a | ready | sonnet | agent | an hour |", 0, []string{`tasks.md:5: a: Timeout "an hour" is not a duration; write e.g. 45m or 1h30m`}},
+		{"zero", "| a | ready | sonnet | agent | 0s |", 0, []string{`tasks.md:5: a: Timeout "0s" must be greater than zero; write e.g. 45m or 1h30m`}},
+		{"negative", "| a | blocked | sonnet | agent | -5m |", 0, []string{`tasks.md:5: a: Timeout "-5m" must be greater than zero; write e.g. 45m or 1h30m`}},
+		{"bad on a done task", "| a | done | sonnet | agent | 45 |", 0, nil},
+		{"bad on a skipped task", "| a | skipped | sonnet | agent | 45 |", 0, nil},
+		{"bad on a user task", "| a | ready | — | user | 45 |", 0, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := Parse("tasks.md", []byte(head+tt.row+"\n"), Options{})
+			got := issueMsgs(p.Validate(testRules))
+			if strings.Join(got, "\n") != strings.Join(tt.msgs, "\n") {
+				t.Errorf("issues = %q, want %q", got, tt.msgs)
+			}
+			if d := p.Task("a").Timeout; d != tt.want {
+				t.Errorf("Timeout = %s, want %s", d, tt.want)
+			}
+		})
 	}
 }

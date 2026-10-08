@@ -50,7 +50,7 @@ enabled = true                    # herdr toasts
 # server = "https://ntfy.sh"
 # topic = "my-igris-topic"
 # token = "env:NTFY_TOKEN"        # optional
-# events = ["needs_input", "session_lost", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]
+# events = ["needs_input", "session_lost", "task_overdue", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]
 #
 # [notify.discord]
 # webhook_url = "env:IGRIS_DISCORD_WEBHOOK"

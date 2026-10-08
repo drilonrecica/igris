@@ -3,6 +3,7 @@ package notify
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -256,5 +257,17 @@ func TestNotifyKeepsChannelOrder(t *testing.T) {
 	res := r.Notify(context.Background(), Message{Event: RunError})
 	if len(res) != 2 || res[0].Channel != "slow" || res[1].Channel != "fast" {
 		t.Errorf("results = %+v, want slow then fast", res)
+	}
+}
+
+func TestUrgent(t *testing.T) {
+	for _, ev := range AllEvents {
+		want := ev == NeedsInput || ev == SessionLost || ev == TaskOverdue
+		if got := ev.Urgent(); got != want {
+			t.Errorf("%s.Urgent() = %v, want %v", ev, got, want)
+		}
+	}
+	if !slices.Contains(DefaultEvents, TaskOverdue) {
+		t.Errorf("task_overdue is not a default event: %v", DefaultEvents)
 	}
 }

@@ -231,6 +231,10 @@ func (m *model) renderCard(w, x, y, rows int, record bool) []string {
 		}
 	}
 	head = append(head, fit(state, w))
+	if c.overdue != "" {
+		// Until the attempt ends (SPEC §6.3), in words, not color alone.
+		head = append(head, fit(m.th.paint(lookAlert, "OVERDUE: "+c.overdue), w))
+	}
 	if c.state == stateYourTurn {
 		// A user task has no session: say whose it is and how it ends.
 		for _, part := range yourTurnText {

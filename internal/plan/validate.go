@@ -7,6 +7,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"time"
 )
 
 var (
@@ -173,6 +174,9 @@ func (v *validator) checkTask(t *Task) {
 			names := append(slices.Sorted(slices.Values(v.verify)), VerifyNone)
 			v.add(at, "%s: unknown verify profile %q; define it under [verify] in igris.toml or use one of: %s", name, t.Verify, strings.Join(names, ", "))
 		}
+		if t.TimeoutText != "" && t.Timeout == 0 {
+			v.checkTimeout(at, name, t.TimeoutText)
+		}
 	}
 
 	for _, d := range t.Deps {
@@ -183,6 +187,15 @@ func (v *validator) checkTask(t *Task) {
 			v.add(at, "%s: Deps entry %q is not a task ID; list task IDs separated by commas", name, d)
 		}
 	}
+}
+
+// checkTimeout reports why a set Timeout cell gave no duration.
+func (v *validator) checkTimeout(at int, name, cell string) {
+	if d, err := time.ParseDuration(strings.Trim(cell, " `")); err == nil && d <= 0 {
+		v.add(at, "%s: Timeout %q must be greater than zero; write e.g. 45m or 1h30m", name, cell)
+		return
+	}
+	v.add(at, "%s: Timeout %q is not a duration; write e.g. 45m or 1h30m", name, cell)
 }
 
 // checkDeps reports unknown dependencies and every dependency cycle once,

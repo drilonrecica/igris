@@ -26,6 +26,8 @@ func TestHints(t *testing.T) {
 			Options{Columns: map[string]string{"Depends": "Deps"}}, nil},
 		{"Verify on a user task", "## M0\n\n| ID | Status | Model | Owner | Verify |\n|---|---|---|---|---|\n| a | ready | — | user | fast |\n| b | done | — | user | fast |\n| c | ready | — | user | — |\n", Options{},
 			[]string{"tasks.md:5: a: user tasks have no session, so its Verify is ignored; clear the cell"}},
+		{"Timeout on a user task", "## M0\n\n| ID | Status | Model | Owner | Timeout |\n|---|---|---|---|---|\n| a | ready | — | user | 45m |\n| b | skipped | — | user | 45m |\n| c | ready | sonnet | agent | 45m |\n", Options{},
+			[]string{"tasks.md:5: a: user tasks have no session, so its Timeout is ignored; clear the cell"}},
 		{"Deps present next to a lookalike", "## M0\n\n| ID | Deps | Status | Model | Requires |\n|---|---|---|---|---|\n| a | — | ready | sonnet | Go 1.26 |\n", Options{}, nil},
 	}
 	for _, tt := range tests {

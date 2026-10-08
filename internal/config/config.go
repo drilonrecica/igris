@@ -217,7 +217,7 @@ var (
 	validCommit  = []string{"ask", "auto", "never"}
 	validAdapt   = []string{"sonnet", "opus"}
 	validThemes  = []string{"auto", "dark", "light"}
-	validEvents  = []string{"needs_input", "session_lost", "verify_failed_limit", "task_done", "phase_done", "phase_stuck", "run_error"}
+	validEvents  = []string{"needs_input", "session_lost", "task_overdue", "verify_failed_limit", "task_done", "phase_done", "phase_stuck", "run_error"}
 	forbiddenArg = []string{
 		"--model", "--fallback-model", "--permission-mode",
 		"--dangerously-skip-permissions", "--allow-dangerously-skip-permissions",
@@ -244,7 +244,7 @@ func ForbiddenExtraArg(arg string) bool {
 }
 
 func defaultEvents() []string {
-	return []string{"needs_input", "session_lost", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"}
+	return []string{"needs_input", "session_lost", "task_overdue", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"}
 }
 
 // BackendAuto picks herdr inside a herdr pane, else tmux inside tmux

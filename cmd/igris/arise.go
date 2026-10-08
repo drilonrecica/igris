@@ -462,6 +462,8 @@ func formatEvent(ev engine.Event) []string {
 		return []string{id + " NEEDS YOU: " + ev.Detail}
 	case engine.NeedsYouClear:
 		return []string{id + " is working again"}
+	case engine.TaskOverdue:
+		return []string{id + " OVERDUE: " + ev.Detail + "; its session keeps running"}
 	case engine.SessionLost:
 		return []string{id + " SESSION LOST: " + ev.Detail}
 	case engine.Asked:

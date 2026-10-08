@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/drilonrecica/igris/internal/backend"
@@ -108,6 +109,7 @@ func (e *Engine) watch(ctx context.Context, l *launch) (verdict, error) {
 				e.promptDelivered(l)
 				e.observe(ctx, st, &ep)
 			}
+			e.checkOverdue(ctx, l)
 		}
 		e.wait(ctx, e.cfg.PollInterval.Std())
 	}
@@ -137,6 +139,26 @@ func (e *Engine) observe(ctx context.Context, st backend.AgentState, ep *episode
 		}
 	}
 	// Unknown tells nothing about the agent; the episode stays as it is.
+}
+
+// checkOverdue raises the task's Timeout once per attempt (SPEC §6.3): an
+// overdue event, Needs you, the run log and the task_overdue notification.
+// The session is left running.
+func (e *Engine) checkOverdue(ctx context.Context, l *launch) {
+	limit := l.t.Timeout
+	if limit <= 0 || l.overdue || l.attemptAt.IsZero() || !l.t.Owner.IsAgent() {
+		return
+	}
+	if e.clock.Now().Sub(l.attemptAt) <= limit {
+		return
+	}
+	l.overdue = true
+	// The cell as written (45m, not 45m0s); it parsed as a duration, so it
+	// is plain text.
+	what := "running longer than its Timeout " + strings.Trim(l.t.TimeoutText, " `")
+	e.emit(Event{Kind: TaskOverdue, Detail: what})
+	e.log(state.Event{Type: state.EventTaskOverdue, Detail: what})
+	e.needsYou(ctx, notifyTaskOverdue, "the task is "+what+"; igris leaves its session running", what)
 }
 
 // needsYou marks the task Needs you and sends the notification event. why

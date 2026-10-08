@@ -202,7 +202,9 @@ A plan is a markdown file (default `tasks.md`) with one task table per `##` phas
 - **Owner:** `agent`, `agent + user` (the agent must get your decision or sign-off), or `user` (your own task: igris pauses until you mark it done). The card then says **YOUR TURN — yours to do outside igris (no session). Then: d done · s skip**: do the work yourself, wherever it happens, and press `d` (it asks for an optional note, e.g. the name you picked, which lands in `igris history`) or `s` to skip with a reason. `igris done ID --note …` / `igris skip ID --reason …` work from any terminal too.
 - **Blocked on something outside the plan?** (API keys from a client, a deploy, a date) Add a `user` task that names the blocker and make the waiting task depend on it, e.g. `| X-00 | **Wait for API keys from client** | — | ready | — | user |`. Igris notifies you when it is your turn and carries on once you mark that task done. There is no other way to say "waiting on the outside"; `igris adapt` turns prose like "waits on" or "blocked by deploy" into such a task and lists it under `## Adapt notes`.
 - **Optional `Mode` column** to force a mode per task (e.g. `plan` for design-heavy tasks).
-- **Optional `Verify` column** naming a verify profile from `igris.toml` (`fast`, `full`, …) for that task, or `none` to skip verification for it; `—` or an empty cell falls back to the phase's and the project's default (see [Verification and commits](#verification-and-commits)). It names profiles, never commands. `Timeout` and `Context` are also recognised as optional columns. `igris status` shows a VERIFY, TIMEOUT or CONTEXT column only when some task sets it.
+- **Optional `Verify` column** naming a verify profile from `igris.toml` (`fast`, `full`, …) for that task, or `none` to skip verification for it; `—` or an empty cell falls back to the phase's and the project's default (see [Verification and commits](#verification-and-commits)). It names profiles, never commands.
+- **Optional `Timeout` column**: a Go duration (`45m`, `1h30m`). When a session runs longer than that, igris marks the task **overdue** on the card and **Needs you**, logs `task_overdue` and sends a `task_overdue` notification, once per session; it never stops or closes the session. The clock starts when igris sends the session its first prompt (or reattaches to it after a restart), and a retry starts a new one. Anything that isn't a duration greater than zero fails `igris check`.
+- `Context` is also recognised as an optional column. On a `user` task, Verify and Timeout are ignored, and `igris check` warns about each one that is set. `igris status` shows a VERIFY, TIMEOUT or CONTEXT column only when some task sets it.
 
 A complete small plan is in [`examples/tasks.md`](examples/tasks.md) and a commented config in [`examples/igris.toml`](examples/igris.toml); copy them and run `igris check` and `igris arise P1 --dry-run` to see how igris reads them.
 
@@ -247,7 +249,7 @@ Choose the permission mode in the TUI, per run or per task: press `m` (or click 
 
 ## Notifications
 
-Igris tells you when it needs you (a question, a plan to approve, a stalled session), when a phase is done or stuck, and when something fails; add `task_done` to a channel's `events` to hear about every finished agent task too:
+Igris tells you when it needs you (a question, a plan to approve, a stalled session, a task past its Timeout), when a phase is done or stuck, and when something fails; add `task_done` to a channel's `events` to hear about every finished agent task too:
 
 - herdr toasts, or a tmux status-line message
 - [ntfy](https://ntfy.sh) push to your phone
@@ -260,10 +262,10 @@ token = "env:NTFY_TOKEN"          # optional
 
 [notify.discord]
 webhook_url = "env:IGRIS_DISCORD_WEBHOOK"
-events = ["needs_input", "phase_done"]   # default: needs_input, session_lost, phase_done, phase_stuck, run_error, verify_failed_limit
+events = ["needs_input", "phase_done"]   # default: needs_input, session_lost, task_overdue, phase_done, phase_stuck, run_error, verify_failed_limit
 ```
 
-Messages carry the project, phase, task ID and title and the event, never file contents, diffs or command output. Each channel has a 10 s timeout and one retry; a channel that fails is shown as a warning and never stops the run. Secrets can be `env:VAR_NAME` references, are never logged, and are scrubbed from error messages. ntfy sends urgent events (`needs_input`, `session_lost`) at high priority.
+Messages carry the project, phase, task ID and title and the event, never file contents, diffs or command output. Each channel has a 10 s timeout and one retry; a channel that fails is shown as a warning and never stops the run. Secrets can be `env:VAR_NAME` references, are never logged, and are scrubbed from error messages. ntfy sends urgent events (`needs_input`, `session_lost`, `task_overdue`) at high priority.
 
 Check your setup with `igris notify test`: it sends a sample of each event to every configured channel (the herdr or tmux toast too, when run inside one) and prints `ok` or the reason for each failure. `--event needs_input` sends just one.
 

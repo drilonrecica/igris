@@ -17,7 +17,7 @@ _igris() {
         arise:--through) compadd -- ${(f)"$(igris __complete phases 2>/dev/null)"} ; return ;;
         done:--note) return ;;
         skip:--reason) return ;;
-        notify:--event) compadd -- needs_input session_lost verify_failed_limit task_done phase_done phase_stuck run_error ; return ;;
+        notify:--event) compadd -- needs_input session_lost task_overdue verify_failed_limit task_done phase_done phase_stuck run_error ; return ;;
         adapt:--model) compadd -- sonnet opus ; return ;;
         adapt:--plan) _files ; return ;;
     esac
