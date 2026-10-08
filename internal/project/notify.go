@@ -25,7 +25,8 @@ func (p *Project) NotifyRouter(ctx context.Context) (r *notify.Router, skipped, 
 	if err != nil {
 		skipped, be = err, nil
 	}
-	return notify.FromConfig(p.Cfg.Notify, secrets, be), skipped, nil
+	// A test sends at once: no quiet hours, no task_done digest.
+	return notify.FromConfig(p.Cfg.Notify, secrets, be, notify.Immediate), skipped, nil
 }
 
 // testWhat is what a real notification of each event says (internal/engine),

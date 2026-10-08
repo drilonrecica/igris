@@ -82,7 +82,7 @@ func execAdapt(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 		Model:    model,
 		Backend:  be,
 		State:    dir,
-		Notifier: notify.FromConfig(cfg.Notify, secrets, be),
+		Notifier: notify.FromConfig(cfg.Notify, secrets, be, notify.Immediate), // adapt never flushes, so nothing may be held
 		Clock:    adaptClock,
 		Out:      stdout,
 	})

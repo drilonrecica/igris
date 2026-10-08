@@ -7,7 +7,11 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"text/template"
 )
+
+// ntfyLimit is ntfy's cap on a message body, in bytes.
+const ntfyLimit = 4096
 
 // Ntfy publishes to an ntfy topic (https://docs.ntfy.sh/publish/).
 type Ntfy struct {
@@ -15,19 +19,26 @@ type Ntfy struct {
 	Topic  string
 	Token  string       // optional bearer token
 	HTTP   *http.Client // nil means a default client
+	// Template, when set, makes the body (SPEC §10).
+	Template *template.Template
 }
 
 // Name implements Channel.
 func (*Ntfy) Name() string { return "ntfy" }
 
-// Send implements Channel: the body is the message body, the title its
-// subject, and urgent events get priority high.
+// Send implements Channel: the body is the message body (or the
+// template's text), the title its subject, and urgent events get priority
+// high.
 func (n *Ntfy) Send(ctx context.Context, m Message) error {
+	body := m.Body()
+	if s := templated(n.Template, m, func(s string) string { return cutBytes(s, ntfyLimit) }); s != "" {
+		body = s
+	}
 	u, err := url.JoinPath(n.Server, url.PathEscape(n.Topic))
 	if err != nil {
 		return fmt.Errorf("ntfy server %q is not a URL: %w", n.Server, err)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, strings.NewReader(m.Body()))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, strings.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("build ntfy request: %w", transportError(err))
 	}

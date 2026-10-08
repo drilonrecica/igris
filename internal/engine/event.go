@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -287,11 +288,57 @@ func (e *Engine) toast(ctx context.Context, event notify.Event, what string) {
 	if e.task != nil {
 		m.TaskID, m.Title = e.task.t.ID, e.task.t.Title
 	}
-	for _, r := range e.notifier.Notify(ctx, m) {
-		if r.Err != nil {
-			e.warn("notification " + string(event) + " not delivered to " + r.Channel + ": " + r.Err.Error())
-			continue
+	e.notified(e.notifier.Notify(ctx, m))
+}
+
+// notified logs how each delivery went: sent, held for quiet hours or a
+// digest; a failure is a warning.
+func (e *Engine) notified(results []notify.Result) {
+	for _, r := range results {
+		what := string(r.Event)
+		if r.Event == notify.Digest {
+			what = fmt.Sprintf("digest of %d", r.Count)
 		}
-		e.log(state.Event{Type: state.EventNotification, Detail: string(event) + " via " + r.Channel})
+		switch {
+		case r.Err != nil:
+			e.warn("notification " + what + " not delivered to " + r.Channel + ": " + r.Err.Error())
+		case r.Held:
+			e.log(state.Event{Type: state.EventNotification, Detail: what + " held for " + r.Channel + " (quiet hours)"})
+		case r.Event == notify.Digest:
+			// A digest belongs to no task.
+			e.logRun(state.Event{Type: state.EventNotification, Detail: what + " via " + r.Channel})
+		default:
+			e.log(state.Event{Type: state.EventNotification, Detail: what + " via " + r.Channel})
+		}
+	}
+}
+
+// flushHeld asks the notifier to send what quiet hours held once the
+// window is over: at most once per poll interval, from every wait.
+func (e *Engine) flushHeld(ctx context.Context) {
+	h, ok := e.notifier.(Holder)
+	if !ok || ctx.Err() != nil {
+		return
+	}
+	now := e.clock.Now()
+	if !e.lastFlush.IsZero() && now.Sub(e.lastFlush) < e.cfg.PollInterval.Std() {
+		return
+	}
+	e.lastFlush = now
+	e.notified(h.Flush(ctx))
+}
+
+// flushTasks sends the task_done messages collected for a digest: the
+// phase is over.
+func (e *Engine) flushTasks(ctx context.Context) {
+	if h, ok := e.notifier.(Holder); ok {
+		e.notified(h.FlushTasks(ctx))
+	}
+}
+
+// flushAll sends everything the notifier still holds: the run stops.
+func (e *Engine) flushAll(ctx context.Context) {
+	if h, ok := e.notifier.(Holder); ok {
+		e.notified(h.FlushAll(ctx))
 	}
 }

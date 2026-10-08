@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"text/template"
 )
 
 // discordLimit is Discord's cap on a message's content, in characters.
@@ -16,6 +17,8 @@ const discordLimit = 2000
 type Discord struct {
 	WebhookURL string
 	HTTP       *http.Client // nil means a default client
+	// Template, when set, makes the whole content (SPEC §10).
+	Template *template.Template
 }
 
 // Name implements Channel.
@@ -33,6 +36,9 @@ type discordPayload struct {
 // Send implements Channel with one short plain `content` message.
 func (d *Discord) Send(ctx context.Context, m Message) error {
 	p := discordPayload{Content: discordContent(m)}
+	if s := templated(d.Template, m, cutTo(discordLimit)); s != "" {
+		p.Content = s
+	}
 	p.AllowedMentions.Parse = []string{}
 	body, err := json.Marshal(p)
 	if err != nil {
@@ -56,12 +62,15 @@ func (d *Discord) Send(ctx context.Context, m Message) error {
 }
 
 // discordContent is "**igris · project** · <body> (event)", cut to Discord's
-// limit on a character boundary.
+// limit on a character boundary. A digest goes without the "(event)": its
+// first line says what it is.
 func discordContent(m Message) string {
 	s := "**" + m.Subject() + "**"
 	if b := m.Body(); b != "" {
 		s += " · " + b
 	}
-	s += " (" + string(m.Event) + ")"
+	if m.Event != Digest {
+		s += " (" + string(m.Event) + ")"
+	}
 	return cutRunes(s, discordLimit)
 }

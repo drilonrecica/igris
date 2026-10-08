@@ -164,3 +164,40 @@ func TestSettingsShowHooksOnlyWhenSet(t *testing.T) {
 		t.Errorf("timeout = %+v", r)
 	}
 }
+
+// [notify] shows quiet hours, break_through and the digest; a channel's
+// template shows only when set.
+func TestSettingsNotifyHolding(t *testing.T) {
+	secs := NewSettings(config.Default(), nil, nil)
+	for _, tt := range []struct{ key, want string }{
+		{"quiet", `""`},
+		{"break_through", `["needs_input", "session_lost", "task_overdue"]`},
+		{"task_done_digest", "0"},
+	} {
+		if r := find(t, secs, "notify", tt.key); r.Value != tt.want || !r.Default {
+			t.Errorf("%s row %+v, want %s (default)", tt.key, r, tt.want)
+		}
+	}
+	for _, s := range secs {
+		for _, r := range s.Rows {
+			if r.Key == "template" {
+				t.Errorf("[%s] shows an unset template", s.Name)
+			}
+		}
+	}
+	cfg, keys, err := loadKeys(t, "[notify]\nquiet = \"22:00-07:00\"\ntask_done_digest = \"phase\"\nbreak_through = []\n[notify.ntfy]\ntemplate = \"{{.TaskID}}: {{.What}}\"\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	secs = NewSettings(cfg, keys, nil)
+	for _, tt := range []struct{ sec, key, want string }{
+		{"notify", "quiet", `"22:00-07:00"`},
+		{"notify", "break_through", "[]"},
+		{"notify", "task_done_digest", `"phase"`},
+		{"notify.ntfy", "template", `"{{.TaskID}}: {{.What}}"`},
+	} {
+		if r := find(t, secs, tt.sec, tt.key); r.Value != tt.want || r.Default {
+			t.Errorf("[%s] %s row %+v, want %s (set)", tt.sec, tt.key, r, tt.want)
+		}
+	}
+}

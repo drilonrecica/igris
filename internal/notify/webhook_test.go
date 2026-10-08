@@ -85,7 +85,8 @@ func TestWebhookSend(t *testing.T) {
 }
 
 func TestWebhookCutsText(t *testing.T) {
-	b, err := webhookBody(Message{Event: TaskDone, Project: "p", TaskID: "X-1", Title: strings.Repeat("é", 5000)})
+	m := Message{Event: TaskDone, Project: "p", TaskID: "X-1", Title: strings.Repeat("é", 5000)}
+	b, err := webhookBody(m, (&Webhook{}).text(m))
 	if err != nil {
 		t.Fatal(err)
 	}

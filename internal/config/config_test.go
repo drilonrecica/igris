@@ -195,7 +195,23 @@ func TestParseErrors(t *testing.T) {
 		{"webhook url without host", "[notify.webhook]\nurl = \"https:///x\"", []string{"notify.webhook.url is not an http or https URL"}},
 		{"webhook url relative", "[notify.webhook]\nurl = \"hooks/x\"", []string{"notify.webhook.url is not an http or https URL"}},
 		{"webhook bad event", "[notify.webhook]\nurl = \"https://h/x\"\nevents = [\"nope\"]", []string{"notify.webhook.events", `"nope"`}},
-		{"webhook template not yet", "[notify.webhook]\ntemplate = \"x\"", []string{"notify.webhook.template"}},
+		{"template unknown field", "[notify.slack]\ntemplate = \"{{.Foo}}\"", []string{"notify.slack.template: template: notify.slack.template:1:2: executing", "can't evaluate field Foo", "use Event, Project, Phase, TaskID, Title, What, RunID or At"}},
+		{"template syntax", "[notify.ntfy]\ntemplate = \"{{.Event\"", []string{"notify.ntfy.template: template:", "fix the template"}},
+		{"template unknown function", "[notify.discord]\ntemplate = \"{{env .Event}}\"", []string{"notify.discord.template", `function "env" not defined`}},
+		{"template bad method call", "[notify.gotify]\ntemplate = \"{{.At.Nope}}\"", []string{"notify.gotify.template", "Nope"}},
+		{"template too long", "[notify.webhook]\ntemplate = \"" + strings.Repeat("x", 1001) + "\"", []string{"notify.webhook.template is 1001 characters long; keep it to 1000"}},
+		{"template runaway output", "[notify.webhook]\ntemplate = \"{{range 100000}}{{$.Event}}{{end}}\"", []string{"notify.webhook.template", "more than 64 KiB"}},
+		{"quiet not a window", "[notify]\nquiet = \"22:00\"", []string{`notify.quiet = "22:00" is invalid`, "HH:MM-HH:MM"}},
+		{"quiet bad hour", "[notify]\nquiet = \"24:00-07:00\"", []string{`notify.quiet = "24:00-07:00" is invalid`}},
+		{"quiet bad minute", "[notify]\nquiet = \"22:60-07:00\"", []string{"notify.quiet"}},
+		{"quiet one digit", "[notify]\nquiet = \"9:00-17:00\"", []string{"notify.quiet"}},
+		{"quiet signed", "[notify]\nquiet = \"+1:00-07:00\"", []string{"notify.quiet"}},
+		{"quiet empty window", "[notify]\nquiet = \"07:00-07:00\"", []string{"starts and ends at the same time"}},
+		{"break_through bad event", "[notify]\nbreak_through = [\"needs_input\", \"nope\"]", []string{"notify.break_through", `"nope"`}},
+		{"digest negative", "[notify]\ntask_done_digest = -2", []string{"notify.task_done_digest = -2 is invalid", `"phase"`}},
+		{"digest word", "[notify]\ntask_done_digest = \"task\"", []string{`notify.task_done_digest = "task" is invalid`}},
+		{"digest float", "[notify]\ntask_done_digest = 2.5", []string{"notify.task_done_digest = 2.5 is invalid"}},
+		{"unknown notify key", "[notify]\nquiet_hours = \"22:00-07:00\"", []string{"notify.quiet_hours"}},
 		{"slack bad event", "[notify.slack]\nwebhook_url = \"https://h/x\"\nevents = [\"nope\"]", []string{"notify.slack.events", `"nope"`}},
 		{"unknown slack key", "[notify.slack]\nurl = \"https://h/x\"", []string{"notify.slack.url"}},
 		{"gotify server only", "[notify.gotify]\nserver = \"https://g.example\"", []string{"notify.gotify.server is set but notify.gotify.token is not"}},
@@ -704,5 +720,146 @@ func TestWriteOmitsDefaultEvents(t *testing.T) {
 				t.Errorf("round trip changed the config")
 			}
 		})
+	}
+}
+
+func TestNotifyHoldSettings(t *testing.T) {
+	c, err := Parse([]byte("[notify]\nquiet = \"22:00-07:00\"\nbreak_through = []\ntask_done_digest = \"phase\"\n[notify.slack]\nwebhook_url = \"env:S\"\ntemplate = \"{{.TaskID}} {{.At.Format \\\"15:04\\\"}}\"\n"), "igris.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w, ok := c.Notify.QuietHours(); !ok || w != (QuietWindow{Start: 22 * 60, End: 7 * 60}) || w.String() != "22:00–07:00" {
+		t.Errorf("quiet = %+v, %v", w, ok)
+	}
+	if got := c.Notify.BreakThroughEvents(); got == nil || len(got) != 0 {
+		t.Errorf("break_through = %#v, want an empty list (hold everything)", got)
+	}
+	if c.Notify.TaskDoneDigest != DigestPhase || !c.Notify.TaskDoneDigest.On() || c.Notify.TaskDoneDigest.Every() != 0 {
+		t.Errorf("task_done_digest = %v", c.Notify.TaskDoneDigest)
+	}
+	for src, want := range map[string]TaskDoneDigest{"0": 0, "1": 0, "2": 2, "25": 25} {
+		c, err := Parse([]byte("[notify]\ntask_done_digest = "+src+"\n"), "igris.toml")
+		if err != nil || c.Notify.TaskDoneDigest != want || c.Notify.TaskDoneDigest.Every() != int(want) || c.Notify.TaskDoneDigest.On() != (want != 0) {
+			t.Errorf("task_done_digest = %s: %v, %v", src, c.Notify.TaskDoneDigest, err)
+		}
+	}
+	if d := Default().Notify; d.Quiet != "" || strings.Join(d.BreakThroughEvents(), ",") != "needs_input,session_lost,task_overdue" || d.TaskDoneDigest != 0 {
+		t.Errorf("defaults %+v", d)
+	}
+	if _, ok := Default().Notify.QuietHours(); ok {
+		t.Error("quiet hours on by default")
+	}
+}
+
+func TestQuietWindowContains(t *testing.T) {
+	at := func(hh, mm int) time.Time { return time.Date(2026, 3, 29, hh, mm, 0, 0, time.UTC) }
+	tests := []struct {
+		quiet string
+		in    []time.Time
+		out   []time.Time
+	}{
+		{"22:00-07:00", []time.Time{at(22, 0), at(23, 59), at(0, 0), at(6, 59)}, []time.Time{at(7, 0), at(12, 0), at(21, 59)}},
+		{"01:30-02:00", []time.Time{at(1, 30), at(1, 59)}, []time.Time{at(1, 29), at(2, 0), at(23, 0)}},
+		{"00:00-23:59", []time.Time{at(0, 0), at(23, 58)}, []time.Time{at(23, 59)}},
+	}
+	for _, tt := range tests {
+		w, ok, err := ParseQuiet(tt.quiet)
+		if err != nil || !ok {
+			t.Fatalf("%s: %v", tt.quiet, err)
+		}
+		for _, x := range tt.in {
+			if !w.Contains(x) {
+				t.Errorf("%s does not contain %s", tt.quiet, x.Format("15:04"))
+			}
+		}
+		for _, x := range tt.out {
+			if w.Contains(x) {
+				t.Errorf("%s contains %s", tt.quiet, x.Format("15:04"))
+			}
+		}
+	}
+	// The wall clock of the time's own location counts.
+	w, _, _ := ParseQuiet("22:00-07:00")
+	if berlin := time.FixedZone("CET", 3600); !w.Contains(time.Date(2026, 1, 1, 21, 30, 0, 0, time.UTC).In(berlin)) {
+		t.Error("22:30 CET is not in 22:00-07:00")
+	}
+}
+
+// A v0.4 config has no quiet hours, digest or templates: leaving them unset
+// or at their defaults changes neither the hash nor the written file.
+func TestHashWithoutHoldSettingsIsUnchanged(t *testing.T) {
+	b, err := json.Marshal(Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{`"Quiet"`, `"BreakThrough"`, `"TaskDoneDigest"`, `"Template"`} {
+		if strings.Contains(string(b), key) {
+			t.Errorf("config JSON has %s: %s", key, b)
+		}
+	}
+	path := filepath.Join(t.TempDir(), "igris.toml")
+	if err := Write(path, Default()); err != nil {
+		t.Fatal(err)
+	}
+	if data, err := os.ReadFile(path); err != nil || strings.Contains(string(data), "quiet") || strings.Contains(string(data), "break_through") || strings.Contains(string(data), "digest") || strings.Contains(string(data), " template =") { //nolint:gosec // the test's own temp file
+		t.Errorf("written default config has a v0.5 notify key (%v):\n%s", err, data)
+	}
+	for _, src := range []string{
+		"[notify]\n", "[notify]\nquiet = \"\"\n", "[notify]\ntask_done_digest = 0\n", "[notify]\ntask_done_digest = 1\n",
+		"[notify]\nbreak_through = [\"needs_input\", \"session_lost\", \"task_overdue\"]\n",
+		"[notify.ntfy]\ntemplate = \"\"\n[notify.discord]\ntemplate = \"\"\n",
+		"[notify.webhook]\ntemplate = \"{{.Event}}\"\n", // no url: not set up
+	} {
+		c, err := Parse([]byte(src), "igris.toml")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c.Hash() != Default().Hash() {
+			t.Errorf("%q changed the hash", src)
+		}
+	}
+	for _, src := range []string{
+		"[notify]\nquiet = \"22:00-07:00\"\n", "[notify]\nbreak_through = []\n", "[notify]\nbreak_through = [\"needs_input\"]\n",
+		"[notify]\nbreak_through = [\"session_lost\", \"needs_input\", \"task_overdue\"]\n",
+		"[notify]\ntask_done_digest = 2\n", "[notify]\ntask_done_digest = \"phase\"\n",
+		"[notify.ntfy]\ntemplate = \"{{.Event}}\"\n", "[notify.discord]\ntemplate = \"{{.Event}}\"\n",
+		"[notify.slack]\nwebhook_url = \"env:S\"\ntemplate = \"{{.Event}}\"\n",
+	} {
+		c, err := Parse([]byte(src), "igris.toml")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c.Hash() == Default().Hash() {
+			t.Errorf("%q left the hash unchanged", src)
+		}
+	}
+}
+
+func TestWriteRoundTripsHoldSettings(t *testing.T) {
+	for _, tt := range []struct{ src, want, absent string }{
+		{"[notify]\nquiet = \"22:00-07:00\"\ntask_done_digest = \"phase\"\nbreak_through = []\n", "task_done_digest = \"phase\"", ""},
+		{"[notify]\ntask_done_digest = 5\nbreak_through = [\"needs_input\"]\n", "task_done_digest = 5", ""},
+		{"[notify]\nbreak_through = [\"needs_input\", \"session_lost\", \"task_overdue\"]\n", "", "break_through"},
+		{"[notify.ntfy]\ntopic = \"t\"\ntemplate = \"{{.TaskID}}: {{.What}}\"\n[notify.gotify]\nserver = \"https://g\"\ntoken = \"env:T\"\ntemplate = \"{{.Event}}\"\n", "template = \"{{.TaskID}}: {{.What}}\"", ""},
+	} {
+		want, err := Parse([]byte(tt.src), "igris.toml")
+		if err != nil {
+			t.Fatal(err)
+		}
+		path := filepath.Join(t.TempDir(), "igris.toml")
+		if err := Write(path, want); err != nil {
+			t.Fatal(err)
+		}
+		data, _ := os.ReadFile(path) //nolint:gosec // a temp file
+		if !strings.Contains(string(data), tt.want) || (tt.absent != "" && strings.Contains(string(data), tt.absent)) {
+			t.Errorf("written:\n%s\nwant %q, not %q", data, tt.want, tt.absent)
+		}
+		got, err := Load(path)
+		if err != nil {
+			t.Fatalf("Load after Write: %v\n%s", err, data)
+		}
+		if got.Hash() != want.Hash() {
+			t.Errorf("round trip of %q changed the config:\n%s", tt.src, data)
+		}
 	}
 }

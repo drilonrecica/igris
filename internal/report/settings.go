@@ -101,17 +101,30 @@ func NewSettings(cfg *config.Config, keys config.Keys, getenv func(string) strin
 	set(tui, "tail", strconv.FormatBool(cfg.TUI.Tail))
 	table("tui.rank_colors", cfg.TUI.RankColors)
 
+	no := sec("notify")
+	set(no, "quiet", tomlString(cfg.Notify.Quiet))
+	set(no, "break_through", tomlArray(cfg.Notify.BreakThroughEvents()))
+	set(no, "task_done_digest", cfg.Notify.TaskDoneDigest.String())
+
 	set(sec("notify.backend"), "enabled", strconv.FormatBool(cfg.Notify.Backend.Enabled))
+	// A channel's template is shown only when set: most have none.
+	template := func(s *SettingsSection, text string) {
+		if text != "" {
+			set(s, "template", tomlString(text))
+		}
+	}
 
 	nt := sec("notify.ntfy")
 	set(nt, "server", tomlString(redactURL(cfg.Notify.Ntfy.Server)))
 	set(nt, "topic", tomlString(cfg.Notify.Ntfy.Topic))
 	secret(nt, "token", cfg.Notify.Ntfy.Token)
 	set(nt, "events", tomlArray(cfg.Notify.Ntfy.Events))
+	template(nt, cfg.Notify.Ntfy.Template)
 
 	dc := sec("notify.discord")
 	secret(dc, "webhook_url", cfg.Notify.Discord.WebhookURL)
 	set(dc, "events", tomlArray(cfg.Notify.Discord.Events))
+	template(dc, cfg.Notify.Discord.Template)
 
 	// The v0.5 channels are shown only when set up, like [hooks]: most
 	// configs have none of them.
@@ -120,17 +133,20 @@ func NewSettings(cfg *config.Config, keys config.Keys, getenv func(string) strin
 		secret(wh, "url", cfg.Notify.Webhook.URL)
 		secret(wh, "secret", cfg.Notify.Webhook.Secret)
 		set(wh, "events", tomlArray(cfg.Notify.Webhook.Events))
+		template(wh, cfg.Notify.Webhook.Template)
 	}
 	if !cfg.Notify.Slack.IsZero() {
 		sl := sec("notify.slack")
 		secret(sl, "webhook_url", cfg.Notify.Slack.WebhookURL)
 		set(sl, "events", tomlArray(cfg.Notify.Slack.Events))
+		template(sl, cfg.Notify.Slack.Template)
 	}
 	if !cfg.Notify.Gotify.IsZero() {
 		gt := sec("notify.gotify")
 		set(gt, "server", tomlString(redactURL(cfg.Notify.Gotify.Server)))
 		secret(gt, "token", cfg.Notify.Gotify.Token)
 		set(gt, "events", tomlArray(cfg.Notify.Gotify.Events))
+		template(gt, cfg.Notify.Gotify.Template)
 	}
 	return out
 }

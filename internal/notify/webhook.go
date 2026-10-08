@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"text/template"
 	"time"
 )
 
@@ -23,14 +24,16 @@ type Webhook struct {
 	// "sha256=" + the lowercase hex HMAC-SHA256 of the raw body.
 	Secret string
 	HTTP   *http.Client // nil means a default client
+	// Template, when set, makes the payload's text (SPEC §10).
+	Template *template.Template
 }
 
 // Name implements Channel.
 func (*Webhook) Name() string { return "webhook" }
 
-// webhookPayload is the body, version 1. Every key is always present ("" when
-// unknown), so receivers need no optional handling.
-type webhookPayload struct {
+// webhookFields are the keys of every payload, version 1. Every key is
+// always present ("" when unknown), so receivers need no optional handling.
+type webhookFields struct {
 	V       int    `json:"v"`
 	Event   string `json:"event"`
 	Project string `json:"project"`
@@ -41,12 +44,18 @@ type webhookPayload struct {
 	Run     string `json:"run"`
 	At      string `json:"at"` // RFC 3339 UTC
 	Urgent  bool   `json:"urgent"`
-	Text    string `json:"text"`
 }
 
-// webhookBody encodes m as the version 1 payload.
-func webhookBody(m Message) ([]byte, error) {
-	p := webhookPayload{
+// webhookPayload is the body: the fields, the text and, for a digest, the
+// held messages it stands for.
+type webhookPayload struct {
+	webhookFields
+	Text     string          `json:"text"`
+	Messages []webhookFields `json:"messages,omitempty"`
+}
+
+func webhookFieldsOf(m Message) webhookFields {
+	f := webhookFields{
 		V:       1,
 		Event:   string(m.Event),
 		Project: m.Project,
@@ -56,12 +65,33 @@ func webhookBody(m Message) ([]byte, error) {
 		What:    m.What,
 		Run:     m.RunID,
 		Urgent:  m.Event.Urgent(),
-		Text:    cutRunes(m.Body(), webhookLimit),
 	}
 	if !m.At.IsZero() {
-		p.At = m.At.UTC().Format(time.RFC3339)
+		f.At = m.At.UTC().Format(time.RFC3339)
+	}
+	return f
+}
+
+// webhookBody encodes m as the version 1 payload with text as its text. A
+// digest has empty task, title and what, and lists its messages.
+func webhookBody(m Message, text string) ([]byte, error) {
+	p := webhookPayload{webhookFields: webhookFieldsOf(m), Text: text}
+	if m.Event == Digest {
+		p.Task, p.Title, p.What = "", "", ""
+		p.Messages = make([]webhookFields, len(m.Held))
+		for i, h := range m.Held {
+			p.Messages[i] = webhookFieldsOf(h)
+		}
 	}
 	return json.Marshal(p)
+}
+
+// text is the payload's text: the template's, else the message body.
+func (w *Webhook) text(m Message) string {
+	if s := templated(w.Template, m, cutTo(webhookLimit)); s != "" {
+		return s
+	}
+	return cutRunes(m.Body(), webhookLimit)
 }
 
 // webhookSignature is the X-Igris-Signature value for body.
@@ -73,7 +103,7 @@ func webhookSignature(secret string, body []byte) string {
 
 // Send implements Channel.
 func (w *Webhook) Send(ctx context.Context, m Message) error {
-	body, err := webhookBody(m)
+	body, err := webhookBody(m, w.text(m))
 	if err != nil {
 		return fmt.Errorf("encode webhook payload: %w", err)
 	}

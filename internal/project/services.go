@@ -205,7 +205,7 @@ func (s *Services) Adapt(ctx context.Context, model string, out io.Writer, opene
 		Model:    model,
 		Backend:  be,
 		State:    dir,
-		Notifier: notify.FromConfig(p.Cfg.Notify, secrets, be),
+		Notifier: notify.FromConfig(p.Cfg.Notify, secrets, be, notify.Immediate), // adapt never flushes, so nothing may be held
 		Clock:    clock,
 		Out:      out,
 		Opened:   opened,

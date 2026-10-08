@@ -182,11 +182,13 @@ func (e *Engine) stopping(ctx context.Context) bool {
 
 // wait blocks for d, or less if a command arrives or ctx ends. Every loop
 // that waits goes through here, so commands are never left sitting for a
-// whole poll interval.
+// whole poll interval, and quiet-hours digests go out when the window ends
+// even while the run waits on the owner.
 func (e *Engine) wait(ctx context.Context, d time.Duration) {
 	select {
 	case <-ctx.Done():
 	case <-e.wake:
 	case <-e.clock.After(d):
 	}
+	e.flushHeld(ctx)
 }

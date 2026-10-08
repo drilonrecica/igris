@@ -95,6 +95,18 @@ type Notifier interface {
 	Notify(ctx context.Context, m notify.Message) []notify.Result
 }
 
+// Holder is the part of a Notifier that holds messages back (quiet hours,
+// the task_done digest, SPEC §10) until the engine asks it to send them;
+// *notify.Router has it. A Notifier without it sends everything at once.
+type Holder interface {
+	// Flush sends the quiet-hours digests once the window is over.
+	Flush(ctx context.Context) []notify.Result
+	// FlushTasks sends the collected task_done messages (a phase ended).
+	FlushTasks(ctx context.Context) []notify.Result
+	// FlushAll sends everything still held (the run stops).
+	FlushAll(ctx context.Context) []notify.Result
+}
+
 // Outcome says how a run ended.
 type Outcome int
 
@@ -176,6 +188,9 @@ type Engine struct {
 	// runID is the run's ID in the run log, runStart when it began (SPEC §13).
 	runID    string
 	runStart time.Time
+	// lastFlush is when the notifier was last asked to send what quiet
+	// hours held (flushHeld).
+	lastFlush time.Time
 	// yoloDeferred: the interrupted task runs in skip-permissions mode and
 	// has a pending reset, so its yolo check waits until that is answered.
 	yoloDeferred bool
@@ -209,7 +224,8 @@ func New(opts Options) (*Engine, error) {
 		return nil, fmt.Errorf("engine: %w", err)
 	}
 	if opts.Notifier == nil {
-		opts.Notifier = notify.FromConfig(opts.Config.Notify, opts.Secrets, opts.Backend)
+		// Quiet hours go by the run's clock.
+		opts.Notifier = notify.FromConfig(opts.Config.Notify, opts.Secrets, opts.Backend, func(o *notify.Options) { o.Now = opts.Clock.Now })
 	}
 	root := opts.State.Root()
 	e := &Engine{
@@ -291,6 +307,9 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 		e.emit(Event{Kind: RunFailed, Detail: err.Error()})
 		e.toast(ctx, notifyRunError, "the run stopped with an error")
 	}
+	// igris can't hold messages once it exits: what is left goes out now,
+	// even when the owner's stop cancelled ctx.
+	e.flushAll(context.WithoutCancel(ctx))
 	e.logRun(state.Event{Type: state.EventRunStopped, Detail: detail, DurationMS: e.sinceMS(e.runStart)})
 	e.emit(Event{Kind: RunStopped, Detail: detail})
 	return res, err
@@ -501,6 +520,12 @@ func (e *Engine) runPhases(ctx context.Context, phases []string) (Result, error)
 		e.emit(Event{Kind: PhaseStarted})
 		var err error
 		res, err = e.runPhase(ctx, id)
+		// The phase is over: task_done messages collected for a digest go
+		// out before the run moves on (runPhase sends them before
+		// phase_done or phase_stuck).
+		if err == nil && res.Outcome == Completed {
+			e.flushTasks(ctx)
+		}
 		notRun = append(notRun, res.NotRun...)
 		res.NotRun = notRun
 		if err != nil || res.Outcome != Completed {
@@ -564,6 +589,7 @@ func (e *Engine) runPhase(ctx context.Context, id string) (Result, error) {
 			// The slice may be done in a phase that is not (SPEC §5.5).
 			if whole, err := p.Select(id); err == nil && whole.Outcome == plan.Complete {
 				e.emit(Event{Kind: PhaseDone})
+				e.flushTasks(ctx)
 				e.toast(ctx, notifyPhaseDone, "complete")
 			}
 			return res, nil
@@ -577,6 +603,7 @@ func (e *Engine) runPhase(ctx context.Context, id string) (Result, error) {
 			}
 			res.Outcome, res.Waiting = Stuck, sel.Waiting
 			e.emit(Event{Kind: PhaseStuck, Waiting: sel.Waiting, Detail: waitText(sel.Waiting)})
+			e.flushTasks(ctx)
 			e.toast(ctx, notifyPhaseStuck, fmt.Sprintf("stuck: %d unfinished task(s), none can start", len(sel.Waiting)))
 			return res, nil
 		}

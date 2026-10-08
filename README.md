@@ -309,7 +309,26 @@ The webhook POSTs JSON with every key present (`""` when unknown): `{"v":1,"even
 
 Messages carry the project, phase, task ID and title and the event, never file contents, diffs or command output. Each channel has a 10 s timeout and one retry; a channel that fails is shown as a warning and never stops the run. Secrets (the ntfy and Gotify tokens, the Discord, Slack and webhook URLs, the webhook secret) can be `env:VAR_NAME` references, are never logged, and are scrubbed from error messages. ntfy sends urgent events (`needs_input`, `session_lost`, `task_overdue`) at high priority; Gotify sends them at priority 8, `task_done` at 3 and everything else at 5. Slack messages have `&`, `<` and `>` escaped, so a task title can't ping `@channel` or add links.
 
-Check your setup with `igris notify test`: it sends a sample of each event to every configured channel (the herdr or tmux toast too, when run inside one) and prints `ok` or the reason for each failure. `--event needs_input` sends just one.
+### Templates, quiet hours and digests
+
+Every channel but the toast takes a `template` (Go `text/template`) that replaces the message text: the ntfy body, the Discord `content`, the Slack `text` (still escaped), the Gotify `message`, the webhook's `text`. The variables are `.Event`, `.Project`, `.Phase`, `.TaskID`, `.Title`, `.What`, `.RunID` and `.At` (local time), nothing else. A template is tried on a sample message when `igris.toml` loads, so a typo is a config error that names the channel, not a silent failure at night. Output is cleaned of control characters and cut to the channel's limit; an empty result falls back to the default text.
+
+```toml
+[notify]
+quiet = "22:00-07:00"             # local time, may cross midnight; "" (the default) is off
+break_through = ["needs_input", "session_lost", "task_overdue"]   # the default: never held
+task_done_digest = 5              # 0 (default): one task_done message per task; N: one per N tasks; "phase": one per phase
+
+[notify.ntfy]
+topic = "my-igris-topic"
+template = "{{.At.Format \"15:04\"}} {{.TaskID}} {{.What}}"
+```
+
+During quiet hours, messages to ntfy, Discord, Slack, Gotify and the webhook are held, except the `break_through` events (`[]` holds everything); the herdr or tmux toast is never held. When the window ends — igris checks at every poll, also while it waits on your answer — each channel gets one digest: `quiet hours 22:00–07:00: N held` and a line `HH:MM <event>: <text>` per held message (at most 20, then `… and K more`; templates don't apply to it). Whatever is still held when the run stops is sent as a digest then. The webhook sends a digest as `"event":"digest"` with a `messages` array of the held payloads.
+
+With `task_done_digest`, a channel's `task_done` messages are collected and sent as one, `3 tasks done: M1-01, M1-02, M1-03`, when N are collected, when the phase ends (before its `phase_done`) and when the run stops; templates apply to it, and in quiet hours it is held like any `task_done`. The run log (`runs.jsonl`) records held messages and digests.
+
+Check your setup with `igris notify test`: it sends a sample of each event to every configured channel (the herdr or tmux toast too, when run inside one) and prints `ok` or the reason for each failure; it ignores quiet hours and `task_done_digest`. `--event needs_input` sends just one.
 
 ## Home screen
 

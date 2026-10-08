@@ -217,8 +217,18 @@ type TUI struct {
 	Tail bool `toml:"tail"`
 }
 
-// Notify groups the notification channels.
+// Notify groups the notification channels and the settings that hold
+// messages back (SPEC §10).
 type Notify struct {
+	// Quiet is the quiet-hours window, "HH:MM-HH:MM" local time; "" is
+	// none. Quiet, BreakThrough and TaskDoneDigest are left out of the hash
+	// while unset or default, so a v0.4 config keeps its hash.
+	Quiet string `toml:"quiet,omitempty" json:",omitempty"`
+	// BreakThrough lists the events never held in quiet hours. Write
+	// leaves the default list out, like a channel's events.
+	BreakThrough   BreakThrough   `toml:"break_through" json:",omitzero"`
+	TaskDoneDigest TaskDoneDigest `toml:"task_done_digest,omitzero" json:",omitzero"`
+
 	Backend NotifyBackend `toml:"backend"`
 	Ntfy    Ntfy          `toml:"ntfy"`
 	Discord Discord       `toml:"discord"`
@@ -244,19 +254,24 @@ type Ntfy struct {
 	// (Write), so default events added later reach the config. An empty
 	// list is written: it turns the channel's events off.
 	Events []string `toml:"events"`
+	// Template replaces the message text (SPEC §10); "" is the default
+	// text. Left out of the hash when unset, on every channel.
+	Template string `toml:"template,omitempty" json:",omitempty"`
 }
 
 // Discord is the Discord webhook channel.
 type Discord struct {
 	WebhookURL string   `toml:"webhook_url"`
-	Events     []string `toml:"events"` // see Ntfy.Events
+	Events     []string `toml:"events"`                               // see Ntfy.Events
+	Template   string   `toml:"template,omitempty" json:",omitempty"` // see Ntfy.Template
 }
 
 // Webhook is the generic webhook channel (SPEC §10).
 type Webhook struct {
-	URL    string   `toml:"url"`
-	Secret string   `toml:"secret"`
-	Events []string `toml:"events"` // see Ntfy.Events
+	URL      string   `toml:"url"`
+	Secret   string   `toml:"secret"`
+	Events   []string `toml:"events"`                               // see Ntfy.Events
+	Template string   `toml:"template,omitempty" json:",omitempty"` // see Ntfy.Template
 }
 
 // IsZero reports that the channel is not set up: no url and no secret,
@@ -266,7 +281,8 @@ func (w Webhook) IsZero() bool { return w.URL == "" && w.Secret == "" }
 // Slack is the Slack incoming-webhook channel (SPEC §10).
 type Slack struct {
 	WebhookURL string   `toml:"webhook_url"`
-	Events     []string `toml:"events"` // see Ntfy.Events
+	Events     []string `toml:"events"`                               // see Ntfy.Events
+	Template   string   `toml:"template,omitempty" json:",omitempty"` // see Ntfy.Template
 }
 
 // IsZero reports that the channel is not set up (no webhook_url).
@@ -274,9 +290,10 @@ func (s Slack) IsZero() bool { return s.WebhookURL == "" }
 
 // Gotify is the Gotify channel (SPEC §10).
 type Gotify struct {
-	Server string   `toml:"server"`
-	Token  string   `toml:"token"`
-	Events []string `toml:"events"` // see Ntfy.Events
+	Server   string   `toml:"server"`
+	Token    string   `toml:"token"`
+	Events   []string `toml:"events"`                               // see Ntfy.Events
+	Template string   `toml:"template,omitempty" json:",omitempty"` // see Ntfy.Template
 }
 
 // IsZero reports that the channel is not set up: no server and no token.
@@ -361,12 +378,13 @@ func Default() *Config {
 		Adapt: Adapt{Model: "sonnet"},
 		TUI:   TUI{Mouse: true, Theme: "auto", RankColors: map[string]string{}, Tail: true},
 		Notify: Notify{
-			Backend: NotifyBackend{Enabled: true},
-			Ntfy:    Ntfy{Server: "https://ntfy.sh", Events: defaultEvents()},
-			Discord: Discord{Events: defaultEvents()},
-			Webhook: Webhook{Events: defaultEvents()},
-			Slack:   Slack{Events: defaultEvents()},
-			Gotify:  Gotify{Events: defaultEvents()},
+			BreakThrough: defaultBreakThrough(),
+			Backend:      NotifyBackend{Enabled: true},
+			Ntfy:         Ntfy{Server: "https://ntfy.sh", Events: defaultEvents()},
+			Discord:      Discord{Events: defaultEvents()},
+			Webhook:      Webhook{Events: defaultEvents()},
+			Slack:        Slack{Events: defaultEvents()},
+			Gotify:       Gotify{Events: defaultEvents()},
 		},
 	}
 }
@@ -527,6 +545,7 @@ func (c *Config) Validate() error {
 	}
 
 	c.validateChannels(add)
+	c.validateNotify(add)
 
 	return errors.Join(errs...)
 }
@@ -669,6 +688,9 @@ func (c *Config) Resolve(getenv func(string) string) (Secrets, error) {
 // out, so the file follows the default when a later version adds an event.
 func Write(path string, c *Config) error {
 	out := *c
+	if out.Notify.BreakThrough.IsZero() {
+		out.Notify.BreakThrough = nil
+	}
 	if slices.Equal(out.Notify.Ntfy.Events, defaultEvents()) {
 		out.Notify.Ntfy.Events = nil
 	}

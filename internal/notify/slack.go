@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"text/template"
 	"unicode/utf8"
 )
 
@@ -18,6 +19,9 @@ const slackLimit = 4000
 type Slack struct {
 	WebhookURL string
 	HTTP       *http.Client // nil means a default client
+	// Template, when set, makes the text; it is escaped like the default
+	// (SPEC §10).
+	Template *template.Template
 }
 
 // Name implements Channel.
@@ -25,9 +29,13 @@ func (*Slack) Name() string { return "slack" }
 
 // Send implements Channel with one short `text` message.
 func (s *Slack) Send(ctx context.Context, m Message) error {
+	text := slackText(m)
+	if s := templated(s.Template, m, func(s string) string { return s }); s != "" {
+		text = slackEscape(s, slackLimit)
+	}
 	body, err := json.Marshal(struct {
 		Text string `json:"text"`
-	}{slackText(m)})
+	}{text})
 	if err != nil {
 		return fmt.Errorf("encode slack message: %w", err)
 	}
@@ -50,13 +58,16 @@ func (s *Slack) Send(ctx context.Context, m Message) error {
 
 // slackText is "*igris · project* · <body> (event)" with Slack's control
 // characters escaped, so a plan title can't mention <!channel> or make a
-// link, cut to slackLimit characters without splitting an escape.
+// link, cut to slackLimit characters without splitting an escape. A digest
+// goes without the "(event)".
 func slackText(m Message) string {
 	s := "*" + m.Subject() + "*"
 	if b := m.Body(); b != "" {
 		s += " · " + b
 	}
-	s += " (" + string(m.Event) + ")"
+	if m.Event != Digest {
+		s += " (" + string(m.Event) + ")"
+	}
 	return slackEscape(s, slackLimit)
 }
 

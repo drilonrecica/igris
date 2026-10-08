@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
+	"text/template"
 )
 
 // gotifyLimit is igris's cap on a Gotify message, in characters.
@@ -19,6 +21,8 @@ type Gotify struct {
 	Server string // base URL, e.g. https://gotify.example.org
 	Token  string
 	HTTP   *http.Client // nil means a default client
+	// Template, when set, makes the message (SPEC §10).
+	Template *template.Template
 }
 
 // Name implements Channel.
@@ -30,13 +34,18 @@ type gotifyPayload struct {
 	Priority int    `json:"priority"`
 }
 
-// Send implements Channel: the title is the subject, the message the body,
-// and the priority follows how urgent the event is.
+// Send implements Channel: the title is the subject, the message the body
+// (or the template's text), and the priority follows how urgent the event
+// is.
 func (g *Gotify) Send(ctx context.Context, m Message) error {
+	text := cutRunes(m.Body(), gotifyLimit)
+	if s := templated(g.Template, m, cutTo(gotifyLimit)); s != "" {
+		text = s
+	}
 	body, err := json.Marshal(gotifyPayload{
 		Title:    m.Subject(),
-		Message:  cutRunes(m.Body(), gotifyLimit),
-		Priority: gotifyPriority(m.Event),
+		Message:  text,
+		Priority: gotifyPriority(m),
 	})
 	if err != nil {
 		return fmt.Errorf("encode gotify message: %w", err)
@@ -63,13 +72,16 @@ func (g *Gotify) Send(ctx context.Context, m Message) error {
 	return nil
 }
 
-// gotifyPriority maps an event to Gotify's 0-10 scale (decision V05-P1):
-// 8 when the owner is needed now, 3 for a finished task, 5 for the rest.
-func gotifyPriority(ev Event) int {
+// gotifyPriority maps a message to Gotify's 0-10 scale (decision V05-P1):
+// 8 when the owner is needed now, 3 for a finished task (and a digest of
+// finished tasks only), 5 for the rest, other digests included.
+func gotifyPriority(m Message) int {
 	switch {
-	case ev.Urgent():
+	case m.Event.Urgent():
 		return 8
-	case ev == TaskDone:
+	case m.Event == TaskDone:
+		return 3
+	case m.Event == Digest && len(m.Held) > 0 && !slices.ContainsFunc(m.Held, func(h Message) bool { return h.Event != TaskDone }):
 		return 3
 	}
 	return 5

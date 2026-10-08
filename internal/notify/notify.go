@@ -1,6 +1,8 @@
 // Package notify delivers igris events to the owner's channels (SPEC §10):
-// the backend toast, ntfy and Discord. Delivery is best effort: every channel
-// gets a 10 s timeout and one retry, and a failure is reported, never fatal.
+// the backend toast, ntfy, Discord, a webhook, Slack and Gotify. Delivery is
+// best effort: every channel gets a 10 s timeout and one retry, and a
+// failure is reported, never fatal. Quiet hours and the task_done digest
+// hold messages back per channel until a flush sends them.
 package notify
 
 import (
@@ -10,6 +12,8 @@ import (
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	"github.com/drilonrecica/igris/internal/config"
 )
 
 // Event is a SPEC §10 notification event.
@@ -26,6 +30,10 @@ const (
 	PhaseStuck        Event = "phase_stuck"
 	RunError          Event = "run_error"
 )
+
+// Digest is the event of a quiet-hours digest: the messages one channel
+// held, sent as one (SPEC §10). It is no config event.
+const Digest Event = "digest"
 
 // AllEvents lists every event.
 var AllEvents = []Event{NeedsInput, SessionLost, TaskOverdue, VerifyFailedLimit, TaskDone, PhaseDone, PhaseStuck, RunError}
@@ -48,6 +56,9 @@ type Message struct {
 	What    string // what happened, in a few words
 	RunID   string // the run's ID in the run log (SPEC §13); "" outside a run
 	At      time.Time
+	// Held is set on a digest (Event Digest): the messages it stands for.
+	// What is then the digest's text.
+	Held []Message
 }
 
 // Subject is the short headline: "igris · <project>".
@@ -105,6 +116,9 @@ type Channel interface {
 type Entry struct {
 	Channel Channel
 	Events  []Event
+	// NeverHeld exempts the channel from quiet hours: the backend toast,
+	// which shows on the machine running igris, not a phone.
+	NeverHeld bool
 }
 
 func (e Entry) wants(ev Event) bool {
@@ -120,6 +134,10 @@ type Result struct {
 	Event   Event
 	// Err is nil on success; its text never contains a secret.
 	Err error
+	// Held says the message was held for quiet hours, not sent.
+	Held bool
+	// Count is how many held messages a digest (Event Digest) carried.
+	Count int
 }
 
 // Options configure a Router.
@@ -134,11 +152,34 @@ type Options struct {
 	// Sleep waits d or until ctx ends; nil uses a real timer. Tests inject
 	// a fake so nothing sleeps.
 	Sleep func(ctx context.Context, d time.Duration)
+
+	// Quiet is the quiet-hours window; nil means none. Inside it a message
+	// whose event is not in BreakThrough is held per channel (except for
+	// NeverHeld entries) and later sent as a digest (SPEC §10).
+	Quiet        *config.QuietWindow
+	BreakThrough []Event
+	// TaskDoneDigest groups task_done messages per channel.
+	TaskDoneDigest config.TaskDoneDigest
+	// Now is the clock quiet hours go by, in the location whose wall clock
+	// counts; nil means time.Now.
+	Now func() time.Time
 }
 
-// Router sends a message to every channel that wants its event.
+// Immediate turns quiet hours and the task_done digest off, for a router
+// whose messages must go out at once (`notify test`, `adapt`): pass it to
+// FromConfig.
+func Immediate(o *Options) {
+	o.Quiet, o.TaskDoneDigest = nil, 0
+}
+
+// Router sends a message to every channel that wants its event. It holds
+// what quiet hours and the task_done digest keep back until Flush,
+// FlushTasks or FlushAll sends it.
 type Router struct {
 	o Options
+
+	mu     sync.Mutex
+	queues []queue // per entry of o.Channels
 }
 
 // New returns a router for o.
@@ -152,7 +193,10 @@ func New(o Options) *Router {
 	if o.Sleep == nil {
 		o.Sleep = realSleep
 	}
-	return &Router{o: o}
+	if o.Now == nil {
+		o.Now = time.Now
+	}
+	return &Router{o: o, queues: make([]queue, len(o.Channels))}
 }
 
 func realSleep(ctx context.Context, d time.Duration) {
@@ -175,44 +219,51 @@ func (r *Router) Enabled(ev Event) bool {
 }
 
 // Notify delivers m to every channel that wants m.Event, in parallel, and
-// returns one Result per channel tried (in channel order). A failing channel
-// is retried once after RetryDelay; it never stops the others and Notify
-// itself never fails.
+// returns the Results in channel order: one per delivery, held message or
+// digest. A failing channel is retried once after RetryDelay; it never
+// stops the others and Notify itself never fails. A channel that collects
+// m for a task_done digest reports nothing yet.
 func (r *Router) Notify(ctx context.Context, m Message) []Result {
-	var results []Result
-	r.each(ctx, m, func(n int) { results = make([]Result, n) }, func(i int, res Result) { results[i] = res })
-	return results
+	return r.collect(ctx, r.route(m))
 }
 
-// NotifyEach delivers m as Notify does and calls fn with each channel's
-// Result as soon as that delivery is over, so the order is the order in
-// which they finish. fn is never called concurrently. NotifyEach returns
-// once every delivery is over.
+// NotifyEach delivers m as Notify does and calls fn with each Result as
+// soon as that delivery is over, so the order is the order in which they
+// finish. fn is never called concurrently. NotifyEach returns once every
+// delivery is over.
 func (r *Router) NotifyEach(ctx context.Context, m Message, fn func(Result)) {
-	r.each(ctx, m, func(int) {}, func(_ int, res Result) { fn(res) })
+	r.run(ctx, r.route(m), func(_ int, res Result) { fn(res) })
 }
 
-// each delivers m to the channels that want it in parallel. start learns
-// how many there are; done gets each Result with its channel's position,
-// one call at a time.
-func (r *Router) each(ctx context.Context, m Message, start func(n int), done func(i int, res Result)) {
-	var picked []Channel
-	for _, e := range r.o.Channels {
-		if e.wants(m.Event) {
-			picked = append(picked, e.Channel)
-		}
+// collect runs jobs and returns their Results in job order.
+func (r *Router) collect(ctx context.Context, jobs []job) []Result {
+	per := make([][]Result, len(jobs))
+	r.run(ctx, jobs, func(i int, res Result) { per[i] = append(per[i], res) })
+	var out []Result
+	for _, rs := range per {
+		out = append(out, rs...)
 	}
-	start(len(picked))
+	return out
+}
+
+// run sends each job's steps in order, the jobs in parallel. done gets
+// each Result with its job's position, one call at a time.
+func (r *Router) run(ctx context.Context, jobs []job, done func(i int, res Result)) {
 	var mu sync.Mutex
 	var wg sync.WaitGroup
-	for i, ch := range picked {
+	for i, j := range jobs {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			res := Result{Channel: ch.Name(), Event: m.Event, Err: r.deliver(ctx, ch, m)}
-			mu.Lock()
-			defer mu.Unlock()
-			done(i, res)
+			for _, s := range j.steps {
+				res := Result{Channel: j.ch.Name(), Event: s.m.Event, Held: s.hold, Count: len(s.m.Held)}
+				if !s.hold {
+					res.Err = r.deliver(ctx, j.ch, s.m)
+				}
+				mu.Lock()
+				done(i, res)
+				mu.Unlock()
+			}
 		}()
 	}
 	wg.Wait()
