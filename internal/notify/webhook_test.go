@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/url"
 	"strings"
 	"testing"
@@ -151,3 +152,31 @@ func (f failing) Send(context.Context, Message) error { return errorString(f.msg
 type errorString string
 
 func (e errorString) Error() string { return string(e) }
+
+// A digest lists at most maxWebhookMessages held messages and says how
+// many it left out.
+func TestWebhookDigestCapsMessages(t *testing.T) {
+	for _, tt := range []struct{ held, list, truncated int }{{3, 3, 0}, {maxWebhookMessages, maxWebhookMessages, 0}, {maxWebhookMessages + 10, maxWebhookMessages, 10}} {
+		d := Message{Event: Digest, Project: "p", What: "quiet hours: held"}
+		for i := range tt.held {
+			d.Held = append(d.Held, Message{Event: TaskDone, Project: "p", TaskID: fmt.Sprintf("M1-%02d", i)})
+		}
+		b, err := webhookBody(d, d.What)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var p map[string]any
+		if err := json.Unmarshal(b, &p); err != nil {
+			t.Fatal(err)
+		}
+		msgs, _ := p["messages"].([]any)
+		if len(msgs) != tt.list || p["truncated"] != float64(tt.truncated) {
+			t.Errorf("%d held: %d messages, truncated %v; want %d and %d", tt.held, len(msgs), p["truncated"], tt.list, tt.truncated)
+		}
+	}
+	// Not on other events.
+	b, _ := webhookBody(Message{Event: TaskDone}, "")
+	if strings.Contains(string(b), "truncated") || strings.Contains(string(b), "messages") {
+		t.Errorf("a plain payload has digest keys: %s", b)
+	}
+}

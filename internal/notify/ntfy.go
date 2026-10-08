@@ -30,7 +30,7 @@ func (*Ntfy) Name() string { return "ntfy" }
 // template's text), the title its subject, and urgent events get priority
 // high.
 func (n *Ntfy) Send(ctx context.Context, m Message) error {
-	body := m.Body()
+	body := cutBytes(m.Body(), ntfyLimit)
 	if s := templated(n.Template, m, func(s string) string { return cutBytes(s, ntfyLimit) }); s != "" {
 		body = s
 	}

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"text/template"
 )
 
@@ -36,7 +37,7 @@ type discordPayload struct {
 // Send implements Channel with one short plain `content` message.
 func (d *Discord) Send(ctx context.Context, m Message) error {
 	p := discordPayload{Content: discordContent(m)}
-	if s := templated(d.Template, m, cutTo(discordLimit)); s != "" {
+	if s := templated(d.Template, m, func(s string) string { return cutRunes(discordEscape(s), discordLimit) }); s != "" {
 		p.Content = s
 	}
 	p.AllowedMentions.Parse = []string{}
@@ -61,16 +62,23 @@ func (d *Discord) Send(ctx context.Context, m Message) error {
 	return nil
 }
 
-// discordContent is "**igris · project** · <body> (event)", cut to Discord's
-// limit on a character boundary. A digest goes without the "(event)": its
-// first line says what it is.
+// discordContent is "**igris · project** · <body> (event)", escaped
+// (discordEscape) and cut to Discord's limit on a character boundary. A
+// digest goes without the "(event)": its first line says what it is.
 func discordContent(m Message) string {
-	s := "**" + m.Subject() + "**"
+	s := "**" + discordEscape(m.Subject()) + "**"
 	if b := m.Body(); b != "" {
-		s += " · " + b
+		s += " · " + discordEscape(b)
 	}
 	if m.Event != Digest {
 		s += " (" + string(m.Event) + ")"
 	}
 	return cutRunes(s, discordLimit)
 }
+
+var discordEscaper = strings.NewReplacer(`\`, `\\`, "[", `\[`, "]", `\]`)
+
+// discordEscape puts a backslash before "[" and "]" (and before a
+// backslash, so a title can't undo one), so text from the plan can't make
+// a masked link, [text](url), that shows one address and opens another.
+func discordEscape(s string) string { return discordEscaper.Replace(s) }

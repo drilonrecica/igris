@@ -1,12 +1,14 @@
 package config
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"slices"
 	"strconv"
 	"strings"
 	"text/template"
+	tparse "text/template/parse"
 	"time"
 	"unicode/utf8"
 )
@@ -182,6 +184,9 @@ func ParseMessageTemplate(name, text string) (*template.Template, error) {
 	}
 	t, err := template.New(name).Option("missingkey=error").Parse(text)
 	if err == nil {
+		if action := loopOrCall(t); action != "" {
+			return nil, fmt.Errorf("%s uses {{%s}}; a notification template may use only variables, if/else and with (no range, define, template or block)", name, action)
+		}
 		_, err = ExecuteMessageTemplate(t, sampleVars)
 	}
 	if err != nil {
@@ -192,6 +197,48 @@ func ParseMessageTemplate(name, text string) (*template.Template, error) {
 		return nil, fmt.Errorf("%s: %w; %s", name, err, hint)
 	}
 	return t, nil
+}
+
+// loopOrCall names the first action of t that loops or calls a template
+// ("range", "define", "template"; a block is a define and a template), ""
+// when there is none. A template runs at every message, so it must stay a
+// few substitutions: a loop could spin the CPU for as long as it likes,
+// and nothing in a message is a list.
+func loopOrCall(t *template.Template) string {
+	if len(t.Templates()) > 1 {
+		return "define"
+	}
+	var walk func(n tparse.Node) string
+	walkList := func(l *tparse.ListNode) string {
+		if l == nil {
+			return ""
+		}
+		for _, n := range l.Nodes {
+			if a := walk(n); a != "" {
+				return a
+			}
+		}
+		return ""
+	}
+	walk = func(n tparse.Node) string {
+		switch n := n.(type) {
+		case *tparse.RangeNode:
+			return "range"
+		case *tparse.TemplateNode:
+			return "template"
+		case *tparse.IfNode:
+			return cmp.Or(walkList(n.List), walkList(n.ElseList))
+		case *tparse.WithNode:
+			return cmp.Or(walkList(n.List), walkList(n.ElseList))
+		case *tparse.ListNode:
+			return walkList(n)
+		}
+		return ""
+	}
+	if t.Tree == nil {
+		return ""
+	}
+	return walkList(t.Root)
 }
 
 // ExecuteMessageTemplate runs t on v. Output past 64 KiB is an error.

@@ -69,3 +69,35 @@ func TestDiscordErrorsHideTheWebhook(t *testing.T) {
 		t.Errorf("invalid URL error leaks the webhook: %v", err)
 	}
 }
+
+// A plan title can't make a masked link ([text](url)) in Discord, from the
+// default text or a template.
+func TestDiscordNeutralisesMaskedLinks(t *testing.T) {
+	m := Message{Event: TaskDone, Project: "p", TaskID: "X-1", Title: `see [docs](https://evil.test) \[x](y)`, What: "done"}
+	for _, tt := range []struct {
+		name string
+		d    *Discord
+	}{{"default", &Discord{}}, {"template", &Discord{Template: mustTemplate(t, "{{.Title}} [{{.TaskID}}](https://x.test)")}}} {
+		srv, got := serve(t, 204)
+		tt.d.WebhookURL = srv.URL
+		if err := tt.d.Send(context.Background(), m); err != nil {
+			t.Fatal(err)
+		}
+		var p struct{ Content string }
+		if err := json.Unmarshal([]byte(got.body), &p); err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(p.Content, " [docs](") || strings.Contains(p.Content, " [X-1](") || !strings.Contains(p.Content, `\[docs\](https://evil.test)`) {
+			t.Errorf("%s: content %q keeps a link", tt.name, p.Content)
+		}
+		// A backslash in the title can't undo the escape.
+		if strings.Contains(p.Content, `\[x](y)`) {
+			t.Errorf("%s: content %q", tt.name, p.Content)
+		}
+	}
+	// The cut still lands on the limit.
+	long := Message{Event: NeedsInput, Project: "p", TaskID: "X-1", Title: strings.Repeat("[", 3000)}
+	if n := utf8.RuneCountInString(discordContent(long)); n != discordLimit {
+		t.Errorf("%d characters, want %d", n, discordLimit)
+	}
+}

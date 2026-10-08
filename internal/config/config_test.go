@@ -200,7 +200,13 @@ func TestParseErrors(t *testing.T) {
 		{"template unknown function", "[notify.discord]\ntemplate = \"{{env .Event}}\"", []string{"notify.discord.template", `function "env" not defined`}},
 		{"template bad method call", "[notify.gotify]\ntemplate = \"{{.At.Nope}}\"", []string{"notify.gotify.template", "Nope"}},
 		{"template too long", "[notify.webhook]\ntemplate = \"" + strings.Repeat("x", 1001) + "\"", []string{"notify.webhook.template is 1001 characters long; keep it to 1000"}},
-		{"template runaway output", "[notify.webhook]\ntemplate = \"{{range 100000}}{{$.Event}}{{end}}\"", []string{"notify.webhook.template", "more than 64 KiB"}},
+		{"template runaway output", "[notify.webhook]\ntemplate = \"{{printf \\\"%0999999d\\\" 0}}\"", []string{"notify.webhook.template", "more than 64 KiB"}},
+		{"template range", "[notify.webhook]\ntemplate = \"{{range 100000}}{{$.Event}}{{end}}\"", []string{"notify.webhook.template uses {{range}}", "variables, if/else and with"}},
+		{"template range in if", "[notify.ntfy]\ntemplate = \"{{if .Event}}{{range 3}}x{{end}}{{end}}\"", []string{"notify.ntfy.template uses {{range}}"}},
+		{"template range in else of with", "[notify.ntfy]\ntemplate = \"{{with .Phase}}a{{else}}{{range 3}}x{{end}}{{end}}\"", []string{"notify.ntfy.template uses {{range}}"}},
+		{"template define", "[notify.slack]\ntemplate = \"{{define \\\"x\\\"}}a{{end}}b\"", []string{"notify.slack.template uses {{define}}"}},
+		{"template call", "[notify.gotify]\ntemplate = \"{{template \\\"x\\\"}}\"", []string{"notify.gotify.template uses {{template}}"}},
+		{"template block", "[notify.discord]\ntemplate = \"{{block \\\"x\\\" .}}a{{end}}\"", []string{"notify.discord.template uses {{"}},
 		{"quiet not a window", "[notify]\nquiet = \"22:00\"", []string{`notify.quiet = "22:00" is invalid`, "HH:MM-HH:MM"}},
 		{"quiet bad hour", "[notify]\nquiet = \"24:00-07:00\"", []string{`notify.quiet = "24:00-07:00" is invalid`}},
 		{"quiet bad minute", "[notify]\nquiet = \"22:60-07:00\"", []string{"notify.quiet"}},
@@ -914,6 +920,20 @@ func TestHTTPWarnings(t *testing.T) {
 			t.Errorf("%q: warnings %q, want none", tt.toml, got)
 		case tt.want != "" && (len(got) != 1 || got[0] != tt.want):
 			t.Errorf("%q: warnings %q, want %q", tt.toml, got, tt.want)
+		}
+	}
+}
+
+// if/else and with are fine in a template; only loops and template calls
+// are refused.
+func TestTemplateAllowsConditionals(t *testing.T) {
+	for _, text := range []string{
+		"{{if .TaskID}}{{.TaskID}}{{else}}{{.Phase}}{{end}}",
+		"{{with .Title}}{{.}}{{else}}-{{end}} {{if eq .Event \"task_done\"}}ok{{end}}",
+		"{{.At.Format \"15:04\"}} {{printf \"%s\" .What}}",
+	} {
+		if _, err := ParseMessageTemplate("notify.ntfy.template", text); err != nil {
+			t.Errorf("%q: %v", text, err)
 		}
 	}
 }

@@ -16,6 +16,10 @@ import (
 // webhookLimit is the cap on a webhook payload's text, in characters.
 const webhookLimit = 4000
 
+// maxWebhookMessages is the most held messages a digest lists; the rest
+// are counted in truncated.
+const maxWebhookMessages = 50
+
 // Webhook posts a JSON payload to any URL (SPEC §10). The URL and the
 // secret are secrets: neither is ever put into an error.
 type Webhook struct {
@@ -47,11 +51,13 @@ type webhookFields struct {
 }
 
 // webhookPayload is the body: the fields, the text and, for a digest, the
-// held messages it stands for.
+// held messages it stands for (at most maxWebhookMessages, the oldest) and
+// how many more it left out.
 type webhookPayload struct {
 	webhookFields
-	Text     string          `json:"text"`
-	Messages []webhookFields `json:"messages,omitempty"`
+	Text      string          `json:"text"`
+	Messages  []webhookFields `json:"messages,omitempty"`
+	Truncated *int            `json:"truncated,omitempty"`
 }
 
 func webhookFieldsOf(m Message) webhookFields {
@@ -78,10 +84,13 @@ func webhookBody(m Message, text string) ([]byte, error) {
 	p := webhookPayload{webhookFields: webhookFieldsOf(m), Text: text}
 	if m.Event == Digest {
 		p.Task, p.Title, p.What = "", "", ""
-		p.Messages = make([]webhookFields, len(m.Held))
-		for i, h := range m.Held {
+		held := m.Held[:min(len(m.Held), maxWebhookMessages)]
+		p.Messages = make([]webhookFields, len(held))
+		for i, h := range held {
 			p.Messages[i] = webhookFieldsOf(h)
 		}
+		more := len(m.Held) - len(held)
+		p.Truncated = &more
 	}
 	return json.Marshal(p)
 }

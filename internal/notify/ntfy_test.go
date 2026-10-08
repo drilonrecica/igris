@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 type captured struct {
@@ -79,5 +80,17 @@ func TestNtfyErrors(t *testing.T) {
 	err = (&Ntfy{Server: srv.URL, Topic: "topicsecret"}).Send(context.Background(), Message{Event: NeedsInput})
 	if err == nil || strings.Contains(err.Error(), srv.URL) {
 		t.Errorf("connection error = %v, want one without the URL", err)
+	}
+}
+
+// The default body is cut to ntfy's limit too, not only a template's.
+func TestNtfyCutsDefaultBody(t *testing.T) {
+	srv, got := serve(t, 200)
+	m := Message{Event: TaskDone, Project: "p", TaskID: "X-1", Title: strings.Repeat("é", 3000)}
+	if err := (&Ntfy{Server: srv.URL, Topic: "t"}).Send(context.Background(), m); err != nil {
+		t.Fatal(err)
+	}
+	if len(got.body) > ntfyLimit || !strings.HasSuffix(got.body, "…") || !utf8.ValidString(got.body) {
+		t.Errorf("body is %d bytes, want at most %d ending in …", len(got.body), ntfyLimit)
 	}
 }
