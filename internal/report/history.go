@@ -28,7 +28,9 @@ type HistoryInput struct {
 	Events []state.Event // from state.PeekLog, oldest first
 	// Unreadable counts the log's lines state.PeekLog skipped.
 	Unreadable int
-	N          int // runs to show; 0 or less means DefaultHistoryRuns
+	// Truncated says state.PeekLog read only the newest part of the log.
+	Truncated bool
+	N         int // runs to show; 0 or less means DefaultHistoryRuns
 	// Live says the lock is held by a live igris on this host, so a last run
 	// without a stop event is still running rather than interrupted.
 	Live bool
@@ -147,9 +149,13 @@ func NewTaskHistory(in HistoryInput, task string) TaskHistory {
 }
 
 // logNote is the note about the log: lines from a newer igris (a larger
-// "v"), lines that could not be read; "" when there is nothing to say.
+// "v"), lines that could not be read, a log read only in part; "" when
+// there is nothing to say.
 func logNote(in HistoryInput) string {
 	var notes []string
+	if in.Truncated {
+		notes = append(notes, fmt.Sprintf("runs.jsonl is over %d MiB; only its newest runs are read", state.MaxLogRead>>20))
+	}
 	v := 0
 	for _, e := range in.Events {
 		v = max(v, e.V)

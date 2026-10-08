@@ -7,10 +7,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
+	"syscall"
 	"time"
 
 	"github.com/drilonrecica/igris/internal/backend"
@@ -182,26 +184,73 @@ type Log struct {
 	// Unreadable counts the lines that were skipped: not JSON, not an
 	// event, or longer than MaxLogLine.
 	Unreadable int
+	// Truncated says the log is larger than MaxLogRead and only its last
+	// MaxLogRead bytes were read: older runs are missing.
+	Truncated bool
 }
 
 // MaxLogLine is the longest run log line read; longer ones are skipped.
 const MaxLogLine = 1 << 20
 
+// MaxLogRead is how much of the run log PeekLog reads: its last 16 MiB.
+const MaxLogRead = 16 << 20
+
 // PeekLog reads root/.igris/runs.jsonl without creating or changing
 // anything. It returns ErrNoLog if there is none. A line that can't be read
 // is skipped and counted, never an error, so one bad line can't hide the
 // rest of the history (SPEC §13); a cut-off last line is skipped without
-// being counted (igris may be writing it).
+// being counted (igris may be writing it). Sessions can write into
+// .igris/, so the log must be a regular file (a FIFO never blocks the
+// read), and only its last MaxLogRead bytes are read, without the line cut
+// at their start (SPEC §13).
 func PeekLog(root string) (Log, error) {
 	path := filepath.Join(root, DirName, "runs.jsonl")
-	data, err := os.ReadFile(path) //nolint:gosec // igris's own run log
+	data, truncated, err := readLogTail(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return Log{}, ErrNoLog
 	}
 	if err != nil {
 		return Log{}, fmt.Errorf("read run log: %w", err)
 	}
-	return parseEvents(data, path, false)
+	log, err := parseEvents(data, path, false)
+	log.Truncated = truncated
+	return log, err
+}
+
+// readLogTail reads the regular file at path, or its last MaxLogRead bytes
+// from the first line that starts in them; truncated says it was cut.
+func readLogTail(path string) (data []byte, truncated bool, err error) {
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NONBLOCK, 0) //nolint:gosec // igris's own run log
+	if err != nil {
+		return nil, false, err
+	}
+	defer func() { _ = f.Close() }()
+	info, err := f.Stat()
+	if err != nil {
+		return nil, false, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, false, fmt.Errorf("%s: not a regular file (%s)", path, info.Mode().Type())
+	}
+	off := info.Size() - MaxLogRead
+	if off <= 0 {
+		data, err = io.ReadAll(io.LimitReader(f, MaxLogRead))
+		return data, false, err
+	}
+	// One byte before the window tells whether it starts on a line.
+	if _, err := f.Seek(off-1, io.SeekStart); err != nil {
+		return nil, false, err
+	}
+	data, err = io.ReadAll(io.LimitReader(f, MaxLogRead+1))
+	if err != nil {
+		return nil, false, err
+	}
+	if i := bytes.IndexByte(data, '\n'); i >= 0 {
+		data = data[i+1:]
+	} else {
+		data = nil
+	}
+	return data, true, nil
 }
 
 // PeekEvents is PeekLog's events.

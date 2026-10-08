@@ -44,7 +44,7 @@ func HistoryInput(root string, n int) (report.HistoryInput, error) {
 	if err != nil && !errors.Is(err, state.ErrNoLog) {
 		return in, err
 	}
-	in.Events, in.Unreadable = log.Events, log.Unreadable
+	in.Events, in.Unreadable, in.Truncated = log.Events, log.Unreadable, log.Truncated
 	if l, err := state.PeekLock(root); err == nil {
 		in.Live = l.Alive && !l.Stale && !l.Unreadable
 	}

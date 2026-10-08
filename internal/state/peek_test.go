@@ -5,7 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 )
 
 // writeState writes .igris/<name> under a fresh root and returns the root.
@@ -140,6 +142,57 @@ func TestPeekLog(t *testing.T) {
 	root := writeState(t, "runs.jsonl", `{"v":2,"at":"2026-10-06T12:00:00Z","type":"task_started","task":"T2","attempt":{"n":1}}`+"\n")
 	if got, err := PeekEvents(root); err != nil || len(got) != 1 || got[0].Task != "T2" || got[0].Attempt != 0 || got[0].V != 2 {
 		t.Errorf("v2 line = %+v, %v; want its task kept and the attempt dropped", got, err)
+	}
+}
+
+// Sessions can write into .igris/: a FIFO or device in place of the run
+// log never blocks a reader and is an error, not a history.
+func TestPeekLogNotRegular(t *testing.T) {
+	root := writeState(t, "", "")
+	path := filepath.Join(root, DirName, "runs.jsonl")
+	if err := syscall.Mkfifo(path, 0o600); err != nil {
+		t.Skip("mkfifo:", err)
+	}
+	done := make(chan error, 1)
+	go func() {
+		_, err := PeekLog(root)
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err == nil || !strings.Contains(err.Error(), "not a regular file") {
+			t.Errorf("err = %v, want not a regular file", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("PeekLog blocked on a FIFO")
+	}
+}
+
+// A log over MaxLogRead is read from its last MaxLogRead bytes: the line
+// cut at the start is dropped without being counted, and Truncated says so.
+func TestPeekLogSizeCap(t *testing.T) {
+	line := func(task string) string {
+		return `{"v":1,"at":"2026-10-06T12:00:00Z","type":"task_started","task":"` + task + `","detail":"` + strings.Repeat("x", 1000) + `"}` + "\n"
+	}
+	var b strings.Builder
+	for b.Len() < MaxLogRead+3000 {
+		b.WriteString(line("OLD"))
+	}
+	b.WriteString(line("NEW"))
+	root := writeState(t, "runs.jsonl", b.String())
+	got, err := PeekLog(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.Truncated || got.Unreadable != 0 {
+		t.Errorf("Truncated = %v, Unreadable = %d; want true, 0", got.Truncated, got.Unreadable)
+	}
+	if n := len(got.Events); n == 0 || n >= strings.Count(b.String(), "\n") || got.Events[n-1].Task != "NEW" {
+		t.Errorf("read %d events; want the newest ones only, ending with NEW", n)
+	}
+	small := writeState(t, "runs.jsonl", line("A"))
+	if got, err := PeekLog(small); err != nil || got.Truncated || len(got.Events) != 1 {
+		t.Errorf("small log = %+v, %v; want 1 event, not truncated", got, err)
 	}
 }
 

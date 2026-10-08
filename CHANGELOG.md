@@ -6,7 +6,7 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [0.5.1] - 2026-10-08
 
-A patch for small bugs found at the v0.5 gate and its review: a first prompt that stays unsubmitted, blank tail rows, `report` help and completion, a second Ctrl-C, and an external interrupt that could hang the TUI. No change to the plan format, config keys or file formats.
+A patch for small bugs found at the v0.5 gate and its review: a first prompt that stays unsubmitted, blank tail rows, `report` help and completion, a second Ctrl-C, an external interrupt that could hang the TUI, and reading a FIFO or huge run log. No change to the plan format, config keys or file formats.
 
 ### Fixed
 
@@ -15,6 +15,7 @@ A patch for small bugs found at the v0.5 gate and its review: a first prompt tha
 - `igris report -h` and `igris history -h` show the positional `RUN` argument, and shell completion offers run IDs from `.igris/runs.jsonl` after `igris report`, newest first (SPEC §14).
 - A second Ctrl-C exits at once on every path: while `arise` or a run started from home winds down it prints `stopping… (Ctrl-C again to quit now)`, and `adapt` and `notify test` exit on a second SIGINT too (SPEC §13, §15).
 - An external SIGINT or SIGTERM (`kill -INT`, `kill`) no longer hangs the home screen, the run view or the `adapt` review now and then with the alternate screen left on: Bubble Tea's own signal handler is off, igris handles both signals itself.
+- Reading `.igris/runs.jsonl` (`history`, `report`, run-ID completion, the home screen, the ETA) no longer blocks on a FIFO in its place and no longer loads a huge log whole: the log must be a regular file, and only its last 16 MiB are read, with the note `runs.jsonl is over 16 MiB; only its newest runs are read` (SPEC §13, [`docs/runlog.md`](docs/runlog.md); a reader limit, the format is unchanged).
 
 ## [0.5.0] - 2026-10-08
 

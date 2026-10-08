@@ -42,7 +42,7 @@ _igris() {
 {{- else if eq .Pos.Kind "tasks"}}
         {{.Name}}) COMPREPLY=($(compgen -W "$(igris __complete tasks 2>/dev/null)" -- "$cur")) ;;
 {{- else if eq .Pos.Kind "runs"}}
-        {{.Name}}) COMPREPLY=($(compgen -W "$(igris __complete runs 2>/dev/null)" -- "$cur")) ;;
+        {{.Name}}) compopt -o nosort 2>/dev/null; COMPREPLY=($(compgen -W "$(igris __complete runs 2>/dev/null)" -- "$cur")) ;;
 {{- else if eq .Pos.Kind "values"}}
         {{.Name}}) COMPREPLY=($(compgen -W "{{range $i, $v := .Pos.Values}}{{if $i}} {{end}}{{$v}}{{end}}" -- "$cur")) ;;
 {{- end}}

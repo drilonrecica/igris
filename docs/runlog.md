@@ -9,6 +9,7 @@ Igris keeps a record of every run in `.igris/runs.jsonl` in the project root. `i
 - One JSON object per line (JSON Lines), UTF-8, ending in `\n`. Each line is written with a single `write`, so lines don't interleave.
 - After a crash the last line can be cut short. The next line igris appends starts with a newline of its own, so it is never glued to the cut one.
 - Readers skip every line they can't read (not JSON, not an event, a field of the wrong type in a v0/v1 line, or longer than 1 MiB) and go on with the rest; `history` and `report` then add the note `N unreadable lines in runs.jsonl skipped`. A cut-off last line without a newline is skipped silently (igris may be writing it).
+- Igris's readers open the log only if it is a regular file (a FIFO or device in its place is an error and never blocks) and read only its last 16 MiB, from the first whole line in them; `history` and `report` then add the note `runs.jsonl is over 16 MiB; only its newest runs are read`. This is a limit of igris's readers, not of the format.
 - No secrets, file contents, diffs or command output ever go into it. Verify and hook lines say why something failed, never what it printed.
 
 ## Fields

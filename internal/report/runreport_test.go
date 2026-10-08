@@ -170,4 +170,7 @@ func TestReportUnreadableNote(t *testing.T) {
 	if h := NewHistory(HistoryInput{Events: events, Unreadable: 1}); h.Note != "1 unreadable line in runs.jsonl skipped" {
 		t.Errorf("history note %q", h.Note)
 	}
+	if h := NewHistory(HistoryInput{Events: events, Truncated: true}); h.Note != "runs.jsonl is over 16 MiB; only its newest runs are read" {
+		t.Errorf("truncated history note %q", h.Note)
+	}
 }
