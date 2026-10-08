@@ -254,9 +254,9 @@ timeout = "2m"                             # per hook run, the default
 Each hook runs in the project root with your environment plus `IGRIS_TASK_ID`, `IGRIS_PHASE`, `IGRIS_RANK` (the plan's rank), `IGRIS_MODEL` (the resolved `--model` value) and, for `after_task`, `IGRIS_RESULT` (`done` or `skipped`). Hooks run for agent tasks only, never for user tasks or `adapt`, and `igris arise --dry-run` only says they would run.
 
 - `before_task` runs after the task is marked `in progress` and before its pane opens, for every session igris opens (also a retry); not when igris reattaches to a live session. If it fails (non-zero exit, timeout, or it can't be started), no session is opened: the task stays `in progress`, igris shows **Needs you** and sends `run_error`, and you choose to retry (which runs the hook again), mark the task done, skip it, or stop.
-- `after_task` runs once the task is marked `done` or `skipped` and its session is closed. A failure is a warning plus a `run_error` notification; the run goes on.
+- `after_task` runs once the task is marked `done` or `skipped` and its session is closed. A failure is a warning plus a `run_error` notification; the run goes on. It doesn't run for a task you reset, or one a stop leaves `in progress`.
 
-On a failure the TUI shows the last 20 lines of the hook's output (escape sequences stripped); the run log and notifications only get the short reason, such as `before_task hook failed: exit status 1`. An empty list means no hook; the first element is the program, and no element may contain a control character.
+The log shows when each hook starts. A hook passes when it exits 0, also if it leaves a helper running in the background; igris waits up to 2 s for the hook's output to close and drops what the helper prints after that, so redirect a background helper's output. On a failure the log (TUI and `--no-tui`) shows the last 20 lines of the hook's output (escape sequences stripped); the run log and notifications only get the short reason, such as `before_task hook failed: exit status 1` (or `timed out after 2m`, `not found`, `killed by signal 9 (killed)`, `can't start it`), never the command line. An empty list means no hook; the first element is the program, and no element may contain a control character.
 
 ## Modes
 

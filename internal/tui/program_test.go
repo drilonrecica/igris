@@ -244,3 +244,30 @@ func TestProgramShowsTheEnd(t *testing.T) {
 	tm, _ := program(t, 100, 30, started("M0-03"), engine.Event{Kind: engine.RunStopped, Detail: "completed"})
 	seen(t, tm, "the run stopped: completed")
 }
+
+// esc closes the before_task hook question but keeps it pending: Answer…
+// reopens it, and its Skip… doesn't claim a session is closed, since none
+// was opened (SPEC §6.7, §15.5).
+func TestProgramHookQuestionStaysPending(t *testing.T) {
+	tm, s := program(t, 100, 30, started("M0-03"),
+		engine.Event{Kind: engine.HookFailed, Task: "M0-03", Detail: "before_task hook failed: exit status 1"},
+		asked(engine.QuestionHookFailed, "the before_task hook of M0-03 failed"))
+	seen(t, tm, "M0-03: before_task hook failed")
+	key(tm, "esc")
+	seen(t, tm, "Answer…")
+	key(tm, "enter") // Answer… is the bar's first button
+	seen(t, tm, "4. Stop igris")
+	key(tm, "3") // Skip…
+	seen(t, tm, "Skip M0-03?")
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	m := finished(t, tm)
+	if m.asked == nil || m.asked.Question != engine.QuestionHookFailed {
+		t.Errorf("the hook question is no longer pending: %+v", m.asked)
+	}
+	if m.dialog == nil || strings.Contains(m.dialog.detail, "session is closed") {
+		t.Errorf("skip dialog = %+v, want no word of a session", m.dialog)
+	}
+	if got := s.take(); len(got) != 0 {
+		t.Errorf("sent %+v, want nothing", got)
+	}
+}

@@ -287,3 +287,31 @@ func TestExitErrorTrimsStderr(t *testing.T) {
 		t.Errorf("Error() = %q, want %q", got, want)
 	}
 }
+
+// A command that exits 0 but leaves a background child holding its output
+// open (`server &`, `docker compose up -d`) passed: after waitDelay the
+// pipes are closed and the output written until then is kept.
+func TestExecBackgroundChildKeepsOutputOpen(t *testing.T) {
+	defer func(d time.Duration) { waitDelay = d }(waitDelay)
+	waitDelay = 100 * time.Millisecond
+	for _, tt := range []struct {
+		script string
+		code   int
+	}{{"sleep 5 & echo started", 0}, {"sleep 5 & echo started; exit 3", 3}} {
+		res, err := Exec{}.Run(context.Background(), Shell(tt.script, "", 10*time.Second))
+		if err != nil || res.ExitCode != tt.code || string(res.Stdout) != "started\n" {
+			t.Errorf("%s: Run = code %d, stdout %q, %v; want code %d, the output, no error", tt.script, res.ExitCode, res.Stdout, err, tt.code)
+		}
+	}
+}
+
+// KilledBy names the signal that ended a process; other errors have none.
+func TestKilledBy(t *testing.T) {
+	_, err := Exec{}.Run(context.Background(), Shell("kill -9 $$", "", 10*time.Second))
+	if got, ok := KilledBy(err); !ok || got != "signal 9 (killed)" {
+		t.Errorf("KilledBy(%v) = %q, %v; want signal 9 (killed)", err, got, ok)
+	}
+	if _, ok := KilledBy(ErrTimeout); ok {
+		t.Error("KilledBy(ErrTimeout) reports a signal")
+	}
+}

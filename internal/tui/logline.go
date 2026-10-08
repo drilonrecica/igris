@@ -81,6 +81,8 @@ func logLines(ev engine.Event) []string {
 		return []string{"run mode for the next sessions: " + ev.Detail + badge(ev.Detail)}
 	case engine.TaskModeChanged:
 		return []string{"mode for " + id + "'s next session: " + ev.Detail + badge(ev.Detail)}
+	case engine.HookStarted:
+		return []string{id + " running " + ev.Detail + " hook…"}
 	case engine.HookFailed:
 		return hookLines(id, ev)
 	case engine.Warning:

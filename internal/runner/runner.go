@@ -17,9 +17,10 @@ import (
 // ErrTimeout is wrapped by Run's error when a command exceeds its timeout.
 var ErrTimeout = errors.New("command timed out")
 
-// waitDelay bounds how long Run waits for output pipes after the process is
-// killed, in case a leaked descendant still holds them open.
-const waitDelay = 2 * time.Second
+// waitDelay bounds how long Run waits for output pipes after the process
+// exited or was killed, in case a descendant still holds them open (a
+// backgrounded helper). A variable for tests.
+var waitDelay = 2 * time.Second
 
 // maxOutput is how much of each output stream Run keeps: the end of it. A
 // command that prints without end (a runaway verify) must not fill memory.
@@ -192,6 +193,10 @@ func (Exec) Run(ctx context.Context, c Cmd) (Result, error) {
 	var exitErr *exec.ExitError
 	switch {
 	case err == nil:
+		res.ExitCode = 0
+	case errors.Is(err, exec.ErrWaitDelay) && cmd.ProcessState != nil && cmd.ProcessState.Success():
+		// It exited 0; a child it left running kept the output open, and
+		// what it writes after waitDelay is dropped.
 		res.ExitCode = 0
 	case errors.As(err, &exitErr) && exitErr.Exited():
 		res.ExitCode = exitErr.ExitCode()

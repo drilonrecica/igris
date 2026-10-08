@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
+	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/runner"
@@ -52,6 +55,7 @@ func (e *Engine) runHook(ctx context.Context, l *launch, name string, argv []str
 		env = append(env, "IGRIS_RESULT="+result.String())
 	}
 	timeout := e.cfg.Hooks.TimeoutOrDefault()
+	e.emit(Event{Kind: HookStarted, Detail: name})
 	res, runErr := e.runner.Run(ctx, runner.Cmd{
 		Name:     argv[0],
 		Args:     argv[1:],
@@ -60,17 +64,11 @@ func (e *Engine) runHook(ctx context.Context, l *launch, name string, argv []str
 		Timeout:  timeout,
 		Combined: true,
 	})
-	var why string
-	switch {
-	case runErr != nil && ctx.Err() != nil:
+	if runErr != nil && ctx.Err() != nil {
 		return "", runErr
-	case errors.Is(runErr, runner.ErrTimeout):
-		why = "timed out after " + timeout.String()
-	case runErr != nil:
-		why = "can't start it: " + runErr.Error()
-	case res.ExitCode != 0:
-		why = fmt.Sprintf("exit status %d", res.ExitCode)
-	default:
+	}
+	why := hookFailure(res, runErr, timeout)
+	if why == "" {
 		return "", nil
 	}
 	reason = textsafe.Line(name + " hook failed: " + why)
@@ -79,6 +77,28 @@ func (e *Engine) runHook(ctx context.Context, l *launch, name string, argv []str
 	e.emit(Event{Kind: HookFailed, Detail: reason, Output: hookOutput(res.Stdout)})
 	e.toast(ctx, notifyRunError, reason)
 	return reason, nil
+}
+
+// hookFailure says in fixed words why a hook failed ("" if it passed). The
+// runner's error is never quoted: it names the argv, and an argv from
+// igris.toml may carry a token (SPEC §6.7).
+func hookFailure(res runner.Result, err error, timeout time.Duration) string {
+	if err == nil {
+		if res.ExitCode == 0 {
+			return ""
+		}
+		return fmt.Sprintf("exit status %d", res.ExitCode)
+	}
+	if sig, ok := runner.KilledBy(err); ok {
+		return "killed by " + sig
+	}
+	switch {
+	case errors.Is(err, runner.ErrTimeout):
+		return "timed out after " + timeout.String()
+	case errors.Is(err, exec.ErrNotFound), errors.Is(err, fs.ErrNotExist):
+		return "not found"
+	}
+	return "can't start it"
 }
 
 // hookOutput is the last hookTailLines lines of a hook's output, cleaned
@@ -101,10 +121,21 @@ func hookOutput(out []byte) []string {
 // beforeSession runs the before_task hook ahead of a session igris opens
 // for l (SPEC §6.7). opened is false when the hook failed: no session is
 // opened, the task stays in progress and the owner chooses how to go on.
+//
+// A stop sent while the hook ran opens no session either: the caller's next
+// poll stops the run, leaving the task in progress without a session, as
+// a crash there would.
 func (e *Engine) beforeSession(ctx context.Context, l *launch) (opened bool, err error) {
 	reason, err := e.runHook(ctx, l, hookBefore, e.cfg.Hooks.BeforeTask, plan.InProgress)
-	if err != nil || reason == "" {
-		return err == nil, err
+	if err != nil {
+		return false, err
+	}
+	if reason == "" {
+		if len(e.cfg.Hooks.BeforeTask) > 0 && e.stopping(ctx) {
+			l.sess, l.lost = nil, true
+			return false, nil
+		}
+		return true, nil
 	}
 	l.sess, l.lost = nil, true
 	// run_error is the notification (runHook); Needs you is the UI's.

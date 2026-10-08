@@ -611,6 +611,8 @@ func formatEvent(ev engine.Event) []string {
 		return []string{"mode for " + id + "'s next session: " + ev.Detail + yoloBadge(ev.Detail)}
 	case engine.ConfigChanged, engine.ConfigRestored, engine.PlanChanged, engine.StaleSignal, engine.StraySignal:
 		return []string{ev.Detail}
+	case engine.HookStarted:
+		return []string{id + " running " + ev.Detail + " hook…"}
 	case engine.HookFailed:
 		lines := []string{id + " " + ev.Detail}
 		for _, l := range ev.Output {

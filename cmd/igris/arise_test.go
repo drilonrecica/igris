@@ -96,6 +96,7 @@ func TestFormatEvent(t *testing.T) {
 		{engine.Event{Kind: engine.ResetDropped, Task: "A-1", Detail: "the reset request for A-1 was withdrawn"}, "the reset request for A-1 was withdrawn"},
 		{engine.Event{Kind: engine.Asked, Question: engine.QuestionHookFailed, Detail: "failed"}, "? failed\n  type `retry`, `done [note]`, `skip <reason>` or `stop`"},
 		{engine.Event{Kind: engine.HookFailed, Task: "A-1", Detail: "before_task hook failed: exit status 1", Output: []string{"db is down"}}, "A-1 before_task hook failed: exit status 1\n  | db is down"},
+		{engine.Event{Kind: engine.HookStarted, Task: "A-1", Detail: "after_task"}, "A-1 running after_task hook…"},
 	}
 	for _, tt := range tests {
 		if got := strings.Join(formatEvent(tt.ev), "\n"); got != tt.want {

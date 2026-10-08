@@ -52,6 +52,7 @@ const (
 	VerifyLimit     EventKind = "verify_limit"      // verify_max_attempts failures in a row; needs the owner
 	Committed       EventKind = "committed"         // Detail is the commit subject
 	NotCommitted    EventKind = "not_committed"     // Detail says why: nothing to commit, or the owner declined
+	HookStarted     EventKind = "hook_started"      // a task hook starts (SPEC §6.7); Detail is its name, before_task or after_task
 	HookFailed      EventKind = "hook_failed"       // a task hook failed (SPEC §6.7); Detail is the short reason, Output its last lines
 	Warning         EventKind = "warning"           // something failed that doesn't stop the run
 	RunFailed       EventKind = "run_error"         // Detail is the error; the run stops

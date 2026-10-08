@@ -118,10 +118,11 @@ func retryDialog(id string) *dialog {
 }
 
 // skipDialog asks for the reason to skip task id. The field has the focus;
-// leaving it lands on Cancel, so enter twice never skips.
-func skipDialog(id string, agent bool) *dialog {
+// leaving it lands on Cancel, so enter twice never skips. session says the
+// task has an open session, which the skip closes.
+func skipDialog(id string, session bool) *dialog {
 	detail := "The reason is recorded with the skip."
-	if agent {
+	if session {
 		detail += " The session is closed."
 	}
 	return &dialog{

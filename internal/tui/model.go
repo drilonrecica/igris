@@ -545,7 +545,9 @@ func (m *model) activate(a action) tea.Cmd {
 		return nil
 	case actSkip:
 		if m.cur != nil && !m.ended {
-			d := skipDialog(m.cur.id, !m.cur.user)
+			// After a lost session or a failed before_task hook there is
+			// no session left to close.
+			d := skipDialog(m.cur.id, !m.cur.user && m.cur.session != nil)
 			if m.dialog != nil && m.dialog.question != "" {
 				d.answers = m.dialog.question
 			}

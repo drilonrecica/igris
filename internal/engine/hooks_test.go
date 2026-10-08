@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"os/exec"
+
 	"github.com/drilonrecica/igris/internal/runner"
 	"github.com/drilonrecica/igris/internal/state"
 )
@@ -104,6 +106,35 @@ func TestHooksRunAroundEachSession(t *testing.T) {
 	if h.count(HookFailed) != 0 {
 		t.Errorf("hook_failed events: %s", h.kinds())
 	}
+	// The feed says when a hook starts (TUI and --no-tui).
+	if ev := h.event(HookStarted, "A-1"); ev.Detail != "before_task" {
+		t.Errorf("hook_started = %+v", ev)
+	}
+	if !strings.HasPrefix(h.kinds(), "run_started phase_started task_started hook_started session_opened") || h.count(HookStarted) != 6 {
+		t.Errorf("events = %s", h.kinds())
+	}
+}
+
+// A stop sent while before_task runs opens no session: the run stops with
+// the task in progress, as after a crash there (SPEC §6.7).
+func TestStopDuringBeforeTask(t *testing.T) {
+	h := newHarness(t, chainPlan, hooksTOML)
+	h.recordHooks(func(c runner.Cmd) (runner.Result, error) {
+		if c.Name == "./scripts/prep" {
+			h.eng.Send(Command{Kind: CmdStop})
+		}
+		return runner.Result{}, nil
+	})
+	res, err := h.run()
+	if err != nil || res.Outcome != Stopped {
+		t.Fatalf("Run = %s, %v; want stopped", res.Outcome, err)
+	}
+	if got := h.opened(); got != "" {
+		t.Errorf("sessions opened after the stop: %q", got)
+	}
+	if got := h.statuses(); got != "A-1=in progress A-2=blocked A-3=blocked B-1=blocked" {
+		t.Errorf("statuses = %s", got)
+	}
 }
 
 // The resolved --model value, not the rank, is IGRIS_MODEL.
@@ -137,9 +168,14 @@ func TestBeforeTaskFailure(t *testing.T) {
 		{"timeout", func() (runner.Result, error) {
 			return runner.Result{ExitCode: -1}, fmt.Errorf("run ./scripts/prep: %w after 30s", runner.ErrTimeout)
 		}, "before_task hook failed: timed out after 30s"},
+		// The reason is fixed words: the error names the argv, which may
+		// hold a token from igris.toml.
 		{"can't start", func() (runner.Result, error) {
-			return runner.Result{ExitCode: -1}, errors.New("run ./scripts/prep: no such file or directory")
-		}, "before_task hook failed: can't start it: run ./scripts/prep: no such file or directory"},
+			return runner.Result{ExitCode: -1}, errors.New("run ./scripts/prep --token=SECRET: permission denied")
+		}, "before_task hook failed: can't start it"},
+		{"not found", func() (runner.Result, error) {
+			return runner.Result{ExitCode: -1}, fmt.Errorf("run ./scripts/prep --token=SECRET: %w", exec.ErrNotFound)
+		}, "before_task hook failed: not found"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -322,6 +358,52 @@ func TestBeforeTaskOnRetryNotOnReattach(t *testing.T) {
 			first := (*calls)[2].cmd
 			if id, _ := env(first, "IGRIS_TASK_ID"); first.Name != "post-status" || id != "A-1" {
 				t.Errorf("first hook after the resume = %s for %s, want A-1's after_task", first, id)
+			}
+		})
+	}
+}
+
+// realHooks runs the hooks as real processes and git through the fake.
+type realHooks struct{ fake *runner.Fake }
+
+func (r realHooks) Run(ctx context.Context, c runner.Cmd) (runner.Result, error) {
+	if c.Name == "git" {
+		return r.fake.Run(ctx, c)
+	}
+	return runner.Exec{}.Run(ctx, c)
+}
+
+// A hook's failure reason is fixed words, never the runner's error with
+// the argv (which may carry a token from igris.toml): not in the run log,
+// the feed or the notification. A hook killed by a signal says so.
+func TestHookFailureReasons(t *testing.T) {
+	tests := []struct {
+		name, toml, reason string
+	}{
+		{"not found", "[hooks]\nafter_task = [\"/nonexistent/notify\", \"--token=SECRET123\"]\n", "after_task hook failed: not found"},
+		{"killed", "[hooks]\nafter_task = [\"sh\", \"-c\", \"kill -9 $$\", \"--token=SECRET123\"]\n", "after_task hook failed: killed by signal 9 (killed)"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHarness(t, chainPlan, tt.toml)
+			if _, err := h.run(func(o *Options) { o.Runner = realHooks{h.cmds} }); err != nil {
+				t.Fatal(err)
+			}
+			if ev := h.event(HookFailed, "A-1"); ev.Detail != tt.reason {
+				t.Errorf("hook_failed = %q, want %q", ev.Detail, tt.reason)
+			}
+			if data := h.read(".igris/runs.jsonl"); strings.Contains(data, "SECRET123") || !strings.Contains(data, tt.reason) {
+				t.Errorf("run log leaks the argv or lacks the reason:\n%s", data)
+			}
+			for _, ev := range h.events {
+				if strings.Contains(ev.Detail, "SECRET123") {
+					t.Errorf("%s event leaks the argv: %q", ev.Kind, ev.Detail)
+				}
+			}
+			for _, n := range h.toasts() {
+				if strings.Contains(n, "SECRET123") {
+					t.Errorf("notification leaks the argv: %q", n)
+				}
 			}
 		})
 	}
