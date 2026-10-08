@@ -30,7 +30,8 @@ const (
 	// otherwise a fresh session starts with Resumed=true.
 	CmdRetry
 	// CmdAnswer answers the pending question (see Question); Yes is the
-	// answer.
+	// answer. With Question set to QuestionConfirmReset it answers a reset
+	// request instead, the one for Task ("" = the oldest).
 	CmdAnswer
 	// CmdMode sets the run mode for the sessions launched from now on
 	// (SPEC §7.2); Text is the mode. Skip-permissions mode needs Yes: the
@@ -71,7 +72,10 @@ type Command struct {
 	Text     string // CmdDone: the note; CmdSkip: the reason; CmdMode, CmdTaskMode: the mode
 	Continue bool   // CmdRetry: continue the conversation instead of starting fresh
 	Yes      bool   // CmdAnswer: the answer; CmdMode, CmdTaskMode: skip permissions confirmed
-	Task     string // CmdTaskMode: the task whose mode is overridden
+	Task     string // CmdTaskMode: the task whose mode is overridden; CmdAnswer: the reset request answered
+	// Question is the question a CmdAnswer answers: "" for the one the
+	// current task waits on, or QuestionConfirmReset.
+	Question Question
 }
 
 // Send queues c for the run. It may be called from any goroutine, including
@@ -107,10 +111,22 @@ func (e *Engine) drain() {
 			e.stop = true
 		case CmdMode, CmdTaskMode:
 			e.setMode(c)
+		case CmdAnswer:
+			if isResetAnswer(c) {
+				// Run-wide: a reset request can be for any task (SPEC §6.2).
+				e.resetAnswers = append(e.resetAnswers, c)
+				continue
+			}
+			e.pending = append(e.pending, c)
 		default:
 			e.pending = append(e.pending, c)
 		}
 	}
+}
+
+// isResetAnswer reports whether c answers a reset request.
+func isResetAnswer(c Command) bool {
+	return c.Kind == CmdAnswer && c.Question == QuestionConfirmReset
 }
 
 // setMode applies a CmdMode or CmdTaskMode. A running session keeps its

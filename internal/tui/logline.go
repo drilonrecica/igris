@@ -55,6 +55,8 @@ func logLines(ev engine.Event) []string {
 		return []string{note(id+" skipped", ev.Detail)}
 	case engine.TaskReset:
 		return []string{"reset " + ev.Detail}
+	case engine.ResetDropped:
+		return []string{ev.Detail}
 	case engine.PhaseDone:
 		return []string{"phase " + ev.Phase + " complete"}
 	case engine.PhaseStuck:

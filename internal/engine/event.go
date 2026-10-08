@@ -44,6 +44,7 @@ const (
 	Retrying        EventKind = "retrying"          // the session is replaced; Detail is "continue" or "fresh"
 	TaskSkipped     EventKind = "task_skipped"      // Detail is the reason; Changes holds the cells written
 	TaskReset       EventKind = "task_reset"        // Task was put back to ready/blocked by `igris reset`; Detail is its change, Changes the cells written
+	ResetDropped    EventKind = "reset_dropped"     // Task's reset request was declined or withdrawn; Detail says which
 	YourTurn        EventKind = "your_turn"         // a user task waits for the owner; Detail is the full task text
 	VerifyStarted   EventKind = "verify_started"    // Detail is the verify command, Verify its profile
 	VerifyPassed    EventKind = "verify_passed"     // Detail is the verify command, Verify its profile
@@ -103,6 +104,12 @@ const (
 	// QuestionCommit: commit = "ask" and the task is verified; CmdAnswer
 	// yes commits, no leaves the changes uncommitted.
 	QuestionCommit Question = "commit"
+	// QuestionConfirmReset: a reset signal asks to put Task back to
+	// ready/blocked (SPEC §6.2). Sessions can write signals, so the owner
+	// confirms it: CmdAnswer with Question QuestionConfirmReset and Task,
+	// yes applies the reset, no drops it. It can be asked while another
+	// question waits.
+	QuestionConfirmReset Question = "confirm_reset"
 )
 
 // emit stamps ev with the time and the current phase and task and hands it

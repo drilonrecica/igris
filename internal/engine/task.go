@@ -277,11 +277,19 @@ func (e *Engine) drive(ctx context.Context, l *launch) (stopped bool, err error)
 					continue // the task stays in progress
 				}
 			}
-			if stopped, err := e.commit(ctx, l, v.note); err != nil || stopped {
+			// A reset requested while the task was verified is answered
+			// and applied before it is accepted, never lost (SPEC §6.2).
+			if reset, stopped, err := e.settleResets(ctx, l.t.ID); err != nil || stopped || reset {
+				return stopped, err
+			}
+			if stopped, reset, err := e.commit(ctx, l, v.note); err != nil || stopped || reset {
 				return stopped, err
 			}
 			return false, e.finish(ctx, l, plan.Done, v.note)
 		case verdictSkip:
+			if reset, stopped, err := e.settleResets(ctx, l.t.ID); err != nil || stopped || reset {
+				return stopped, err
+			}
 			return false, e.finish(ctx, l, plan.Skipped, v.note)
 		case verdictReset:
 			return false, nil

@@ -79,7 +79,8 @@ func execReset(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 	case lock.Remote:
 		return fail("igris is running for this project on another host (%s); run `igris reset %s` there, or, if that run is gone, clear the lock with `igris arise --force-unlock`", textsafe.Line(lock.Info.String()), id)
 	case lock.Alive:
-		// The running igris is the plan's only writer while it runs.
+		// The running igris is the plan's only writer while it runs. Sessions
+		// can write signals too, so it asks the owner first (SPEC §6.2).
 		dir, err := state.Open(root, state.Options{})
 		if err != nil {
 			return fail("%v", err)
@@ -87,9 +88,9 @@ func execReset(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		if err := dir.WriteSignal(state.Signal{ID: id, Action: state.ActionReset, Force: force}); err != nil {
 			return fail("%v", err)
 		}
-		fmt.Fprintf(stdout, "%s: reset sent to the running igris\n", id)
+		fmt.Fprintf(stdout, "%s: reset requested; confirm it in the running igris (if none is running, the next `igris arise` asks)\n", id)
 	default:
-		if code := resetDirect(root, rootPath(root, cfg.Plan), opts, rules, t, force, stdout, stderr); code != exitOK {
+		if code := resetDirect(root, rootPath(root, cfg.Plan), opts, rules, t, force, lock.Held, stdout, stderr); code != exitOK {
 			return code
 		}
 	}
@@ -102,8 +103,28 @@ func execReset(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 }
 
 // resetDirect writes t's Status cell (and the readiness it moves) with the
-// surgical writer, while no igris runs here, and logs it.
-func resetDirect(root, path string, opts plan.Options, rules plan.Rules, t *plan.Task, force bool, stdout, stderr io.Writer) int {
+// surgical writer, while no igris runs here, and logs it. It holds the run
+// lock meanwhile, so an `igris arise` starting at the same moment can't
+// write the plan too; held says a stale lock file is there, which only
+// `--force-unlock` clears and which keeps arise out just the same.
+func resetDirect(root, path string, opts plan.Options, rules plan.Rules, t *plan.Task, force, held bool, stdout, stderr io.Writer) int {
+	dir, err := state.Open(root, state.Options{})
+	if err != nil {
+		fmt.Fprintf(stderr, "igris reset: %v\n", err)
+		return exitFail
+	}
+	if !held {
+		lock, err := dir.Lock(false)
+		if err != nil {
+			fmt.Fprintf(stderr, "igris reset: %v; run `igris reset %s` again\n", err, t.ID)
+			return exitFail
+		}
+		defer func() {
+			if err := lock.Release(); err != nil {
+				fmt.Fprintf(stderr, "igris reset: warning: %v\n", err)
+			}
+		}()
+	}
 	changes, err := plan.NewWriter(path, opts, rules).Update(context.Background(), func(p *plan.Plan) ([]plan.Change, error) {
 		return p.Reset(t.ID, force)
 	})
@@ -118,11 +139,7 @@ func resetDirect(root, path string, opts plan.Options, rules plan.Rules, t *plan
 	for _, c := range changes {
 		fmt.Fprintf(stdout, "%s\n", c)
 	}
-	dir, err := state.Open(root, state.Options{})
-	if err == nil {
-		err = dir.Append(state.Event{Type: state.EventTaskReset, Task: t.ID, Rank: t.Rank, Detail: t.Status.String()})
-	}
-	if err != nil {
+	if err := dir.Append(state.Event{Type: state.EventTaskReset, Task: t.ID, Rank: t.Rank, Detail: t.Status.String()}); err != nil {
 		// The plan is written; the log is a record, not state.
 		fmt.Fprintf(stderr, "igris reset: warning: %v\n", err)
 	}

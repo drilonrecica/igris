@@ -267,7 +267,7 @@ func (m *model) renderCard(w, x, y, rows int, record bool) []string {
 	if c.session != nil {
 		btns = append([]option{{"[o] Open session", actOpen}}, btns...)
 	}
-	if m.asked != nil && m.dialog == nil {
+	if m.question() != nil && m.dialog == nil {
 		btns = append(btns, option{"[Answer…]", actAnswer})
 	}
 	btnLines, btnZones := m.cardButtons(btns, w)

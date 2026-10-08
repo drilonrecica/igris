@@ -28,10 +28,16 @@ func (e *Engine) yourTurn(ctx context.Context, l *launch) (stopped bool, err err
 		return false, err
 	}
 	switch v.kind {
-	case verdictDone:
-		return false, e.finish(ctx, l, plan.Done, v.note)
-	case verdictSkip:
-		return false, e.finish(ctx, l, plan.Skipped, v.note)
+	case verdictDone, verdictSkip:
+		// A reset request for the task is answered before it is accepted.
+		if reset, stopped, err := e.settleResets(ctx, l.t.ID); err != nil || stopped || reset {
+			return stopped, err
+		}
+		to := plan.Done
+		if v.kind == verdictSkip {
+			to = plan.Skipped
+		}
+		return false, e.finish(ctx, l, to, v.note)
 	case verdictReset:
 		return false, nil
 	}
@@ -59,7 +65,7 @@ func (e *Engine) waitForOwner(ctx context.Context, l *launch) (verdict, error) {
 				e.reject(c, t.ID+" is a user task: mark it done or skip it")
 			}
 		}
-		if reset, err := e.applyResets(ctx); err != nil || reset {
+		if reset, err := e.resets(ctx, true); err != nil || reset {
 			return verdict{kind: verdictReset}, err
 		}
 		if sig := e.scanSignals(t, l.cur.StartedAt); sig != nil && state.Classify(*sig, t.ID, t.Owner) == state.Apply {

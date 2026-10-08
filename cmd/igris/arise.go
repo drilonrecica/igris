@@ -428,6 +428,7 @@ const (
 
 const commandHelp = `commands:
   y | n                      answer the question igris asked
+  reset yes|no [task]        answer a reset request (the oldest, or that task's)
   done [note]                mark the current task done (an agent task is not verified)
   skip <reason>              skip the current task
   retry [continue|fresh]     replace the session: continue its conversation, or start fresh (default)
@@ -470,6 +471,27 @@ func parseCommand(line string) (engine.Command, commandAction, error) {
 			return engine.Command{Kind: engine.CmdRetry, Continue: true}, actSend, nil
 		}
 		return engine.Command{}, actNone, fmt.Errorf("retry takes continue or fresh, not %q", rest)
+	case "reset":
+		// Answers a reset request (SPEC §6.2), which can wait beside
+		// another question.
+		c := engine.Command{Kind: engine.CmdAnswer, Question: engine.QuestionConfirmReset}
+		args := strings.Fields(rest)
+		if len(args) == 2 && plan.ValidID(args[1]) {
+			c.Task = args[1]
+		}
+		if len(args) > 0 {
+			switch strings.ToLower(args[0]) {
+			case "y", "yes":
+				c.Yes = true
+			case "n", "no":
+			default:
+				args = nil
+			}
+		}
+		if len(args) == 0 || len(args) > 2 || (len(args) == 2 && c.Task == "") {
+			return engine.Command{}, actNone, errors.New("reset takes yes or no, and the task if more than one reset waits: reset yes|no [task]")
+		}
+		return c, actSend, nil
 	case "pause":
 		return noArgs(engine.Command{Kind: engine.CmdPause})
 	case "stop":
@@ -540,6 +562,8 @@ func formatEvent(ev engine.Event) []string {
 			return []string{"? " + ev.Detail, "  type `retry continue`, `retry fresh`, `done [note]`, `skip <reason>` or `stop`"}
 		case engine.QuestionHookFailed:
 			return []string{"? " + ev.Detail, "  type `retry`, `done [note]`, `skip <reason>` or `stop`"}
+		case engine.QuestionConfirmReset:
+			return []string{"? " + ev.Detail, "  type `reset yes " + id + "` or `reset no " + id + "`"}
 		default:
 			return []string{"? " + ev.Detail + " [y/n]"}
 		}
@@ -563,6 +587,8 @@ func formatEvent(ev engine.Event) []string {
 		return []string{withNote(id+" skipped", ev.Detail)}
 	case engine.TaskReset:
 		return []string{"reset " + ev.Detail}
+	case engine.ResetDropped:
+		return []string{ev.Detail}
 	case engine.PhaseDone:
 		return []string{"phase " + ev.Phase + " complete"}
 	case engine.PhaseStuck:

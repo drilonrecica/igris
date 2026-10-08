@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/state"
 )
 
@@ -136,7 +137,9 @@ func TestResetInterruptedTask(t *testing.T) {
 	}
 }
 
-// With a live igris here, reset hands the change to it as a signal.
+// With a live igris here, reset hands the change to it as a request in
+// the task's reset slot, which the owner confirms there (SPEC §6.2); a
+// pending done stays as it is.
 func TestResetDuringARun(t *testing.T) {
 	root := resetProject(t)
 	dir, err := state.Open(root, state.Options{})
@@ -155,12 +158,15 @@ func TestResetDuringARun(t *testing.T) {
 	if got := run([]string{"reset", "M0-01", "--force"}, &out, &errb); got != exitOK {
 		t.Fatalf("exit = %d, stderr: %s", got, errb.String())
 	}
-	if want := "M0-01: reset sent to the running igris\nM0-02 depends on M0-01 and is in progress; reset leaves it as it is\n"; out.String() != want {
+	if want := "M0-01: reset requested; confirm it in the running igris (if none is running, the next `igris arise` asks)\nM0-02 depends on M0-01 and is in progress; reset leaves it as it is\n"; out.String() != want {
 		t.Errorf("stdout = %q", out.String())
 	}
-	s, err := dir.ReadSignal("M0-01")
+	s, err := dir.ReadReset("M0-01")
 	if err != nil || s == nil || s.Action != state.ActionReset || !s.Force {
-		t.Errorf("signal = %+v, %v; want a forced reset replacing the done", s, err)
+		t.Errorf("reset signal = %+v, %v; want a forced reset", s, err)
+	}
+	if s, err := dir.ReadSignal("M0-01"); err != nil || s == nil || s.Action != state.ActionDone {
+		t.Errorf("done signal = %+v, %v; want it kept", s, err)
 	}
 	if readFile(t, filepath.Join(root, "tasks.md")) != resetPlan {
 		t.Error("the plan changed; only the running igris writes it")
@@ -188,5 +194,34 @@ func TestResetRemoteLock(t *testing.T) {
 	}
 	if readFile(t, filepath.Join(root, "tasks.md")) != resetPlan {
 		t.Error("the plan changed")
+	}
+}
+
+// The direct write takes the run lock for its duration: an `igris arise`
+// that started after reset looked at the lock makes it fail, plan untouched.
+func TestResetDirectTakesTheLock(t *testing.T) {
+	root := resetProject(t)
+	dir, err := state.Open(root, state.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lock, err := dir.Lock(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = lock.Release() }()
+	p, err := plan.Load(filepath.Join(root, "tasks.md"), plan.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out, errb bytes.Buffer
+	if got := resetDirect(root, p.Path, plan.Options{}, plan.Rules{}, p.Task("M0-02"), false, false, &out, &errb); got != exitFail {
+		t.Fatalf("exit = %d, want %d", got, exitFail)
+	}
+	if e := errb.String(); !strings.Contains(e, "igris is already running") || !strings.Contains(e, "run `igris reset M0-02` again") {
+		t.Errorf("stderr = %q", e)
+	}
+	if readFile(t, filepath.Join(root, "tasks.md")) != resetPlan {
+		t.Error("the plan was written under another run's lock")
 	}
 }

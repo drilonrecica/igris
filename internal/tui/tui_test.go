@@ -405,3 +405,40 @@ func wheel(r rect, up bool) tea.MouseMsg {
 	}
 	return tea.MouseMsg{X: r.x, Y: r.y, Button: b, Action: tea.MouseActionPress}
 }
+
+// A reset request (SPEC §6.2) gets its own dialog, keeping is the default,
+// and it can come while another question waits: once answered, that
+// question comes back; esc keeps it pending behind Answer….
+func TestResetRequestDialog(t *testing.T) {
+	reset := engine.Event{Kind: engine.Asked, Task: "M0-01", Question: engine.QuestionConfirmReset, Detail: "reset M0-01 (done) to ready/blocked?"}
+	hs := newHarness(t, 80, 24)
+	hs.events(started("M0-03"), opened("M0-03"), asked(engine.QuestionCommit, "commit?"), reset)
+	view := hs.m.View()
+	for _, want := range []string{"Reset M0-01?", "› 1. Keep it as it is", "  2. Reset M0-01"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("view lacks %q:\n%s", want, view)
+		}
+	}
+	hs.key("esc")
+	if hs.m.dialog != nil || hs.m.resetAsk == nil || len(hs.s.take()) != 0 {
+		t.Fatalf("esc: dialog %v, reset %v; want it closed and pending", hs.m.dialog, hs.m.resetAsk)
+	}
+	hs.click(isAct(actAnswer))
+	if hs.m.dialog == nil || hs.m.dialog.question != engine.QuestionConfirmReset {
+		t.Fatalf("Answer… opened %+v, want the reset request", hs.m.dialog)
+	}
+	hs.key("2")
+	want := engine.Command{Kind: engine.CmdAnswer, Yes: true, Task: "M0-01", Question: engine.QuestionConfirmReset}
+	if got := hs.s.take(); len(got) != 1 || got[0] != want {
+		t.Fatalf("sent %+v, want %+v", got, want)
+	}
+	if hs.m.resetAsk != nil || hs.m.dialog == nil || hs.m.dialog.question != engine.QuestionCommit {
+		t.Fatalf("after the answer: reset %v, dialog %+v; want the commit question back", hs.m.resetAsk, hs.m.dialog)
+	}
+	// A request withdrawn while its dialog is open closes it.
+	hs.events(reset)
+	hs.events(engine.Event{Kind: engine.ResetDropped, Task: "M0-01", Detail: "withdrawn"})
+	if hs.m.resetAsk != nil || hs.m.dialog == nil || hs.m.dialog.question != engine.QuestionCommit {
+		t.Errorf("after the withdrawal: reset %v, dialog %+v", hs.m.resetAsk, hs.m.dialog)
+	}
+}

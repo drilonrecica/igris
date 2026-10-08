@@ -74,6 +74,12 @@ func questionDialog(ev engine.Event) *dialog {
 			{"Stop igris", actStop},
 		}
 		d.cancel = actClose
+	case engine.QuestionConfirmReset:
+		// A session can write the request too: keeping is the default.
+		d.title = "Reset " + ev.Task + "?"
+		d.options = []option{{"Keep it as it is", actAnswerNo}, {"Reset " + ev.Task, actAnswerYes}}
+		d.cancel = actClose
+		d.task = ev.Task
 	case engine.QuestionHookFailed:
 		d.title = ev.Task + ": before_task hook failed"
 		d.options = []option{

@@ -83,7 +83,7 @@ func (e *Engine) watch(ctx context.Context, l *launch) (verdict, error) {
 			}
 		}
 
-		if reset, err := e.applyResets(ctx); err != nil || reset {
+		if reset, err := e.resets(ctx, true); err != nil || reset {
 			return verdict{kind: verdictReset}, err
 		}
 		switch sig := e.scanSignals(t, l.cur.StartedAt); {
@@ -209,7 +209,7 @@ func (e *Engine) scanSignals(t *plan.Task, started time.Time) *state.Signal {
 		key := s.ID + "|" + s.Action + "|" + s.At.String()
 		switch {
 		case s.Action == state.ActionReset:
-			// Applied by applyResets, for any task.
+			// Asked about and applied by resets, for any task.
 		case s.ID != t.ID:
 			e.reportOnce("stray|"+key, StraySignal, fmt.Sprintf("kept, not applied: a %s signal for %s, which is not the current task", s.Action, s.ID))
 		case s.At.Before(started):

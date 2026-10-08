@@ -31,9 +31,10 @@ func validAction(a string) bool { return a == ActionDone || a == ActionSkip || a
 // ConfigFile is the config file that marks a project root, next to DirName.
 const ConfigFile = "igris.toml"
 
-// Signal is the content of .igris/signals/<ID>.json, written by
-// `igris done` / `igris skip` / `igris reset` and consumed by the running
-// igris.
+// Signal is the content of a signal file, written by `igris done` /
+// `igris skip` / `igris reset` and consumed by the running igris. A task
+// has two slots (SPEC §6.2): .igris/signals/<ID>.json for done and skip,
+// and <ID>.reset.json for reset, so neither replaces or removes the other.
 type Signal struct {
 	ID     string    `json:"id"`
 	Action string    `json:"action"` // ActionDone, ActionSkip or ActionReset
@@ -64,8 +65,23 @@ func FindRoot(start string) (string, error) {
 	}
 }
 
+// resetSuffix names the reset slot of a task: <ID>.reset.json.
+const resetSuffix = ".reset.json"
+
 func (d *Dir) signalPath(id string) string {
 	return filepath.Join(d.SignalsDir(), id+".json")
+}
+
+func (d *Dir) resetPath(id string) string {
+	return filepath.Join(d.SignalsDir(), id+resetSuffix)
+}
+
+// slotPath is the file a signal with action is stored in.
+func (d *Dir) slotPath(id, action string) string {
+	if action == ActionReset {
+		return d.resetPath(id)
+	}
+	return d.signalPath(id)
 }
 
 func checkSignalID(id string) error {
@@ -75,8 +91,10 @@ func checkSignalID(id string) error {
 	return nil
 }
 
-// WriteSignal stores s atomically as signals/<ID>.json, replacing an
-// earlier signal for the same task. A zero At is set to the current time.
+// WriteSignal stores s atomically in its slot: signals/<ID>.json for done
+// and skip, replacing an earlier one of them, or signals/<ID>.reset.json
+// for a reset, replacing an earlier reset. A zero At is set to the current
+// time.
 func (d *Dir) WriteSignal(s Signal) error {
 	if err := checkSignalID(s.ID); err != nil {
 		return fmt.Errorf("write signal: %w", err)
@@ -100,21 +118,32 @@ func (d *Dir) WriteSignal(s Signal) error {
 	if err != nil {
 		return fmt.Errorf("write signal %s: %w", s.ID, err)
 	}
-	return writeFileAtomic(d.signalPath(s.ID), append(data, '\n'))
+	return writeFileAtomic(d.slotPath(s.ID, s.Action), append(data, '\n'))
 }
 
-// ReadSignal returns the pending signal for id, or (nil, nil) if there is none.
+// ReadSignal returns the pending done or skip signal for id, or (nil, nil)
+// if there is none.
 func (d *Dir) ReadSignal(id string) (*Signal, error) {
 	if err := checkSignalID(id); err != nil {
 		return nil, fmt.Errorf("read signal: %w", err)
 	}
-	return readSignalFile(d.signalPath(id), id)
+	return readSignalFile(d.signalPath(id), id, false)
 }
 
-// readSignalFile reads one signal. Sessions can write into signals/, so the
-// file is only read if it is a regular file of a sane size (a FIFO would
-// block igris forever), and its note is cleaned for display.
-func readSignalFile(path, id string) (*Signal, error) {
+// ReadReset returns the pending reset signal for id, or (nil, nil) if there
+// is none.
+func (d *Dir) ReadReset(id string) (*Signal, error) {
+	if err := checkSignalID(id); err != nil {
+		return nil, fmt.Errorf("read signal: %w", err)
+	}
+	return readSignalFile(d.resetPath(id), id, true)
+}
+
+// readSignalFile reads one signal from the reset slot (reset) or the done
+// slot. Sessions can write into signals/, so the file is only read if it is
+// a regular file of a sane size (a FIFO would block igris forever), and its
+// note is cleaned for display.
+func readSignalFile(path, id string, reset bool) (*Signal, error) {
 	info, err := os.Lstat(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
@@ -135,29 +164,31 @@ func readSignalFile(path, id string) (*Signal, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read signal %s: %w", path, err)
 	}
-	s, err := parseSignal(data, id)
+	s, err := parseSignal(data, id, reset)
 	if err != nil {
 		return nil, fmt.Errorf("read signal %s: %w; delete the file or run the command again", path, err)
 	}
 	return s, nil
 }
 
-// parseSignal decodes the content of id's signal file. A session could have
-// written it, so only a done, skip or reset for id is accepted, and the
-// note is cleaned for display.
-func parseSignal(data []byte, id string) (*Signal, error) {
+// parseSignal decodes the content of one of id's signal files. A session
+// could have written it, so only a reset for id is accepted from the reset
+// slot and only a done or skip for id from the done slot, and the note is
+// cleaned for display.
+func parseSignal(data []byte, id string, reset bool) (*Signal, error) {
 	var s Signal
 	if err := json.Unmarshal(data, &s); err != nil {
 		return nil, err
 	}
-	if s.ID != id || !validAction(s.Action) {
+	if s.ID != id || !validAction(s.Action) || (s.Action == ActionReset) != reset {
 		return nil, fmt.Errorf("unexpected content (id %q, action %q)", s.ID, s.Action)
 	}
 	s.Note = textsafe.Line(s.Note)
 	return &s, nil
 }
 
-// ListSignals returns every pending signal, sorted by task ID. Files that
+// ListSignals returns every pending signal of both slots, sorted by task
+// ID (a task's reset after its done or skip). Files that
 // can't be read as a signal are returned as errors in bad, not dropped, so
 // the engine can report them; one bad file never hides the others.
 func (d *Dir) ListSignals() (sigs []Signal, bad []error, err error) {
@@ -185,24 +216,58 @@ func listSignals(dir string) (sigs []Signal, bad []error, err error) {
 		if !ok || e.IsDir() || !plan.ValidID(id) { // also skips ".<name>.tmp-*" files
 			continue
 		}
-		s, err := readSignalFile(filepath.Join(dir, name), id)
+		path := filepath.Join(dir, name)
+		var (
+			s    *Signal
+			serr error
+		)
+		if base, isReset := strings.CutSuffix(name, resetSuffix); isReset && plan.ValidID(base) {
+			s, serr = readSignalFile(path, base, true)
+			if serr != nil {
+				// A task whose own ID ends in ".reset" has its done slot here.
+				if plain, perr := readSignalFile(path, id, false); perr == nil {
+					s, serr = plain, nil
+				}
+			}
+		} else {
+			s, serr = readSignalFile(path, id, false)
+		}
 		switch {
-		case err != nil:
-			bad = append(bad, err)
+		case serr != nil:
+			bad = append(bad, serr)
 		case s != nil:
 			sigs = append(sigs, *s)
 		}
 	}
-	sort.Slice(sigs, func(i, j int) bool { return sigs[i].ID < sigs[j].ID })
+	sort.Slice(sigs, func(i, j int) bool {
+		if sigs[i].ID != sigs[j].ID {
+			return sigs[i].ID < sigs[j].ID
+		}
+		return sigs[i].Action != ActionReset && sigs[j].Action == ActionReset
+	})
 	return sigs, bad, nil
 }
 
-// RemoveSignal deletes the signal for id; a missing signal is not an error.
+// RemoveSignal deletes the done or skip signal for id; a missing signal is
+// not an error. A pending reset is kept.
 func (d *Dir) RemoveSignal(id string) error {
 	if err := checkSignalID(id); err != nil {
 		return fmt.Errorf("remove signal: %w", err)
 	}
-	if err := os.Remove(d.signalPath(id)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+	return removeSlot(d.signalPath(id), id)
+}
+
+// RemoveReset deletes the reset signal for id; a missing one is not an
+// error.
+func (d *Dir) RemoveReset(id string) error {
+	if err := checkSignalID(id); err != nil {
+		return fmt.Errorf("remove signal: %w", err)
+	}
+	return removeSlot(d.resetPath(id), id)
+}
+
+func removeSlot(path, id string) error {
+	if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("remove signal %s: %w", id, err)
 	}
 	return nil

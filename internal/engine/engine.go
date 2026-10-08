@@ -162,6 +162,13 @@ type Engine struct {
 	runMode     string            // the run mode chosen for this run; see CmdMode
 	overrides   map[string]string // per-task modes by task ID; see CmdTaskMode
 	yoloOK      bool              // skip-permissions mode was confirmed through CmdMode or CmdTaskMode
+	// resetAsks are the reset requests put to the owner, in order;
+	// resetAnswers the answers drain received for them (SPEC §6.2).
+	resetAsks    []*resetAsk
+	resetAnswers []Command
+	// yoloDeferred: the interrupted task runs in skip-permissions mode and
+	// has a pending reset, so its yolo check waits until that is answered.
+	yoloDeferred bool
 }
 
 // New checks opts and returns an engine. It does no I/O.
@@ -320,15 +327,18 @@ func (e *Engine) prepare() ([]string, error) {
 	if prev != nil {
 		cur = prev.Current
 	}
-	// An interrupted task with a pending reset is not picked up again: the
-	// reset is applied first (resumeAndRun), so its mode and phase don't
-	// matter.
+	// An interrupted task with a pending reset is asked about first
+	// (resumeAndRun); once the owner confirms it, it is not picked up
+	// again, so its mode and phase don't matter.
 	resetting := cur != nil && e.resetPending(cur.TaskID)
 	// A session left running in skip-permissions mode is only reattached
 	// with this run's confirmation too (SPEC §7.3); new sessions are gated
 	// by modeFor.
-	if cur != nil && !resetting && cur.Mode == ModeYolo && !e.yoloConfirmed() {
-		return nil, fmt.Errorf("the interrupted task %s runs in yolo mode: %w", cur.TaskID, ErrYoloUnconfirmed)
+	if cur != nil && cur.Mode == ModeYolo && !e.yoloConfirmed() {
+		if !resetting {
+			return nil, yoloInterrupted(cur.TaskID)
+		}
+		e.yoloDeferred = true
 	}
 	ids := make([]string, 0, len(phases))
 	for _, ph := range phases {
@@ -358,6 +368,10 @@ func (e *Engine) prepare() ([]string, error) {
 		e.configMoved = true
 	}
 	return ids, e.dir.SaveRun(e.run)
+}
+
+func yoloInterrupted(id string) error {
+	return fmt.Errorf("the interrupted task %s runs in yolo mode: %w", id, ErrYoloUnconfirmed)
 }
 
 func hasTask(ph *plan.Phase, id string) bool {
@@ -425,10 +439,15 @@ func (e *Engine) modeFor(t *plan.Task) (string, error) {
 // resumeAndRun picks up the task an earlier run was working on, then runs
 // the phases.
 func (e *Engine) resumeAndRun(ctx context.Context, phases []string) (Result, error) {
-	// A reset left pending by an earlier run comes before anything is
-	// selected (SPEC §6.2), the interrupted task included.
-	if _, err := e.applyResets(ctx); err != nil {
-		return Result{Phase: e.phase}, err
+	// A reset left pending by an earlier run is answered before anything
+	// is selected (SPEC §6.2), the interrupted task included.
+	if _, stopped, err := e.settleResets(ctx, ""); err != nil || stopped {
+		return Result{Outcome: Stopped, Phase: e.phase}, err
+	}
+	if e.yoloDeferred && e.run.Current != nil {
+		// The owner kept the interrupted yolo task: it needs this run's
+		// confirmation after all.
+		return Result{Phase: e.phase}, yoloInterrupted(e.run.Current.TaskID)
 	}
 	if e.run.Current != nil {
 		stopped, err := e.resume(ctx)
@@ -505,7 +524,7 @@ func (e *Engine) runPhase(ctx context.Context, id string) (Result, error) {
 		for _, c := range e.takeCommands() {
 			e.reject(c, "no task is running")
 		}
-		if _, err := e.applyResets(ctx); err != nil {
+		if _, err := e.resets(ctx, true); err != nil {
 			return res, err
 		}
 		p, err := e.loadPlan()

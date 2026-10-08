@@ -88,8 +88,10 @@ func TestSignalRoundTrip(t *testing.T) {
 	}
 }
 
-// A reset signal always records whether it was forced and replaces a
-// pending done or skip; done and skip signals keep their old shape.
+// A reset signal has its own slot, signals/<ID>.reset.json (SPEC §6.2):
+// it always records whether it was forced, and a done or skip for the same
+// task neither replaces nor removes it, nor the other way round. Done and
+// skip signals keep their old shape.
 func TestResetSignal(t *testing.T) {
 	d := testDir(t)
 	must(t, d.WriteSignal(Signal{ID: "M0-01", Action: ActionDone, Note: "ok"}))
@@ -100,18 +102,67 @@ func TestResetSignal(t *testing.T) {
 	}
 	for _, force := range []bool{false, true} {
 		must(t, d.WriteSignal(Signal{ID: "M0-01", Action: ActionReset, Force: force}))
-		data, err := os.ReadFile(d.signalPath("M0-01"))
+		data, err := os.ReadFile(filepath.Join(d.SignalsDir(), "M0-01.reset.json"))
 		must(t, err)
 		if want := fmt.Sprintf(`"force":%v`, force); !strings.Contains(string(data), want) || !strings.Contains(string(data), `"action":"reset"`) {
 			t.Errorf("reset signal = %s, want %s", data, want)
 		}
-		got, err := d.ReadSignal("M0-01")
+		got, err := d.ReadReset("M0-01")
 		if err != nil || got == nil || got.Action != ActionReset || got.Force != force {
-			t.Errorf("ReadSignal = %+v, %v", got, err)
+			t.Errorf("ReadReset = %+v, %v", got, err)
 		}
+		if got, err := d.ReadSignal("M0-01"); err != nil || got == nil || got.Action != ActionDone {
+			t.Errorf("ReadSignal after the reset = %+v, %v; want the done signal kept", got, err)
+		}
+	}
+	// The session's done after the owner's reset leaves the reset pending.
+	must(t, d.WriteSignal(Signal{ID: "M0-01", Action: ActionDone, Note: "again"}))
+	must(t, d.RemoveSignal("M0-01"))
+	if got, err := d.ReadReset("M0-01"); err != nil || got == nil {
+		t.Errorf("ReadReset after done + RemoveSignal = %+v, %v; want the reset kept", got, err)
+	}
+	sigs, bad, err := d.ListSignals()
+	if err != nil || len(bad) != 0 || len(sigs) != 1 || sigs[0].Action != ActionReset || sigs[0].ID != "M0-01" {
+		t.Errorf("ListSignals = %+v, %v, %v; want the reset only", sigs, bad, err)
+	}
+	must(t, d.RemoveReset("M0-01"))
+	must(t, d.RemoveReset("M0-01")) // already gone is fine
+	if got, err := d.ReadReset("M0-01"); got != nil || err != nil {
+		t.Errorf("after RemoveReset = %+v, %v", got, err)
 	}
 	if err := d.WriteSignal(Signal{ID: "M0-01", Action: "undo"}); err == nil {
 		t.Error("an unknown action was written")
+	}
+}
+
+// Each slot holds its own actions only: a reset written into the done
+// slot (a session forging one) or a done in the reset slot is unreadable,
+// never applied. A task whose ID itself ends in ".reset" keeps its done
+// slot.
+func TestSignalSlots(t *testing.T) {
+	d := testDir(t)
+	dir := d.SignalsDir()
+	must(t, os.WriteFile(filepath.Join(dir, "A-1.json"), []byte(`{"id":"A-1","action":"reset","force":true}`), 0o600))
+	must(t, os.WriteFile(filepath.Join(dir, "A-2.reset.json"), []byte(`{"id":"A-2","action":"done"}`), 0o600))
+	must(t, d.WriteSignal(Signal{ID: "X.reset", Action: ActionDone}))
+	must(t, d.WriteSignal(Signal{ID: "A-3", Action: ActionReset}))
+
+	sigs, bad, err := d.ListSignals()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, s := range sigs {
+		got = append(got, s.ID+":"+s.Action)
+	}
+	if strings.Join(got, " ") != "A-3:reset X.reset:done" {
+		t.Errorf("sigs = %v, want A-3:reset X.reset:done", got)
+	}
+	if len(bad) != 2 {
+		t.Errorf("bad = %v, want 2 (reset in the done slot, done in the reset slot)", bad)
+	}
+	if s, err := d.ReadSignal("A-1"); err == nil || s != nil {
+		t.Errorf("ReadSignal(A-1) = %+v, %v; want an error", s, err)
 	}
 }
 

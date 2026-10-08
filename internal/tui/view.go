@@ -74,7 +74,7 @@ func (m *model) stateLook() look {
 func (m *model) buttons() []option {
 	var out []option
 	running := m.cur != nil && !m.ended
-	if m.asked != nil && m.dialog == nil {
+	if m.question() != nil && m.dialog == nil {
 		out = append(out, option{"Answer…", actAnswer})
 	}
 	if m.cur != nil && m.cur.session != nil {

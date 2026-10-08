@@ -72,14 +72,17 @@ type model struct {
 	holding bool // the run holds because of the pause
 	cur     *current
 	asked   *engine.Event // the question waiting for an answer
-	dialog  *dialog
-	page    *page // help, details or the log, under any dialog
-	log     []logEntry
-	scroll  int // log lines scrolled back from the newest
-	ended   bool
-	endText string
-	plan    *plan.Plan // as last read; nil until loaded
-	taskTop int        // first task list line shown; -1 follows the current task
+	// resetAsk is the reset request waiting for the owner's answer
+	// (SPEC §6.2); it can come while another question waits.
+	resetAsk *engine.Event
+	dialog   *dialog
+	page     *page // help, details or the log, under any dialog
+	log      []logEntry
+	scroll   int // log lines scrolled back from the newest
+	ended    bool
+	endText  string
+	plan     *plan.Plan // as last read; nil until loaded
+	taskTop  int        // first task list line shown; -1 follows the current task
 	// autoTaskTop is where following the current task put the list in the
 	// last frame; scrolling starts from there.
 	autoTaskTop int
@@ -508,8 +511,8 @@ func (m *model) activate(a action) tea.Cmd {
 		m.dialog = nil
 		return nil
 	case actAnswer:
-		if m.asked != nil {
-			m.dialog = questionDialog(*m.asked)
+		if q := m.question(); q != nil {
+			m.dialog = questionDialog(*q)
 		}
 		return nil
 	case actMore:
@@ -566,10 +569,21 @@ func (m *model) activate(a action) tea.Cmd {
 			return nil
 		}
 	}
+	resetQ := m.dialog != nil && m.dialog.question == engine.QuestionConfirmReset
 	if c, ok := a.command(); ok {
+		if resetQ && c.Kind == engine.CmdAnswer {
+			c.Question, c.Task = engine.QuestionConfirmReset, m.dialog.task
+		}
 		m.opts.Sender.Send(c)
 	}
-	if m.dialog != nil && m.dialog.question != "" {
+	switch {
+	case resetQ:
+		// The other question, if one waits, comes back.
+		m.dialog, m.resetAsk = nil, nil
+		if m.asked != nil {
+			m.dialog = questionDialog(*m.asked)
+		}
+	case m.dialog != nil && m.dialog.question != "":
 		// The engine has its answer; the events that follow say what it did.
 		m.dialog, m.asked = nil, nil
 	}
@@ -635,9 +649,15 @@ func (m *model) event(ev engine.Event) {
 		}
 	case engine.Asked:
 		e := ev
-		m.asked = &e
 		m.dialog = questionDialog(ev)
+		if ev.Question == engine.QuestionConfirmReset {
+			m.resetAsk = &e // the current task's state is its own
+			break
+		}
+		m.asked = &e
 		m.setState(stateQuestion, ev)
+	case engine.ResetDropped:
+		m.dropResetAsk(ev.Task)
 	case engine.Retrying:
 		if m.cur != nil {
 			m.cur.session, m.cur.overdue = nil, ""
@@ -647,6 +667,7 @@ func (m *model) event(ev engine.Event) {
 	case engine.Committed, engine.NotCommitted:
 		m.settle()
 	case engine.TaskReset:
+		m.dropResetAsk(ev.Task)
 		if m.cur != nil && m.cur.id == ev.Task {
 			m.cur = nil // the run let go of it and pauses
 			m.settle()
@@ -685,11 +706,35 @@ func (m *model) setState(s taskState, ev engine.Event) {
 	m.cur.state, m.cur.since, m.cur.detail = s, ev.At, ev.Detail
 }
 
-// settle drops a pending engine question: a later event answered it.
+// settle drops a pending engine question: a later event answered it. A
+// reset request is not the current task's question and stays.
 func (m *model) settle() {
 	m.asked = nil
-	if m.dialog != nil && m.dialog.question != "" {
+	if m.dialog != nil && m.dialog.question != "" && m.dialog.question != engine.QuestionConfirmReset {
 		m.dialog = nil
+	}
+}
+
+// question is the question Answer… opens: a reset request first.
+func (m *model) question() *engine.Event {
+	if m.resetAsk != nil {
+		return m.resetAsk
+	}
+	return m.asked
+}
+
+// dropResetAsk forgets the reset request for task id once it is applied,
+// declined or withdrawn.
+func (m *model) dropResetAsk(id string) {
+	if m.resetAsk == nil || m.resetAsk.Task != id {
+		return
+	}
+	m.resetAsk = nil
+	if m.dialog != nil && m.dialog.question == engine.QuestionConfirmReset {
+		m.dialog = nil
+		if m.asked != nil {
+			m.dialog = questionDialog(*m.asked)
+		}
 	}
 }
 

@@ -21,18 +21,21 @@ func FuzzParseSignal(f *testing.F) {
 		`{"id":"M0-01","action":"done","at":"yesterday"}`,
 		`[1,2,3]`, `null`, ``, `{"id":1}`,
 	} {
-		f.Add([]byte(s), "M0-01")
+		f.Add([]byte(s), "M0-01", false)
 	}
-	f.Fuzz(func(t *testing.T, data []byte, id string) {
-		s, err := parseSignal(data, id)
+	f.Add([]byte(`{"id":"M0-01","action":"reset","force":true}`), "M0-01", true)
+	f.Add([]byte(`{"id":"M0-01","action":"reset"}`), "M0-01", false)
+	f.Fuzz(func(t *testing.T, data []byte, id string, reset bool) {
+		s, err := parseSignal(data, id, reset)
 		if err != nil {
 			if s != nil {
 				t.Fatalf("error %v with a signal %+v", err, s)
 			}
 			return
 		}
-		if s.ID != id || (s.Action != ActionDone && s.Action != ActionSkip) {
-			t.Fatalf("accepted %+v for id %q", s, id)
+		// Each slot holds its own actions only (SPEC §6.2).
+		if s.ID != id || (reset && s.Action != ActionReset) || (!reset && s.Action != ActionDone && s.Action != ActionSkip) {
+			t.Fatalf("accepted %+v for id %q (reset slot %v)", s, id, reset)
 		}
 		if textsafe.HasControl(s.Note) || strings.ContainsAny(s.Note, "\n\t") {
 			t.Fatalf("note not cleaned: %q", s.Note)
