@@ -28,6 +28,11 @@ func TestHints(t *testing.T) {
 			[]string{"tasks.md:5: a: user tasks have no session, so its Verify is ignored; clear the cell"}},
 		{"Timeout on a user task", "## M0\n\n| ID | Status | Model | Owner | Timeout |\n|---|---|---|---|---|\n| a | ready | — | user | 45m |\n| b | skipped | — | user | 45m |\n| c | ready | sonnet | agent | 45m |\n", Options{},
 			[]string{"tasks.md:5: a: user tasks have no session, so its Timeout is ignored; clear the cell"}},
+		{"Context on a user task", "## M0\n\n| ID | Status | Model | Owner | Context | Verify |\n|---|---|---|---|---|---|\n| a | ready | — | user | ../nope | fast |\n| b | done | — | user | ../nope | — |\n", Options{},
+			[]string{
+				"tasks.md:5: a: user tasks have no session, so its Verify is ignored; clear the cell",
+				"tasks.md:5: a: user tasks have no session, so its Context is ignored; clear the cell",
+			}},
 		{"Deps present next to a lookalike", "## M0\n\n| ID | Deps | Status | Model | Requires |\n|---|---|---|---|---|\n| a | — | ready | sonnet | Go 1.26 |\n", Options{}, nil},
 	}
 	for _, tt := range tests {

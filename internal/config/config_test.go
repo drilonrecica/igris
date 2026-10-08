@@ -350,10 +350,10 @@ func TestVerifyFor(t *testing.T) {
 			}
 		})
 	}
-	if got := c.Rules().Verify; strings.Join(got, ",") != "default,fast" {
+	if got := c.Rules("").Verify; strings.Join(got, ",") != "default,fast" {
 		t.Errorf("Rules().Verify = %q", got)
 	}
-	if got := Default().Rules().Verify; len(got) != 0 {
+	if got := Default().Rules("").Verify; len(got) != 0 {
 		t.Errorf("default Rules().Verify = %q", got)
 	}
 }

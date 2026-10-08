@@ -82,7 +82,7 @@ func writeJSON(w io.Writer, v any) {
 // The status and phases commands refuse to describe a plan igris could not run.
 func requireValid(fs *flag.FlagSet, l *loaded, stdout, stderr io.Writer) int {
 	json := jsonFlag(fs)
-	issues := l.plan.Validate(l.cfg.Rules())
+	issues := l.plan.Validate(l.cfg.Rules(""))
 	if len(issues) == 0 {
 		return exitOK
 	}
@@ -108,7 +108,7 @@ func execCheck(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 		Runner: commandRunner(), Getenv: ariseGetenv, Versions: compatWarnings, BackendName: project.BackendName(l.cfg, ariseGetenv),
 		Config: l.cfg, NoConfig: l.noConfig, ParentConfig: l.parentConfig, Plan: l.plan,
 	})
-	r := report.Check(report.CheckInput{Plan: l.plan, Rules: l.cfg.Rules(), Checks: checks.Pick(cs,
+	r := report.Check(report.CheckInput{Plan: l.plan, Rules: l.cfg.Rules(""), Checks: checks.Pick(cs,
 		checks.IDClaude, checks.IDHerdr, checks.IDTmux, checks.IDConfig, checks.IDAPIKey, checks.IDProject, checks.IDPlanHints, checks.IDDrift)})
 
 	if jsonFlag(fs) {

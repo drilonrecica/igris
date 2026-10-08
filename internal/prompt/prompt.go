@@ -44,6 +44,7 @@ type Vars struct {
 	Owner        string // "agent", "agent + user" or "user"
 	Deps         []string
 	Extra        map[string]string // extra columns, e.g. Spec
+	Context      []string          // the Context cell's paths as written (SPEC §3.2)
 	PlanFile     string
 	Resumed      bool
 	CommitPolicy string // "ask", "auto" or "never"
@@ -70,6 +71,7 @@ func VarsFor(t *plan.Task, e Env) Vars {
 		Owner:        string(t.Owner),
 		Deps:         t.Deps,
 		Extra:        nonEmpty(t.Extra),
+		Context:      t.Context,
 		PlanFile:     e.PlanFile,
 		Resumed:      e.Resumed,
 		CommitPolicy: e.CommitPolicy,

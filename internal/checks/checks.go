@@ -284,7 +284,7 @@ func loadValidPlan(o Options) *plan.Plan {
 			return nil
 		}
 	}
-	if len(p.Validate(o.Config.Rules())) > 0 {
+	if len(p.Validate(o.Config.Rules(o.Root))) > 0 {
 		return nil
 	}
 	return p

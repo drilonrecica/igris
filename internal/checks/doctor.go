@@ -168,7 +168,7 @@ func doctorPlan(root string, cfg *config.Config, noConfig bool) (*plan.Plan, []R
 		}
 		return nil, []Result{{ID: IDPlanValid, Level: Fail, Message: err.Error(), Next: "igris adapt"}}
 	}
-	issues := p.Validate(cfg.Rules())
+	issues := p.Validate(cfg.Rules(root))
 	if len(issues) == 0 {
 		return p, []Result{{ID: IDPlanValid, Level: OK, Message: fmt.Sprintf("%s is valid (%d phases, %d tasks)", cfg.Plan, len(p.Phases), len(p.Tasks)), File: p.Path}}
 	}

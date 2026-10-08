@@ -87,7 +87,7 @@ func Run(ctx context.Context, o Options) (*Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read plan %s: %w; set plan in igris.toml or pass --plan", o.PlanPath, err)
 	}
-	issues, err := needsAdapt(plan.Parse(o.PlanPath, original, opts), cfg.Rules())
+	issues, err := needsAdapt(plan.Parse(o.PlanPath, original, opts), cfg.Rules(o.State.Root()))
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +132,7 @@ func Run(ctx context.Context, o Options) (*Result, error) {
 		ProposalPath: proposal,
 		Original:     original,
 		Proposed:     proposed,
-		Issues:       plan.Parse(proposal, proposed, opts).Validate(cfg.Rules()),
+		Issues:       plan.Parse(proposal, proposed, opts).Validate(cfg.Rules(o.State.Root())),
 		Note:         sig.Note,
 	}, nil
 }

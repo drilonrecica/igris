@@ -32,11 +32,12 @@ func checkGolden(t *testing.T, name, got string) {
 
 const testPlan = `## M1 — Widgets
 
-| ID | Task | Deps | Status | Model | Owner | Spec |
-|---|---|---|---|---|---|---|
-| M1-01 | **Parse widgets** — read them | — | done | sonnet | agent | |
-| M1-02 | **Frob widgets** — frob them all, then check | M1-01 | ready | opus | agent | §4.2 |
-| M1-03 | **Pick a widget color** — recommend one | M1-01, M1-02 | blocked | opus | agent + user | |
+| ID | Task | Deps | Status | Model | Owner | Spec | Context |
+|---|---|---|---|---|---|---|---|
+| M1-01 | **Parse widgets** — read them | — | done | sonnet | agent | | |
+| M1-02 | **Frob widgets** — frob them all, then check | M1-01 | ready | opus | agent | §4.2 | — |
+| M1-03 | **Pick a widget color** — recommend one | M1-01, M1-02 | blocked | opus | agent + user | | |
+| M1-04 | **Document widgets** — write the guide | M1-02 | blocked | sonnet | agent | | ` + "`docs/widgets.md`" + `, internal/widget/, docs/widgets.md |
 `
 
 func testTask(t *testing.T, id string) *plan.Task {
@@ -60,6 +61,8 @@ func TestRenderGolden(t *testing.T) {
 		{"agent-user", "M1-03", Env{Model: "opus", PlanFile: "tasks.md", CommitPolicy: "ask"}},
 		{"resumed", "M1-02", Env{Model: "opus", PlanFile: "tasks.md", CommitPolicy: "ask", Resumed: true}},
 		{"commit-never", "M1-02", Env{Model: "opus", PlanFile: "tasks.md", CommitPolicy: "never"}},
+		{"context", "M1-04", Env{Model: "sonnet", PlanFile: "tasks.md", CommitPolicy: "auto"}},
+		{"context-resumed", "M1-04", Env{Model: "sonnet", PlanFile: "tasks.md", CommitPolicy: "ask", Resumed: true}},
 		{"commit-never-resumed", "M1-02", Env{Model: "opus", PlanFile: "tasks.md", CommitPolicy: "never", Resumed: true}},
 	}
 	for _, tt := range tests {
@@ -87,9 +90,25 @@ func TestVarsFor(t *testing.T) {
 	if v.DoneCommand != "igris done M1-02" {
 		t.Errorf("DoneCommand = %q", v.DoneCommand)
 	}
+	if v.Context != nil || len(v.Extra) != 1 {
+		t.Errorf("Context = %q, Extra = %v; want no paths and only Spec", v.Context, v.Extra)
+	}
 	v = VarsFor(testTask(t, "M1-02"), Env{DoneCommand: "x done"})
 	if v.DoneCommand != "x done" {
 		t.Errorf("explicit DoneCommand lost: %q", v.DoneCommand)
+	}
+	// Context is the list as written, never an extra column.
+	v = VarsFor(testTask(t, "M1-04"), Env{})
+	if strings.Join(v.Context, "|") != "docs/widgets.md|internal/widget/" || len(v.Extra) != 0 {
+		t.Errorf("Context = %q, Extra = %v", v.Context, v.Extra)
+	}
+	// A custom template can use it.
+	path := filepath.Join(t.TempDir(), "custom.tmpl")
+	if err := os.WriteFile(path, []byte("{{range .Context}}read {{.}}\n{{end}}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := Render(v, path); err != nil || got != "read docs/widgets.md\nread internal/widget/\n" {
+		t.Errorf("custom template = %q, %v", got, err)
 	}
 }
 

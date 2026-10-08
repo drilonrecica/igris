@@ -86,7 +86,7 @@ func homeSnap(status string) *report.Snapshot {
 		Recent: homeRecent(),
 	}
 	s.Plan = plan.Parse("tasks.md", []byte(text), plan.Options{})
-	s.Issues = report.Issues(s.Plan.Validate(cfg.Rules()))
+	s.Issues = report.Issues(s.Plan.Validate(cfg.Rules("")))
 	if len(s.Issues) == 0 {
 		st, err := report.Status(s.Plan, "")
 		if err != nil {
@@ -160,14 +160,14 @@ var homeStates = []struct {
 	{"plan_invalid", func() homeFixture {
 		s := homeSnap("ready")
 		s.Plan = plan.Parse("tasks.md", []byte(homeInvalidPlan), plan.Options{})
-		s.Issues = report.Issues(s.Plan.Validate(s.Config.Rules()))
+		s.Issues = report.Issues(s.Plan.Validate(s.Config.Rules("")))
 		s.Status, s.Recent = nil, nil
 		return homeFixture{snap: s, doctor: homeDoctor, doctorDone: true}
 	}},
 	{"plan_invalid_no_herdr", func() homeFixture {
 		s := homeSnap("ready")
 		s.Plan = plan.Parse("tasks.md", []byte(homeInvalidPlan), plan.Options{})
-		s.Issues = report.Issues(s.Plan.Validate(s.Config.Rules()))
+		s.Issues = report.Issues(s.Plan.Validate(s.Config.Rules("")))
 		s.Status, s.Recent = nil, nil
 		return homeFixture{snap: s, backend: errors.New("herdr not found on PATH"), doctor: homeDoctor, doctorDone: true}
 	}},

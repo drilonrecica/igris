@@ -115,9 +115,10 @@ func (c *Config) VerifyProfiles() map[string]string {
 }
 
 // Rules are the config values a plan is validated against: the model
-// ranks and the verify profile names.
-func (c *Config) Rules() plan.Rules {
-	return plan.Rules{Models: c.Models, Verify: sortedKeys(c.VerifyProfiles())}
+// ranks and the verify profile names, with root as the directory Context
+// paths are checked against (SPEC §3.2).
+func (c *Config) Rules(root string) plan.Rules {
+	return plan.Rules{Models: c.Models, Verify: sortedKeys(c.VerifyProfiles()), Root: root}
 }
 
 // PhaseVerify returns the [phases.<id>] verify setting of phase id

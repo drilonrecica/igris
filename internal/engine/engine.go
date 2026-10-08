@@ -199,7 +199,7 @@ func New(opts Options) (*Engine, error) {
 		runMode:   opts.Mode,
 		overrides: map[string]string{},
 	}
-	e.writer = plan.NewWriter(e.planPath, e.planOpts, e.cfg.Rules())
+	e.writer = plan.NewWriter(e.planPath, e.planOpts, e.cfg.Rules(e.dir.Root()))
 	return e, nil
 }
 
@@ -353,7 +353,7 @@ func (e *Engine) loadPlan() (*plan.Plan, error) {
 	if err != nil {
 		return nil, PlanLoadError(err)
 	}
-	if err := p.Check(e.cfg.Rules()); err != nil {
+	if err := p.Check(e.cfg.Rules(e.dir.Root())); err != nil {
 		return nil, err
 	}
 	return p, nil

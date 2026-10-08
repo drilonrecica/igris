@@ -36,7 +36,7 @@ func (p *Plan) Hints() []Issue {
 		if t.Owner != OwnerUser || t.Status.Satisfied() {
 			continue
 		}
-		for _, c := range []struct{ name, value string }{{ColVerify, t.Verify}, {ColTimeout, t.TimeoutText}} {
+		for _, c := range []struct{ name, value string }{{ColVerify, t.Verify}, {ColTimeout, t.TimeoutText}, {ColContext, t.ContextText}} {
 			if c.value != "" {
 				out = append(out, Issue{File: p.Path, Line: t.Line, Msg: t.ID + ": user tasks have no session, so its " + c.name + " is ignored; clear the cell"})
 			}

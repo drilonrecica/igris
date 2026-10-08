@@ -35,7 +35,7 @@ func readyFix() homeFixture {
 func invalidFix() homeFixture {
 	s := homeSnap("ready")
 	s.Plan = plan.Parse("tasks.md", []byte(homeInvalidPlan), plan.Options{})
-	s.Issues = report.Issues(s.Plan.Validate(s.Config.Rules()))
+	s.Issues = report.Issues(s.Plan.Validate(s.Config.Rules("")))
 	s.Status = nil
 	return homeFixture{snap: s, doctor: checkWarnings, doctorDone: true}
 }

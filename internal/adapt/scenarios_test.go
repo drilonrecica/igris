@@ -146,7 +146,7 @@ func TestScenarios(t *testing.T) {
 			if string(after) != proposed {
 				t.Error("the plan is not the proposal after accept")
 			}
-			left := plan.Parse(h.plan, after, opts).Validate(cfg.Rules())
+			left := plan.Parse(h.plan, after, opts).Validate(cfg.Rules(""))
 			if len(left) != len(tt.openIDs) {
 				t.Errorf("check after accept = %v, want %d open models", left, len(tt.openIDs))
 			}

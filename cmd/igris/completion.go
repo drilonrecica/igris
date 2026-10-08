@@ -231,7 +231,7 @@ func execComplete(args []string, stdout io.Writer) int {
 		return exitOK
 	}
 	p, err := plan.Load(cfg.Plan, plan.Options{Columns: cfg.Columns})
-	if err != nil || len(p.Validate(cfg.Rules())) > 0 {
+	if err != nil || len(p.Validate(cfg.Rules(""))) > 0 {
 		return exitOK
 	}
 	switch args[0] {

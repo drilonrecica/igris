@@ -560,6 +560,13 @@ func TestStatusOptionalColumns(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, configFile), []byte("[verify]\nfast = \"true\"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	// Context paths must exist, relative to the working directory.
+	if err := os.WriteFile(filepath.Join(dir, "x.go"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(dir, "y"), 0o700); err != nil {
+		t.Fatal(err)
+	}
 	write("## M1\n\n| ID | Status | Model | Verify | Timeout | Context |\n|---|---|---|---|---|---|\n| a | ready | sonnet | fast | | |\n" +
 		"\n## M2\n\n| ID | Status | Model | Context |\n|---|---|---|---|\n| b | ready | sonnet | `x.go`, y/ |\n")
 	code, out, _ := runCmd("status", "m1")

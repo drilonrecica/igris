@@ -17,6 +17,15 @@ You are working on **exactly one task** of an automated sequential igris run. Do
 ## Task
 
 {{.Text}}
+{{- if .Context}}
+
+## Required reading
+
+Read these paths of the project before changing anything:
+{{range .Context}}
+- `{{.}}`
+{{- end}}
+{{- end}}
 {{- if .Resumed}}
 
 ## Resumed task
@@ -27,7 +36,7 @@ A previous session already worked on this task and may have left partial changes
 
 ## How to work
 
-1. Read the project's agent rules (`CLAUDE.md`, `AGENTS.md` if present), the task's row in `{{.PlanFile}}`, and every spec section or document the task references.
+1. Read the project's agent rules (`CLAUDE.md`, `AGENTS.md` if present), the task's row in `{{.PlanFile}}`,{{if .Context}} the required reading above,{{end}} and every spec section or document the task references.
 2. Implement the task to the project's definition of done.
 3. Don't edit the Status column of the plan; igris updates it.
 {{- if eq .CommitPolicy "never"}}

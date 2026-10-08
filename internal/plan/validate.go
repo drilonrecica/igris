@@ -47,6 +47,10 @@ type Rules struct {
 	// Verify lists the verify profile names defined in config ([verify],
 	// and "default" for run.verify) that a Verify cell may name.
 	Verify []string
+	// Root is the directory Context paths are checked against (SPEC
+	// §3.2): the project root for arise and home, the working directory
+	// for check, phases and status. "" is the working directory.
+	Root string
 }
 
 // VerifyNone in a Verify cell (or [phases.<id>] verify) turns verification
@@ -55,7 +59,7 @@ const VerifyNone = "none"
 
 // Validate returns every problem in the plan (SPEC §3), sorted by line.
 func (p *Plan) Validate(r Rules) []Issue {
-	v := &validator{p: p, models: r.Models, verify: r.Verify, firstLine: map[string]int{}}
+	v := &validator{p: p, models: r.Models, verify: r.Verify, rules: r, firstLine: map[string]int{}}
 	v.issues = append(v.issues, p.issues...)
 	for _, t := range p.Tasks {
 		v.checkTask(t)
@@ -93,8 +97,12 @@ type validator struct {
 	p         *Plan
 	models    map[string]string
 	verify    []string
+	rules     Rules
 	firstLine map[string]int // task ID -> line of its first occurrence
 	issues    []Issue
+
+	root    string // rules.Root with symlinks resolved; see realRoot
+	rootErr error
 }
 
 func (v *validator) add(line int, format string, a ...any) {
@@ -177,6 +185,7 @@ func (v *validator) checkTask(t *Task) {
 		if t.TimeoutText != "" && t.Timeout == 0 {
 			v.checkTimeout(at, name, t.TimeoutText)
 		}
+		v.checkContext(at, name, t)
 	}
 
 	for _, d := range t.Deps {

@@ -81,7 +81,7 @@ func DryRun(ctx context.Context, o DryRunOptions) (report.DryRun, error) {
 	if err != nil {
 		return r, PlanLoadError(err)
 	}
-	if err := p.Check(f.Config.Rules()); err != nil {
+	if err := p.Check(f.Config.Rules(f.Root)); err != nil {
 		return r, err
 	}
 	// Check the range on the owner's plan, so errors name it, not the copy.
