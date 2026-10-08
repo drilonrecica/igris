@@ -272,13 +272,14 @@ func (e *Engine) openSession(ctx context.Context, l *launch, st sessionStart) er
 }
 
 // promptDelivered forgets the recorded first prompt once l's session has
-// delivered it, and starts the attempt's clock then.
-func (e *Engine) promptDelivered(l *launch) {
+// delivered it, and starts the attempt's clock then. It reports whether the
+// prompt went out on this call.
+func (e *Engine) promptDelivered(l *launch) bool {
 	if l.cur.PendingPrompt == "" {
-		return
+		return false
 	}
 	if h, ok := l.sess.(backend.PromptHolder); ok && h.PromptPending() {
-		return
+		return false
 	}
 	l.cur.PendingPrompt = ""
 	l.startAttempt(e.clock.Now())
@@ -286,6 +287,7 @@ func (e *Engine) promptDelivered(l *launch) {
 	if err := e.dir.SaveRun(e.run); err != nil {
 		e.warn(err.Error())
 	}
+	return true
 }
 
 // drive watches l's session until the task is finished or the run stops,

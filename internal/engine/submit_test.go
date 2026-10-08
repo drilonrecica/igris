@@ -156,3 +156,21 @@ func TestLostEnterAfterHeldPrompt(t *testing.T) {
 		t.Errorf("lost-Enter warnings at %q, want %q", got, want)
 	}
 }
+
+// On a real clock time moves between two readings, so the poll that
+// delivers a held prompt (and reports Working for it) is later than the
+// prompt: that Working must not count as the agent working on it.
+func TestLostEnterAfterHeldPromptTickingClock(t *testing.T) {
+	h := newHarness(t, chainPlan, "")
+	h.clock.Step(time.Millisecond)
+	h.hookAtPrompt("SessionStart", backend.Idle)
+	h.be.StartupPrompt("A-1")
+	h.be.Script("A-1", append(states(backend.Blocked, 5), backend.Idle)...)
+	h.signalAt(100*time.Second, "A-1")
+	if _, err := h.run(); err != nil {
+		t.Fatal(err)
+	}
+	if got := h.be.Submits("A-1"); got != 1 {
+		t.Errorf("Enter sent %d times, want once", got)
+	}
+}

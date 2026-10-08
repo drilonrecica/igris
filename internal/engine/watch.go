@@ -120,8 +120,8 @@ func (e *Engine) watch(ctx context.Context, l *launch) (verdict, error) {
 				e.lose(ctx, l)
 			default:
 				stateErr = ""
-				e.promptDelivered(l)
-				e.checkSubmitted(ctx, l, st)
+				delivered := e.promptDelivered(l)
+				e.checkSubmitted(ctx, l, st, delivered)
 				e.observe(ctx, st, &ep)
 			}
 			e.checkOverdue(ctx, l)
@@ -170,12 +170,15 @@ const submitAfter = 15 * time.Second
 // A submitted prompt always fires UserPromptSubmit, and a turn ends with
 // Stop. Without a hook record there is no evidence, and nothing is done.
 // The prompt text is never sent again; Needs you follows as usual.
-func (e *Engine) checkSubmitted(ctx context.Context, l *launch, st backend.AgentState) {
+// delivered says st comes from the poll that just delivered a held prompt:
+// that poll reports Working for the delivery itself, not for the agent
+// working on the prompt.
+func (e *Engine) checkSubmitted(ctx context.Context, l *launch, st backend.AgentState, delivered bool) {
 	if l.promptAt.IsZero() || l.cur.ClaudeSession == "" {
 		return
 	}
 	now := e.clock.Now()
-	if st == backend.Working && now.After(l.promptAt) {
+	if st == backend.Working && !delivered && now.After(l.promptAt) {
 		l.promptAt = time.Time{} // the agent works on it
 		return
 	}

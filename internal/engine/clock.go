@@ -36,7 +36,8 @@ type FakeClock struct {
 	mu    sync.Mutex
 	start time.Time
 	now   time.Time
-	hooks []fakeHook // sorted by offset; equal offsets keep registration order
+	step  time.Duration // added after every Now, see Step
+	hooks []fakeHook    // sorted by offset; equal offsets keep registration order
 }
 
 type fakeHook struct {
@@ -49,11 +50,22 @@ func NewFakeClock(start time.Time) *FakeClock {
 	return &FakeClock{start: start, now: start}
 }
 
-// Now returns the fake time.
+// Now returns the fake time, then moves it on by the Step, if any.
 func (c *FakeClock) Now() time.Time {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.now
+	now := c.now
+	c.now = c.now.Add(c.step)
+	return now
+}
+
+// Step makes every later Now move the time forward by d, like a real clock
+// that ticks between two readings; 0 (the default) keeps it still. Hooks
+// still run only inside After.
+func (c *FakeClock) Step(d time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.step = d
 }
 
 // At registers fn to run once, as soon as the clock is offset or more past

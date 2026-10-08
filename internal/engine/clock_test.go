@@ -40,3 +40,15 @@ func TestFakeClock(t *testing.T) {
 		t.Errorf("Now = %v, want %v", got, want)
 	}
 }
+
+func TestFakeClockStep(t *testing.T) {
+	start := time.Date(2026, 10, 6, 12, 0, 0, 0, time.UTC)
+	c := NewFakeClock(start)
+	c.Step(time.Millisecond)
+	if got := c.Now(); !got.Equal(start) {
+		t.Fatalf("first Now = %v, want %v", got, start)
+	}
+	if got, want := c.Now(), start.Add(time.Millisecond); !got.Equal(want) {
+		t.Fatalf("second Now = %v, want %v", got, want)
+	}
+}
