@@ -4,7 +4,7 @@ M0-03 Makefile
 rank sonnet → model sonnet
 mode plan · 4m12s
 state: working
-  FAIL TestParse: a line long enough to be clippe…
+FAIL TestParse: a line long enough to be clipped …
 ✻ Thinking… (esc to interrupt)
 >
 fmt, lint, test

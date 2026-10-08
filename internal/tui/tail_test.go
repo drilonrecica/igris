@@ -130,6 +130,33 @@ func TestCardShowsTheTail(t *testing.T) {
 	}
 }
 
+// TestTailRightAligned: a line Claude Code pads to the pane's width to
+// right-align it shows its text, not a blank row ending in "…"; a padded
+// line that fits keeps its padding.
+func TestTailRightAligned(t *testing.T) {
+	for _, size := range [][2]int{{120, 40}, {80, 24}, {50, 20}} {
+		hs := cardHarness(t, size[0], size[1], "M0-02")
+		hs.withTail("    indented and short",
+			strings.Repeat(" ", 200)+"◐ medium · /effort",
+			strings.Repeat(" ", 190)+"\ttmux focus")
+		v := hs.m.View()
+		checkFits(t, v, size[0], size[1])
+		for _, want := range []string{"◐ medium · /effort", "tmux focus"} {
+			if !strings.Contains(v, want) {
+				t.Errorf("%dx%d: %q not shown:\n%s", size[0], size[1], want, v)
+			}
+		}
+		for _, l := range strings.Split(v, "\n") {
+			if strings.TrimSpace(l) == "…" {
+				t.Errorf("%dx%d: a blank row ending in …:\n%s", size[0], size[1], v)
+			}
+		}
+		if size[0] == 120 && !strings.Contains(v, "    indented and short") {
+			t.Errorf("%dx%d: a line that fits lost its padding:\n%s", size[0], size[1], v)
+		}
+	}
+}
+
 // TestTailGivesWayToTheCard: in a short card the task text goes first,
 // then the tail's oldest lines; the head and the buttons stay.
 func TestTailGivesWayToTheCard(t *testing.T) {

@@ -7,7 +7,7 @@
 │  · M0-05  Buy the domain                          user   │ earlier line two                                          │
 │  ⨯ M0-13  Static assets                           sonnet │ ⏺ Running the tests with make test.                       │
 │    waits on P0-05                                        │   ⎿  ok github.com/example/demo 0.012s                    │
-│  – M0-14  Old idea                                haiku  │   FAIL TestParse: a line long enough to be clipped at th… │
+│  – M0-14  Old idea                                haiku  │ FAIL TestParse: a line long enough to be clipped at the … │
 │                                                          │ ✻ Thinking… (esc to interrupt)                            │
 │                                                          │ >                                                         │
 │                                                          │ fmt, lint, test                                           │

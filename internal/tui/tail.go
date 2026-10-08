@@ -171,7 +171,10 @@ func expandTabs(s string) string {
 }
 
 // tailView is the card's tail, w cells wide: the last lines that fit the
-// layout, dimmed so they don't read as igris's own text.
+// layout, dimmed so they don't read as igris's own text. A line wider than
+// the card loses its leading spaces before it is clipped: Claude Code pads
+// right-aligned text (`◐ medium · /effort`) to the pane's width, and
+// clipping the padding would leave a blank row ending in "…".
 func (m *model) tailView(w int) []string {
 	if !m.tailing() || len(m.tail) == 0 {
 		return nil
@@ -183,6 +186,9 @@ func (m *model) tailView(w int) []string {
 	lines := m.tail[max(len(m.tail)-n, 0):]
 	out := make([]string, len(lines))
 	for i, l := range lines {
+		if textWidth(l) > w {
+			l = strings.TrimLeft(l, " ")
+		}
 		out[i] = m.th.paint(lookDim, fit(l, w))
 	}
 	return out
