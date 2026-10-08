@@ -214,9 +214,13 @@ func TestParseErrors(t *testing.T) {
 		{"quiet signed", "[notify]\nquiet = \"+1:00-07:00\"", []string{"notify.quiet"}},
 		{"quiet empty window", "[notify]\nquiet = \"07:00-07:00\"", []string{"starts and ends at the same time"}},
 		{"break_through bad event", "[notify]\nbreak_through = [\"needs_input\", \"nope\"]", []string{"notify.break_through", `"nope"`}},
-		{"digest negative", "[notify]\ntask_done_digest = -2", []string{"notify.task_done_digest = -2 is invalid", `"phase"`}},
-		{"digest word", "[notify]\ntask_done_digest = \"task\"", []string{`notify.task_done_digest = "task" is invalid`}},
-		{"digest float", "[notify]\ntask_done_digest = 2.5", []string{"notify.task_done_digest = 2.5 is invalid"}},
+		{"digest negative", "[notify]\ntask_done_digest = -2", []string{"notify.task_done_digest is invalid", `"phase"`}},
+		{"digest minus one", "[notify]\ntask_done_digest = -1", []string{"notify.task_done_digest is invalid"}},
+		{"digest huge", "[notify]\ntask_done_digest = 1000001", []string{"notify.task_done_digest is invalid"}},
+		{"digest word", "[notify]\ntask_done_digest = \"task\"", []string{"notify.task_done_digest is invalid"}},
+		{"digest float", "[notify]\ntask_done_digest = 2.5", []string{"notify.task_done_digest is invalid"}},
+		{"digest list", "[notify]\ntask_done_digest = [2]", []string{"notify.task_done_digest is invalid"}},
+		{"digest reported with other problems", "default_mode = \"x\"\n[notify]\ntask_done_digest = \"task\"\nquiet = \"9\"", []string{"default_mode", "notify.task_done_digest is invalid", "notify.quiet"}},
 		{"unknown notify key", "[notify]\nquiet_hours = \"22:00-07:00\"", []string{"notify.quiet_hours"}},
 		{"slack bad event", "[notify.slack]\nwebhook_url = \"https://h/x\"\nevents = [\"nope\"]", []string{"notify.slack.events", `"nope"`}},
 		{"unknown slack key", "[notify.slack]\nurl = \"https://h/x\"", []string{"notify.slack.url"}},
@@ -798,7 +802,7 @@ func TestHashWithoutHoldSettingsIsUnchanged(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{`"Quiet"`, `"BreakThrough"`, `"TaskDoneDigest"`, `"Template"`} {
+	for _, key := range []string{`"Quiet"`, `"BreakThrough"`, `"TaskDoneDigest"`, `"Template"`, `"Tail"`} {
 		if strings.Contains(string(b), key) {
 			t.Errorf("config JSON has %s: %s", key, b)
 		}
@@ -935,5 +939,42 @@ func TestTemplateAllowsConditionals(t *testing.T) {
 		if _, err := ParseMessageTemplate("notify.ntfy.template", text); err != nil {
 			t.Errorf("%q: %v", text, err)
 		}
+	}
+}
+
+// v04DefaultHash is Default().Hash() in igris v0.4.0. A v0.4 config keeps
+// its hash: [tui] tail is left out of it while on (the default), like the
+// other v0.5 keys while unset.
+const v04DefaultHash = "4b625b91b982f40c0cef9a66a18dadb41543249b665ec2e905020ed7f8039a84"
+
+func TestHashOfV04Config(t *testing.T) {
+	if got := Default().Hash(); got != v04DefaultHash {
+		b, _ := json.Marshal(Default())
+		t.Errorf("default hash %s, want v0.4's %s\n%s", got, v04DefaultHash, b)
+	}
+	for _, src := range []string{"[tui]\ntail = true\n", "[tui]\nmouse = true\ntheme = \"auto\"\n"} {
+		c, err := Parse([]byte(src), "igris.toml")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c.Hash() != v04DefaultHash {
+			t.Errorf("%q changed the hash", src)
+		}
+	}
+	off, err := Parse([]byte("[tui]\ntail = false\n"), "igris.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if off.Hash() == v04DefaultHash {
+		t.Error("tail = false left the hash unchanged")
+	}
+	// Write and Load keep tail = false.
+	path := filepath.Join(t.TempDir(), "igris.toml")
+	if err := Write(path, off); err != nil {
+		t.Fatal(err)
+	}
+	back, err := Load(path)
+	if err != nil || back.TUI.Tail || back.Hash() != off.Hash() {
+		t.Errorf("round trip: %v tail=%v", err, back != nil && back.TUI.Tail)
 	}
 }

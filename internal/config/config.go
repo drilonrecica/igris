@@ -214,7 +214,23 @@ type TUI struct {
 	RankColors map[string]string `toml:"rank_colors"`
 	// Tail shows the last lines of the current session in the task card,
 	// refreshed every poll_interval (SPEC §15.3). Off makes no tail calls.
+	// It is left out of the hash while on (MarshalJSON).
 	Tail bool `toml:"tail"`
+}
+
+// MarshalJSON encodes t for the config hash with Tail only when it is off:
+// on is the default, so a v0.4 config, which has no tail key, keeps the
+// hash it had (like the other v0.5 keys while unset).
+func (t TUI) MarshalJSON() ([]byte, error) {
+	type plain TUI // without this method
+	v := struct {
+		plain
+		Tail *bool `json:",omitempty"`
+	}{plain: plain(t)}
+	if !t.Tail {
+		v.Tail = &t.Tail
+	}
+	return json.Marshal(v)
 }
 
 // Notify groups the notification channels and the settings that hold

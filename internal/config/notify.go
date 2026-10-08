@@ -95,33 +95,37 @@ type TaskDoneDigest int
 // DigestPhase is task_done_digest = "phase".
 const DigestPhase TaskDoneDigest = -1
 
-const digestPhaseName = "phase"
+// digestInvalid is what a value that is no task_done_digest decodes to;
+// Validate reports it with the other problems of the file.
+const digestInvalid TaskDoneDigest = -2
 
-func badDigest(v any) error {
-	return fmt.Errorf("notify.task_done_digest = %v is invalid; use 0 (one message per task), a number of tasks of at least 2, or %q", v, digestPhaseName)
-}
+const (
+	digestPhaseName = "phase"
+	maxDigest       = 1_000_000
+)
+
+const badDigest = `notify.task_done_digest is invalid; use 0 (one message per task), a number of tasks of at least 2, or "phase"`
 
 // UnmarshalTOML implements toml.Unmarshaler: an integer or "phase"; 1
-// means 0.
+// means 0. Any other value decodes to digestInvalid instead of failing
+// the decode, so Validate lists it together with the file's other
+// problems.
 func (d *TaskDoneDigest) UnmarshalTOML(v any) error {
+	*d = digestInvalid
 	switch x := v.(type) {
 	case int64:
-		if x < 0 || x > 1_000_000 {
-			return badDigest(x)
+		switch {
+		case x == 1:
+			*d = 0
+		case x >= 0 && x <= maxDigest:
+			*d = TaskDoneDigest(x)
 		}
-		if x == 1 {
-			x = 0
-		}
-		*d = TaskDoneDigest(x)
-		return nil
 	case string:
-		if x != digestPhaseName {
-			return badDigest(strconv.Quote(x))
+		if x == digestPhaseName {
+			*d = DigestPhase
 		}
-		*d = DigestPhase
-		return nil
 	}
-	return badDigest(v)
+	return nil
 }
 
 // MarshalTOML implements toml.Marshaler.
@@ -276,8 +280,8 @@ func (c *Config) validateNotify(add func(string, ...any)) {
 			add("notify.break_through contains unknown event %q; use any of: %s", ev, strings.Join(validEvents, ", "))
 		}
 	}
-	if n.TaskDoneDigest < DigestPhase {
-		add("%v", badDigest(int(n.TaskDoneDigest)))
+	if n.TaskDoneDigest < DigestPhase || n.TaskDoneDigest > maxDigest {
+		add("%s", badDigest)
 	}
 	for _, tt := range n.templates() {
 		if tt.text == "" {
