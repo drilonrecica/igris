@@ -98,6 +98,7 @@ func NewSettings(cfg *config.Config, keys config.Keys, getenv func(string) strin
 	tui := sec("tui")
 	set(tui, "mouse", strconv.FormatBool(cfg.TUI.Mouse))
 	set(tui, "theme", tomlString(cfg.TUI.Theme))
+	set(tui, "tail", strconv.FormatBool(cfg.TUI.Tail))
 	table("tui.rank_colors", cfg.TUI.RankColors)
 
 	set(sec("notify.backend"), "enabled", strconv.FormatBool(cfg.Notify.Backend.Enabled))

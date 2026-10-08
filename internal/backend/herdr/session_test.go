@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -660,4 +661,66 @@ func TestAttachChecksClaudeSession(t *testing.T) {
 	if _, err := New(f, "w2B").Attach(context.Background(), ref); err == nil || len(f.Calls()) != 0 {
 		t.Errorf("Attach = %v after %d calls, want refusal", err, len(f.Calls()))
 	}
+}
+
+func TestTail(t *testing.T) {
+	ctx := context.Background()
+	read := func(source string, n int) []string {
+		return []string{"agent", "read", "igris-t-01", "--source", source, "--lines", strconv.Itoa(n)}
+	}
+	t.Run("transcript", func(t *testing.T) {
+		f := started(t)
+		s := open(t, f)
+		f.On(cmd("agent", "read"), ok(t, "agent_read_recent_unwrapped.txt"), nil)
+		got, err := s.Tail(ctx, 4)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// The fixture's last lines are Claude Code's input box and status.
+		if len(got) != 4 || got[0] != "❯\u00a0" || got[3] != "  ⏸ manual mode on · ← for agents" {
+			t.Errorf("tail %q, want the fixture's last 4 lines", got)
+		}
+		if a := argv(f); !slices.Equal(a[len(a)-1], read(SourceRecentUnwrapped, 4)) {
+			t.Errorf("calls %q", a)
+		}
+	})
+	t.Run("empty transcript falls back to the screen", func(t *testing.T) {
+		f := started(t)
+		s := open(t, f)
+		f.On(cmd("agent", "read"), runner.Result{Stdout: []byte("\n\n  \n")}, nil)
+		f.On(cmd("agent", "read"), runner.Result{Stdout: []byte(" Do you trust the files in this folder?\n ❯ 1. Yes, proceed\n\n")}, nil)
+		got, err := s.Tail(ctx, 6)
+		if err != nil || !slices.Equal(got, []string{" Do you trust the files in this folder?", " ❯ 1. Yes, proceed"}) {
+			t.Errorf("tail %q, %v", got, err)
+		}
+		a := argv(f)
+		if !slices.Equal(a[len(a)-2], read(SourceRecentUnwrapped, 6)) || !slices.Equal(a[len(a)-1], read(SourceVisible, 6)) {
+			t.Errorf("calls %q", a)
+		}
+	})
+	t.Run("both empty", func(t *testing.T) {
+		f := started(t)
+		s := open(t, f)
+		f.On(cmd("agent", "read"), runner.Result{}, nil)
+		f.On(cmd("agent", "read"), runner.Result{}, nil)
+		if got, err := s.Tail(ctx, 6); err != nil || len(got) != 0 {
+			t.Errorf("tail %q, %v; want none", got, err)
+		}
+	})
+	t.Run("gone", func(t *testing.T) {
+		f := started(t)
+		s := open(t, f)
+		f.On(cmd("agent", "read"), fail(t, "error_agent_not_found.json", 1), nil)
+		if _, err := s.Tail(ctx, 6); !errors.Is(err, backend.ErrSessionGone) {
+			t.Errorf("tail of a gone session = %v, want ErrSessionGone", err)
+		}
+	})
+	t.Run("other error", func(t *testing.T) {
+		f := started(t)
+		s := open(t, f)
+		f.On(cmd("agent", "read"), runner.Result{Stderr: []byte("boom"), ExitCode: 1}, nil)
+		if _, err := s.Tail(ctx, 6); err == nil || errors.Is(err, backend.ErrSessionGone) {
+			t.Errorf("tail = %v, want a plain error", err)
+		}
+	})
 }

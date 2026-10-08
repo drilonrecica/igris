@@ -173,8 +173,9 @@ func TestLaunchBuildsArisesEngine(t *testing.T) {
 	if o := l.Options(report.Confirmations{}, nil); o.ConfirmedDrift || o.ConfirmedYolo || o.ForceUnlock {
 		t.Errorf("no answers, yet options = %+v", o)
 	}
-	if _, err := l.Engine(report.Confirmations{}, events); err != nil {
-		t.Errorf("engine: %v", err)
+	eng, err := l.Engine(report.Confirmations{}, events)
+	if err != nil {
+		t.Fatalf("engine: %v", err)
 	}
 
 	feed := tui.NewFeed()
@@ -186,6 +187,19 @@ func TestLaunchBuildsArisesEngine(t *testing.T) {
 	if uo.RankDurations != nil {
 		t.Errorf("no run log, yet rank durations %v", uo.RankDurations)
 	}
+	// The live tail reads the engine's session, every poll_interval, unless
+	// [tui] tail is off (SPEC §15.3).
+	if uo.Tail != nil {
+		t.Error("a tail without an engine to read it from")
+	}
+	if uo := l.TUIOptions(feed, eng); uo.Tail == nil || uo.TailEvery != p.Cfg.PollInterval.Std() {
+		t.Errorf("tail %v every %s", uo.Tail != nil, uo.TailEvery)
+	}
+	p.Cfg.TUI.Tail = false
+	if uo := l.TUIOptions(feed, eng); uo.Tail != nil {
+		t.Error("[tui] tail = false, yet a tail")
+	}
+	p.Cfg.TUI.Tail = true
 	writeFile(t, filepath.Join(root, state.DirName, "runs.jsonl"),
 		`{"at":"2026-10-01T09:00:00Z","type":"run_started","detail":"phase M0"}
 {"at":"2026-10-01T09:00:00Z","type":"task_started","task":"M0-01","rank":"sonnet","model":"sonnet"}

@@ -59,6 +59,13 @@ func TestClientCommands(t *testing.T) {
 			[]string{"kill-window", "-t", "@1"}},
 		{"toast escaped", runner.Result{}, func(c *Client) error { return c.DisplayMessage(ctx, "needs you: #(rm -rf ~)\x1b[31m") },
 			[]string{"display-message", "-d", "5000", "needs you: ##(rm -rf ~)"}},
+		{"capture", ok(t, "capture_pane.txt"), func(c *Client) error {
+			out, err := c.CapturePane(ctx, "%1", 6)
+			if err == nil && !strings.HasPrefix(out, "history line 5\n") {
+				t.Errorf("capture %q", out)
+			}
+			return err
+		}, []string{"capture-pane", "-p", "-J", "-t", "%1", "-S", "-6"}},
 		{"version", ok(t, "version.txt"), func(c *Client) error {
 			v, err := c.Version(ctx)
 			if err == nil && v != "3.7c" {

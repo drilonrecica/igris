@@ -32,6 +32,7 @@ const (
 
 var _ backend.Session = (*Session)(nil)
 var _ backend.PromptHolder = (*Session)(nil)
+var _ backend.Tailer = (*Session)(nil)
 
 // Session is one Claude Code session in a tmux window. It is safe for
 // concurrent use.
@@ -220,6 +221,21 @@ func (s *Session) State(ctx context.Context) (backend.AgentState, error) {
 		return backend.Working, nil
 	}
 	return st, nil
+}
+
+// Tail implements backend.Tailer with capture-pane. It doesn't take s.mu:
+// it reads nothing State or Prompt change, and must not wait behind a
+// held prompt's settle. A gone pane yields ErrSessionGone; a dead one
+// still shows its last output.
+func (s *Session) Tail(ctx context.Context, n int) ([]string, error) {
+	out, err := s.c.CapturePane(ctx, s.ref.PaneID, n)
+	switch {
+	case IsGone(err):
+		return nil, s.goneErr("tail", err)
+	case err != nil:
+		return nil, fmt.Errorf("tail %s: %w", s.id, err)
+	}
+	return backend.LastLines(out, n), nil
 }
 
 // Focus makes the session's window the current one.

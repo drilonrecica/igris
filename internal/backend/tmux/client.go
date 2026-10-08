@@ -162,6 +162,18 @@ func (c *Client) Pane(ctx context.Context, pane string) (PaneInfo, error) {
 	return PaneInfo{}, &Error{Op: "list-panes", Message: "can't find pane: " + pane, Exit: 1}
 }
 
+// CapturePane returns pane's last lines as plain text: the last lines of
+// its history and the visible screen, wrapped lines joined (-J), without
+// escape sequences (no -e). The visible screen's empty rows come at the
+// end; Session.Tail drops them.
+func (c *Client) CapturePane(ctx context.Context, pane string, lines int) (string, error) {
+	out, err := c.exec(ctx, nil, "capture-pane", "-p", "-J", "-t", pane, "-S", "-"+strconv.Itoa(max(lines, 0)))
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
+}
+
 // SelectWindow makes window the current window of its session.
 func (c *Client) SelectWindow(ctx context.Context, window string) error {
 	_, err := c.exec(ctx, nil, "select-window", "-t", window)

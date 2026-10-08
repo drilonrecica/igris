@@ -454,6 +454,7 @@ func (m *homeScreen) runView(req report.RunRequest, r *liveRun) tea.Model {
 		o.Backend = s.Config.Backend
 		o.PlanOptions = plan.Options{Columns: s.Config.Columns}
 	}
+	o.Tail, o.TailEvery = TailOf(s.Config, r.sender)
 	v := newModel(m.ctx, o)
 	v.th = m.th
 	return v

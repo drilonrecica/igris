@@ -26,7 +26,10 @@ const promptWait = 10 * time.Second
 // (Claude Code 2.1.292, herdr 0.9.1). 2 s leaves a wide margin.
 const promptSettle = 2 * time.Second
 
-var _ backend.Session = (*Session)(nil)
+var (
+	_ backend.Session = (*Session)(nil)
+	_ backend.Tailer  = (*Session)(nil)
+)
 
 // Session is one Claude Code agent in a herdr tab. It is safe for
 // concurrent use.
@@ -213,6 +216,28 @@ func agentState(status string) backend.AgentState {
 		return backend.Done
 	}
 	return backend.Unknown
+}
+
+// Tail implements backend.Tailer with `agent read`: the transcript
+// (recent-unwrapped), or the screen (visible) when the transcript is empty
+// because a dialog is drawn on the alternate screen. It doesn't take s.mu:
+// it reads nothing State or Prompt change, and must not wait behind a
+// held prompt's settle.
+func (s *Session) Tail(ctx context.Context, n int) ([]string, error) {
+	var lines []string
+	for _, source := range []string{SourceRecentUnwrapped, SourceVisible} {
+		out, err := s.c.AgentRead(ctx, s.ref.Agent, source, n)
+		switch {
+		case gone(err):
+			return nil, s.goneErr("tail", err)
+		case err != nil:
+			return nil, fmt.Errorf("tail %s: %w", s.id, err)
+		}
+		if lines = backend.LastLines(out, n); len(lines) > 0 {
+			break
+		}
+	}
+	return lines, nil
 }
 
 // Focus brings the session's tab to the front.

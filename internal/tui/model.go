@@ -107,6 +107,13 @@ type model struct {
 	notice   string // what the last y copied, shown in the header
 	noticeAt time.Time
 
+	// tail is the current session's last lines, cleaned (tail.go);
+	// tailBusy says a refresh is in flight, tailGen counts the sessions
+	// so a late result for an earlier one is dropped.
+	tail     []string
+	tailBusy bool
+	tailGen  int
+
 	zones zones // of the last frame
 	th    *theme
 }
@@ -129,7 +136,7 @@ type (
 )
 
 func (m *model) Init() tea.Cmd {
-	return tea.Batch(m.listen(false), tick(), m.loadPlan())
+	return tea.Batch(m.listen(false), tick(), m.loadPlan(), m.tailTick())
 }
 
 // loadPlan reads the plan for the task list. The engine writes it
@@ -201,6 +208,14 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.notice = ""
 		}
 		return m, tick()
+	case tailTickMsg:
+		if msg.m == m {
+			return m, m.refreshTail()
+		}
+	case tailMsg:
+		if msg.m == m {
+			m.gotTail(msg)
+		}
 	case focusErrMsg:
 		m.addLog(m.opts.Now(), "could not open the session: "+msg.err.Error(), lookTitle)
 	case tea.KeyMsg:
@@ -613,6 +628,13 @@ func (m *model) focusSession() tea.Cmd {
 
 // event applies one engine event.
 func (m *model) event(ev engine.Event) {
+	if session := m.sessionOf(); session != nil {
+		defer func() {
+			if m.sessionOf() != session {
+				m.resetTail() // another session, or none
+			}
+		}()
+	}
 	for _, line := range logLines(ev) {
 		m.addLog(ev.At, line, logLook(ev.Kind))
 	}

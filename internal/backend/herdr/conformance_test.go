@@ -64,6 +64,8 @@ func (w *herdrWorld) run(c runner.Cmd) (runner.Result, error) {
 			w.prompts = append(w.prompts, a[3])
 		}
 		return answer("agent_prompt_nowait.json", "error_agent_not_found.json")
+	case "agent read":
+		return answer("agent_read_recent_unwrapped.txt", "error_agent_not_found.json")
 	case "pane get":
 		return answer("pane_get_idle.json", "error_pane_not_found.json")
 	case "tab focus":

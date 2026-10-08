@@ -11,11 +11,14 @@ const wideWidth = 100
 // View draws the frame and records its zones.
 func (m *model) View() string {
 	m.zones.reset()
-	if m.width >= wideWidth && m.height >= wideMinHeight {
+	if m.wide() {
 		return m.wideView()
 	}
 	return m.narrowView()
 }
+
+// wide reports whether the frame uses the wide layout.
+func (m *model) wide() bool { return m.width >= wideWidth && m.height >= wideMinHeight }
 
 // stateText says what the current task needs, in words.
 func (m *model) stateText() string {

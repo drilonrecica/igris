@@ -51,6 +51,14 @@ type Options struct {
 	// earlier runs (report.RankDurations), loaded once when the run
 	// starts; the current task's ETA is their median (SPEC §15.3).
 	RankDurations map[string][]time.Duration
+	// Tail reads the last lines of the current task's session for the
+	// card's live tail (SPEC §15.3); nil means no tail ([tui] tail = false,
+	// or nothing to read it from). Its lines are raw pane text: the TUI
+	// cleans them, and they go nowhere but the card.
+	Tail func(ctx context.Context, n int) ([]string, error)
+	// TailEvery is how often the tail is read: poll_interval. Zero means
+	// every 2 s.
+	TailEvery time.Duration
 	// Now is the clock for elapsed times; nil means time.Now.
 	Now func() time.Time
 	// Leave, when set, is how the run view is left when the owner quits it

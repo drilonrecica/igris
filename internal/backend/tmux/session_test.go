@@ -224,3 +224,31 @@ func TestNotify(t *testing.T) {
 		t.Errorf("toasts %q", s.toasts)
 	}
 }
+
+// TestTail cuts the recorded capture (testdata/capture_pane.txt: six
+// history lines, then a 12-row screen with five empty rows at the end).
+func TestTail(t *testing.T) {
+	ctx := context.Background()
+	s := newSim()
+	sess := openSim(t, s)
+	f := &runner.Fake{}
+	f.On(cmd("capture-pane"), ok(t, "capture_pane.txt"), nil)
+	f.On(cmd("capture-pane"), fail(t, "err_pane.txt"), nil)
+	f.On(cmd("capture-pane"), runner.Result{Stderr: []byte("no server running\n"), ExitCode: 1}, nil)
+	sess.c = NewClient(f)
+
+	got, err := sess.Tail(ctx, 4)
+	want := []string{"\tindented\twith tabs", "", "✻ Working… (esc to interrupt)"}
+	if err != nil || len(got) != 4 || !slices.Equal(got[1:], want) {
+		t.Errorf("Tail = %q, %v; want … %q", got, err, want)
+	}
+	if c := f.Calls()[0]; !slices.Equal(c.Args, []string{"capture-pane", "-p", "-J", "-t", "%1", "-S", "-4"}) {
+		t.Errorf("args %q", c.Args)
+	}
+	if _, err := sess.Tail(ctx, 4); !errors.Is(err, backend.ErrSessionGone) {
+		t.Errorf("Tail of a gone pane = %v, want ErrSessionGone", err)
+	}
+	if _, err := sess.Tail(ctx, 4); err == nil || errors.Is(err, backend.ErrSessionGone) {
+		t.Errorf("Tail = %v, want a plain error", err)
+	}
+}

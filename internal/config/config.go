@@ -211,6 +211,9 @@ type TUI struct {
 	// RankColors maps a rank to its color in the TUI: "#rrggbb" or an ANSI
 	// color number 0-255. Ranks not listed keep the built-in colors.
 	RankColors map[string]string `toml:"rank_colors"`
+	// Tail shows the last lines of the current session in the task card,
+	// refreshed every poll_interval (SPEC §15.3). Off makes no tail calls.
+	Tail bool `toml:"tail"`
 }
 
 // Notify groups the notification channels.
@@ -315,7 +318,7 @@ func Default() *Config {
 			CommitMessage:     "{{.ID}}: {{.Title}}",
 		},
 		Adapt: Adapt{Model: "sonnet"},
-		TUI:   TUI{Mouse: true, Theme: "auto", RankColors: map[string]string{}},
+		TUI:   TUI{Mouse: true, Theme: "auto", RankColors: map[string]string{}, Tail: true},
 		Notify: Notify{
 			Backend: NotifyBackend{Enabled: true},
 			Ntfy:    Ntfy{Server: "https://ntfy.sh", Events: defaultEvents()},

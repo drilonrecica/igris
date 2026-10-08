@@ -1,7 +1,7 @@
 // Package conformance is the behavioral test suite every backend must pass
 // (SPEC §11.1): open, prompt, state, focus and close a session; a session
 // that went away; attach after an igris restart; a multi-line prompt with
-// control characters. Each backend's tests run it against a World: the
+// control characters; and, for a backend.Tailer, the tail. Each backend's tests run it against a World: the
 // fake directly, herdr and tmux against simulations built from their
 // recorded fixtures. It keeps "a new backend fits the interface without
 // engine changes" honest.
@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/drilonrecica/igris/internal/backend"
@@ -36,8 +37,8 @@ const UUID = "2b7f3c1e-8d4a-4f6b-9c2e-5a1d0e9f8b7c"
 var Spec = backend.SessionSpec{
 	TaskID:        "T-01",
 	Dir:           "/work/demo",
-	Label:         "T-01 · haiku",
-	Args:          []string{"--model", "haiku", "--session-id", UUID},
+	Label:         "T-01 · sonnet",
+	Args:          []string{"--model", "sonnet", "--session-id", UUID},
 	ClaudeSession: UUID,
 }
 
@@ -138,6 +139,30 @@ func Run(t *testing.T, newWorld func(t *testing.T) World) {
 		}
 		if got := w.Prompts(ref); len(got) != 1 || got[0] != "again" {
 			t.Errorf("prompts %q", got)
+		}
+	})
+
+	// The live tail (SPEC §15.3) is optional: only a Tailer is held to it.
+	t.Run("tail", func(t *testing.T) {
+		w := newWorld(t)
+		s := open(t, w)
+		tl, ok := s.(backend.Tailer)
+		if !ok {
+			t.Skipf("%s sessions don't implement backend.Tailer", s.Ref().Backend)
+		}
+		if err := s.Prompt(ctx, "# Task T-01\nDo the thing."); err != nil {
+			t.Fatalf("Prompt: %v", err)
+		}
+		got, err := tl.Tail(ctx, 5)
+		if err != nil || len(got) > 5 {
+			t.Errorf("Tail(5) = %q, %v; want at most 5 lines and no error", got, err)
+		}
+		if len(got) > 0 && strings.TrimSpace(got[len(got)-1]) == "" {
+			t.Errorf("Tail(5) = %q ends in a blank line", got)
+		}
+		w.Kill(s.Ref())
+		if _, err := tl.Tail(ctx, 5); !errors.Is(err, backend.ErrSessionGone) {
+			t.Errorf("Tail of a gone session = %v, want ErrSessionGone", err)
 		}
 	})
 

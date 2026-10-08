@@ -1,0 +1,16 @@
+history line 5
+history line 6
+history line 7
+history line 8
+history line 9
+history line 10
+⏺ Synthetic reply: this line is long enough that the 40-column pane wraps it twice over.
+
+	indented	with tabs
+
+✻ Working… (esc to interrupt)
+
+
+
+
+

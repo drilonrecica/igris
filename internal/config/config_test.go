@@ -47,6 +47,7 @@ model = "opus"
 [tui]
 mouse = false
 theme = "light"
+tail = false
 
 [tui.rank_colors]
 opus = "#B48CFF"
@@ -77,7 +78,7 @@ func TestParseEmptyGivesDefaults(t *testing.T) {
 	}
 	if got.Plan != "tasks.md" || got.NeedsInputAfter.Std() != 30*time.Second ||
 		got.Run.VerifyTimeout.Std() != 15*time.Minute || got.Run.VerifyMaxAttempts != 3 ||
-		got.Models["opus"] != "opus" || !got.TUI.Mouse || got.TUI.Theme != "auto" || len(got.TUI.RankColors) != 0 || !got.Notify.Backend.Enabled || got.Notify.Ntfy.Server != "https://ntfy.sh" {
+		got.Models["opus"] != "opus" || !got.TUI.Mouse || got.TUI.Theme != "auto" || !got.TUI.Tail || len(got.TUI.RankColors) != 0 || !got.Notify.Backend.Enabled || got.Notify.Ntfy.Server != "https://ntfy.sh" {
 		t.Fatalf("unexpected defaults: %+v", got)
 	}
 }
@@ -98,8 +99,8 @@ func TestParseFullSample(t *testing.T) {
 		c.Run.VerifyMaxAttempts != 5 || c.Run.Commit != "auto" || c.Run.PromptTemplate != "prompt.tmpl" {
 		t.Errorf("run: %+v", c.Run)
 	}
-	if c.TUI.Mouse {
-		t.Errorf("tui.mouse = true, want false")
+	if c.TUI.Mouse || c.TUI.Tail {
+		t.Errorf("tui.mouse/tail = %v/%v, want false", c.TUI.Mouse, c.TUI.Tail)
 	}
 	if c.TUI.Theme != "light" || c.TUI.RankColors["opus"] != "#B48CFF" || c.TUI.RankColors["fable"] != "220" {
 		t.Errorf("tui: %+v", c.TUI)
@@ -290,6 +291,7 @@ func TestHash(t *testing.T) {
 		"column":  func(c *Config) { c.Columns["X"] = "Y" },
 		"mouse":   func(c *Config) { c.TUI.Mouse = !c.TUI.Mouse },
 		"theme":   func(c *Config) { c.TUI.Theme = "dark" },
+		"tail":    func(c *Config) { c.TUI.Tail = !c.TUI.Tail },
 		"rank":    func(c *Config) { c.TUI.RankColors["opus"] = "5" },
 	}
 	for name, mutate := range mutations {

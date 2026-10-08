@@ -121,6 +121,7 @@ const (
 // emit stamps ev with the time and the current phase and task and hands it
 // to the UI.
 func (e *Engine) emit(ev Event) {
+	e.trackTail()
 	ev.At = e.clock.Now()
 	if ev.Phase == "" {
 		ev.Phase = e.phase
@@ -135,6 +136,35 @@ func (e *Engine) emit(ev Event) {
 	if e.opts.Events != nil {
 		e.opts.Events(ev)
 	}
+}
+
+// trackTail records the session Tail reads: the current agent task's, while
+// it is open. Called from the goroutine in Run, which owns e.task.
+func (e *Engine) trackTail() {
+	var s backend.Session
+	if l := e.task; l != nil && l.sess != nil && !l.lost {
+		s = l.sess
+	}
+	e.tailMu.Lock()
+	e.tailSess = s
+	e.tailMu.Unlock()
+}
+
+var _ backend.Tailer = (*Engine)(nil)
+
+// Tail implements backend.Tailer for the TUI's live tail (SPEC §15.3): the
+// last lines of the current task's session. It returns nothing when no
+// session is open or the backend can't tail. It is safe to call from any
+// goroutine; its output goes nowhere but the caller.
+func (e *Engine) Tail(ctx context.Context, n int) ([]string, error) {
+	e.tailMu.Lock()
+	s := e.tailSess
+	e.tailMu.Unlock()
+	t, ok := s.(backend.Tailer)
+	if !ok {
+		return nil, nil
+	}
+	return t.Tail(ctx, n)
 }
 
 // warn reports a failure that doesn't stop the run.

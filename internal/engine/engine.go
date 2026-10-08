@@ -148,6 +148,12 @@ type Engine struct {
 	queue []Command     // guarded by mu
 	wake  chan struct{} // poked by Send
 
+	// tailSess is the current agent task's live session, for Tail (called
+	// from the TUI's goroutine); nil when there is none. emit keeps it
+	// current, so it follows every session opened, lost or closed.
+	tailMu   sync.Mutex
+	tailSess backend.Session
+
 	// Only touched by the goroutine in Run.
 	run      *state.Run      // state.json
 	rng      Range           // the run's phases and slice

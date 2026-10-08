@@ -127,6 +127,12 @@ var layoutStates = []struct {
 		hs.events(engine.Event{Kind: engine.RunStarted, Phase: "M0", Detail: "phase M0"}, started("M0-03"), opened("M0-03"))
 		hs.now = t0.Add(18*time.Minute + 5*time.Second)
 	}},
+	{"tail", func(hs *harness) {
+		// The live tail (SPEC §15.3): raw pane text, cleaned and clipped.
+		hs.events(engine.Event{Kind: engine.RunStarted, Phase: "M0", Detail: "phase M0"}, started("M0-03"), opened("M0-03"))
+		hs.now = t0.Add(4*time.Minute + 12*time.Second)
+		hs.withTail(sampleTail...)
+	}},
 	{"question_closed", func(hs *harness) {
 		hs.events(started("M0-03"), opened("M0-03"), asked(engine.QuestionSessionLost, "the session of M0-03 is gone"))
 		hs.key("esc")

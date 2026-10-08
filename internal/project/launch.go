@@ -106,7 +106,7 @@ func (l *Launch) Engine(c report.Confirmations, events func(engine.Event)) (*eng
 // sending the owner's commands to sender.
 func (l *Launch) TUIOptions(feed *tui.Feed, sender tui.Sender) tui.Options {
 	cfg := l.p.Cfg
-	return tui.Options{
+	o := tui.Options{
 		Project:    l.p.Name(),
 		Backend:    l.Backend.Name(),
 		Mode:       l.req.Mode,
@@ -122,6 +122,8 @@ func (l *Launch) TUIOptions(feed *tui.Feed, sender tui.Sender) tui.Options {
 		// The ETA's history, read once as the run starts (SPEC §15.3).
 		RankDurations: rankDurations(l.p.Root),
 	}
+	o.Tail, o.TailEvery = tui.TailOf(cfg, sender)
+	return o
 }
 
 // rankDurations reads the finished tasks' durations per rank from the run

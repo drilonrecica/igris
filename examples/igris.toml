@@ -48,6 +48,7 @@ model = "sonnet"                  # sonnet | opus
 [tui]
 mouse = true                      # false keeps the terminal's own text selection
 theme = "auto"                    # auto | dark | light
+tail = true                       # live tail of the current session in the task card
 
 [tui.rank_colors]                 # optional: rank -> "#rrggbb" or an ANSI color number "0"-"255"
 # opus = "#B48CFF"

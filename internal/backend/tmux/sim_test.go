@@ -160,6 +160,13 @@ func (s *sim) run(c runner.Cmd) (runner.Result, error) {
 		}
 		p.pasted, p.typed = append(p.pasted, p.typed), ""
 		return runner.Result{}, nil
+	case "capture-pane":
+		p := s.panes[flag(a, "-t")]
+		if p == nil {
+			return errResult("can't find pane: " + flag(a, "-t"))
+		}
+		// The screen shows what was submitted, then its empty rows.
+		return runner.Result{Stdout: []byte(strings.Join(p.pasted, "\n") + "\n\n\n\n")}, nil
 	case "select-window", "kill-window":
 		p := s.windows[flag(a, "-t")]
 		if p == nil {

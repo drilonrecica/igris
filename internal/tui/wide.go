@@ -207,8 +207,9 @@ const openHint = " — o opens the session"
 const moreText = " … t: details"
 
 // renderCard lays the card out in at most rows lines (all of them when
-// rows < 0). The head (title, facts, state) and the buttons come first;
-// the task's text gets the rows left over and is cut with moreText.
+// rows < 0). The head (title, facts, state) and the buttons come first,
+// then the live tail; the task's text gets the rows left over and is cut
+// with moreText.
 func (m *model) renderCard(w, x, y, rows int, record bool) []string {
 	var lines []string
 	switch {
@@ -271,6 +272,8 @@ func (m *model) renderCard(w, x, y, rows int, record bool) []string {
 		head = append(head, fit(c.detail, w))
 	}
 
+	tail := m.tailView(w)
+
 	// The task's text: for a user task the engine sends it with Your turn;
 	// otherwise it comes from the plan as last loaded.
 	a := ""
@@ -297,20 +300,22 @@ func (m *model) renderCard(w, x, y, rows int, record bool) []string {
 	btnLines, btnZones := m.cardButtons(btns, w)
 
 	if rows >= 0 {
-		free := rows - len(head) - len(btnLines)
-		if free < len(text) {
-			text = m.cutText(text, max(free, 0), w)
+		free := max(rows-len(head)-len(btnLines), 0)
+		// The text gives way first, then the tail's oldest lines.
+		tail = tail[len(tail)-min(len(tail), free):]
+		if free -= len(tail); free < len(text) {
+			text = m.cutText(text, free, w)
 		}
-		if over := len(head) + len(text) + len(btnLines) - rows; over > 0 {
+		if over := len(head) + len(tail) + len(text) + len(btnLines) - rows; over > 0 {
 			head = head[:max(len(head)-over, 0)]
 		}
 	}
 	if record && len(head) > 0 {
 		m.zones.add(rect{x, y, min(textWidth(c.id+" "+c.title), w), 1}, target{act: actDetails})
 	}
-	out := append(append(head, text...), btnLines...)
+	out := append(append(append(head, tail...), text...), btnLines...)
 	if record {
-		top := y + len(head) + len(text)
+		top := y + len(head) + len(tail) + len(text)
 		for _, z := range btnZones {
 			if z.r.y < len(btnLines) {
 				m.zones.add(rect{x + z.r.x, top + z.r.y, z.r.w, 1}, z.t)

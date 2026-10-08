@@ -1,0 +1,30 @@
+┌ igris · sinjal ──────────────────────────────────────────────── phase M0 · 3/7 · 42% ████░░░░░░ · mode: plan · herdr ┐
+│ TASKS                                                    │ CURRENT                                                   │
+│  ✓ M0-01  Go module                               sonnet │ M0-03 Makefile                                            │
+│  ✓ M0-02  Entrypoint                              sonnet │ rank sonnet → model sonnet                                │
+│  ● M0-03  Makefile                                sonnet │ mode plan · 4m12s                                         │
+│  · M0-04  Config loader                           opus   │ state: working                                            │
+│  · M0-05  Buy the domain                          user   │ earlier line two                                          │
+│  ⨯ M0-13  Static assets                           sonnet │ ⏺ Running the tests with make test.                       │
+│    waits on P0-05                                        │   ⎿  ok github.com/example/demo 0.012s                    │
+│  – M0-14  Old idea                                haiku  │   FAIL TestParse: a line long enough to be clipped at th… │
+│                                                          │ ✻ Thinking… (esc to interrupt)                            │
+│                                                          │ >                                                         │
+│                                                          │ fmt, lint, test                                           │
+│                                                          │ [o] Open session  [t] Details                             │
+├─ LOG ────────────────────────────────────────────────────┴───────────────────────────────────────────────────────────┤
+│ 09:41 run started: phase M0                                                                                          │
+│ 09:41 M0-03 started (sonnet → sonnet, plan) · Makefile                                                               │
+│ 09:41 M0-03 session open                                                                                             │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ [›Open session‹] [Mode] [Task mode] [Pause] [Done] [Retry] [Skip] [Stop] [?] [Quit]                                  │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘

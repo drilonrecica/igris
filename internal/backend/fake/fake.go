@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/drilonrecica/igris/internal/backend"
@@ -20,6 +21,7 @@ var (
 	_ backend.Backend      = (*Backend)(nil)
 	_ backend.Session      = (*Session)(nil)
 	_ backend.PromptHolder = (*Session)(nil)
+	_ backend.Tailer       = (*Session)(nil)
 )
 
 // AutoSignalFunc is called after a session's first prompt (the task prompt),
@@ -35,6 +37,7 @@ type Backend struct {
 	scripts    map[string][][]backend.AgentState // per task: one sequence per future session
 	sessions   map[string]*Session               // by PaneID
 	startup    map[string]bool                   // task IDs whose next session holds its first prompt
+	tails      map[string][]string               // per task: what its sessions show, for Tail
 	next       int
 
 	opened        []backend.SessionSpec
@@ -50,6 +53,7 @@ func New() *Backend {
 	return &Backend{
 		scripts:  map[string][][]backend.AgentState{},
 		startup:  map[string]bool{},
+		tails:    map[string][]string{},
 		sessions: map[string]*Session{},
 		prompts:  map[string][]string{},
 	}
@@ -75,6 +79,14 @@ func (b *Backend) Script(taskID string, states ...backend.AgentState) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.scripts[taskID] = append(b.scripts[taskID], slices.Clone(states))
+}
+
+// SetTail sets the lines taskID's sessions show, oldest first, for Tail.
+// Sessions show nothing until it is called.
+func (b *Backend) SetTail(taskID string, lines ...string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.tails[taskID] = slices.Clone(lines)
 }
 
 // SetAutoSignal sets the function called after each session's first prompt.
@@ -323,6 +335,21 @@ func (s *Session) State(ctx context.Context) (backend.AgentState, error) {
 	}
 	s.b.mu.Unlock()
 	return st, nil
+}
+
+// Tail returns the last n lines set with SetTail, trailing blank lines
+// dropped, or an error wrapping backend.ErrSessionGone once the session
+// is gone.
+func (s *Session) Tail(ctx context.Context, n int) ([]string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	s.b.mu.Lock()
+	defer s.b.mu.Unlock()
+	if s.gone {
+		return nil, s.goneErr("tail")
+	}
+	return backend.LastLines(strings.Join(s.b.tails[s.taskID], "\n"), n), nil
 }
 
 // Focus records the focus.

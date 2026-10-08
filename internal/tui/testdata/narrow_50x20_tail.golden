@@ -1,0 +1,20 @@
+igris · sinjal · M0 · 3/7 · mode: plan · herdr
+── CURRENT ───────────────────────────────────────
+M0-03 Makefile
+rank sonnet → model sonnet
+mode plan · 4m12s
+state: working
+  FAIL TestParse: a line long enough to be clippe…
+✻ Thinking… (esc to interrupt)
+>
+fmt, lint, test
+[o] Open session  [t] Details
+── TASKS ─────────────────────────────────────────
+ ✓ M0-01 sonnet  ✓ M0-02 sonnet  ● M0-03 sonnet
+ · M0-04 opus    · M0-05 user    ⨯ M0-13 sonnet
+── LOG ───────────────────────────────────────────
+09:41 run started: phase M0
+09:41 M0-03 started (sonnet → sonnet, plan) · Mak…
+09:41 M0-03 session open
+[›Open session‹] [Mode] [Task mode] [Pause] [Done]
+[Retry] [Skip] [Stop] [?] [Quit]

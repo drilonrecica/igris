@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"regexp"
+	"strings"
 )
 
 // ErrSessionGone is wrapped by Session and Backend calls when the session's
@@ -58,6 +59,34 @@ type PromptHolder interface {
 	// HoldPrompt holds text until the agent is ready, as Prompt does at a
 	// startup prompt.
 	HoldPrompt(text string)
+}
+
+// Tailer is implemented by sessions whose recent output can be read: the
+// TUI's live tail (SPEC §11.1, §15.3). Backends without it have no tail.
+// What it returns is raw pane text, cleaned by the caller before it is
+// drawn, and never logged, notified or stored.
+type Tailer interface {
+	// Tail returns up to n of the last lines the session shows, oldest
+	// first, trailing blank lines dropped. A gone session yields an error
+	// wrapping ErrSessionGone.
+	Tail(ctx context.Context, n int) ([]string, error)
+}
+
+// LastLines splits text into lines and returns up to n of the last ones,
+// trailing blank lines dropped: how the backends cut their pane text for
+// Tail.
+func LastLines(text string, n int) []string {
+	lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
+	for len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == "" {
+		lines = lines[:len(lines)-1]
+	}
+	if n <= 0 {
+		return nil
+	}
+	if len(lines) > n {
+		lines = lines[len(lines)-n:]
+	}
+	return lines
 }
 
 // AgentState is the agent state reported by the backend. The values match

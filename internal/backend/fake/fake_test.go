@@ -275,3 +275,21 @@ func mustNil(t *testing.T, err error) {
 		t.Fatal(err)
 	}
 }
+
+func TestTail(t *testing.T) {
+	ctx := context.Background()
+	b := New()
+	s := open(t, b, "T-01")
+	tl := s.(backend.Tailer)
+	if got, err := tl.Tail(ctx, 3); err != nil || len(got) != 0 {
+		t.Errorf("Tail before SetTail = %q, %v", got, err)
+	}
+	b.SetTail("T-01", "one", "two", "three", "four", "", "")
+	if got, err := tl.Tail(ctx, 3); err != nil || !slices.Equal(got, []string{"two", "three", "four"}) {
+		t.Errorf("Tail = %q, %v", got, err)
+	}
+	b.Kill(s.Ref())
+	if _, err := tl.Tail(ctx, 3); !errors.Is(err, backend.ErrSessionGone) {
+		t.Errorf("Tail of a gone session = %v", err)
+	}
+}
