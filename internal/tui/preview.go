@@ -58,6 +58,8 @@ func newPreview(ctx context.Context, svc Services, th *theme, req report.RunRequ
 // the request's.
 func (s *previewScreen) scope() string {
 	switch {
+	case s.res != nil && s.res.Scope != "" && s.res.Slice != "":
+		return s.res.Scope + "; " + s.res.Slice // a resumed slice (SPEC §5.5)
 	case s.res != nil && s.res.Scope != "":
 		return s.res.Scope
 	case s.req.Phase == "":

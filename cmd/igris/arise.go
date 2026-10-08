@@ -18,9 +18,11 @@ import (
 	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/engine"
+	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/project"
 	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/runner"
+	"github.com/drilonrecica/igris/internal/state"
 	"github.com/drilonrecica/igris/internal/tui"
 )
 
@@ -49,11 +51,62 @@ func projectEnv() project.Env {
 type ariseFlags struct {
 	phase, through, mode       string
 	noTUI, dryRun, forceUnlock bool
-	lines                      <-chan string // --no-tui: the owner's stdin lines
+	sel                        state.Selection // --only, --from, --until
+	lines                      <-chan string   // --no-tui: the owner's stdin lines
 }
 
 func (f ariseFlags) request() report.RunRequest {
-	return report.RunRequest{Phase: f.phase, Through: f.through, Mode: f.mode}
+	return report.RunRequest{Phase: f.phase, Through: f.through, Mode: f.mode, Selection: f.sel}
+}
+
+// parseSelection reads --only, --from and --until (SPEC §5.5). Combining
+// --only with the others, an empty list and a malformed ID are usage errors;
+// whether the IDs are in the plan is checked against it later.
+func parseSelection(fs *flag.FlagSet) (state.Selection, error) {
+	set := map[string]bool{}
+	fs.Visit(func(f *flag.Flag) { set[f.Name] = true })
+	value := func(name string) string { return fs.Lookup(name).Value.String() }
+	checkID := func(name, id string) error {
+		if !plan.ValidID(id) {
+			return fmt.Errorf("invalid task ID %q in --%s: IDs are letters, digits, '.', '_' and '-' (e.g. M0-01)", id, name)
+		}
+		return nil
+	}
+	var sel state.Selection
+	if set["only"] {
+		if set["from"] || set["until"] {
+			return sel, errors.New("--only can't be combined with --from or --until; use one or the other")
+		}
+		if strings.TrimSpace(value("only")) == "" {
+			return sel, errors.New("--only needs at least one task ID, e.g. --only M1-03,M1-05")
+		}
+		seen := map[string]bool{}
+		for _, id := range strings.Split(value("only"), ",") {
+			id = strings.TrimSpace(id)
+			if err := checkID("only", id); err != nil {
+				return sel, err
+			}
+			if !seen[id] {
+				seen[id] = true
+				sel.Only = append(sel.Only, id)
+			}
+		}
+	}
+	for _, name := range []string{"from", "until"} {
+		if !set[name] {
+			continue
+		}
+		id := strings.TrimSpace(value(name))
+		if err := checkID(name, id); err != nil {
+			return sel, err
+		}
+		if name == "from" {
+			sel.From = id
+		} else {
+			sel.Until = id
+		}
+	}
+	return sel, nil
 }
 
 func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
@@ -67,6 +120,7 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 	if len(args) > 0 {
 		f.phase = args[0]
 	}
+	f.sel, _ = parseSelection(fs) // checked when the flags were parsed
 	fail := func(format string, a ...any) int {
 		fmt.Fprintf(stderr, "igris arise: %s\n", fmt.Sprintf(format, a...))
 		return exitFail
@@ -81,6 +135,10 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 	out := &lockedWriter{w: stdout}
 	if f.dryRun {
 		return dryRun(proj, f.request(), out, stderr)
+	}
+	// A wrong ID in --only/--from/--until fails before anything is asked.
+	if err := proj.CheckSelection(f.request()); err != nil {
+		return fail("%v", err)
 	}
 	// The same engine the home screen builds (internal/project).
 	l, err := proj.Launch(f.request())
@@ -147,6 +205,7 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		case res.Outcome == engine.Stuck:
 			return exitFail
 		default:
+			printNotRun(out, res)
 			return exitOK
 		}
 	}
@@ -201,10 +260,19 @@ func tuiExit(res engine.Result, err error, out, stderr io.Writer) int {
 	}
 	// The same words as home's status line after a run (tui.ExitText).
 	fmt.Fprintln(out, tui.ExitText(res, nil))
+	printNotRun(out, res)
 	if res.Outcome == engine.Stuck {
 		return exitFail
 	}
 	return exitOK
+}
+
+// printNotRun is the run's final summary of the slice's tasks it left
+// because their deps are unmet (SPEC §5.5).
+func printNotRun(out io.Writer, res engine.Result) {
+	for _, w := range res.NotRun {
+		fmt.Fprintln(out, "not run: "+w.String())
+	}
 }
 
 // runOnce runs one engine with opts while stdin feeds it owner commands.
@@ -501,6 +569,8 @@ func formatEvent(ev engine.Event) []string {
 			lines = append(lines, "  "+w.String())
 		}
 		return lines
+	case engine.NotRun:
+		return notRunLines(ev)
 	case engine.PauseOn:
 		return []string{"pause after task: on (type `pause` again to turn it off)"}
 	case engine.PauseOff:
@@ -527,6 +597,15 @@ func formatEvent(ev engine.Event) []string {
 		return []string{"run stopped: " + ev.Detail}
 	}
 	return []string{strings.TrimSpace(string(ev.Kind) + " " + id + " " + ev.Detail)}
+}
+
+// notRunLines are the slice's tasks a phase left (SPEC §5.5).
+func notRunLines(ev engine.Event) []string {
+	lines := make([]string, len(ev.Waiting))
+	for i, w := range ev.Waiting {
+		lines[i] = "not run: " + w.String()
+	}
+	return lines
 }
 
 func withNote(s, note string) string {
@@ -567,7 +646,11 @@ func printDryRun(out io.Writer, r report.DryRun) {
 	if r.Scope == "" {
 		return
 	}
-	fmt.Fprintf(out, "dry run of phase %s: nothing is written and no session starts\n", r.Scope)
+	scope := r.Scope
+	if r.Slice != "" {
+		scope += "; " + r.Slice
+	}
+	fmt.Fprintf(out, "dry run of phase %s: nothing is written and no session starts\n", scope)
 	if len(r.Hooks) > 0 {
 		fmt.Fprintf(out, "task hooks %s would run around each agent session; the dry run runs none\n", strings.Join(r.Hooks, " and "))
 	}

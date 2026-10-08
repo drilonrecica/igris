@@ -38,7 +38,10 @@ type DryRun struct {
 	Hooks []string
 	// Scope names the phases walked ("A", "A through B"); empty until the walk
 	// started, so a dry run that failed before it has none.
-	Scope    string
+	Scope string
+	// Slice is the selection walked ("only M1-03, M1-05"); "" for whole
+	// phases (SPEC §5.5).
+	Slice    string
 	Steps    []DryStep
 	Sessions int
 	Users    int

@@ -52,7 +52,7 @@ func isCharDevice(f *os.File) bool {
 // wizard instead of starting at once: on a terminal, no phase named, not
 // --no-tui or --dry-run, and no run to resume (SPEC §15.6).
 func wantWizard(f ariseFlags, root string) bool {
-	if f.phase != "" || f.noTUI || f.dryRun || !interactiveTerm() {
+	if f.phase != "" || !f.sel.Empty() || f.noTUI || f.dryRun || !interactiveTerm() {
 		return false
 	}
 	r, err := state.PeekRun(root)

@@ -703,6 +703,8 @@ func ExitText(res engine.Result, err error) string {
 		return fmt.Sprintf("phase %s is stuck: unfinished tasks, none can start (see `igris status %s`)", res.Phase, res.Phase)
 	case res.Outcome == engine.Stopped:
 		return "igris stopped; a running session keeps running — `igris arise` resumes"
+	case len(res.NotRun) > 0:
+		return fmt.Sprintf("run %s; %d task(s) of the slice not run: their dependencies aren't done", res.Outcome, len(res.NotRun))
 	}
 	return fmt.Sprintf("run %s", res.Outcome)
 }

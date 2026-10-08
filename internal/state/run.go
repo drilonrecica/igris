@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/drilonrecica/igris/internal/backend"
@@ -20,12 +21,42 @@ var ErrNoRun = errors.New("no previous run")
 
 // Run is the current run, stored in .igris/state.json (SPEC §13).
 type Run struct {
-	Version    int       `json:"version"`
-	StartedAt  time.Time `json:"started_at"`
-	Phases     []string  `json:"phases"`            // phases of the run, in order
-	Through    string    `json:"through,omitempty"` // --through argument, if any
-	ConfigHash string    `json:"config_hash"`       // hash of the config snapshot
-	Current    *Current  `json:"current,omitempty"` // nil between tasks
+	Version   int       `json:"version"`
+	StartedAt time.Time `json:"started_at"`
+	Phases    []string  `json:"phases"`            // phases of the run, in order
+	Through   string    `json:"through,omitempty"` // --through argument, if any
+	// Selection is the part of the phases the run is limited to (SPEC
+	// §5.5); nil runs them whole. A v0.3 state file has none.
+	Selection  *Selection `json:"selection,omitempty"`
+	ConfigHash string     `json:"config_hash"`       // hash of the config snapshot
+	Current    *Current   `json:"current,omitempty"` // nil between tasks
+}
+
+// Selection is `arise --only` or `--from`/`--until` (SPEC §5.5): task IDs,
+// as the owner named them.
+type Selection struct {
+	Only  []string `json:"only,omitempty"`
+	From  string   `json:"from,omitempty"`
+	Until string   `json:"until,omitempty"`
+}
+
+// Empty says nothing is selected: the run's phases run whole.
+func (s Selection) Empty() bool { return len(s.Only) == 0 && s.From == "" && s.Until == "" }
+
+// String names the selection as run_started does, e.g. "only M1-03,
+// M1-05" or "from M1-03 until M2-02"; "" when it is empty.
+func (s Selection) String() string {
+	if len(s.Only) > 0 {
+		return "only " + strings.Join(s.Only, ", ")
+	}
+	var parts []string
+	if s.From != "" {
+		parts = append(parts, "from "+s.From)
+	}
+	if s.Until != "" {
+		parts = append(parts, "until "+s.Until)
+	}
+	return strings.Join(parts, " ")
 }
 
 // Current is the task the run is working on.

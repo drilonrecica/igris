@@ -87,6 +87,7 @@ func (l *Launch) Options(c report.Confirmations, events func(engine.Event)) engi
 		Phase:          l.req.Phase,
 		Through:        l.req.Through,
 		Mode:           l.req.Mode,
+		Selection:      l.req.Selection,
 		ForceUnlock:    c.ForceUnlock,
 		ConfirmedDrift: c.Drift,
 		ConfirmedYolo:  c.Yolo,
@@ -124,8 +125,24 @@ func (l *Launch) TUIOptions(feed *tui.Feed, sender tui.Sender) tui.Options {
 // on a copy of the plan and writes nothing in the project.
 func (p *Project) DryRun(ctx context.Context, req report.RunRequest) (report.DryRun, error) {
 	return engine.DryRun(ctx, engine.DryRunOptions{
-		Root: p.Root, Config: p.Cfg, Phase: req.Phase, Through: req.Through, Mode: req.Mode,
+		Root: p.Root, Config: p.Cfg, Phase: req.Phase, Through: req.Through, Mode: req.Mode, Selection: req.Selection,
 		Runner: p.env.runner(), Getenv: p.env.getenv(), Versions: p.env.versions(), Format: p.env.format(),
 		BackendName: BackendName(p.Cfg, p.env.getenv()),
 	})
+}
+
+// CheckSelection checks req's selection against the plan (SPEC §5.5), so
+// `igris arise` refuses a wrong ID before it asks or writes anything. A
+// plan that can't be read or doesn't validate is left to the run, which
+// reports it.
+func (p *Project) CheckSelection(req report.RunRequest) error {
+	if req.Selection.Empty() {
+		return nil
+	}
+	pl, err := plan.Load(p.PlanPath, plan.Options{Columns: p.Cfg.Columns})
+	if err != nil || pl.Check(p.Cfg.Rules(p.Root)) != nil {
+		return nil
+	}
+	_, err = engine.ResolveRange(pl, req.Phase, req.Through, req.Selection)
+	return err
 }

@@ -136,18 +136,33 @@ type Selection struct {
 // Select picks the next task of a phase (SPEC §5.1): the first task in
 // progress (resume), else the first unsatisfied task whose dependencies are
 // all satisfied. Otherwise the phase is complete or stuck.
-func (p *Plan) Select(phaseID string) (Selection, error) {
+func (p *Plan) Select(phaseID string) (Selection, error) { return p.SelectIn(phaseID, nil) }
+
+// SelectIn is Select among the tasks of the phase that in accepts, a run's
+// slice (SPEC §5.5); a nil in accepts every task. Complete then means every
+// accepted task is satisfied, and Stuck that accepted tasks are left and
+// none can start.
+func (p *Plan) SelectIn(phaseID string, in func(*Task) bool) (Selection, error) {
 	ph := p.Phase(phaseID)
 	if ph == nil {
 		return Selection{}, p.unknownPhase(phaseID)
 	}
-	for _, t := range ph.Tasks {
+	tasks := ph.Tasks
+	if in != nil {
+		tasks = nil
+		for _, t := range ph.Tasks {
+			if in(t) {
+				tasks = append(tasks, t)
+			}
+		}
+	}
+	for _, t := range tasks {
 		if t.Status == InProgress {
 			return Selection{Outcome: Next, Task: t}, nil
 		}
 	}
 	var waiting []Waiting
-	for _, t := range ph.Tasks {
+	for _, t := range tasks {
 		if t.Status.Satisfied() {
 			continue
 		}

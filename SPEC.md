@@ -164,7 +164,7 @@ Igris remembers every row as it last read or wrote it (Status, Model, Mode, Owne
 ### 5.5 Running a slice
 `arise --only ID[,ID…]`, `--from ID` and `--until ID` run part of the phase range.
 - `--only` can't be combined with `--from`/`--until`. An empty list or a malformed ID is a usage error.
-- The phase range is the named phase and `--through`, as in §5.3. With no phase named it comes from the flags: from the phase of the earliest named task (file order) through the phase of the latest; `--from` or `--until` alone runs that task's phase.
+- The phase range is the named phase and `--through`, as in §5.3. With no phase named it comes from the flags: from the phase of the earliest named task (file order) through the phase of the latest (or through `--through`, when given); `--from` or `--until` alone runs that task's phase.
 - Checked before anything is written: every named ID exists and lies inside the phase range, and `--from` doesn't come after `--until` in file order. Otherwise `arise` exits 1 saying what to change.
 - The **slice** is the tasks of the range listed in `--only`, or the tasks from `--from` (default: the first of the range) to `--until` (default: the last), in file order. §5.1 selects among the slice's tasks only: the first one `in progress`, else the first unsatisfied one whose dependencies are all satisfied.
 - When unsatisfied slice tasks are left in a phase but none qualifies, each is reported as **not run** with its unmet dependencies (`not run: M1-05 waits on M1-04 (ready, phase M1)`), in the TUI and the run's final summary. It is never marked. The run goes on with the next phase of the range; this is not a stuck phase and sends no `phase_stuck`. The run ends when the slice has nothing left to run.

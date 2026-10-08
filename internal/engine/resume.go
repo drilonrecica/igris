@@ -33,6 +33,9 @@ func (e *Engine) resume(ctx context.Context) (stopped bool, err error) {
 	if t.Phase != nil {
 		e.phase = t.Phase.ID
 	}
+	if !e.rng.In(t) {
+		e.warn(fmt.Sprintf("the interrupted task %s is outside this run's slice (%s); igris picks it up first", t.ID, e.rng.Selection))
+	}
 	l := &launch{t: t, cur: cur, mode: cur.Mode}
 	e.task = l
 	e.log(state.Event{Type: state.EventTaskResumed})

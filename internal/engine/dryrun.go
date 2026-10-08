@@ -26,6 +26,9 @@ type DryRunOptions struct {
 	Phase   string // empty: the phases of the last run
 	Through string
 	Mode    string
+	// Selection limits the walk to a slice (SPEC §5.5); with neither it
+	// nor a Phase, the last run's selection is walked.
+	Selection state.Selection
 	// Runner and Getenv serve the start-up checks (git, ANTHROPIC_API_KEY).
 	Runner runner.Runner
 	Getenv func(string) string
@@ -48,7 +51,7 @@ func DryRun(ctx context.Context, o DryRunOptions) (report.DryRun, error) {
 	f := o
 	switch prev, err := state.PeekRun(o.Root); {
 	case errors.Is(err, state.ErrNoRun):
-		if f.Phase == "" {
+		if f.Phase == "" && f.Selection.Empty() {
 			return r, errors.New("there is no earlier run to resume; name the phase to run, e.g. `igris arise M0 --dry-run`")
 		}
 	case err != nil:
@@ -57,8 +60,11 @@ func DryRun(ctx context.Context, o DryRunOptions) (report.DryRun, error) {
 		if prev.Current != nil {
 			r.Interrupted = textsafe.Line(prev.Current.TaskID)
 		}
-		if f.Phase == "" && len(prev.Phases) > 0 {
+		if f.Phase == "" && f.Selection.Empty() && len(prev.Phases) > 0 {
 			f.Phase, f.Through = prev.Phases[0], prev.Through
+			if prev.Selection != nil {
+				f.Selection = *prev.Selection
+			}
 		}
 	}
 
@@ -85,7 +91,8 @@ func DryRun(ctx context.Context, o DryRunOptions) (report.DryRun, error) {
 		return r, err
 	}
 	// Check the range on the owner's plan, so errors name it, not the copy.
-	if _, err := p.PhasesThrough(f.Phase, f.Through); err != nil {
+	rng, err := ResolveRange(p, f.Phase, f.Through, f.Selection)
+	if err != nil {
 		return r, err
 	}
 	for _, c := range checks.Problems(checks.Pick(cs, checks.IDDrift)) {
@@ -124,6 +131,7 @@ func DryRun(ctx context.Context, o DryRunOptions) (report.DryRun, error) {
 		Phase:          f.Phase,
 		Through:        f.Through,
 		Mode:           f.Mode,
+		Selection:      f.Selection,
 		ConfirmedDrift: true,
 		ConfirmedYolo:  true,
 		Events:         func(ev Event) { w.event(eng, dir, ev) },
@@ -137,10 +145,11 @@ func DryRun(ctx context.Context, o DryRunOptions) (report.DryRun, error) {
 	if len(cfg.Hooks.AfterTask) > 0 {
 		r.Hooks = append(r.Hooks, hookAfter)
 	}
-	r.Scope = textsafe.Line(f.Phase)
-	if f.Through != "" {
-		r.Scope += " through " + textsafe.Line(f.Through)
+	r.Scope = textsafe.Line(rng.Phases[0].ID)
+	if rng.Through != "" {
+		r.Scope += " through " + textsafe.Line(rng.Through)
 	}
+	r.Slice = textsafe.Line(rng.Selection.String())
 	_, err = eng.Run(ctx)
 	return r, err
 }
@@ -218,7 +227,7 @@ func (w *dryWalk) event(eng *Engine, dir *state.Dir, ev Event) {
 		eng.Send(Command{Kind: CmdRetry})
 	case PhaseDone:
 		r.Steps = append(r.Steps, report.DryStep{Kind: report.StepPhaseDone, Phase: textsafe.Line(ev.Phase)})
-	case PhaseStuck, ModeChanged, TaskModeChanged, ConfigChanged, Warning, RunFailed:
+	case PhaseStuck, NotRun, ModeChanged, TaskModeChanged, ConfigChanged, Warning, RunFailed:
 		step := report.DryStep{Kind: report.StepNote}
 		for _, line := range w.format(ev) {
 			step.Lines = append(step.Lines, textsafe.Line(line))

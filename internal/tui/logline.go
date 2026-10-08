@@ -61,6 +61,12 @@ func logLines(ev engine.Event) []string {
 			lines = append(lines, "  "+w.String())
 		}
 		return lines
+	case engine.NotRun:
+		lines := make([]string, len(ev.Waiting))
+		for i, w := range ev.Waiting {
+			lines[i] = "not run: " + w.String()
+		}
+		return lines
 	case engine.PauseOn:
 		return []string{"pause after task: on"}
 	case engine.PauseOff:
@@ -119,7 +125,7 @@ func logLook(k engine.EventKind) look {
 	switch k {
 	case engine.NeedsYou, engine.TaskOverdue, engine.SessionLost, engine.HookFailed, engine.VerifyFailed, engine.VerifyLimit, engine.PhaseStuck, engine.PlanChanged, engine.RunFailed:
 		return lookAlert
-	case engine.Warning, engine.Asked, engine.YourTurn, engine.Paused, engine.PhaseDone:
+	case engine.Warning, engine.Asked, engine.YourTurn, engine.Paused, engine.PhaseDone, engine.NotRun:
 		return lookTitle
 	}
 	return lookPlain

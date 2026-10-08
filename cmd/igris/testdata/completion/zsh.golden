@@ -13,8 +13,11 @@ _igris() {
         phases:--plan) _files ; return ;;
         status:--plan) _files ; return ;;
         history:-n) return ;;
+        arise:--from) compadd -- ${(f)"$(igris __complete tasks 2>/dev/null)"} ; return ;;
         arise:--mode) compadd -- default accept auto plan yolo ; return ;;
+        arise:--only) compadd -- ${(f)"$(igris __complete tasks 2>/dev/null)"} ; return ;;
         arise:--through) compadd -- ${(f)"$(igris __complete phases 2>/dev/null)"} ; return ;;
+        arise:--until) compadd -- ${(f)"$(igris __complete tasks 2>/dev/null)"} ; return ;;
         done:--note) return ;;
         skip:--reason) return ;;
         notify:--event) compadd -- needs_input session_lost task_overdue verify_failed_limit task_done phase_done phase_stuck run_error ; return ;;
@@ -29,7 +32,7 @@ _igris() {
             phases) compadd -- --json --plan ;;
             status) compadd -- --json --plan ;;
             history) compadd -- --json -n ;;
-            arise) compadd -- --dry-run --force-unlock --mode --no-tui --through ;;
+            arise) compadd -- --dry-run --force-unlock --from --mode --no-tui --only --through --until ;;
             done) compadd -- --note ;;
             skip) compadd -- --reason ;;
             notify) compadd -- --event ;;

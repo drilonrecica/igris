@@ -158,6 +158,49 @@ func TestSelect(t *testing.T) {
 	}
 }
 
+// SelectIn chooses among a slice only (SPEC §5.5).
+func TestSelectIn(t *testing.T) {
+	tests := []struct {
+		name    string
+		plan    string
+		slice   string
+		outcome Outcome
+		task    string
+		waiting []string
+	}{
+		{"first ready of the slice", "M0: a ready\nM0: b ready\nM0: c ready", "c b", Next, "b", nil},
+		{"in progress outside the slice is left", "M0: a in_progress\nM0: b ready", "b", Next, "b", nil},
+		{"in progress in the slice wins", "M0: a ready\nM0: b in_progress", "a b", Next, "b", nil},
+		{"slice satisfied, phase not", "M0: a done\nM0: b ready", "a", Complete, "", nil},
+		{"no slice task in the phase", "M0: a ready", "z", Complete, "", nil},
+		{"slice task waits outside the slice", "M0: a ready\nM0: b blocked a", "b", Stuck, "", []string{"b waits on a (ready, phase M0)"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := schedPlan(t, tt.plan)
+			in := map[string]bool{}
+			for _, id := range strings.Fields(tt.slice) {
+				in[id] = true
+			}
+			sel, err := p.SelectIn("M0", func(t *Task) bool { return in[t.ID] })
+			if err != nil {
+				t.Fatal(err)
+			}
+			id := ""
+			if sel.Task != nil {
+				id = sel.Task.ID
+			}
+			var waiting []string
+			for _, w := range sel.Waiting {
+				waiting = append(waiting, w.String())
+			}
+			if sel.Outcome != tt.outcome || id != tt.task || !reflect.DeepEqual(waiting, tt.waiting) {
+				t.Errorf("SelectIn = %v %q %q, want %v %q %q", sel.Outcome, id, waiting, tt.outcome, tt.task, tt.waiting)
+			}
+		})
+	}
+}
+
 func TestSelectUnknownPhase(t *testing.T) {
 	p := schedPlan(t, "M0: a ready\nM1: b ready")
 	_, err := p.Select("M9")

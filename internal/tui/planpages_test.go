@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -189,7 +190,7 @@ func TestPhasePageActions(t *testing.T) {
 	}
 	// Preview this phase pushes the dry run; its Arise goes home.
 	press(a, "v")
-	if got := rec.last(); got != (report.RunRequest{Phase: "M2"}) {
+	if got := rec.last(); !reflect.DeepEqual(got, report.RunRequest{Phase: "M2"}) {
 		t.Errorf("previewed %+v", got)
 	}
 	if _, ok := a.stack[len(a.stack)-1].(*previewScreen); !ok {

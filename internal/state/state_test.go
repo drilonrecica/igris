@@ -292,6 +292,48 @@ func TestRunRoundTrip(t *testing.T) {
 	}
 }
 
+// The selection (SPEC §5.5) round-trips, and a v0.3 state file without one
+// still loads, as a run of its phases whole.
+func TestRunSelection(t *testing.T) {
+	d := testDir(t)
+	want := &Run{StartedAt: t0, Phases: []string{"M1"}, ConfigHash: "abc", Selection: &Selection{Only: []string{"M1-03", "M1-05"}}}
+	if err := d.SaveRun(want); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := d.LoadRun(); err != nil || !reflect.DeepEqual(got, want) {
+		t.Errorf("LoadRun = %+v, %v\nwant %+v", got, err, want)
+	}
+
+	v03 := `{"version": 1, "started_at": "2026-10-06T12:00:00Z", "phases": ["M1", "M2"], "through": "M2", "config_hash": "abc"}`
+	if err := os.WriteFile(d.runPath(), []byte(v03), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := d.LoadRun()
+	if err != nil || got.Selection != nil || got.Through != "M2" {
+		t.Errorf("v0.3 state file: %+v, %v", got, err)
+	}
+}
+
+func TestSelectionString(t *testing.T) {
+	for _, tc := range []struct {
+		sel  Selection
+		want string
+	}{
+		{Selection{}, ""},
+		{Selection{Only: []string{"M1-03", "M1-05"}}, "only M1-03, M1-05"},
+		{Selection{From: "M1-03"}, "from M1-03"},
+		{Selection{Until: "M2-02"}, "until M2-02"},
+		{Selection{From: "M1-03", Until: "M2-02"}, "from M1-03 until M2-02"},
+	} {
+		if got := tc.sel.String(); got != tc.want {
+			t.Errorf("%+v.String() = %q, want %q", tc.sel, got, tc.want)
+		}
+		if tc.sel.Empty() != (tc.want == "") {
+			t.Errorf("%+v.Empty() = %v", tc.sel, tc.sel.Empty())
+		}
+	}
+}
+
 func TestLoadRunErrors(t *testing.T) {
 	for name, content := range map[string]string{
 		"bad json":    "{",

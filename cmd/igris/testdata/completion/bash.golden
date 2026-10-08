@@ -20,8 +20,11 @@ _igris() {
         phases:--plan) COMPREPLY=($(compgen -f -- "$cur")) ; return ;;
         status:--plan) COMPREPLY=($(compgen -f -- "$cur")) ; return ;;
         history:-n) return ;;
+        arise:--from) COMPREPLY=($(compgen -W "$(igris __complete tasks 2>/dev/null)" -- "$cur")) ; return ;;
         arise:--mode) COMPREPLY=($(compgen -W "default accept auto plan yolo" -- "$cur")) ; return ;;
+        arise:--only) COMPREPLY=($(compgen -W "$(igris __complete tasks 2>/dev/null)" -- "$cur")) ; return ;;
         arise:--through) COMPREPLY=($(compgen -W "$(igris __complete phases 2>/dev/null)" -- "$cur")) ; return ;;
+        arise:--until) COMPREPLY=($(compgen -W "$(igris __complete tasks 2>/dev/null)" -- "$cur")) ; return ;;
         done:--note) return ;;
         skip:--reason) return ;;
         notify:--event) COMPREPLY=($(compgen -W "needs_input session_lost task_overdue verify_failed_limit task_done phase_done phase_stuck run_error" -- "$cur")) ; return ;;
@@ -36,7 +39,7 @@ _igris() {
             phases) COMPREPLY=($(compgen -W "--json --plan" -- "$cur")) ;;
             status) COMPREPLY=($(compgen -W "--json --plan" -- "$cur")) ;;
             history) COMPREPLY=($(compgen -W "--json -n" -- "$cur")) ;;
-            arise) COMPREPLY=($(compgen -W "--dry-run --force-unlock --mode --no-tui --through" -- "$cur")) ;;
+            arise) COMPREPLY=($(compgen -W "--dry-run --force-unlock --from --mode --no-tui --only --through --until" -- "$cur")) ;;
             done) COMPREPLY=($(compgen -W "--note" -- "$cur")) ;;
             skip) COMPREPLY=($(compgen -W "--reason" -- "$cur")) ;;
             notify) COMPREPLY=($(compgen -W "--event" -- "$cur")) ;;

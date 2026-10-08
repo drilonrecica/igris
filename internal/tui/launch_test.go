@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -252,7 +253,7 @@ func TestWizardResume(t *testing.T) {
 	if st.count() != 1 {
 		t.Fatalf("%d starts, want 1", st.count())
 	}
-	if got := st.req(0); got != (report.RunRequest{Mode: "plan"}) {
+	if got := st.req(0); !reflect.DeepEqual(got, report.RunRequest{Mode: "plan"}) {
 		t.Errorf("request %+v, want Phase \"\" (resume) with mode plan", got)
 	}
 	// The fake fails: the error dialog, with Doctor, and no retry.
@@ -277,7 +278,7 @@ func TestWizardStartAPhaseInsteadOfResuming(t *testing.T) {
 		t.Errorf("resume option %q, want %q (stopped between tasks)", home.dialog.options[0].label, want)
 	}
 	press(a, "2", "3", "1", "1", "enter") // Start a phase…, M4, only, as planned, Arise
-	if got := st.req(0); got != (report.RunRequest{Phase: "M4"}) {
+	if got := st.req(0); !reflect.DeepEqual(got, report.RunRequest{Phase: "M4"}) {
 		t.Errorf("request %+v, want M4 only", got)
 	}
 }
@@ -469,7 +470,7 @@ func TestWizardPrefilledFromArise(t *testing.T) {
 		t.Errorf("mode %q, want --mode plan selected", d.options[d.selected].label)
 	}
 	press(a, "enter", "enter")
-	if c := st.conf(0); !c.ForceUnlock || st.req(0) != (report.RunRequest{Phase: "M2", Through: "M3", Mode: "plan"}) {
+	if c := st.conf(0); !c.ForceUnlock || !reflect.DeepEqual(st.req(0), report.RunRequest{Phase: "M2", Through: "M3", Mode: "plan"}) {
 		t.Errorf("start %+v %+v, want the flags", st.req(0), c)
 	}
 }
@@ -496,11 +497,28 @@ func TestExitText(t *testing.T) {
 		{engine.Result{Outcome: engine.Stopped}, nil, "igris stopped; a running session keeps running — `igris arise` resumes"},
 		{engine.Result{Outcome: engine.Stuck, Phase: "M2"}, nil, "phase M2 is stuck: unfinished tasks, none can start (see `igris status M2`)"},
 		{engine.Result{}, errors.New("boom\x1b[2J"), "the run failed: boom"},
+		{engine.Result{Outcome: engine.Completed, NotRun: make([]plan.Waiting, 2)}, nil, "run completed; 2 task(s) of the slice not run: their dependencies aren't done"},
 	}
 	for _, tt := range tests {
 		if got := ExitText(tt.res, tt.err); got != tt.want {
 			t.Errorf("ExitText(%v, %v) = %q, want %q", tt.res, tt.err, got, tt.want)
 		}
+	}
+}
+
+// The run view's log reports the slice's tasks a phase left (SPEC §5.5).
+func TestLogLinesNotRun(t *testing.T) {
+	p := plan.Parse("tasks.md", []byte("## M1\n\n| ID | Deps | Status | Model |\n|---|---|---|---|\n| M1-01 | — | ready | sonnet |\n| M1-02 | M1-01 | blocked | sonnet |\n"), plan.Options{})
+	w := p.WaitingOn(p.Task("M1-02"))
+	if w == nil {
+		t.Fatal("M1-02 waits on nothing")
+	}
+	ev := engine.Event{Kind: engine.NotRun, Waiting: []plan.Waiting{*w}}
+	if got, want := strings.Join(logLines(ev), "\n"), "not run: M1-02 waits on M1-01 (ready, phase M1)"; got != want {
+		t.Errorf("logLines = %q, want %q", got, want)
+	}
+	if logLook(engine.NotRun) == lookAlert {
+		t.Error("not run is drawn as an alert; it is not a stuck phase")
 	}
 }
 

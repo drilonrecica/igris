@@ -25,6 +25,7 @@ const (
 	TaskDone        EventKind = "task_done"         // Detail is the done note; Changes holds the cells written
 	PhaseDone       EventKind = "phase_done"        // every task of the phase is satisfied
 	PhaseStuck      EventKind = "phase_stuck"       // Waiting lists the unfinished tasks
+	NotRun          EventKind = "not_run"           // Waiting lists the slice's tasks left in the phase, deps unmet (SPEC §5.5)
 	PauseOn         EventKind = "pause_on"          // pause-after-task was switched on
 	PauseOff        EventKind = "pause_off"         // ... and off again; a held run continues
 	Paused          EventKind = "paused"            // the run holds instead of launching Task

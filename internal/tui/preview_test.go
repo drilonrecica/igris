@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"slices"
 	"strings"
 	"sync"
@@ -128,7 +129,7 @@ func TestPreviewFromHomeAndAgain(t *testing.T) {
 	if len(a.stack) != 2 {
 		t.Fatalf("stack %d, want home and the preview", len(a.stack))
 	}
-	if got := rec.last(); got != (report.RunRequest{Phase: "M2"}) {
+	if got := rec.last(); !reflect.DeepEqual(got, report.RunRequest{Phase: "M2"}) {
 		t.Errorf("previewed %+v, want the selected phase", got)
 	}
 	if v := a.View(); !strings.Contains(v, "3 sessions · 1 user task") || !strings.Contains(v, "[SKIP PERMISSIONS]") {
@@ -147,7 +148,7 @@ func TestPreviewFromHomeAndAgain(t *testing.T) {
 func TestPreviewOfAResumableRunIsTheLastRunsPhases(t *testing.T) {
 	a, _, rec := previewApp(t, func(s *report.Snapshot) { s.Run = homeRun("M2-02", homeNow) })
 	press(a, "v")
-	if got := rec.last(); got != (report.RunRequest{}) {
+	if got := rec.last(); !reflect.DeepEqual(got, report.RunRequest{}) {
 		t.Errorf("previewed %+v, want the last run's phases (empty phase)", got)
 	}
 }

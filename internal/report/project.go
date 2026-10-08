@@ -14,6 +14,9 @@ type RunRequest struct {
 	Phase   string // "" resumes the last run's phases
 	Through string
 	Mode    string // "" is as planned
+	// Selection is --only or --from/--until (SPEC §5.5); empty runs the
+	// phases whole.
+	Selection state.Selection
 }
 
 // Confirmations are the owner's answers to arise's start-up questions for

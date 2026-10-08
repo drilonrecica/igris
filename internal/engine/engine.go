@@ -58,6 +58,10 @@ type Options struct {
 	Phase   string // phase to run; "" resumes the previous run's phases
 	Through string // last phase to run; "" means only Phase (SPEC §5.3)
 	Mode    string // run mode chosen for this run (--mode); "" means none
+	// Selection limits the run to part of its phases (SPEC §5.5: --only,
+	// --from, --until). With no Phase it also sets the phase range; with
+	// neither, the previous run's selection is resumed.
+	Selection state.Selection
 
 	ForceUnlock bool // clear a stale run lock (--force-unlock)
 	// ConfirmedDrift says the owner accepted that the first write also fixes
@@ -113,6 +117,9 @@ type Result struct {
 	Outcome Outcome
 	Phase   string         // the phase the run ended in
 	Waiting []plan.Waiting // Stuck: every unfinished task with its unmet deps
+	// NotRun are the slice's tasks that were left because their deps are
+	// unmet (SPEC §5.5), in the order they were reported.
+	NotRun []plan.Waiting
 }
 
 // Engine runs the tasks of one or more phases, one session at a time
@@ -138,6 +145,7 @@ type Engine struct {
 
 	// Only touched by the goroutine in Run.
 	run      *state.Run      // state.json
+	rng      Range           // the run's phases and slice
 	phase    string          // current phase
 	task     *launch         // current task; nil between tasks
 	pause    bool            // pause-after-task is on
@@ -239,7 +247,7 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	scope := "phase " + strings.Join(phases, ", ")
+	scope := e.rng.Scope()
 	e.log(state.Event{Type: state.EventRunStarted, Detail: scope})
 	e.emit(Event{Kind: RunStarted, Detail: scope})
 
@@ -275,22 +283,31 @@ func (e *Engine) prepare() ([]string, error) {
 	case err != nil:
 		return nil, err
 	}
-	from, through := e.opts.Phase, e.opts.Through
-	if from == "" {
+	from, through, sel := e.opts.Phase, e.opts.Through, e.opts.Selection
+	resumed := false
+	if from == "" && sel.Empty() {
 		if prev == nil || len(prev.Phases) == 0 {
 			return nil, errors.New("there is no earlier run to resume; name the phase to run, e.g. `igris arise M0`")
 		}
-		from, through = prev.Phases[0], prev.Through
+		from, through, resumed = prev.Phases[0], prev.Through, true
+		if prev.Selection != nil {
+			sel = *prev.Selection
+		}
 	}
 
 	p, err := e.loadPlan()
 	if err != nil {
 		return nil, err
 	}
-	phases, err := p.PhasesThrough(from, through)
+	rng, err := ResolveRange(p, from, through, sel)
 	if err != nil {
+		if resumed && !sel.Empty() {
+			return nil, fmt.Errorf("resume the last run's %s: %w; or name a phase to start a new run", sel, err)
+		}
 		return nil, err
 	}
+	e.rng = rng
+	phases := rng.Phases
 	if drift := p.Readiness(); len(drift) > 0 && !e.opts.ConfirmedDrift {
 		return nil, &DriftError{Changes: drift}
 	}
@@ -308,15 +325,16 @@ func (e *Engine) prepare() ([]string, error) {
 	ids := make([]string, 0, len(phases))
 	for _, ph := range phases {
 		// A resumed run starts in the phase of the task it picks up again;
-		// the phases before it have nothing left to do for this run.
-		if cur != nil && len(ids) > 0 && hasTask(ph, cur.TaskID) {
+		// the phases before it have nothing left to do for this run. A
+		// slice keeps them: its earlier tasks may still be left.
+		if cur != nil && rng.Slice == nil && len(ids) > 0 && hasTask(ph, cur.TaskID) {
 			ids = ids[:0]
 		}
 		ids = append(ids, ph.ID)
 		// Refuse an unconfirmed skip-permissions task now rather than hours
 		// into the run. runTask checks again: the plan can change.
 		for _, t := range ph.Tasks {
-			if t.Status.Satisfied() || !t.Owner.IsAgent() {
+			if t.Status.Satisfied() || !t.Owner.IsAgent() || !rng.In(t) {
 				continue
 			}
 			if _, err := e.modeFor(t); err != nil {
@@ -324,7 +342,10 @@ func (e *Engine) prepare() ([]string, error) {
 			}
 		}
 	}
-	e.run = &state.Run{StartedAt: e.clock.Now(), Phases: ids, Through: through, ConfigHash: e.cfg.Hash(), Current: cur}
+	e.run = &state.Run{StartedAt: e.clock.Now(), Phases: ids, Through: rng.Through, ConfigHash: e.cfg.Hash(), Current: cur}
+	if !sel.Empty() {
+		e.run.Selection = &sel
+	}
 	if prev != nil && cur != nil && prev.ConfigHash != e.run.ConfigHash {
 		e.configMoved = true
 	}
@@ -405,15 +426,47 @@ func (e *Engine) yoloConfirmed() bool { return e.opts.ConfirmedYolo || e.yoloOK 
 
 func (e *Engine) runPhases(ctx context.Context, phases []string) (Result, error) {
 	var res Result
+	var notRun []plan.Waiting
 	for _, id := range phases {
+		if e.rng.Slice != nil {
+			// A phase without a slice task has nothing to run.
+			p, err := e.loadPlan()
+			if err != nil {
+				return Result{Phase: e.phase, NotRun: notRun}, err
+			}
+			if !sliceHas(p, id, e.rng) {
+				continue
+			}
+		}
 		e.phase = id
 		e.emit(Event{Kind: PhaseStarted})
 		var err error
-		if res, err = e.runPhase(ctx, id); err != nil || res.Outcome != Completed {
+		res, err = e.runPhase(ctx, id)
+		notRun = append(notRun, res.NotRun...)
+		res.NotRun = notRun
+		if err != nil || res.Outcome != Completed {
 			return res, err
 		}
 	}
+	if res.Phase == "" {
+		// No phase had a slice task left: only an interrupted task ran.
+		res = Result{Outcome: Completed, Phase: e.phase, NotRun: notRun}
+	}
 	return res, nil
+}
+
+// sliceHas says whether the phase id has a task of the run's slice.
+func sliceHas(p *plan.Plan, id string, rng Range) bool {
+	ph := p.Phase(id)
+	if ph == nil {
+		return false
+	}
+	for _, t := range ph.Tasks {
+		if rng.In(t) {
+			return true
+		}
+	}
+	return false
 }
 
 // runPhase runs the tasks of one phase in §5.1 order until the phase is
@@ -439,23 +492,29 @@ func (e *Engine) runPhase(ctx context.Context, id string) (Result, error) {
 			e.wait(ctx, e.cfg.PollInterval.Std())
 			continue
 		}
-		sel, err := p.Select(id)
+		sel, err := p.SelectIn(id, e.rng.In)
 		if err != nil {
 			return res, err
 		}
 		switch sel.Outcome {
 		case plan.Complete:
 			res.Outcome = Completed
-			e.emit(Event{Kind: PhaseDone})
-			e.toast(ctx, notifyPhaseDone, "complete")
+			// The slice may be done in a phase that is not (SPEC §5.5).
+			if whole, err := p.Select(id); err == nil && whole.Outcome == plan.Complete {
+				e.emit(Event{Kind: PhaseDone})
+				e.toast(ctx, notifyPhaseDone, "complete")
+			}
 			return res, nil
 		case plan.Stuck:
-			res.Outcome, res.Waiting = Stuck, sel.Waiting
-			waits := make([]string, len(sel.Waiting))
-			for i, w := range sel.Waiting {
-				waits[i] = w.String()
+			if e.rng.Slice != nil {
+				// Not a stuck phase: the slice's tasks left here wait on
+				// tasks the run doesn't touch. The run goes on.
+				res.Outcome, res.NotRun = Completed, sel.Waiting
+				e.emit(Event{Kind: NotRun, Waiting: sel.Waiting, Detail: waitText(sel.Waiting)})
+				return res, nil
 			}
-			e.emit(Event{Kind: PhaseStuck, Waiting: sel.Waiting, Detail: strings.Join(waits, "; ")})
+			res.Outcome, res.Waiting = Stuck, sel.Waiting
+			e.emit(Event{Kind: PhaseStuck, Waiting: sel.Waiting, Detail: waitText(sel.Waiting)})
 			e.toast(ctx, notifyPhaseStuck, fmt.Sprintf("stuck: %d unfinished task(s), none can start", len(sel.Waiting)))
 			return res, nil
 		}
@@ -479,4 +538,13 @@ func (e *Engine) runPhase(ctx context.Context, id string) (Result, error) {
 			return res, nil
 		}
 	}
+}
+
+// waitText joins the waits for an event's Detail.
+func waitText(ws []plan.Waiting) string {
+	waits := make([]string, len(ws))
+	for i, w := range ws {
+		waits[i] = w.String()
+	}
+	return strings.Join(waits, "; ")
 }
