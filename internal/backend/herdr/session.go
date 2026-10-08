@@ -27,8 +27,9 @@ const promptWait = 10 * time.Second
 const promptSettle = 2 * time.Second
 
 var (
-	_ backend.Session = (*Session)(nil)
-	_ backend.Tailer  = (*Session)(nil)
+	_ backend.Session   = (*Session)(nil)
+	_ backend.Tailer    = (*Session)(nil)
+	_ backend.Submitter = (*Session)(nil)
 )
 
 // Session is one Claude Code agent in a herdr tab. It is safe for
@@ -238,6 +239,21 @@ func (s *Session) Tail(ctx context.Context, n int) ([]string, error) {
 		}
 	}
 	return lines, nil
+}
+
+// Submit implements backend.Submitter with `pane send-keys <pane> enter`:
+// one Enter, nothing typed.
+func (s *Session) Submit(ctx context.Context) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	err := s.c.PaneSendKeys(ctx, s.ref.PaneID, KeyEnter)
+	switch {
+	case gone(err):
+		return s.goneErr("submit", err)
+	case err != nil:
+		return fmt.Errorf("submit %s: %w", s.id, err)
+	}
+	return nil
 }
 
 // Focus brings the session's tab to the front.

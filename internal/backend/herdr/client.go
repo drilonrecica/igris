@@ -327,6 +327,21 @@ func (c *Client) PaneGet(ctx context.Context, paneID string) (Pane, error) {
 	return r.Pane, nil
 }
 
+// KeyEnter is herdr's key name for Enter in `pane send-keys` (herdr 0.9.1
+// takes key names such as esc, enter, tab).
+const KeyEnter = "enter"
+
+// PaneSendKeys presses keys in pane paneID. Only key names go in, never
+// text; a missing pane fails with CodePaneNotFound. Its output says
+// nothing igris needs, so only the exit status counts.
+func (c *Client) PaneSendKeys(ctx context.Context, paneID string, keys ...string) error {
+	if len(keys) == 0 {
+		return errors.New("herdr pane send-keys: no keys")
+	}
+	_, err := c.exec(ctx, c.timeout, append([]string{"pane", "send-keys", paneID}, keys...)...)
+	return err
+}
+
 // TabFocus brings tab tabID to the front.
 func (c *Client) TabFocus(ctx context.Context, tabID string) (Tab, error) {
 	var r struct {

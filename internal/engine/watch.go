@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -120,6 +121,7 @@ func (e *Engine) watch(ctx context.Context, l *launch) (verdict, error) {
 			default:
 				stateErr = ""
 				e.promptDelivered(l)
+				e.checkSubmitted(ctx, l, st)
 				e.observe(ctx, st, &ep)
 			}
 			e.checkOverdue(ctx, l)
@@ -155,6 +157,55 @@ func (e *Engine) observe(ctx context.Context, st backend.AgentState, ep *episode
 		}
 	}
 	// Unknown tells nothing about the agent; the episode stays as it is.
+}
+
+// submitAfter is how long a delivered prompt may sit unsubmitted, the
+// agent idle, before igris presses Enter once (SPEC §6.3).
+const submitAfter = 15 * time.Second
+
+// checkSubmitted presses Enter once when l's first prompt seems pasted but
+// never submitted (SPEC §6.3): the session is idle at least submitAfter
+// after the prompt went out, and its hook record still holds the event
+// from before the prompt (SessionStart, or the idle_prompt Notification).
+// A submitted prompt always fires UserPromptSubmit, and a turn ends with
+// Stop. Without a hook record there is no evidence, and nothing is done.
+// The prompt text is never sent again; Needs you follows as usual.
+func (e *Engine) checkSubmitted(ctx context.Context, l *launch, st backend.AgentState) {
+	if l.promptAt.IsZero() || l.cur.ClaudeSession == "" {
+		return
+	}
+	now := e.clock.Now()
+	if st == backend.Working && now.After(l.promptAt) {
+		l.promptAt = time.Time{} // the agent works on it
+		return
+	}
+	rec, ok := state.PeekAgentState(e.dir.Root(), l.cur.ClaudeSession)
+	if !ok {
+		return
+	}
+	if rec.State != backend.Idle || (rec.Event != "SessionStart" && rec.Event != "Notification") {
+		// Submitted (UserPromptSubmit and on), or blocked at a question:
+		// Enter must not answer it.
+		if rec.State != backend.Blocked {
+			l.promptAt = time.Time{}
+		}
+		return
+	}
+	if (st != backend.Idle && st != backend.Done) || now.Sub(l.promptAt) < submitAfter {
+		return
+	}
+	l.promptAt = time.Time{} // once per prompt
+	sub, ok := l.sess.(backend.Submitter)
+	if !ok {
+		return
+	}
+	if err := sub.Submit(ctx); err != nil {
+		if ctx.Err() == nil && !errors.Is(err, backend.ErrSessionGone) {
+			e.warn(fmt.Sprintf("the prompt of %s didn't seem submitted; pressing Enter failed: %v; press Enter in its session", l.t.ID, err))
+		}
+		return
+	}
+	e.warn("the prompt didn't seem submitted; sent Enter once")
 }
 
 // endEpisode ends the idle episode ep, clearing its wait if Needs you was

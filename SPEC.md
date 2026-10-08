@@ -241,6 +241,8 @@ The tmux backend takes the agent state from these files; the herdr backend uses 
 | Agent `unknown` | Nothing; it says nothing about the agent (e.g. no hook has fired yet and herdr's integration is missing). |
 | Pane gone or Claude Code exited without a signal | Mark **Session lost**, notify, and offer: continue the conversation (`claude --resume <uuid>`, with a short fixed prompt telling the session to pick the task up again), retry fresh (`Resumed=true`), mark done, skip, or stop. A done signal written before the session went away still counts. |
 
+**Unsubmitted prompt (v0.5.1).** Rarely, Claude Code shows the first prompt pasted in its input box but never submits it (seen once in 14 herdr sessions). A submitted prompt always fires `UserPromptSubmit`, so igris checks the hook record. Suppose the session is idle (not `blocked`) at least 15 s after its first prompt was delivered: the task prompt of a fresh session, the continue prompt of `retry continue`, or a held prompt once it goes out. Suppose too that its hook record still shows only `SessionStart` or the `idle_prompt` `Notification`, and igris has not seen the agent working since. Then igris presses Enter once in the pane (`backend.Submitter`: tmux `send-keys -t %N Enter`, herdr `pane send-keys <pane_id> enter`) and reports the warning `the prompt didn't seem submitted; sent Enter once`. It does this once per prompt, never re-sends the prompt text, and does nothing when the session has no hook record at all (no evidence), after a reattach, or for `adapt`. If the prompt still isn't submitted, **Needs you** follows as in the table above.
+
 **Timeout.** The clock starts when the session's first prompt is delivered: the task prompt of a fresh session, the continue prompt of `retry continue`, or, on resume, when igris reattaches to a live session (elapsed time is not saved). A prompt held back at a startup prompt (§13, `pending_prompt`) counts from when it goes out. Each session igris opens or reattaches for the task is one attempt, so a retry starts a new clock. It is checked while igris watches the session. User tasks ignore Timeout (§3.2).
 
 Igris never advances on agent state alone — only on a signal or an explicit owner action. A signal for another task, or one igris can't read, is reported once and kept. A skip signal from an agent session is asked about once; declining it deletes the signal and the session carries on.
@@ -398,11 +400,18 @@ type Session interface {
 type Tailer interface {
     Tail(ctx context.Context, n int) ([]string, error) // up to n last non-blank lines, oldest first
 }
+
+// Optional (since v0.5.1): press Enter once, typing nothing (§6.3).
+type Submitter interface {
+    Submit(ctx context.Context) error
+}
 ```
 
 `SessionSpec` holds: task ID (backends derive session names from it, e.g. herdr's `igris-<id>`), working directory, label, Claude Code argv (model, mode flags, extra args), environment additions.
 
 `Tailer` feeds the live tail (§15.3): the last non-blank lines the session shows, raw (the TUI cleans them), without Claude Code's input box; a gone session yields a "session gone" error. Claude Code draws its prompt between two full-width rules (a line of at least 10 `─` and nothing else) with its status footer below, and leaves dozens of blank rows above it, so a backend reads the last N lines, cuts them at the second-to-last such rule when there are two or more and something non-blank comes before it (`backend.TailLines`), drops blank lines and keeps the last N. This is a heuristic: output of the session's own that ends in two rules loses what follows the first of them. herdr and tmux implement it, and so does the fake; a backend without it simply has no tail. Its output is never logged, notified or stored.
+
+`Submitter` presses Enter once in the session's pane and types nothing; the engine uses it for a first prompt that stays unsubmitted (§6.3). A gone session yields a "session gone" error. herdr, tmux and the fake implement it; with a backend without it, igris only raises **Needs you**.
 
 `State` reports a vanished pane or exited Claude Code as `exited` rather than an error; `Prompt`, `Focus` and `Attach` fail with a "session gone" error for it, and `Close` on a gone session is a no-op. The engine treats both as **Session lost** (§6.3).
 
@@ -422,6 +431,7 @@ Igris itself runs in a herdr pane. It uses the herdr CLI (JSON output), never th
 | Send follow-up / task prompt | `herdr agent prompt <name> <text> [--wait --timeout MS]`. Multi-line text works (bracketed paste). Rejected with `agent_blocked` if the agent is at an approval/question UI. Without `--wait` the returned status is the pre-turn one |
 | Read state | `herdr pane get <pane_id>` → `.result.pane.agent_status` ∈ `unknown` (plain shell / unclassified), `idle`, `working`, `blocked`, `done`; `pane_not_found` → session lost. `herdr agent read <name> --source recent-unwrapped --lines N` returns plain text (empty while a blocking prompt is drawn on the alternate screen — use `--source visible`) |
 | Tail | `herdr agent read <name> --source recent-unwrapped --lines N --format text`; when that is empty or blank (a dialog on the alternate screen), `--source visible --lines N --format text`; cut as §11.1 says |
+| Submit (§6.3) | `herdr pane send-keys <pane_id> enter`; only the exit status counts, `pane_not_found` → session gone |
 | Focus | `herdr tab focus <tab_id>` |
 | Close | `herdr tab close <tab_id>` → `{"result":{"type":"ok"}}`; closing again gives `tab_not_found` |
 | Notify | `herdr notification show <title> --body <body> --sound request|done|none` → `.result.shown` |
@@ -460,6 +470,7 @@ Igris runs inside a tmux client (`TMUX` set) and drives that server with the `tm
 | Prompt | `tmux load-buffer -b igris-<id> -` (text on stdin) → `paste-buffer -p -d -b igris-<id> -t %N` (bracketed paste) → `send-keys -t %N Enter`. Refused while the hook state is `blocked` |
 | State | `list-panes -t %N -F '#{pane_id}\t#{pane_dead}…'`: missing or dead pane → `exited`; else the hook state (§6.3); `unknown` before the first hook |
 | Tail | `capture-pane -p -J -t %N -S -<N>` (the history tail plus the visible screen, wrapped lines joined); cut as §11.1 says: Claude Code's input box and blank lines dropped, the last N kept |
+| Submit (§6.3) | `send-keys -t %N Enter` |
 | Focus | `select-window -t @N` |
 | Close | `kill-window -t @N`; `can't find window` is not an error |
 | Notify | `display-message -d 5000 '<title>: <body>'` on the current client, plus the router's other channels |

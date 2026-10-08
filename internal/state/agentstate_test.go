@@ -97,3 +97,33 @@ func TestWriteHooksFile(t *testing.T) {
 		t.Error("accepted a path as task id")
 	}
 }
+
+// PeekAgentState gives the whole record, and counts an unreadable file as
+// no record.
+func TestPeekAgentState(t *testing.T) {
+	root := t.TempDir()
+	if _, err := Open(root, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := PeekAgentState(root, testUUID); ok {
+		t.Fatal("missing file: ok")
+	}
+	if _, ok := PeekAgentState(root, "not-a-uuid"); ok {
+		t.Fatal("invalid uuid: ok")
+	}
+	at := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
+	if err := WriteAgentState(root, testUUID, AgentState{State: backend.Idle, Event: "SessionStart", At: at}); err != nil {
+		t.Fatal(err)
+	}
+	got, ok := PeekAgentState(root, testUUID)
+	if !ok || got.State != backend.Idle || got.Event != "SessionStart" || !got.At.Equal(at) {
+		t.Fatalf("got %+v ok=%v", got, ok)
+	}
+	path := filepath.Join(AgentStateDir(root), testUUID+".json")
+	if err := os.WriteFile(path, []byte(`{"state":"bogus","event":"SessionStart"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := PeekAgentState(root, testUUID); ok {
+		t.Fatalf("bad state: got %+v ok", got)
+	}
+}

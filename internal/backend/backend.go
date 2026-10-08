@@ -61,6 +61,15 @@ type PromptHolder interface {
 	HoldPrompt(text string)
 }
 
+// Submitter is implemented by sessions that can press Enter in the agent's
+// input box. The engine uses it once per prompt, when a prompt that was
+// pasted stays unsubmitted (SPEC §6.3); it never types text.
+type Submitter interface {
+	// Submit presses Enter once. A gone session yields an error wrapping
+	// ErrSessionGone.
+	Submit(ctx context.Context) error
+}
+
 // Tailer is implemented by sessions whose recent output can be read: the
 // TUI's live tail (SPEC §11.1, §15.3). Backends without it have no tail.
 // What it returns is raw pane text, cleaned by the caller before it is

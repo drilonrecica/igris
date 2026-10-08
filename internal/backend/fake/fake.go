@@ -22,6 +22,7 @@ var (
 	_ backend.Session      = (*Session)(nil)
 	_ backend.PromptHolder = (*Session)(nil)
 	_ backend.Tailer       = (*Session)(nil)
+	_ backend.Submitter    = (*Session)(nil)
 )
 
 // AutoSignalFunc is called after a session's first prompt (the task prompt),
@@ -42,6 +43,7 @@ type Backend struct {
 
 	opened        []backend.SessionSpec
 	prompts       map[string][]string // by task ID
+	submits       map[string]int      // Enter presses by task ID
 	notifications []backend.Notification
 	focused       []backend.SessionRef
 	closed        []backend.SessionRef
@@ -56,6 +58,7 @@ func New() *Backend {
 		tails:    map[string][]string{},
 		sessions: map[string]*Session{},
 		prompts:  map[string][]string{},
+		submits:  map[string]int{},
 	}
 }
 
@@ -138,6 +141,14 @@ func (b *Backend) Prompts(taskID string) []string {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return slices.Clone(b.prompts[taskID])
+}
+
+// Submits returns how many times Enter was pressed in taskID's sessions
+// with Submit.
+func (b *Backend) Submits(taskID string) int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.submits[taskID]
 }
 
 // Notifications returns every notification shown, in order.
@@ -350,6 +361,20 @@ func (s *Session) Tail(ctx context.Context, n int) ([]string, error) {
 		return nil, s.goneErr("tail")
 	}
 	return backend.TailLines(strings.Join(s.b.tails[s.taskID], "\n"), n), nil
+}
+
+// Submit implements backend.Submitter: it records an Enter press.
+func (s *Session) Submit(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s.b.mu.Lock()
+	defer s.b.mu.Unlock()
+	if s.gone {
+		return s.goneErr("submit")
+	}
+	s.b.submits[s.taskID]++
+	return nil
 }
 
 // Focus records the focus.

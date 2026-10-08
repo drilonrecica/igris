@@ -276,3 +276,24 @@ func TestTail(t *testing.T) {
 		t.Errorf("Tail = %v, want a plain error", err)
 	}
 }
+
+// Submit presses Enter on what sits in the input box, typing nothing.
+func TestSubmit(t *testing.T) {
+	ctx := context.Background()
+	s := newSim()
+	sess := openSim(t, s)
+	p := s.pane("%1")
+	s.mu.Lock()
+	p.typed = "pasted, not sent"
+	s.mu.Unlock()
+	if err := sess.Submit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(p.pasted, []string{"pasted, not sent"}) {
+		t.Errorf("pasted %q", p.pasted)
+	}
+	s.kill("%1")
+	if err := sess.Submit(ctx); !errors.Is(err, backend.ErrSessionGone) {
+		t.Errorf("Submit on a gone pane = %v", err)
+	}
+}

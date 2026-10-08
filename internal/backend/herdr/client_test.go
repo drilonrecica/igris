@@ -159,6 +159,13 @@ func TestClientCalls(t *testing.T) {
 			args: []string{"tab", "close", "w2B:t3"},
 		},
 		{
+			name: "pane send-keys",
+			res:  ok(t, "pane_send_keys.json"),
+			call: func(c *Client) (any, error) { return nil, c.PaneSendKeys(ctx, "w2B:p3", KeyEnter) },
+			want: nil,
+			args: []string{"pane", "send-keys", "w2B:p3", "enter"},
+		},
+		{
 			name: "notification show",
 			res:  ok(t, "notification_show.json"),
 			call: func(c *Client) (any, error) { return c.NotificationShow(ctx, "igris", "T-01 needs you", SoundRequest) },

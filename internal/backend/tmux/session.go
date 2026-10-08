@@ -33,6 +33,7 @@ const (
 var _ backend.Session = (*Session)(nil)
 var _ backend.PromptHolder = (*Session)(nil)
 var _ backend.Tailer = (*Session)(nil)
+var _ backend.Submitter = (*Session)(nil)
 
 // Session is one Claude Code session in a tmux window. It is safe for
 // concurrent use.
@@ -221,6 +222,20 @@ func (s *Session) State(ctx context.Context) (backend.AgentState, error) {
 		return backend.Working, nil
 	}
 	return st, nil
+}
+
+// Submit implements backend.Submitter: it presses Enter in the pane,
+// typing nothing else.
+func (s *Session) Submit(ctx context.Context) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.c.SendEnter(ctx, s.ref.PaneID); err != nil {
+		if IsGone(err) {
+			return s.goneErr("submit", err)
+		}
+		return fmt.Errorf("submit %s: %w", s.id, err)
+	}
+	return nil
 }
 
 // Tail implements backend.Tailer with capture-pane. It doesn't take s.mu:

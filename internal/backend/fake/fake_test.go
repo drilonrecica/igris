@@ -293,3 +293,24 @@ func TestTail(t *testing.T) {
 		t.Errorf("Tail of a gone session = %v", err)
 	}
 }
+
+func TestSubmit(t *testing.T) {
+	b := New()
+	s := open(t, b, "T-1")
+	sub := s.(backend.Submitter)
+	for range 2 {
+		if err := sub.Submit(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := b.Submits("T-1"); got != 2 {
+		t.Errorf("Submits = %d, want 2", got)
+	}
+	b.Kill(s.Ref())
+	if err := sub.Submit(context.Background()); !errors.Is(err, backend.ErrSessionGone) {
+		t.Errorf("Submit on a gone session: %v, want ErrSessionGone", err)
+	}
+	if got := b.Submits("T-1"); got != 2 {
+		t.Errorf("Submits after gone = %d, want 2", got)
+	}
+}

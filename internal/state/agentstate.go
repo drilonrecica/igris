@@ -145,16 +145,24 @@ func ParseAgentState(data []byte) (AgentState, error) {
 	return s, nil
 }
 
+// PeekAgentState returns the record last written for the session uuid,
+// state and event, and false if there is none. Like HookStates, a file
+// that can't be read counts as no record.
+func PeekAgentState(root, uuid string) (AgentState, bool) {
+	s, ok, err := ReadAgentState(root, uuid)
+	if err != nil || !ok {
+		return AgentState{}, false
+	}
+	return s, true
+}
+
 // HookStates returns a backend.HookStates reading root's agent-state files.
 // A file that can't be read counts as no state: it is untrusted input and
 // says nothing reliable (SPEC §6.3).
 func HookStates(root string) backend.HookStates {
 	return func(uuid string) (backend.AgentState, bool) {
-		s, ok, err := ReadAgentState(root, uuid)
-		if err != nil || !ok {
-			return "", false
-		}
-		return s.State, true
+		s, ok := PeekAgentState(root, uuid)
+		return s.State, ok
 	}
 }
 

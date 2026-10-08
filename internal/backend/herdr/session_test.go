@@ -731,3 +731,29 @@ func TestTail(t *testing.T) {
 		}
 	})
 }
+
+// Submit presses Enter in the session's pane and types nothing else.
+func TestSubmit(t *testing.T) {
+	ctx := context.Background()
+	f := started(t)
+	s := open(t, f)
+	f.On(cmd("pane", "send-keys"), ok(t, "pane_send_keys.json"), nil)
+	if err := s.Submit(ctx); err != nil {
+		t.Fatalf("Submit: %v", err)
+	}
+	a := argv(f)
+	if got, want := a[len(a)-1], []string{"pane", "send-keys", "w2B:p3", "enter"}; !slices.Equal(got, want) {
+		t.Errorf("args = %q, want %q", got, want)
+	}
+	if p := prompts(f); len(p) != 0 {
+		t.Errorf("prompts = %q, want none", p)
+	}
+	f.On(cmd("pane", "send-keys"), fail(t, "error_pane_not_found.json", 1), nil)
+	if err := s.Submit(ctx); !errors.Is(err, backend.ErrSessionGone) {
+		t.Errorf("Submit on a gone pane = %v, want session gone", err)
+	}
+	f.On(cmd("pane", "send-keys"), runner.Result{}, runner.ErrTimeout)
+	if err := s.Submit(ctx); !errors.Is(err, runner.ErrTimeout) || errors.Is(err, backend.ErrSessionGone) {
+		t.Errorf("Submit err = %v, want timeout", err)
+	}
+}

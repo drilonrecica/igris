@@ -33,6 +33,11 @@ type launch struct {
 	// set once the attempt ran past the task's Timeout.
 	attemptAt time.Time
 	overdue   bool
+	// promptAt is when a session's first prompt (task or continue prompt)
+	// was delivered, while igris still looks for signs that Claude Code
+	// submitted it; zero once it did, after the one Enter (SPEC §6.3), or
+	// for a reattached session.
+	promptAt time.Time
 	// attempt is the agent task's attempt in this run for the run log
 	// (SPEC §13): 1 for the first session or the reattached one, +1 per
 	// retry, and on from the last one when the task is started again in
@@ -245,7 +250,7 @@ func (e *Engine) openSession(ctx context.Context, l *launch, st sessionStart) er
 
 	// The prompt is submitted, never passed as an argument (SPEC §6, §11.2).
 	// The attempt's clock starts when it is delivered (SPEC §6.3).
-	l.attemptAt, l.overdue = time.Time{}, false
+	l.attemptAt, l.overdue, l.promptAt = time.Time{}, false, time.Time{}
 	switch err := sess.Prompt(ctx, st.text); {
 	case errors.Is(err, backend.ErrSessionGone):
 		e.lose(ctx, l)
@@ -260,6 +265,9 @@ func (e *Engine) openSession(ctx context.Context, l *launch, st sessionStart) er
 		return e.dir.SaveRun(e.run)
 	}
 	l.startAttempt(e.clock.Now())
+	if !l.lost {
+		l.promptAt = l.attemptAt
+	}
 	return nil
 }
 
@@ -274,6 +282,7 @@ func (e *Engine) promptDelivered(l *launch) {
 	}
 	l.cur.PendingPrompt = ""
 	l.startAttempt(e.clock.Now())
+	l.promptAt = l.attemptAt
 	if err := e.dir.SaveRun(e.run); err != nil {
 		e.warn(err.Error())
 	}
