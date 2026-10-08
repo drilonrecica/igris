@@ -54,8 +54,13 @@ tail = true                       # live tail of the current session in the task
 # opus = "#B48CFF"
 # fable = "220"
 
+[notify]                          # optional: quiet hours and digests for the remote channels below
+# quiet = "22:00-07:00"           # local time, may cross midnight; "" (the default) is off
+# break_through = ["needs_input", "session_lost", "task_overdue"]   # the default: never held
+# task_done_digest = 5            # 0 (default): one task_done message per task; N >= 2; or "phase"
+
 [notify.backend]
-enabled = true                    # herdr toasts
+enabled = true                    # herdr toasts or the tmux status line; never held by quiet hours
 
 # Uncomment a channel and set its topic or URL to turn it on. Secrets are
 # env:VAR references, so this file stays safe to commit.
@@ -68,3 +73,17 @@ enabled = true                    # herdr toasts
 # [notify.discord]
 # webhook_url = "env:IGRIS_DISCORD_WEBHOOK"
 # events = ["needs_input", "phase_done"]
+#
+# [notify.slack]
+# webhook_url = "env:IGRIS_SLACK_WEBHOOK"
+#
+# [notify.gotify]
+# server = "https://gotify.example.org"
+# token = "env:GOTIFY_TOKEN"      # an application token; server and token go together
+#
+# [notify.webhook]
+# url = "env:IGRIS_WEBHOOK_URL"   # http or https; a JSON POST
+# secret = "env:IGRIS_WEBHOOK_SECRET"   # optional: X-Igris-Signature, HMAC-SHA256 of the body
+#
+# Every channel above but the toast takes a Go text/template for its text:
+# template = "{{.At.Format \"15:04\"}} {{.TaskID}} {{.What}}"

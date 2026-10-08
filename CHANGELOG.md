@@ -4,6 +4,42 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-08
+
+igris v0.5 shows you what a run is doing and what it did. The run view gets the phase's progress, an estimate for the current task and a live tail of its session; `igris report` turns a finished run into markdown for a PR description; and the run log is a documented, versioned format. Notifications reach Slack, Gotify and any URL through a signed webhook, with your own message templates, quiet hours and digests. Everything is additive: a v0.4 plan and `igris.toml` mean what they meant before (the new channels, quiet hours and digests stay off until you configure them; only the live tail is on by default), and a v0.4 `runs.jsonl` still reads. See Migration for the one-time config notice on resuming a v0.4 run.
+
+### Added
+
+- **`igris report [RUN] [--json]`** (SPEC §14): one run as markdown, to paste into a PR description or a journal: its run ID, start, end and outcome, phases and slice, counts (done, skipped, unfinished, commits) and how long igris waited on you, then per phase a table with each task's result, duration, attempts, verify results (`fast ✗ ✓`), short commit SHA and needs-you time, the done notes and skip reasons, and a `claude --resume <uuid>` per agent session you can reopen. `RUN` is `1` (the newest, the default), `2`, … or a run ID from `igris history`; `--json` prints one object. Read-only, never creates `.igris/`; exits 1 when there is no such run, 2 for a malformed `RUN`.
+- **Run log v1** (SPEC §13, [`docs/runlog.md`](docs/runlog.md)): every line igris writes to `.igris/runs.jsonl` has `"v":1`, the run ID (`20261008-091500-3fa2`), the task's attempt, its phase, title and owner, the Claude session UUID, the verify profile, the full commit SHA and durations where they apply. New events: `task_retried`, `needs_you` with a `reason` (`idle`, `blocked`, `task_overdue`, `verify_limit`, …) and `needs_you_clear`. `docs/runlog.md` documents every field and event, the compatibility rules and an example line per type.
+- **Progress in the run view** (SPEC §15): the header shows `phase M1 · 7/12 · 58% ██████░░░░` (narrow: `M1 · 7/12 · 58%` and a shorter bar), counting the run's tasks of the current phase, or the slice's (labelled `slice`) for `--only`/`--from`/`--until`.
+- **ETA** for the current task: with at least 3 finished tasks of its rank in `runs.jsonl` (the 20 most recent, started fresh in their run), the card adds `· ≈ 14m left` from their median, or `· over ≈ 18m typical` once past it. Always approximate; no phase ETA.
+- **Live tail** (SPEC §11.1, §15): the current-task card shows the session's last 6 lines (3 on a narrow terminal), read every `poll_interval` through `herdr agent read` or `tmux capture-pane`, cleaned of escape sequences and cut to the card's width. It is only drawn: never logged, notified, stored or reported. `[tui] tail = false` turns it off and igris then never reads the pane. Backends implement it through the optional `backend.Tailer`, with a conformance case.
+- **Slack** (`[notify.slack] webhook_url`): an incoming-webhook message, with `&`, `<` and `>` escaped so a task title can't ping `@channel` or add links.
+- **Gotify** (`[notify.gotify] server, token`): a push to `<server>/message` with the token in the `X-Gotify-Key` header, never in the URL; priority 8 for urgent events, 3 for `task_done`, 5 for everything else.
+- **Generic webhook** (`[notify.webhook] url, secret`): a JSON POST with every key present, `{"v":1,"event","project","phase","task","title","what","run","at","urgent","text"}`, the event in `X-Igris-Event` and, with a secret, `X-Igris-Signature: sha256=<hex>`, the HMAC-SHA256 of the raw body.
+- **Message templates**: `template` on ntfy, Discord, Slack, Gotify and the webhook, a Go `text/template` over `.Event`, `.Project`, `.Phase`, `.TaskID`, `.Title`, `.What`, `.RunID` and `.At`. It is tried on a sample message when `igris.toml` loads, so a typo is a config error naming the channel; its output is cleaned and cut to the channel's limit.
+- **Quiet hours**: `[notify] quiet = "22:00-07:00"` (local time, may cross midnight) holds messages to the remote channels, except the `break_through` events (default `needs_input`, `session_lost`, `task_overdue`); each channel gets one digest when the window ends, and whatever is still held when the run stops. The herdr or tmux toast is never held.
+- **`[notify] task_done_digest`**: `N` (≥ 2) sends one `task_done` message per N finished tasks (`3 tasks done: M1-01, M1-02, M1-03`), `"phase"` one per phase; the rest is flushed at phase end and run stop.
+- `secret`, `token` and URL keys of the new channels accept `env:VAR` references, are never logged and are scrubbed from errors; `igris doctor` lists the new channels and `igris notify test` sends to them (ignoring quiet hours and `task_done_digest`).
+- Shell completion for `report` and its `--json` flag.
+- `examples/igris.toml` lists `[tui] tail`, the `[notify]` quiet-hours and digest keys, the Slack, Gotify and webhook channels and a template.
+
+### Changed
+
+- **`igris history` shows each run's ID** when the log has one (text `Run <started> <id> …`, `"run"` in `--json`), so it can be passed to `igris report`. Runs logged by igris v0.4 and earlier show none and are otherwise listed as before.
+- The narrow run view's top line shows the phase's progress (`M0 · 3/7`) instead of `phase M0`.
+- The run log records how each notification went: `<event> via <channel>`, `<event> held for <channel> (quiet hours)` or `digest of N via <channel>`.
+- `docs/reverify.md` probes use `sonnet` instead of `haiku`.
+
+### Migration
+
+- **No plan or config migration is needed.** New keys are optional; without them notifications, the run log readers and the TUI behave as in v0.4, apart from the live tail (on by default; `[tui] tail = false` turns it off) and the progress and ETA shown in the run view.
+- **The config hash changes for every config**, since it covers the parsed config with its defaults and v0.5 adds keys (`[tui] tail` and the new `[notify]` settings). Resuming a run interrupted under v0.4 shows a one-time warning, `igris.toml changed since the interrupted run; this run uses the file as it is now`. It is expected, and the run carries on.
+- **`runs.jsonl` lines are versioned now** (`"v":1`, new fields and events). Lines written by v0.2–v0.4 still read, mixed in one file with v1 lines; `history` and `report` show `—` for what old lines don't record. Scripts reading the file should ignore unknown fields and event types (`task_retried`, `needs_you`, `needs_you_clear`); the existing fields keep their meaning. See [`docs/runlog.md`](docs/runlog.md).
+- **Scripts parsing `igris history`** text output see the run ID after the start time on each run line; `--json` gains a `"run"` key.
+- **Going back to v0.4** is safe: v0.4 reads v1 lines as before and ignores the fields it doesn't know.
+
 ## [0.4.0] - 2026-10-08
 
 igris v0.4 lets a plan say more about each task: which checks to run, how long it should take and what to read first. It also runs part of a plan, puts a task back, runs your own commands around each session and lints plans for CI. Every addition is optional, so most plans need no migration: a v0.3 plan and a v0.3 `igris.toml` mean what they meant before, with three exceptions in Migration: sessions now run in `auto` mode unless `default_mode` says otherwise, a column that already had one of the new names is read as the new column, and a config written by v0.3 `igris init` doesn't get the new `task_overdue` notification on ntfy or Discord by itself.
@@ -258,7 +294,8 @@ First release. Linux and macOS, herdr backend only. The full behavior is specifi
 - Release artifacts are not signed (checksums only); signing is planned.
 - No Homebrew tap yet.
 
-[Unreleased]: https://github.com/drilonrecica/igris/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/drilonrecica/igris/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/drilonrecica/igris/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/drilonrecica/igris/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/drilonrecica/igris/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/drilonrecica/igris/compare/v0.2.0...v0.2.1

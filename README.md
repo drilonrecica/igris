@@ -22,7 +22,7 @@
 
 You write the plan. You decide which tasks need Fable, which need Opus and which are fine on Sonnet. Igris makes sure that's what actually happens: it never runs a Sonnet task on a more expensive model, never lets one task's context bleed into the next, and stops to wait for you whenever a task needs a decision.
 
-> **Status:** v0.4.0. Linux and macOS, Windows through WSL2; runs in herdr or tmux. The full behavior is specified in [`SPEC.md`](SPEC.md).
+> **Status:** v0.5.0. Linux and macOS, Windows through WSL2; runs in herdr or tmux. The full behavior is specified in [`SPEC.md`](SPEC.md).
 
 ---
 
@@ -374,7 +374,7 @@ A long session fills its context and drifts, and one task's context shouldn't le
 No, on purpose. The plan's Model column is the only input: igris launches exactly that rank and never a more expensive one. A task without a usable model is a validation error, not a guess.
 
 **What if a task needs me?**
-Claude asks in its pane like it always does; igris notices the stalled session, shows it in the TUI and notifies you (herdr or tmux toast, ntfy, Discord). Answer in the session: press `o` (or click **Open session**) to jump to its tab or window.
+Claude asks in its pane like it always does; igris notices the stalled session, shows it in the TUI and notifies you (herdr or tmux toast, ntfy, Discord, Slack, Gotify or your own webhook; quiet hours hold all but the urgent ones until morning). Answer in the session: press `o` (or click **Open session**) to jump to its tab or window.
 
 **Is skip-permissions safe?**
 Only where you'd trust an unattended agent: a worktree or container. It needs a typed confirmation every run, by design.

@@ -52,7 +52,7 @@ Every line igris v0.5 or later writes has `"v":1`. `v`, `at` and `type` are alwa
 | `committed` | igris committed the task's changes | the commit subject |
 | `needs_you` | igris marks Needs you or loses a session | the few words the notification says, e.g. `needs you (idle 5m0s without igris done)` |
 | `needs_you_clear` | that wait ended while the task goes on: the agent works again, you answered, a retry | empty |
-| `notification` | a notification was delivered | `<event> via <channel>`, e.g. `task_done via ntfy` |
+| `notification` | a notification was delivered, held for quiet hours, or sent as a digest | `<event> via <channel>` (`task_done via ntfy`); `<event> held for <channel> (quiet hours)`; `digest of N via <channel>` (no `task`). Failed deliveries are not logged here |
 | `error` | a task hook failed, or the run stopped with an error | the hook's reason (`before_task hook failed: exit status 1`) or the error |
 
 ### Needs-you reasons
