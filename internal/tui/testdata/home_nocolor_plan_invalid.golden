@@ -1,4 +1,4 @@
-[1migris[0m · sinjal · tasks.md · herdr ✓ · mode default                                                          [1mPLAN INVALID[0m
+[1migris[0m · sinjal · tasks.md · herdr ✓ · mode auto                                                             [1mPLAN INVALID[0m
 ─ [1mPHASES[0m ──────────────────────────────────────────────────┬─ [1mNOW[0m ──────────────────────────────────────────────────────
 [2mplan invalid — Check shows the problems[0m                    │ [1mPLAN INVALID · tasks.md · 4 problems[0m                       
                                                            │ tasks.md:5: M9-02 depends on unknown task M9-01; check the…

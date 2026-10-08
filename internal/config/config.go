@@ -291,7 +291,7 @@ func Default() *Config {
 	return &Config{
 		Plan:            "tasks.md",
 		Backend:         BackendAuto,
-		DefaultMode:     "default",
+		DefaultMode:     "auto",
 		NeedsInputAfter: Duration(30 * time.Second),
 		PollInterval:    Duration(2 * time.Second),
 		Models:          map[string]string{"sonnet": "sonnet", "opus": "opus", "fable": "fable", "haiku": "haiku"},

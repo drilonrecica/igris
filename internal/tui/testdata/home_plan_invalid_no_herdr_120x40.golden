@@ -1,4 +1,4 @@
-igris · sinjal · tasks.md · herdr ⨯ · mode default                                                          PLAN INVALID
+igris · sinjal · tasks.md · herdr ⨯ · mode auto                                                             PLAN INVALID
 ─ PHASES ──────────────────────────────────────────────────┬─ NOW ──────────────────────────────────────────────────────
 plan invalid — Check shows the problems                    │ PLAN INVALID · tasks.md · 4 problems                       
                                                            │ tasks.md:5: M9-02 depends on unknown task M9-01; check the…

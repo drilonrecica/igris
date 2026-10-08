@@ -173,12 +173,12 @@ func TestDryRun(t *testing.T) {
 		`warning: igris.toml: claude.command = "cc" is ignored`,
 		"warning: drift: A-3: ready → blocked",
 		"dry run of phase A through B",
-		"  1. A-0        opus    → model opus    mode default verify default Half done  (resumed: fresh session)",
+		"  1. A-0        opus    → model opus    mode auto    verify default Half done  (resumed: fresh session)",
 		"  2. A-1        sonnet  → model sonnet  mode plan    verify default One",
 		"  3. A-2        user task: waits for you  Buy a domain",
 		"  4. A-3        fable   → model fable   mode yolo    verify default Gate [SKIP PERMISSIONS]",
 		"     phase A complete",
-		"  5. B-1        sonnet  → model sonnet  mode default verify default Later",
+		"  5. B-1        sonnet  → model sonnet  mode auto    verify default Later",
 		"     phase B complete",
 		"dry run: 4 session(s), 1 user task(s)",
 	}
@@ -475,7 +475,7 @@ func TestAriseNoTUI(t *testing.T) {
 	for _, w := range []string{
 		"warning: the working tree has uncommitted changes",
 		"run started: phase A",
-		"A-1 started (sonnet → sonnet, mode default) · One",
+		"A-1 started (sonnet → sonnet, mode auto) · One",
 		`unknown command "bogus"; type help`,
 		"A-1 committed: A-1: One",
 		"A-1 done · did A-1",
@@ -786,9 +786,9 @@ func TestDryRunShowsVerifyProfiles(t *testing.T) {
 		t.Fatalf("exit %d, stderr: %s", code, errb.String())
 	}
 	for _, w := range []string{
-		"  1. A-1        sonnet  → model sonnet  mode default verify fast    One",
-		"  2. A-2        opus    → model opus    mode default verify —       Two",
-		"  3. A-3        sonnet  → model sonnet  mode default verify slow    Three",
+		"  1. A-1        sonnet  → model sonnet  mode auto    verify fast    One",
+		"  2. A-2        opus    → model opus    mode auto    verify —       Two",
+		"  3. A-3        sonnet  → model sonnet  mode auto    verify slow    Three",
 	} {
 		if !strings.Contains(out.String(), w) {
 			t.Errorf("output lacks %q:\n%s", w, out.String())

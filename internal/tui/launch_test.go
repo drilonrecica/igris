@@ -195,7 +195,7 @@ func TestWizardSteps(t *testing.T) {
 
 	press(a, "down", "enter")
 	d = home.dialog
-	if d.title != "Mode" || d.selected != 0 || d.options[0].label != "As planned (Mode column, then default_mode: default)" || len(d.options) != 6 {
+	if d.title != "Mode" || d.selected != 0 || d.options[0].label != "As planned (Mode column, then default_mode: auto)" || len(d.options) != 6 {
 		t.Fatalf("mode dialog %q %q (selected %d)", d.title, labels(d), d.selected)
 	}
 	if last := d.options[5].label; !strings.Contains(last, "yolo [SKIP PERMISSIONS]") {

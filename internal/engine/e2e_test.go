@@ -146,7 +146,7 @@ func TestE2EDone(t *testing.T) {
 		t.Errorf("sessions opened for %q", got)
 	}
 	specs := h.be.Opened()
-	for i, want := range []struct{ model, mode string }{{"sonnet", ""}, {"opus", "acceptEdits"}, {"fable", ""}, {"opus", ""}, {"sonnet", ""}} {
+	for i, want := range []struct{ model, mode string }{{"sonnet", "auto"}, {"opus", "acceptEdits"}, {"fable", "auto"}, {"opus", "auto"}, {"sonnet", "auto"}} {
 		if arg(specs[i], "--model") != want.model || arg(specs[i], "--permission-mode") != want.mode {
 			t.Errorf("%s args %q, want model %s mode %q", specs[i].TaskID, specs[i].Args, want.model, want.mode)
 		}

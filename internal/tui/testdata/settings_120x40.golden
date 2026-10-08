@@ -7,7 +7,7 @@ PROBLEMS
 
 plan              = "tasks.md" · default
 backend           = "auto" · default
-default_mode      = "default" · default
+default_mode      = "auto" · default
 needs_input_after = "30s" · default
 poll_interval     = "2s" · default
 

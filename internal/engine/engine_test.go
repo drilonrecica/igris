@@ -120,7 +120,7 @@ func TestRunPhase(t *testing.T) {
 		t.Errorf("events = %s\nwant     %s", got, want)
 	}
 	started := h.event(TaskStarted, "A-2")
-	if started.Rank != "opus" || started.Model != "opus" || started.Mode != ModeDefault || started.Title != "Two" || started.Phase != "A" {
+	if started.Rank != "opus" || started.Model != "opus" || started.Mode != ModeAuto || started.Title != "Two" || started.Phase != "A" {
 		t.Errorf("task_started = %+v", started)
 	}
 	if got := h.event(TaskDone, "A-1"); got.Detail != "did A-1" || len(got.Changes) != 2 {
@@ -360,7 +360,7 @@ func TestStopLeavesTheSessionOpen(t *testing.T) {
 				t.Fatal(err)
 			}
 			cur := run.Current
-			if cur == nil || cur.TaskID != "A-1" || cur.Mode != ModeDefault || !cur.StartedAt.Equal(t0) {
+			if cur == nil || cur.TaskID != "A-1" || cur.Mode != ModeAuto || !cur.StartedAt.Equal(t0) {
 				t.Fatalf("state.json current = %+v", cur)
 			}
 			spec := h.be.Opened()[0]
@@ -890,8 +890,8 @@ func TestModeCommand(t *testing.T) {
 		t.Fatalf("Run: %v", err)
 	}
 	specs := h.be.Opened()
-	if got := arg(specs[0], "--permission-mode"); got != "" {
-		t.Errorf("A-1 --permission-mode %q, want none (it was running when the mode changed)", got)
+	if got := arg(specs[0], "--permission-mode"); got != "auto" {
+		t.Errorf("A-1 --permission-mode %q, want auto (it was running when the mode changed)", got)
 	}
 	if got := arg(specs[1], "--permission-mode"); got != "acceptEdits" {
 		t.Errorf("A-2 --permission-mode %q, want acceptEdits", got)

@@ -284,7 +284,7 @@ After a task is accepted, igris waits up to 30 s for the agent to become idle (s
 |---|---|---|---|
 | Default | `default` | none (user's normal settings) | Every permission prompt goes to the owner. |
 | Accept edits | `accept` | `--permission-mode acceptEdits` | |
-| Auto | `auto` | `--permission-mode auto` | Claude Code approves routine actions itself and asks for risky ones. Middle ground between `accept` and `yolo`. |
+| Auto | `auto` | `--permission-mode auto` | Claude Code approves routine actions itself and asks for risky ones. Middle ground between `accept` and `yolo`. **The default** (`default_mode`, §12). |
 | Plan | `plan` | `--permission-mode plan` | Session plans first; owner approves the plan in Claude Code, then it implements. `igris done` only becomes possible after approval, since plan mode blocks commands. |
 | Skip permissions | `yolo` | `--dangerously-skip-permissions` | Shown with a red badge everywhere; needs per-run confirmation (§7.3). |
 
@@ -300,8 +300,8 @@ Verified behavior that the design relies on:
 1. Owner override set in the TUI for that specific task.
 2. The task's `Mode` column, if present and not `—`.
 3. The run mode chosen in the TUI for this run.
-4. `default_mode` in config.
-5. `default`.
+4. `default_mode` in config (`auto` unless set, §12).
+5. `auto` (only reached if `default_mode` were empty, which the config defaults rule out).
 
 Mode changes in the TUI apply to the **next** session launched; a running session keeps its mode.
 
@@ -458,7 +458,7 @@ Igris runs inside a tmux client (`TMUX` set) and drives that server with the `tm
 ```toml
 plan = "tasks.md"                 # path to the plan, relative to the project root
 backend = "auto"                  # auto | herdr | tmux (§11.3)
-default_mode = "default"          # default | accept | auto | plan | yolo
+default_mode = "auto"             # default | accept | auto | plan | yolo
 needs_input_after = "30s"
 poll_interval = "2s"
 

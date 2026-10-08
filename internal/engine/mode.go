@@ -39,8 +39,9 @@ func ValidMode(m string) bool {
 
 // ResolveMode picks the run mode of one task (SPEC §7.2): the owner's
 // per-task override, the task's Mode column, the mode chosen for this run,
-// the config's default_mode, then "default". Empty values are skipped; the
-// chosen value must be a known mode.
+// the config's default_mode, then "auto" (the config default, SPEC §12) as a
+// last resort. Empty values are skipped; the chosen value must be a known
+// mode.
 func ResolveMode(taskOverride, taskMode, runMode, defaultMode string) (string, error) {
 	for _, m := range []string{taskOverride, taskMode, runMode, defaultMode} {
 		m = strings.ToLower(strings.TrimSpace(m))
@@ -52,5 +53,5 @@ func ResolveMode(taskOverride, taskMode, runMode, defaultMode string) (string, e
 		}
 		return m, nil
 	}
-	return ModeDefault, nil
+	return ModeAuto, nil
 }

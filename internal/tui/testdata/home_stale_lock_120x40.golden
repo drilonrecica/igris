@@ -1,4 +1,4 @@
-igris · sinjal · tasks.md · herdr ✓ · mode default                                                            STALE LOCK
+igris · sinjal · tasks.md · herdr ✓ · mode auto                                                               STALE LOCK
 ─ PHASES ──────────────────────────────────────────────────┬─ NOW ──────────────────────────────────────────────────────
   ✓ M0  Foundations                   ██████████ 3/3 done  │ LAST RUN DID NOT CLEAN UP (pid 4242 gone)                  
   ✓ M1  Plan parser                   ██████████ 2/2 done  │ ● M2-02  Lock file              opus · mode plan           

@@ -7,7 +7,7 @@ Lock file with a title long enough to be cut in a narrow row
 Status  ● in progress
 Rank    opus
 Owner   agent
-Mode    default (run mode)
+Mode    auto (run mode)
 Phase   M2 Config & state
 Deps    ✓ M2-01 done · Config loader
 

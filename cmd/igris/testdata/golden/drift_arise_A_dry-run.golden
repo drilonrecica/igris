@@ -5,7 +5,7 @@ warning: drift: A-2: blocked → ready (a real run asks you before fixing it)
 warning: drift: A-3: ready → blocked (a real run asks you before fixing it)
 warning: drift: B-2: ready → blocked (a real run asks you before fixing it)
 dry run of phase A: nothing is written and no session starts
-  1. A-2        sonnet  → model sonnet  mode default Next
+  1. A-2        sonnet  → model sonnet  mode auto    Next
   2. A-3        opus    → model opus    mode plan    Later
   3. A-4        user task: waits for you  Yours
      phase A complete

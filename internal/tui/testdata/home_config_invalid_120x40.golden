@@ -1,4 +1,4 @@
-igris · sinjal · tasks.md · herdr ✓ · mode default                                                        CONFIG INVALID
+igris · sinjal · tasks.md · herdr ✓ · mode auto                                                           CONFIG INVALID
 ─ PHASES ──────────────────────────────────────────────────┬─ NOW ──────────────────────────────────────────────────────
   ✓ M0  Foundations                   ██████████ 3/3 done  │ CONFIG INVALID · igris.toml · 2 problems                   
   ✓ M1  Plan parser                   ██████████ 2/2 done  │ igris.toml:3: default_mode: unknown mode "fast"            

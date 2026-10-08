@@ -4,7 +4,7 @@
 │ The permission mode of this run's sessions.   │
 │                                               │
 │ › 1. As planned (Mode column, then            │
-│      default_mode: default)                   │
+│      default_mode: auto)                      │
 │   2. default — your normal permission prompts │
 │   3. accept — edits are accepted              │
 │   4. auto — Claude Code asks only about risky │

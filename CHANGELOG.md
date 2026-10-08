@@ -6,7 +6,7 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [0.4.0] - 2026-10-08
 
-igris v0.4 lets a plan say more about each task: which checks to run, how long it should take and what to read first. It also runs part of a plan, puts a task back, runs your own commands around each session and lints plans for CI. Every addition is optional, so no plan migration is needed: a v0.3 plan and a v0.3 `igris.toml` mean what they meant before (but see Migration for a column that already had one of the new names).
+igris v0.4 lets a plan say more about each task: which checks to run, how long it should take and what to read first. It also runs part of a plan, puts a task back, runs your own commands around each session and lints plans for CI. Every addition is optional, so no plan migration is needed: a v0.3 plan and a v0.3 `igris.toml` mean what they meant before, except that sessions now run in `auto` mode unless `default_mode` says otherwise (see Migration, also for a column that already had one of the new names).
 
 ### Added
 
@@ -24,6 +24,7 @@ igris v0.4 lets a plan say more about each task: which checks to run, how long i
 
 ### Changed
 
+- **`auto` is the default run mode** (SPEC §7.1, §12): `default_mode` defaults to `auto` (Claude Code `--permission-mode auto`) instead of `default`, and `igris init` writes `default_mode = "auto"`. Sessions approve routine actions themselves and still ask you about risky ones; skip-permissions (`yolo`) still needs the typed confirmation every run.
 - `Verify`, `Timeout` and `Context` are canonical columns now: matched case-insensitively and aliasable through `[columns]`, they no longer reach the session prompt as extra columns. They are checked only on tasks that aren't `done` or `skipped`; on a `user` task they are ignored with a warning.
 - The verify failure sent into a session, the run log's `verify_passed`/`verify_failed` detail and the dry run name the verify profile.
 - `run_started` in the run log and `state.json` record the slice of a sliced run.
@@ -31,9 +32,10 @@ igris v0.4 lets a plan say more about each task: which checks to run, how long i
 
 ### Migration
 
-- **No plan migration is needed.** Plans without the new columns, and configs without the new keys, behave as in v0.3.
+- **No plan migration is needed.** Plans without the new columns, and configs without the new keys, behave as in v0.3, apart from the run mode below.
+- **Configs that don't set `default_mode` now run sessions in auto mode**; set `default_mode = "default"` to keep every prompt going to you. Configs that set it, a task's `Mode` column and the mode you pick for a run are unchanged.
 - **A plan that already has a column named `Verify`, `Timeout` or `Context`** for something else (a command, an estimate, notes) is now read as the new column and may fail `igris check`. Rename that column (e.g. `Verify notes`), or let `igris adapt` do it.
-- **`task_overdue` joins the default notification events**, and the config hash covers the parsed config with its defaults, so the hash of an unchanged `igris.toml` changes. Resuming a run interrupted under v0.3 therefore shows a one-time warning, `igris.toml changed since the interrupted run; this run uses the file as it is now`. It is expected, and the run carries on.
+- **`task_overdue` joins the default notification events and `default_mode` defaults to `auto`**, and the config hash covers the parsed config with its defaults, so the hash of an unchanged `igris.toml` changes. Resuming a run interrupted under v0.3 therefore shows a one-time warning, `igris.toml changed since the interrupted run; this run uses the file as it is now`. It is expected, and the run carries on.
 - `check --strict` is new and opt-in: plain `igris check` output and exit codes are unchanged.
 
 ## [0.3.0] - 2026-10-08
