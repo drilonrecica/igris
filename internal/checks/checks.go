@@ -209,6 +209,13 @@ func Pick(rs []Result, ids ...string) []Result {
 	return out
 }
 
+// Strict reports whether a warning of check id fails `check --strict`
+// (SPEC §14): plan and config warnings do; machine warnings (tool
+// versions, ANTHROPIC_API_KEY, a parent igris.toml) never do.
+func Strict(id string) bool {
+	return id == IDConfig || id == IDPlanHints || id == IDDrift
+}
+
 // Problems returns the results that aren't OK.
 func Problems(rs []Result) []Result {
 	var out []Result

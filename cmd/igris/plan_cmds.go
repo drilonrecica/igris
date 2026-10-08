@@ -108,8 +108,12 @@ func execCheck(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 		Runner: commandRunner(), Getenv: ariseGetenv, Versions: compatWarnings, BackendName: project.BackendName(l.cfg, ariseGetenv),
 		Config: l.cfg, NoConfig: l.noConfig, ParentConfig: l.parentConfig, Plan: l.plan,
 	})
-	r := report.Check(report.CheckInput{Plan: l.plan, Rules: l.cfg.Rules(""), Checks: checks.Pick(cs,
+	strict := fs.Lookup("strict").Value.String() == "true"
+	r := report.Check(report.CheckInput{Plan: l.plan, Rules: l.cfg.Rules(""), Strict: strict, Checks: checks.Pick(cs,
 		checks.IDClaude, checks.IDHerdr, checks.IDTmux, checks.IDConfig, checks.IDAPIKey, checks.IDProject, checks.IDPlanHints, checks.IDDrift)})
+	// Under --strict a plan or config warning fails the check; a machine
+	// warning never does (SPEC §14).
+	strictFail := strict && r.Failing > 0
 
 	if jsonFlag(fs) {
 		writeJSON(stdout, r)
@@ -133,13 +137,16 @@ func execCheck(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 				fmt.Fprintf(stdout, "note: %s\n", c.Message)
 			}
 		}
-		if r.Valid {
-			fmt.Fprintf(stdout, "%s: OK (%d phases, %d tasks, %d warnings)\n", r.Plan, r.Phases, r.Tasks, len(r.Warnings))
-		} else {
+		switch {
+		case !r.Valid:
 			fmt.Fprintf(stdout, "%s: %d problem(s); fix them (or run `igris adapt`) and run `igris check` again\n", r.Plan, len(r.Issues))
+		case strictFail:
+			fmt.Fprintf(stdout, "%s: %d warning(s) under --strict; fix them and run igris check --strict again\n", r.Plan, r.Failing)
+		default:
+			fmt.Fprintf(stdout, "%s: OK (%d phases, %d tasks, %d warnings)\n", r.Plan, r.Phases, r.Tasks, len(r.Warnings))
 		}
 	}
-	if !r.Valid {
+	if !r.Valid || strictFail {
 		return exitFail
 	}
 	return exitOK

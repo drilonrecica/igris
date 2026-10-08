@@ -46,6 +46,7 @@ Commands:
   init [--example]                      create igris.toml, .igris/, .gitignore entry, Claude allow rules
   doctor [--json]                       read-only health check of this project and machine; exit 1 on a failure
   check [--plan PATH] [--json]          validate the plan; exit 0 valid, 1 invalid, 2 usage error
+        [--strict]                      also lint the plan; exit 1 on any plan or config warning
   phases [--plan PATH] [--json]         list phases with task counts per status
   status [PHASE] [--plan PATH] [--json] tasks with status/rank/owner, current run, unmet deps
   history [TASK-ID] [-n N] [--json]     past runs from .igris/runs.jsonl; with a task ID, its attempts
@@ -85,7 +86,10 @@ func commands() []command {
 			return maxArgs(fs, 0)
 		}, exec: execInit},
 		{name: "doctor", setup: doctorArgs, exec: execDoctor},
-		{name: "check", setup: planFlags(0), exec: execCheck},
+		{name: "check", setup: func(fs *flag.FlagSet) func([]string) error {
+			fs.Bool("strict", false, "also lint the plan; exit 1 on any plan or config warning")
+			return planFlags(0)(fs)
+		}, exec: execCheck},
 		{name: "phases", setup: planFlags(0), exec: execPhases},
 		{name: "status", setup: planFlags(1), exec: execStatus},
 		{name: "history", setup: historyArgs, exec: execHistory},

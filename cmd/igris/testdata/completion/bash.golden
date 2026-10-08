@@ -35,7 +35,7 @@ _igris() {
         case "$cmd" in
             init) COMPREPLY=($(compgen -W "--example" -- "$cur")) ;;
             doctor) COMPREPLY=($(compgen -W "--json" -- "$cur")) ;;
-            check) COMPREPLY=($(compgen -W "--json --plan" -- "$cur")) ;;
+            check) COMPREPLY=($(compgen -W "--json --plan --strict" -- "$cur")) ;;
             phases) COMPREPLY=($(compgen -W "--json --plan" -- "$cur")) ;;
             status) COMPREPLY=($(compgen -W "--json --plan" -- "$cur")) ;;
             history) COMPREPLY=($(compgen -W "--json -n" -- "$cur")) ;;

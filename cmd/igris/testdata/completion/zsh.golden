@@ -28,7 +28,7 @@ _igris() {
         case "$cmd" in
             init) compadd -- --example ;;
             doctor) compadd -- --json ;;
-            check) compadd -- --json --plan ;;
+            check) compadd -- --json --plan --strict ;;
             phases) compadd -- --json --plan ;;
             status) compadd -- --json --plan ;;
             history) compadd -- --json -n ;;

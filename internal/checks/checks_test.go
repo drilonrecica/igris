@@ -212,3 +212,13 @@ func TestResultString(t *testing.T) {
 		}
 	}
 }
+
+// Only plan and config warnings fail `check --strict` (SPEC §14).
+func TestStrict(t *testing.T) {
+	for _, id := range order {
+		want := id == IDConfig || id == IDPlanHints || id == IDDrift
+		if got := Strict(id); got != want {
+			t.Errorf("Strict(%s) = %v, want %v", id, got, want)
+		}
+	}
+}

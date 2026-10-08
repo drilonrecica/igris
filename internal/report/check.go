@@ -40,6 +40,9 @@ type Warning struct {
 	From    string `json:"from,omitempty"`
 	To      string `json:"to,omitempty"`
 	Message string `json:"message"`
+	// Lint names the lint hint (SPEC §14 `check --strict`); "" for any
+	// other warning.
+	Lint string `json:"lint,omitempty"`
 }
 
 // Invalid is what `phases` and `status` report for a plan that isn't valid.
@@ -62,6 +65,11 @@ type CheckReport struct {
 	Tasks    int       `json:"tasks"`
 	Valid    bool      `json:"valid"`
 	Warnings []Warning `json:"warnings"`
+	// Strict: the check ran with --strict, so the plan was linted.
+	Strict bool `json:"strict,omitempty"`
+	// Failing counts the plan and config warnings, lint hints included:
+	// under --strict any of them fails the check.
+	Failing int `json:"-"`
 }
 
 // CheckInput is what Check reads.
@@ -73,10 +81,13 @@ type CheckInput struct {
 	// (checks gives the last two only for a valid plan). Results that are
 	// OK are left out.
 	Checks []checks.Result
+	// Strict adds the plan's lint hints to the warnings (SPEC §14); a plan
+	// that doesn't validate is not linted.
+	Strict bool
 }
 
 // Check validates the plan and lists the problems of in.Checks as its
-// warnings.
+// warnings, followed under Strict by the lint hints.
 func Check(in CheckInput) CheckReport {
 	p := in.Plan
 	issues := p.Validate(in.Rules)
@@ -87,12 +98,22 @@ func Check(in CheckInput) CheckReport {
 		Tasks:    len(p.Tasks),
 		Valid:    len(issues) == 0,
 		Warnings: []Warning{},
+		Strict:   in.Strict,
 	}
 	for _, c := range checks.Problems(in.Checks) {
 		r.Warnings = append(r.Warnings, Warning{
 			File: textsafe.Line(c.File), Line: c.Line, Task: textsafe.Line(c.Task), From: c.From, To: c.To,
 			Message: textsafe.Line(c.Message),
 		})
+		if checks.Strict(c.ID) {
+			r.Failing++
+		}
+	}
+	if in.Strict && r.Valid {
+		for _, l := range p.Lint() {
+			r.Warnings = append(r.Warnings, Warning{File: textsafe.Line(l.File), Line: l.Line, Message: textsafe.Line(l.Msg), Lint: l.Name})
+			r.Failing++
+		}
 	}
 	return r
 }
