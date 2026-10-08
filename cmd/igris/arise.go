@@ -146,7 +146,7 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		return fail("%v", err)
 	}
 
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, cancel := interruptContext()
 	defer cancel() // Ctrl-C stops the run; the session stays open (SPEC §13)
 	pre := l.Prelaunch(ctx)
 	// With --no-tui, stdin carries the owner's commands for the whole run.
@@ -209,6 +209,27 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 			return exitOK
 		}
 	}
+}
+
+// interruptContext is cancelled by the first SIGINT or SIGTERM, which
+// stops the run. It then stops catching them, so a second one exits igris
+// at once, as the default handling does, also while the run is still
+// winding down (the final notifications, SPEC §10).
+func interruptContext() (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(context.Background())
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		select {
+		case <-sigs:
+		case <-ctx.Done():
+		}
+		// Before ctx ends, so that whoever sees it end can count on the
+		// default handling being back.
+		signal.Stop(sigs)
+		cancel()
+	}()
+	return ctx, cancel
 }
 
 // ariseUI shows the TUI; a seam for tests.

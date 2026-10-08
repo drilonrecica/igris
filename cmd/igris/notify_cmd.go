@@ -78,7 +78,11 @@ func sendTestMessages(ctx context.Context, r *notify.Router, name string, only n
 		}
 	}
 	if sent == 0 {
-		fmt.Fprintln(out, project.NoChannels)
+		if only != "" && r.HasChannels() {
+			fmt.Fprintln(out, project.NoChannelSends(only))
+		} else {
+			fmt.Fprintln(out, project.NoChannels)
+		}
 		return false
 	}
 	return ok

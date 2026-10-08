@@ -255,3 +255,60 @@ func TestImmediate(t *testing.T) {
 		t.Errorf("defaults: quiet %v, break_through %v", r.o.Quiet, r.o.BreakThrough)
 	}
 }
+
+// deadlineChannel fails every send and records how long its context had.
+type deadlineChannel struct {
+	sends int
+	left  []time.Duration
+}
+
+func (*deadlineChannel) Name() string { return "d" }
+
+func (d *deadlineChannel) Send(ctx context.Context, _ Message) error {
+	d.sends++
+	if dl, ok := ctx.Deadline(); ok {
+		d.left = append(d.left, time.Until(dl))
+	}
+	return errorString("down")
+}
+
+// The flush at run stop makes one attempt per message, no retry, all of it
+// within finalFlushTimeout, so a dead server can't hold igris's exit.
+func TestFlushAllIsOneBoundedAttempt(t *testing.T) {
+	ctx := context.Background()
+	clock := &fakeNow{}
+	var sleeps int
+	ch := &deadlineChannel{}
+	r := New(Options{
+		Sleep:          func(context.Context, time.Duration) { sleeps++ },
+		Timeout:        time.Hour, // longer than the overall bound
+		Now:            clock.Now,
+		Quiet:          window(t, "22:00-07:00"),
+		TaskDoneDigest: config.DigestPhase,
+		Channels:       []Entry{{Channel: ch, Events: AllEvents}},
+	})
+	clock.at(1, 23, 0)
+	r.Notify(ctx, Message{Event: PhaseDone, Phase: "M1"}) // held
+	r.Notify(ctx, Message{Event: TaskDone, Phase: "M1", TaskID: "M1-01"})
+	clock.at(2, 8, 0) // after the window: the grouped task_done goes out, then the digest
+	res := r.FlushAll(ctx)
+	if len(res) != 2 || res[0].Err == nil || res[1].Err == nil {
+		t.Fatalf("FlushAll = %s", results(res))
+	}
+	if ch.sends != 2 || sleeps != 0 {
+		t.Errorf("%d sends and %d retry pauses, want 2 and 0", ch.sends, sleeps)
+	}
+	for _, left := range ch.left {
+		if left > finalFlushTimeout || left <= 0 {
+			t.Errorf("an attempt had %v, want at most %v", left, finalFlushTimeout)
+		}
+	}
+	if len(ch.left) != 2 {
+		t.Errorf("sends without a deadline: %v", ch.left)
+	}
+	// Notify still retries.
+	r.Notify(ctx, Message{Event: NeedsInput})
+	if ch.sends != 4 || sleeps != 1 {
+		t.Errorf("Notify: %d sends and %d pauses, want 4 and 1", ch.sends, sleeps)
+	}
+}

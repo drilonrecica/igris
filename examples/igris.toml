@@ -71,11 +71,11 @@ enabled = true                    # herdr toasts or the tmux status line; never 
 # events = ["needs_input", "session_lost", "task_overdue", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]
 #
 # [notify.discord]
-# webhook_url = "env:IGRIS_DISCORD_WEBHOOK"
+# webhook_url = "env:IGRIS_DISCORD_WEBHOOK"   # https only
 # events = ["needs_input", "phase_done"]
 #
 # [notify.slack]
-# webhook_url = "env:IGRIS_SLACK_WEBHOOK"
+# webhook_url = "env:IGRIS_SLACK_WEBHOOK"     # https only
 #
 # [notify.gotify]
 # server = "https://gotify.example.org"
@@ -85,5 +85,6 @@ enabled = true                    # herdr toasts or the tmux status line; never 
 # url = "env:IGRIS_WEBHOOK_URL"   # http or https; a JSON POST
 # secret = "env:IGRIS_WEBHOOK_SECRET"   # optional: X-Igris-Signature, HMAC-SHA256 of the body
 #
-# Every channel above but the toast takes a Go text/template for its text:
+# Every channel above but the toast takes a Go text/template for its text
+# (variables, if/else and with; no range, define, template or block):
 # template = "{{.At.Format \"15:04\"}} {{.TaskID}} {{.What}}"

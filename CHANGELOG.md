@@ -33,6 +33,8 @@ igris v0.5 shows you what a run is doing and what it did. The run view gets the 
 - The narrow run view's top line shows the phase's progress (`M0 · 3/7`) instead of `phase M0`.
 - The run log records how each notification went: `<event> via <channel>`, `<event> held for <channel> (quiet hours)` or `digest of N via <channel>`.
 - `docs/reverify.md` probes use `sonnet` instead of `haiku`.
+- `igris notify test --event <event>` says `no channel sends <event>; add it to a channel's events in igris.toml` when channels are set up but none sends that event, instead of claiming none is set up; the hint for no channel names the backend toast, not herdr's.
+- **A second `Ctrl-C` exits `igris arise` at once**, even while the run is still sending its last notifications; that final flush makes one attempt per message, without the retry, and takes at most 15 s.
 - **Notification channels no longer follow redirects** (ntfy and Discord included): following one could carry a token, the webhook signature or a secret URL to another host, and its `200` counted as delivered. A `3xx` is now a failure, `server answered 307 (redirect); set the final URL in igris.toml`.
 - **Notification failures are told in fixed words** (`can't resolve host`, `connection refused`, `TLS failed`, `timed out`, `connection failed`, `server answered 500 Internal Server Error`, `<key> is not a valid URL`): net/http's own text, which names the URL and host, and the server's reason phrase are no longer shown.
 - **Discord and Slack webhook URLs must be `https` with a host**, checked when `igris.toml` loads (or, for an `env:` reference, when it is resolved); the error never shows the URL.

@@ -110,3 +110,22 @@ func TestNotifyTestReportsFailuresAndMissingChannels(t *testing.T) {
 		t.Errorf("unknown event exit %d", code)
 	}
 }
+
+// --event for an event no channel sends says so, instead of claiming no
+// channel is set up; the hint names the backend toast, not herdr's.
+func TestNotifyTestEventNoChannelSends(t *testing.T) {
+	notifyProject(t, "[notify.backend]\nenabled = false\n[notify.ntfy]\ntopic = \"igris\"\nserver = \"https://ntfy.invalid\"\n")
+	var out, errb bytes.Buffer
+	if code := run([]string{"notify", "test", "--event", "task_done"}, &out, &errb); code != exitFail {
+		t.Errorf("exit %d, want %d", code, exitFail)
+	}
+	if want := "no channel sends task_done; add it to a channel's events in igris.toml\n"; out.String() != want {
+		t.Errorf("output %q, want %q", out.String(), want)
+	}
+	notifyProject(t, "[notify.backend]\nenabled = false\n")
+	out.Reset()
+	run([]string{"notify", "test", "--event", "task_done"}, &out, &errb)
+	if !strings.Contains(out.String(), "no channel is set up") || !strings.Contains(out.String(), "enable the backend toast") || strings.Contains(out.String(), "herdr toast") {
+		t.Errorf("output %q", out.String())
+	}
+}

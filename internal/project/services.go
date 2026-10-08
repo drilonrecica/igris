@@ -149,8 +149,8 @@ func (s *Services) Init(ctx context.Context, example bool) ([]report.Step, error
 func (s *Services) InitFiles(example bool) []string { return InitFiles(example) }
 
 // NotifyTest implements tui.Services: `igris notify test` for every event,
-// each delivery reported as soon as it is over. The herdr toast is left out
-// when herdr can't be reached.
+// each delivery reported as soon as it is over. The backend toast is left
+// out when the backend can't be reached.
 func (s *Services) NotifyTest(ctx context.Context, emit func(report.NotifyResult)) error {
 	p, err := Load(s.cwd, "", s.env)
 	if err != nil {

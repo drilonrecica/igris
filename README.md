@@ -324,11 +324,11 @@ topic = "my-igris-topic"
 template = "{{.At.Format \"15:04\"}} {{.TaskID}} {{.What}}"
 ```
 
-During quiet hours, messages to ntfy, Discord, Slack, Gotify and the webhook are held, except the `break_through` events (`[]` holds everything); the herdr or tmux toast is never held. When the window ends — igris checks at every poll, also while it waits on your answer — each channel gets one digest: `quiet hours 22:00–07:00: N held` and a line `HH:MM <event>: <text>` per held message (at most 20, then `… and K more`; templates don't apply to it). Whatever is still held when the run stops is sent as a digest then. The webhook sends a digest as `"event":"digest"` with a `messages` array of the held payloads (at most 50) and `truncated`, the number left out.
+During quiet hours, messages to ntfy, Discord, Slack, Gotify and the webhook are held, except the `break_through` events (`[]` holds everything); the herdr or tmux toast is never held. When the window ends — igris checks at every poll, also while it waits on your answer — each channel gets one digest: `quiet hours 22:00–07:00: N held` and a line `HH:MM <event>: <text>` per held message (at most 20, then `… and K more`; templates don't apply to it). Whatever is still held when the run stops is sent as a digest then (one attempt, at most 15 s in all; a second `Ctrl-C` exits at once). The webhook sends a digest as `"event":"digest"` with a `messages` array of the held payloads (at most 50) and `truncated`, the number left out.
 
 With `task_done_digest`, a channel's `task_done` messages are collected and sent as one, `3 tasks done: M1-01, M1-02, M1-03`, when N are collected, when the phase ends (before its `phase_done`) and when the run stops; templates apply to it, and in quiet hours it is held like any `task_done`. The run log (`runs.jsonl`) records held messages and digests.
 
-Check your setup with `igris notify test`: it sends a sample of each event to every configured channel (the herdr or tmux toast too, when run inside one) and prints `ok` or the reason for each failure; it ignores quiet hours and `task_done_digest`. `--event needs_input` sends just one.
+Check your setup with `igris notify test`: it sends a sample of each event to every configured channel (the herdr or tmux toast too, when run inside one) and prints `ok` or the reason for each failure; it ignores quiet hours and `task_done_digest`. `--event needs_input` sends just one (and says so when no channel sends that event).
 
 ## Home screen
 

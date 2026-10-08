@@ -33,7 +33,13 @@ type step struct {
 type job struct {
 	ch    Channel
 	steps []step
+	// once sends each step in a single attempt, without the retry.
+	once bool
 }
+
+// finalFlushTimeout bounds FlushAll as a whole: igris is exiting, and a
+// dead server must not keep it from doing so.
+const finalFlushTimeout = 15 * time.Second
 
 // Digest limits (SPEC §10).
 const (
@@ -112,8 +118,11 @@ func (r *Router) FlushTasks(ctx context.Context) []Result {
 
 // FlushAll is for the end of a run: it sends the collected task_done
 // messages and then, whatever the time, the digest of everything held,
-// since nothing can hold them once igris exits.
+// since nothing can hold them once igris exits. Each message gets one
+// attempt, no retry, and all of it at most finalFlushTimeout.
 func (r *Router) FlushAll(ctx context.Context) []Result {
+	ctx, cancel := context.WithTimeout(ctx, finalFlushTimeout)
+	defer cancel()
 	return r.flush(ctx, true)
 }
 
@@ -130,7 +139,7 @@ func (r *Router) flush(ctx context.Context, all bool) []Result {
 			steps = append(steps, step{m: r.takeDigest(i, now)})
 		}
 		if len(steps) > 0 {
-			jobs = append(jobs, job{ch: r.o.Channels[i].Channel, steps: steps})
+			jobs = append(jobs, job{ch: r.o.Channels[i].Channel, steps: steps, once: all})
 		}
 	}
 	r.mu.Unlock()

@@ -8,7 +8,8 @@ import (
 )
 
 // NotifyRouter is the router `igris notify test` sends through: every
-// channel of igris.toml, plus the herdr toast when herdr is reachable.
+// channel of igris.toml, plus the backend toast when the backend is
+// reachable.
 // skipped says why the toast is left out (nil when it is in); err is a
 // secret that can't be resolved.
 func (p *Project) NotifyRouter(ctx context.Context) (r *notify.Router, skipped, err error) {
@@ -16,8 +17,8 @@ func (p *Project) NotifyRouter(ctx context.Context) (r *notify.Router, skipped, 
 	if err != nil {
 		return nil, nil, err
 	}
-	// The toast is part of the check when herdr is there; outside herdr the
-	// remote channels are still worth testing.
+	// The toast is part of the check when the backend is there; without
+	// it the remote channels are still worth testing.
 	be, err := p.env.backend(p.Cfg, p.Root)
 	if err == nil {
 		err = be.Available(ctx)
@@ -65,4 +66,10 @@ func TestMessages(r *notify.Router, name string, only notify.Event) []notify.Mes
 }
 
 // NoChannels is what notify test says when no channel is set up.
-const NoChannels = "no channel is set up for that: set up [notify.ntfy], [notify.discord], [notify.webhook], [notify.slack] or [notify.gotify] in igris.toml (see the README), or enable the herdr toast"
+const NoChannels = "no channel is set up for that: set up [notify.ntfy], [notify.discord], [notify.webhook], [notify.slack] or [notify.gotify] in igris.toml (see the README), or enable the backend toast ([notify.backend] enabled = true, inside herdr or tmux)"
+
+// NoChannelSends is what notify test --event says when channels are set up
+// but none of them sends ev.
+func NoChannelSends(ev notify.Event) string {
+	return "no channel sends " + string(ev) + "; add it to a channel's events in igris.toml"
+}

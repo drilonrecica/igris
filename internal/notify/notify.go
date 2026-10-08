@@ -208,6 +208,9 @@ func realSleep(ctx context.Context, d time.Duration) {
 	}
 }
 
+// HasChannels reports whether the router has any channel at all.
+func (r *Router) HasChannels() bool { return len(r.o.Channels) > 0 }
+
 // Enabled reports whether any channel wants ev.
 func (r *Router) Enabled(ev Event) bool {
 	for _, e := range r.o.Channels {
@@ -258,7 +261,7 @@ func (r *Router) run(ctx context.Context, jobs []job, done func(i int, res Resul
 			for _, s := range j.steps {
 				res := Result{Channel: j.ch.Name(), Event: s.m.Event, Held: s.hold, Count: len(s.m.Held)}
 				if !s.hold {
-					res.Err = r.deliver(ctx, j.ch, s.m)
+					res.Err = r.deliver(ctx, j.ch, s.m, j.once)
 				}
 				mu.Lock()
 				done(i, res)
@@ -269,10 +272,14 @@ func (r *Router) run(ctx context.Context, jobs []job, done func(i int, res Resul
 	wg.Wait()
 }
 
-// deliver makes up to two attempts.
-func (r *Router) deliver(ctx context.Context, ch Channel, m Message) error {
+// deliver makes up to two attempts, or one when once is set.
+func (r *Router) deliver(ctx context.Context, ch Channel, m Message, once bool) error {
+	attempts := 2
+	if once {
+		attempts = 1
+	}
 	var err error
-	for attempt := range 2 {
+	for attempt := range attempts {
 		if attempt == 1 {
 			r.o.Sleep(ctx, r.o.RetryDelay)
 		}
