@@ -12,43 +12,65 @@ import (
 // TestHistoryGoldens pins the text and --json output of `igris history` on a
 // synthetic log: finished, errored and interrupted runs, a resume, an
 // unknown event type and a truncated last line.
+//
+// runs_v1.jsonl mixes v0 lines (igris v0.2–v0.4) with v1 ones and a few
+// from a "v2": runs grouped by ID and by start/stop, run IDs shown, a line
+// outside a run, a bad run ID, unknown types, fields and reasons, and the
+// newer-version note (SPEC §13).
 func TestHistoryGoldens(t *testing.T) {
-	log, err := os.ReadFile("testdata/history/runs.jsonl")
-	if err != nil {
-		t.Fatal(err)
-	}
 	goldenDir := mustAbs("testdata/golden")
-	for _, args := range [][]string{
-		{"history"}, {"history", "--json"},
-		{"history", "-n", "1"},
-		{"history", "B-1"}, {"history", "B-1", "--json"},
-		{"history", "A-9"},
+	for _, tc := range []struct {
+		log, prefix string
+		args        [][]string
+	}{
+		{"runs.jsonl", "history", [][]string{
+			{"history"}, {"history", "--json"},
+			{"history", "-n", "1"},
+			{"history", "B-1"}, {"history", "B-1", "--json"},
+			{"history", "A-9"},
+		}},
+		{"runs_v1.jsonl", "history_v1", [][]string{
+			{"history"}, {"history", "--json"},
+			{"history", "A-2"}, {"history", "A-2", "--json"},
+		}},
 	} {
-		name := "history_" + strings.ReplaceAll(strings.Join(args[1:], "_"), "--", "")
-		name = strings.TrimSuffix(name, "_")
-		t.Run(name, func(t *testing.T) {
-			root := t.TempDir()
-			t.Chdir(root)
-			writeLog(t, root, log)
-			var out, errb bytes.Buffer
-			code := run(args, &out, &errb)
-			got := fmt.Sprintf("exit: %d\n--- stdout\n%s--- stderr\n%s", code, out.String(), errb.String())
-			golden := filepath.Join(goldenDir, name+".golden")
-			if *update {
-				if err := os.WriteFile(golden, []byte(got), 0o600); err != nil {
-					t.Fatal(err)
-				}
-				return
-			}
-			want, err := os.ReadFile(golden) //nolint:gosec // a golden under testdata/
-			if err != nil {
-				t.Fatalf("%v; run `go test ./cmd/igris -run TestHistoryGoldens -update`", err)
-			}
-			if got != string(want) {
-				t.Errorf("output changed:\n%s\nwant:\n%s", got, want)
-			}
-		})
+		log, err := os.ReadFile(filepath.Join("testdata/history", tc.log))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, args := range tc.args {
+			historyGolden(t, goldenDir, tc.prefix, log, args)
+		}
 	}
+}
+
+// historyGolden runs `igris` with args on log and compares the output with
+// its golden file.
+func historyGolden(t *testing.T, goldenDir, prefix string, log []byte, args []string) {
+	t.Helper()
+	name := strings.TrimSuffix(prefix+"_"+strings.ReplaceAll(strings.Join(args[1:], "_"), "--", ""), "_")
+	t.Run(name, func(t *testing.T) {
+		root := t.TempDir()
+		t.Chdir(root)
+		writeLog(t, root, log)
+		var out, errb bytes.Buffer
+		code := run(args, &out, &errb)
+		got := fmt.Sprintf("exit: %d\n--- stdout\n%s--- stderr\n%s", code, out.String(), errb.String())
+		golden := filepath.Join(goldenDir, name+".golden")
+		if *update {
+			if err := os.WriteFile(golden, []byte(got), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			return
+		}
+		want, err := os.ReadFile(golden) //nolint:gosec // a golden under testdata/
+		if err != nil {
+			t.Fatalf("%v; run `go test ./cmd/igris -run TestHistoryGoldens -update`", err)
+		}
+		if got != string(want) {
+			t.Errorf("output changed:\n%s\nwant:\n%s", got, want)
+		}
+	})
 }
 
 func writeLog(t *testing.T, root string, log []byte) {

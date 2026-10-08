@@ -586,7 +586,7 @@ token = ""                        # application token, or "env:GOTIFY_TOKEN"
 | `runs.jsonl` | Append-only log: one JSON line per event (task started/done/skipped, verify result, commits, needs-you waits, notifications, errors) with timestamps, run ID, task ID, rank and model; schema v1 below. |
 | `adapt/` | Adapt proposals and backups (§9). |
 
-**`runs.jsonl` schema v1** (since v0.5; the full reference with an example line per type is `docs/runlog.md`). One JSON object per line; every line igris writes has `"v":1`. Fields other than `v`, `at` and `type` are omitted when empty:
+**`runs.jsonl` schema v1** (since v0.5; the full reference with an example line per type is [`docs/runlog.md`](docs/runlog.md)). One JSON object per line; every line igris writes has `"v":1`. Fields other than `v`, `at` and `type` are omitted when empty:
 
 | Field | Content |
 |---|---|

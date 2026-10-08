@@ -21,6 +21,8 @@ func (h *harness) dirtyTree() *[]string {
 		switch c.Args[0] {
 		case "status":
 			return runner.Result{Stdout: []byte(" M main.go\n")}, nil
+		case "rev-parse":
+			return runner.Result{Stdout: []byte(fakeSHA + "\n")}, nil
 		case "commit":
 			log = append(log, strings.Join(c.Args, " ")+" ["+strings.SplitN(h.statuses(), " A-2", 2)[0]+"]")
 		default:
@@ -123,6 +125,10 @@ func TestCommitAsk(t *testing.T) {
 			}
 			if got := h.statuses(); got != "A-1=done A-2=done A-3=done B-1=ready" {
 				t.Errorf("statuses = %s", got)
+			}
+			// A-3 is "agent + user": an agent task with attempts too.
+			if got, want := h.waits(), "A-1#1 commit, clear A-1#1 commit, A-2#1 commit, clear A-2#1 commit, A-3#1 commit, clear A-3#1 commit"; got != want {
+				t.Errorf("run log waits = %q, want %q", got, want)
 			}
 		})
 	}

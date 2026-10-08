@@ -1,0 +1,33 @@
+exit: 0
+--- stdout
+{
+  "task": "A-2",
+  "attempts": [
+    {
+      "run": "20261002-100000-00ff",
+      "run_started_at": "2026-10-02T10:00:00Z",
+      "started_at": "2026-10-02T10:00:01Z",
+      "rank": "opus",
+      "model": "opus",
+      "result": "unfinished",
+      "verify": []
+    },
+    {
+      "run": "20261001-090000-3fa2",
+      "run_started_at": "2026-10-01T09:00:00Z",
+      "started_at": "2026-10-01T09:00:01Z",
+      "ended_at": "2026-10-01T09:12:06Z",
+      "duration_s": 725,
+      "rank": "opus",
+      "model": "opus",
+      "result": "done",
+      "note": "did the second thing",
+      "verify": [
+        "failed: profile fast: attempt 1 of 3: exit status 1",
+        "passed: profile fast"
+      ]
+    }
+  ],
+  "note": "runs.jsonl has lines from a newer igris (v2); some details may be missing"
+}
+--- stderr

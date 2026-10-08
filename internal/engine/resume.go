@@ -38,14 +38,16 @@ func (e *Engine) resume(ctx context.Context) (stopped bool, err error) {
 	}
 	l := &launch{t: t, cur: cur, mode: cur.Mode}
 	e.task = l
-	e.log(state.Event{Type: state.EventTaskResumed})
+	if t.Owner.IsAgent() {
+		var ok bool
+		if l.model, ok = e.cfg.Models[t.Rank]; !ok {
+			return false, fmt.Errorf("task %s: unknown model rank %q; add it to [models] in igris.toml", t.ID, t.Rank)
+		}
+	}
+	e.logResumed(l, "")
 	if !t.Owner.IsAgent() {
 		e.emit(Event{Kind: TaskResumed, Detail: "user task"})
 		return e.yourTurn(ctx, l)
-	}
-	var ok bool
-	if l.model, ok = e.cfg.Models[t.Rank]; !ok {
-		return false, fmt.Errorf("task %s: unknown model rank %q; add it to [models] in igris.toml", t.ID, t.Rank)
 	}
 
 	movedFrom := ""
@@ -109,19 +111,35 @@ func (e *Engine) adopt(ctx context.Context, l *launch) (stopped bool, err error)
 	if err := e.dir.SaveRun(e.run); err != nil {
 		return false, err
 	}
-	e.log(state.Event{Type: state.EventTaskResumed, Detail: "no record of an earlier session"})
+	if t.Owner.IsAgent() {
+		var ok bool
+		if l.model, ok = e.cfg.Models[t.Rank]; !ok {
+			return false, fmt.Errorf("task %s: unknown model rank %q; add it to [models] in igris.toml", t.ID, t.Rank)
+		}
+	}
+	e.logResumed(l, "no record of an earlier session")
 	if !t.Owner.IsAgent() {
 		e.emit(Event{Kind: TaskResumed, Detail: "user task"})
 		return e.yourTurn(ctx, l)
-	}
-	var ok bool
-	if l.model, ok = e.cfg.Models[t.Rank]; !ok {
-		return false, fmt.Errorf("task %s: unknown model rank %q; add it to [models] in igris.toml", t.ID, t.Rank)
 	}
 	e.emit(Event{Kind: TaskResumed, Detail: "in progress without a recorded session"})
 	l.lost = true
 	e.lose(ctx, l)
 	return e.drive(ctx, l)
+}
+
+// logResumed logs that this run picks up l's task: its first attempt in
+// this run, with the conversation state.json recorded for it, if any.
+func (e *Engine) logResumed(l *launch, detail string) {
+	l.since = e.clock.Now()
+	ev := taskInfo(state.Event{Type: state.EventTaskResumed, Detail: detail}, l.t)
+	if l.t.Owner.IsAgent() {
+		l.attempt = 1
+		if s := l.cur.ClaudeSession; backend.ValidClaudeSession(s) {
+			ev.Session = s
+		}
+	}
+	e.log(ev)
 }
 
 // forget drops the interrupted task from state.json.

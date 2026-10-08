@@ -75,6 +75,10 @@ func TestNeedsYouOncePerIdleEpisode(t *testing.T) {
 	if needs != 2 {
 		t.Errorf("toasts = %q, want two needs-you toasts for A-1", h.toasts())
 	}
+	// The second episode ends with the task: no clear.
+	if got, want := h.waits(), "A-1#1 idle, clear A-1#1 idle, A-1#1 idle"; got != want {
+		t.Errorf("run log waits = %q, want %q", got, want)
+	}
 }
 
 // A blocked agent (a permission prompt, a question) gets its own reason, so
@@ -89,6 +93,9 @@ func TestNeedsYouBlockedReason(t *testing.T) {
 	}
 	if got := h.toasts(); len(got) == 0 || got[0] != "request: phase A · A-1 One: needs you (waiting for a permission or an answer)" {
 		t.Errorf("toasts = %q", got)
+	}
+	if got := h.waits(); got != "A-1#1 blocked" {
+		t.Errorf("run log waits = %q", got)
 	}
 }
 
@@ -358,6 +365,10 @@ func TestSkipSignalNeedsConfirmation(t *testing.T) {
 				if strings.Contains(toast, "not needed") {
 					t.Errorf("toast %q carries the session's text", toast)
 				}
+			}
+			wantWaits := map[bool]string{true: "A-1#1 skip_request", false: "A-1#1 skip_request, clear A-1#1 skip_request, A-1#1 idle"}[tt.yes] // idle until its signal at 40s
+			if got := h.waits(); got != wantWaits {
+				t.Errorf("run log waits = %q, want %q", got, wantWaits)
 			}
 			if tt.yes {
 				if got := h.event(TaskSkipped, "A-1").Detail; got != "not needed" {

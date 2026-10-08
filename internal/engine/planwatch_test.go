@@ -103,6 +103,10 @@ func TestPlanEditedBySessionHoldsTheRun(t *testing.T) {
 	if got := h.count(Paused); got != 0 {
 		t.Errorf("%d paused-before-task events, want none: the hold happens before a task is selected", got)
 	}
+	// Run-wide: the hold is between tasks.
+	if got, want := h.waits(), "#0 plan_changed, clear #0 plan_changed"; got != want {
+		t.Errorf("run log waits = %q, want %q", got, want)
+	}
 }
 
 // Igris's own status writes are not plan changes.

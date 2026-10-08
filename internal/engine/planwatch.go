@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/drilonrecica/igris/internal/plan"
+	"github.com/drilonrecica/igris/internal/state"
 )
 
 // maxPlanChanges bounds how many changed cells one report lists.
@@ -135,5 +136,7 @@ func (e *Engine) checkPlan(ctx context.Context, p *plan.Plan) {
 		e.pause = true
 		e.emit(Event{Kind: PauseOn})
 	}
+	// Run-wide: the run holds between tasks.
+	e.logRun(state.Event{Type: state.EventNeedsYou, Reason: state.ReasonPlanChanged, Detail: "the plan changed outside igris; paused"})
 	e.toast(ctx, notifyNeedsInput, "the plan changed outside igris; paused")
 }

@@ -71,11 +71,13 @@ func printHistory(w io.Writer, h report.History) {
 		fmt.Fprintln(w, "no runs recorded yet")
 		return
 	}
+	printNote(w, h.Note)
 	for i, r := range h.Runs {
 		if i > 0 {
 			fmt.Fprintln(w)
 		}
-		fmt.Fprintf(w, "Run %s  phase %s  %s", r.StartedAt, strings.Join(r.Phases, ", "), r.End)
+		// The run ID, when the log has one, is what `igris report` takes.
+		fmt.Fprintf(w, "Run %s%s  phase %s  %s", r.StartedAt, spaced(r.Run), strings.Join(r.Phases, ", "), r.End)
 		if r.DurationS > 0 {
 			fmt.Fprintf(w, "  (%s)", fmtSeconds(r.DurationS))
 		}
@@ -99,11 +101,12 @@ func printTaskHistory(w io.Writer, h report.TaskHistory) {
 		fmt.Fprintf(w, "no attempts of %s recorded\n", h.Task)
 		return
 	}
+	printNote(w, h.Note)
 	for i, a := range h.Attempts {
 		if i > 0 {
 			fmt.Fprintln(w)
 		}
-		fmt.Fprintf(w, "%s  run %s  %s", h.Task, a.RunStartedAt, a.Result)
+		fmt.Fprintf(w, "%s  run %s%s  %s", h.Task, a.RunStartedAt, spaced(a.Run), a.Result)
 		if a.DurationS > 0 {
 			fmt.Fprintf(w, "  (%s)", fmtSeconds(a.DurationS))
 		}
@@ -121,6 +124,22 @@ func printTaskHistory(w io.Writer, h report.TaskHistory) {
 			fmt.Fprintf(w, "  verify %s\n", v)
 		}
 	}
+}
+
+// printNote prints a note about the log (a newer igris wrote some of it)
+// ahead of the runs.
+func printNote(w io.Writer, note string) {
+	if note != "" {
+		fmt.Fprintf(w, "note: %s\n\n", note)
+	}
+}
+
+// spaced is " s", or "" for an empty s.
+func spaced(s string) string {
+	if s == "" {
+		return ""
+	}
+	return " " + s
 }
 
 func verifyText(t report.TaskRun) string {

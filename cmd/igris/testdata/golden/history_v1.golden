@@ -1,0 +1,21 @@
+exit: 0
+--- stdout
+note: runs.jsonl has lines from a newer igris (v2); some details may be missing
+
+Run 2026-10-03T08:00:00Z 20261003-080000-abcd  phase B  interrupted
+  1 done, 0 skipped
+  B-1  done  sonnet  sonnet  4m00s  
+
+Run 2026-10-02T10:00:00Z 20261002-100000-00ff  phase A  interrupted
+  0 done, 0 skipped
+  A-2  unfinished  opus  opus  —  
+
+Run 2026-10-01T09:00:00Z 20261001-090000-3fa2  phase A  completed  (12m07s)
+  1 done, 0 skipped
+  A-2  done  opus  opus  12m05s  verify 1 failed, 1 passed
+  commit: A-2: Two
+
+Run 2026-09-30T09:00:00Z  phase A  completed  (3m01s)
+  1 done, 0 skipped
+  A-1  done  sonnet  sonnet  2m59s  
+--- stderr

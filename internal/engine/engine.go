@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"text/template"
+	"time"
 
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/config"
@@ -166,6 +167,9 @@ type Engine struct {
 	// resetAnswers the answers drain received for them (SPEC §6.2).
 	resetAsks    []*resetAsk
 	resetAnswers []Command
+	// runID is the run's ID in the run log, runStart when it began (SPEC §13).
+	runID    string
+	runStart time.Time
 	// yoloDeferred: the interrupted task runs in skip-permissions mode and
 	// has a pending reset, so its yolo check waits until that is answered.
 	yoloDeferred bool
@@ -254,6 +258,10 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 		}
 	}()
 
+	e.runStart = e.clock.Now()
+	if e.runID, err = state.NewRunID(e.runStart); err != nil {
+		return Result{}, err
+	}
 	phases, err := e.prepare()
 	if err != nil {
 		return Result{}, err
@@ -277,7 +285,7 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 		e.emit(Event{Kind: RunFailed, Detail: err.Error()})
 		e.toast(ctx, notifyRunError, "the run stopped with an error")
 	}
-	e.log(state.Event{Type: state.EventRunStopped, Detail: detail})
+	e.logRun(state.Event{Type: state.EventRunStopped, Detail: detail, DurationMS: e.sinceMS(e.runStart)})
 	e.emit(Event{Kind: RunStopped, Detail: detail})
 	return res, err
 }

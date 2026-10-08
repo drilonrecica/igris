@@ -3,6 +3,8 @@ package engine
 import (
 	"context"
 	"path/filepath"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/drilonrecica/igris/internal/backend"
@@ -135,14 +137,90 @@ func (e *Engine) emit(ev Event) {
 // warn reports a failure that doesn't stop the run.
 func (e *Engine) warn(detail string) { e.emit(Event{Kind: Warning, Detail: detail}) }
 
-// log appends to runs.jsonl. The log is a record, not state: a failed write
-// is reported and the run goes on.
+// log appends to runs.jsonl (SPEC §13) with the run ID and, for an event
+// without a task, the current task with its attempt. The log is a record,
+// not state: a failed write is reported and the run goes on.
 func (e *Engine) log(ev state.Event) {
-	if ev.Task == "" && e.task != nil {
-		ev.Task, ev.Rank, ev.Model = e.task.t.ID, e.task.t.Rank, e.task.model
+	if l := e.task; l != nil {
+		if ev.Task == "" {
+			ev.Task, ev.Rank, ev.Model = l.t.ID, l.t.Rank, l.model
+		}
+		if ev.Task == l.t.ID {
+			if ev.Model == "" {
+				ev.Model = l.model
+			}
+			if ev.Attempt == 0 {
+				ev.Attempt = l.attempt
+			}
+		}
 	}
+	e.logRun(ev)
+}
+
+// logRun appends ev with the run ID only: for run-wide events while a task
+// is current.
+func (e *Engine) logRun(ev state.Event) {
+	ev.Run = e.runID
 	if err := e.dir.Append(ev); err != nil {
 		e.warn(err.Error())
+	}
+}
+
+// maxLogTitle is how much of a task title the run log keeps.
+const maxLogTitle = 80
+
+// taskInfo is the phase, title and owner a task_started or task_resumed
+// line carries: the title as notifications show it, cleaned and cut.
+func taskInfo(ev state.Event, t *plan.Task) state.Event {
+	ev.Phase, ev.Owner = phaseOf(t), string(t.Owner)
+	title := []rune(textsafe.Line(notify.PlainTitle(t.Title)))
+	if len(title) > maxLogTitle {
+		title = title[:maxLogTitle]
+	}
+	ev.Title = strings.TrimSpace(string(title))
+	return ev
+}
+
+// sinceMS is the time from start to now in milliseconds, 0 when start is
+// unknown.
+func (e *Engine) sinceMS(start time.Time) int64 {
+	if start.IsZero() {
+		return 0
+	}
+	return e.clock.Now().Sub(start).Milliseconds()
+}
+
+// waitOn logs that the current task waits on the owner for reason
+// (a state.Reason*); detail is the few words the notification says. The
+// wait stays open on the task until it is cleared or the task ends.
+func (e *Engine) waitOn(reason, detail string) {
+	if l := e.task; l != nil && !slices.Contains(l.waits, reason) {
+		l.waits = append(l.waits, reason)
+	}
+	e.log(state.Event{Type: state.EventNeedsYou, Reason: reason, Detail: detail})
+}
+
+// waitOver logs that the current task's wait for reason ended while the
+// task goes on. It does nothing if no such wait is open.
+func (e *Engine) waitOver(reason string) {
+	l := e.task
+	if l == nil {
+		return
+	}
+	i := slices.Index(l.waits, reason)
+	if i < 0 {
+		return
+	}
+	l.waits = slices.Delete(l.waits, i, i+1)
+	e.log(state.Event{Type: state.EventNeedsYouClear, Reason: reason})
+}
+
+// waitsOver ends every open wait of the current task, e.g. on a retry.
+func (e *Engine) waitsOver() {
+	if l := e.task; l != nil {
+		for _, r := range slices.Clone(l.waits) {
+			e.waitOver(r)
+		}
 	}
 }
 

@@ -19,6 +19,9 @@ import (
 
 var t0 = time.Date(2026, 10, 6, 12, 0, 0, 0, time.UTC)
 
+// fakeSHA is what a scripted `git rev-parse HEAD` prints.
+const fakeSHA = "3fa29c1e0b6d4a8f9c2e7b1d5a0f6e3c8b9d2a4f"
+
 // chainPlan has a phase A whose tasks depend on each other in order, and a
 // phase B waiting on A.
 const chainPlan = `# Demo plan
@@ -226,6 +229,31 @@ func (h *harness) logged() string {
 		out = append(out, string(e.Type))
 	}
 	return strings.Join(out, " ")
+}
+
+// waits returns the needs-you lines of the run log, in order:
+// "<task>#<attempt> <reason>" for needs_you, with "clear " in front for
+// needs_you_clear and "task_retried" lines in between, so a test sees
+// which wait ended where.
+func (h *harness) waits() string {
+	h.t.Helper()
+	events, err := h.dir.Events()
+	if err != nil {
+		h.t.Fatal(err)
+	}
+	var out []string
+	for _, e := range events {
+		at := fmt.Sprintf("%s#%d", e.Task, e.Attempt)
+		switch e.Type {
+		case state.EventNeedsYou:
+			out = append(out, at+" "+e.Reason)
+		case state.EventNeedsYouClear:
+			out = append(out, "clear "+at+" "+e.Reason)
+		case state.EventTaskRetried:
+			out = append(out, "retried "+at)
+		}
+	}
+	return strings.Join(out, ", ")
 }
 
 // toasts returns "sound: body" for every backend notification.

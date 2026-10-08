@@ -33,6 +33,13 @@ type launch struct {
 	// set once the attempt ran past the task's Timeout.
 	attemptAt time.Time
 	overdue   bool
+	// attempt is the agent task's attempt in this run for the run log
+	// (SPEC §13): 1 for the first session or the reattached one, +1 per
+	// retry. since is when this run started or picked up the task; waits
+	// are the needs-you reasons logged and not yet cleared.
+	attempt int
+	since   time.Time
+	waits   []string
 }
 
 // startAttempt starts a new attempt's Timeout clock at now.
@@ -139,7 +146,12 @@ func (e *Engine) markInProgress(ctx context.Context, l *launch, detail string) (
 		return false, err
 	}
 	e.plans.wrote(changes)
-	e.log(state.Event{Type: state.EventTaskStarted, Detail: detail})
+	l.since = e.clock.Now()
+	ev := taskInfo(state.Event{Type: state.EventTaskStarted, Detail: detail}, t)
+	if t.Owner.IsAgent() {
+		l.attempt, ev.Session = 1, l.cur.ClaudeSession
+	}
+	e.log(ev)
 	e.emit(Event{Kind: TaskStarted, Changes: changes})
 	return true, nil
 }
@@ -309,6 +321,7 @@ func (e *Engine) retry(ctx context.Context, l *launch, cont bool) error {
 		how, detail = startContinue, "continue"
 	}
 	e.emit(Event{Kind: Retrying, Detail: detail})
+	e.waitsOver()            // the owner acted; whatever the old session waited on is over
 	l.cur.VerifyAttempts = 0 // a new session gets the full verify budget
 	if l.sess != nil {
 		if err := l.sess.Close(ctx); err != nil {
@@ -319,6 +332,10 @@ func (e *Engine) retry(ctx context.Context, l *launch, cont bool) error {
 	if err != nil {
 		return err
 	}
+	// Every session opened is an attempt, also one the hook keeps from
+	// opening (SPEC §13).
+	l.attempt++
+	e.log(state.Event{Type: state.EventTaskRetried, Session: st.sessionID, Detail: detail})
 	if open, err := e.beforeSession(ctx, l); err != nil || !open {
 		return err
 	}
@@ -348,7 +365,7 @@ func (e *Engine) finish(ctx context.Context, l *launch, to plan.Status, note str
 	if to == plan.Skipped {
 		logType, kind = state.EventTaskSkipped, TaskSkipped
 	}
-	e.log(state.Event{Type: logType, Detail: note})
+	e.log(state.Event{Type: logType, Detail: note, DurationMS: e.sinceMS(l.since)})
 	if err := e.dir.RemoveSignal(t.ID); err != nil {
 		return err
 	}

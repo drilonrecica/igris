@@ -1,0 +1,15 @@
+exit: 0
+--- stdout
+note: runs.jsonl has lines from a newer igris (v2); some details may be missing
+
+A-2  run 2026-10-02T10:00:00Z 20261002-100000-00ff  unfinished
+  started 2026-10-02T10:00:01Z
+  rank opus, model opus
+
+A-2  run 2026-10-01T09:00:00Z 20261001-090000-3fa2  done  (12m05s)
+  started 2026-10-01T09:00:01Z
+  rank opus, model opus
+  note: did the second thing
+  verify failed: profile fast: attempt 1 of 3: exit status 1
+  verify passed: profile fast
+--- stderr

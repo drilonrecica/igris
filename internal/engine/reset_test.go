@@ -239,7 +239,7 @@ func TestResetPendingAtStart(t *testing.T) {
 	if got := h.statuses(); got != "A-1=done A-2=done A-3=done B-1=ready" {
 		t.Errorf("statuses = %s", got)
 	}
-	if got := h.logged(); !strings.Contains(got, "run_started notification task_reset task_started") {
+	if got := h.logged(); !strings.Contains(got, "run_started needs_you notification needs_you_clear task_reset task_started") {
 		t.Errorf("run log = %s", got)
 	}
 }

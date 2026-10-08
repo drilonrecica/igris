@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/drilonrecica/igris/internal/state"
 )
 
 // CommandKind says what the owner asked for.
@@ -104,7 +106,10 @@ func (e *Engine) drain() {
 			if e.pause {
 				e.emit(Event{Kind: PauseOn})
 			} else {
-				e.hold = false // the owner looked at the changed plan
+				if e.hold {
+					e.hold = false // the owner looked at the changed plan
+					e.logRun(state.Event{Type: state.EventNeedsYouClear, Reason: state.ReasonPlanChanged})
+				}
 				e.emit(Event{Kind: PauseOff})
 			}
 		case CmdStop:

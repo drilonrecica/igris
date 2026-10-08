@@ -69,6 +69,9 @@ func TestTaskOverdueOncePerAttempt(t *testing.T) {
 	if h.count(TaskOverdue) != 1 {
 		t.Errorf("%d task_overdue events, want 1 (A-2 has no Timeout)", h.count(TaskOverdue))
 	}
+	if got := h.waits(); got != "A-1#1 task_overdue" {
+		t.Errorf("run log waits = %q", got)
+	}
 }
 
 // A retry is a new attempt with a new clock.

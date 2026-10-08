@@ -140,6 +140,7 @@ func (e *Engine) beforeSession(ctx context.Context, l *launch) (opened bool, err
 	l.sess, l.lost = nil, true
 	// run_error is the notification (runHook); Needs you is the UI's.
 	e.emit(Event{Kind: NeedsYou, Detail: reason + "; no session was opened"})
+	e.waitOn(state.ReasonHookFailed, reason)
 	e.emit(Event{Kind: Asked, Question: QuestionHookFailed, Detail: "the " + hookBefore + " hook of " + l.t.ID + " failed: retry (runs the hook again), mark the task done, skip it, or stop"})
 	return false, nil
 }

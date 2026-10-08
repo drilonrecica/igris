@@ -392,9 +392,9 @@ func TestRunLog(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []Event{
-		{At: t0, Type: EventRunStarted, Detail: "phases M2"},
-		{At: t0, Type: EventTaskStarted, Task: "M2-01", Rank: "opus", Model: "opus"},
-		{At: t0.Add(time.Minute), Type: EventTaskDone, Task: "M2-01", Detail: "note"},
+		{V: 1, At: t0, Type: EventRunStarted, Detail: "phases M2"},
+		{V: 1, At: t0, Type: EventTaskStarted, Task: "M2-01", Rank: "opus", Model: "opus"},
+		{V: 1, At: t0.Add(time.Minute), Type: EventTaskDone, Task: "M2-01", Detail: "note"},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Events = %+v\nwant %+v", got, want)
@@ -403,6 +403,57 @@ func TestRunLog(t *testing.T) {
 	data, _ := os.ReadFile(d.eventsPath())
 	if n := strings.Count(string(data), "\n"); n != 3 {
 		t.Errorf("runs.jsonl has %d lines, want 3:\n%s", n, data)
+	}
+}
+
+// A v1 line has "v":1 first and leaves out what is empty; v0 lines read
+// next to it, unknown fields and types are ignored, and values that fail
+// their shape check count as absent (SPEC §13).
+func TestRunLogV1(t *testing.T) {
+	d := testDir(t)
+	id, err := NewRunID(t0.In(time.FixedZone("CEST", 2*3600)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ValidRunID(id) || !strings.HasPrefix(id, t0.Format("20060102-150405")+"-") {
+		t.Fatalf("NewRunID = %q, want the time in UTC and 4 hex characters", id)
+	}
+	if err := d.Append(Event{V: 7, Type: EventTaskDone, Run: id, Task: "M2-01", Attempt: 2, DurationMS: 1500}); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(d.eventsPath())
+	if want := `{"v":1,"at":"` + t0.Format(time.RFC3339) + `","type":"task_done","run":"` + id + `","task":"M2-01","attempt":2,"duration_ms":1500}` + "\n"; string(data) != want {
+		t.Errorf("line = %s\nwant %s", data, want)
+	}
+
+	session := "0f6c2a3e-5b1d-4c7e-9a8f-1d2e3f4a5b6c"
+	mixed := `{"at":"2026-10-01T09:00:00Z","type":"run_started","detail":"phase A"}
+{"v":1,"at":"2026-10-01T09:00:01Z","type":"task_started","run":"20261001-090000-3fa2","task":"A-1","session":"` + session + `","phase":"A","title":"One","owner":"agent","new_field":[1,2]}
+{"v":1,"at":"2026-10-01T09:00:02Z","type":"task_retried","run":"2026-10-01","session":"$(rm -rf ~)","attempt":-3}
+{"v":1,"at":"2026-10-01T09:00:03Z","type":"needs_you","run":"20261001-090000-3FA2","reason":"coffee"}
+{"v":1,"at":"2026-10-01T09:00:04Z","type":"needs_you_clear","reason":"verify_limit","duration_ms":-5}
+{"v":3,"at":"2026-10-01T09:00:05Z","type":"teleported","task":"A-1"}
+`
+	if err := os.WriteFile(d.eventsPath(), []byte(mixed), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := d.Events()
+	if err != nil || len(got) != 6 {
+		t.Fatalf("Events = %d events, %v; want all 6", len(got), err)
+	}
+	want := []Event{
+		{V: 0, Type: EventRunStarted, Detail: "phase A"},
+		{V: 1, Type: EventTaskStarted, Run: "20261001-090000-3fa2", Task: "A-1", Session: session, Phase: "A", Title: "One", Owner: "agent"},
+		{V: 1, Type: EventTaskRetried},
+		{V: 1, Type: EventNeedsYou, Reason: ReasonOther},
+		{V: 1, Type: EventNeedsYouClear, Reason: ReasonVerifyLimit},
+		{V: 3, Type: "teleported", Task: "A-1"},
+	}
+	for i := range got {
+		got[i].At = time.Time{}
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Events = %+v\nwant %+v", got, want)
 	}
 }
 

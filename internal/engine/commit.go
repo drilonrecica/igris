@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"text/template"
 	"time"
 
 	"github.com/drilonrecica/igris/internal/runner"
 	"github.com/drilonrecica/igris/internal/state"
+	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
 // Commit policies (SPEC §6.5).
@@ -68,10 +70,12 @@ func (e *Engine) commit(ctx context.Context, l *launch, note string) (stopped, r
 	}
 
 	if e.cfg.Run.Commit == CommitAsk {
+		e.waitOn(state.ReasonCommit, "commit question")
 		yes, stopped := e.ask(ctx, QuestionCommit, fmt.Sprintf("commit the changes of %s as %q?", t.ID, msg))
 		if stopped {
 			return true, false, nil
 		}
+		e.waitOver(state.ReasonCommit)
 		// A reset requested while the question waited comes right after it.
 		if reset, stopped, err := e.settleResets(ctx, t.ID); err != nil || stopped || reset {
 			return stopped, reset, err
@@ -92,10 +96,28 @@ func (e *Engine) commit(ctx context.Context, l *launch, note string) (stopped, r
 	if _, err := e.git(ctx, args...); err != nil {
 		return false, false, fmt.Errorf("%w; fix what git reports (e.g. a failing hook), commit the changes of %s by hand or set commit = \"never\" in [run], then run `igris arise` again", err, t.ID)
 	}
-	e.log(state.Event{Type: state.EventCommitted, Detail: msg})
+	e.log(state.Event{Type: state.EventCommitted, Commit: e.head(ctx), Detail: msg})
 	e.emit(Event{Kind: Committed, Detail: msg})
 	return false, false, nil
 }
+
+// head is the commit SHA HEAD points at, for the run log; "" with a
+// warning if git can't say.
+func (e *Engine) head(ctx context.Context) string {
+	out, err := e.git(ctx, "rev-parse", "HEAD")
+	sha := strings.TrimSpace(out)
+	if err == nil && !commitSHA.MatchString(sha) {
+		err = fmt.Errorf("git rev-parse HEAD printed %q, not a commit hash", textsafe.Line(sha))
+	}
+	if err != nil {
+		e.warn(fmt.Sprintf("the commit hash is left out of the run log: %v", err))
+		return ""
+	}
+	return sha
+}
+
+// commitSHA is a full SHA-1 or SHA-256 commit hash.
+var commitSHA = regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`)
 
 // git runs git in the project root and returns its output; a non-zero exit
 // is an error.

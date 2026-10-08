@@ -61,7 +61,7 @@ func (m Message) Body() string {
 			b.WriteString(" · ")
 		}
 		b.WriteString(m.TaskID)
-		if t := plainTitle(m.Title); t != "" {
+		if t := PlainTitle(m.Title); t != "" {
 			b.WriteString(" " + t)
 		}
 	}
@@ -74,10 +74,10 @@ func (m Message) Body() string {
 	return b.String()
 }
 
-// plainTitle drops the markdown a task title carries in the plan (`code`,
+// PlainTitle drops the markdown a task title carries in the plan (`code`,
 // **bold**), which a phone shows as raw characters, and a trailing period
 // that would run into the ": what" after it.
-func plainTitle(t string) string {
+func PlainTitle(t string) string {
 	t = strings.NewReplacer("`", "", "**", "", "__", "").Replace(t)
 	return strings.TrimRight(strings.TrimSpace(t), ".")
 }

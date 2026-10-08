@@ -33,6 +33,7 @@ type verdict struct {
 type episode struct {
 	since    time.Time // first settled observation; zero while working
 	needsYou bool      // NeedsYou was raised for this episode
+	reason   string    // its run log reason: state.ReasonIdle or ReasonBlocked
 }
 
 // watch polls l's session and the signals until the task is finished, the
@@ -79,6 +80,7 @@ func (e *Engine) watch(ctx context.Context, l *launch) (verdict, error) {
 					return verdict{}, err
 				}
 				skip = nil
+				e.waitOver(state.ReasonSkipRequest)
 			}
 		}
 
@@ -87,13 +89,17 @@ func (e *Engine) watch(ctx context.Context, l *launch) (verdict, error) {
 		}
 		switch sig := e.scanSignals(t, l.cur.StartedAt); {
 		case sig == nil:
-			skip = nil // a skip request that disappeared is withdrawn
+			if skip != nil {
+				// A skip request that disappeared is withdrawn.
+				skip = nil
+				e.waitOver(state.ReasonSkipRequest)
+			}
 		case state.Classify(*sig, t.ID, t.Owner) == state.Apply:
 			return verdict{kind: verdictDone, note: sig.Note, sig: sig}, nil
 		case skip == nil || !skip.At.Equal(sig.At):
 			// A skip from an agent session is only a request (SPEC §6.2).
 			skip = sig
-			e.needsYou(ctx, notifyNeedsInput, "the session asks to skip the task", "the session asks to skip")
+			e.needsYou(ctx, notifyNeedsInput, state.ReasonSkipRequest, "the session asks to skip the task", "the session asks to skip")
 			e.emit(Event{Kind: Asked, Question: QuestionConfirmSkip, Detail: fmt.Sprintf("skip %s? the session's reason: %s", t.ID, sig.Note)})
 		}
 
@@ -125,7 +131,10 @@ func (e *Engine) observe(ctx context.Context, st backend.AgentState, ep *episode
 	case st == backend.Working:
 		if ep.needsYou {
 			e.emit(Event{Kind: NeedsYouClear})
+			e.waitOver(ep.reason)
 		}
+		// The owner told the session about the failed verify themselves.
+		e.waitOver(state.ReasonVerifyNotSent)
 		*ep = episode{}
 	case st.Settled():
 		now := e.clock.Now()
@@ -133,12 +142,12 @@ func (e *Engine) observe(ctx context.Context, st backend.AgentState, ep *episode
 			ep.since = now
 		}
 		if after := e.cfg.NeedsInputAfter.Std(); !ep.needsYou && now.Sub(ep.since) >= after {
-			ep.needsYou = true
-			reason := fmt.Sprintf("idle %s without igris done", after)
+			ep.needsYou, ep.reason = true, state.ReasonIdle
+			words := fmt.Sprintf("idle %s without igris done", after)
 			if st == backend.Blocked {
-				reason = "waiting for a permission or an answer"
+				ep.reason, words = state.ReasonBlocked, "waiting for a permission or an answer"
 			}
-			e.needsYou(ctx, notifyNeedsInput, fmt.Sprintf("the agent is %s and has not run `igris done` for %s", st, after), reason)
+			e.needsYou(ctx, notifyNeedsInput, ep.reason, fmt.Sprintf("the agent is %s and has not run `igris done` for %s", st, after), words)
 		}
 	}
 	// Unknown tells nothing about the agent; the episode stays as it is.
@@ -161,20 +170,22 @@ func (e *Engine) checkOverdue(ctx context.Context, l *launch) {
 	what := "running longer than its Timeout " + l.t.TimeoutText
 	e.emit(Event{Kind: TaskOverdue, Detail: what})
 	e.log(state.Event{Type: state.EventTaskOverdue, Detail: what})
-	e.needsYou(ctx, notifyTaskOverdue, "the task is "+what+"; igris leaves its session running", what)
+	e.needsYou(ctx, notifyTaskOverdue, state.ReasonTaskOverdue, "the task is "+what+"; igris leaves its session running", what)
 }
 
-// needsYou marks the task Needs you and sends the notification event. why
-// is shown in the UI; the notification only says that igris waits.
-func (e *Engine) needsYou(ctx context.Context, event notify.Event, why, reason string) {
+// needsYou marks the task Needs you, logs it with reason (a state.Reason*)
+// and sends the notification event. why is shown in the UI; the
+// notification only says that igris waits, in words.
+func (e *Engine) needsYou(ctx context.Context, event notify.Event, reason, why, words string) {
 	e.emit(Event{Kind: NeedsYou, Detail: why})
 	what := "needs you"
 	if event == notifyVerifyLimit {
 		what = "verification keeps failing; needs you"
-	} else if reason != "" {
+	} else if words != "" {
 		// A few words, so two notifications in a row can be told apart.
-		what += " (" + reason + ")"
+		what += " (" + words + ")"
 	}
+	e.waitOn(reason, what)
 	e.toast(ctx, event, what)
 }
 
@@ -182,6 +193,7 @@ func (e *Engine) needsYou(ctx context.Context, event notify.Event, why, reason s
 func (e *Engine) lose(ctx context.Context, l *launch) {
 	l.lost = true
 	e.emit(Event{Kind: SessionLost, Detail: "the session is gone without `igris done`"})
+	e.waitOn(state.ReasonSessionLost, "session lost")
 	e.toast(ctx, notifySessionLost, "session lost")
 	choices := "continue its conversation, start a fresh session"
 	if l.cur.Session == nil {

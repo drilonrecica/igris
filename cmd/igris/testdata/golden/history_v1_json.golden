@@ -1,0 +1,108 @@
+exit: 0
+--- stdout
+{
+  "runs": [
+    {
+      "run": "20261003-080000-abcd",
+      "started_at": "2026-10-03T08:00:00Z",
+      "phases": [
+        "B"
+      ],
+      "end": "interrupted",
+      "done": 1,
+      "skipped": 0,
+      "tasks": [
+        {
+          "id": "B-1",
+          "rank": "sonnet",
+          "model": "sonnet",
+          "result": "done",
+          "attempts": 1,
+          "duration_s": 240,
+          "verify_failed": 0,
+          "verify_passed": 0
+        }
+      ],
+      "commits": [],
+      "errors": []
+    },
+    {
+      "run": "20261002-100000-00ff",
+      "started_at": "2026-10-02T10:00:00Z",
+      "phases": [
+        "A"
+      ],
+      "end": "interrupted",
+      "done": 0,
+      "skipped": 0,
+      "tasks": [
+        {
+          "id": "A-2",
+          "rank": "opus",
+          "model": "opus",
+          "result": "unfinished",
+          "attempts": 1,
+          "verify_failed": 0,
+          "verify_passed": 0
+        }
+      ],
+      "commits": [],
+      "errors": []
+    },
+    {
+      "run": "20261001-090000-3fa2",
+      "started_at": "2026-10-01T09:00:00Z",
+      "ended_at": "2026-10-01T09:12:07Z",
+      "duration_s": 727,
+      "phases": [
+        "A"
+      ],
+      "end": "completed",
+      "done": 1,
+      "skipped": 0,
+      "tasks": [
+        {
+          "id": "A-2",
+          "rank": "opus",
+          "model": "opus",
+          "result": "done",
+          "attempts": 1,
+          "duration_s": 725,
+          "verify_failed": 1,
+          "verify_passed": 1
+        }
+      ],
+      "commits": [
+        "A-2: Two"
+      ],
+      "errors": []
+    },
+    {
+      "started_at": "2026-09-30T09:00:00Z",
+      "ended_at": "2026-09-30T09:03:01Z",
+      "duration_s": 181,
+      "phases": [
+        "A"
+      ],
+      "end": "completed",
+      "done": 1,
+      "skipped": 0,
+      "tasks": [
+        {
+          "id": "A-1",
+          "rank": "sonnet",
+          "model": "sonnet",
+          "result": "done",
+          "attempts": 1,
+          "duration_s": 179,
+          "verify_failed": 0,
+          "verify_passed": 0
+        }
+      ],
+      "commits": [],
+      "errors": []
+    }
+  ],
+  "note": "runs.jsonl has lines from a newer igris (v2); some details may be missing"
+}
+--- stderr

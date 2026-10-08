@@ -15,6 +15,7 @@ import (
 // request while igris runs: it is applied once the owner says yes.
 type resetAsk struct {
 	sig      state.Signal
+	rank     string // the task's rank, for the run log
 	answered bool
 	yes      bool
 }
@@ -52,6 +53,9 @@ func (e *Engine) resets(ctx context.Context, apply bool) (current bool, err erro
 		}
 		// Gone, or replaced by a newer request, which is asked about below.
 		e.emit(Event{Kind: ResetDropped, Task: a.sig.ID, Detail: "the reset request for " + a.sig.ID + " was withdrawn"})
+		if !a.answered {
+			e.logResetWait(a, state.EventNeedsYouClear, "")
+		}
 	}
 	e.resetAsks = kept
 	for _, s := range sigs {
@@ -105,7 +109,8 @@ func (e *Engine) askReset(ctx context.Context, s state.Signal) error {
 	if ok, err := e.resettable(t, s); !ok || err != nil {
 		return err
 	}
-	e.resetAsks = append(e.resetAsks, &resetAsk{sig: s})
+	ask := &resetAsk{sig: s, rank: t.Rank}
+	e.resetAsks = append(e.resetAsks, ask)
 	what := "reset " + t.ID + " (" + t.Status.String() + ") to ready/blocked"
 	if s.Force {
 		what += " (forced)"
@@ -115,8 +120,17 @@ func (e *Engine) askReset(ctx context.Context, s state.Signal) error {
 	}
 	e.emit(Event{Kind: Asked, Question: QuestionConfirmReset, Task: t.ID, Title: t.Title, Rank: t.Rank, Phase: phaseOf(t),
 		Detail: what + "? `igris reset` asks for it, but a session can write the request too: confirm only if you ran it"})
-	e.toast(ctx, notifyNeedsInput, "a reset of "+t.ID+" waits for your confirmation")
+	note := "a reset of " + t.ID + " waits for your confirmation"
+	e.logResetWait(ask, state.EventNeedsYou, note)
+	e.toast(ctx, notifyNeedsInput, note)
 	return nil
+}
+
+// logResetWait logs that a's reset request waits for the owner (typ
+// needs_you) or no longer does (needs_you_clear). The request may be for
+// any task, not only the current one.
+func (e *Engine) logResetWait(a *resetAsk, typ state.EventType, detail string) {
+	e.log(state.Event{Type: typ, Task: a.sig.ID, Rank: a.rank, Reason: state.ReasonResetRequest, Detail: detail})
 }
 
 // resettable checks s against t, its task in the plan as read now (nil if
@@ -173,6 +187,7 @@ func (e *Engine) takeResetAnswers() {
 			continue
 		}
 		a.answered, a.yes = true, c.Yes
+		e.logResetWait(a, state.EventNeedsYouClear, "")
 	}
 }
 

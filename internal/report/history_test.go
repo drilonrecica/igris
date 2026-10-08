@@ -145,3 +145,47 @@ func TestScopePhases(t *testing.T) {
 		}
 	}
 }
+
+// v1 lines are grouped by run ID; v0 lines by run_started…run_stopped,
+// and a v1 run_started closes an open v0 run (SPEC §13).
+func TestHistoryGroupsByRunID(t *testing.T) {
+	in := func(run string, e state.Event) state.Event { e.V, e.Run = 1, run; return e }
+	const r1, r2 = "20261007-093100-aaaa", "20261007-094000-bbbb"
+	events := []state.Event{
+		ev(0, state.EventRunStarted, "", "phase A"), // v0, never stopped
+		ev(0, state.EventTaskStarted, "A-1", ""),
+		in(r1, ev(1, state.EventRunStarted, "", "phase A")),
+		ev(2, state.EventTaskDone, "A-1", "v0 line, no open v0 run: dropped"),
+		in(r1, ev(2, state.EventTaskStarted, "A-1", "")),
+		in(r1, ev(3, state.EventRunStopped, "", "stopped")),
+		in("", ev(5, state.EventTaskReset, "A-1", "in progress")), // outside a run
+		in(r2, ev(10, state.EventRunStarted, "", "phase A")),
+		in(r2, ev(11, state.EventTaskResumed, "A-1", "")),
+		in(r1, ev(12, state.EventError, "", "a late line of r1 still counts for r1")),
+		in(r2, ev(13, state.EventTaskDone, "A-1", "ok")),
+		in(r2, ev(14, state.EventRunStopped, "", "completed")),
+	}
+	h := NewHistory(HistoryInput{Events: events})
+	if len(h.Runs) != 3 || h.Note != "" {
+		t.Fatalf("runs = %+v, note %q", h.Runs, h.Note)
+	}
+	newest, mid, oldest := h.Runs[0], h.Runs[1], h.Runs[2]
+	if newest.Run != r2 || newest.End != "completed" || newest.Done != 1 || newest.Tasks[0].DurationS != 120 {
+		t.Errorf("newest = %+v", newest)
+	}
+	if mid.Run != r1 || mid.End != "stopped" || mid.Tasks[0].Result != ResultOpen || len(mid.Errors) != 1 {
+		t.Errorf("mid = %+v", mid)
+	}
+	if oldest.Run != "" || oldest.End != EndInterrupted || oldest.Tasks[0].Result != ResultOpen {
+		t.Errorf("oldest = %+v", oldest)
+	}
+	th := NewTaskHistory(HistoryInput{Events: events}, "A-1")
+	if len(th.Attempts) != 3 || th.Attempts[0].Run != r2 || th.Attempts[2].Run != "" {
+		t.Errorf("attempts = %+v", th.Attempts)
+	}
+
+	newer := append(events, state.Event{V: 2, At: t0, Type: "warp", Run: r2})
+	if got := NewHistory(HistoryInput{Events: newer}).Note; got != "runs.jsonl has lines from a newer igris (v2); some details may be missing" {
+		t.Errorf("note = %q", got)
+	}
+}

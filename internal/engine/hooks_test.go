@@ -228,6 +228,10 @@ func TestBeforeTaskFailure(t *testing.T) {
 			if h.count(SessionLost) != 0 {
 				t.Errorf("a failed hook is no lost session: %s", h.kinds())
 			}
+			// The retry ends the wait and is the task's second attempt.
+			if got, want := h.waits(), "A-1#1 hook_failed, clear A-1#1 hook_failed, retried A-1#2"; got != want {
+				t.Errorf("run log waits = %q, want %q", got, want)
+			}
 			events, err := h.dir.Events()
 			if err != nil {
 				t.Fatal(err)

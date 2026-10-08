@@ -63,7 +63,9 @@ func (e *Engine) verify(ctx context.Context, l *launch) (bool, error) {
 	e.emit(Event{Kind: VerifyStarted, Detail: script})
 	c := runner.Shell(script, e.dir.Root(), timeout)
 	c.Combined = true
+	began := e.clock.Now()
 	res, err := e.runner.Run(ctx, c)
+	took := e.sinceMS(began)
 
 	var why string
 	switch {
@@ -81,7 +83,7 @@ func (e *Engine) verify(ctx context.Context, l *launch) (bool, error) {
 		if err := e.dir.SaveRun(e.run); err != nil {
 			return false, err
 		}
-		e.log(state.Event{Type: state.EventVerifyPassed, Detail: "profile " + profile})
+		e.log(state.Event{Type: state.EventVerifyPassed, Profile: profile, DurationMS: took, Detail: "profile " + profile})
 		e.emit(Event{Kind: VerifyPassed, Detail: script})
 		return true, nil
 	}
@@ -92,7 +94,7 @@ func (e *Engine) verify(ctx context.Context, l *launch) (bool, error) {
 		return false, err
 	}
 	// The log keeps the result, never the output (SPEC §13).
-	e.log(state.Event{Type: state.EventVerifyFailed, Detail: fmt.Sprintf("profile %s: attempt %d of %d: %s", profile, n, max, why)})
+	e.log(state.Event{Type: state.EventVerifyFailed, Profile: profile, DurationMS: took, Detail: fmt.Sprintf("profile %s: attempt %d of %d: %s", profile, n, max, why)})
 	if err := e.dir.RemoveSignal(t.ID); err != nil {
 		return false, err
 	}
@@ -100,7 +102,7 @@ func (e *Engine) verify(ctx context.Context, l *launch) (bool, error) {
 
 	if n >= max {
 		e.emit(Event{Kind: VerifyLimit, Detail: fmt.Sprintf("verify failed %s in a row; igris stops sending failures to the session", times(n))})
-		e.needsYou(ctx, notifyVerifyLimit, fmt.Sprintf("verification failed %s; fix it, retry or skip the task", times(n)), "")
+		e.needsYou(ctx, notifyVerifyLimit, state.ReasonVerifyLimit, fmt.Sprintf("verification failed %s; fix it, retry or skip the task", times(n)), "")
 		return false, nil
 	}
 	if l.lost {
@@ -119,7 +121,7 @@ func (e *Engine) verify(ctx context.Context, l *launch) (bool, error) {
 			return false, err
 		}
 		e.warn(fmt.Sprintf("send the verify failure to %s: %v", t.ID, err))
-		e.needsYou(ctx, notifyNeedsInput, "the verify failure could not be sent to the session; tell it yourself", "verify failure not sent to the session")
+		e.needsYou(ctx, notifyNeedsInput, state.ReasonVerifyNotSent, "the verify failure could not be sent to the session; tell it yourself", "verify failure not sent to the session")
 	}
 	return false, nil
 }
