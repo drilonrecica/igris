@@ -7,11 +7,11 @@ import (
 
 // FromConfig builds the router for the [notify] settings. A channel is left
 // out when it is off or not set up: the backend toast when disabled, ntfy
-// without a topic, Discord without a webhook URL, the webhook without a
-// URL, and any channel whose events list is empty. secrets holds the
-// resolved env: references; every value is scrubbed from the errors the
-// router reports. tune adjusts the router's Options last (tests use it to
-// avoid real sleeps).
+// without a topic, Discord, Slack and the webhook without a URL, Gotify
+// without a server and a token, and any channel whose events list is
+// empty. secrets holds the resolved env: references; every value is
+// scrubbed from the errors the router reports. tune adjusts the router's
+// Options last (tests use it to avoid real sleeps).
 func FromConfig(c config.Notify, s config.Secrets, be backend.Backend, tune ...func(*Options)) *Router {
 	var entries []Entry
 	if c.Backend.Enabled && be != nil {
@@ -37,7 +37,19 @@ func FromConfig(c config.Notify, s config.Secrets, be backend.Backend, tune ...f
 			Events:  toEvents(c.Webhook.Events),
 		})
 	}
-	o := Options{Channels: entries, Secrets: []string{s.NtfyToken, s.DiscordWebhook, s.WebhookURL, s.WebhookSecret}}
+	if s.SlackWebhook != "" && len(c.Slack.Events) > 0 {
+		entries = append(entries, Entry{
+			Channel: &Slack{WebhookURL: s.SlackWebhook},
+			Events:  toEvents(c.Slack.Events),
+		})
+	}
+	if c.Gotify.Server != "" && s.GotifyToken != "" && len(c.Gotify.Events) > 0 {
+		entries = append(entries, Entry{
+			Channel: &Gotify{Server: c.Gotify.Server, Token: s.GotifyToken},
+			Events:  toEvents(c.Gotify.Events),
+		})
+	}
+	o := Options{Channels: entries, Secrets: []string{s.NtfyToken, s.DiscordWebhook, s.WebhookURL, s.WebhookSecret, s.SlackWebhook, s.GotifyToken}}
 	for _, f := range tune {
 		f(&o)
 	}

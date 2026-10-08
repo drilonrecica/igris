@@ -82,6 +82,21 @@ func TestSettingsNewChannels(t *testing.T) {
 	if s := find(t, secs, "notify.webhook", "secret"); s.Value != "set (env:WH_SECRET)" || !s.Secret {
 		t.Errorf("secret row %+v", s)
 	}
+	if has(secs, "notify.slack") || has(secs, "notify.gotify") {
+		t.Error("unset Slack or Gotify is shown")
+	}
+	cfg.Notify.Slack.WebhookURL = "https://hooks.slack.example/T/B/TOKEN"
+	cfg.Notify.Gotify.Server, cfg.Notify.Gotify.Token = "https://me:pa55@gotify.example", "AppTOKEN"
+	secs = NewSettings(cfg, nil, nil)
+	if r := find(t, secs, "notify.slack", "webhook_url"); r.Value != "set (hidden)" || !r.Secret {
+		t.Errorf("slack row %+v", r)
+	}
+	if r := find(t, secs, "notify.gotify", "token"); r.Value != "set (hidden)" || !r.Secret {
+		t.Errorf("gotify token row %+v", r)
+	}
+	if r := find(t, secs, "notify.gotify", "server"); strings.Contains(r.Value, "pa55") || !strings.Contains(r.Value, "gotify.example") {
+		t.Errorf("gotify server row %+v", r)
+	}
 }
 
 func TestSettingsMarkDefaults(t *testing.T) {

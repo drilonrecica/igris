@@ -121,6 +121,17 @@ func NewSettings(cfg *config.Config, keys config.Keys, getenv func(string) strin
 		secret(wh, "secret", cfg.Notify.Webhook.Secret)
 		set(wh, "events", tomlArray(cfg.Notify.Webhook.Events))
 	}
+	if !cfg.Notify.Slack.IsZero() {
+		sl := sec("notify.slack")
+		secret(sl, "webhook_url", cfg.Notify.Slack.WebhookURL)
+		set(sl, "events", tomlArray(cfg.Notify.Slack.Events))
+	}
+	if !cfg.Notify.Gotify.IsZero() {
+		gt := sec("notify.gotify")
+		set(gt, "server", tomlString(redactURL(cfg.Notify.Gotify.Server)))
+		secret(gt, "token", cfg.Notify.Gotify.Token)
+		set(gt, "events", tomlArray(cfg.Notify.Gotify.Events))
+	}
 	return out
 }
 

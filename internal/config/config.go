@@ -226,6 +226,8 @@ type Notify struct {
 	// file while they are not set up (IsZero), so a v0.4 config keeps its
 	// hash.
 	Webhook Webhook `toml:"webhook,omitempty" json:",omitzero"`
+	Slack   Slack   `toml:"slack,omitempty" json:",omitzero"`
+	Gotify  Gotify  `toml:"gotify,omitempty" json:",omitzero"`
 }
 
 // NotifyBackend is the backend toast channel.
@@ -261,6 +263,25 @@ type Webhook struct {
 // whatever its events (they do nothing without a url).
 func (w Webhook) IsZero() bool { return w.URL == "" && w.Secret == "" }
 
+// Slack is the Slack incoming-webhook channel (SPEC §10).
+type Slack struct {
+	WebhookURL string   `toml:"webhook_url"`
+	Events     []string `toml:"events"` // see Ntfy.Events
+}
+
+// IsZero reports that the channel is not set up (no webhook_url).
+func (s Slack) IsZero() bool { return s.WebhookURL == "" }
+
+// Gotify is the Gotify channel (SPEC §10).
+type Gotify struct {
+	Server string   `toml:"server"`
+	Token  string   `toml:"token"`
+	Events []string `toml:"events"` // see Ntfy.Events
+}
+
+// IsZero reports that the channel is not set up: no server and no token.
+func (g Gotify) IsZero() bool { return g.Server == "" && g.Token == "" }
+
 // Secrets are the resolved values of the env:VAR references. They are never
 // part of Config, so they cannot leak through the config hash or snapshot.
 type Secrets struct {
@@ -268,6 +289,8 @@ type Secrets struct {
 	DiscordWebhook string
 	WebhookURL     string
 	WebhookSecret  string
+	SlackWebhook   string
+	GotifyToken    string
 }
 
 // String redacts every secret.
@@ -342,6 +365,8 @@ func Default() *Config {
 			Ntfy:    Ntfy{Server: "https://ntfy.sh", Events: defaultEvents()},
 			Discord: Discord{Events: defaultEvents()},
 			Webhook: Webhook{Events: defaultEvents()},
+			Slack:   Slack{Events: defaultEvents()},
+			Gotify:  Gotify{Events: defaultEvents()},
 		},
 	}
 }
@@ -491,6 +516,8 @@ func (c *Config) Validate() error {
 		{"notify.ntfy.events", c.Notify.Ntfy.Events},
 		{"notify.discord.events", c.Notify.Discord.Events},
 		{"notify.webhook.events", c.Notify.Webhook.Events},
+		{"notify.slack.events", c.Notify.Slack.Events},
+		{"notify.gotify.events", c.Notify.Gotify.Events},
 	} {
 		for _, ev := range ch.events {
 			if !contains(validEvents, ev) {
@@ -513,6 +540,16 @@ func (c *Config) validateChannels(add func(string, ...any)) {
 	}
 	if w.URL != "" && !isEnvRef(w.URL) && !httpURL(w.URL) {
 		add("%s", badURL("notify.webhook.url"))
+	}
+	g := c.Notify.Gotify
+	switch {
+	case g.Server != "" && g.Token == "":
+		add("notify.gotify.server is set but notify.gotify.token is not; set the application token (e.g. \"env:GOTIFY_TOKEN\") or remove the server")
+	case g.Token != "" && g.Server == "":
+		add("notify.gotify.token is set but notify.gotify.server is not; set the server (e.g. \"https://gotify.example.org\") or remove the token")
+	}
+	if g.Server != "" && !httpURL(g.Server) {
+		add("notify.gotify.server is not an http or https URL with a host; use e.g. \"https://gotify.example.org\"")
 	}
 }
 
@@ -617,6 +654,8 @@ func (c *Config) Resolve(getenv func(string) string) (Secrets, error) {
 	s.DiscordWebhook = resolve("notify.discord.webhook_url", c.Notify.Discord.WebhookURL)
 	s.WebhookURL = resolve("notify.webhook.url", c.Notify.Webhook.URL)
 	s.WebhookSecret = resolve("notify.webhook.secret", c.Notify.Webhook.Secret)
+	s.SlackWebhook = resolve("notify.slack.webhook_url", c.Notify.Slack.WebhookURL)
+	s.GotifyToken = resolve("notify.gotify.token", c.Notify.Gotify.Token)
 	// Validate checks a URL written in igris.toml; one from the environment
 	// is checked here, once it is known.
 	if isEnvRef(c.Notify.Webhook.URL) && s.WebhookURL != "" && !httpURL(s.WebhookURL) {
@@ -641,6 +680,16 @@ func Write(path string, c *Config) error {
 		out.Notify.Webhook = Webhook{}
 	} else if slices.Equal(out.Notify.Webhook.Events, defaultEvents()) {
 		out.Notify.Webhook.Events = nil
+	}
+	if out.Notify.Slack.IsZero() {
+		out.Notify.Slack = Slack{}
+	} else if slices.Equal(out.Notify.Slack.Events, defaultEvents()) {
+		out.Notify.Slack.Events = nil
+	}
+	if out.Notify.Gotify.IsZero() {
+		out.Notify.Gotify = Gotify{}
+	} else if slices.Equal(out.Notify.Gotify.Events, defaultEvents()) {
+		out.Notify.Gotify.Events = nil
 	}
 	var buf bytes.Buffer
 	if err := toml.NewEncoder(&buf).Encode(&out); err != nil {

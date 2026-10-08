@@ -349,6 +349,12 @@ func notifyChannels(cfg *config.Config, getenv func(string) string) Result {
 	if secrets.WebhookURL != "" && len(cfg.Notify.Webhook.Events) > 0 {
 		on = append(on, "webhook")
 	}
+	if secrets.SlackWebhook != "" && len(cfg.Notify.Slack.Events) > 0 {
+		on = append(on, "Slack")
+	}
+	if cfg.Notify.Gotify.Server != "" && secrets.GotifyToken != "" && len(cfg.Notify.Gotify.Events) > 0 {
+		on = append(on, "Gotify")
+	}
 	if len(on) == 0 {
 		return Result{ID: IDNotify, Level: Warn, Message: "no notification channel is set up: you won't hear when a task needs you", Next: "edit " + state.ConfigFile + " [notify]"}
 	}

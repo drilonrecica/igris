@@ -196,6 +196,12 @@ func TestParseErrors(t *testing.T) {
 		{"webhook url relative", "[notify.webhook]\nurl = \"hooks/x\"", []string{"notify.webhook.url is not an http or https URL"}},
 		{"webhook bad event", "[notify.webhook]\nurl = \"https://h/x\"\nevents = [\"nope\"]", []string{"notify.webhook.events", `"nope"`}},
 		{"webhook template not yet", "[notify.webhook]\ntemplate = \"x\"", []string{"notify.webhook.template"}},
+		{"slack bad event", "[notify.slack]\nwebhook_url = \"https://h/x\"\nevents = [\"nope\"]", []string{"notify.slack.events", `"nope"`}},
+		{"unknown slack key", "[notify.slack]\nurl = \"https://h/x\"", []string{"notify.slack.url"}},
+		{"gotify server only", "[notify.gotify]\nserver = \"https://g.example\"", []string{"notify.gotify.server is set but notify.gotify.token is not"}},
+		{"gotify token only", "[notify.gotify]\ntoken = \"env:GT\"", []string{"notify.gotify.token is set but notify.gotify.server is not"}},
+		{"gotify server not http", "[notify.gotify]\nserver = \"gotify.example\"\ntoken = \"t\"", []string{"notify.gotify.server is not an http or https URL"}},
+		{"gotify bad event", "[notify.gotify]\nserver = \"https://g\"\ntoken = \"t\"\nevents = [\"nope\"]", []string{"notify.gotify.events", `"nope"`}},
 		{"multiple problems reported together", "default_mode = \"x\"\n[run]\ncommit = \"y\"", []string{"default_mode", "run.commit"}},
 	}
 	for _, tt := range tests {
@@ -303,6 +309,24 @@ func TestWebhookSecrets(t *testing.T) {
 	}
 }
 
+func TestSlackGotifySecrets(t *testing.T) {
+	c, err := Parse([]byte("[notify.slack]\nwebhook_url = \"env:SLACK\"\n[notify.gotify]\nserver = \"https://gotify.test\"\ntoken = \"env:GT\"\n"), "igris.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	env := map[string]string{"SLACK": "https://hooks.slack.test/T/B/x", "GT": "AppTok"}
+	s, err := c.Resolve(func(k string) string { return env[k] })
+	if err != nil || s.SlackWebhook != "https://hooks.slack.test/T/B/x" || s.GotifyToken != "AppTok" {
+		t.Errorf("resolved %v: slack %q gotify %q", err, s.SlackWebhook, s.GotifyToken)
+	}
+	if _, err := c.Resolve(func(string) string { return "" }); err == nil || !strings.Contains(err.Error(), "SLACK") || !strings.Contains(err.Error(), "GT") {
+		t.Errorf("unset variables: %v", err)
+	}
+	if c.Notify.Gotify.Server != "https://gotify.test" || c.Notify.Gotify.Token != "env:GT" {
+		t.Errorf("config must keep the reference: %+v", c.Notify.Gotify)
+	}
+}
+
 // A v0.4 config has none of the v0.5 channels: an unset channel changes
 // neither the hash nor the written file.
 func TestHashWithoutNewChannelsIsUnchanged(t *testing.T) {
@@ -310,7 +334,7 @@ func TestHashWithoutNewChannelsIsUnchanged(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{`"Webhook"`} {
+	for _, key := range []string{`"Webhook"`, `"Slack"`, `"Gotify"`} {
 		if strings.Contains(string(b), key) {
 			t.Errorf("config JSON has %s: %s", key, b)
 		}
@@ -319,10 +343,13 @@ func TestHashWithoutNewChannelsIsUnchanged(t *testing.T) {
 	if err := Write(path, Default()); err != nil {
 		t.Fatal(err)
 	}
-	if data, err := os.ReadFile(path); err != nil || strings.Contains(string(data), "webhook]") { //nolint:gosec // the test's own temp file
+	if data, err := os.ReadFile(path); err != nil || (strings.Contains(string(data), "webhook]") || strings.Contains(string(data), "slack") || strings.Contains(string(data), "gotify")) { //nolint:gosec // the test's own temp file
 		t.Errorf("written default config has a new channel (%v):\n%s", err, data)
 	}
-	for _, src := range []string{"[notify.webhook]\n", "[notify.webhook]\nevents = []\n", "[notify.webhook]\nevents = [\"task_done\"]\n"} {
+	for _, src := range []string{
+		"[notify.webhook]\n", "[notify.webhook]\nevents = []\n", "[notify.webhook]\nevents = [\"task_done\"]\n",
+		"[notify.slack]\n", "[notify.slack]\nevents = [\"task_done\"]\n", "[notify.gotify]\nevents = []\n",
+	} {
 		c, err := Parse([]byte(src), "igris.toml")
 		if err != nil {
 			t.Fatal(err)
@@ -331,7 +358,10 @@ func TestHashWithoutNewChannelsIsUnchanged(t *testing.T) {
 			t.Errorf("%q changed the hash", src)
 		}
 	}
-	for _, src := range []string{"[notify.webhook]\nurl = \"https://h/x\"\n", "[notify.webhook]\nurl = \"env:U\"\nsecret = \"env:S\"\n"} {
+	for _, src := range []string{
+		"[notify.webhook]\nurl = \"https://h/x\"\n", "[notify.webhook]\nurl = \"env:U\"\nsecret = \"env:S\"\n",
+		"[notify.slack]\nwebhook_url = \"env:S\"\n", "[notify.gotify]\nserver = \"https://g\"\ntoken = \"env:T\"\n",
+	} {
 		c, err := Parse([]byte(src), "igris.toml")
 		if err != nil {
 			t.Fatal(err)
@@ -343,7 +373,7 @@ func TestHashWithoutNewChannelsIsUnchanged(t *testing.T) {
 }
 
 func TestSecretsAreRedacted(t *testing.T) {
-	s := Secrets{NtfyToken: "supersecret", DiscordWebhook: "https://hook/secret", WebhookURL: "https://wh/secret", WebhookSecret: "secretsig"}
+	s := Secrets{NtfyToken: "supersecret", DiscordWebhook: "https://hook/secret", WebhookURL: "https://wh/secret", WebhookSecret: "secretsig", SlackWebhook: "https://slack/secret", GotifyToken: "gotifysecret"}
 	for _, out := range []string{
 		fmt.Sprint(s), fmt.Sprintf("%v", s), fmt.Sprintf("%+v", s), fmt.Sprintf("%#v", s),
 	} {
@@ -573,7 +603,7 @@ func TestForbiddenExtraArg(t *testing.T) {
 }
 
 func TestWriteRoundTrips(t *testing.T) {
-	for _, src := range []string{"", "plan = \"x.md\"\n[run]\nverify = \"make test\"\ncommit = \"never\"\n[columns]\n\"Depends on\" = \"Deps\"\n[notify.ntfy]\ntoken = \"env:T\"\n[tui]\ntheme = \"dark\"\n[tui.rank_colors]\nopus = \"5\"\n", "[verify]\nfast = \"go test ./...\"\n[phases.M1]\nverify = \"fast\"\n[phases.\"V1.2\"]\nverify = \"none\"\n", "[hooks]\nbefore_task = [\"./prep\", \"a b\"]\nafter_task = [\"post\"]\ntimeout = \"45s\"\n", "[notify.webhook]\nurl = \"env:WH\"\nsecret = \"env:WS\"\nevents = [\"task_done\", \"needs_input\"]\n", "[notify.webhook]\nurl = \"https://h/x\"\nevents = []\n"} {
+	for _, src := range []string{"", "plan = \"x.md\"\n[run]\nverify = \"make test\"\ncommit = \"never\"\n[columns]\n\"Depends on\" = \"Deps\"\n[notify.ntfy]\ntoken = \"env:T\"\n[tui]\ntheme = \"dark\"\n[tui.rank_colors]\nopus = \"5\"\n", "[verify]\nfast = \"go test ./...\"\n[phases.M1]\nverify = \"fast\"\n[phases.\"V1.2\"]\nverify = \"none\"\n", "[hooks]\nbefore_task = [\"./prep\", \"a b\"]\nafter_task = [\"post\"]\ntimeout = \"45s\"\n", "[notify.webhook]\nurl = \"env:WH\"\nsecret = \"env:WS\"\nevents = [\"task_done\", \"needs_input\"]\n", "[notify.webhook]\nurl = \"https://h/x\"\nevents = []\n", "[notify.slack]\nwebhook_url = \"env:S\"\nevents = [\"task_done\"]\n[notify.gotify]\nserver = \"https://g\"\ntoken = \"env:T\"\n"} {
 		want, err := Parse([]byte(src), "igris.toml")
 		if err != nil {
 			t.Fatal(err)
@@ -638,13 +668,18 @@ func TestWriteOmitsDefaultEvents(t *testing.T) {
 	silent.Notify.Ntfy.Events = []string{}
 	webhook := Default()
 	webhook.Notify.Webhook.URL = "env:WH"
+	slack := Default()
+	slack.Notify.Slack.WebhookURL = "env:S"
+	gotify := Default()
+	gotify.Notify.Gotify.Server, gotify.Notify.Gotify.Token = "https://g", "env:T"
+	gotify.Notify.Gotify.Events = []string{"needs_input"}
 	unset := Default()
 	unset.Notify.Webhook.Events = []string{"task_done"} // no url: not set up
 	for _, tt := range []struct {
 		name string
 		cfg  *Config
 		want int // event lists written
-	}{{"defaults", Default(), 0}, {"reordered", reordered, 1}, {"custom", custom, 1}, {"no events", silent, 1}, {"webhook", webhook, 0}, {"webhook not set up", unset, 0}} {
+	}{{"defaults", Default(), 0}, {"reordered", reordered, 1}, {"custom", custom, 1}, {"no events", silent, 1}, {"webhook", webhook, 0}, {"slack", slack, 0}, {"gotify", gotify, 1}, {"webhook not set up", unset, 0}} {
 		t.Run(tt.name, func(t *testing.T) {
 			before := tt.cfg.Hash()
 			path := filepath.Join(t.TempDir(), "igris.toml")

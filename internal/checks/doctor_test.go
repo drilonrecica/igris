@@ -179,7 +179,13 @@ func TestNotifyChannels(t *testing.T) {
 	if r.Level != OK || !strings.Contains(r.Message, "ntfy, Discord, webhook") || strings.Contains(r.Message, "secret") {
 		t.Errorf("webhook: %+v", r)
 	}
-	cfg.Notify.Webhook = config.Webhook{}
+	cfg.Notify.Slack = config.Slack{WebhookURL: "https://hooks.slack.invalid/secret-slack", Events: []string{"needs_input"}}
+	cfg.Notify.Gotify = config.Gotify{Server: "https://gotify.invalid", Token: "secret-token", Events: []string{"needs_input"}}
+	r = notifyChannels(cfg, env)
+	if r.Level != OK || !strings.Contains(r.Message, "webhook, Slack, Gotify") || strings.Contains(r.Message, "secret") {
+		t.Errorf("slack+gotify: %+v", r)
+	}
+	cfg.Notify.Webhook, cfg.Notify.Slack, cfg.Notify.Gotify = config.Webhook{}, config.Slack{}, config.Gotify{}
 	cfg.Notify.Discord.WebhookURL = "env:DISCORD_HOOK"
 	if r := notifyChannels(cfg, env); r.Level != Warn || !strings.Contains(r.Message, "DISCORD_HOOK") {
 		t.Errorf("unset env ref: %+v", r)

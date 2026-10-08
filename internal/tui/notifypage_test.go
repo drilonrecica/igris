@@ -76,6 +76,14 @@ func TestNotifyDialogNamesChannels(t *testing.T) {
 	if !strings.Contains(home.dialog.title, "ntfy, discord, webhook, herdr toast?") {
 		t.Errorf("title = %q lacks the webhook", home.dialog.title)
 	}
+	home.pick(actClose)
+
+	home.snap.Config.Notify.Slack.WebhookURL = "env:SL"
+	home.snap.Config.Notify.Gotify.Server, home.snap.Config.Notify.Gotify.Token = "https://g", "env:GT"
+	home.activate(actNotify)
+	if !strings.Contains(home.dialog.title, "ntfy, discord, webhook, slack, gotify, herdr toast?") {
+		t.Errorf("title = %q lacks slack and gotify", home.dialog.title)
+	}
 }
 
 func TestNotifyRowsFillLive(t *testing.T) {

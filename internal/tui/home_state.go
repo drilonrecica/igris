@@ -177,7 +177,8 @@ func (m *homeScreen) channels() bool {
 		return false
 	}
 	n := m.snap.Config.Notify
-	return n.Ntfy.Topic != "" || n.Discord.WebhookURL != "" || n.Webhook.URL != "" || (n.Backend.Enabled && m.herdr())
+	return n.Ntfy.Topic != "" || n.Discord.WebhookURL != "" || n.Webhook.URL != "" ||
+		n.Slack.WebhookURL != "" || (n.Gotify.Server != "" && n.Gotify.Token != "") || (n.Backend.Enabled && m.herdr())
 }
 
 // planName is the plan file's base name, cleaned for the terminal: the

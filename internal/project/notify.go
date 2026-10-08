@@ -64,4 +64,4 @@ func TestMessages(r *notify.Router, name string, only notify.Event) []notify.Mes
 }
 
 // NoChannels is what notify test says when no channel is set up.
-const NoChannels = "no channel is set up for that: set [notify.ntfy] topic, [notify.discord] webhook_url or [notify.webhook] url in igris.toml (see the README), or enable the herdr toast"
+const NoChannels = "no channel is set up for that: set up [notify.ntfy], [notify.discord], [notify.webhook], [notify.slack] or [notify.gotify] in igris.toml (see the README), or enable the herdr toast"
