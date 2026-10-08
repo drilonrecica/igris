@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -14,8 +16,9 @@ import (
 const MaxContext = 20
 
 // checkContext reports the problems of t's Context paths (SPEC §3.2): too
-// many, absolute, with a ".." element, missing, or leading outside the
-// root once symlinks are resolved. igris only names the paths in the
+// many, absolute, with a ".." element, the whole project, missing, a file
+// with a trailing slash, or leading outside the root once symlinks are
+// resolved. igris only names the paths in the
 // prompt; it never reads the files.
 func (v *validator) checkContext(at int, name string, t *Task) {
 	if len(t.Context) > MaxContext {
@@ -41,6 +44,9 @@ func (v *validator) contextProblem(e string) string {
 			return "leaves the project: paths must stay inside the project; use a repo-relative path"
 		}
 	}
+	if path.Clean(e) == "." {
+		return "names the whole project; list the files or directories to read"
+	}
 	root, err := v.realRoot()
 	if err != nil {
 		return fmt.Sprintf("can't be checked: resolve the project root: %v", err)
@@ -55,20 +61,27 @@ func (v *validator) contextProblem(e string) string {
 	if rel, err := filepath.Rel(root, real); err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return "leads outside the project through a symlink; paths must stay inside the project; use a repo-relative path"
 	}
+	// filepath.Join drops a trailing slash, so "SPEC.md/" resolved fine.
+	if strings.HasSuffix(e, "/") {
+		if fi, err := os.Stat(real); err == nil && !fi.IsDir() { //nolint:gosec // real is checked to be inside the root above
+			return "is a file, not a directory; drop the trailing /"
+		}
+	}
 	return ""
 }
 
-// realRoot is the root Context paths are resolved against, with symlinks
-// resolved, computed once per validation.
+// realRoot is the root Context paths are resolved against, absolute and
+// with symlinks resolved, computed once per validation. Abs comes first:
+// for "." it reads $PWD, which may name a symlink.
 func (v *validator) realRoot() (string, error) {
 	if v.root == "" && v.rootErr == nil {
 		root := v.rules.Root
 		if root == "" {
 			root = "."
 		}
-		r, err := filepath.EvalSymlinks(root)
+		r, err := filepath.Abs(root)
 		if err == nil {
-			r, err = filepath.Abs(r)
+			r, err = filepath.EvalSymlinks(r)
 		}
 		v.root, v.rootErr = r, err
 	}

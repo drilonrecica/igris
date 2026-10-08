@@ -70,8 +70,9 @@ func planSummary(p *Plan, issues []Issue) string {
 		fmt.Fprintf(&b, "phase %q %q %q %d\n", ph.ID, ph.Title, ph.Columns, len(ph.Tasks))
 	}
 	for _, t := range p.Tasks {
-		fmt.Fprintf(&b, "task %q %q %v %q %q %q %q %q %q %q %d [%d,%d)\n",
-			t.ID, t.Title, t.Status, t.StatusText, t.Suffix, t.OwnerText, t.Rank, t.Mode, t.DepsText, t.Deps, t.Line, t.statusStart, t.statusEnd)
+		fmt.Fprintf(&b, "task %q %q %v %q %q %q %q %q %q %q %q %q %s %q %d [%d,%d)\n",
+			t.ID, t.Title, t.Status, t.StatusText, t.Suffix, t.OwnerText, t.Rank, t.Mode, t.DepsText, t.Deps,
+			t.Verify, t.TimeoutText, t.Timeout, t.Context, t.Line, t.statusStart, t.statusEnd)
 	}
 	for _, is := range issues {
 		fmt.Fprintf(&b, "issue %s\n", is)

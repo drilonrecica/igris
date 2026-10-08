@@ -3,7 +3,6 @@ package engine
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/drilonrecica/igris/internal/backend"
@@ -159,7 +158,7 @@ func (e *Engine) checkOverdue(ctx context.Context, l *launch) {
 	l.overdue = true
 	// The cell as written (45m, not 45m0s); it parsed as a duration, so it
 	// is plain text.
-	what := "running longer than its Timeout " + strings.Trim(l.t.TimeoutText, " `")
+	what := "running longer than its Timeout " + l.t.TimeoutText
 	e.emit(Event{Kind: TaskOverdue, Detail: what})
 	e.log(state.Event{Type: state.EventTaskOverdue, Detail: what})
 	e.needsYou(ctx, notifyTaskOverdue, "the task is "+what+"; igris leaves its session running", what)

@@ -59,7 +59,10 @@ func TestContextValidation(t *testing.T) {
 		want []string
 	}{
 		{"file, directory, backticks", "| a | ready | sonnet | agent | `SPEC.md`, docs/, internal/plan/plan.go, docs/a b.md |", nil},
-		{"the root itself", "| a | ready | sonnet | agent | . |", nil},
+		{"the root itself", "| a | ready | sonnet | agent | . |", []string{`tasks.md:5: a: Context "." names the whole project; list the files or directories to read`}},
+		{"the root with a slash", "| a | ready | sonnet | agent | ./ |", []string{`tasks.md:5: a: Context "./" names the whole project; list the files or directories to read`}},
+		{"a file with a trailing slash", "| a | ready | sonnet | agent | SPEC.md/ |", []string{`tasks.md:5: a: Context "SPEC.md/" is a file, not a directory; drop the trailing /`}},
+		{"a directory with or without a slash", "| a | ready | sonnet | agent | docs, ./docs/, internal/plan |", nil},
 		{"symlink inside", "| a | ready | sonnet | agent | spec-link, docs/up |", nil},
 		{"not set", "| a | ready | sonnet | agent | — |", nil},
 		{"absolute", "| a | ready | sonnet | agent | /etc/passwd |", []string{`tasks.md:5: a: Context "/etc/passwd" is an absolute path; use a path relative to the project root`}},
@@ -80,6 +83,7 @@ func TestContextValidation(t *testing.T) {
 		{"bad on a skipped task", "| a | skipped | sonnet | agent | ../x |", nil},
 		{"bad on a user task", "| a | ready | — | user | ../x |", nil},
 		{"duplicates count once", "| a | ready | sonnet | agent | " + strings.Repeat("SPEC.md, ", MaxContext+5) + " |", nil},
+		{"duplicates count once however written", "| a | ready | sonnet | agent | " + strings.Repeat("SPEC.md, ./SPEC.md, docs/, docs, ", MaxContext) + " |", nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -138,5 +142,23 @@ func TestContextRootThroughASymlink(t *testing.T) {
 	p := Parse("tasks.md", []byte("## M1\n\n| ID | Status | Model | Context |\n|---|---|---|---|\n| a | ready | sonnet | SPEC.md, spec-link, docs |\n"), Options{})
 	if got := issueMsgs(p.Validate(Rules{Models: testModels, Root: link})); len(got) != 0 {
 		t.Errorf("issues = %q", got)
+	}
+}
+
+// A working directory reached through a symlink ($PWD names the link) is
+// resolved like the files are, so paths inside it are not escapes.
+func TestContextWorkingDirectoryThroughASymlink(t *testing.T) {
+	root := contextRoot(t)
+	link := filepath.Join(t.TempDir(), "project")
+	if err := os.Symlink(root, link); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(link)
+	t.Setenv("PWD", link)
+	p := Parse("tasks.md", []byte("## M1\n\n| ID | Status | Model | Context |\n|---|---|---|---|\n| a | ready | sonnet | SPEC.md, docs/, spec-link |\n"), Options{})
+	for _, root := range []string{"", "."} {
+		if got := issueMsgs(p.Validate(Rules{Models: testModels, Root: root})); len(got) != 0 {
+			t.Errorf("root %q: issues = %q", root, got)
+		}
 	}
 }

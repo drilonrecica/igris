@@ -42,8 +42,8 @@ func (p *Plan) Lint() []Lint {
 		if t.Status.Satisfied() {
 			continue
 		}
-		if !hasBold(t.Text) {
-			add(t, LintTitle, "%s: the Task cell has no **bold** title, so igris shows its first %d characters; start the cell with **Title**", t.ID, titleMaxRunes)
+		if msg := titleHint(t); msg != "" {
+			add(t, LintTitle, "%s: %s; start the cell with **Title**", t.ID, msg)
 		}
 		if n := utf8.RuneCountInString(t.Text); n > lintLongRunes {
 			add(t, LintLong, "%s: the Task cell is %d characters (over %d); keep the row short and point to a spec for the details", t.ID, n, lintLongRunes)
@@ -65,6 +65,20 @@ func (p *Plan) Lint() []Lint {
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Line < out[j].Line })
 	return out
+}
+
+// titleHint says what igris shows as t's title when its Task cell has no
+// **bold** title, "" when it has one or its table has no Task column.
+func titleHint(t *Task) string {
+	switch {
+	case hasBold(t.Text) || !hasCol(t.Phase.Columns, ColTask):
+		return ""
+	case strings.TrimSpace(t.Text) == "":
+		return "the Task cell is empty, so the task has no title"
+	case utf8.RuneCountInString(strings.TrimSpace(t.Text)) <= titleMaxRunes:
+		return "the Task cell has no **bold** title, so igris shows the whole cell as its title"
+	}
+	return fmt.Sprintf("the Task cell has no **bold** title, so igris shows its first %d characters", titleMaxRunes)
 }
 
 // hasBold reports whether text has a non-empty **bold** span, the title.
@@ -91,8 +105,27 @@ func mentionsOwner(t *Task) bool {
 
 // gateMissing returns the other tasks of the gate's phase it doesn't
 // depend on, directly or through other deps, in file order, and the first
-// and last other task of the phase (for the suggested range).
+// and last other task of the phase (for the suggested range). Tasks that
+// depend on the gate themselves (a release after it) are not counted.
 func (p *Plan) gateMissing(gate *Task) (missing []string, first, last string) {
+	reach := p.reach(gate)
+	for _, t := range gate.Phase.Tasks {
+		if t == gate || p.reach(t)[gate.ID] {
+			continue
+		}
+		if first == "" {
+			first = t.ID
+		}
+		last = t.ID
+		if !reach[t.ID] {
+			missing = append(missing, t.ID)
+		}
+	}
+	return missing, first, last
+}
+
+// reach is every task ID t depends on, directly or through other deps.
+func (p *Plan) reach(t *Task) map[string]bool {
 	reach := map[string]bool{}
 	var walk func(t *Task)
 	walk = func(t *Task) {
@@ -106,20 +139,8 @@ func (p *Plan) gateMissing(gate *Task) (missing []string, first, last string) {
 			}
 		}
 	}
-	walk(gate)
-	for _, t := range gate.Phase.Tasks {
-		if t == gate {
-			continue
-		}
-		if first == "" {
-			first = t.ID
-		}
-		last = t.ID
-		if !reach[t.ID] {
-			missing = append(missing, t.ID)
-		}
-	}
-	return missing, first, last
+	walk(t)
+	return reach
 }
 
 // onlyHeavy reports whether no other task of t's phase has rank opus or

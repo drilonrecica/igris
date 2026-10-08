@@ -18,7 +18,7 @@ func lintFixture(name string) string { return filepath.Join(lintDir, name) }
 // shows no hint and passes (SPEC §14).
 func TestCheckStrictLintFixtures(t *testing.T) {
 	for _, c := range []struct{ file, line, msg string }{
-		{"title.md", "7", "M1-03: the Task cell has no **bold** title, so igris shows its first 80 characters; start the cell with **Title**"},
+		{"title.md", "7", "M1-03: the Task cell has no **bold** title, so igris shows the whole cell as its title; start the cell with **Title**"},
 		{"long.md", "6", "M1-03: the Task cell is 406 characters (over 400); keep the row short and point to a spec for the details"},
 		{"owner-step.md", "7", `M1-03: agent + user task, but its row never says what the owner does (no "owner", "approve" or "decide"); say what needs the owner's sign-off`},
 		{"gate.md", "10", "M1-G: the gate does not depend on M1-04, M1-05 of phase M1; add them to Deps (e.g. M1-01…M1-05)"},

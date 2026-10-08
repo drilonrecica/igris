@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"path"
 	"slices"
 	"strings"
 	"time"
@@ -30,18 +31,21 @@ type Task struct {
 	DepsText  string // the Deps cell as written
 	Deps      []string
 
-	// Verify is the Verify cell, lower-case, backticks removed: a verify
-	// profile, "none" (no verification), or "" when not set (empty, — or -).
+	// Verify is the Verify cell, lower-case, trimmed and backticks removed:
+	// a verify profile, "none" (no verification), or "" when not set
+	// (empty, — or -).
 	Verify string
-	// TimeoutText and ContextText are the Timeout and Context cells as
-	// written, "" when not set (empty, — or -).
+	// TimeoutText is the Timeout cell trimmed and backticks removed;
+	// ContextText is the Context cell as written. Both are "" when not set
+	// (empty, — or -).
 	TimeoutText string
 	ContextText string
 	// Timeout is TimeoutText as a duration; 0 when not set or not a
-	// duration greater than zero (a validation error, SPEC §3.2).
+	// duration of at least MinTimeout (a validation error, SPEC §3.2).
 	Timeout time.Duration
 	// Context is the Context cell's paths as written: split at commas,
-	// trimmed, backticks stripped, empty entries and duplicates dropped.
+	// trimmed, backticks stripped, empty entries and duplicates (the same
+	// path once cleaned: docs and ./docs/) dropped.
 	Context []string
 
 	Extra map[string]string // extra columns by header name, e.g. "Spec"
@@ -114,12 +118,12 @@ func (p *Plan) newTask(ph *Phase, r row) *Task {
 			}
 		case ColVerify:
 			if !unset(c.value) {
-				t.Verify = strings.ToLower(strings.Trim(c.value, "`"))
+				t.Verify = strings.ToLower(bare(c.value))
 			}
 		case ColTimeout:
 			if !unset(c.value) {
-				t.TimeoutText = c.value
-				if d, err := time.ParseDuration(strings.Trim(c.value, " `")); err == nil && d > 0 {
+				t.TimeoutText = bare(c.value)
+				if d, err := time.ParseDuration(t.TimeoutText); err == nil && d >= MinTimeout {
 					t.Timeout = d
 				}
 			}
@@ -164,12 +168,25 @@ func unset(s string) bool {
 	return false
 }
 
-// splitContext splits a Context cell into its paths (SPEC §3.2).
+// MinTimeout is the shortest Timeout a task may have (SPEC §3.2).
+const MinTimeout = time.Second
+
+// bare is a cell value trimmed, with surrounding backticks stripped.
+func bare(s string) string {
+	return strings.TrimSpace(strings.Trim(strings.TrimSpace(s), "`"))
+}
+
+// splitContext splits a Context cell into its paths (SPEC §3.2). Paths
+// that clean to the same path are one entry, kept as first written.
 func splitContext(cell string) []string {
-	var out []string
+	var out, seen []string
 	for _, e := range strings.Split(cell, ",") {
-		e = strings.TrimSpace(strings.Trim(strings.TrimSpace(e), "`"))
-		if e != "" && !slices.Contains(out, e) {
+		e = bare(e)
+		if e == "" {
+			continue
+		}
+		if key := path.Clean(e); !slices.Contains(seen, key) {
+			seen = append(seen, key)
 			out = append(out, e)
 		}
 	}

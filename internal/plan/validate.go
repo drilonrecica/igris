@@ -178,7 +178,11 @@ func (v *validator) checkTask(t *Task) {
 	// Verify, Timeout and Context matter only for a task igris may still
 	// run a session for (SPEC §3.2); a user task's are ignored (Hints).
 	if t.Owner.IsAgent() && !t.Status.Satisfied() {
-		if t.Verify != "" && t.Verify != VerifyNone && !contains(v.verify, t.Verify) {
+		switch {
+		case t.Verify == "" || t.Verify == VerifyNone || contains(v.verify, t.Verify):
+		case looksLikeCommand(t.Verify):
+			v.add(at, "%s: Verify %q names a profile from [verify], never a command; put the command under [verify] in igris.toml and write the profile name here", name, t.Verify)
+		default:
 			names := append(slices.Sorted(slices.Values(v.verify)), VerifyNone)
 			v.add(at, "%s: unknown verify profile %q; define it under [verify] in igris.toml or use one of: %s", name, t.Verify, strings.Join(names, ", "))
 		}
@@ -198,13 +202,27 @@ func (v *validator) checkTask(t *Task) {
 	}
 }
 
+// durationSyntax is what time.ParseDuration accepts; a cell matching it
+// that still doesn't parse overflows.
+var durationSyntax = regexp.MustCompile(`^[-+]?((\d+(\.\d*)?|\.\d+)(ns|us|µs|μs|ms|s|m|h))+$`)
+
 // checkTimeout reports why a set Timeout cell gave no duration.
 func (v *validator) checkTimeout(at int, name, cell string) {
-	if d, err := time.ParseDuration(strings.Trim(cell, " `")); err == nil && d <= 0 {
-		v.add(at, "%s: Timeout %q must be greater than zero; write e.g. 45m or 1h30m", name, cell)
-		return
+	d, err := time.ParseDuration(cell)
+	switch {
+	case err == nil && d < MinTimeout:
+		v.add(at, "%s: Timeout %q must be at least %s; write e.g. 45m or 1h30m", name, cell, MinTimeout)
+	case err != nil && durationSyntax.MatchString(cell):
+		v.add(at, "%s: Timeout %q is too large; write e.g. 45m or 1h30m", name, cell)
+	default:
+		v.add(at, "%s: Timeout %q is not a duration; write e.g. 45m or 1h30m", name, cell)
 	}
-	v.add(at, "%s: Timeout %q is not a duration; write e.g. 45m or 1h30m", name, cell)
+}
+
+// looksLikeCommand reports whether a Verify cell holds a command (a space,
+// a path or a shell character) rather than a profile name.
+func looksLikeCommand(cell string) bool {
+	return strings.ContainsAny(cell, " \t/;&|<>$()'\"*=~")
 }
 
 // checkDeps reports unknown dependencies and every dependency cycle once,

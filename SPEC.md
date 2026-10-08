@@ -76,11 +76,11 @@ A task table is a GitHub-flavored markdown table whose header row contains at le
 | `Context` | no | Comma-separated repo-relative paths (files or directories) the task prompt names as required reading (§6.1). |
 
 - In `Model` and `Mode`, `—`, `-`, `none` (case-insensitive) and an empty cell all mean "no model" / "no override", as in `Deps`. `Owner` is case-insensitive (`Agent + User` = `agent+user` = `agent + user`); an empty cell means `agent`.
-- In `Verify`, `Timeout` and `Context`, an empty cell, `—` or `-` means "not set". In `Verify` only, `none` is not "not set": it turns verification off for the task, while an unset cell falls back to the phase's and the project's default (§6.4).
+- `Verify` and `Timeout` cells are trimmed with surrounding backticks stripped (`` ` none ` `` is `none`). In `Verify`, `Timeout` and `Context`, an empty cell, `—` or `-` means "not set". In `Verify` only, `none` is not "not set": it turns verification off for the task, while an unset cell falls back to the phase's and the project's default (§6.4).
 - `Verify`, `Timeout` and `Context` are checked only on tasks that are not `done` or `skipped`, since igris never runs those; a violation is a validation error:
-  - a Verify profile must be defined in config (§12): `[verify]`, or `default` for `run.verify`;
-  - a Timeout must parse as a Go duration greater than zero;
-  - each Context entry is trimmed, with surrounding backticks stripped and empty entries and duplicates dropped, at most 20 entries. An entry must not be absolute, must have no `..` element, must exist, and must stay inside the project root once symlinks are resolved. The root is the project root for `arise` and the working directory for `check`, `phases` and `status`.
+  - a Verify profile must be defined in config (§12): `[verify]`, or `default` for `run.verify`; a cell that looks like a command (a space, a `/` or a shell character) is rejected with `Verify "make test" names a profile from [verify], never a command`;
+  - a Timeout must parse as a Go duration of at least `1s` (`0s` and `500ms` fail with "must be at least 1s", a duration too large for Go with "is too large");
+  - each Context entry is trimmed, with surrounding backticks stripped and empty entries and duplicates dropped (entries naming the same path once cleaned, like `docs` and `./docs/`, are one), at most 20 entries. An entry must not be absolute, must have no `..` element, must not name the whole project (`.`; list the files or directories to read), must exist, must not end in `/` when it is a file, and must stay inside the project root once symlinks are resolved (the root's own symlinks included, so a working directory reached through a symlink is fine). The root is the project root for `arise` and the working directory for `check`, `phases` and `status`.
 - On a `user` task these three cells are ignored (there is no session); `check` and `arise` warn about each one that is set.
 - Column names can be aliased in config (`[columns]`, §12), e.g. `Depends on` → `Deps`. A table without a `Deps` column whose header has a column that looks like dependencies (`Depends`, `Depends on`, `Dependencies`, `Requires`, `Blocked by`, …) is still valid, but `check` and `arise` warn that igris reads no dependencies from it.
 - Extra columns (e.g. `Spec`) are preserved untouched and passed to the session prompt as context.
@@ -623,10 +623,10 @@ igris version
 
   | Lint | Reported when | Message |
   |---|---|---|
-  | `title` | the Task cell has no `**bold**` span | `M1-03: the Task cell has no **bold** title, so igris shows its first 80 characters; start the cell with **Title**` |
+  | `title` | the Task cell has no `**bold**` span (not reported for a table without a Task column) | `M1-03: the Task cell has no **bold** title, so igris shows its first 80 characters; start the cell with **Title**`; for a cell of 80 characters or fewer, `… so igris shows the whole cell as its title; …`; for an empty cell, `M1-03: the Task cell is empty, so the task has no title; …` |
   | `long` | the Task cell is longer than 400 characters | `M1-03: the Task cell is N characters (over 400); keep the row short and point to a spec for the details` |
   | `owner-step` | an `agent + user` task whose row contains none of `owner`, `approv`, `decid`, `decision` (case-insensitive) | `M1-03: agent + user task, but its row never says what the owner does (no "owner", "approve" or "decide"); say what needs the owner's sign-off` |
-  | `gate` | a task whose ID ends in `-G` (case-insensitive) doesn't depend, directly or through other deps, on every other task of its phase | `M1-G: the gate does not depend on M1-04, M1-05 of phase M1; add them to Deps (e.g. M1-01…M1-05)` |
+  | `gate` | a task whose ID ends in `-G` (case-insensitive) doesn't depend, directly or through other deps, on every other task of its phase; tasks that themselves depend on the gate, directly or not (a release after it), are left out of both the list and the suggested range | `M1-G: the gate does not depend on M1-04, M1-05 of phase M1; add them to Deps (e.g. M1-01…M1-05)` |
   | `yolo` | the Mode cell is `yolo` | `M1-03: Mode yolo runs this task with --dangerously-skip-permissions; prefer auto unless it must run unattended` |
   | `fable` | a task of rank `fable` in a phase where no other task has rank `opus` or `fable` (the aliases as written) | `M1-03: the only heavy-rank task of phase M1 is fable; check that this task needs fable` |
 

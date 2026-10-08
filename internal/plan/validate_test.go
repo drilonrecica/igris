@@ -237,12 +237,12 @@ func TestIssueError(t *testing.T) {
 
 func TestOptionalColumns(t *testing.T) {
 	in := "## M1\n\n| ID | Status | Model | Owner | verify | Timeout | Context | Spec |\n|---|---|---|---|---|---|---|---|\n" +
-		"| M1-01 | ready | sonnet | agent | `Fast` | 45m | `a.go`, b/, , a.go | §1 |\n" +
+		"| M1-01 | ready | sonnet | agent | `Fast` | ` 45m ` | `a.go`, b/, , a.go, ./a.go, b | §1 |\n" +
 		"| M1-02 | ready | sonnet | agent | — | - | | §2 |\n" +
 		"| M1-03 | ready | sonnet | agent | none | | | |\n"
 	p := Parse("tasks.md", []byte(in), Options{})
 	t1, t2, t3 := p.Task("M1-01"), p.Task("M1-02"), p.Task("M1-03")
-	if t1.Verify != "fast" || t1.TimeoutText != "45m" || t1.ContextText != "`a.go`, b/, , a.go" || strings.Join(t1.Context, "|") != "a.go|b/" {
+	if t1.Verify != "fast" || t1.TimeoutText != "45m" || t1.ContextText != "`a.go`, b/, , a.go, ./a.go, b" || strings.Join(t1.Context, "|") != "a.go|b/" {
 		t.Errorf("M1-01 = verify %q, timeout %q, context %q %q", t1.Verify, t1.TimeoutText, t1.ContextText, t1.Context)
 	}
 	if t2.Verify != "" || t2.TimeoutText != "" || t2.ContextText != "" || t2.Context != nil {
@@ -261,6 +261,20 @@ func TestOptionalColumns(t *testing.T) {
 	}
 }
 
+// A v0.3 plan whose own column is named Context (or Verify, Timeout) keeps
+// it as an extra column through a [columns] alias to another name.
+func TestOldSameNamedColumnAliasedAway(t *testing.T) {
+	in := "## M1\n\n| ID | Status | Model | Context |\n|---|---|---|---|\n| M1-01 | ready | sonnet | see the old design, part 2 |\n"
+	p := Parse("tasks.md", []byte(in), Options{Columns: map[string]string{"Context": "Background"}})
+	if issues := p.Validate(testRules); len(issues) > 0 {
+		t.Fatalf("issues: %q", issueMsgs(issues))
+	}
+	t1 := p.Task("M1-01")
+	if t1.ContextText != "" || t1.Context != nil || t1.Extra["Background"] != "see the old design, part 2" {
+		t.Errorf("Context %q %q, Extra %v", t1.ContextText, t1.Context, t1.Extra)
+	}
+}
+
 func TestVerifyProfileValidation(t *testing.T) {
 	const head = "## M1\n\n| ID | Status | Model | Owner | Verify |\n|---|---|---|---|---|\n"
 	rules := Rules{Models: testModels, Verify: []string{"fast", "default"}}
@@ -276,6 +290,10 @@ func TestVerifyProfileValidation(t *testing.T) {
 		{"unknown on a done task", "| a | done | sonnet | agent | fsat |", nil},
 		{"unknown on a skipped task", "| a | skipped | sonnet | agent | fsat |", nil},
 		{"unknown on a user task", "| a | ready | — | user | fsat |", nil},
+		{"none in backticks with spaces", "| a | ready | sonnet | agent | ` none ` |", nil},
+		{"profile in backticks with spaces", "| a | ready | sonnet | agent | ` fast ` |", nil},
+		{"a command", "| a | ready | sonnet | agent | make test |", []string{`tasks.md:5: a: Verify "make test" names a profile from [verify], never a command; put the command under [verify] in igris.toml and write the profile name here`}},
+		{"a script path", "| a | ready | sonnet | agent | ./scripts/check |", []string{`tasks.md:5: a: Verify "./scripts/check" names a profile from [verify], never a command; put the command under [verify] in igris.toml and write the profile name here`}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -305,8 +323,12 @@ func TestTimeoutValidation(t *testing.T) {
 		{"not set", "| a | ready | sonnet | agent | — |", 0, nil},
 		{"bare number", "| a | ready | sonnet | agent | 45 |", 0, []string{`tasks.md:5: a: Timeout "45" is not a duration; write e.g. 45m or 1h30m`}},
 		{"words", "| a | ready | sonnet | agent | an hour |", 0, []string{`tasks.md:5: a: Timeout "an hour" is not a duration; write e.g. 45m or 1h30m`}},
-		{"zero", "| a | ready | sonnet | agent | 0s |", 0, []string{`tasks.md:5: a: Timeout "0s" must be greater than zero; write e.g. 45m or 1h30m`}},
-		{"negative", "| a | blocked | sonnet | agent | -5m |", 0, []string{`tasks.md:5: a: Timeout "-5m" must be greater than zero; write e.g. 45m or 1h30m`}},
+		{"zero", "| a | ready | sonnet | agent | 0s |", 0, []string{`tasks.md:5: a: Timeout "0s" must be at least 1s; write e.g. 45m or 1h30m`}},
+		{"negative", "| a | blocked | sonnet | agent | -5m |", 0, []string{`tasks.md:5: a: Timeout "-5m" must be at least 1s; write e.g. 45m or 1h30m`}},
+		{"under a second", "| a | ready | sonnet | agent | 500ms |", 0, []string{`tasks.md:5: a: Timeout "500ms" must be at least 1s; write e.g. 45m or 1h30m`}},
+		{"one second", "| a | ready | sonnet | agent | 1s |", time.Second, nil},
+		{"too large", "| a | ready | sonnet | agent | 9999999999h |", 0, []string{`tasks.md:5: a: Timeout "9999999999h" is too large; write e.g. 45m or 1h30m`}},
+		{"backticks and spaces quoted trimmed", "| a | ready | sonnet | agent | ` 45 ` |", 0, []string{`tasks.md:5: a: Timeout "45" is not a duration; write e.g. 45m or 1h30m`}},
 		{"bad on a done task", "| a | done | sonnet | agent | 45 |", 0, nil},
 		{"bad on a skipped task", "| a | skipped | sonnet | agent | 45 |", 0, nil},
 		{"bad on a user task", "| a | ready | — | user | 45 |", 0, nil},
