@@ -55,13 +55,24 @@ type Wait struct {
 
 // Task is one task row of `igris status`.
 type Task struct {
-	ID      string `json:"id"`
-	Title   string `json:"title"`
-	Status  string `json:"status"`
-	Rank    string `json:"rank"`
-	Owner   string `json:"owner"`
-	Mode    string `json:"mode"`
-	WaitsOn []Wait `json:"waits_on"`
+	ID     string `json:"id"`
+	Title  string `json:"title"`
+	Status string `json:"status"`
+	Rank   string `json:"rank"`
+	Owner  string `json:"owner"`
+	Mode   string `json:"mode"`
+	// Verify, Timeout and Context are the optional cells (SPEC §3.2),
+	// empty when not set.
+	Verify  string   `json:"verify,omitempty"`
+	Timeout string   `json:"timeout,omitempty"`
+	Context []string `json:"context,omitempty"`
+	WaitsOn []Wait   `json:"waits_on"`
+}
+
+// Optional says which optional columns some task of the plan has set:
+// `status` shows only those (SPEC §14).
+type Optional struct {
+	Verify, Timeout, Context bool
 }
 
 // PhaseStatus is a phase with its §5.1 outcome and its tasks.
@@ -77,6 +88,9 @@ type StatusReport struct {
 	Phases []PhaseStatus `json:"phases"`
 	Plan   string        `json:"plan"`
 	Run    *RunInfo      `json:"run,omitempty"` // set by the caller; nil when there is no run
+	// Optional is computed over every task of the plan, not only the
+	// phases shown.
+	Optional Optional `json:"-"`
 }
 
 // Status reports the phases of a valid plan, or only phaseID if it isn't
@@ -92,6 +106,11 @@ func Status(p *plan.Plan, phaseID string) (StatusReport, error) {
 		phases = []*plan.Phase{ph}
 	}
 	r := StatusReport{Phases: make([]PhaseStatus, len(phases)), Plan: textsafe.Line(p.Path)}
+	for _, t := range p.Tasks {
+		r.Optional.Verify = r.Optional.Verify || t.Verify != ""
+		r.Optional.Timeout = r.Optional.Timeout || t.TimeoutText != ""
+		r.Optional.Context = r.Optional.Context || len(t.Context) > 0
+	}
 	for i, ph := range phases {
 		sel, err := p.Select(ph.ID)
 		if err != nil {
@@ -113,7 +132,11 @@ func taskOf(p *plan.Plan, t *plan.Task) Task {
 	r := Task{
 		ID: textsafe.Line(t.ID), Title: textsafe.Line(t.Title), Status: t.Status.String(),
 		Rank: orDash(textsafe.Line(t.Rank)), Owner: textsafe.Line(string(t.Owner)), Mode: orDash(textsafe.Line(t.Mode)),
+		Verify: textsafe.Line(t.Verify), Timeout: textsafe.Line(t.TimeoutText),
 		WaitsOn: []Wait{},
+	}
+	for _, c := range t.Context {
+		r.Context = append(r.Context, textsafe.Line(c))
 	}
 	if w := p.WaitingOn(t); w != nil {
 		for _, id := range w.Unmet {

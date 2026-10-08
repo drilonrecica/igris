@@ -76,6 +76,7 @@ type Options struct {
 	Events func(Event)
 
 	beforeMark func() // test hook: runs just before a task is marked in progress
+	noVerify   bool   // a dry run: verify profiles are shown, never run
 }
 
 // Notifier delivers one notification to the owner's channels and says how
@@ -198,7 +199,7 @@ func New(opts Options) (*Engine, error) {
 		runMode:   opts.Mode,
 		overrides: map[string]string{},
 	}
-	e.writer = plan.NewWriter(e.planPath, e.planOpts, e.cfg.Models)
+	e.writer = plan.NewWriter(e.planPath, e.planOpts, e.cfg.Rules())
 	return e, nil
 }
 
@@ -352,7 +353,7 @@ func (e *Engine) loadPlan() (*plan.Plan, error) {
 	if err != nil {
 		return nil, PlanLoadError(err)
 	}
-	if err := p.Check(e.cfg.Models); err != nil {
+	if err := p.Check(e.cfg.Rules()); err != nil {
 		return nil, err
 	}
 	return p, nil

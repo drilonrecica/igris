@@ -9,12 +9,15 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/BurntSushi/toml"
+
+	"github.com/drilonrecica/igris/internal/plan"
 )
 
 // ErrNotFound is returned (wrapped) by Load when the file does not exist.
@@ -53,9 +56,15 @@ type Config struct {
 	Columns         map[string]string `toml:"columns"`
 	Claude          Claude            `toml:"claude"`
 	Run             Run               `toml:"run"`
-	Adapt           Adapt             `toml:"adapt"`
-	TUI             TUI               `toml:"tui"`
-	Notify          Notify            `toml:"notify"`
+	// Verify maps verify profile names to shell commands (SPEC §6.4);
+	// run.verify is the profile "default". omitempty keeps the hash of a
+	// config without profiles what it was before they existed.
+	Verify map[string]string `toml:"verify,omitempty" json:",omitempty"`
+	// Phases holds per-phase settings by phase ID (case-insensitive).
+	Phases map[string]PhaseConfig `toml:"phases,omitempty" json:",omitempty"`
+	Adapt  Adapt                  `toml:"adapt"`
+	TUI    TUI                    `toml:"tui"`
+	Notify Notify                 `toml:"notify"`
 }
 
 // defaultClaudeCommand is claude.command's only meaningful value: herdr
@@ -77,6 +86,73 @@ type Run struct {
 	Commit            string   `toml:"commit"`
 	CommitMessage     string   `toml:"commit_message"`
 	PromptTemplate    string   `toml:"prompt_template"`
+}
+
+// PhaseConfig is a [phases.<id>] table.
+type PhaseConfig struct {
+	// Verify is the verify profile of the phase's tasks, or "none"; "" is
+	// not set.
+	Verify string `toml:"verify,omitempty" json:",omitempty"`
+}
+
+// VerifyDefault is the profile run.verify defines.
+const VerifyDefault = "default"
+
+// profilePattern is what a verify profile name looks like.
+var profilePattern = regexp.MustCompile(`^[a-z0-9_-]+$`)
+
+// VerifyProfiles returns every verify profile: [verify] plus "default" for
+// run.verify when it is set.
+func (c *Config) VerifyProfiles() map[string]string {
+	out := make(map[string]string, len(c.Verify)+1)
+	for k, v := range c.Verify {
+		out[k] = v
+	}
+	if c.Run.Verify != "" {
+		out[VerifyDefault] = c.Run.Verify
+	}
+	return out
+}
+
+// Rules are the config values a plan is validated against: the model
+// ranks and the verify profile names.
+func (c *Config) Rules() plan.Rules {
+	return plan.Rules{Models: c.Models, Verify: sortedKeys(c.VerifyProfiles())}
+}
+
+// PhaseVerify returns the [phases.<id>] verify setting of phase id
+// (case-insensitive), lower-case; "" if there is none.
+func (c *Config) PhaseVerify(id string) string {
+	for k, ph := range c.Phases {
+		if strings.EqualFold(k, id) {
+			return strings.ToLower(strings.TrimSpace(ph.Verify))
+		}
+	}
+	return ""
+}
+
+// VerifyFor resolves the verify profile of a task (SPEC §6.4) from its
+// Verify cell (plan.Task.Verify) and its phase: the cell, then
+// [phases.<id>] verify, then "default". "none" at either of the first two
+// levels, or nothing set at all, means no verification: profile and
+// command are then "".
+func (c *Config) VerifyFor(cell, phase string) (profile, command string) {
+	profile = cell
+	if profile == "" {
+		profile = c.PhaseVerify(phase)
+	}
+	if profile == "" {
+		profile = VerifyDefault
+	}
+	if profile == plan.VerifyNone {
+		return "", ""
+	}
+	command, ok := c.VerifyProfiles()[profile]
+	if !ok {
+		// Unknown here: validation rejects it before a task runs.
+		return "", ""
+	}
+	return profile, command
 }
 
 // Adapt configures `igris adapt`.
@@ -308,6 +384,8 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	c.validateVerify(add)
+
 	for _, arg := range c.Claude.ExtraArgs {
 		if ForbiddenExtraArg(arg) {
 			add("claude.extra_args contains %q, which igris sets itself or which could change the model or permission mode (SPEC §7.4); remove it", arg)
@@ -326,6 +404,37 @@ func (c *Config) Validate() error {
 	}
 
 	return errors.Join(errs...)
+}
+
+// validateVerify checks [verify] and [phases.<id>] (SPEC §12).
+func (c *Config) validateVerify(add func(string, ...any)) {
+	for _, name := range sortedKeys(c.Verify) {
+		switch {
+		case name == plan.VerifyNone:
+			add("verify.none: the profile name none is reserved (a Verify cell of none turns verification off); rename the profile")
+		case name == VerifyDefault && c.Run.Verify != "":
+			add("run.verify and verify.default are the same profile; keep one of them")
+		case !profilePattern.MatchString(name):
+			add("verify.%s: profile names may contain only a-z, 0-9, '_' and '-'; rename it", name)
+		}
+		if strings.TrimSpace(c.Verify[name]) == "" {
+			add("verify.%s must not be empty; give the shell command of this profile", name)
+		}
+	}
+	profiles := c.VerifyProfiles()
+	names := append(sortedKeys(profiles), plan.VerifyNone)
+	seen := map[string]string{}
+	for _, id := range sortedKeys(c.Phases) {
+		if first, dup := seen[strings.ToLower(id)]; dup {
+			add("phases.%s and phases.%s name the same phase (phase IDs match case-insensitively); keep one of them", first, id)
+			continue
+		}
+		seen[strings.ToLower(id)] = id
+		v := strings.ToLower(strings.TrimSpace(c.Phases[id].Verify))
+		if _, ok := profiles[v]; v != "" && v != plan.VerifyNone && !ok {
+			add("phases.%s.verify = %q is not a verify profile; define it under [verify] or use one of: %s", id, c.Phases[id].Verify, strings.Join(names, ", "))
+		}
+	}
 }
 
 // Warnings reports settings that are accepted but have no effect: they never
@@ -410,7 +519,7 @@ func contains(list []string, s string) bool {
 	return false
 }
 
-func sortedKeys(m map[string]string) []string {
+func sortedKeys[V any](m map[string]V) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)

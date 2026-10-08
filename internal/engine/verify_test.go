@@ -113,7 +113,7 @@ func TestVerifyFailureGoesBackToTheSession(t *testing.T) {
 		t.Fatalf("A-1 got %d prompts, want the task and one failure", len(prompts))
 	}
 	fb := prompts[1]
-	for _, want := range []string{"igris verification `make test` failed (exit status 2)", "line 41\n", "line 100\n```", "run `igris done A-1` again"} {
+	for _, want := range []string{"igris verification `default` (`make test`) failed (exit status 2)", "line 41\n", "line 100\n```", "run `igris done A-1` again"} {
 		if !strings.Contains(fb, want) {
 			t.Errorf("failure prompt lacks %q:\n%s", want, fb)
 		}
@@ -121,7 +121,7 @@ func TestVerifyFailureGoesBackToTheSession(t *testing.T) {
 	if strings.Contains(fb, "line 40\n") {
 		t.Errorf("failure prompt has more than %d lines of output", verifyTailLines)
 	}
-	if got := h.event(VerifyFailed, "A-1").Detail; got != "`make test` failed (exit status 2), attempt 1 of 2" {
+	if got := h.event(VerifyFailed, "A-1").Detail; got != "default (`make test`) failed (exit status 2), attempt 1 of 2" {
 		t.Errorf("verify_failed detail %q", got)
 	}
 	if got := h.logged(); !strings.HasPrefix(got, "run_started task_started verify_failed verify_passed task_done") {
@@ -254,5 +254,115 @@ func TestTimes(t *testing.T) {
 		if got := times(n); got != want {
 			t.Errorf("times(%d) = %q, want %q", n, got, want)
 		}
+	}
+}
+
+// profilePlan has a Verify column: A-1 names a profile, A-2 falls back to
+// the phase default, A-3 turns verification off, and B-1 falls back to the
+// project default.
+const profilePlan = `## A — First phase
+
+| ID | Task | Deps | Status | Model | Verify |
+|---|---|---|---|---|---|
+| A-1 | **One** | — | ready | sonnet | ` + "`Fast`" + ` |
+| A-2 | **Two** | A-1 | blocked | opus | — |
+| A-3 | **Three** | A-2 | blocked | fable | none |
+
+## B — Second phase
+
+| ID | Task | Deps | Status | Model | Verify |
+|---|---|---|---|---|---|
+| B-1 | **Four** | A-3 | blocked | sonnet | |
+`
+
+func TestVerifyProfiles(t *testing.T) {
+	tests := []struct {
+		name string
+		toml string
+		want []string // the verify commands run, in order
+		log  []string // the run log's verify details, in order
+	}{
+		{"cell, phase, none, default",
+			"[run]\nverify = \"make full\"\n[verify]\nfast = \"make fast\"\nslow = \"make slow\"\n[phases.a]\nverify = \"slow\"\n",
+			[]string{"make fast", "make slow", "make full"},
+			[]string{"profile fast", "profile slow", "profile default"}},
+		{"phase none, no default",
+			"[verify]\nfast = \"make fast\"\n[phases.A]\nverify = \"none\"\n",
+			[]string{"make fast"},
+			[]string{"profile fast"}},
+		{"default from [verify]",
+			"[verify]\nfast = \"make fast\"\ndefault = \"make all\"\n",
+			[]string{"make fast", "make all", "make all"},
+			[]string{"profile fast", "profile default", "profile default"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHarness(t, profilePlan, tt.toml)
+			h.verifyResults(pass)
+			if _, err := h.run(func(o *Options) { o.Through = "B" }); err != nil {
+				t.Fatalf("Run: %v", err)
+			}
+			if got := h.statuses(); got != "A-1=done A-2=done A-3=done B-1=done" {
+				t.Errorf("statuses = %s", got)
+			}
+			var got []string
+			for _, c := range h.calls("sh") {
+				got = append(got, strings.TrimPrefix(strings.Join(c.Args, " "), "-c "))
+			}
+			if strings.Join(got, "|") != strings.Join(tt.want, "|") {
+				t.Errorf("verify commands = %q, want %q", got, tt.want)
+			}
+			events, err := h.dir.Events()
+			if err != nil {
+				t.Fatal(err)
+			}
+			var log []string
+			for _, e := range events {
+				if e.Type == state.EventVerifyPassed {
+					log = append(log, e.Detail)
+				}
+			}
+			if strings.Join(log, "|") != strings.Join(tt.log, "|") {
+				t.Errorf("verify_passed details = %q, want %q", log, tt.log)
+			}
+		})
+	}
+}
+
+func TestVerifyProfileFailureNamesIt(t *testing.T) {
+	h := newHarness(t, profilePlan, "[verify]\nfast = \"make fast\"\n[phases.A]\nverify = \"none\"\n")
+	h.verifyResults(failWith(1, "boom\n"), pass)
+	h.resignal(1)
+	if _, err := h.run(); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if fb := h.be.Prompts("A-1"); len(fb) != 2 || !strings.Contains(fb[1], "igris verification `fast` (`make fast`) failed (exit status 1)") {
+		t.Errorf("failure prompt = %q", fb)
+	}
+	if ev := h.event(VerifyStarted, "A-1"); ev.Verify != "fast" || ev.Detail != "make fast" {
+		t.Errorf("verify_started = %+v", ev)
+	}
+	if ev := h.event(SessionOpened, "A-2"); ev.Verify != "" {
+		t.Errorf("A-2 has profile %q, want none", ev.Verify)
+	}
+	events, err := h.dir.Events()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range events {
+		if e.Type == state.EventVerifyFailed && e.Detail != "profile fast: attempt 1 of 3: exit status 1" {
+			t.Errorf("verify_failed detail %q", e.Detail)
+		}
+	}
+}
+
+func TestUnknownVerifyProfileStopsTheRun(t *testing.T) {
+	h := newHarness(t, strings.Replace(profilePlan, "`Fast`", "fsat", 1), "[verify]\nfast = \"make fast\"\n")
+	_, err := h.run()
+	if err == nil || !strings.Contains(err.Error(), `A-1: unknown verify profile "fsat"; define it under [verify] in igris.toml or use one of: fast, none`) {
+		t.Fatalf("Run error = %v", err)
+	}
+	if got := h.calls("sh"); len(got) != 0 {
+		t.Errorf("verify ran: %+v", got)
 	}
 }

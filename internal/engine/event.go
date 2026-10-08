@@ -42,8 +42,8 @@ const (
 	Retrying        EventKind = "retrying"          // the session is replaced; Detail is "continue" or "fresh"
 	TaskSkipped     EventKind = "task_skipped"      // Detail is the reason; Changes holds the cells written
 	YourTurn        EventKind = "your_turn"         // a user task waits for the owner; Detail is the full task text
-	VerifyStarted   EventKind = "verify_started"    // Detail is the verify command
-	VerifyPassed    EventKind = "verify_passed"     // Detail is the verify command
+	VerifyStarted   EventKind = "verify_started"    // Detail is the verify command, Verify its profile
+	VerifyPassed    EventKind = "verify_passed"     // Detail is the verify command, Verify its profile
 	VerifyFailed    EventKind = "verify_failed"     // Detail says why and which attempt
 	VerifyLimit     EventKind = "verify_limit"      // verify_max_attempts failures in a row; needs the owner
 	Committed       EventKind = "committed"         // Detail is the commit subject
@@ -64,6 +64,8 @@ type Event struct {
 	Rank  string
 	Model string
 	Mode  string
+	// Verify is the task's verify profile (SPEC §6.4), "" for none.
+	Verify string
 	// Detail is a short human-readable addition; see the kinds.
 	Detail  string
 	Changes []plan.Change
@@ -101,10 +103,11 @@ func (e *Engine) emit(ev Event) {
 	}
 	if ev.Task == "" && e.task != nil {
 		ev = e.task.fill(ev)
+		ev.Verify, _ = e.verifyProfile(e.task.t)
 	}
 	// Details quote notes, plan text and command output: nothing in them may
 	// reach the owner's terminal as an escape sequence (SPEC §16).
-	ev.Detail, ev.Title = textsafe.Clean(ev.Detail), textsafe.Line(ev.Title)
+	ev.Detail, ev.Title, ev.Verify = textsafe.Clean(ev.Detail), textsafe.Line(ev.Title), textsafe.Line(ev.Verify)
 	if e.opts.Events != nil {
 		e.opts.Events(ev)
 	}

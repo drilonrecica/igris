@@ -66,8 +66,8 @@ type CheckReport struct {
 
 // CheckInput is what Check reads.
 type CheckInput struct {
-	Plan   *plan.Plan
-	Models map[string]string
+	Plan  *plan.Plan
+	Rules plan.Rules
 	// Checks are the warnings, in the order to show them: tool versions,
 	// config, environment, a parent igris.toml, the plan's hints and drift
 	// (checks gives the last two only for a valid plan). Results that are
@@ -79,7 +79,7 @@ type CheckInput struct {
 // warnings.
 func Check(in CheckInput) CheckReport {
 	p := in.Plan
-	issues := p.Validate(in.Models)
+	issues := p.Validate(in.Rules)
 	r := CheckReport{
 		Issues:   Issues(issues),
 		Phases:   len(p.Phases),

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -168,6 +169,15 @@ func TestParseErrors(t *testing.T) {
 		{"empty plan", `plan = ""`, []string{"plan must not be empty"}},
 		{"empty model value", "[models]\nopus = \"\"", []string{"models.opus"}},
 		{"bad event", "[notify.ntfy]\nevents = [\"nope\"]", []string{"notify.ntfy.events", `"nope"`}},
+		{"profile named none", "[verify]\nnone = \"true\"", []string{"verify.none", "reserved"}},
+		{"default twice", "[run]\nverify = \"a\"\n[verify]\ndefault = \"b\"", []string{"run.verify and verify.default are the same profile"}},
+		{"bad profile name", "[verify]\nFast = \"true\"", []string{"verify.Fast", "a-z, 0-9"}},
+		{"empty profile", "[verify]\nfast = \" \"", []string{"verify.fast must not be empty"}},
+		{"profile not a string", "[verify]\nfast = 1", []string{"parse igris.toml"}},
+		{"unknown phase profile", "[verify]\nfast = \"true\"\n[phases.M1]\nverify = \"fsat\"", []string{`phases.M1.verify = "fsat" is not a verify profile`, "fast, none"}},
+		{"phase default without run.verify", "[phases.M1]\nverify = \"default\"", []string{"phases.M1.verify", "use one of: none"}},
+		{"unknown phase key", "[phases.M1]\nmodel = \"opus\"", []string{"phases.M1.model"}},
+		{"phase twice", "[phases.m1]\nverify = \"none\"\n[phases.M1]\nverify = \"none\"", []string{"phases.M1 and phases.m1 name the same phase"}},
 		{"multiple problems reported together", "default_mode = \"x\"\n[run]\ncommit = \"y\"", []string{"default_mode", "run.commit"}},
 	}
 	for _, tt := range tests {
@@ -289,6 +299,65 @@ func TestHash(t *testing.T) {
 	}
 }
 
+func TestHashWithoutProfilesIsUnchanged(t *testing.T) {
+	// Configs from before [verify] and [phases] keep their hash, so a v0.3
+	// run resumes without a config-change prompt.
+	b, err := json.Marshal(Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{`"Phases"`, `"Verify":null`, `"Verify":{`} {
+		if strings.Contains(string(b), key) {
+			t.Errorf("config JSON has %s: %s", key, b)
+		}
+	}
+	c, _ := Parse([]byte("[verify]\nfast = \"true\"\n"), "igris.toml")
+	if c.Hash() == Default().Hash() {
+		t.Error("hash unchanged by a verify profile")
+	}
+}
+
+func TestVerifyFor(t *testing.T) {
+	const toml = "[run]\nverify = \"make all\"\n[verify]\nfast = \"make fast\"\n[phases.M1]\nverify = \"Fast\"\n[phases.m2]\nverify = \"none\"\n"
+	c, err := Parse([]byte(toml), "igris.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	noDefault, err := Parse([]byte("[verify]\nfast = \"make fast\"\n"), "igris.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name          string
+		cfg           *Config
+		cell, phase   string
+		profile, want string
+	}{
+		{"cell wins", c, "default", "M1", "default", "make all"},
+		{"phase default, case-insensitive", c, "", "m1", "fast", "make fast"},
+		{"phase none", c, "", "M2", "", ""},
+		{"cell over phase none", c, "fast", "M2", "fast", "make fast"},
+		{"cell none", c, "none", "M0", "", ""},
+		{"project default", c, "", "M0", "default", "make all"},
+		{"no default: nothing", noDefault, "", "M0", "", ""},
+		{"unknown", noDefault, "slow", "M0", "", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			profile, cmd := tt.cfg.VerifyFor(tt.cell, tt.phase)
+			if profile != tt.profile || cmd != tt.want {
+				t.Errorf("VerifyFor(%q, %q) = %q, %q; want %q, %q", tt.cell, tt.phase, profile, cmd, tt.profile, tt.want)
+			}
+		})
+	}
+	if got := c.Rules().Verify; strings.Join(got, ",") != "default,fast" {
+		t.Errorf("Rules().Verify = %q", got)
+	}
+	if got := Default().Rules().Verify; len(got) != 0 {
+		t.Errorf("default Rules().Verify = %q", got)
+	}
+}
+
 func TestLoad(t *testing.T) {
 	dir := t.TempDir()
 
@@ -356,7 +425,7 @@ func TestForbiddenExtraArg(t *testing.T) {
 }
 
 func TestWriteRoundTrips(t *testing.T) {
-	for _, src := range []string{"", "plan = \"x.md\"\n[run]\nverify = \"make test\"\ncommit = \"never\"\n[columns]\n\"Depends on\" = \"Deps\"\n[notify.ntfy]\ntoken = \"env:T\"\n[tui]\ntheme = \"dark\"\n[tui.rank_colors]\nopus = \"5\"\n"} {
+	for _, src := range []string{"", "plan = \"x.md\"\n[run]\nverify = \"make test\"\ncommit = \"never\"\n[columns]\n\"Depends on\" = \"Deps\"\n[notify.ntfy]\ntoken = \"env:T\"\n[tui]\ntheme = \"dark\"\n[tui.rank_colors]\nopus = \"5\"\n", "[verify]\nfast = \"go test ./...\"\n[phases.M1]\nverify = \"fast\"\n[phases.\"V1.2\"]\nverify = \"none\"\n"} {
 		want, err := Parse([]byte(src), "igris.toml")
 		if err != nil {
 			t.Fatal(err)

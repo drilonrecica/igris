@@ -32,9 +32,9 @@ commit              = "ask" · default
 commit_message      = "{{.ID}}: {{.Title}}" · default
 prompt_template     = "" · default
 
+[verify]
+# none set
+
 [adapt]
 model = "sonnet" · default
-
-[tui]
-mouse = true · default
 [Edit igris.toml] [Doctor] [Close]

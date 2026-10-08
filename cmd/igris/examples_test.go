@@ -21,7 +21,7 @@ func TestExamples(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load example plan: %v", err)
 	}
-	if err := p.Check(cfg.Models); err != nil {
+	if err := p.Check(cfg.Rules()); err != nil {
 		t.Fatalf("examples/tasks.md: %v", err)
 	}
 	if got := p.Readiness(); len(got) != 0 {
@@ -47,7 +47,7 @@ func TestDemoPlan(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load demo plan: %v", err)
 	}
-	if err := p.Check(cfg.Models); err != nil {
+	if err := p.Check(cfg.Rules()); err != nil {
 		t.Fatalf("docs/demo/tasks.md: %v", err)
 	}
 	if got := p.Readiness(); len(got) != 0 {

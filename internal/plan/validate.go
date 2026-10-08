@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -38,10 +39,22 @@ func Load(path string, opts Options) (*Plan, error) {
 	return Parse(path, data, opts), nil
 }
 
+// Rules are the config values the plan is validated against.
+type Rules struct {
+	// Models is the [models] config map used to check ranks.
+	Models map[string]string
+	// Verify lists the verify profile names defined in config ([verify],
+	// and "default" for run.verify) that a Verify cell may name.
+	Verify []string
+}
+
+// VerifyNone in a Verify cell (or [phases.<id>] verify) turns verification
+// off (SPEC §6.4).
+const VerifyNone = "none"
+
 // Validate returns every problem in the plan (SPEC §3), sorted by line.
-// models is the [models] config map used to check ranks.
-func (p *Plan) Validate(models map[string]string) []Issue {
-	v := &validator{p: p, models: models, firstLine: map[string]int{}}
+func (p *Plan) Validate(r Rules) []Issue {
+	v := &validator{p: p, models: r.Models, verify: r.Verify, firstLine: map[string]int{}}
 	v.issues = append(v.issues, p.issues...)
 	for _, t := range p.Tasks {
 		v.checkTask(t)
@@ -67,8 +80,8 @@ func (p *Plan) Validate(models map[string]string) []Issue {
 }
 
 // Check validates the plan and returns *Invalid if it has any problem.
-func (p *Plan) Check(models map[string]string) error {
-	if issues := p.Validate(models); len(issues) > 0 {
+func (p *Plan) Check(r Rules) error {
+	if issues := p.Validate(r); len(issues) > 0 {
 		return &Invalid{Issues: issues}
 	}
 	return nil
@@ -78,6 +91,7 @@ func (p *Plan) Check(models map[string]string) error {
 type validator struct {
 	p         *Plan
 	models    map[string]string
+	verify    []string
 	firstLine map[string]int // task ID -> line of its first occurrence
 	issues    []Issue
 }
@@ -149,6 +163,15 @@ func (v *validator) checkTask(t *Task) {
 				}
 			}
 			v.add(at, "%s: unknown model rank %q%s; add it to [models] in igris.toml or use one of: %s", name, t.Rank, hint, strings.Join(sortedKeys(v.models), ", "))
+		}
+	}
+
+	// Verify, Timeout and Context matter only for a task igris may still
+	// run a session for (SPEC §3.2); a user task's are ignored (Hints).
+	if t.Owner.IsAgent() && !t.Status.Satisfied() {
+		if t.Verify != "" && t.Verify != VerifyNone && !contains(v.verify, t.Verify) {
+			names := append(slices.Sorted(slices.Values(v.verify)), VerifyNone)
+			v.add(at, "%s: unknown verify profile %q; define it under [verify] in igris.toml or use one of: %s", name, t.Verify, strings.Join(names, ", "))
 		}
 	}
 

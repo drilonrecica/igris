@@ -169,12 +169,12 @@ func TestDryRun(t *testing.T) {
 		`warning: igris.toml: claude.command = "cc" is ignored`,
 		"warning: drift: A-3: ready → blocked",
 		"dry run of phase A through B",
-		"  1. A-0        opus    → model opus    mode default Half done  (resumed: fresh session)",
-		"  2. A-1        sonnet  → model sonnet  mode plan    One",
+		"  1. A-0        opus    → model opus    mode default verify default Half done  (resumed: fresh session)",
+		"  2. A-1        sonnet  → model sonnet  mode plan    verify default One",
 		"  3. A-2        user task: waits for you  Buy a domain",
-		"  4. A-3        fable   → model fable   mode yolo    Gate [SKIP PERMISSIONS]",
+		"  4. A-3        fable   → model fable   mode yolo    verify default Gate [SKIP PERMISSIONS]",
 		"     phase A complete",
-		"  5. B-1        sonnet  → model sonnet  mode default Later",
+		"  5. B-1        sonnet  → model sonnet  mode default verify default Later",
 		"     phase B complete",
 		"dry run: 4 session(s), 1 user task(s)",
 	}
@@ -717,5 +717,27 @@ func TestAriseNoTUITaskModeOnUserTask(t *testing.T) {
 	}
 	if strings.Contains(got, "next session") {
 		t.Errorf("a task mode was set for a user task:\n%s", got)
+	}
+}
+
+func TestDryRunShowsVerifyProfiles(t *testing.T) {
+	withVersions(t, "2.1.291 (Claude Code)\n", "herdr 0.9.1\n")
+	writeProject(t, map[string]string{
+		"tasks.md": "## A — First\n\n| ID | Task | Deps | Status | Model | Verify |\n|---|---|---|---|---|---|\n" +
+			"| A-1 | **One** | — | ready | sonnet | fast |\n| A-2 | **Two** | A-1 | blocked | opus | none |\n| A-3 | **Three** | A-2 | blocked | sonnet | — |\n",
+		"igris.toml": "[verify]\nfast = \"false\"\nslow = \"false\"\n[phases.a]\nverify = \"slow\"\n",
+	})
+	var out, errb bytes.Buffer
+	if code := run([]string{"arise", "A", "--dry-run"}, &out, &errb); code != exitOK {
+		t.Fatalf("exit %d, stderr: %s", code, errb.String())
+	}
+	for _, w := range []string{
+		"  1. A-1        sonnet  → model sonnet  mode default verify fast    One",
+		"  2. A-2        opus    → model opus    mode default verify —       Two",
+		"  3. A-3        sonnet  → model sonnet  mode default verify slow    Three",
+	} {
+		if !strings.Contains(out.String(), w) {
+			t.Errorf("output lacks %q:\n%s", w, out.String())
+		}
 	}
 }

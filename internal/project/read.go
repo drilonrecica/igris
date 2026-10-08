@@ -110,7 +110,7 @@ func (p *Project) Snapshot() *report.Snapshot {
 		s.PlanErr = textsafe.Line(err.Error())
 	default:
 		s.Plan = pl
-		s.Issues = report.Issues(pl.Validate(p.Cfg.Models))
+		s.Issues = report.Issues(pl.Validate(p.Cfg.Rules()))
 		if len(s.Issues) == 0 {
 			if st, err := report.Status(pl, ""); err == nil {
 				s.Status = &st

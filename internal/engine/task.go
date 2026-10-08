@@ -252,7 +252,7 @@ func (e *Engine) drive(ctx context.Context, l *launch) (stopped bool, err error)
 		switch v.kind {
 		case verdictDone:
 			// A session's done signal is verified; the owner's word is final.
-			if v.sig != nil && e.cfg.Run.Verify != "" {
+			if v.sig != nil && e.verifies(l.t) {
 				passed, err := e.verify(ctx, l)
 				if err != nil {
 					return false, err

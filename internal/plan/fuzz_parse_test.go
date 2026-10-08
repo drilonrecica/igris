@@ -90,8 +90,8 @@ func FuzzParse(f *testing.F) {
 	f.Fuzz(func(t *testing.T, data []byte, aliasKey, aliasVal string) {
 		opts := Options{Columns: map[string]string{aliasKey: aliasVal}}
 		p := Parse("tasks.md", data, opts)
-		issues := p.Validate(testModels)
-		_ = p.Check(testModels)
+		issues := p.Validate(testRules)
+		_ = p.Check(testRules)
 		_ = p.Hints()
 		for _, t := range p.Tasks {
 			if t.statusStart < 0 || t.statusEnd < t.statusStart || t.statusEnd > len(data) {
@@ -111,7 +111,7 @@ func FuzzParse(f *testing.F) {
 		}
 
 		again := Parse("tasks.md", data, opts)
-		if a, b := planSummary(p, issues), planSummary(again, again.Validate(testModels)); a != b {
+		if a, b := planSummary(p, issues), planSummary(again, again.Validate(testRules)); a != b {
 			t.Fatalf("parsing twice differs:\n--- first ---\n%s--- second ---\n%s", a, b)
 		}
 	})

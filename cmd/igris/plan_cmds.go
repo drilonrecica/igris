@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -81,7 +82,7 @@ func writeJSON(w io.Writer, v any) {
 // The status and phases commands refuse to describe a plan igris could not run.
 func requireValid(fs *flag.FlagSet, l *loaded, stdout, stderr io.Writer) int {
 	json := jsonFlag(fs)
-	issues := l.plan.Validate(l.cfg.Models)
+	issues := l.plan.Validate(l.cfg.Rules())
 	if len(issues) == 0 {
 		return exitOK
 	}
@@ -107,7 +108,7 @@ func execCheck(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 		Runner: commandRunner(), Getenv: ariseGetenv, Versions: compatWarnings, BackendName: project.BackendName(l.cfg, ariseGetenv),
 		Config: l.cfg, NoConfig: l.noConfig, ParentConfig: l.parentConfig, Plan: l.plan,
 	})
-	r := report.Check(report.CheckInput{Plan: l.plan, Models: l.cfg.Models, Checks: checks.Pick(cs,
+	r := report.Check(report.CheckInput{Plan: l.plan, Rules: l.cfg.Rules(), Checks: checks.Pick(cs,
 		checks.IDClaude, checks.IDHerdr, checks.IDTmux, checks.IDConfig, checks.IDAPIKey, checks.IDProject, checks.IDPlanHints, checks.IDDrift)})
 
 	if jsonFlag(fs) {
@@ -198,7 +199,7 @@ func execStatus(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		if i > 0 {
 			fmt.Fprintln(stdout)
 		}
-		printPhaseStatus(stdout, ph)
+		printPhaseStatus(stdout, ph, r.Optional)
 	}
 	return exitOK
 }
@@ -252,7 +253,7 @@ func printRun(w io.Writer, r *report.RunInfo) {
 	row("Signals", strings.Join(r.Signals, ", "))
 }
 
-func printPhaseStatus(w io.Writer, r report.PhaseStatus) {
+func printPhaseStatus(w io.Writer, r report.PhaseStatus, opt report.Optional) {
 	satisfied := r.Counts["done"] + r.Counts["skipped"]
 	name := r.ID
 	if r.Title != "" {
@@ -264,13 +265,38 @@ func printPhaseStatus(w io.Writer, r report.PhaseStatus) {
 	}
 	fmt.Fprintln(w)
 	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(tw, "  ID\tSTATUS\tRANK\tOWNER\tMODE\tWAITS ON")
+	// The optional columns are shown only when some task of the plan sets
+	// them (SPEC §14).
+	header := "  ID\tSTATUS\tRANK\tOWNER\tMODE\t"
+	optional := func(t report.Task) string {
+		var b strings.Builder
+		if opt.Verify {
+			b.WriteString(cmp.Or(t.Verify, "—") + "\t")
+		}
+		if opt.Timeout {
+			b.WriteString(cmp.Or(t.Timeout, "—") + "\t")
+		}
+		if opt.Context {
+			b.WriteString(cmp.Or(strings.Join(t.Context, ", "), "—") + "\t")
+		}
+		return b.String()
+	}
+	if opt.Verify {
+		header += "VERIFY\t"
+	}
+	if opt.Timeout {
+		header += "TIMEOUT\t"
+	}
+	if opt.Context {
+		header += "CONTEXT\t"
+	}
+	fmt.Fprintln(tw, header+"WAITS ON")
 	for _, t := range r.Tasks {
 		waits := make([]string, len(t.WaitsOn))
 		for i, x := range t.WaitsOn {
 			waits[i] = fmt.Sprintf("%s (%s, phase %s)", x.ID, x.Status, x.Phase)
 		}
-		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s\n", t.ID, t.Status, t.Rank, t.Owner, t.Mode, strings.Join(waits, ", "))
+		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s%s\n", t.ID, t.Status, t.Rank, t.Owner, t.Mode, optional(t), strings.Join(waits, ", "))
 	}
 	_ = tw.Flush()
 }

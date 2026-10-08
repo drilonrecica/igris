@@ -87,7 +87,7 @@ func Run(ctx context.Context, o Options) (*Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read plan %s: %w; set plan in igris.toml or pass --plan", o.PlanPath, err)
 	}
-	issues, err := needsAdapt(plan.Parse(o.PlanPath, original, opts), cfg.Models)
+	issues, err := needsAdapt(plan.Parse(o.PlanPath, original, opts), cfg.Rules())
 	if err != nil {
 		return nil, err
 	}
@@ -132,14 +132,14 @@ func Run(ctx context.Context, o Options) (*Result, error) {
 		ProposalPath: proposal,
 		Original:     original,
 		Proposed:     proposed,
-		Issues:       plan.Parse(proposal, proposed, opts).Validate(cfg.Models),
+		Issues:       plan.Parse(proposal, proposed, opts).Validate(cfg.Rules()),
 		Note:         sig.Note,
 	}, nil
 }
 
 // needsAdapt returns the plan's problems, or ErrAlreadyValid.
-func needsAdapt(p *plan.Plan, models map[string]string) ([]plan.Issue, error) {
-	if issues := p.Validate(models); len(issues) > 0 {
+func needsAdapt(p *plan.Plan, rules plan.Rules) ([]plan.Issue, error) {
+	if issues := p.Validate(rules); len(issues) > 0 {
 		return issues, nil
 	}
 	return nil, ErrAlreadyValid

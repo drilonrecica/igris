@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/drilonrecica/igris/internal/backend"
+	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/runner"
 	"github.com/drilonrecica/igris/internal/state"
 	"github.com/drilonrecica/igris/internal/textsafe"
@@ -22,13 +23,32 @@ const (
 	verifyIdleWait = 30 * time.Second
 )
 
-// verify runs the verify command of the config snapshot for l's task
-// (SPEC §6.4) and reports whether it passed. On failure the signal is
+// verifyProfile resolves t's verify profile and its command from the
+// config snapshot (SPEC §6.4): the Verify cell, then [phases.<id>] verify,
+// then "default". Both are "" when the task has no verification.
+func (e *Engine) verifyProfile(t *plan.Task) (profile, command string) {
+	phase := ""
+	if t.Phase != nil {
+		phase = t.Phase.ID
+	}
+	return e.cfg.VerifyFor(t.Verify, phase)
+}
+
+// verifies reports whether a done signal for t is verified: it has a
+// verify profile and this is no dry run, which only shows the profile.
+func (e *Engine) verifies(t *plan.Task) bool {
+	_, command := e.verifyProfile(t)
+	return command != "" && !e.opts.noVerify
+}
+
+// verify runs the verify command of l's task's profile (SPEC §6.4) and
+// reports whether it passed. On failure the signal is
 // deleted and, below verify_max_attempts, the output tail is sent into the
 // session so the agent can fix it; at the limit the owner is called instead.
 // Only a command that can't be run at all is an error.
 func (e *Engine) verify(ctx context.Context, l *launch) (bool, error) {
-	t, script := l.t, e.cfg.Run.Verify
+	t := l.t
+	profile, script := e.verifyProfile(t)
 	timeout := e.cfg.Run.VerifyTimeout.Std()
 	e.emit(Event{Kind: VerifyStarted, Detail: script})
 	c := runner.Shell(script, e.dir.Root(), timeout)
@@ -51,7 +71,7 @@ func (e *Engine) verify(ctx context.Context, l *launch) (bool, error) {
 		if err := e.dir.SaveRun(e.run); err != nil {
 			return false, err
 		}
-		e.log(state.Event{Type: state.EventVerifyPassed})
+		e.log(state.Event{Type: state.EventVerifyPassed, Detail: "profile " + profile})
 		e.emit(Event{Kind: VerifyPassed, Detail: script})
 		return true, nil
 	}
@@ -62,11 +82,11 @@ func (e *Engine) verify(ctx context.Context, l *launch) (bool, error) {
 		return false, err
 	}
 	// The log keeps the result, never the output (SPEC §13).
-	e.log(state.Event{Type: state.EventVerifyFailed, Detail: fmt.Sprintf("attempt %d of %d: %s", n, max, why)})
+	e.log(state.Event{Type: state.EventVerifyFailed, Detail: fmt.Sprintf("profile %s: attempt %d of %d: %s", profile, n, max, why)})
 	if err := e.dir.RemoveSignal(t.ID); err != nil {
 		return false, err
 	}
-	e.emit(Event{Kind: VerifyFailed, Detail: fmt.Sprintf("`%s` failed (%s), attempt %d of %d", script, why, n, max)})
+	e.emit(Event{Kind: VerifyFailed, Detail: fmt.Sprintf("%s (`%s`) failed (%s), attempt %d of %d", profile, script, why, n, max)})
 
 	if n >= max {
 		e.emit(Event{Kind: VerifyLimit, Detail: fmt.Sprintf("verify failed %s in a row; igris stops sending failures to the session", times(n))})
@@ -79,8 +99,8 @@ func (e *Engine) verify(ctx context.Context, l *launch) (bool, error) {
 		return false, nil
 	}
 	e.settle(ctx, l.sess, verifyIdleWait)
-	msg := fmt.Sprintf("igris verification `%s` failed (%s). Last lines of its output:\n\n```\n%s\n```\n\nFix the problem, then run `igris done %s` again.\n",
-		script, why, tail(textsafe.Clean(string(res.Stdout)), verifyTailLines), t.ID)
+	msg := fmt.Sprintf("igris verification `%s` (`%s`) failed (%s). Last lines of its output:\n\n```\n%s\n```\n\nFix the problem, then run `igris done %s` again.\n",
+		profile, script, why, tail(textsafe.Clean(string(res.Stdout)), verifyTailLines), t.ID)
 	switch err := l.sess.Prompt(ctx, msg); {
 	case errors.Is(err, backend.ErrSessionGone):
 		e.lose(ctx, l)

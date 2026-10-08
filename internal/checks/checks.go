@@ -8,6 +8,7 @@ package checks
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -180,7 +181,7 @@ func Run(ctx context.Context, o Options) []Result {
 			add(project(o))
 		case IDPlanHints:
 			if p := validPlan(); p != nil {
-				add(planHints(p)...)
+				add(planHints(p, o.Config)...)
 			}
 		case IDDrift:
 			if p := validPlan(); p != nil {
@@ -283,20 +284,27 @@ func loadValidPlan(o Options) *plan.Plan {
 			return nil
 		}
 	}
-	if len(p.Validate(o.Config.Models)) > 0 {
+	if len(p.Validate(o.Config.Rules())) > 0 {
 		return nil
 	}
 	return p
 }
 
-func planHints(p *plan.Plan) []Result {
-	hints := p.Hints()
-	if len(hints) == 0 {
-		return []Result{{ID: IDPlanHints, Level: OK, Message: "no columns that look like dependencies outside Deps", File: p.Path}}
+// planHints lists the plan's hints and each [phases.<id>] of the config
+// that names no phase of the plan (the config is validated without it).
+func planHints(p *plan.Plan, cfg *config.Config) []Result {
+	var out []Result
+	for _, h := range p.Hints() {
+		out = append(out, Result{ID: IDPlanHints, Level: Warn, Message: h.Msg, File: h.File, Line: h.Line})
 	}
-	out := make([]Result, len(hints))
-	for i, h := range hints {
-		out[i] = Result{ID: IDPlanHints, Level: Warn, Message: h.Msg, File: h.File, Line: h.Line}
+	for _, id := range slices.Sorted(maps.Keys(cfg.Phases)) {
+		if p.Phase(id) == nil {
+			out = append(out, Result{ID: IDPlanHints, Level: Warn, File: state.ConfigFile,
+				Message: fmt.Sprintf("[phases.%s] names no phase of %s; fix the phase ID or remove the table", id, p.Path)})
+		}
+	}
+	if len(out) == 0 {
+		return []Result{{ID: IDPlanHints, Level: OK, Message: "no columns that look like dependencies outside Deps", File: p.Path}}
 	}
 	return out
 }

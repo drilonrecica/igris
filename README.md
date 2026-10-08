@@ -202,6 +202,7 @@ A plan is a markdown file (default `tasks.md`) with one task table per `##` phas
 - **Owner:** `agent`, `agent + user` (the agent must get your decision or sign-off), or `user` (your own task: igris pauses until you mark it done). The card then says **YOUR TURN — yours to do outside igris (no session). Then: d done · s skip**: do the work yourself, wherever it happens, and press `d` (it asks for an optional note, e.g. the name you picked, which lands in `igris history`) or `s` to skip with a reason. `igris done ID --note …` / `igris skip ID --reason …` work from any terminal too.
 - **Blocked on something outside the plan?** (API keys from a client, a deploy, a date) Add a `user` task that names the blocker and make the waiting task depend on it, e.g. `| X-00 | **Wait for API keys from client** | — | ready | — | user |`. Igris notifies you when it is your turn and carries on once you mark that task done. There is no other way to say "waiting on the outside"; `igris adapt` turns prose like "waits on" or "blocked by deploy" into such a task and lists it under `## Adapt notes`.
 - **Optional `Mode` column** to force a mode per task (e.g. `plan` for design-heavy tasks).
+- **Optional `Verify` column** naming a verify profile from `igris.toml` (`fast`, `full`, …) for that task, or `none` to skip verification for it; `—` or an empty cell falls back to the phase's and the project's default (see [Verification and commits](#verification-and-commits)). It names profiles, never commands. `Timeout` and `Context` are also recognised as optional columns. `igris status` shows a VERIFY, TIMEOUT or CONTEXT column only when some task sets it.
 
 A complete small plan is in [`examples/tasks.md`](examples/tasks.md) and a commented config in [`examples/igris.toml`](examples/igris.toml); copy them and run `igris check` and `igris arise P1 --dry-run` to see how igris reads them.
 
@@ -213,7 +214,22 @@ It keeps every task, ID, description, dependency, status and model; it only rest
 
 ## Verification and commits
 
-Set `verify` in `igris.toml` (e.g. `verify = "make fmt lint test"`) and igris runs it each time a session says it's done. When it fails, the last 60 lines go back into the same session to fix (as plain text: escape sequences are stripped); after `verify_max_attempts` failures in a row igris calls you instead. If you mark a task done yourself, igris takes your word and skips verify. Keep in mind that `verify` runs your project's own code, as you: a session that can edit files can change what it does.
+Set `verify` in `igris.toml` (e.g. `verify = "make fmt lint test"`) and igris runs it each time a session says it's done.
+
+Different tasks can verify differently with **verify profiles**: name shell commands under `[verify]`, give a phase its own default with `[phases.<id>]`, and pick one per task with the plan's `Verify` column:
+
+```toml
+[run]
+verify = "make fmt lint test"        # the profile "default"
+
+[verify]
+fast = "go test ./internal/plan/..."
+
+[phases.M0]
+verify = "fast"                      # or "none": no verification for this phase's tasks
+```
+
+For each task igris uses its Verify cell, else `[phases.<id>] verify` for its phase, else `default`; `none` at either of the first two levels turns verification off, and with nothing set there is none. Profile names use `a-z`, `0-9`, `_` and `-`; `none` is reserved, and `run.verify` together with `[verify] default` is an error. A Verify cell naming an unknown profile fails `igris check` and `igris arise`; a `[phases.<id>]` naming no phase of the plan is a warning. `verify_timeout` and `verify_max_attempts` apply to every profile, the failure sent into the session names the profile, and `igris arise --dry-run` shows each task's profile. When it fails, the last 60 lines go back into the same session to fix (as plain text: escape sequences are stripped); after `verify_max_attempts` failures in a row igris calls you instead. If you mark a task done yourself, igris takes your word and skips verify. Keep in mind that `verify` runs your project's own code, as you: a session that can edit files can change what it does.
 
 After a task passes, igris commits everything in the tree (`commit = "ask"`, the default, asks you first; `auto` just commits; `never` leaves git alone). The message comes from `commit_message`, `{{.ID}}: {{.Title}}` by default, with the session's done note as the body.
 

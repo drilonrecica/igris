@@ -57,7 +57,7 @@ func TestCheckKeepsJSONKeyOrderAndNeverNull(t *testing.T) {
 	p := load(t, testPlan)
 	cs := checks.Run(context.Background(), checks.Options{IDs: []string{checks.IDPlanHints, checks.IDDrift}, Config: config.Default(), Plan: p})
 	cs = append([]checks.Result{{Level: checks.Warn, Message: "x\x1b[2Jy"}, {Level: checks.OK, Message: "not shown"}}, cs...)
-	r := Check(CheckInput{Plan: p, Models: map[string]string{"sonnet": "sonnet"}, Checks: cs})
+	r := Check(CheckInput{Plan: p, Rules: plan.Rules{Models: map[string]string{"sonnet": "sonnet"}}, Checks: cs})
 	if !r.Valid || len(r.Issues) != 0 {
 		t.Fatalf("report = %+v", r)
 	}
@@ -78,7 +78,7 @@ func TestCheckKeepsJSONKeyOrderAndNeverNull(t *testing.T) {
 
 func TestInvalidPlanHasNoDrift(t *testing.T) {
 	p := load(t, "## M0 — P\n\n| ID | Deps | Status | Model | Owner | Mode |\n|---|---|---|---|---|---|\n| a | b | blocked | sonnet | agent | |\n| b | a | blocked | sonnet | agent | |\n")
-	r := Check(CheckInput{Plan: p, Models: map[string]string{"sonnet": "sonnet"}})
+	r := Check(CheckInput{Plan: p, Rules: plan.Rules{Models: map[string]string{"sonnet": "sonnet"}}})
 	if r.Valid || len(r.Issues) != 1 || len(r.Warnings) != 0 {
 		t.Fatalf("report = %+v", r)
 	}

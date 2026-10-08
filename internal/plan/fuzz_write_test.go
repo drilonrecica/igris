@@ -37,7 +37,7 @@ func checkSplice(t *testing.T, data []byte, pick uint, s Status) {
 		t.Fatalf("splice %s → %s changed bytes outside its Status cell [%d,%d)", target.ID, s, target.statusStart, target.statusEnd)
 	}
 
-	if p.Check(testModels) != nil {
+	if p.Check(testRules) != nil {
 		return
 	}
 	q := Parse("tasks.md", out, Options{})
@@ -156,14 +156,14 @@ func TestGeneratedPlanThroughWriter(t *testing.T) {
 		for _, nl := range []bool{false, true} {
 			data := generatedPlan("Größe | ✓", "P1-01", "a | b", "`ready` (soon)", crlf, nl)
 			p := Parse("tasks.md", data, Options{})
-			if err := p.Check(testModels); err != nil {
+			if err := p.Check(testRules); err != nil {
 				t.Fatalf("crlf=%v nl=%v: generated plan invalid: %v", crlf, nl, err)
 			}
 			path := filepath.Join(t.TempDir(), "tasks.md")
 			if err := os.WriteFile(path, data, 0o600); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := NewWriter(path, Options{}, testModels).Update(context.Background(), set("P1-01", Done)); err != nil {
+			if _, err := NewWriter(path, Options{}, testRules).Update(context.Background(), set("P1-01", Done)); err != nil {
 				t.Fatal(err)
 			}
 			want, err := splice(data, p, []Change{{ID: "P1-01", To: Done}})

@@ -38,9 +38,9 @@ func logLines(ev engine.Event) []string {
 	case engine.Retrying:
 		return []string{id + " new session (" + ev.Detail + ")"}
 	case engine.VerifyStarted:
-		return []string{id + " verifying: " + ev.Detail}
+		return []string{id + " verifying (" + ev.Verify + "): " + ev.Detail}
 	case engine.VerifyPassed:
-		return []string{id + " verify passed"}
+		return []string{id + " verify passed (" + ev.Verify + ")"}
 	case engine.VerifyFailed:
 		return []string{id + " verify failed: " + ev.Detail}
 	case engine.Committed:

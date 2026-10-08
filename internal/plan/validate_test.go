@@ -11,6 +11,8 @@ import (
 
 var testModels = map[string]string{"sonnet": "sonnet", "opus": "opus", "fable": "fable", "haiku": "haiku"}
 
+var testRules = Rules{Models: testModels}
+
 // table builds a one-phase plan; rows start at line 5.
 func table(rows ...string) string {
 	return "## M0\n\n| ID | Deps | Status | Model | Owner | Mode |\n|---|---|---|---|---|---|\n" + strings.Join(rows, "\n") + "\n"
@@ -18,10 +20,10 @@ func table(rows ...string) string {
 
 func TestValidateValid(t *testing.T) {
 	p := Parse("tasks.md", []byte(specExample), Options{})
-	if issues := p.Validate(testModels); len(issues) > 0 {
+	if issues := p.Validate(testRules); len(issues) > 0 {
 		t.Fatalf("spec example must be valid: %v", issueMsgs(issues))
 	}
-	if err := p.Check(testModels); err != nil {
+	if err := p.Check(testRules); err != nil {
 		t.Fatal(err)
 	}
 	in := table(
@@ -33,7 +35,7 @@ func TestValidateValid(t *testing.T) {
 		"| e | | done | — | agent | |",
 		"| f | | skipped (not needed) | | agent + user | |",
 	)
-	if issues := Parse("tasks.md", []byte(in), Options{}).Validate(testModels); len(issues) > 0 {
+	if issues := Parse("tasks.md", []byte(in), Options{}).Validate(testRules); len(issues) > 0 {
 		t.Fatalf("unexpected issues: %v", issueMsgs(issues))
 	}
 }
@@ -151,7 +153,7 @@ func TestValidateErrors(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := issueMsgs(Parse("tasks.md", []byte(tt.in), Options{}).Validate(testModels))
+			got := issueMsgs(Parse("tasks.md", []byte(tt.in), Options{}).Validate(testRules))
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Fatalf("issues:\n got %q\nwant %q", got, tt.want)
 			}
@@ -166,7 +168,7 @@ func TestValidateCollectsAllSortedByLine(t *testing.T) {
 			"| b | a | ready | sonnet | user | |",
 			"| a | | ready | sonnet | agent | |",
 		)
-	got := issueMsgs(Parse("tasks.md", []byte(in), Options{}).Validate(testModels))
+	got := issueMsgs(Parse("tasks.md", []byte(in), Options{}).Validate(testRules))
 	want := []string{
 		`tasks.md:1: task table outside a phase; put it under a "## <phase ID> — <title>" heading`,
 		`tasks.md:9: a: unknown status "todo"; use ready, blocked, in progress, done or skipped`,
@@ -183,8 +185,8 @@ func TestValidateCollectsAllSortedByLine(t *testing.T) {
 func TestValidateDoesNotModifyPlan(t *testing.T) {
 	p := Parse("tasks.md", []byte(table("| a | | todo | sonnet | agent | |")), Options{})
 	before := len(p.issues)
-	p.Validate(testModels)
-	p.Validate(testModels)
+	p.Validate(testRules)
+	p.Validate(testRules)
 	if len(p.issues) != before {
 		t.Fatal("Validate must not accumulate issues on the plan")
 	}
@@ -192,7 +194,7 @@ func TestValidateDoesNotModifyPlan(t *testing.T) {
 
 func TestCheckAndInvalid(t *testing.T) {
 	p := Parse("tasks.md", []byte(table("| a | | todo | sonnet | agent | |", "| b | | ready | gpt | agent | |")), Options{})
-	err := p.Check(testModels)
+	err := p.Check(testRules)
 	var inv *Invalid
 	if !errors.As(err, &inv) || len(inv.Issues) != 2 {
 		t.Fatalf("err = %v", err)
@@ -215,7 +217,7 @@ func TestLoad(t *testing.T) {
 	if p.Path != path || len(p.Tasks) != 4 {
 		t.Fatalf("plan = %+v", p)
 	}
-	if issues := p.Validate(testModels); len(issues) > 0 && !strings.HasPrefix(issues[0].Error(), path+":") {
+	if issues := p.Validate(testRules); len(issues) > 0 && !strings.HasPrefix(issues[0].Error(), path+":") {
 		t.Fatalf("issues must carry the path: %v", issues)
 	}
 	if _, err := Load(filepath.Join(dir, "missing.md"), Options{}); !errors.Is(err, os.ErrNotExist) {
@@ -229,5 +231,62 @@ func TestIssueError(t *testing.T) {
 	}
 	if got := (Issue{File: "f.md", Line: 3, Msg: "m"}).Error(); got != "f.md:3: m" {
 		t.Fatal(got)
+	}
+}
+
+func TestOptionalColumns(t *testing.T) {
+	in := "## M1\n\n| ID | Status | Model | Owner | verify | Timeout | Context | Spec |\n|---|---|---|---|---|---|---|---|\n" +
+		"| M1-01 | ready | sonnet | agent | `Fast` | 45m | `a.go`, b/, , a.go | §1 |\n" +
+		"| M1-02 | ready | sonnet | agent | — | - | | §2 |\n" +
+		"| M1-03 | ready | sonnet | agent | none | | | |\n"
+	p := Parse("tasks.md", []byte(in), Options{})
+	t1, t2, t3 := p.Task("M1-01"), p.Task("M1-02"), p.Task("M1-03")
+	if t1.Verify != "fast" || t1.TimeoutText != "45m" || t1.ContextText != "`a.go`, b/, , a.go" || strings.Join(t1.Context, "|") != "a.go|b/" {
+		t.Errorf("M1-01 = verify %q, timeout %q, context %q %q", t1.Verify, t1.TimeoutText, t1.ContextText, t1.Context)
+	}
+	if t2.Verify != "" || t2.TimeoutText != "" || t2.ContextText != "" || t2.Context != nil {
+		t.Errorf("M1-02 has values: %+v", t2)
+	}
+	if t3.Verify != VerifyNone {
+		t.Errorf("M1-03 verify = %q, want none", t3.Verify)
+	}
+	if _, ok := t1.Extra["Verify"]; ok || len(t1.Extra) != 1 || t1.Extra["Spec"] != "§1" {
+		t.Errorf("Extra = %v; want only Spec", t1.Extra)
+	}
+	// Aliased like the other columns.
+	p = Parse("tasks.md", []byte(strings.Replace(in, "verify", "Check", 1)), Options{Columns: map[string]string{"check": "Verify"}})
+	if p.Task("M1-01").Verify != "fast" {
+		t.Errorf("aliased Verify = %q", p.Task("M1-01").Verify)
+	}
+}
+
+func TestVerifyProfileValidation(t *testing.T) {
+	const head = "## M1\n\n| ID | Status | Model | Owner | Verify |\n|---|---|---|---|---|\n"
+	rules := Rules{Models: testModels, Verify: []string{"fast", "default"}}
+	tests := []struct {
+		name string
+		row  string
+		want []string
+	}{
+		{"known, case-insensitive", "| a | ready | sonnet | agent | FAST |", nil},
+		{"none", "| a | ready | sonnet | agent | none |", nil},
+		{"not set", "| a | ready | sonnet | agent | — |", nil},
+		{"unknown", "| a | ready | sonnet | agent | fsat |", []string{`tasks.md:5: a: unknown verify profile "fsat"; define it under [verify] in igris.toml or use one of: default, fast, none`}},
+		{"unknown on a done task", "| a | done | sonnet | agent | fsat |", nil},
+		{"unknown on a skipped task", "| a | skipped | sonnet | agent | fsat |", nil},
+		{"unknown on a user task", "| a | ready | — | user | fsat |", nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := issueMsgs(Parse("tasks.md", []byte(head+tt.row+"\n"), Options{}).Validate(rules))
+			if strings.Join(got, "\n") != strings.Join(tt.want, "\n") {
+				t.Errorf("issues = %q, want %q", got, tt.want)
+			}
+		})
+	}
+	// Without profiles in config only none is allowed.
+	got := issueMsgs(Parse("tasks.md", []byte(head+"| a | ready | sonnet | agent | default |\n"), Options{}).Validate(testRules))
+	if len(got) != 1 || !strings.HasSuffix(got[0], "or use one of: none") {
+		t.Errorf("issues = %q", got)
 	}
 }

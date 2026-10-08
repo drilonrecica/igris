@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"cmp"
 	"context"
 	"errors"
 	"flag"
@@ -473,9 +474,9 @@ func formatEvent(ev engine.Event) []string {
 	case engine.Retrying:
 		return []string{id + " new session (" + ev.Detail + ")"}
 	case engine.VerifyStarted:
-		return []string{id + " verifying: " + ev.Detail}
+		return []string{id + " verifying (" + ev.Verify + "): " + ev.Detail}
 	case engine.VerifyPassed:
-		return []string{id + " verify passed"}
+		return []string{id + " verify passed (" + ev.Verify + ")"}
 	case engine.VerifyFailed:
 		return []string{id + " verify failed: " + ev.Detail}
 	case engine.VerifyLimit:
@@ -557,6 +558,11 @@ func printDryRun(out io.Writer, r report.DryRun) {
 		return
 	}
 	fmt.Fprintf(out, "dry run of phase %s: nothing is written and no session starts\n", r.Scope)
+	// The verify column is shown only when some task has a profile.
+	verifies := false
+	for _, s := range r.Steps {
+		verifies = verifies || s.Verify != ""
+	}
 	for _, s := range r.Steps {
 		switch s.Kind {
 		case report.StepSession:
@@ -564,7 +570,11 @@ func printDryRun(out io.Writer, r report.DryRun) {
 			if s.Resumed {
 				how = "  (resumed: fresh session)"
 			}
-			fmt.Fprintf(out, "%3d. %-10s %-7s → model %-7s mode %-7s %s%s%s\n", s.N, s.Task, s.Rank, s.Model, s.Mode, s.Title, yoloBadge(s.Mode), how)
+			verify := ""
+			if verifies {
+				verify = fmt.Sprintf("verify %-7s ", cmp.Or(s.Verify, "—"))
+			}
+			fmt.Fprintf(out, "%3d. %-10s %-7s → model %-7s mode %-7s %s%s%s%s\n", s.N, s.Task, s.Rank, s.Model, s.Mode, verify, s.Title, yoloBadge(s.Mode), how)
 		case report.StepUser:
 			fmt.Fprintf(out, "%3d. %-10s user task: waits for you  %s\n", s.N, s.Task, s.Title)
 		case report.StepPhaseDone:

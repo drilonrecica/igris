@@ -90,7 +90,7 @@ func TestWriterPreservesBytes(t *testing.T) {
 					in = strings.ReplaceAll(in, "\n", ending.nl)
 					path := writePlan(t, in)
 
-					got, err := NewWriter(path, Options{}, testModels).Update(context.Background(), set("a", tt.to))
+					got, err := NewWriter(path, Options{}, testRules).Update(context.Background(), set("a", tt.to))
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -117,7 +117,7 @@ func TestWriterEveryCellIsolated(t *testing.T) {
 	for _, task := range p.Tasks {
 		for _, s := range []Status{Ready, Blocked, InProgress, Done, Skipped} {
 			path := writePlan(t, in)
-			if _, err := NewWriter(path, Options{}, testModels).Update(context.Background(), set(task.ID, s)); err != nil {
+			if _, err := NewWriter(path, Options{}, testRules).Update(context.Background(), set(task.ID, s)); err != nil {
 				t.Fatalf("%s → %v: %v", task.ID, s, err)
 			}
 			out := readPlan(t, path)
@@ -140,7 +140,7 @@ func TestWriterSyncMultipleCells(t *testing.T) {
 		"| a | — | in progress | sonnet |\n| b | a | blocked | sonnet |\n| c | a, b | `blocked` | sonnet |\n" +
 		"\n## M1\n\n| ID | Deps | Status | Model |\n|---|---|---|---|\n| d | a | blocked | sonnet |\n"
 	path := writePlan(t, in)
-	got, err := NewWriter(path, Options{}, testModels).Update(context.Background(), func(p *Plan) ([]Change, error) {
+	got, err := NewWriter(path, Options{}, testRules).Update(context.Background(), func(p *Plan) ([]Change, error) {
 		return p.Sync("a", Done)
 	})
 	if err != nil {
@@ -162,7 +162,7 @@ func TestWriterSyncMultipleCells(t *testing.T) {
 func TestWriterNoChangesLeavesFileAlone(t *testing.T) {
 	path := writePlan(t, specExample)
 	before, _ := os.Stat(path)
-	got, err := NewWriter(path, Options{}, testModels).Update(context.Background(), func(*Plan) ([]Change, error) { return nil, nil })
+	got, err := NewWriter(path, Options{}, testRules).Update(context.Background(), func(*Plan) ([]Change, error) { return nil, nil })
 	if err != nil || got != nil {
 		t.Fatalf("got %v, %v", got, err)
 	}
@@ -177,7 +177,7 @@ func TestWriterKeepsPermissions(t *testing.T) {
 	if err := os.Chmod(path, 0o640); err != nil { //nolint:gosec // test file
 		t.Fatal(err)
 	}
-	if _, err := NewWriter(path, Options{}, testModels).Update(context.Background(), set("M0-01", Done)); err != nil {
+	if _, err := NewWriter(path, Options{}, testRules).Update(context.Background(), set("M0-01", Done)); err != nil {
 		t.Fatal(err)
 	}
 	info, _ := os.Stat(path)
@@ -190,7 +190,7 @@ func TestWriterRefusesInvalidPlan(t *testing.T) {
 	in := strings.Replace(specExample, "| ready | sonnet |", "| todo | sonnet |", 1)
 	path := writePlan(t, in)
 	called := false
-	_, err := NewWriter(path, Options{}, testModels).Update(context.Background(), func(*Plan) ([]Change, error) {
+	_, err := NewWriter(path, Options{}, testRules).Update(context.Background(), func(*Plan) ([]Change, error) {
 		called = true
 		return nil, nil
 	})
@@ -205,7 +205,7 @@ func TestWriterRefusesInvalidPlan(t *testing.T) {
 
 func TestWriterVanishedRow(t *testing.T) {
 	path := writePlan(t, specExample)
-	_, err := NewWriter(path, Options{}, testModels).Update(context.Background(), func(p *Plan) ([]Change, error) {
+	_, err := NewWriter(path, Options{}, testRules).Update(context.Background(), func(p *Plan) ([]Change, error) {
 		return []Change{{ID: "M0-99", To: Done}}, nil
 	})
 	if err == nil || !strings.Contains(err.Error(), "task M0-99 is no longer in") {
@@ -219,7 +219,7 @@ func TestWriterVanishedRow(t *testing.T) {
 
 func TestWriterRowVanishesDuringWrite(t *testing.T) {
 	path := writePlan(t, specExample)
-	w := NewWriter(path, Options{}, testModels)
+	w := NewWriter(path, Options{}, testRules)
 	edited := strings.Replace(specExample, "| M0-02 | **Entrypoint** — main.go with subcommands | M0-01 | blocked | sonnet | agent |\n", "", 1)
 	edited = strings.Replace(edited, "M0-02…M0-03", "M0-03", 1)
 	w.beforeRename = func() {
@@ -240,7 +240,7 @@ func TestWriterRowVanishesDuringWrite(t *testing.T) {
 
 func TestWriterConcurrentEditRetried(t *testing.T) {
 	path := writePlan(t, specExample)
-	w := NewWriter(path, Options{}, testModels)
+	w := NewWriter(path, Options{}, testRules)
 	// While igris writes M0-01, the owner marks M0-02 done by hand and adds a
 	// note at the end of the file.
 	const m02 = "| M0-02 | **Entrypoint** — main.go with subcommands | M0-01 | blocked |"
@@ -278,7 +278,7 @@ func TestWriterConcurrentEditRetried(t *testing.T) {
 
 func TestWriterGivesUpAfterThreeAttempts(t *testing.T) {
 	path := writePlan(t, specExample)
-	w := NewWriter(path, Options{}, testModels)
+	w := NewWriter(path, Options{}, testRules)
 	n := 0
 	w.beforeRename = func() {
 		n++
@@ -298,7 +298,7 @@ func TestWriterGivesUpAfterThreeAttempts(t *testing.T) {
 
 func TestWriterErrors(t *testing.T) {
 	path := writePlan(t, specExample)
-	w := NewWriter(path, Options{}, testModels)
+	w := NewWriter(path, Options{}, testRules)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -311,7 +311,7 @@ func TestWriterErrors(t *testing.T) {
 		t.Fatalf("fn error: %v", err)
 	}
 
-	missing := NewWriter(filepath.Join(t.TempDir(), "nope.md"), Options{}, testModels)
+	missing := NewWriter(filepath.Join(t.TempDir(), "nope.md"), Options{}, testRules)
 	if _, err := missing.Update(context.Background(), set("a", Done)); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("missing: %v", err)
 	}
@@ -325,7 +325,7 @@ func TestWriterErrors(t *testing.T) {
 func TestWriterKeepsBOM(t *testing.T) {
 	in := "\ufeff## M0 — Foundation\r\n\r\n| ID | Task | Status | Model |\r\n|---|---|---|---|\r\n| a | x | ready | sonnet |\r\n"
 	path := writePlan(t, in)
-	if _, err := NewWriter(path, Options{}, testModels).Update(context.Background(), set("a", Done)); err != nil {
+	if _, err := NewWriter(path, Options{}, testRules).Update(context.Background(), set("a", Done)); err != nil {
 		t.Fatal(err)
 	}
 	want := strings.Replace(in, "| ready |", "| done |", 1)
@@ -343,7 +343,7 @@ func TestWriterKeepsSymlink(t *testing.T) {
 	if err := os.Symlink(target, link); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := NewWriter(link, Options{}, testModels).Update(context.Background(), set("a", Done)); err != nil {
+	if _, err := NewWriter(link, Options{}, testRules).Update(context.Background(), set("a", Done)); err != nil {
 		t.Fatal(err)
 	}
 	if fi, err := os.Lstat(link); err != nil || fi.Mode()&os.ModeSymlink == 0 {

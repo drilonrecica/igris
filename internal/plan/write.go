@@ -27,17 +27,17 @@ type UpdateFunc func(p *Plan) ([]Change, error)
 
 // Writer changes Status cells of the plan file and nothing else (SPEC §4).
 type Writer struct {
-	path   string
-	opts   Options
-	models map[string]string
+	path  string
+	opts  Options
+	rules Rules
 
 	beforeRename func() // test hook: runs after the temp file is written
 }
 
-// NewWriter returns a writer for the plan at path. opts and models are the
+// NewWriter returns a writer for the plan at path. opts and rules are the
 // same as for parsing and validation.
-func NewWriter(path string, opts Options, models map[string]string) *Writer {
-	return &Writer{path: path, opts: opts, models: models}
+func NewWriter(path string, opts Options, rules Rules) *Writer {
+	return &Writer{path: path, opts: opts, rules: rules}
 }
 
 // Update re-reads and validates the plan, asks fn for the changes and writes
@@ -67,7 +67,7 @@ func (w *Writer) attempt(fn UpdateFunc) (changes []Change, retry bool, err error
 	sum := sha256.Sum256(data)
 
 	p := Parse(w.path, data, w.opts)
-	if err := p.Check(w.models); err != nil {
+	if err := p.Check(w.rules); err != nil {
 		return nil, false, fmt.Errorf("not writing %s: %w", w.path, err)
 	}
 	changes, err = fn(p)

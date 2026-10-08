@@ -22,7 +22,7 @@ func schedPlan(t *testing.T, spec string) *Plan {
 		b.WriteString("| " + f[0] + " | " + strings.Join(f[2:], ", ") + " | " + status + " | sonnet |\n")
 	}
 	p := Parse("tasks.md", []byte(b.String()), Options{})
-	if issues := p.Validate(testModels); len(issues) > 0 {
+	if issues := p.Validate(testRules); len(issues) > 0 {
 		t.Fatalf("invalid test plan: %v", issueMsgs(issues))
 	}
 	return p

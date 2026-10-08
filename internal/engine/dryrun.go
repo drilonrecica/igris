@@ -81,7 +81,7 @@ func DryRun(ctx context.Context, o DryRunOptions) (report.DryRun, error) {
 	if err != nil {
 		return r, PlanLoadError(err)
 	}
-	if err := p.Check(f.Config.Models); err != nil {
+	if err := p.Check(f.Config.Rules()); err != nil {
 		return r, err
 	}
 	// Check the range on the owner's plan, so errors name it, not the copy.
@@ -119,6 +119,7 @@ func DryRun(ctx context.Context, o DryRunOptions) (report.DryRun, error) {
 		State:          dir,
 		Clock:          clock,
 		Runner:         &runner.Fake{}, // verify and commits are off; nothing may run
+		noVerify:       true,
 		Phase:          f.Phase,
 		Through:        f.Through,
 		Mode:           f.Mode,
@@ -138,11 +139,11 @@ func DryRun(ctx context.Context, o DryRunOptions) (report.DryRun, error) {
 }
 
 // dryRunProject sets up a scratch project in tmp: the plan (and prompt
-// template) copied from root, and a config that never verifies, commits or
-// toasts. It returns that config.
+// template) copied from root, and a config that never commits or toasts.
+// It returns that config. Its verify profiles stay, so the plan validates
+// and the walk shows each task's profile; the engine runs none of them.
 func dryRunProject(tmp, root string, orig *config.Config) (*config.Config, error) {
 	cfg := *orig
-	cfg.Run.Verify = ""
 	cfg.Run.Commit = CommitNever
 	cfg.Notify.Backend.Enabled = false
 	cfg.Notify.Ntfy.Topic = "" // no Discord webhook either: dry runs resolve no secrets
@@ -191,7 +192,7 @@ func (w *dryWalk) event(eng *Engine, dir *state.Dir, ev Event) {
 		r.Sessions++
 		r.Steps = append(r.Steps, report.DryStep{
 			Kind: report.StepSession, N: r.Sessions + r.Users, Task: textsafe.Line(ev.Task),
-			Rank: textsafe.Line(ev.Rank), Model: textsafe.Line(ev.Model), Mode: textsafe.Line(ev.Mode),
+			Rank: textsafe.Line(ev.Rank), Model: textsafe.Line(ev.Model), Mode: textsafe.Line(ev.Mode), Verify: textsafe.Line(ev.Verify),
 			Title: textsafe.Line(ev.Title), Resumed: w.resumed[ev.Task],
 		})
 	case YourTurn:

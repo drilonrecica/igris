@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -27,6 +28,17 @@ type Task struct {
 	Mode      string // Mode cell, lower-case; "" for none
 	DepsText  string // the Deps cell as written
 	Deps      []string
+
+	// Verify is the Verify cell, lower-case, backticks removed: a verify
+	// profile, "none" (no verification), or "" when not set (empty, — or -).
+	Verify string
+	// TimeoutText and ContextText are the Timeout and Context cells as
+	// written, "" when not set (empty, — or -).
+	TimeoutText string
+	ContextText string
+	// Context is the Context cell's paths as written: split at commas,
+	// trimmed, backticks stripped, empty entries and duplicates dropped.
+	Context []string
 
 	Extra map[string]string // extra columns by header name, e.g. "Spec"
 	Cells []string          // every cell as written, in the order of Phase.Columns
@@ -96,6 +108,19 @@ func (p *Plan) newTask(ph *Phase, r row) *Task {
 			if !isNone(c.value) {
 				t.Mode = strings.ToLower(strings.Trim(c.value, "`"))
 			}
+		case ColVerify:
+			if !unset(c.value) {
+				t.Verify = strings.ToLower(strings.Trim(c.value, "`"))
+			}
+		case ColTimeout:
+			if !unset(c.value) {
+				t.TimeoutText = c.value
+			}
+		case ColContext:
+			if !unset(c.value) {
+				t.ContextText = c.value
+				t.Context = splitContext(c.value)
+			}
 		default:
 			t.Extra[col] = c.value
 		}
@@ -120,4 +145,26 @@ func title(text string) string {
 		return text
 	}
 	return string([]rune(text)[:titleMaxRunes])
+}
+
+// unset reports whether a Verify, Timeout or Context cell is "not set":
+// empty, — or -. Unlike isNone, "none" is a value there (SPEC §3.2).
+func unset(s string) bool {
+	switch strings.Trim(s, " \t`") {
+	case "", "—", "-":
+		return true
+	}
+	return false
+}
+
+// splitContext splits a Context cell into its paths (SPEC §3.2).
+func splitContext(cell string) []string {
+	var out []string
+	for _, e := range strings.Split(cell, ",") {
+		e = strings.TrimSpace(strings.Trim(strings.TrimSpace(e), "`"))
+		if e != "" && !slices.Contains(out, e) {
+			out = append(out, e)
+		}
+	}
+	return out
 }

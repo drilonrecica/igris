@@ -77,6 +77,14 @@ func NewSettings(cfg *config.Config, keys config.Keys, getenv func(string) strin
 	set(run, "commit_message", tomlString(cfg.Run.CommitMessage))
 	set(run, "prompt_template", tomlString(cfg.Run.PromptTemplate))
 
+	table("verify", cfg.Verify)
+	for _, id := range sortedKeys(cfg.Phases) {
+		// A phase ID may hold a dot, so the key's parts are given here
+		// rather than split from the section's name.
+		ph := sec("phases." + tomlKey(id))
+		ph.Rows = append(ph.Rows, Setting{Key: "verify", Value: tomlString(cfg.Phases[id].Verify), Default: !keys.Set("phases", id, "verify")})
+	}
+
 	set(sec("adapt"), "model", tomlString(cfg.Adapt.Model))
 
 	tui := sec("tui")
@@ -150,7 +158,7 @@ func splitSection(name string) []string {
 	return strings.Split(name, ".")
 }
 
-func sortedKeys(m map[string]string) []string {
+func sortedKeys[V any](m map[string]V) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)

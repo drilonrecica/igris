@@ -17,9 +17,13 @@ const (
 	ColModel  = "Model"
 	ColOwner  = "Owner"
 	ColMode   = "Mode"
+	// Optional, added in v0.4 (SPEC §3.2).
+	ColVerify  = "Verify"
+	ColTimeout = "Timeout"
+	ColContext = "Context"
 )
 
-var canonicalCols = []string{ColID, ColTask, ColDeps, ColStatus, ColModel, ColOwner, ColMode}
+var canonicalCols = []string{ColID, ColTask, ColDeps, ColStatus, ColModel, ColOwner, ColMode, ColVerify, ColTimeout, ColContext}
 
 // Options control parsing.
 type Options struct {

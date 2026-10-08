@@ -218,6 +218,9 @@ func (s *previewScreen) step(st report.DryStep, w int) []string {
 	switch st.Kind {
 	case report.StepSession:
 		text := fmt.Sprintf("%s  %s → %s · mode %s", st.Task, st.Rank, st.Model, st.Mode)
+		if st.Verify != "" {
+			text += " · verify " + st.Verify
+		}
 		if st.Resumed {
 			text += " · resumed: fresh session"
 		}

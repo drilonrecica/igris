@@ -55,7 +55,7 @@ func TestGoldenInvalid(t *testing.T) {
 			}
 			// Issues carry the file name; use the base name so goldens are stable.
 			p := Parse(filepath.Base(f), data, Options{})
-			issues := p.Validate(testModels)
+			issues := p.Validate(testRules)
 			if len(issues) == 0 {
 				t.Fatal("fixture must be invalid")
 			}
@@ -70,7 +70,7 @@ func TestGoldenInvalid(t *testing.T) {
 
 func TestGoldenLargeSummary(t *testing.T) {
 	p := loadFixture(t, "testdata/large.md")
-	if issues := p.Validate(testModels); len(issues) > 0 {
+	if issues := p.Validate(testRules); len(issues) > 0 {
 		t.Fatalf("large fixture must be valid: %v", issueMsgs(issues))
 	}
 	if len(p.Phases) < 10 || len(p.Tasks) < 150 {
@@ -152,7 +152,7 @@ func TestLargeFixtureWriteRoundTrip(t *testing.T) {
 	if err := os.WriteFile(path, orig, 0o600); err != nil { //nolint:gosec // temp dir
 		t.Fatal(err)
 	}
-	w := NewWriter(path, Options{}, testModels)
+	w := NewWriter(path, Options{}, testRules)
 	// F1-13 is blocked behind done tasks, so completing it also changes other cells.
 	changes, err := w.Update(context.Background(), func(p *Plan) ([]Change, error) { return p.Sync("F1-13", Done) })
 	if err != nil {

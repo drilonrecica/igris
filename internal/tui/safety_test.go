@@ -96,7 +96,7 @@ func zapSnapshot(t *testing.T, planText string) *report.Snapshot {
 		Lock:       state.LockState{Path: "/src/sinjal/.igris/igris.lock"},
 	}
 	s.Plan = plan.Parse("tasks.md", []byte(planText), plan.Options{})
-	s.Issues = report.Issues(s.Plan.Validate(cfg.Models))
+	s.Issues = report.Issues(s.Plan.Validate(cfg.Rules()))
 	if len(s.Issues) == 0 {
 		st, err := report.Status(s.Plan, "")
 		if err != nil {

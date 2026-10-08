@@ -504,3 +504,81 @@ func TestStatusRunFromSubdirAndBadState(t *testing.T) {
 		t.Errorf("bad state not reported:\n%s", out)
 	}
 }
+
+func TestCheckVerifyProfiles(t *testing.T) {
+	dir := inDir(t)
+	plan := "## M1 — One\n\n| ID | Status | Model | Owner | Verify |\n|---|---|---|---|---|\n| M1-01 | ready | sonnet | agent | fsat |\n| M1-02 | ready | — | user | fast |\n"
+	if err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(plan), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg := "[verify]\nfast = \"go test ./...\"\n[phases.M9]\nverify = \"fast\"\n"
+	if err := os.WriteFile(filepath.Join(dir, configFile), []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	code, out, _ := runCmd("check")
+	if code != exitFail || !strings.Contains(out, `tasks.md:5: M1-01: unknown verify profile "fsat"; define it under [verify] in igris.toml or use one of: fast, none`) {
+		t.Errorf("code %d, out:\n%s", code, out)
+	}
+	for _, cmd := range []string{"status", "phases"} {
+		if code, _, _ := runCmd(cmd); code != exitFail {
+			t.Errorf("%s with an unknown profile: code %d", cmd, code)
+		}
+	}
+
+	if err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(strings.Replace(plan, "fsat", "FAST", 1)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	code, out, _ = runCmd("check")
+	for _, w := range []string{
+		"warning: tasks.md:6: M1-02: user tasks have no session, so its Verify is ignored; clear the cell",
+		"warning: igris.toml: [phases.M9] names no phase of tasks.md; fix the phase ID or remove the table",
+		"OK (1 phases, 2 tasks, 2 warnings)",
+	} {
+		if code != exitOK || !strings.Contains(out, w) {
+			t.Errorf("code %d, output lacks %q:\n%s", code, w, out)
+		}
+	}
+}
+
+func TestStatusOptionalColumns(t *testing.T) {
+	dir := inDir(t)
+	write := func(plan string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(plan), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("## M1\n\n| ID | Status | Model | Verify | Timeout | Context |\n|---|---|---|---|---|---|\n| a | ready | sonnet | — | | |\n")
+	if code, out, _ := runCmd("status"); code != exitOK || strings.Contains(out, "VERIFY") || strings.Contains(out, "TIMEOUT") || strings.Contains(out, "CONTEXT") {
+		t.Errorf("unset columns shown: code %d\n%s", code, out)
+	}
+	_, out, _ := runCmd("status", "--json")
+	if strings.Contains(out, `"verify"`) || strings.Contains(out, `"timeout"`) || strings.Contains(out, `"context"`) {
+		t.Errorf("json has unset columns:\n%s", out)
+	}
+
+	if err := os.WriteFile(filepath.Join(dir, configFile), []byte("[verify]\nfast = \"true\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	write("## M1\n\n| ID | Status | Model | Verify | Timeout | Context |\n|---|---|---|---|---|---|\n| a | ready | sonnet | fast | | |\n" +
+		"\n## M2\n\n| ID | Status | Model | Context |\n|---|---|---|---|\n| b | ready | sonnet | `x.go`, y/ |\n")
+	code, out, _ := runCmd("status", "m1")
+	if code != exitOK || !strings.Contains(out, "  ID  STATUS  RANK    OWNER  MODE  VERIFY  CONTEXT  WAITS ON\n  a   ready   sonnet  agent  —     fast    —") || strings.Contains(out, "TIMEOUT") {
+		t.Errorf("code %d:\n%s", code, out)
+	}
+	_, out, _ = runCmd("status", "--json")
+	var got struct {
+		Phases []struct {
+			Tasks []struct {
+				Verify, Timeout string
+				Context         []string
+			}
+		}
+	}
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatal(err)
+	}
+	if a, b := got.Phases[0].Tasks[0], got.Phases[1].Tasks[0]; a.Verify != "fast" || a.Context != nil || strings.Join(b.Context, "|") != "x.go|y/" || b.Verify != "" {
+		t.Errorf("json tasks = %+v, %+v", a, b)
+	}
+}
