@@ -4,6 +4,17 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-08
+
+A patch for four small bugs found at the v0.5 gate: a first prompt that stays unsubmitted, blank tail rows, `report` help and completion, and a second Ctrl-C. No change to the plan format, config keys or file formats.
+
+### Fixed
+
+- A session's first prompt that stays pasted but unsubmitted (idle 15 s, hooks never saw `UserPromptSubmit`) gets Enter pressed once in its pane, with the feed warning `the prompt didn't seem submitted; sent Enter once`; the prompt text is never re-sent, and **Needs you** follows if that doesn't help (SPEC §6.3, `backend.Submitter`).
+- Live tail: a line wider than the card, such as Claude Code's right-aligned `◐ medium · /effort`, loses its leading spaces instead of showing as a blank row ending in `…` (SPEC §15.3).
+- `igris report -h` and `igris history -h` show the positional `RUN` argument, and shell completion offers run IDs from `.igris/runs.jsonl` after `igris report`, newest first (SPEC §14).
+- A second Ctrl-C exits at once on every path: while `arise` or a run started from home winds down it prints `stopping… (Ctrl-C again to quit now)`, and `adapt` and `notify test` exit on a second SIGINT too (SPEC §13, §15).
+
 ## [0.5.0] - 2026-10-08
 
 igris v0.5 shows you what a run is doing and what it did. The run view gets the phase's progress, an estimate for the current task and a live tail of its session; `igris report` turns a finished run into markdown for a PR description; and the run log is a documented, versioned format. Notifications reach Slack, Gotify and any URL through a signed webhook, with your own message templates, quiet hours and digests. Everything is additive: a v0.4 plan and `igris.toml` mean what they meant before (the new channels, quiet hours and digests stay off until you configure them; only the live tail is on by default), and a v0.4 `runs.jsonl` still reads; a run interrupted under v0.4 resumes without a config-changed notice.
@@ -304,7 +315,8 @@ First release. Linux and macOS, herdr backend only. The full behavior is specifi
 - Release artifacts are not signed (checksums only); signing is planned.
 - No Homebrew tap yet.
 
-[Unreleased]: https://github.com/drilonrecica/igris/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/drilonrecica/igris/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/drilonrecica/igris/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/drilonrecica/igris/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/drilonrecica/igris/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/drilonrecica/igris/compare/v0.2.1...v0.3.0
