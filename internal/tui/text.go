@@ -2,9 +2,9 @@ package tui
 
 import (
 	"strings"
-	"unicode/utf8"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/rivo/uniseg"
 )
 
 // Text helpers. Widths are terminal cells; SGR sequences take none. wrap
@@ -21,7 +21,10 @@ func pad(s string, w int) string {
 }
 
 // fit shortens s to at most w cells, ending in "…" when it was cut. Styled
-// text is cut between its SGR sequences and reset after the cut.
+// text is cut between its SGR sequences and reset after the cut. It cuts
+// between grapheme clusters and counts their width as textWidth does, so
+// an emoji with a variation selector (⚠️, two cells) is never split or
+// undercounted.
 func fit(s string, w int) string {
 	if w <= 0 {
 		return ""
@@ -38,14 +41,13 @@ func fit(s string, w int) string {
 			i += n
 			continue
 		}
-		r, size := utf8.DecodeRuneInString(s[i:])
-		rw := textWidth(string(r))
-		if used+rw > w-1 {
+		g, _, gw, _ := uniseg.FirstGraphemeClusterInString(s[i:], -1)
+		if used+gw > w-1 {
 			break
 		}
-		b.WriteRune(r)
-		used += rw
-		i += size
+		b.WriteString(g)
+		used += gw
+		i += len(g)
 	}
 	b.WriteString("…")
 	if styled {

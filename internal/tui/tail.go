@@ -7,6 +7,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/rivo/uniseg"
+
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/textsafe"
@@ -20,9 +22,10 @@ const (
 	// tailWide and tailNarrow are how many lines the card shows.
 	tailWide   = 6
 	tailNarrow = 3
-	// tailFetch is how many lines a refresh asks for: blank lines are
-	// dropped, and Claude Code leaves many between its messages.
-	tailFetch = 2 * tailWide
+	// tailFetch is how many lines a refresh asks for: the backend reads as
+	// many and drops the blank ones and Claude Code's input box, and
+	// Claude Code leaves dozens of blank rows above that box.
+	tailFetch = 60
 	// tailTimeout bounds one refresh.
 	tailTimeout = 2 * time.Second
 	// tailEvery is the refresh interval when Options.TailEvery is not set.
@@ -152,15 +155,17 @@ func expandTabs(s string) string {
 	}
 	var b strings.Builder
 	col := 0
-	for _, r := range s {
-		if r == '\t' {
+	for s != "" {
+		g, rest, gw, _ := uniseg.FirstGraphemeClusterInString(s, -1)
+		s = rest
+		if g == "\t" {
 			n := tabWidth - col%tabWidth
 			b.WriteString(strings.Repeat(" ", n))
 			col += n
 			continue
 		}
-		b.WriteRune(r)
-		col += textWidth(string(r))
+		b.WriteString(g)
+		col += gw
 	}
 	return b.String()
 }

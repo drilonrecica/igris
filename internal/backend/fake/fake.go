@@ -337,8 +337,8 @@ func (s *Session) State(ctx context.Context) (backend.AgentState, error) {
 	return st, nil
 }
 
-// Tail returns the last n lines set with SetTail, trailing blank lines
-// dropped, or an error wrapping backend.ErrSessionGone once the session
+// Tail returns the last n lines set with SetTail as backend.TailLines
+// cuts them, or an error wrapping backend.ErrSessionGone once the session
 // is gone.
 func (s *Session) Tail(ctx context.Context, n int) ([]string, error) {
 	if err := ctx.Err(); err != nil {
@@ -349,7 +349,7 @@ func (s *Session) Tail(ctx context.Context, n int) ([]string, error) {
 	if s.gone {
 		return nil, s.goneErr("tail")
 	}
-	return backend.LastLines(strings.Join(s.b.tails[s.taskID], "\n"), n), nil
+	return backend.TailLines(strings.Join(s.b.tails[s.taskID], "\n"), n), nil
 }
 
 // Focus records the focus.

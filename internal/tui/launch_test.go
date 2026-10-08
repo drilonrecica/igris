@@ -690,3 +690,17 @@ func TestWizardGolden(t *testing.T) {
 		}
 	}
 }
+
+// A run started from home gets the ETA's history like `igris arise`
+// (SPEC §15.3): the snapshot's rank durations.
+func TestRunViewFromHomeHasRankDurations(t *testing.T) {
+	m := readyHome(120, 40)
+	m.snap.RankDurations = map[string][]time.Duration{"sonnet": {time.Minute, 2 * time.Minute, 3 * time.Minute}}
+	v, ok := m.runView(report.RunRequest{}, &liveRun{h: &runHandle{feed: NewFeed()}}).(*model)
+	if !ok {
+		t.Fatal("run view is not a run model")
+	}
+	if got := v.opts.RankDurations["sonnet"]; len(got) != 3 {
+		t.Errorf("run view rank durations %v, want the snapshot's", v.opts.RankDurations)
+	}
+}

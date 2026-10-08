@@ -666,7 +666,7 @@ func TestAttachChecksClaudeSession(t *testing.T) {
 func TestTail(t *testing.T) {
 	ctx := context.Background()
 	read := func(source string, n int) []string {
-		return []string{"agent", "read", "igris-t-01", "--source", source, "--lines", strconv.Itoa(n)}
+		return []string{"agent", "read", "igris-t-01", "--source", source, "--lines", strconv.Itoa(n), "--format", "text"}
 	}
 	t.Run("transcript", func(t *testing.T) {
 		f := started(t)
@@ -676,9 +676,16 @@ func TestTail(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		// The fixture's last lines are Claude Code's input box and status.
-		if len(got) != 4 || got[0] != "❯\u00a0" || got[3] != "  ⏸ manual mode on · ← for agents" {
-			t.Errorf("tail %q, want the fixture's last 4 lines", got)
+		// The fixture ends in Claude Code's input box and status footer,
+		// below 30 blank rows: the tail is what comes before them.
+		want := []string{
+			"  - It's not in the system PATH",
+			"  - There's a typo in the command name",
+			"  Could you clarify what this command should do, or verify the correct command name?",
+			"✻ Baked for 11s · done 12:47 PM",
+		}
+		if !slices.Equal(got, want) {
+			t.Errorf("tail %q, want %q", got, want)
 		}
 		if a := argv(f); !slices.Equal(a[len(a)-1], read(SourceRecentUnwrapped, 4)) {
 			t.Errorf("calls %q", a)

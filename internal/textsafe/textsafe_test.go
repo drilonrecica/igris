@@ -25,6 +25,14 @@ func TestClean(t *testing.T) {
 		{"c0 and del", "a\x00\x07\x08\r\x7fb", "ab"},
 		{"crlf", "a\r\nb", "a\nb"},
 		{"invalid utf-8", "a\xffb", "a�b"},
+		// Bidi controls reorder what is drawn (a title that reads one way
+		// and is another); zero-width marks hide text.
+		{"bidi overrides", "a\u202ecba\u202c b", "acba b"},
+		{"bidi embeddings and isolates", "\u202a\u202b\u202d\u2066\u2067\u2068\u2069x", "x"},
+		{"bidi marks", "a\u200e\u200f\u061cb", "ab"},
+		{"zero width and bom", "a\u200bb\u2060c\ufeffd", "abcd"},
+		// Joiners build emoji and scripts: kept.
+		{"zwj emoji kept", "👩\u200d💻 and a\u200cb", "👩\u200d💻 and a\u200cb"},
 		{"empty", "", ""},
 	}
 	for _, tt := range tests {

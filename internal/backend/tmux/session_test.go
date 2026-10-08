@@ -225,6 +225,30 @@ func TestNotify(t *testing.T) {
 	}
 }
 
+// TestTailClaudeScreen cuts a Claude Code screen as capture-pane shows it
+// (testdata/capture_pane_claude.txt, synthetic): the transcript, blank
+// rows, the input box between two rules, the footer, empty rows.
+func TestTailClaudeScreen(t *testing.T) {
+	s := newSim()
+	sess := openSim(t, s)
+	f := &runner.Fake{}
+	f.On(cmd("capture-pane"), ok(t, "capture_pane_claude.txt"), nil)
+	sess.c = NewClient(f)
+	got, err := sess.Tail(context.Background(), 60)
+	want := []string{
+		"❯ Synthetic task prompt for the tail fixture.",
+		"● I added the parser and its tests.",
+		"  - internal/demo/parse.go",
+		"  - internal/demo/parse_test.go",
+		"● Bash(igris done T-01)",
+		"  ⎿  marked T-01 done",
+		"✻ Cooked for 42s",
+	}
+	if err != nil || !slices.Equal(got, want) {
+		t.Errorf("Tail = %q, %v; want %q", got, err, want)
+	}
+}
+
 // TestTail cuts the recorded capture (testdata/capture_pane.txt: six
 // history lines, then a 12-row screen with five empty rows at the end).
 func TestTail(t *testing.T) {
@@ -238,9 +262,9 @@ func TestTail(t *testing.T) {
 	sess.c = NewClient(f)
 
 	got, err := sess.Tail(ctx, 4)
-	want := []string{"\tindented\twith tabs", "", "✻ Working… (esc to interrupt)"}
-	if err != nil || len(got) != 4 || !slices.Equal(got[1:], want) {
-		t.Errorf("Tail = %q, %v; want … %q", got, err, want)
+	want := []string{"history line 10", "⏺ Synthetic reply: this line is long enough that the 40-column pane wraps it twice over.", "\tindented\twith tabs", "✻ Working… (esc to interrupt)"}
+	if err != nil || !slices.Equal(got, want) {
+		t.Errorf("Tail = %q, %v; want %q (blank rows dropped)", got, err, want)
 	}
 	if c := f.Calls()[0]; !slices.Equal(c.Args, []string{"capture-pane", "-p", "-J", "-t", "%1", "-S", "-4"}) {
 		t.Errorf("args %q", c.Args)

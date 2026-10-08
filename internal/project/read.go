@@ -127,6 +127,7 @@ func (p *Project) Snapshot() *report.Snapshot {
 	}
 	if in, err := HistoryInput(p.Root, RecentRuns); err == nil {
 		s.Recent = report.NewHistory(in).Runs
+		s.RankDurations = report.RankDurations(in.Events)
 	}
 	return s
 }

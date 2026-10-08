@@ -235,7 +235,7 @@ func (s *Session) Tail(ctx context.Context, n int) ([]string, error) {
 	case err != nil:
 		return nil, fmt.Errorf("tail %s: %w", s.id, err)
 	}
-	return backend.LastLines(out, n), nil
+	return backend.TailLines(out, n), nil
 }
 
 // Focus makes the session's window the current one.

@@ -87,7 +87,7 @@ New keys are fine. A missing key or a renamed code needs a fixture refresh (last
   herdr agent wait rv --timeout 60000 | shape; herdr agent wait rv --until working --timeout 2000; echo "exit $?"
   ```
 - [ ] **`agent prompt` while blocked.** Prompt the agent to run a command that needs approval (`Run the shell command: touch b.txt`). While the approval dialog shows, `pane get` reports `blocked`, and a second `agent prompt` fails with `agent_blocked`, like `error_agent_blocked.json`. Answer the dialog with Esc afterwards.
-- [ ] **`agent read`** prints the transcript as plain text, like `agent_read_recent_unwrapped.txt`: `herdr agent read rv --source recent-unwrapped --lines 20`.
+- [ ] **`agent read`** prints the transcript as plain text, like `agent_read_recent_unwrapped.txt`: `herdr agent read rv --source recent-unwrapped --lines 20 --format text` (igris passes `--format text` explicitly, so a changed default can't bring escape sequences).
 - [ ] **`tab focus`** returns `.result.tab` with `focused: true`, like `tab_focus.json`: `herdr tab focus "$T" | shape`.
 - [ ] **`notification show`** returns `{"result":{"shown":true,…}}`, like `notification_show.json`, and a toast appears: `herdr notification show "igris reverify" --body "test" --sound done`.
 - [ ] **`tab close`** returns `{"result":{"type":"ok"}}`. Closing again fails with `tab_not_found`, and `pane get` on the closed pane fails with `pane_not_found` (`error_tab_close_not_found.json`, `error_pane_not_found.json`). Errors are JSON on stderr: `{"error":{"code","message"},"id"}`, exit 1:

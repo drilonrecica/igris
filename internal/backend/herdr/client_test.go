@@ -135,7 +135,7 @@ func TestClientCalls(t *testing.T) {
 				return strings.Contains(s, "igris done"), err
 			},
 			want: true,
-			args: []string{"agent", "read", "p0c", "--source", "recent-unwrapped", "--lines", "60"},
+			args: []string{"agent", "read", "p0c", "--source", "recent-unwrapped", "--lines", "60", "--format", "text"},
 		},
 		{
 			name: "pane get",

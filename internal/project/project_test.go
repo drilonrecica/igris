@@ -3,6 +3,7 @@ package project
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -549,5 +550,24 @@ func TestSnapshotSettings(t *testing.T) {
 				t.Errorf("invalid config: %s.%s not a default", sec.Name, r.Key)
 			}
 		}
+	}
+}
+
+// The home snapshot carries the ETA's history for runs started from home.
+func TestSnapshotRankDurations(t *testing.T) {
+	root := newProject(t, "")
+	env, _ := testEnv(nil)
+	var log strings.Builder
+	for i := range 3 {
+		fmt.Fprintf(&log, `{"v":1,"at":"2026-10-01T10:0%d:00Z","type":"task_started","run":"20261001-100000-abcd","task":"A-%d","rank":"sonnet","owner":"agent"}`+"\n", 2*i, i)
+		fmt.Fprintf(&log, `{"v":1,"at":"2026-10-01T10:0%d:30Z","type":"task_done","run":"20261001-100000-abcd","task":"A-%d","rank":"sonnet","duration_ms":30000}`+"\n", 2*i, i)
+	}
+	writeFile(t, filepath.Join(root, state.DirName, "runs.jsonl"), log.String())
+	s, err := NewServices(root, env).Snapshot(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := s.RankDurations["sonnet"]; len(got) != 3 {
+		t.Errorf("rank durations %v, want 3 for sonnet", s.RankDurations)
 	}
 }

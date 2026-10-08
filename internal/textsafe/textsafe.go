@@ -15,8 +15,10 @@ const (
 	csi = 0x9b // the one-rune form of ESC [
 )
 
-// Clean removes ANSI escape sequences and every control character except
-// newline and tab. Bytes that are not UTF-8 become U+FFFD.
+// Clean removes ANSI escape sequences, every control character except
+// newline and tab, and the invisible format characters that change what a
+// reader sees (hidden): bidi controls and zero-width spaces. Bytes that
+// are not UTF-8 become U+FFFD.
 func Clean(s string) string {
 	if !dirty(s) {
 		return s
@@ -33,7 +35,7 @@ func Clean(s string) string {
 		case r == '\n' || r == '\t':
 			b.WriteRune(r)
 			i += size
-		case unicode.IsControl(r):
+		case unicode.IsControl(r) || hidden(r):
 			i += size
 		default:
 			b.WriteRune(r) // an invalid byte decodes to U+FFFD
@@ -62,11 +64,28 @@ func HasControl(s string) bool {
 	return false
 }
 
+// hidden reports whether r is a bidi control (U+202A–U+202E embeddings
+// and overrides, U+2066–U+2069 isolates, the U+200E, U+200F and U+061C
+// marks), which can make text read in another order than it is, or an
+// invisible space (U+200B, U+2060, U+FEFF). The joiners U+200C and U+200D
+// stay: emoji sequences and some scripts need them.
+func hidden(r rune) bool {
+	switch {
+	case r >= 0x202a && r <= 0x202e, r >= 0x2066 && r <= 0x2069:
+		return true
+	}
+	switch r {
+	case 0x200e, 0x200f, 0x061c, 0x200b, 0x2060, 0xfeff:
+		return true
+	}
+	return false
+}
+
 // dirty reports whether Clean would change s.
 func dirty(s string) bool {
 	for i := 0; i < len(s); {
 		r, size := utf8.DecodeRuneInString(s[i:])
-		if (r == utf8.RuneError && size == 1) || (unicode.IsControl(r) && r != '\n' && r != '\t') {
+		if (r == utf8.RuneError && size == 1) || (unicode.IsControl(r) && r != '\n' && r != '\t') || hidden(r) {
 			return true
 		}
 		i += size

@@ -233,7 +233,7 @@ func (s *Session) Tail(ctx context.Context, n int) ([]string, error) {
 		case err != nil:
 			return nil, fmt.Errorf("tail %s: %w", s.id, err)
 		}
-		if lines = backend.LastLines(out, n); len(lines) > 0 {
+		if lines = backend.TailLines(out, n); len(lines) > 0 {
 			break
 		}
 	}

@@ -66,27 +66,76 @@ type PromptHolder interface {
 // What it returns is raw pane text, cleaned by the caller before it is
 // drawn, and never logged, notified or stored.
 type Tailer interface {
-	// Tail returns up to n of the last lines the session shows, oldest
-	// first, trailing blank lines dropped. A gone session yields an error
-	// wrapping ErrSessionGone.
+	// Tail returns up to n of the last non-blank lines the session shows,
+	// oldest first, without Claude Code's input box and footer (TailLines).
+	// A gone session yields an error wrapping ErrSessionGone.
 	Tail(ctx context.Context, n int) ([]string, error)
 }
 
-// LastLines splits text into lines and returns up to n of the last ones,
-// trailing blank lines dropped: how the backends cut their pane text for
-// Tail.
-func LastLines(text string, n int) []string {
-	lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
-	for len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == "" {
-		lines = lines[:len(lines)-1]
-	}
+// TailLines is how the backends cut pane text for Tail: the lines up to
+// Claude Code's input box (InputBoxStart), blank ones dropped, the last n
+// kept.
+func TailLines(text string, n int) []string {
 	if n <= 0 {
 		return nil
 	}
-	if len(lines) > n {
-		lines = lines[len(lines)-n:]
+	lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
+	lines = lines[:InputBoxStart(lines)]
+	out := make([]string, 0, min(len(lines), n))
+	for _, l := range lines {
+		if strings.TrimSpace(l) != "" {
+			out = append(out, l)
+		}
 	}
-	return lines
+	if len(out) > n {
+		out = out[len(out)-n:]
+	}
+	return out
+}
+
+// minRule is how many ─ a line needs to be a rule of Claude Code's input
+// box.
+const minRule = 10
+
+// InputBoxStart is where Claude Code's input box begins in lines, the
+// pane's last lines: Claude Code draws its prompt between two full-width
+// rules (a line of at least minRule ─ and nothing else) with its status
+// footer below, so the box starts at the second-to-last such rule. It is
+// len(lines) when there are fewer than two rules, or when nothing but
+// blank lines comes before the box (then the box is all there is to see).
+// A heuristic: a session whose own output ends in two rules loses what
+// follows the first of them.
+func InputBoxStart(lines []string) int {
+	var rules []int
+	for i, l := range lines {
+		if isRule(l) {
+			rules = append(rules, i)
+		}
+	}
+	if len(rules) < 2 {
+		return len(lines)
+	}
+	start := rules[len(rules)-2]
+	for _, l := range lines[:start] {
+		if strings.TrimSpace(l) != "" {
+			return start
+		}
+	}
+	return len(lines)
+}
+
+// isRule reports whether l is a horizontal rule: at least minRule ─ and
+// nothing else but spaces around them.
+func isRule(l string) bool {
+	l = strings.TrimSpace(l)
+	n := 0
+	for _, r := range l {
+		if r != '─' {
+			return false
+		}
+		n++
+	}
+	return n >= minRule
 }
 
 // AgentState is the agent state reported by the backend. The values match

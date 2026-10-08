@@ -124,7 +124,10 @@ type Snapshot struct {
 	Run    *RunInfo        // nil when there is no run
 	Lock   state.LockState // with its host and reason cleaned
 	Recent []HistoryRun    // the last runs, newest first
-	Stamp  Stamp           // the files as they were read
+	// RankDurations are the run log's finished task durations per rank
+	// (RankDurations), for the ETA of a run started from home.
+	RankDurations map[string][]time.Duration
+	Stamp         Stamp // the files as they were read
 
 	// APIKeySet says ANTHROPIC_API_KEY is set, so the sessions igris
 	// starts would bill the API (checks.APIKeyWarning).

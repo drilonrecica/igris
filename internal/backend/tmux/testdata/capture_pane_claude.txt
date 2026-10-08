@@ -1,0 +1,33 @@
+❯ Synthetic task prompt for the tail fixture.
+
+● I added the parser and its tests.
+  - internal/demo/parse.go
+  - internal/demo/parse_test.go
+
+● Bash(igris done T-01)
+  ⎿  marked T-01 done
+
+✻ Cooked for 42s
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+❯ 
+────────────────────────────────────────────────────────────────────────────────
+  sonnet | /work/demo | main | ctx 12% | auto
+  ⏵⏵ auto mode on (shift+tab to cycle)
+
+
+

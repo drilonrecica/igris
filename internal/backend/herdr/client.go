@@ -306,9 +306,10 @@ const (
 	SourceVisible         = "visible"          // what the screen shows now
 )
 
-// AgentRead returns the last lines of agent name's terminal as plain text.
+// AgentRead returns the last lines of agent name's terminal as plain text
+// (--format text, never the ANSI form).
 func (c *Client) AgentRead(ctx context.Context, name, source string, lines int) (string, error) {
-	out, err := c.exec(ctx, c.timeout, "agent", "read", name, "--source", source, "--lines", strconv.Itoa(lines))
+	out, err := c.exec(ctx, c.timeout, "agent", "read", name, "--source", source, "--lines", strconv.Itoa(lines), "--format", "text")
 	if err != nil {
 		return "", err
 	}
