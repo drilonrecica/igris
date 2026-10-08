@@ -174,6 +174,12 @@ func TestNotifyChannels(t *testing.T) {
 	if r.Level != OK || !strings.Contains(r.Message, "ntfy, Discord") || strings.Contains(r.Message, "secret-webhook") {
 		t.Errorf("ntfy+discord: %+v", r)
 	}
+	cfg.Notify.Webhook = config.Webhook{URL: "https://hooks.invalid/secret-url", Secret: "secret-sig", Events: []string{"needs_input"}}
+	r = notifyChannels(cfg, env)
+	if r.Level != OK || !strings.Contains(r.Message, "ntfy, Discord, webhook") || strings.Contains(r.Message, "secret") {
+		t.Errorf("webhook: %+v", r)
+	}
+	cfg.Notify.Webhook = config.Webhook{}
 	cfg.Notify.Discord.WebhookURL = "env:DISCORD_HOOK"
 	if r := notifyChannels(cfg, env); r.Level != Warn || !strings.Contains(r.Message, "DISCORD_HOOK") {
 		t.Errorf("unset env ref: %+v", r)

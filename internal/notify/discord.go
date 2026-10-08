@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"unicode/utf8"
 )
 
 // discordLimit is Discord's cap on a message's content, in characters.
@@ -64,9 +63,5 @@ func discordContent(m Message) string {
 		s += " · " + b
 	}
 	s += " (" + string(m.Event) + ")"
-	if utf8.RuneCountInString(s) <= discordLimit {
-		return s
-	}
-	r := []rune(s)
-	return string(r[:discordLimit-1]) + "…"
+	return cutRunes(s, discordLimit)
 }

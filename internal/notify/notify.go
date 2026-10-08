@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 )
 
 // Event is a SPEC §10 notification event.
@@ -45,6 +46,8 @@ type Message struct {
 	TaskID  string // empty for events that belong to no task
 	Title   string // task title
 	What    string // what happened, in a few words
+	RunID   string // the run's ID in the run log (SPEC §13); "" outside a run
+	At      time.Time
 }
 
 // Subject is the short headline: "igris · <project>".
@@ -80,6 +83,15 @@ func (m Message) Body() string {
 func PlainTitle(t string) string {
 	t = strings.NewReplacer("`", "", "**", "", "__", "").Replace(t)
 	return strings.TrimRight(strings.TrimSpace(t), ".")
+}
+
+// cutRunes cuts s to at most n characters, ending in "…" when it was longer.
+func cutRunes(s string, n int) string {
+	if utf8.RuneCountInString(s) <= n {
+		return s
+	}
+	r := []rune(s)
+	return string(r[:n-1]) + "…"
 }
 
 // Channel delivers one message to one destination.

@@ -37,6 +37,9 @@ func TestFromConfig(t *testing.T) {
 		{"discord needs a webhook", func(*config.Notify) {}, config.Secrets{DiscordWebhook: "https://h/x"}, true, []string{"backend", "ntfy", "discord"}},
 		{"empty events turn a channel off", func(c *config.Notify) { c.Ntfy.Events = []string{} }, config.Secrets{}, true, []string{"backend"}},
 		{"ntfy without topic", func(c *config.Notify) { c.Ntfy.Topic = "" }, config.Secrets{}, true, []string{"backend"}},
+		{"webhook needs a url", func(c *config.Notify) { c.Webhook.URL = "env:U" }, config.Secrets{WebhookURL: "https://h/w"}, true, []string{"backend", "ntfy", "webhook"}},
+		{"webhook unresolved", func(c *config.Notify) { c.Webhook.URL = "env:U" }, config.Secrets{WebhookSecret: "s"}, true, []string{"backend", "ntfy"}},
+		{"webhook without events", func(c *config.Notify) { c.Webhook.Events = []string{} }, config.Secrets{WebhookURL: "https://h/w"}, true, []string{"backend", "ntfy"}},
 	}
 	for _, tt := range tests {
 		c := full()
@@ -55,14 +58,17 @@ func TestFromConfig(t *testing.T) {
 func TestFromConfigPassesSecrets(t *testing.T) {
 	c := config.Default().Notify
 	c.Ntfy.Topic = "t"
-	r := FromConfig(c, config.Secrets{NtfyToken: "tk", DiscordWebhook: "https://h/x"}, nil)
+	r := FromConfig(c, config.Secrets{NtfyToken: "tk", DiscordWebhook: "https://h/x", WebhookURL: "https://h/w", WebhookSecret: "ws"}, nil)
 	if got := r.o.Channels[0].Channel.(*Ntfy).Token; got != "tk" {
 		t.Errorf("ntfy token = %q", got)
 	}
 	if got := r.o.Channels[1].Channel.(*Discord).WebhookURL; got != "https://h/x" {
 		t.Errorf("discord webhook = %q", got)
 	}
-	if !slices.Equal(r.o.Secrets, []string{"tk", "https://h/x"}) {
+	if w := r.o.Channels[2].Channel.(*Webhook); w.URL != "https://h/w" || w.Secret != "ws" {
+		t.Errorf("webhook = %q, %q", w.URL, w.Secret)
+	}
+	if !slices.Equal(r.o.Secrets, []string{"tk", "https://h/x", "https://h/w", "ws"}) {
 		t.Errorf("redaction list = %v", r.o.Secrets)
 	}
 	if got := r.o.Channels[1].Events; len(got) != len(DefaultEvents) || slices.Contains(got, TaskDone) {

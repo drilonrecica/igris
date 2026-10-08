@@ -21,7 +21,7 @@ import (
 // removed the secrets from the errors; the page cleans the text.
 
 // notifyChannels are the channels the test sends to, in the page's order.
-var notifyChannels = []string{"ntfy", "discord", "backend"}
+var notifyChannels = []string{"ntfy", "discord", "webhook", "backend"}
 
 // channelLabel names a channel as the page shows it: the backend's toast
 // by the backend's name (herdr, tmux).
@@ -50,7 +50,7 @@ const (
 )
 
 // plannedNotifyRows are the deliveries the test is expected to make for
-// the project's channels, in event order: ntfy and discord with their
+// the project's channels, in event order: ntfy, discord and webhook with their
 // events, the herdr toast with the default ones when herdr is there. A
 // delivery the service makes that isn't listed is added when it arrives.
 func (m *homeScreen) plannedNotifyRows() []notifyRow {
@@ -64,6 +64,9 @@ func (m *homeScreen) plannedNotifyRows() []notifyRow {
 	}
 	if n.Discord.WebhookURL != "" {
 		events["discord"] = n.Discord.Events
+	}
+	if n.Webhook.URL != "" {
+		events["webhook"] = n.Webhook.Events
 	}
 	if n.Backend.Enabled && m.herdr() {
 		for _, ev := range notify.DefaultEvents {

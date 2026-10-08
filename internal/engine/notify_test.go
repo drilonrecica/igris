@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/notify"
+	"github.com/drilonrecica/igris/internal/state"
 )
 
 // recorder is an httptest server that remembers every request body.
@@ -129,5 +131,43 @@ func TestTaskDoneNotification(t *testing.T) {
 	}
 	if got := h.toasts(); len(got) != 1 {
 		t.Errorf("backend toasts = %q, want only phase_done (task_done is not a default event)", got)
+	}
+}
+
+// TestWebhookCarriesRunAndTime: the webhook payload names the run's ID from
+// the run log and the event's time by the engine's clock, and is signed.
+func TestWebhookCarriesRunAndTime(t *testing.T) {
+	wh, whSrv := newRecorder(t, http.StatusOK)
+	h := newHarness(t, chainPlan, "")
+	cfg := config.Default()
+	cfg.Notify.Webhook.URL = "env:WH"
+	secrets := config.Secrets{WebhookURL: whSrv.URL + "/in", WebhookSecret: "whsecret"}
+	router := notify.FromConfig(cfg.Notify, secrets, nil, func(o *notify.Options) { o.Sleep = noSleep })
+
+	res, err := h.run(func(o *Options) { o.Notifier = router })
+	if err != nil || res.Outcome != Completed {
+		t.Fatalf("Run = %s, %v", res.Outcome, err)
+	}
+	if wh.count() != 1 {
+		t.Fatalf("webhook got %q, want one phase_done payload", wh.bodies)
+	}
+	var p struct{ Event, Run, At string }
+	if err := json.Unmarshal([]byte(wh.bodies[0]), &p); err != nil {
+		t.Fatal(err)
+	}
+	var run string
+	for _, ev := range h.logEvents() {
+		if ev.Type == state.EventRunStarted {
+			run = ev.Run
+		}
+	}
+	if p.Event != "phase_done" || run == "" || p.Run != run {
+		t.Errorf("payload event %q run %q, want phase_done in run %q", p.Event, p.Run, run)
+	}
+	if at, err := time.Parse(time.RFC3339, p.At); err != nil || at.Location() != time.UTC || at.Before(h.clock.Now().Add(-time.Hour)) {
+		t.Errorf("at = %q (%v), want an RFC 3339 UTC time from the run's clock", p.At, err)
+	}
+	if !strings.HasPrefix(wh.heads[0].Get("X-Igris-Signature"), "sha256=") || wh.heads[0].Get("X-Igris-Event") != "phase_done" {
+		t.Errorf("headers %v", wh.heads[0])
 	}
 }

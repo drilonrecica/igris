@@ -112,6 +112,15 @@ func NewSettings(cfg *config.Config, keys config.Keys, getenv func(string) strin
 	dc := sec("notify.discord")
 	secret(dc, "webhook_url", cfg.Notify.Discord.WebhookURL)
 	set(dc, "events", tomlArray(cfg.Notify.Discord.Events))
+
+	// The v0.5 channels are shown only when set up, like [hooks]: most
+	// configs have none of them.
+	if !cfg.Notify.Webhook.IsZero() {
+		wh := sec("notify.webhook")
+		secret(wh, "url", cfg.Notify.Webhook.URL)
+		secret(wh, "secret", cfg.Notify.Webhook.Secret)
+		set(wh, "events", tomlArray(cfg.Notify.Webhook.Events))
+	}
 	return out
 }
 

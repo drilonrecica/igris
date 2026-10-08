@@ -165,7 +165,7 @@ func dryRunProject(tmp, root string, orig *config.Config) (*config.Config, error
 	cfg := *orig
 	cfg.Run.Commit = CommitNever
 	cfg.Notify.Backend.Enabled = false
-	cfg.Notify.Ntfy.Topic = "" // no Discord webhook either: dry runs resolve no secrets
+	cfg.Notify.Ntfy.Topic = "" // no Discord or webhook either: dry runs resolve no secrets
 	copyIn := func(rel string) (string, error) {
 		name := rel
 		if filepath.IsAbs(rel) || !filepath.IsLocal(rel) {

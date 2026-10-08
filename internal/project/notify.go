@@ -2,6 +2,7 @@ package project
 
 import (
 	"context"
+	"time"
 
 	"github.com/drilonrecica/igris/internal/notify"
 )
@@ -52,6 +53,7 @@ func TestMessages(r *notify.Router, name string, only notify.Event) []notify.Mes
 		m := notify.Message{
 			Event: ev, Project: name, Phase: "TEST", TaskID: "TEST-1", Title: "Notification check",
 			What: "test of " + string(ev) + ": " + testWhat[ev],
+			At:   time.Now(),
 		}
 		if ev == notify.PhaseDone || ev == notify.PhaseStuck || ev == notify.RunError {
 			m.TaskID, m.Title = "", "" // these belong to no task in a real run
@@ -62,4 +64,4 @@ func TestMessages(r *notify.Router, name string, only notify.Event) []notify.Mes
 }
 
 // NoChannels is what notify test says when no channel is set up.
-const NoChannels = "no channel is set up for that: set [notify.ntfy] topic or [notify.discord] webhook_url in igris.toml (see the README), or enable the herdr toast"
+const NoChannels = "no channel is set up for that: set [notify.ntfy] topic, [notify.discord] webhook_url or [notify.webhook] url in igris.toml (see the README), or enable the herdr toast"

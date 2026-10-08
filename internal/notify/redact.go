@@ -1,16 +1,26 @@
 package notify
 
-import "strings"
+import (
+	"net/url"
+	"strings"
+)
 
 const redacted = "[redacted]"
 
-// Redact replaces every non-empty secret in s. A secret that appears
-// URL-escaped is not caught here; channels never put secrets in errors, this
-// is the safety net for errors from net/http (which embed the request URL).
+// Redact replaces every non-empty secret in s, as written and in its
+// URL-escaped forms (query and path escaping). Channels never put secrets in
+// errors; this is the safety net for errors from net/http (which embed the
+// request URL).
 func Redact(s string, secrets []string) string {
 	for _, sec := range secrets {
-		if sec != "" {
-			s = strings.ReplaceAll(s, sec, redacted)
+		if sec == "" {
+			continue
+		}
+		s = strings.ReplaceAll(s, sec, redacted)
+		for _, esc := range []string{url.QueryEscape(sec), url.PathEscape(sec)} {
+			if esc != sec {
+				s = strings.ReplaceAll(s, esc, redacted)
+			}
 		}
 	}
 	return s

@@ -190,6 +190,12 @@ func TestParseErrors(t *testing.T) {
 		{"hook zero timeout", "[hooks]\ntimeout = \"0s\"", []string{"hooks.timeout must be greater than zero"}},
 		{"hook negative timeout", "[hooks]\ntimeout = \"-1m\"", []string{"hooks.timeout must be greater than zero"}},
 		{"unknown hooks key", "[hooks]\nbefore = [\"x\"]", []string{"hooks.before"}},
+		{"webhook secret without url", "[notify.webhook]\nsecret = \"s\"", []string{"notify.webhook.secret is set but notify.webhook.url is not"}},
+		{"webhook url not http", "[notify.webhook]\nurl = \"ftp://h/x\"", []string{"notify.webhook.url is not an http or https URL"}},
+		{"webhook url without host", "[notify.webhook]\nurl = \"https:///x\"", []string{"notify.webhook.url is not an http or https URL"}},
+		{"webhook url relative", "[notify.webhook]\nurl = \"hooks/x\"", []string{"notify.webhook.url is not an http or https URL"}},
+		{"webhook bad event", "[notify.webhook]\nurl = \"https://h/x\"\nevents = [\"nope\"]", []string{"notify.webhook.events", `"nope"`}},
+		{"webhook template not yet", "[notify.webhook]\ntemplate = \"x\"", []string{"notify.webhook.template"}},
 		{"multiple problems reported together", "default_mode = \"x\"\n[run]\ncommit = \"y\"", []string{"default_mode", "run.commit"}},
 	}
 	for _, tt := range tests {
@@ -264,8 +270,80 @@ func TestResolve(t *testing.T) {
 	}
 }
 
+// The webhook URL and secret are secrets: errors about them never show the
+// value, and an env: URL is checked once it is resolved.
+func TestWebhookSecrets(t *testing.T) {
+	c, err := Parse([]byte("[notify.webhook]\nurl = \"env:WH_URL\"\nsecret = \"env:WH_SECRET\"\n"), "igris.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	env := map[string]string{"WH_URL": "https://hooks.test/in/TOKEN", "WH_SECRET": "SIGSECRET"}
+	s, err := c.Resolve(func(k string) string { return env[k] })
+	if err != nil || s.WebhookURL != "https://hooks.test/in/TOKEN" || s.WebhookSecret != "SIGSECRET" {
+		t.Errorf("resolved %v: url %q secret %q", err, s.WebhookURL, s.WebhookSecret)
+	}
+	if _, err := c.Resolve(func(string) string { return "" }); err == nil || !strings.Contains(err.Error(), "WH_URL") || !strings.Contains(err.Error(), "WH_SECRET") {
+		t.Errorf("unset variables: %v", err)
+	}
+	env["WH_URL"] = "ftp://hooks.test/TOKEN"
+	_, err = c.Resolve(func(k string) string { return env[k] })
+	if err == nil || !strings.Contains(err.Error(), "notify.webhook.url is not an http or https URL") || strings.Contains(err.Error(), "TOKEN") {
+		t.Errorf("bad env URL: %v", err)
+	}
+	_, err = Parse([]byte("[notify.webhook]\nurl = \"ftp://hooks.test/TOKEN\"\n"), "igris.toml")
+	if err == nil || strings.Contains(err.Error(), "TOKEN") {
+		t.Errorf("bad literal URL error shows it: %v", err)
+	}
+	lit, err := Parse([]byte("[notify.webhook]\nurl = \"https://h/x\"\nsecret = \"lit\"\n"), "igris.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s, err := lit.Resolve(func(string) string { return "" }); err != nil || s.WebhookURL != "https://h/x" || s.WebhookSecret != "lit" {
+		t.Errorf("literal: %v %q %q", err, s.WebhookURL, s.WebhookSecret)
+	}
+}
+
+// A v0.4 config has none of the v0.5 channels: an unset channel changes
+// neither the hash nor the written file.
+func TestHashWithoutNewChannelsIsUnchanged(t *testing.T) {
+	b, err := json.Marshal(Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{`"Webhook"`} {
+		if strings.Contains(string(b), key) {
+			t.Errorf("config JSON has %s: %s", key, b)
+		}
+	}
+	path := filepath.Join(t.TempDir(), "igris.toml")
+	if err := Write(path, Default()); err != nil {
+		t.Fatal(err)
+	}
+	if data, err := os.ReadFile(path); err != nil || strings.Contains(string(data), "webhook]") { //nolint:gosec // the test's own temp file
+		t.Errorf("written default config has a new channel (%v):\n%s", err, data)
+	}
+	for _, src := range []string{"[notify.webhook]\n", "[notify.webhook]\nevents = []\n", "[notify.webhook]\nevents = [\"task_done\"]\n"} {
+		c, err := Parse([]byte(src), "igris.toml")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c.Hash() != Default().Hash() {
+			t.Errorf("%q changed the hash", src)
+		}
+	}
+	for _, src := range []string{"[notify.webhook]\nurl = \"https://h/x\"\n", "[notify.webhook]\nurl = \"env:U\"\nsecret = \"env:S\"\n"} {
+		c, err := Parse([]byte(src), "igris.toml")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c.Hash() == Default().Hash() {
+			t.Errorf("%q left the hash unchanged", src)
+		}
+	}
+}
+
 func TestSecretsAreRedacted(t *testing.T) {
-	s := Secrets{NtfyToken: "supersecret", DiscordWebhook: "https://hook/secret"}
+	s := Secrets{NtfyToken: "supersecret", DiscordWebhook: "https://hook/secret", WebhookURL: "https://wh/secret", WebhookSecret: "secretsig"}
 	for _, out := range []string{
 		fmt.Sprint(s), fmt.Sprintf("%v", s), fmt.Sprintf("%+v", s), fmt.Sprintf("%#v", s),
 	} {
@@ -495,7 +573,7 @@ func TestForbiddenExtraArg(t *testing.T) {
 }
 
 func TestWriteRoundTrips(t *testing.T) {
-	for _, src := range []string{"", "plan = \"x.md\"\n[run]\nverify = \"make test\"\ncommit = \"never\"\n[columns]\n\"Depends on\" = \"Deps\"\n[notify.ntfy]\ntoken = \"env:T\"\n[tui]\ntheme = \"dark\"\n[tui.rank_colors]\nopus = \"5\"\n", "[verify]\nfast = \"go test ./...\"\n[phases.M1]\nverify = \"fast\"\n[phases.\"V1.2\"]\nverify = \"none\"\n", "[hooks]\nbefore_task = [\"./prep\", \"a b\"]\nafter_task = [\"post\"]\ntimeout = \"45s\"\n"} {
+	for _, src := range []string{"", "plan = \"x.md\"\n[run]\nverify = \"make test\"\ncommit = \"never\"\n[columns]\n\"Depends on\" = \"Deps\"\n[notify.ntfy]\ntoken = \"env:T\"\n[tui]\ntheme = \"dark\"\n[tui.rank_colors]\nopus = \"5\"\n", "[verify]\nfast = \"go test ./...\"\n[phases.M1]\nverify = \"fast\"\n[phases.\"V1.2\"]\nverify = \"none\"\n", "[hooks]\nbefore_task = [\"./prep\", \"a b\"]\nafter_task = [\"post\"]\ntimeout = \"45s\"\n", "[notify.webhook]\nurl = \"env:WH\"\nsecret = \"env:WS\"\nevents = [\"task_done\", \"needs_input\"]\n", "[notify.webhook]\nurl = \"https://h/x\"\nevents = []\n"} {
 		want, err := Parse([]byte(src), "igris.toml")
 		if err != nil {
 			t.Fatal(err)
@@ -558,11 +636,15 @@ func TestWriteOmitsDefaultEvents(t *testing.T) {
 	slices.Reverse(reordered.Notify.Ntfy.Events)
 	silent := Default()
 	silent.Notify.Ntfy.Events = []string{}
+	webhook := Default()
+	webhook.Notify.Webhook.URL = "env:WH"
+	unset := Default()
+	unset.Notify.Webhook.Events = []string{"task_done"} // no url: not set up
 	for _, tt := range []struct {
 		name string
 		cfg  *Config
 		want int // event lists written
-	}{{"defaults", Default(), 0}, {"reordered", reordered, 1}, {"custom", custom, 1}, {"no events", silent, 1}} {
+	}{{"defaults", Default(), 0}, {"reordered", reordered, 1}, {"custom", custom, 1}, {"no events", silent, 1}, {"webhook", webhook, 0}, {"webhook not set up", unset, 0}} {
 		t.Run(tt.name, func(t *testing.T) {
 			before := tt.cfg.Hash()
 			path := filepath.Join(t.TempDir(), "igris.toml")

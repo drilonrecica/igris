@@ -60,6 +60,30 @@ func TestSettingsHideSecrets(t *testing.T) {
 	}
 }
 
+// The v0.5 channels are shown only once set up, their secrets never.
+func TestSettingsNewChannels(t *testing.T) {
+	has := func(secs []SettingsSection, name string) bool {
+		for _, s := range secs {
+			if s.Name == name {
+				return true
+			}
+		}
+		return false
+	}
+	cfg := config.Default()
+	if secs := NewSettings(cfg, nil, nil); has(secs, "notify.webhook") {
+		t.Error("an unset webhook is shown")
+	}
+	cfg.Notify.Webhook.URL, cfg.Notify.Webhook.Secret = "https://hooks.example/in/TOKEN", "env:WH_SECRET"
+	secs := NewSettings(cfg, nil, func(k string) string { return map[string]string{"WH_SECRET": "sig"}[k] })
+	if u := find(t, secs, "notify.webhook", "url"); u.Value != "set (hidden)" || !u.Secret {
+		t.Errorf("url row %+v", u)
+	}
+	if s := find(t, secs, "notify.webhook", "secret"); s.Value != "set (env:WH_SECRET)" || !s.Secret {
+		t.Errorf("secret row %+v", s)
+	}
+}
+
 func TestSettingsMarkDefaults(t *testing.T) {
 	cfg, keys, err := loadKeys(t, "[run]\nverify = \"make test\"\n[models]\nopus = \"opus\"\nx = \"claude-x\"\n[columns]\n\"Depends on\" = \"Deps\"\n")
 	if err != nil {

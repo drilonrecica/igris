@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"regexp"
 	"slices"
@@ -221,6 +222,10 @@ type Notify struct {
 	Backend NotifyBackend `toml:"backend"`
 	Ntfy    Ntfy          `toml:"ntfy"`
 	Discord Discord       `toml:"discord"`
+	// The channels added in v0.5 are left out of the hash and the written
+	// file while they are not set up (IsZero), so a v0.4 config keeps its
+	// hash.
+	Webhook Webhook `toml:"webhook,omitempty" json:",omitzero"`
 }
 
 // NotifyBackend is the backend toast channel.
@@ -245,11 +250,24 @@ type Discord struct {
 	Events     []string `toml:"events"` // see Ntfy.Events
 }
 
+// Webhook is the generic webhook channel (SPEC §10).
+type Webhook struct {
+	URL    string   `toml:"url"`
+	Secret string   `toml:"secret"`
+	Events []string `toml:"events"` // see Ntfy.Events
+}
+
+// IsZero reports that the channel is not set up: no url and no secret,
+// whatever its events (they do nothing without a url).
+func (w Webhook) IsZero() bool { return w.URL == "" && w.Secret == "" }
+
 // Secrets are the resolved values of the env:VAR references. They are never
 // part of Config, so they cannot leak through the config hash or snapshot.
 type Secrets struct {
 	NtfyToken      string
 	DiscordWebhook string
+	WebhookURL     string
+	WebhookSecret  string
 }
 
 // String redacts every secret.
@@ -323,6 +341,7 @@ func Default() *Config {
 			Backend: NotifyBackend{Enabled: true},
 			Ntfy:    Ntfy{Server: "https://ntfy.sh", Events: defaultEvents()},
 			Discord: Discord{Events: defaultEvents()},
+			Webhook: Webhook{Events: defaultEvents()},
 		},
 	}
 }
@@ -468,7 +487,11 @@ func (c *Config) Validate() error {
 	for _, ch := range []struct {
 		key    string
 		events []string
-	}{{"notify.ntfy.events", c.Notify.Ntfy.Events}, {"notify.discord.events", c.Notify.Discord.Events}} {
+	}{
+		{"notify.ntfy.events", c.Notify.Ntfy.Events},
+		{"notify.discord.events", c.Notify.Discord.Events},
+		{"notify.webhook.events", c.Notify.Webhook.Events},
+	} {
 		for _, ev := range ch.events {
 			if !contains(validEvents, ev) {
 				add("%s contains unknown event %q; use any of: %s", ch.key, ev, strings.Join(validEvents, ", "))
@@ -476,8 +499,35 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	c.validateChannels(add)
+
 	return errors.Join(errs...)
 }
+
+// validateChannels checks the v0.5 channels' settings (SPEC §12). A URL
+// that is a secret is never quoted in an error.
+func (c *Config) validateChannels(add func(string, ...any)) {
+	w := c.Notify.Webhook
+	if w.Secret != "" && w.URL == "" {
+		add("notify.webhook.secret is set but notify.webhook.url is not; set the url or remove the secret")
+	}
+	if w.URL != "" && !isEnvRef(w.URL) && !httpURL(w.URL) {
+		add("%s", badURL("notify.webhook.url"))
+	}
+}
+
+// badURL is the error text for a secret URL that isn't http(s) with a host.
+func badURL(key string) string {
+	return key + " is not an http or https URL with a host (the value is a secret, so it isn't shown); fix it in igris.toml or in the environment variable"
+}
+
+// httpURL reports whether s is an absolute http or https URL with a host.
+func httpURL(s string) bool {
+	u, err := url.Parse(s)
+	return err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
+}
+
+func isEnvRef(s string) bool { return strings.HasPrefix(s, "env:") }
 
 // validateVerify checks [verify] and [phases.<id>] (SPEC §12).
 func (c *Config) validateVerify(add func(string, ...any)) {
@@ -565,6 +615,13 @@ func (c *Config) Resolve(getenv func(string) string) (Secrets, error) {
 	}
 	s.NtfyToken = resolve("notify.ntfy.token", c.Notify.Ntfy.Token)
 	s.DiscordWebhook = resolve("notify.discord.webhook_url", c.Notify.Discord.WebhookURL)
+	s.WebhookURL = resolve("notify.webhook.url", c.Notify.Webhook.URL)
+	s.WebhookSecret = resolve("notify.webhook.secret", c.Notify.Webhook.Secret)
+	// Validate checks a URL written in igris.toml; one from the environment
+	// is checked here, once it is known.
+	if isEnvRef(c.Notify.Webhook.URL) && s.WebhookURL != "" && !httpURL(s.WebhookURL) {
+		errs = append(errs, errors.New(badURL("notify.webhook.url")))
+	}
 	return s, errors.Join(errs...)
 }
 
@@ -578,6 +635,12 @@ func Write(path string, c *Config) error {
 	}
 	if slices.Equal(out.Notify.Discord.Events, defaultEvents()) {
 		out.Notify.Discord.Events = nil
+	}
+	// A channel that isn't set up is left out, events and all (IsZero).
+	if out.Notify.Webhook.IsZero() {
+		out.Notify.Webhook = Webhook{}
+	} else if slices.Equal(out.Notify.Webhook.Events, defaultEvents()) {
+		out.Notify.Webhook.Events = nil
 	}
 	var buf bytes.Buffer
 	if err := toml.NewEncoder(&buf).Encode(&out); err != nil {

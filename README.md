@@ -280,6 +280,7 @@ Igris tells you when it needs you (a question, a plan to approve, a stalled sess
 - herdr toasts, or a tmux status-line message
 - [ntfy](https://ntfy.sh) push to your phone
 - Discord webhook
+- a generic webhook: a signed JSON POST to any URL, for your own automation
 
 ```toml
 [notify.ntfy]
@@ -289,9 +290,15 @@ token = "env:NTFY_TOKEN"          # optional
 [notify.discord]
 webhook_url = "env:IGRIS_DISCORD_WEBHOOK"
 events = ["needs_input", "phase_done"]   # default: needs_input, session_lost, task_overdue, phase_done, phase_stuck, run_error, verify_failed_limit
+
+[notify.webhook]
+url = "env:IGRIS_WEBHOOK_URL"     # http or https
+secret = "env:IGRIS_WEBHOOK_SECRET"   # optional: signs the body
 ```
 
-Messages carry the project, phase, task ID and title and the event, never file contents, diffs or command output. Each channel has a 10 s timeout and one retry; a channel that fails is shown as a warning and never stops the run. Secrets can be `env:VAR_NAME` references, are never logged, and are scrubbed from error messages. ntfy sends urgent events (`needs_input`, `session_lost`, `task_overdue`) at high priority.
+The webhook POSTs JSON with every key present (`""` when unknown): `{"v":1,"event","project","phase","task","title","what","run","at","urgent","text"}`, where `run` is the run ID, `at` an RFC 3339 UTC time and `text` the message as other channels show it. The event is also in the `X-Igris-Event` header. With a `secret`, `X-Igris-Signature: sha256=<hex>` is the HMAC-SHA256 of the raw body with the secret; check it before trusting the payload.
+
+Messages carry the project, phase, task ID and title and the event, never file contents, diffs or command output. Each channel has a 10 s timeout and one retry; a channel that fails is shown as a warning and never stops the run. Secrets (the ntfy token, the Discord and webhook URLs, the webhook secret) can be `env:VAR_NAME` references, are never logged, and are scrubbed from error messages. ntfy sends urgent events (`needs_input`, `session_lost`, `task_overdue`) at high priority.
 
 Check your setup with `igris notify test`: it sends a sample of each event to every configured channel (the herdr or tmux toast too, when run inside one) and prints `ok` or the reason for each failure. `--event needs_input` sends just one.
 

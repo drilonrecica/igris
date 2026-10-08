@@ -270,7 +270,7 @@ const (
 )
 
 // toast sends a SPEC §10 notification through the router: to the backend
-// toast and to ntfy and Discord, whichever are set up and want the event.
+// toast and to the remote channels, whichever are set up and want the event.
 // what says what happened in a few words; it must never carry file contents,
 // diffs or command output. Delivery is best effort: a failing channel is
 // reported as a warning and the run goes on. The call waits for the
@@ -281,6 +281,8 @@ func (e *Engine) toast(ctx context.Context, event notify.Event, what string) {
 		Project: filepath.Base(e.dir.Root()),
 		Phase:   e.phase,
 		What:    what,
+		RunID:   e.runID,
+		At:      e.clock.Now(),
 	}
 	if e.task != nil {
 		m.TaskID, m.Title = e.task.t.ID, e.task.t.Title
