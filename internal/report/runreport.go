@@ -117,10 +117,12 @@ func NewReport(in HistoryInput, project, sel string) (Report, error) {
 		return Report{}, ErrNoRuns
 	}
 	i := len(recs) - 1
-	switch n, err := strconv.Atoi(sel); {
+	switch {
 	case sel == "":
-	case err == nil:
-		if n < 1 || n > len(recs) {
+	case isIndex(sel):
+		// Too large for an int is past the end too.
+		n, err := strconv.Atoi(sel)
+		if err != nil || n < 1 || n > len(recs) {
 			return Report{}, fmt.Errorf("only %d %s recorded", len(recs), plural(len(recs), "run", "runs"))
 		}
 		i = len(recs) - n
@@ -130,8 +132,13 @@ func NewReport(in HistoryInput, project, sel string) (Report, error) {
 		}
 	}
 	rep := recs[i].report(in.Live && i == len(recs)-1)
-	rep.Project, rep.Note = textsafe.Line(project), newerNote(in.Events)
+	rep.Project, rep.Note = textsafe.Line(project), logNote(in)
 	return rep, nil
+}
+
+// isIndex says s is a run index: digits only, never a run ID.
+func isIndex(s string) bool {
+	return s != "" && strings.Trim(s, "0123456789") == ""
 }
 
 func plural(n int, one, many string) string {
@@ -157,6 +164,10 @@ type taskRec struct {
 	start    time.Time
 	duration time.Duration
 	timed    bool // some result had a known duration
+	// latest is the Claude session of the task's latest session line
+	// (started, resumed, retried); "" when that line has none or an
+	// invalid one, so Resume never points at an older conversation.
+	latest string
 }
 
 // report folds the run's lines into a Report.
@@ -195,7 +206,7 @@ func (r *runRec) report(live bool) Report {
 		switch e.Type {
 		case state.EventRunStopped:
 			if e.DurationMS > 0 {
-				out.DurationS = int(e.DurationMS / 1000)
+				out.DurationS = msSecs(e.DurationMS)
 			}
 		case state.EventTaskStarted, state.EventTaskResumed:
 			t := get(e)
@@ -235,7 +246,7 @@ func (r *runRec) report(live bool) Report {
 			if t := byID[e.Task]; t != nil {
 				t.t.Verify = append(t.t.Verify, ReportVerify{
 					Profile: verifyProfile(e), Passed: e.Type == state.EventVerifyPassed,
-					DurationS: int(e.DurationMS / 1000),
+					DurationS: msSecs(e.DurationMS),
 				})
 			}
 		case state.EventCommitted:
@@ -244,18 +255,16 @@ func (r *runRec) report(live bool) Report {
 				c.SHA = e.Commit
 			}
 			out.Commits = append(out.Commits, c)
-			if t := byID[e.Task]; t != nil && c.SHA != "" {
+			if t := byID[e.Task]; t != nil {
+				// The task's last commit, also when its SHA is unknown.
 				t.t.Commit = c.SHA
 			}
 		case state.EventNeedsYou:
 			waits = append(waits, &wait{task: e.Task, reason: e.Reason, start: e.At})
 		case state.EventNeedsYouClear:
-			for _, w := range waits {
-				if w.end.IsZero() && w.task == e.Task && w.reason == e.Reason {
-					w.end = e.At
-					break
-				}
-			}
+			// Every open wait of the task for the reason: older igris
+			// logged a repeated wait twice and cleared it once.
+			closeWaits(e.At, func(w *wait) bool { return w.task == e.Task && w.reason == e.Reason })
 		}
 	}
 	// Waits still open end with the run: its stop, or its last line.
@@ -279,11 +288,11 @@ func (r *runRec) report(live bool) Report {
 			}
 		}
 		if t.timed {
-			rt.DurationS = int(t.duration / time.Second)
+			rt.DurationS = secs(t.duration)
 		}
 		agent := rt.Owner != "user"
-		if n := len(rt.Sessions); n > 0 && agent {
-			rt.Resume = "claude --resume " + rt.Sessions[n-1]
+		if t.latest != "" && agent {
+			rt.Resume = "claude --resume " + t.latest
 		}
 		if v1 && agent {
 			id := rt.ID
@@ -316,8 +325,10 @@ func (t *taskRec) describe(e state.Event) {
 	set(&t.t.Model, e.Model)
 }
 
-// session records a Claude session UUID (already shape-checked when read).
+// session records the Claude session UUID of a session line (already
+// shape-checked when read; "" when it has none).
 func (t *taskRec) session(id string) {
+	t.latest = id
 	if id != "" && !slices.Contains(t.t.Sessions, id) {
 		t.t.Sessions = append(t.t.Sessions, id)
 	}
@@ -405,7 +416,7 @@ func union(waits []*wait, match func(*wait) bool) int {
 	if len(spans) > 0 {
 		total += cur[1].Sub(cur[0])
 	}
-	return int(total / time.Second)
+	return secs(total)
 }
 
 func ptr(n int) *int { return &n }

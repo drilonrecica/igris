@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -102,32 +103,43 @@ func TestPeekLockReadError(t *testing.T) {
 	}
 }
 
-func TestPeekEvents(t *testing.T) {
+func TestPeekLog(t *testing.T) {
 	good := `{"at":"2026-10-06T12:00:00Z","type":"run_started"}` + "\n" +
 		`{"at":"2026-10-06T12:01:00Z","type":"task_started","task":"T1"}` + "\n"
+	long := `{"at":"2026-10-06T12:02:00Z","type":"error","detail":"` + strings.Repeat("x", MaxLogLine) + `"}` + "\n"
 	tests := []struct {
-		name    string
-		content string
-		want    int
-		wantErr bool
+		name       string
+		content    string
+		want       int
+		unreadable int
 	}{
-		{"empty log", "\n", 0, false},
-		{"two events", good, 2, false},
-		{"truncated last line", good + `{"at":"2026-10-06T12:0`, 2, false},
-		{"malformed terminated last line", good + "garbage\n", 2, false},
-		{"malformed middle line", "garbage\n" + good, 0, true},
+		{"empty log", "\n", 0, 0},
+		{"two events", good, 2, 0},
+		{"truncated last line", good + `{"at":"2026-10-06T12:0`, 2, 0},
+		{"malformed terminated last line", good + "garbage\n", 2, 1},
+		{"malformed middle line", "garbage\n" + good, 2, 1},
+		// A cut-off line with the next one glued to it (before Append
+		// started a new line itself).
+		{"glued lines", `{"v":1,"at":"2026-10-08T10:00:00Z","type":"run_sta` + good, 1, 1},
+		{"line over 1 MiB", good + long + good, 4, 1},
+		{"v1 field of the wrong type", `{"v":1,"at":"2026-10-06T12:00:00Z","type":"task_started","attempt":"x"}` + "\n" + good, 2, 1},
+		{"v2 field of another type", `{"v":2,"at":"2026-10-06T12:00:00Z","type":"task_started","task":"T2","attempt":{"n":1}}` + "\n" + good, 3, 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			root := writeState(t, "runs.jsonl", tt.content)
-			got, err := PeekEvents(root)
-			if (err != nil) != tt.wantErr {
-				t.Fatalf("err = %v, wantErr %v", err, tt.wantErr)
+			got, err := PeekLog(root)
+			if err != nil {
+				t.Fatalf("err = %v", err)
 			}
-			if len(got) != tt.want {
-				t.Errorf("got %d events, want %d", len(got), tt.want)
+			if len(got.Events) != tt.want || got.Unreadable != tt.unreadable {
+				t.Errorf("got %d events, %d unreadable; want %d, %d", len(got.Events), got.Unreadable, tt.want, tt.unreadable)
 			}
 		})
+	}
+	root := writeState(t, "runs.jsonl", `{"v":2,"at":"2026-10-06T12:00:00Z","type":"task_started","task":"T2","attempt":{"n":1}}`+"\n")
+	if got, err := PeekEvents(root); err != nil || len(got) != 1 || got[0].Task != "T2" || got[0].Attempt != 0 || got[0].V != 2 {
+		t.Errorf("v2 line = %+v, %v; want its task kept and the attempt dropped", got, err)
 	}
 }
 
@@ -167,5 +179,22 @@ func TestPeekSignals(t *testing.T) {
 	sigs, bad, err = PeekSignals(root)
 	if err != nil || len(sigs) != 2 || sigs[0].ID != "A-1" || sigs[1].ID != "B-2" || len(bad) != 1 {
 		t.Errorf("sigs %+v, bad %v, err %v", sigs, bad, err)
+	}
+}
+
+// Values a run can't have are unknown when read (SPEC §13).
+func TestEventChecked(t *testing.T) {
+	for _, tc := range []struct {
+		in, want Event
+	}{
+		{Event{DurationMS: -5}, Event{}},
+		{Event{DurationMS: 9223372036854775807}, Event{}},
+		{Event{DurationMS: maxDurationMS}, Event{DurationMS: maxDurationMS}},
+		{Event{DurationMS: maxDurationMS + 1}, Event{}},
+		{Event{Attempt: -1, Reason: "nope", Run: "x", Session: "y"}, Event{Reason: ReasonOther}},
+	} {
+		if got := tc.in.checked(); got != tc.want {
+			t.Errorf("%+v checked = %+v, want %+v", tc.in, got, tc.want)
+		}
 	}
 }

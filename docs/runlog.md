@@ -7,7 +7,8 @@ Igris keeps a record of every run in `.igris/runs.jsonl` in the project root. `i
 - Location: `<project root>/.igris/runs.jsonl`, mode 0600 (in `.igris/`, mode 0700).
 - Append-only. Igris never rewrites or truncates it; delete it yourself to start over.
 - One JSON object per line (JSON Lines), UTF-8, ending in `\n`. Each line is written with a single `write`, so lines don't interleave.
-- After a crash the last line can be cut short. Readers skip a malformed last line.
+- After a crash the last line can be cut short. The next line igris appends starts with a newline of its own, so it is never glued to the cut one.
+- Readers skip every line they can't read (not JSON, not an event, a field of the wrong type in a v0/v1 line, or longer than 1 MiB) and go on with the rest; `history` and `report` then add the note `N unreadable lines in runs.jsonl skipped`. A cut-off last line without a newline is skipped silently (igris may be writing it).
 - No secrets, file contents, diffs or command output ever go into it. Verify and hook lines say why something failed, never what it printed.
 
 ## Fields
@@ -23,14 +24,14 @@ Every line igris v0.5 or later writes has `"v":1`. `v`, `at` and `type` are alwa
 | `task` | string | task ID | task events; absent on `run_started`, `run_stopped`, run-wide `needs_you`/`needs_you_clear` and most `error`s |
 | `rank` | string | the task's rank (the plan's Model cell) | with `task` |
 | `model` | string | the model the rank resolved to | with `task`, for agent tasks |
-| `attempt` | integer | the agent task's attempt within this run: 1 for the session of `task_started` or the one `task_resumed` reattaches, +1 for each `task_retried` | every event of an agent task once it has an attempt; user tasks have none |
+| `attempt` | integer | the agent task's attempt within this run: 1 for the session of `task_started` or the one `task_resumed` reattaches, +1 for each `task_retried`. A task reset and started again in the same run goes on counting (its new `task_started` has the next number, not 1) | every event of an agent task once it has an attempt; user tasks have none |
 | `session` | string | the Claude Code session UUID (`claude --resume <uuid>`) | `task_started` and `task_retried` of agent tasks; `task_resumed` when `state.json` recorded one |
 | `phase` | string | the task's phase ID | `task_started`, `task_resumed` |
 | `title` | string | the task's title, markdown stripped (as notifications show it), cleaned of control characters, at most 80 characters | `task_started`, `task_resumed` |
 | `owner` | string | `agent`, `user` or `agent + user` | `task_started`, `task_resumed` |
 | `profile` | string | the verify profile | `verify_passed`, `verify_failed` |
 | `commit` | string | the full commit SHA (`git rev-parse HEAD` after the commit; left out, with a warning, if that fails) | `committed` |
-| `duration_ms` | integer | milliseconds. `task_done`/`task_skipped`: since this run's `task_started` or `task_resumed` of the task (wall time: watching, verify, questions, everything). `verify_*`: the verify command's run time. `run_stopped`: the run's length | those events |
+| `duration_ms` | integer | milliseconds. `task_done`/`task_skipped`: since this run's `task_started` or `task_resumed` of the task (wall time: watching, verify, questions, everything). `verify_*`: the verify command's run time. `run_stopped`: the run's length. Readers take a negative value or one over 30 days as unknown | those events |
 | `reason` | string | why igris waits on you (below) | `needs_you`, `needs_you_clear` |
 | `detail` | string | free text, see each type | most events |
 
@@ -50,8 +51,8 @@ Every line igris v0.5 or later writes has `"v":1`. `v`, `at` and `type` are alwa
 | `verify_passed` | the verify command passed | `profile <name>` |
 | `verify_failed` | the verify command failed | `profile <name>: attempt N of M: <why>` (`exit status 2`, `timed out after 10m0s`) |
 | `committed` | igris committed the task's changes | the commit subject |
-| `needs_you` | igris marks Needs you or loses a session | the few words the notification says, e.g. `needs you (idle 5m0s without igris done)` |
-| `needs_you_clear` | that wait ended while the task goes on: the agent works again, you answered, a retry | empty |
+| `needs_you` | igris starts waiting on you (marks Needs you, loses a session, holds the run) | the few words the notification says, e.g. `needs you (idle 5m0s without igris done)` |
+| `needs_you_clear` | that wait ended while the task goes on: the agent works again, the session ran `igris done`, you answered, a retry | empty |
 | `notification` | a notification was delivered, held for quiet hours, or sent as a digest | `<event> via <channel>` (`task_done via ntfy`); `<event> held for <channel> (quiet hours)`; `digest of N via <channel>` (no `task`). Failed deliveries are not logged here |
 | `error` | a task hook failed, or the run stopped with an error | the hook's reason (`before_task hook failed: exit status 1`) or the error |
 
@@ -73,7 +74,14 @@ Every line igris v0.5 or later writes has `"v":1`. `v`, `at` and `type` are alwa
 
 A reader treats any other reason as `other`. The config-changed notice is not a wait (the run goes on with its snapshot) and is not logged as `needs_you`.
 
-A wait starts at `needs_you` and ends at the first later event of the same run that is a `needs_you_clear` with the same task and reason, or for that task a `task_retried`, `task_done`, `task_skipped` or `task_reset`, or the run's `run_stopped` (its last line when it has none).
+Needs-you time is the time igris waited on you. So:
+
+- `idle` and `blocked` end when the agent works again or the session runs `igris done` (also when its verify then fails: a new idle stretch is a new wait).
+- `task_overdue`, `verify_limit` and `verify_not_sent` end when the agent is seen working again: an overdue task that keeps working waits on nobody.
+- `plan_changed` starts when the run holds: the change is noticed between tasks, after the current task ended. It ends when you resume.
+- A wait that is already open is not logged again: a second skip request from the session, the verify limit hit again, another plan edit while the run holds.
+
+A wait starts at `needs_you` and ends at the first later event of the same run that is a `needs_you_clear` with the same task and reason, or for that task a `task_retried`, `task_done`, `task_skipped` or `task_reset`, or the run's `run_stopped` (its last line when it has none). A `needs_you_clear` ends every open wait of its task and reason, so logs where igris v0.5.0 before this rule logged one wait twice still add up.
 
 ## Runs
 
@@ -83,7 +91,7 @@ A run is the lines with one `run` ID. Lines without `run` (v0 lines) form runs t
 
 - A line without `v` is **v0**: igris v0.2–v0.4 wrote `at`, `type`, `task`, `rank`, `model` and `detail` only (shape below). Readers accept v0 and v1 lines mixed in one file.
 - Readers ignore unknown types and unknown fields.
-- A line with a larger `v` is read best effort (the fields known here); `history` and `report` then add the note `runs.jsonl has lines from a newer igris (vN); some details may be missing`.
+- A line with a larger `v` is read best effort: the fields known here, a field whose type changed left out, the line kept; `history` and `report` then add the note `runs.jsonl has lines from a newer igris (vN); some details may be missing`.
 - Within v1, fields and types are only ever added. None is removed or renamed, and none changes its meaning. Anything else is a new version.
 - `run` and `session` are shape-checked when read (`^[0-9]{8}-[0-9]{6}-[0-9a-f]{4}$`, and a lowercase UUID). A value that fails counts as absent: a session UUID ends up in a `claude --resume` command.
 

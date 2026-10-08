@@ -28,15 +28,13 @@ func reportArgs(fs *flag.FlagSet) func([]string) error {
 	}
 }
 
-// validRunArg says s is a run index (1, 2, …) or a run ID.
+// validRunArg says s is a run index (any positive integer: one past the
+// end is "only N runs recorded", not a usage error) or a run ID.
 func validRunArg(s string) bool {
 	if state.ValidRunID(s) {
 		return true
 	}
-	if s == "" || s[0] == '0' || len(s) > 9 {
-		return false
-	}
-	return strings.Trim(s, "0123456789") == ""
+	return s != "" && s[0] != '0' && strings.Trim(s, "0123456789") == ""
 }
 
 // execReport prints one run from the run log (SPEC §14). It is read-only:
@@ -76,7 +74,7 @@ func execReport(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 // printReport writes the run as markdown, for a PR description or a
 // journal. Every value the log doesn't record is "—".
 func printReport(w io.Writer, r report.Report) {
-	fmt.Fprintf(w, "# igris report · %s\n\n", r.Project)
+	fmt.Fprintf(w, "# igris report · %s\n\n", md(r.Project))
 	if r.Note != "" {
 		fmt.Fprintf(w, "note: %s\n\n", r.Note)
 	}
@@ -84,13 +82,13 @@ func printReport(w io.Writer, r report.Report) {
 	if r.DurationS > 0 {
 		fmt.Fprintf(w, " (%s)", fmtSeconds(r.DurationS))
 	}
-	fmt.Fprintf(w, " · %s\n", r.End)
+	fmt.Fprintf(w, " · %s\n", md(r.End))
 	var scope []string
 	if len(r.Phases) > 0 {
-		scope = append(scope, plural(len(r.Phases), "Phase ", "Phases ")+strings.Join(r.Phases, ", "))
+		scope = append(scope, plural(len(r.Phases), "Phase ", "Phases ")+md(strings.Join(r.Phases, ", ")))
 	}
 	if r.Selection != nil {
-		scope = append(scope, r.Selection.String())
+		scope = append(scope, md(r.Selection.String()))
 	}
 	if len(scope) > 0 {
 		fmt.Fprintln(w, strings.Join(scope, " · "))
@@ -106,7 +104,7 @@ func printReport(w io.Writer, r report.Report) {
 		if g.Phase == "" {
 			fmt.Fprint(w, "\n## Tasks\n\n")
 		} else {
-			fmt.Fprintf(w, "\n## Phase %s\n\n", g.Phase)
+			fmt.Fprintf(w, "\n## Phase %s\n\n", md(g.Phase))
 		}
 		fmt.Fprintln(w, "| Task | Result | Duration | Attempts | Verify | Commit | Needs you |")
 		fmt.Fprintln(w, "|---|---|---|---|---|---|---|")
@@ -126,10 +124,11 @@ func printReport(w io.Writer, r report.Report) {
 		var notes, resume []string
 		for _, t := range g.Tasks {
 			if t.Note != "" {
-				notes = append(notes, fmt.Sprintf("- %s %s: %s", t.ID, t.Result, t.Note))
+				notes = append(notes, fmt.Sprintf("- %s %s: %s", md(t.ID), t.Result, md(t.Note)))
 			}
 			if t.Resume != "" {
-				resume = append(resume, fmt.Sprintf("- %s: `%s` (run it in the project root)", t.ID, t.Resume))
+				// Resume is igris's own text with a checked UUID.
+				resume = append(resume, fmt.Sprintf("- %s: `%s` (run it in the project root)", md(t.ID), t.Resume))
 			}
 		}
 		printList(w, "Notes", notes)
@@ -137,7 +136,7 @@ func printReport(w io.Writer, r report.Report) {
 	}
 	var errs []string
 	for _, e := range r.Errors {
-		errs = append(errs, "- "+e)
+		errs = append(errs, "- "+md(e))
 	}
 	printList(w, "Errors", errs)
 }
@@ -168,8 +167,20 @@ func verifyMarks(vs []report.ReportVerify) string {
 	return strings.Join(parts, " ")
 }
 
+// mdEscaper escapes the characters that make markdown out of text (links,
+// images, emphasis, code, headings, HTML, table cells).
+var mdEscaper = strings.NewReplacer(
+	`\`, `\\`, "`", "\\`", "*", `\*`, "_", `\_`, "[", `\[`, "]", `\]`,
+	"(", `\(`, ")", `\)`, "!", `\!`, "<", `\<`, ">", `\>`, "#", `\#`, "|", `\|`,
+)
+
+// md escapes text from the log (titles, notes, IDs, errors) for the
+// markdown report, so it reads as written and can't make links or
+// markup; JSON output keeps it as cleaned.
+func md(s string) string { return mdEscaper.Replace(s) }
+
 // cell escapes s for a markdown table cell.
-func cell(s string) string { return strings.ReplaceAll(s, "|", `\|`) }
+func cell(s string) string { return md(s) }
 
 func shortSHA(sha string) string {
 	if len(sha) > 7 {

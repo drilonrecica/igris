@@ -1,5 +1,7 @@
 exit: 0
 --- stdout
+note: 1 unreadable line in runs.jsonl skipped
+
 Run 2026-10-03T08:00:00Z  phase B  interrupted
   1 done, 0 skipped
   B-1  done        sonnet  sonnet  3m01s  verify 0 failed, 1 passed

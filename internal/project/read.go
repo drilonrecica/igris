@@ -40,11 +40,11 @@ func RunInfo(root string) *report.RunInfo {
 // keeping the last n runs. No log is no runs, not an error.
 func HistoryInput(root string, n int) (report.HistoryInput, error) {
 	in := report.HistoryInput{N: n}
-	var err error
-	in.Events, err = state.PeekEvents(root)
+	log, err := state.PeekLog(root)
 	if err != nil && !errors.Is(err, state.ErrNoLog) {
 		return in, err
 	}
+	in.Events, in.Unreadable = log.Events, log.Unreadable
 	if l, err := state.PeekLock(root); err == nil {
 		in.Live = l.Alive && !l.Stale && !l.Unreadable
 	}

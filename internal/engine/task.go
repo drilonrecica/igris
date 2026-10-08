@@ -35,11 +35,18 @@ type launch struct {
 	overdue   bool
 	// attempt is the agent task's attempt in this run for the run log
 	// (SPEC §13): 1 for the first session or the reattached one, +1 per
-	// retry. since is when this run started or picked up the task; waits
+	// retry, and on from the last one when the task is started again in
+	// the same run after a reset. since is when this run started or picked up the task; waits
 	// are the needs-you reasons logged and not yet cleared.
 	attempt int
 	since   time.Time
 	waits   []string
+}
+
+// nextAttempt counts a new attempt of l's task in this run.
+func (e *Engine) nextAttempt(l *launch) {
+	e.attempts[l.t.ID]++
+	l.attempt = e.attempts[l.t.ID]
 }
 
 // startAttempt starts a new attempt's Timeout clock at now.
@@ -149,7 +156,8 @@ func (e *Engine) markInProgress(ctx context.Context, l *launch, detail string) (
 	l.since = e.clock.Now()
 	ev := taskInfo(state.Event{Type: state.EventTaskStarted, Detail: detail}, t)
 	if t.Owner.IsAgent() {
-		l.attempt, ev.Session = 1, l.cur.ClaudeSession
+		ev.Session = l.cur.ClaudeSession
+		e.nextAttempt(l)
 	}
 	e.log(ev)
 	e.emit(Event{Kind: TaskStarted, Changes: changes})
@@ -334,7 +342,7 @@ func (e *Engine) retry(ctx context.Context, l *launch, cont bool) error {
 	}
 	// Every session opened is an attempt, also one the hook keeps from
 	// opening (SPEC §13).
-	l.attempt++
+	e.nextAttempt(l)
 	e.log(state.Event{Type: state.EventTaskRetried, Session: st.sessionID, Detail: detail})
 	if open, err := e.beforeSession(ctx, l); err != nil || !open {
 		return err

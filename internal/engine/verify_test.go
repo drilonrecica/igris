@@ -176,7 +176,8 @@ func TestVerifyLimit(t *testing.T) {
 	if limitToasts != 2 {
 		t.Errorf("toasts = %q, want two verify-limit toasts for A-1", h.toasts())
 	}
-	if got := h.waits(); got != "A-1#1 verify_limit, A-1#1 verify_limit" {
+	// The limit hit again is the same wait (SPEC §13).
+	if got := h.waits(); got != "A-1#1 verify_limit" {
 		t.Errorf("run log waits = %q", got)
 	}
 }

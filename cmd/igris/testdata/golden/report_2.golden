@@ -30,5 +30,5 @@ Resume
 - M2-01: `claude --resume 9aa07c5e-d5cc-43b5-812b-1a20c5336f67` (run it in the project root)
 
 Errors
-- after_task hook failed: exit status 1
+- after\_task hook failed: exit status 1
 --- stderr

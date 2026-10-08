@@ -472,6 +472,14 @@ func TestRunLogTruncatedTail(t *testing.T) {
 	if err != nil || len(events) != 1 {
 		t.Errorf("Events with truncated tail = %v, %v; want the one complete event", events, err)
 	}
+	// The next line starts on a line of its own: only the cut one is lost.
+	if err := d.Append(Event{Type: EventRunStopped}); err != nil {
+		t.Fatal(err)
+	}
+	log, err := PeekLog(d.Root())
+	if err != nil || len(log.Events) != 2 || log.Events[1].Type != EventRunStopped || log.Unreadable != 1 {
+		t.Errorf("after appending to a cut-off log: %+v, %v; want both events and one unreadable line", log, err)
+	}
 
 	// A corrupt line in the middle is an error.
 	if err := os.WriteFile(d.eventsPath(), []byte("{bad\n{\"type\":\"error\"}\n"), 0o600); err != nil {

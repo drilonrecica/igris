@@ -25,8 +25,10 @@ const (
 
 // HistoryInput is what NewHistory and NewTaskHistory read.
 type HistoryInput struct {
-	Events []state.Event // from state.PeekEvents, oldest first
-	N      int           // runs to show; 0 or less means DefaultHistoryRuns
+	Events []state.Event // from state.PeekLog, oldest first
+	// Unreadable counts the log's lines state.PeekLog skipped.
+	Unreadable int
+	N          int // runs to show; 0 or less means DefaultHistoryRuns
 	// Live says the lock is held by a live igris on this host, so a last run
 	// without a stop event is still running rather than interrupted.
 	Live bool
@@ -64,7 +66,8 @@ type HistoryRun struct {
 // History is the result of `igris history`: the last runs, newest first.
 type History struct {
 	Runs []HistoryRun `json:"runs"`
-	// Note says the log has lines from a newer igris, read best effort.
+	// Note says the log has lines from a newer igris, read best effort,
+	// or lines that could not be read at all.
 	Note string `json:"note,omitempty"`
 }
 
@@ -120,7 +123,7 @@ func NewHistory(in HistoryInput) History {
 		n = DefaultHistoryRuns
 	}
 	recs := readRuns(in.Events)
-	h := History{Runs: []HistoryRun{}, Note: newerNote(in.Events)}
+	h := History{Runs: []HistoryRun{}, Note: logNote(in)}
 	for i := len(recs) - 1; i >= 0 && len(h.Runs) < n; i-- {
 		h.Runs = append(h.Runs, recs[i].summary(in.Live && i == len(recs)-1))
 	}
@@ -129,7 +132,7 @@ func NewHistory(in HistoryInput) History {
 
 // NewTaskHistory lists every attempt of task across the whole log.
 func NewTaskHistory(in HistoryInput, task string) TaskHistory {
-	h := TaskHistory{Task: textsafe.Line(task), Attempts: []Attempt{}, Note: newerNote(in.Events)}
+	h := TaskHistory{Task: textsafe.Line(task), Attempts: []Attempt{}, Note: logNote(in)}
 	recs := readRuns(in.Events)
 	for i := len(recs) - 1; i >= 0; i-- {
 		r := recs[i]
@@ -143,17 +146,24 @@ func NewTaskHistory(in HistoryInput, task string) TaskHistory {
 	return h
 }
 
-// newerNote is the note for a log with lines from a newer igris (a larger
-// "v"), "" when there are none.
-func newerNote(events []state.Event) string {
+// logNote is the note about the log: lines from a newer igris (a larger
+// "v"), lines that could not be read; "" when there is nothing to say.
+func logNote(in HistoryInput) string {
+	var notes []string
 	v := 0
-	for _, e := range events {
+	for _, e := range in.Events {
 		v = max(v, e.V)
 	}
-	if v <= state.LogVersion {
-		return ""
+	if v > state.LogVersion {
+		notes = append(notes, fmt.Sprintf("runs.jsonl has lines from a newer igris (v%d); some details may be missing", v))
 	}
-	return fmt.Sprintf("runs.jsonl has lines from a newer igris (v%d); some details may be missing", v)
+	switch n := in.Unreadable; {
+	case n == 1:
+		notes = append(notes, "1 unreadable line in runs.jsonl skipped")
+	case n > 1:
+		notes = append(notes, fmt.Sprintf("%d unreadable lines in runs.jsonl skipped", n))
+	}
+	return strings.Join(notes, "; ")
 }
 
 // readRuns groups events into runs and runs' events into attempts (SPEC
@@ -275,6 +285,9 @@ func (r *runRec) summary(live bool) HistoryRun {
 		Phases: r.phases, End: r.detail,
 		Tasks: []TaskRun{}, Commits: append([]string{}, r.commits...), Errors: append([]string{}, r.errors...),
 	}
+	if out.Phases == nil {
+		out.Phases = []string{} // a run whose run_started line is missing
+	}
 	switch {
 	case r.stopped && out.End == "":
 		out.End = "stopped"
@@ -329,11 +342,26 @@ func (a *attempt) export(r *runRec, running bool) Attempt {
 	}
 }
 
-// seconds is the whole seconds from start to end, 0 when either is unknown
-// or the clock went backwards.
+// seconds is secs from start to end, 0 when either is unknown or the clock
+// went backwards.
 func seconds(start, end time.Time) int {
 	if start.IsZero() || end.IsZero() || end.Before(start) {
 		return 0
 	}
-	return int(end.Sub(start) / time.Second)
+	return secs(end.Sub(start))
 }
+
+// secs is d in whole seconds, at least 1 for a known duration under a
+// second, so a short one never reads as unknown.
+func secs(d time.Duration) int {
+	switch {
+	case d <= 0:
+		return 0
+	case d < time.Second:
+		return 1
+	}
+	return int(d / time.Second)
+}
+
+// msSecs is secs of a duration_ms.
+func msSecs(ms int64) int { return secs(time.Duration(ms) * time.Millisecond) }

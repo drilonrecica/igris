@@ -69,7 +69,9 @@ func TestTaskOverdueOncePerAttempt(t *testing.T) {
 	if h.count(TaskOverdue) != 1 {
 		t.Errorf("%d task_overdue events, want 1 (A-2 has no Timeout)", h.count(TaskOverdue))
 	}
-	if got := h.waits(); got != "A-1#1 task_overdue" {
+	// The agent works throughout: the wait ends at the next poll
+	// (Decision W, V05-P1).
+	if got := h.waits(); got != "A-1#1 task_overdue, clear A-1#1 task_overdue" {
 		t.Errorf("run log waits = %q", got)
 	}
 }

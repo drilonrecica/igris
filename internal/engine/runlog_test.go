@@ -211,7 +211,7 @@ func TestRunLogResetRequest(t *testing.T) {
 	if _, err := h.run(); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
-	if got, want := h.waits(), "A-1#1 reset_request, clear A-1#1 reset_request, A-1#1 idle"; got != want {
+	if got, want := h.waits(), "A-1#1 reset_request, clear A-1#1 reset_request, A-1#1 idle, clear A-1#1 idle"; got != want {
 		t.Errorf("waits = %q, want %q", got, want)
 	}
 }

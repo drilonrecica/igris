@@ -1,5 +1,7 @@
 exit: 0
 --- stdout
+note: 1 unreadable line in runs.jsonl skipped
+
 B-1  run 2026-10-03T08:00:00Z  done  (3m01s)
   started 2026-10-03T08:00:01Z
   rank sonnet, model sonnet

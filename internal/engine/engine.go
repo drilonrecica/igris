@@ -176,6 +176,7 @@ type Engine struct {
 	stop     bool            // the owner asked to stop
 	pending  []Command       // task-scoped commands not handled yet
 	reported map[string]bool // keys of the signals and problems reported once
+	attempts map[string]int  // the last attempt of each agent task in this run (SPEC §13)
 	// configMoved: igris.toml differs from the one of the run being resumed.
 	configMoved bool
 	runMode     string            // the run mode chosen for this run; see CmdMode
@@ -241,6 +242,7 @@ func New(opts Options) (*Engine, error) {
 		conf:      newConfigWatch(filepath.Join(root, state.ConfigFile), opts.Config),
 		wake:      make(chan struct{}, 1),
 		reported:  map[string]bool{},
+		attempts:  map[string]int{},
 		commitMsg: commitMsg,
 		runMode:   opts.Mode,
 		overrides: map[string]string{},

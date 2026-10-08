@@ -134,7 +134,7 @@ func (e *Engine) logResumed(l *launch, detail string) {
 	l.since = e.clock.Now()
 	ev := taskInfo(state.Event{Type: state.EventTaskResumed, Detail: detail}, l.t)
 	if l.t.Owner.IsAgent() {
-		l.attempt = 1
+		e.nextAttempt(l)
 		if s := l.cur.ClaudeSession; backend.ValidClaudeSession(s) {
 			ev.Session = s
 		}

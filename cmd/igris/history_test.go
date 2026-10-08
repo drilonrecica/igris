@@ -111,7 +111,26 @@ func TestHistoryReadOnlyAndUsage(t *testing.T) {
 	}
 	writeLog(t, root, []byte("{not json}\n{\"at\":\"2026-10-01T09:00:00Z\",\"type\":\"run_started\"}\n"))
 	errb.Reset()
-	if code := run([]string{"history"}, &out, &errb); code != exitFail {
-		t.Errorf("a damaged line in the middle: code %d, want 1 (err %q)", code, errb.String())
+	out.Reset()
+	// One bad line never hides the rest (SPEC §13).
+	if code := run([]string{"history"}, &out, &errb); code != exitOK ||
+		!strings.Contains(out.String(), "note: 1 unreadable line in runs.jsonl skipped") || !strings.Contains(out.String(), "Run 2026-10-01T09:00:00Z") {
+		t.Errorf("a damaged line in the middle: code %d, out %q, err %q", code, out.String(), errb.String())
+	}
+}
+
+// A run whose run_started line is lost has no phases: "phases": [] and no
+// dangling "phase" in the text.
+func TestHistoryRunWithoutStart(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	writeLog(t, root, []byte(`{"v":1,"at":"2026-10-01T09:00:00Z","type":"task_started","run":"20261001-090000-3fa2","task":"A-1"}`+"\n"))
+	var out, errb bytes.Buffer
+	if code := run([]string{"history"}, &out, &errb); code != exitOK || strings.Contains(out.String(), "phase") {
+		t.Errorf("code %d, out %q", code, out.String())
+	}
+	out.Reset()
+	if code := run([]string{"history", "--json"}, &out, &errb); code != exitOK || !strings.Contains(out.String(), `"phases": []`) {
+		t.Errorf("--json: code %d, out %q", code, out.String())
 	}
 }

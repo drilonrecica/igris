@@ -131,12 +131,16 @@ func (e *Engine) checkPlan(ctx context.Context, p *plan.Plan) {
 		list, more = list[:maxPlanChanges], fmt.Sprintf(" and %d more", len(changes)-maxPlanChanges)
 	}
 	e.emit(Event{Kind: PlanChanged, Detail: "the plan changed outside igris: " + strings.Join(list, "; ") + more + " — igris paused; check the plan, then resume"})
+	held := e.hold
 	e.hold = true
 	if !e.pause {
 		e.pause = true
 		e.emit(Event{Kind: PauseOn})
 	}
-	// Run-wide: the run holds between tasks.
-	e.logRun(state.Event{Type: state.EventNeedsYou, Reason: state.ReasonPlanChanged, Detail: "the plan changed outside igris; paused"})
+	if !held {
+		// Run-wide: the run holds between tasks, from now until the owner
+		// resumes; another edit meanwhile is the same wait.
+		e.logRun(state.Event{Type: state.EventNeedsYou, Reason: state.ReasonPlanChanged, Detail: "the plan changed outside igris; paused"})
+	}
 	e.toast(ctx, notifyNeedsInput, "the plan changed outside igris; paused")
 }

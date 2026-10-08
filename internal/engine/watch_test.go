@@ -63,7 +63,8 @@ func TestNeedsYouOncePerIdleEpisode(t *testing.T) {
 	if got, want := durations(h.times(NeedsYou)...), "30s 1m20s"; got != want {
 		t.Errorf("needs_you at %s, want %s", got, want)
 	}
-	if got, want := durations(h.times(NeedsYouClear)...), "40s"; got != want {
+	// The second episode ends with the done signal at 1m40s.
+	if got, want := durations(h.times(NeedsYouClear)...), "40s 1m40s"; got != want {
 		t.Errorf("needs_you_clear at %s, want %s", got, want)
 	}
 	needs := 0
@@ -75,8 +76,8 @@ func TestNeedsYouOncePerIdleEpisode(t *testing.T) {
 	if needs != 2 {
 		t.Errorf("toasts = %q, want two needs-you toasts for A-1", h.toasts())
 	}
-	// The second episode ends with the task: no clear.
-	if got, want := h.waits(), "A-1#1 idle, clear A-1#1 idle, A-1#1 idle"; got != want {
+	// The second episode ends with the done signal: igris no longer waits.
+	if got, want := h.waits(), "A-1#1 idle, clear A-1#1 idle, A-1#1 idle, clear A-1#1 idle"; got != want {
 		t.Errorf("run log waits = %q, want %q", got, want)
 	}
 }
@@ -94,7 +95,7 @@ func TestNeedsYouBlockedReason(t *testing.T) {
 	if got := h.toasts(); len(got) == 0 || got[0] != "request: phase A · A-1 One: needs you (waiting for a permission or an answer)" {
 		t.Errorf("toasts = %q", got)
 	}
-	if got := h.waits(); got != "A-1#1 blocked" {
+	if got := h.waits(); got != "A-1#1 blocked, clear A-1#1 blocked" {
 		t.Errorf("run log waits = %q", got)
 	}
 }
@@ -366,7 +367,7 @@ func TestSkipSignalNeedsConfirmation(t *testing.T) {
 					t.Errorf("toast %q carries the session's text", toast)
 				}
 			}
-			wantWaits := map[bool]string{true: "A-1#1 skip_request", false: "A-1#1 skip_request, clear A-1#1 skip_request, A-1#1 idle"}[tt.yes] // idle until its signal at 40s
+			wantWaits := map[bool]string{true: "A-1#1 skip_request", false: "A-1#1 skip_request, clear A-1#1 skip_request, A-1#1 idle, clear A-1#1 idle"}[tt.yes] // idle until its signal at 40s
 			if got := h.waits(); got != wantWaits {
 				t.Errorf("run log waits = %q, want %q", got, wantWaits)
 			}

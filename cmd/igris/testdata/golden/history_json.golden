@@ -98,6 +98,7 @@ exit: 0
       ],
       "errors": []
     }
-  ]
+  ],
+  "note": "1 unreadable line in runs.jsonl skipped"
 }
 --- stderr

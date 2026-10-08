@@ -115,3 +115,59 @@ func TestVerifyProfile(t *testing.T) {
 		}
 	}
 }
+
+// A clear ends every open wait of the task for its reason (older logs
+// logged a repeated wait twice); a sub-second known duration is 1s; the
+// Commit cell is the task's last commit, SHA known or not; Resume needs
+// the latest session's UUID.
+func TestReportRepairsAndRounding(t *testing.T) {
+	const id = "20261001-090000-3fa2"
+	const uuid = "0f6c2a3e-5b1d-4c7e-9a8f-1d2e3f4a5b6c"
+	at := func(sec int, e state.Event) state.Event {
+		e.V, e.At, e.Run = 1, t0.Add(time.Duration(sec)*time.Second), id
+		return e
+	}
+	events := []state.Event{
+		at(0, state.Event{Type: state.EventRunStarted, Detail: "phase A"}),
+		at(0, state.Event{Type: state.EventTaskStarted, Task: "A-1", Owner: "agent", Session: uuid}),
+		at(10, state.Event{Type: state.EventNeedsYou, Task: "A-1", Reason: state.ReasonSkipRequest}),
+		at(20, state.Event{Type: state.EventNeedsYou, Task: "A-1", Reason: state.ReasonSkipRequest}),
+		at(30, state.Event{Type: state.EventNeedsYouClear, Task: "A-1", Reason: state.ReasonSkipRequest}),
+		at(31, state.Event{Type: state.EventVerifyPassed, Task: "A-1", Profile: "fast", DurationMS: 400}),
+		at(32, state.Event{Type: state.EventCommitted, Task: "A-1", Commit: "3fa29c1e0b6d4a8f9c2e7b1d5a0f6e3c8b9d2a4f"}),
+		at(33, state.Event{Type: state.EventCommitted, Task: "A-1", Commit: "not a sha"}),
+		at(40, state.Event{Type: state.EventTaskRetried, Task: "A-1"}), // a session without a known UUID
+		at(1000, state.Event{Type: state.EventTaskDone, Task: "A-1"}),
+		at(1000, state.Event{Type: state.EventTaskStarted, Task: "A-2", Owner: "agent"}),
+		at(1000, state.Event{Type: state.EventTaskDone, Task: "A-2", DurationMS: 250}),
+		at(1000, state.Event{Type: state.EventRunStopped, Detail: "completed", DurationMS: 999}),
+	}
+	r, err := NewReport(HistoryInput{Events: events}, "demo", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a1, a2 := r.Tasks[0], r.Tasks[1]
+	if a1.NeedsYouS == nil || *a1.NeedsYouS != 20 || *r.NeedsYouS != 20 {
+		t.Errorf("A-1 needs you %v, run %v; want 20s, the wait cleared once", a1.NeedsYouS, r.NeedsYouS)
+	}
+	if a1.Commit != "" {
+		t.Errorf("A-1 commit %q, want unknown: its last commit has no SHA", a1.Commit)
+	}
+	if a1.Resume != "" || len(a1.Sessions) != 1 {
+		t.Errorf("A-1 resume %q, sessions %v; want no resume, the latest session is unknown", a1.Resume, a1.Sessions)
+	}
+	if len(a1.Verify) != 1 || a1.Verify[0].DurationS != 1 || a2.DurationS != 1 || r.DurationS != 1 {
+		t.Errorf("verify %+v, A-2 %ds, run %ds; want 1s for each known sub-second duration", a1.Verify, a2.DurationS, r.DurationS)
+	}
+}
+
+func TestReportUnreadableNote(t *testing.T) {
+	events := []state.Event{ev(0, state.EventRunStarted, "", "phase A")}
+	r, err := NewReport(HistoryInput{Events: events, Unreadable: 3}, "demo", "")
+	if err != nil || r.Note != "3 unreadable lines in runs.jsonl skipped" {
+		t.Errorf("note %q, err %v", r.Note, err)
+	}
+	if h := NewHistory(HistoryInput{Events: events, Unreadable: 1}); h.Note != "1 unreadable line in runs.jsonl skipped" {
+		t.Errorf("history note %q", h.Note)
+	}
+}

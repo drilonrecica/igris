@@ -66,3 +66,46 @@ func TestReportReadOnlyAndUsage(t *testing.T) {
 		t.Errorf("empty log: code %d, err %q", code, errb.String())
 	}
 }
+
+// Any positive integer is an index; past the end is a plain failure.
+func TestReportLargeIndex(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	writeLog(t, root, []byte(`{"v":1,"at":"2026-10-01T09:00:00Z","type":"run_started","run":"20261001-090000-3fa2","detail":"phase A"}`+"\n"))
+	for _, sel := range []string{"1234567890", "99999999999999999999999"} {
+		var out, errb bytes.Buffer
+		if code := run([]string{"report", sel}, &out, &errb); code != exitFail || !strings.Contains(errb.String(), "only 1 run recorded") {
+			t.Errorf("report %s: code %d, err %q; want exit 1, only 1 run recorded", sel, code, errb.String())
+		}
+	}
+}
+
+// Text from the log can't make markdown: links, images, emphasis, HTML.
+func TestReportEscapesMarkdown(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	const run1 = `"run":"20261001-090000-3fa2"`
+	writeLog(t, root, []byte(strings.Join([]string{
+		`{"v":1,"at":"2026-10-01T09:00:00Z","type":"run_started",` + run1 + `,"detail":"phase A"}`,
+		`{"v":1,"at":"2026-10-01T09:00:01Z","type":"task_started",` + run1 + `,"task":"A-1","phase":"A","owner":"agent","title":"[click](https://evil.example) **now** <b>x</b>"}`,
+		`{"v":1,"at":"2026-10-01T09:01:00Z","type":"task_done",` + run1 + `,"task":"A-1","detail":"see ![img](https://evil.example/p.png) and ` + "`code`" + ` # not a heading"}`,
+		`{"v":1,"at":"2026-10-01T09:02:00Z","type":"run_stopped",` + run1 + `,"detail":"completed"}`,
+	}, "\n")+"\n"))
+	var out, errb bytes.Buffer
+	if code := run([]string{"report"}, &out, &errb); code != exitOK {
+		t.Fatalf("code %d, err %q", code, errb.String())
+	}
+	got := out.String()
+	for _, want := range []string{
+		`| A-1 \[click\]\(https://evil.example\) \*\*now\*\* \<b\>x\</b\> |`,
+		"- A-1 done: see \\!\\[img\\]\\(https://evil.example/p.png\\) and \\`code\\` \\# not a heading",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("report lacks %q:\n%s", want, got)
+		}
+	}
+	out.Reset()
+	if code := run([]string{"report", "--json"}, &out, &errb); code != exitOK || !strings.Contains(out.String(), `"title": "[click](https://evil.example) **now** \u003cb\u003ex\u003c/b\u003e"`) {
+		t.Errorf("--json keeps the text as cleaned: code %d\n%s", code, out.String())
+	}
+}

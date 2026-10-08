@@ -226,9 +226,14 @@ func (e *Engine) sinceMS(start time.Time) int64 {
 
 // waitOn logs that the current task waits on the owner for reason
 // (a state.Reason*); detail is the few words the notification says. The
-// wait stays open on the task until it is cleared or the task ends.
+// wait stays open on the task until it is cleared or the task ends. A
+// wait for reason that is already open is not logged again: it is the
+// same wait (a second skip request, the verify limit hit again).
 func (e *Engine) waitOn(reason, detail string) {
-	if l := e.task; l != nil && !slices.Contains(l.waits, reason) {
+	if l := e.task; l != nil {
+		if slices.Contains(l.waits, reason) {
+			return
+		}
 		l.waits = append(l.waits, reason)
 	}
 	e.log(state.Event{Type: state.EventNeedsYou, Reason: reason, Detail: detail})

@@ -52,6 +52,7 @@ func (e *Engine) watch(ctx context.Context, l *launch) (verdict, error) {
 		for _, c := range e.takeCommands() {
 			switch c.Kind {
 			case CmdDone:
+				e.endEpisode(&ep)
 				return verdict{kind: verdictDone, note: c.Text, owner: true}, nil
 			case CmdSkip:
 				return verdict{kind: verdictSkip, note: c.Text, owner: true}, nil
@@ -95,6 +96,9 @@ func (e *Engine) watch(ctx context.Context, l *launch) (verdict, error) {
 				e.waitOver(state.ReasonSkipRequest)
 			}
 		case state.Classify(*sig, t.ID, t.Owner) == state.Apply:
+			// igris no longer waits on the owner: the session said it is
+			// done. If its verify fails, a new episode starts.
+			e.endEpisode(&ep)
 			return verdict{kind: verdictDone, note: sig.Note, sig: sig}, nil
 		case skip == nil || !skip.At.Equal(sig.At):
 			// A skip from an agent session is only a request (SPEC §6.2).
@@ -129,13 +133,13 @@ func (e *Engine) watch(ctx context.Context, l *launch) (verdict, error) {
 func (e *Engine) observe(ctx context.Context, st backend.AgentState, ep *episode) {
 	switch {
 	case st == backend.Working:
-		if ep.needsYou {
-			e.emit(Event{Kind: NeedsYouClear})
-			e.waitOver(ep.reason)
-		}
-		// The owner told the session about the failed verify themselves.
+		e.endEpisode(ep)
+		// Working again, the agent waits on nobody (Decision W, V05-P1):
+		// the owner told it about the failed verify or the verify limit
+		// themselves, and an overdue task that works is not waiting.
 		e.waitOver(state.ReasonVerifyNotSent)
-		*ep = episode{}
+		e.waitOver(state.ReasonVerifyLimit)
+		e.waitOver(state.ReasonTaskOverdue)
 	case st.Settled():
 		now := e.clock.Now()
 		if ep.since.IsZero() {
@@ -151,6 +155,16 @@ func (e *Engine) observe(ctx context.Context, st backend.AgentState, ep *episode
 		}
 	}
 	// Unknown tells nothing about the agent; the episode stays as it is.
+}
+
+// endEpisode ends the idle episode ep, clearing its wait if Needs you was
+// raised for it.
+func (e *Engine) endEpisode(ep *episode) {
+	if ep.needsYou {
+		e.emit(Event{Kind: NeedsYouClear})
+		e.waitOver(ep.reason)
+	}
+	*ep = episode{}
 }
 
 // checkOverdue raises the task's Timeout once per attempt (SPEC §6.3): an

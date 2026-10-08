@@ -77,7 +77,11 @@ func printHistory(w io.Writer, h report.History) {
 			fmt.Fprintln(w)
 		}
 		// The run ID, when the log has one, is what `igris report` takes.
-		fmt.Fprintf(w, "Run %s%s  phase %s  %s", r.StartedAt, spaced(r.Run), strings.Join(r.Phases, ", "), r.End)
+		phases := ""
+		if len(r.Phases) > 0 {
+			phases = "  phase " + strings.Join(r.Phases, ", ")
+		}
+		fmt.Fprintf(w, "Run %s%s%s  %s", r.StartedAt, spaced(r.Run), phases, r.End)
 		if r.DurationS > 0 {
 			fmt.Fprintf(w, "  (%s)", fmtSeconds(r.DurationS))
 		}
