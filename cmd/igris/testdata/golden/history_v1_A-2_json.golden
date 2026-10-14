@@ -1,6 +1,7 @@
 exit: 0
 --- stdout
 {
+  "v": 1,
   "task": "A-2",
   "attempts": [
     {

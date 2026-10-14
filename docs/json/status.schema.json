@@ -1,0 +1,307 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "igris status --json",
+  "description": "Phases, their tasks and the current run (SPEC §14).",
+  "type": "object",
+  "properties": {
+    "v": {
+      "const": 1,
+      "description": "Document version. Changes only with a breaking change (igris 2.0); fields may be added in 1.x, and readers ignore fields they don't know."
+    },
+    "phases": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/phase"
+      }
+    },
+    "plan": {
+      "type": "string"
+    },
+    "run": {
+      "$ref": "#/$defs/run"
+    }
+  },
+  "required": [
+    "v",
+    "phases",
+    "plan"
+  ],
+  "$defs": {
+    "counts": {
+      "description": "Tasks per status.",
+      "type": "object",
+      "properties": {
+        "ready": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blocked": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "in_progress": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "done": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "skipped": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "ready",
+        "blocked",
+        "in_progress",
+        "done",
+        "skipped"
+      ]
+    },
+    "selection": {
+      "description": "The slice of a sliced run (SPEC §5.5).",
+      "type": "object",
+      "properties": {
+        "only": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "from": {
+          "type": "string"
+        },
+        "until": {
+          "type": "string"
+        }
+      },
+      "required": []
+    },
+    "phase": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of tasks."
+        },
+        "counts": {
+          "$ref": "#/$defs/counts"
+        },
+        "outcome": {
+          "type": "string",
+          "description": "SPEC §5.1.",
+          "enum": [
+            "next",
+            "complete",
+            "stuck"
+          ]
+        },
+        "next": {
+          "type": "string",
+          "description": "The task igris runs next."
+        },
+        "tasks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/task"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "total",
+        "counts",
+        "outcome",
+        "tasks"
+      ]
+    },
+    "task": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "description": "A plan status word.",
+          "enum": [
+            "ready",
+            "blocked",
+            "in progress",
+            "done",
+            "skipped"
+          ]
+        },
+        "rank": {
+          "type": "string",
+          "description": "Absent for no model."
+        },
+        "owner": {
+          "type": "string",
+          "enum": [
+            "agent",
+            "user",
+            "agent + user"
+          ]
+        },
+        "mode": {
+          "type": "string",
+          "description": "Absent for no override."
+        },
+        "verify": {
+          "type": "string"
+        },
+        "timeout": {
+          "type": "string"
+        },
+        "context": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "waits_on": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/wait"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "status",
+        "owner",
+        "waits_on"
+      ]
+    },
+    "wait": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "description": "A plan status word.",
+          "enum": [
+            "ready",
+            "blocked",
+            "in progress",
+            "done",
+            "skipped"
+          ]
+        },
+        "phase": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "run": {
+      "description": "The current run; absent when there is none.",
+      "type": "object",
+      "properties": {
+        "unreadable": {
+          "type": "string",
+          "description": "Why state.json can't be shown; then only lock and signals are filled in."
+        },
+        "phases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "through": {
+          "type": "string"
+        },
+        "selection": {
+          "$ref": "#/$defs/selection"
+        },
+        "started_at": {
+          "type": "string",
+          "description": "RFC 3339, UTC.",
+          "format": "date-time"
+        },
+        "task": {
+          "type": "string",
+          "description": "Absent between tasks."
+        },
+        "mode": {
+          "type": "string"
+        },
+        "since": {
+          "type": "string",
+          "description": "The task's start, RFC 3339, UTC.",
+          "format": "date-time"
+        },
+        "session": {
+          "type": "string"
+        },
+        "lock": {
+          "type": "string",
+          "enum": [
+            "none",
+            "running here",
+            "running elsewhere",
+            "stale",
+            "unreadable"
+          ]
+        },
+        "lock_detail": {
+          "type": "string"
+        },
+        "signals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/signal"
+          },
+          "description": "Pending signals, by task ID."
+        },
+        "signals_unreadable": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Signal files that couldn't be read."
+        }
+      },
+      "required": [
+        "lock",
+        "signals"
+      ]
+    },
+    "signal": {
+      "type": "object",
+      "properties": {
+        "task": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "done",
+            "skip"
+          ]
+        }
+      },
+      "required": [
+        "task",
+        "action"
+      ]
+    }
+  }
+}

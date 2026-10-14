@@ -264,14 +264,14 @@ type phaseRow struct {
 func (m *homeScreen) phaseRowsData() []phaseRow {
 	var out []phaseRow
 	for _, ph := range m.phases() {
-		r := phaseRow{id: ph.ID, title: ph.Title, total: ph.Total, done: ph.Counts[plan.Done.String()] + ph.Counts[plan.Skipped.String()]}
+		r := phaseRow{id: ph.ID, title: ph.Title, total: ph.Total, done: ph.Counts[report.CountKey(plan.Done)] + ph.Counts[report.CountKey(plan.Skipped)]}
 		r.count = fmt.Sprintf("%d/%d", r.done, r.total)
 		switch ph.Outcome {
 		case plan.Complete.String():
 			r.glyph, r.word, r.glyphLook, r.textLook = glyphs[plan.Done], "done", lookAccent, lookDim
 		case plan.Next.String():
 			r.glyph, r.word, r.glyphLook, r.textLook = glyphs[plan.Ready], "next", lookPlain, lookPlain
-			if ph.Counts[plan.InProgress.String()] > 0 {
+			if ph.Counts[report.CountKey(plan.InProgress)] > 0 {
 				r.glyph, r.glyphLook, r.textLook = glyphs[plan.InProgress], lookAccentBold, lookTitle
 			}
 		default:

@@ -1,6 +1,7 @@
 exit: 0
 --- stdout
 {
+  "v": 1,
   "started_at": "2026-09-30T09:00:00Z",
   "end": "interrupted",
   "phases": [

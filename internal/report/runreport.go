@@ -21,6 +21,7 @@ var ErrNoRuns = errors.New("no runs recorded yet")
 // Every value the log doesn't record is left empty (omitted in JSON), never
 // a made-up 0.
 type Report struct {
+	V         int              `json:"v"`
 	Project   string           `json:"-"`             // the project directory's name, for the heading
 	Run       string           `json:"run,omitempty"` // the run ID; "" for a v0 run
 	StartedAt string           `json:"started_at"`
@@ -174,6 +175,7 @@ type taskRec struct {
 func (r *runRec) report(live bool) Report {
 	sum := r.summary(live)
 	out := Report{
+		V:   JSONVersion,
 		Run: r.id, StartedAt: sum.StartedAt, EndedAt: sum.EndedAt, DurationS: sum.DurationS,
 		End: sum.End, Phases: sum.Phases, Selection: scopeSelection(r.startDetail()),
 		Commits: []ReportCommit{}, Errors: append([]string{}, r.errors...), Tasks: []ReportTask{},

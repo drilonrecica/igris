@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "igris history --json",
+  "description": "The last runs from .igris/runs.jsonl, newest first.",
+  "type": "object",
+  "properties": {
+    "v": {
+      "const": 1,
+      "description": "Document version. Changes only with a breaking change (igris 2.0); fields may be added in 1.x, and readers ignore fields they don't know."
+    },
+    "runs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/run"
+      }
+    },
+    "note": {
+      "type": "string",
+      "description": "Present when lines were from a newer igris or couldn't be read."
+    }
+  },
+  "required": [
+    "v",
+    "runs"
+  ],
+  "$defs": {
+    "run": {
+      "type": "object",
+      "properties": {
+        "run": {
+          "type": "string",
+          "description": "The run ID; absent for a v0 run."
+        },
+        "started_at": {
+          "type": "string",
+          "description": "RFC 3339, UTC.",
+          "format": "date-time"
+        },
+        "ended_at": {
+          "type": "string",
+          "description": "RFC 3339, UTC.",
+          "format": "date-time"
+        },
+        "duration_s": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "phases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "end": {
+          "type": "string",
+          "description": "How the run ended: the engine's outcome (completed, stuck, stopped, error), interrupted (no stop recorded) or running."
+        },
+        "done": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "skipped": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tasks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/task"
+          }
+        },
+        "commits": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "started_at",
+        "phases",
+        "end",
+        "done",
+        "skipped",
+        "tasks",
+        "commits",
+        "errors"
+      ]
+    },
+    "task": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "rank": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "result": {
+          "type": "string",
+          "description": "How the task ended in the run.",
+          "enum": [
+            "done",
+            "skipped",
+            "unfinished",
+            "running"
+          ]
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "duration_s": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "verify_failed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "verify_passed": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "id",
+        "result",
+        "attempts",
+        "verify_failed",
+        "verify_passed"
+      ]
+    }
+  }
+}

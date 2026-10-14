@@ -41,8 +41,19 @@ type RunInfo struct {
 	Session    string           `json:"session,omitempty"`
 	Lock       string           `json:"lock"`
 	LockDetail string           `json:"lock_detail,omitempty"` // holder, or why it's stale or unreadable
-	Signals    []string         `json:"signals"`               // "<ID> done|skip", sorted by task ID
+	Signals    []Signal         `json:"signals"`               // sorted by task ID
+	// SignalsUnreadable counts the signal files that couldn't be read.
+	SignalsUnreadable int `json:"signals_unreadable,omitempty"`
 }
+
+// Signal is a pending done or skip signal (SPEC §6.2).
+type Signal struct {
+	Task   string `json:"task"`
+	Action string `json:"action"` // done or skip
+}
+
+// String is the signal as `status` shows it: `<ID> done|skip`.
+func (s Signal) String() string { return s.Task + " " + s.Action }
 
 // RunInput is what NewRunInfo reads. Run and RunErr come from state.PeekRun,
 // Lock and LockErr from state.PeekLock, Signals from state.PeekSignals.
@@ -63,7 +74,7 @@ func NewRunInfo(in RunInput) *RunInfo {
 	if noRun && !in.Lock.Held && in.LockErr == nil {
 		return nil
 	}
-	r := &RunInfo{Signals: []string{}}
+	r := &RunInfo{Signals: []Signal{}}
 	switch {
 	case noRun:
 	case in.RunErr != nil:
@@ -77,11 +88,9 @@ func NewRunInfo(in RunInput) *RunInfo {
 	}
 	r.fillLock(in.Lock, in.LockErr)
 	for _, s := range in.Signals {
-		r.Signals = append(r.Signals, textsafe.Line(s.ID)+" "+s.Action)
+		r.Signals = append(r.Signals, Signal{Task: textsafe.Line(s.ID), Action: s.Action})
 	}
-	if in.SignalsBad > 0 {
-		r.Signals = append(r.Signals, fmt.Sprintf("%d unreadable", in.SignalsBad))
-	}
+	r.SignalsUnreadable = in.SignalsBad
 	return r
 }
 

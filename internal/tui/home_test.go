@@ -109,7 +109,7 @@ func homeRecent() []report.HistoryRun {
 func homeRun(task string, since time.Time) *report.RunInfo {
 	r := &report.RunInfo{
 		Phases: []string{"M2"}, Through: "M3", StartedAt: "2026-10-07T07:12:00Z",
-		Task: task, Lock: report.LockNone, Signals: []string{},
+		Task: task, Lock: report.LockNone, Signals: []report.Signal{},
 	}
 	if task != "" {
 		r.Mode, r.Since, r.Session = "plan", since.UTC().Format(time.RFC3339), "herdr tab-3"
@@ -213,7 +213,7 @@ var homeStates = []struct {
 	{"remote_lock", func() homeFixture {
 		s := homeSnap("ready")
 		s.Lock = state.LockState{Held: true, Remote: true, Info: state.LockInfo{PID: 4242, Host: "mbp", StartedAt: time.Date(2026, 10, 6, 21, 10, 0, 0, time.UTC)}, Path: "/src/sinjal/.igris/igris.lock"}
-		s.Run = &report.RunInfo{Lock: report.LockElsewhere, LockDetail: "pid 4242 on mbp", Signals: []string{}}
+		s.Run = &report.RunInfo{Lock: report.LockElsewhere, LockDetail: "pid 4242 on mbp", Signals: []report.Signal{}}
 		return homeFixture{snap: s, doctor: homeDoctor, doctorDone: true}
 	}},
 	{"unreadable", func() homeFixture {

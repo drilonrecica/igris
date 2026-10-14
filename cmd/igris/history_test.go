@@ -97,7 +97,7 @@ func TestHistoryReadOnlyAndUsage(t *testing.T) {
 		t.Errorf("no project: code %d, out %q, err %q", code, out.String(), errb.String())
 	}
 	out.Reset()
-	if code := run([]string{"history", "--json"}, &out, &errb); code != exitOK || !strings.Contains(out.String(), `"runs": []`) {
+	if code := run([]string{"history", "--json"}, &out, &errb); code != exitOK || !strings.Contains(out.String(), `"runs": []`) || !strings.Contains(out.String(), `"v": 1`) {
 		t.Errorf("no project --json: code %d, out %q", code, out.String())
 	}
 	if _, err := os.Stat(filepath.Join(root, ".igris")); !os.IsNotExist(err) {

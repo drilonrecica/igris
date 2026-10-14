@@ -4,6 +4,19 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+### Changed
+
+- **`--json` output, breaking** (the last change before the 1.0 freeze, SPEC §19). Scripts that read `--json` need these updates:
+  - Every output starts with `"v": 1`. It stays 1 for all of 1.x, which only adds fields.
+  - `doctor --json` prints an object, `{"v": 1, "checks": [...]}`, instead of a bare array.
+  - `status --json` leaves out a task's `rank` and `mode` when the cell has none, instead of `"—"`.
+  - The `counts` key `"in progress"` (`phases`, `status`) is now `"in_progress"`. A task's `status` value is still `"in progress"`.
+  - `status --json` lists the run's pending signals as `{"task": "M1-03", "action": "done"}` objects instead of `"M1-03 done"` strings, and unreadable signal files as a count, `signals_unreadable`, instead of an `"N unreadable"` entry.
+
+### Added
+
+- **JSON schemas** for every `--json` output in [`docs/json/`](docs/json/), checked against igris's own output in its tests.
+
 ## [0.6.0] - 2026-10-14
 
 igris v0.6 is about trust. Releases are signed and come with an SBOM, a run can work on a branch of its own so your checkout stays as it is, the commands igris runs no longer see your notification secrets, and the threat model is written down, reviewed and tied to tests. It also stops calling for you while Claude is only waiting on background work.

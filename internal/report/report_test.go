@@ -42,7 +42,7 @@ func TestPhasesAndStatus(t *testing.T) {
 	if s.Next != "A-2" {
 		t.Errorf("next = %q", s.Next)
 	}
-	if got := s.Tasks[2]; got.Rank != "—" || got.Owner != "user" || len(got.WaitsOn) != 1 || got.WaitsOn[0] != (Wait{ID: "A-2", Status: "blocked", Phase: "A"}) {
+	if got := s.Tasks[2]; got.Rank != "" || got.Mode != "" || got.Owner != "user" || len(got.WaitsOn) != 1 || got.WaitsOn[0] != (Wait{ID: "A-2", Status: "blocked", Phase: "A"}) {
 		t.Errorf("task = %+v", got)
 	}
 	if got := s.Tasks[0]; got.WaitsOn == nil || len(got.WaitsOn) != 0 {
@@ -68,7 +68,7 @@ func TestCheckKeepsJSONKeyOrderAndNeverNull(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(string(out), `{"issues":[],"phases":1,"plan":"tasks.md","tasks":3,"valid":true,"warnings":[`) {
+	if !strings.HasPrefix(string(out), `{"v":1,"issues":[],"phases":1,"plan":"tasks.md","tasks":3,"valid":true,"warnings":[`) {
 		t.Errorf("json = %s", out)
 	}
 	if w := r.Warnings[1]; w.Task != "A-2" || w.From != "blocked" || w.To != "ready" {
@@ -86,7 +86,7 @@ func TestInvalidPlanHasNoDrift(t *testing.T) {
 		t.Errorf("issue = %q", got)
 	}
 	inv, _ := json.Marshal(NewInvalid(p.Path, nil))
-	if string(inv) != `{"issues":[],"plan":"tasks.md","valid":false}` {
+	if string(inv) != `{"v":1,"issues":[],"plan":"tasks.md","valid":false}` {
 		t.Errorf("invalid json = %s", inv)
 	}
 }

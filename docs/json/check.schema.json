@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "igris check --json",
+  "description": "Validation of the plan, with warnings (SPEC §14).",
+  "type": "object",
+  "properties": {
+    "v": {
+      "const": 1,
+      "description": "Document version. Changes only with a breaking change (igris 2.0); fields may be added in 1.x, and readers ignore fields they don't know."
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/issue"
+      }
+    },
+    "phases": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "plan": {
+      "type": "string",
+      "description": "The plan's path."
+    },
+    "tasks": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "valid": {
+      "type": "boolean"
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/warning"
+      }
+    },
+    "strict": {
+      "type": "boolean",
+      "description": "Present and true under --strict."
+    }
+  },
+  "required": [
+    "v",
+    "issues",
+    "phases",
+    "plan",
+    "tasks",
+    "valid",
+    "warnings"
+  ],
+  "$defs": {
+    "issue": {
+      "description": "A problem that makes the plan invalid.",
+      "type": "object",
+      "properties": {
+        "file": {
+          "type": "string"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "0 when the problem has no line."
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "file",
+        "line",
+        "message"
+      ]
+    },
+    "warning": {
+      "type": "object",
+      "properties": {
+        "file": {
+          "type": "string",
+          "description": "Absent for a machine warning (tool versions, environment)."
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "task": {
+          "type": "string",
+          "description": "The drifted task."
+        },
+        "from": {
+          "type": "string",
+          "description": "The drifted task's status."
+        },
+        "to": {
+          "type": "string",
+          "description": "The status igris will set."
+        },
+        "message": {
+          "type": "string"
+        },
+        "lint": {
+          "type": "string",
+          "description": "The lint hint's name, under --strict."
+        }
+      },
+      "required": [
+        "message"
+      ]
+    }
+  }
+}

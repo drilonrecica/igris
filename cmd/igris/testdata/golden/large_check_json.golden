@@ -1,6 +1,7 @@
 exit: 0
 --- stdout
 {
+  "v": 1,
   "issues": [],
   "phases": 12,
   "plan": "tasks.md",

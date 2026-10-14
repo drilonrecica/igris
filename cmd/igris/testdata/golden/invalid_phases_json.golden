@@ -1,6 +1,7 @@
 exit: 1
 --- stdout
 {
+  "v": 1,
   "issues": [
     {
       "file": "tasks.md",

@@ -1,0 +1,113 @@
+exit: 0
+--- stdout
+{
+  "v": 1,
+  "checks": [
+    {
+      "id": "claude",
+      "level": "ok",
+      "message": "Claude Code 2.1.292"
+    },
+    {
+      "id": "api-key",
+      "level": "ok",
+      "message": "ANTHROPIC_API_KEY is not set"
+    },
+    {
+      "id": "backend",
+      "level": "warn",
+      "message": "igris must run inside a herdr pane or a tmux session (backend = \"auto\" found neither HERDR_WORKSPACE_ID nor TMUX); start herdr or tmux and run igris there, or set backend in igris.toml",
+      "next": "run igris inside a herdr pane or a tmux session"
+    },
+    {
+      "id": "git",
+      "level": "warn",
+      "message": "this is not a git repository: sessions' changes can't be reviewed or undone with git, and commits fail unless commit = \"never\". Run `git init` first.",
+      "next": "git init"
+    },
+    {
+      "id": "project",
+      "level": "ok",
+      "message": "no igris.toml here; using the defaults (`igris init` creates one)",
+      "next": "igris init"
+    },
+    {
+      "id": "config",
+      "level": "ok",
+      "message": "no ignored settings",
+      "file": "igris.toml"
+    },
+    {
+      "id": "plan-valid",
+      "level": "ok",
+      "message": "tasks.md is valid (2 phases, 6 tasks)",
+      "file": "tasks.md"
+    },
+    {
+      "id": "plan-hints",
+      "level": "ok",
+      "message": "no columns that look like dependencies outside Deps",
+      "file": "tasks.md"
+    },
+    {
+      "id": "drift",
+      "level": "warn",
+      "message": "A-2 is blocked but all its dependencies are satisfied; igris will set it to ready",
+      "confirm": true,
+      "file": "tasks.md",
+      "line": 6,
+      "task": "A-2",
+      "from": "blocked",
+      "to": "ready"
+    },
+    {
+      "id": "drift",
+      "level": "warn",
+      "message": "A-3 is ready but waits on A-2; igris will set it to blocked",
+      "confirm": true,
+      "file": "tasks.md",
+      "line": 7,
+      "task": "A-3",
+      "from": "ready",
+      "to": "blocked"
+    },
+    {
+      "id": "drift",
+      "level": "warn",
+      "message": "B-2 is ready but waits on B-1, A-3; igris will set it to blocked",
+      "confirm": true,
+      "file": "tasks.md",
+      "line": 15,
+      "task": "B-2",
+      "from": "ready",
+      "to": "blocked"
+    },
+    {
+      "id": "allow-rules",
+      "level": "warn",
+      "message": ".claude/settings.local.json not found: every session's `igris done` would ask for permission",
+      "next": "igris init"
+    },
+    {
+      "id": "state-perms",
+      "level": "ok",
+      "message": ".igris/ doesn't exist yet; the first run creates it with the right modes"
+    },
+    {
+      "id": "lock",
+      "level": "ok",
+      "message": "no run lock"
+    },
+    {
+      "id": "wsl",
+      "level": "ok",
+      "message": "the project is not under /mnt/"
+    },
+    {
+      "id": "notify",
+      "level": "ok",
+      "message": "notification channels: backend toast (igris notify test sends a sample)"
+    }
+  ]
+}
+--- stderr

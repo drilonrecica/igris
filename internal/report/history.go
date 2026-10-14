@@ -67,6 +67,7 @@ type HistoryRun struct {
 
 // History is the result of `igris history`: the last runs, newest first.
 type History struct {
+	V    int          `json:"v"`
 	Runs []HistoryRun `json:"runs"`
 	// Note says the log has lines from a newer igris, read best effort,
 	// or lines that could not be read at all.
@@ -91,6 +92,7 @@ type Attempt struct {
 // TaskHistory is the result of `igris history TASK-ID`: every attempt of the
 // task across all runs, newest first.
 type TaskHistory struct {
+	V        int       `json:"v"`
 	Task     string    `json:"task"`
 	Attempts []Attempt `json:"attempts"`
 	Note     string    `json:"note,omitempty"` // as History.Note
@@ -125,7 +127,7 @@ func NewHistory(in HistoryInput) History {
 		n = DefaultHistoryRuns
 	}
 	recs := readRuns(in.Events)
-	h := History{Runs: []HistoryRun{}, Note: logNote(in)}
+	h := History{V: JSONVersion, Runs: []HistoryRun{}, Note: logNote(in)}
 	for i := len(recs) - 1; i >= 0 && len(h.Runs) < n; i-- {
 		h.Runs = append(h.Runs, recs[i].summary(in.Live && i == len(recs)-1))
 	}
@@ -134,7 +136,7 @@ func NewHistory(in HistoryInput) History {
 
 // NewTaskHistory lists every attempt of task across the whole log.
 func NewTaskHistory(in HistoryInput, task string) TaskHistory {
-	h := TaskHistory{Task: textsafe.Line(task), Attempts: []Attempt{}, Note: logNote(in)}
+	h := TaskHistory{V: JSONVersion, Task: textsafe.Line(task), Attempts: []Attempt{}, Note: logNote(in)}
 	recs := readRuns(in.Events)
 	for i := len(recs) - 1; i >= 0; i-- {
 		r := recs[i]

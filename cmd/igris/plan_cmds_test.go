@@ -173,7 +173,7 @@ func TestPhases(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &got); err != nil {
 		t.Fatal(err)
 	}
-	if len(got.Phases) != 12 || got.Phases[2].Counts["in progress"] != 1 || got.Phases[2].Total != 14 {
+	if len(got.Phases) != 12 || got.Phases[2].Counts["in_progress"] != 1 || got.Phases[2].Total != 14 {
 		t.Errorf("unexpected phases: %+v", got.Phases[:3])
 	}
 
@@ -475,14 +475,15 @@ func TestStatusCurrentRun(t *testing.T) {
 	var got struct {
 		Run struct {
 			Task, Mode, Lock string
-			Phases, Signals  []string
+			Phases           []string
+			Signals          []struct{ Task, Action string }
 		}
 	}
 	if err := json.Unmarshal([]byte(out), &got); err != nil {
 		t.Fatal(err)
 	}
 	if got.Run.Task != "F1-13" || got.Run.Mode != "auto" || got.Run.Lock != "none" ||
-		len(got.Run.Phases) != 2 || len(got.Run.Signals) != 1 {
+		len(got.Run.Phases) != 2 || len(got.Run.Signals) != 1 || got.Run.Signals[0].Action == "" {
 		t.Errorf("run = %+v", got.Run)
 	}
 }

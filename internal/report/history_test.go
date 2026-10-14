@@ -105,7 +105,7 @@ func TestTaskHistoryAcrossRuns(t *testing.T) {
 
 func TestHistoryJSONNeverNull(t *testing.T) {
 	out, _ := json.Marshal(NewHistory(HistoryInput{}))
-	if string(out) != `{"runs":[]}` {
+	if string(out) != `{"v":1,"runs":[]}` {
 		t.Errorf("empty = %s", out)
 	}
 	h := NewHistory(HistoryInput{Events: []state.Event{ev(0, state.EventRunStarted, "", "")}})

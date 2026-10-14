@@ -1,6 +1,8 @@
 package report
 
 import (
+	"strings"
+
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/textsafe"
 )
@@ -18,13 +20,14 @@ type Phase struct {
 
 // PhasesReport is the result of `igris phases`.
 type PhasesReport struct {
+	V      int     `json:"v"`
 	Phases []Phase `json:"phases"`
 	Plan   string  `json:"plan"`
 }
 
 // Phases lists the phases of a valid plan.
 func Phases(p *plan.Plan) PhasesReport {
-	r := PhasesReport{Phases: make([]Phase, len(p.Phases)), Plan: textsafe.Line(p.Path)}
+	r := PhasesReport{V: JSONVersion, Phases: make([]Phase, len(p.Phases)), Plan: textsafe.Line(p.Path)}
 	for i, ph := range p.Phases {
 		r.Phases[i] = phaseOf(ph)
 	}
@@ -38,12 +41,18 @@ func phaseOf(ph *plan.Phase) Phase {
 func countStatuses(ph *plan.Phase) map[string]int {
 	counts := make(map[string]int, len(statuses))
 	for _, s := range statuses {
-		counts[s.String()] = 0
+		counts[CountKey(s)] = 0
 	}
 	for _, t := range ph.Tasks {
-		counts[t.Status.String()]++
+		counts[CountKey(t.Status)]++
 	}
 	return counts
+}
+
+// CountKey is a status's key in Phase.Counts: its word, with "_" for the
+// space (`in_progress`), so every key is a plain JSON name.
+func CountKey(s plan.Status) string {
+	return strings.ReplaceAll(s.String(), " ", "_")
 }
 
 // Wait is a dependency a task still waits on.
@@ -58,9 +67,9 @@ type Task struct {
 	ID     string `json:"id"`
 	Title  string `json:"title"`
 	Status string `json:"status"`
-	Rank   string `json:"rank"`
+	Rank   string `json:"rank,omitempty"` // "" for no model
 	Owner  string `json:"owner"`
-	Mode   string `json:"mode"`
+	Mode   string `json:"mode,omitempty"` // "" for no override
 	// Verify, Timeout and Context are the optional cells (SPEC §3.2),
 	// empty when not set.
 	Verify  string   `json:"verify,omitempty"`
@@ -85,6 +94,7 @@ type PhaseStatus struct {
 
 // StatusReport is the result of `igris status`.
 type StatusReport struct {
+	V      int           `json:"v"`
 	Phases []PhaseStatus `json:"phases"`
 	Plan   string        `json:"plan"`
 	Run    *RunInfo      `json:"run,omitempty"` // set by the caller; nil when there is no run
@@ -105,7 +115,7 @@ func Status(p *plan.Plan, phaseID string) (StatusReport, error) {
 		}
 		phases = []*plan.Phase{ph}
 	}
-	r := StatusReport{Phases: make([]PhaseStatus, len(phases)), Plan: textsafe.Line(p.Path)}
+	r := StatusReport{V: JSONVersion, Phases: make([]PhaseStatus, len(phases)), Plan: textsafe.Line(p.Path)}
 	for _, t := range p.Tasks {
 		r.Optional.Verify = r.Optional.Verify || t.Verify != ""
 		r.Optional.Timeout = r.Optional.Timeout || t.TimeoutText != ""
@@ -131,7 +141,7 @@ func Status(p *plan.Plan, phaseID string) (StatusReport, error) {
 func taskOf(p *plan.Plan, t *plan.Task) Task {
 	r := Task{
 		ID: textsafe.Line(t.ID), Title: textsafe.Line(t.Title), Status: t.Status.String(),
-		Rank: orDash(textsafe.Line(t.Rank)), Owner: textsafe.Line(string(t.Owner)), Mode: orDash(textsafe.Line(t.Mode)),
+		Rank: textsafe.Line(t.Rank), Owner: textsafe.Line(string(t.Owner)), Mode: textsafe.Line(t.Mode),
 		Verify: textsafe.Line(t.Verify), Timeout: textsafe.Line(t.TimeoutText),
 		WaitsOn: []Wait{},
 	}
@@ -146,11 +156,4 @@ func taskOf(p *plan.Plan, t *plan.Task) Task {
 		}
 	}
 	return r
-}
-
-func orDash(s string) string {
-	if s == "" {
-		return "—"
-	}
-	return s
 }

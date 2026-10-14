@@ -1,6 +1,7 @@
 exit: 0
 --- stdout
 {
+  "v": 1,
   "phases": [
     {
       "id": "P1",
@@ -9,7 +10,7 @@ exit: 0
       "counts": {
         "blocked": 1,
         "done": 1,
-        "in progress": 0,
+        "in_progress": 0,
         "ready": 3,
         "skipped": 0
       }
@@ -21,7 +22,7 @@ exit: 0
       "counts": {
         "blocked": 3,
         "done": 0,
-        "in progress": 0,
+        "in_progress": 0,
         "ready": 0,
         "skipped": 0
       }

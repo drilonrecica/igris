@@ -1,0 +1,135 @@
+exit: 0
+--- stdout
+{
+  "v": 1,
+  "phases": [
+    {
+      "id": "A",
+      "title": "First",
+      "total": 4,
+      "counts": {
+        "blocked": 1,
+        "done": 1,
+        "in_progress": 0,
+        "ready": 2,
+        "skipped": 0
+      },
+      "outcome": "next",
+      "next": "A-2",
+      "tasks": [
+        {
+          "id": "A-1",
+          "title": "Start",
+          "status": "done",
+          "rank": "sonnet",
+          "owner": "agent",
+          "waits_on": []
+        },
+        {
+          "id": "A-2",
+          "title": "Next",
+          "status": "blocked",
+          "rank": "sonnet",
+          "owner": "agent",
+          "waits_on": []
+        },
+        {
+          "id": "A-3",
+          "title": "Later",
+          "status": "ready",
+          "rank": "opus",
+          "owner": "agent",
+          "mode": "plan",
+          "waits_on": [
+            {
+              "id": "A-2",
+              "status": "blocked",
+              "phase": "A"
+            }
+          ]
+        },
+        {
+          "id": "A-4",
+          "title": "Yours",
+          "status": "ready",
+          "owner": "user",
+          "waits_on": []
+        }
+      ]
+    },
+    {
+      "id": "B",
+      "title": "Second",
+      "total": 2,
+      "counts": {
+        "blocked": 0,
+        "done": 0,
+        "in_progress": 1,
+        "ready": 1,
+        "skipped": 0
+      },
+      "outcome": "next",
+      "next": "B-1",
+      "tasks": [
+        {
+          "id": "B-1",
+          "title": "Resume me",
+          "status": "in progress",
+          "rank": "sonnet",
+          "owner": "agent",
+          "mode": "yolo",
+          "waits_on": []
+        },
+        {
+          "id": "B-2",
+          "title": "After",
+          "status": "ready",
+          "rank": "sonnet",
+          "owner": "agent",
+          "waits_on": [
+            {
+              "id": "B-1",
+              "status": "in progress",
+              "phase": "B"
+            },
+            {
+              "id": "A-3",
+              "status": "ready",
+              "phase": "A"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "plan": "tasks.md",
+  "run": {
+    "phases": [
+      "A",
+      "B"
+    ],
+    "through": "B",
+    "selection": {
+      "from": "A-3",
+      "until": "B-2"
+    },
+    "started_at": "2026-10-07T09:30:00Z",
+    "task": "B-1",
+    "mode": "yolo",
+    "since": "2026-10-07T09:31:00Z",
+    "session": "tmux %3",
+    "lock": "none",
+    "signals": [
+      {
+        "task": "A-4",
+        "action": "skip"
+      },
+      {
+        "task": "B-1",
+        "action": "done"
+      }
+    ],
+    "signals_unreadable": 1
+  }
+}
+--- stderr

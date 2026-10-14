@@ -1,6 +1,7 @@
 exit: 0
 --- stdout
 {
+  "v": 1,
   "phases": [
     {
       "id": "P1",
@@ -9,7 +10,7 @@ exit: 0
       "counts": {
         "blocked": 1,
         "done": 1,
-        "in progress": 0,
+        "in_progress": 0,
         "ready": 3,
         "skipped": 0
       },
@@ -22,7 +23,6 @@ exit: 0
           "status": "done",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": []
         },
         {
@@ -31,7 +31,6 @@ exit: 0
           "status": "ready",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": []
         },
         {
@@ -47,9 +46,7 @@ exit: 0
           "id": "P1-04",
           "title": "Pick a license",
           "status": "ready",
-          "rank": "—",
           "owner": "user",
-          "mode": "—",
           "waits_on": []
         },
         {
@@ -58,7 +55,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent + user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "P1-02",
@@ -86,7 +82,7 @@ exit: 0
       "counts": {
         "blocked": 3,
         "done": 0,
-        "in progress": 0,
+        "in_progress": 0,
         "ready": 0,
         "skipped": 0
       },
@@ -98,7 +94,6 @@ exit: 0
           "status": "blocked",
           "rank": "opus",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "P1-G",
@@ -113,7 +108,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "P1-02",
@@ -133,7 +127,6 @@ exit: 0
           "status": "blocked",
           "rank": "fable",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "P2-01",

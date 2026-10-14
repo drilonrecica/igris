@@ -9,11 +9,12 @@ import (
 
 	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/project"
+	"github.com/drilonrecica/igris/internal/report"
 )
 
 // doctorArgs registers the flags of `igris doctor`.
 func doctorArgs(fs *flag.FlagSet) func([]string) error {
-	fs.Bool("json", false, "machine-readable output: the checks as a JSON array")
+	fs.Bool("json", false, "machine-readable output: a JSON object with the checks")
 	return maxArgs(fs, 0)
 }
 
@@ -34,10 +35,7 @@ func execDoctor(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 		failed = failed || r.Level == checks.Fail
 	}
 	if jsonFlag(fs) {
-		if rs == nil {
-			rs = []checks.Result{}
-		}
-		writeJSON(stdout, rs)
+		writeJSON(stdout, report.NewDoctor(rs))
 	} else {
 		for _, r := range rs {
 			msg := r.Message

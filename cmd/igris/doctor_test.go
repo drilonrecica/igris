@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/drilonrecica/igris/internal/checks"
+	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/runner"
 )
 
@@ -130,12 +131,12 @@ func TestDoctorJSON(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errb)
 	}
-	var rs []checks.Result
-	if err := json.Unmarshal([]byte(out), &rs); err != nil {
-		t.Fatalf("not a JSON array of results: %v\n%s", err, out)
+	var d report.Doctor
+	if err := json.Unmarshal([]byte(out), &d); err != nil {
+		t.Fatalf("not a doctor JSON object: %v\n%s", err, out)
 	}
-	if len(rs) == 0 || rs[0].ID != checks.IDClaude {
-		t.Errorf("results = %+v", rs)
+	if d.V != report.JSONVersion || len(d.Checks) == 0 || d.Checks[0].ID != checks.IDClaude {
+		t.Errorf("doctor = %+v", d)
 	}
 }
 

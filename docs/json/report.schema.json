@@ -1,0 +1,225 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "igris report --json",
+  "description": "One run in detail (SPEC §14). Values the log doesn't record are absent.",
+  "type": "object",
+  "properties": {
+    "v": {
+      "const": 1,
+      "description": "Document version. Changes only with a breaking change (igris 2.0); fields may be added in 1.x, and readers ignore fields they don't know."
+    },
+    "run": {
+      "type": "string"
+    },
+    "started_at": {
+      "type": "string",
+      "description": "RFC 3339, UTC.",
+      "format": "date-time"
+    },
+    "ended_at": {
+      "type": "string",
+      "description": "RFC 3339, UTC.",
+      "format": "date-time"
+    },
+    "duration_s": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "end": {
+      "type": "string",
+      "description": "How the run ended: the engine's outcome (completed, stuck, stopped, error), interrupted (no stop recorded) or running."
+    },
+    "phases": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "selection": {
+      "$ref": "#/$defs/selection"
+    },
+    "done": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "skipped": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "unfinished": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "needs_you_s": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "commits": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/commit"
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/task"
+      }
+    },
+    "note": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "v",
+    "started_at",
+    "end",
+    "phases",
+    "done",
+    "skipped",
+    "unfinished",
+    "commits",
+    "errors",
+    "tasks"
+  ],
+  "$defs": {
+    "selection": {
+      "description": "The slice of a sliced run (SPEC §5.5).",
+      "type": "object",
+      "properties": {
+        "only": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "from": {
+          "type": "string"
+        },
+        "until": {
+          "type": "string"
+        }
+      },
+      "required": []
+    },
+    "commit": {
+      "type": "object",
+      "properties": {
+        "task": {
+          "type": "string"
+        },
+        "sha": {
+          "type": "string",
+          "description": "Full SHA."
+        },
+        "subject": {
+          "type": "string"
+        }
+      },
+      "required": []
+    },
+    "verify": {
+      "type": "object",
+      "properties": {
+        "profile": {
+          "type": "string"
+        },
+        "passed": {
+          "type": "boolean"
+        },
+        "duration_s": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "passed"
+      ]
+    },
+    "task": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "phase": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "owner": {
+          "type": "string",
+          "enum": [
+            "agent",
+            "user",
+            "agent + user"
+          ]
+        },
+        "rank": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "result": {
+          "type": "string",
+          "description": "How the task ended in the run.",
+          "enum": [
+            "done",
+            "skipped",
+            "unfinished",
+            "running"
+          ]
+        },
+        "duration_s": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "verify": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/verify"
+          }
+        },
+        "commit": {
+          "type": "string",
+          "description": "Full SHA of the task's last commit."
+        },
+        "note": {
+          "type": "string"
+        },
+        "sessions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Claude session UUIDs, in order."
+        },
+        "resume": {
+          "type": "string"
+        },
+        "needs_you_s": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "id",
+        "result",
+        "verify",
+        "sessions"
+      ]
+    }
+  }
+}

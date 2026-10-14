@@ -47,6 +47,7 @@ type Warning struct {
 
 // Invalid is what `phases` and `status` report for a plan that isn't valid.
 type Invalid struct {
+	V      int     `json:"v"`
 	Issues []Issue `json:"issues"`
 	Plan   string  `json:"plan"`
 	Valid  bool    `json:"valid"`
@@ -54,11 +55,12 @@ type Invalid struct {
 
 // NewInvalid reports issues of the plan at path.
 func NewInvalid(path string, issues []plan.Issue) Invalid {
-	return Invalid{Issues: Issues(issues), Plan: textsafe.Line(path)}
+	return Invalid{V: JSONVersion, Issues: Issues(issues), Plan: textsafe.Line(path)}
 }
 
 // CheckReport is the result of `igris check`.
 type CheckReport struct {
+	V        int       `json:"v"`
 	Issues   []Issue   `json:"issues"`
 	Phases   int       `json:"phases"`
 	Plan     string    `json:"plan"`
@@ -92,6 +94,7 @@ func Check(in CheckInput) CheckReport {
 	p := in.Plan
 	issues := p.Validate(in.Rules)
 	r := CheckReport{
+		V:        JSONVersion,
 		Issues:   Issues(issues),
 		Phases:   len(p.Phases),
 		Plan:     textsafe.Line(p.Path),

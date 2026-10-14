@@ -468,7 +468,7 @@ template = "{{.At.Format \"15:04\"}} {{.TaskID}} {{.What}}"
 | `igris adapt` | Converts a plan in another format; see [`igris adapt`](#different-format-igris-adapt). |
 | `igris completion bash\|zsh\|fish` | Prints a shell completion script. |
 
-`check`, `phases` and `status` take `--plan PATH` (default: `plan` in `igris.toml`, else `tasks.md`), and they, `doctor`, `history` and `report` take `--json`. `igris <command> -h` lists a command's flags.
+`check`, `phases` and `status` take `--plan PATH` (default: `plan` in `igris.toml`, else `tasks.md`), and they, `doctor`, `history` and `report` take `--json`. Each `--json` output is one object starting with `"v": 1`; its schema is in [`docs/json/`](docs/json/), and fields may be added but never removed or changed in 1.x. `igris <command> -h` lists a command's flags.
 
 `igris init` is safe to re-run: it never overwrites an existing `igris.toml`, appends to `.gitignore` only if `.igris/` isn't ignored yet, and merges its two `igris done` allow rules (`Bash(igris done:*)`, `Bash(igris done *)`) into `.claude/settings.local.json` without touching your other settings. `--example` writes the example plan only when there is none (it prints `kept tasks.md` and leaves an existing plan alone).
 
@@ -504,7 +504,7 @@ They read your plan without changing it.
 - the modes of `.igris/`, a stale or foreign lock, a project under `/mnt/` (WSL);
 - whether a notification channel is set up (nothing is sent; `igris notify test` sends).
 
-Each line is `ok`, `warn` or `fail`; a problem is followed by the command that fixes it. It exits 1 only if some check is `fail`, works outside a project, and `--json` prints the results as an array. Not running inside herdr or tmux is a `warn` here, since you usually run `doctor` from a plain shell.
+Each line is `ok`, `warn` or `fail`; a problem is followed by the command that fixes it. It exits 1 only if some check is `fail`, works outside a project, and `--json` prints them as one object (`{"v": 1, "checks": [...]}`). Not running inside herdr or tmux is a `warn` here, since you usually run `doctor` from a plain shell.
 
 </details>
 

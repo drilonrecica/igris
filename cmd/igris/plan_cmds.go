@@ -170,7 +170,8 @@ func execPhases(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	for _, ph := range r.Phases {
 		c := ph.Counts
 		fmt.Fprintf(tw, "%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\n", ph.ID, ph.Title,
-			c["ready"], c["blocked"], c["in progress"], c["done"], c["skipped"], ph.Total)
+			c[report.CountKey(plan.Ready)], c[report.CountKey(plan.Blocked)], c[report.CountKey(plan.InProgress)],
+			c[report.CountKey(plan.Done)], c[report.CountKey(plan.Skipped)], ph.Total)
 	}
 	_ = tw.Flush()
 	return exitOK
@@ -260,11 +261,18 @@ func printRun(w io.Writer, r *report.RunInfo) {
 		lock += " (" + r.LockDetail + ")"
 	}
 	row("Lock", lock)
-	row("Signals", strings.Join(r.Signals, ", "))
+	signals := make([]string, 0, len(r.Signals)+1)
+	for _, s := range r.Signals {
+		signals = append(signals, s.String())
+	}
+	if r.SignalsUnreadable > 0 {
+		signals = append(signals, fmt.Sprintf("%d unreadable", r.SignalsUnreadable))
+	}
+	row("Signals", strings.Join(signals, ", "))
 }
 
 func printPhaseStatus(w io.Writer, r report.PhaseStatus, opt report.Optional) {
-	satisfied := r.Counts["done"] + r.Counts["skipped"]
+	satisfied := r.Counts[report.CountKey(plan.Done)] + r.Counts[report.CountKey(plan.Skipped)]
 	name := r.ID
 	if r.Title != "" {
 		name += " — " + r.Title
@@ -306,7 +314,7 @@ func printPhaseStatus(w io.Writer, r report.PhaseStatus, opt report.Optional) {
 		for i, x := range t.WaitsOn {
 			waits[i] = fmt.Sprintf("%s (%s, phase %s)", x.ID, x.Status, x.Phase)
 		}
-		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s%s\n", t.ID, t.Status, t.Rank, t.Owner, t.Mode, optional(t), strings.Join(waits, ", "))
+		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s%s\n", t.ID, t.Status, cmp.Or(t.Rank, "—"), t.Owner, cmp.Or(t.Mode, "—"), optional(t), strings.Join(waits, ", "))
 	}
 	_ = tw.Flush()
 }

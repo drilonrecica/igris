@@ -9,3 +9,7 @@
 // cleaned with textsafe as it enters a report, so a renderer can print it
 // without further care (SPEC §16).
 package report
+
+// JSONVersion is the "v" of every --json document (SPEC §19). It changes
+// only with a breaking change, which 1.x never makes; additions keep it.
+const JSONVersion = 1

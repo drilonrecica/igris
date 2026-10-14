@@ -268,7 +268,7 @@ func (s *phaseScreen) body(w int) []string {
 func (s *phaseScreen) counts(ph *report.PhaseStatus) string {
 	parts := []string{plural(ph.Total, "task")}
 	for _, st := range statusOrder {
-		if n := ph.Counts[st.String()]; n > 0 {
+		if n := ph.Counts[report.CountKey(st)]; n > 0 {
 			parts = append(parts, strconv.Itoa(n)+" "+st.String())
 		}
 	}

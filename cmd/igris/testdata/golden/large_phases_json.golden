@@ -1,6 +1,7 @@
 exit: 0
 --- stdout
 {
+  "v": 1,
   "phases": [
     {
       "id": "F1",
@@ -9,7 +10,7 @@ exit: 0
       "counts": {
         "blocked": 2,
         "done": 12,
-        "in progress": 0,
+        "in_progress": 0,
         "ready": 0,
         "skipped": 0
       }
@@ -21,7 +22,7 @@ exit: 0
       "counts": {
         "blocked": 2,
         "done": 12,
-        "in progress": 0,
+        "in_progress": 0,
         "ready": 0,
         "skipped": 0
       }
@@ -33,7 +34,7 @@ exit: 0
       "counts": {
         "blocked": 6,
         "done": 4,
-        "in progress": 1,
+        "in_progress": 1,
         "ready": 2,
         "skipped": 1
       }
@@ -45,7 +46,7 @@ exit: 0
       "counts": {
         "blocked": 13,
         "done": 0,
-        "in progress": 0,
+        "in_progress": 0,
         "ready": 1,
         "skipped": 0
       }
@@ -57,7 +58,7 @@ exit: 0
       "counts": {
         "blocked": 13,
         "done": 0,
-        "in progress": 0,
+        "in_progress": 0,
         "ready": 1,
         "skipped": 0
       }
@@ -69,7 +70,7 @@ exit: 0
       "counts": {
         "blocked": 13,
         "done": 0,
-        "in progress": 0,
+        "in_progress": 0,
         "ready": 1,
         "skipped": 0
       }
@@ -81,7 +82,7 @@ exit: 0
       "counts": {
         "blocked": 13,
         "done": 0,
-        "in progress": 0,
+        "in_progress": 0,
         "ready": 1,
         "skipped": 0
       }
@@ -93,7 +94,7 @@ exit: 0
       "counts": {
         "blocked": 13,
         "done": 0,
-        "in progress": 0,
+        "in_progress": 0,
         "ready": 1,
         "skipped": 0
       }
@@ -105,7 +106,7 @@ exit: 0
       "counts": {
         "blocked": 13,
         "done": 0,
-        "in progress": 0,
+        "in_progress": 0,
         "ready": 1,
         "skipped": 0
       }
@@ -117,7 +118,7 @@ exit: 0
       "counts": {
         "blocked": 13,
         "done": 0,
-        "in progress": 0,
+        "in_progress": 0,
         "ready": 1,
         "skipped": 0
       }
@@ -129,7 +130,7 @@ exit: 0
       "counts": {
         "blocked": 13,
         "done": 0,
-        "in progress": 0,
+        "in_progress": 0,
         "ready": 1,
         "skipped": 0
       }
@@ -141,7 +142,7 @@ exit: 0
       "counts": {
         "blocked": 13,
         "done": 0,
-        "in progress": 0,
+        "in_progress": 0,
         "ready": 1,
         "skipped": 0
       }

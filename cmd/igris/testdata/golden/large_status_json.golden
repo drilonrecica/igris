@@ -1,6 +1,7 @@
 exit: 0
 --- stdout
 {
+  "v": 1,
   "phases": [
     {
       "id": "F1",
@@ -9,7 +10,7 @@ exit: 0
       "counts": {
         "blocked": 2,
         "done": 12,
-        "in progress": 0,
+        "in_progress": 0,
         "ready": 0,
         "skipped": 0
       },
@@ -22,7 +23,6 @@ exit: 0
           "status": "done",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": []
         },
         {
@@ -49,16 +49,13 @@ exit: 0
           "status": "done",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": []
         },
         {
           "id": "F1-05",
           "title": "Task F1-05",
           "status": "done",
-          "rank": "—",
           "owner": "user",
-          "mode": "—",
           "waits_on": []
         },
         {
@@ -67,7 +64,6 @@ exit: 0
           "status": "done",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": []
         },
         {
@@ -85,7 +81,6 @@ exit: 0
           "status": "done",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": []
         },
         {
@@ -94,7 +89,6 @@ exit: 0
           "status": "done",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": []
         },
         {
@@ -110,9 +104,7 @@ exit: 0
           "id": "F1-11",
           "title": "Task F1-11",
           "status": "done",
-          "rank": "—",
           "owner": "user",
-          "mode": "—",
           "waits_on": []
         },
         {
@@ -121,7 +113,6 @@ exit: 0
           "status": "done",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": []
         },
         {
@@ -130,7 +121,6 @@ exit: 0
           "status": "blocked",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": []
         },
         {
@@ -139,7 +129,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent + user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F1-13",
@@ -157,7 +146,7 @@ exit: 0
       "counts": {
         "blocked": 2,
         "done": 12,
-        "in progress": 0,
+        "in_progress": 0,
         "ready": 0,
         "skipped": 0
       },
@@ -170,7 +159,6 @@ exit: 0
           "status": "done",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": []
         },
         {
@@ -197,16 +185,13 @@ exit: 0
           "status": "done",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": []
         },
         {
           "id": "F2-05",
           "title": "Task F2-05",
           "status": "done",
-          "rank": "—",
           "owner": "user",
-          "mode": "—",
           "waits_on": []
         },
         {
@@ -215,7 +200,6 @@ exit: 0
           "status": "done",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": []
         },
         {
@@ -233,7 +217,6 @@ exit: 0
           "status": "done",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": []
         },
         {
@@ -242,7 +225,6 @@ exit: 0
           "status": "done",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": []
         },
         {
@@ -258,9 +240,7 @@ exit: 0
           "id": "F2-11",
           "title": "Task F2-11",
           "status": "done",
-          "rank": "—",
           "owner": "user",
-          "mode": "—",
           "waits_on": []
         },
         {
@@ -269,7 +249,6 @@ exit: 0
           "status": "done",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": []
         },
         {
@@ -278,7 +257,6 @@ exit: 0
           "status": "blocked",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": []
         },
         {
@@ -287,7 +265,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent + user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F2-13",
@@ -305,7 +282,7 @@ exit: 0
       "counts": {
         "blocked": 6,
         "done": 4,
-        "in progress": 1,
+        "in_progress": 1,
         "ready": 2,
         "skipped": 1
       },
@@ -318,7 +295,6 @@ exit: 0
           "status": "done",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": []
         },
         {
@@ -345,16 +321,13 @@ exit: 0
           "status": "done",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": []
         },
         {
           "id": "F3-05",
           "title": "Task F3-05",
           "status": "skipped",
-          "rank": "—",
           "owner": "user",
-          "mode": "—",
           "waits_on": []
         },
         {
@@ -363,7 +336,6 @@ exit: 0
           "status": "in progress",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": []
         },
         {
@@ -381,7 +353,6 @@ exit: 0
           "status": "ready",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F3-07",
@@ -401,7 +372,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F3-08",
@@ -423,9 +393,7 @@ exit: 0
           "id": "F3-11",
           "title": "Task F3-11",
           "status": "blocked",
-          "rank": "—",
           "owner": "user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F3-10",
@@ -445,7 +413,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F3-11",
@@ -460,7 +427,6 @@ exit: 0
           "status": "blocked",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": []
         },
         {
@@ -469,7 +435,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent + user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F3-06",
@@ -522,7 +487,7 @@ exit: 0
       "counts": {
         "blocked": 13,
         "done": 0,
-        "in progress": 0,
+        "in_progress": 0,
         "ready": 1,
         "skipped": 0
       },
@@ -534,7 +499,6 @@ exit: 0
           "status": "ready",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F3-G",
@@ -579,7 +543,6 @@ exit: 0
           "status": "blocked",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-4-03",
@@ -592,9 +555,7 @@ exit: 0
           "id": "Phase-4-05",
           "title": "Task Phase-4-05",
           "status": "blocked",
-          "rank": "—",
           "owner": "user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-4-04",
@@ -609,7 +570,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-4-05",
@@ -649,7 +609,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-4-07",
@@ -669,7 +628,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-4-08",
@@ -702,9 +660,7 @@ exit: 0
           "id": "Phase-4-11",
           "title": "Task Phase-4-11",
           "status": "blocked",
-          "rank": "—",
           "owner": "user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-4-10",
@@ -724,7 +680,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-4-11",
@@ -739,7 +694,6 @@ exit: 0
           "status": "blocked",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-4-02",
@@ -759,7 +713,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent + user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-4-01",
@@ -837,7 +790,7 @@ exit: 0
       "counts": {
         "blocked": 13,
         "done": 0,
-        "in progress": 0,
+        "in_progress": 0,
         "ready": 1,
         "skipped": 0
       },
@@ -849,7 +802,6 @@ exit: 0
           "status": "ready",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-4-G",
@@ -894,7 +846,6 @@ exit: 0
           "status": "blocked",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F5-03",
@@ -907,9 +858,7 @@ exit: 0
           "id": "F5-05",
           "title": "Task F5-05",
           "status": "blocked",
-          "rank": "—",
           "owner": "user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F5-04",
@@ -924,7 +873,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F5-05",
@@ -964,7 +912,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F5-07",
@@ -984,7 +931,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F5-08",
@@ -1017,9 +963,7 @@ exit: 0
           "id": "F5-11",
           "title": "Task F5-11",
           "status": "blocked",
-          "rank": "—",
           "owner": "user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F5-10",
@@ -1039,7 +983,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F5-11",
@@ -1054,7 +997,6 @@ exit: 0
           "status": "blocked",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F5-02",
@@ -1074,7 +1016,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent + user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F5-01",
@@ -1152,7 +1093,7 @@ exit: 0
       "counts": {
         "blocked": 13,
         "done": 0,
-        "in progress": 0,
+        "in_progress": 0,
         "ready": 1,
         "skipped": 0
       },
@@ -1164,7 +1105,6 @@ exit: 0
           "status": "ready",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F5-G",
@@ -1209,7 +1149,6 @@ exit: 0
           "status": "blocked",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F6-03",
@@ -1222,9 +1161,7 @@ exit: 0
           "id": "F6-05",
           "title": "Task F6-05",
           "status": "blocked",
-          "rank": "—",
           "owner": "user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F6-04",
@@ -1239,7 +1176,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F6-05",
@@ -1279,7 +1215,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F6-07",
@@ -1299,7 +1234,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F6-08",
@@ -1332,9 +1266,7 @@ exit: 0
           "id": "F6-11",
           "title": "Task F6-11",
           "status": "blocked",
-          "rank": "—",
           "owner": "user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F6-10",
@@ -1354,7 +1286,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F6-11",
@@ -1369,7 +1300,6 @@ exit: 0
           "status": "blocked",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F6-02",
@@ -1389,7 +1319,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent + user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F6-01",
@@ -1467,7 +1396,7 @@ exit: 0
       "counts": {
         "blocked": 13,
         "done": 0,
-        "in progress": 0,
+        "in_progress": 0,
         "ready": 1,
         "skipped": 0
       },
@@ -1479,7 +1408,6 @@ exit: 0
           "status": "ready",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F6-G",
@@ -1524,7 +1452,6 @@ exit: 0
           "status": "blocked",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F7-03",
@@ -1537,9 +1464,7 @@ exit: 0
           "id": "F7-05",
           "title": "Task F7-05",
           "status": "blocked",
-          "rank": "—",
           "owner": "user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F7-04",
@@ -1554,7 +1479,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F7-05",
@@ -1594,7 +1518,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F7-07",
@@ -1614,7 +1537,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F7-08",
@@ -1647,9 +1569,7 @@ exit: 0
           "id": "F7-11",
           "title": "Task F7-11",
           "status": "blocked",
-          "rank": "—",
           "owner": "user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F7-10",
@@ -1669,7 +1589,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F7-11",
@@ -1684,7 +1603,6 @@ exit: 0
           "status": "blocked",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F7-02",
@@ -1704,7 +1622,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent + user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F7-01",
@@ -1782,7 +1699,7 @@ exit: 0
       "counts": {
         "blocked": 13,
         "done": 0,
-        "in progress": 0,
+        "in_progress": 0,
         "ready": 1,
         "skipped": 0
       },
@@ -1794,7 +1711,6 @@ exit: 0
           "status": "ready",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F7-G",
@@ -1839,7 +1755,6 @@ exit: 0
           "status": "blocked",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-8-03",
@@ -1852,9 +1767,7 @@ exit: 0
           "id": "Phase-8-05",
           "title": "Task Phase-8-05",
           "status": "blocked",
-          "rank": "—",
           "owner": "user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-8-04",
@@ -1869,7 +1782,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-8-05",
@@ -1909,7 +1821,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-8-07",
@@ -1929,7 +1840,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-8-08",
@@ -1962,9 +1872,7 @@ exit: 0
           "id": "Phase-8-11",
           "title": "Task Phase-8-11",
           "status": "blocked",
-          "rank": "—",
           "owner": "user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-8-10",
@@ -1984,7 +1892,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-8-11",
@@ -1999,7 +1906,6 @@ exit: 0
           "status": "blocked",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-8-02",
@@ -2019,7 +1925,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent + user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-8-01",
@@ -2097,7 +2002,7 @@ exit: 0
       "counts": {
         "blocked": 13,
         "done": 0,
-        "in progress": 0,
+        "in_progress": 0,
         "ready": 1,
         "skipped": 0
       },
@@ -2109,7 +2014,6 @@ exit: 0
           "status": "ready",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-8-G",
@@ -2154,7 +2058,6 @@ exit: 0
           "status": "blocked",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F9-03",
@@ -2167,9 +2070,7 @@ exit: 0
           "id": "F9-05",
           "title": "Task F9-05",
           "status": "blocked",
-          "rank": "—",
           "owner": "user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F9-04",
@@ -2184,7 +2085,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F9-05",
@@ -2224,7 +2124,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F9-07",
@@ -2244,7 +2143,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F9-08",
@@ -2277,9 +2175,7 @@ exit: 0
           "id": "F9-11",
           "title": "Task F9-11",
           "status": "blocked",
-          "rank": "—",
           "owner": "user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F9-10",
@@ -2299,7 +2195,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F9-11",
@@ -2314,7 +2209,6 @@ exit: 0
           "status": "blocked",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F9-02",
@@ -2334,7 +2228,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent + user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F9-01",
@@ -2412,7 +2305,7 @@ exit: 0
       "counts": {
         "blocked": 13,
         "done": 0,
-        "in progress": 0,
+        "in_progress": 0,
         "ready": 1,
         "skipped": 0
       },
@@ -2424,7 +2317,6 @@ exit: 0
           "status": "ready",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F9-G",
@@ -2469,7 +2361,6 @@ exit: 0
           "status": "blocked",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F10-03",
@@ -2482,9 +2373,7 @@ exit: 0
           "id": "F10-05",
           "title": "Task F10-05",
           "status": "blocked",
-          "rank": "—",
           "owner": "user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F10-04",
@@ -2499,7 +2388,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F10-05",
@@ -2539,7 +2427,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F10-07",
@@ -2559,7 +2446,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F10-08",
@@ -2592,9 +2478,7 @@ exit: 0
           "id": "F10-11",
           "title": "Task F10-11",
           "status": "blocked",
-          "rank": "—",
           "owner": "user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F10-10",
@@ -2614,7 +2498,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F10-11",
@@ -2629,7 +2512,6 @@ exit: 0
           "status": "blocked",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F10-02",
@@ -2649,7 +2531,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent + user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F10-01",
@@ -2727,7 +2608,7 @@ exit: 0
       "counts": {
         "blocked": 13,
         "done": 0,
-        "in progress": 0,
+        "in_progress": 0,
         "ready": 1,
         "skipped": 0
       },
@@ -2739,7 +2620,6 @@ exit: 0
           "status": "ready",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F10-G",
@@ -2784,7 +2664,6 @@ exit: 0
           "status": "blocked",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F11-03",
@@ -2797,9 +2676,7 @@ exit: 0
           "id": "F11-05",
           "title": "Task F11-05",
           "status": "blocked",
-          "rank": "—",
           "owner": "user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F11-04",
@@ -2814,7 +2691,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F11-05",
@@ -2854,7 +2730,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F11-07",
@@ -2874,7 +2749,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F11-08",
@@ -2907,9 +2781,7 @@ exit: 0
           "id": "F11-11",
           "title": "Task F11-11",
           "status": "blocked",
-          "rank": "—",
           "owner": "user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F11-10",
@@ -2929,7 +2801,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F11-11",
@@ -2944,7 +2815,6 @@ exit: 0
           "status": "blocked",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F11-02",
@@ -2964,7 +2834,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent + user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F11-01",
@@ -3042,7 +2911,7 @@ exit: 0
       "counts": {
         "blocked": 13,
         "done": 0,
-        "in progress": 0,
+        "in_progress": 0,
         "ready": 1,
         "skipped": 0
       },
@@ -3054,7 +2923,6 @@ exit: 0
           "status": "ready",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "F11-G",
@@ -3099,7 +2967,6 @@ exit: 0
           "status": "blocked",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-12-03",
@@ -3112,9 +2979,7 @@ exit: 0
           "id": "Phase-12-05",
           "title": "Task Phase-12-05",
           "status": "blocked",
-          "rank": "—",
           "owner": "user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-12-04",
@@ -3129,7 +2994,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-12-05",
@@ -3169,7 +3033,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-12-07",
@@ -3189,7 +3052,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-12-08",
@@ -3222,9 +3084,7 @@ exit: 0
           "id": "Phase-12-11",
           "title": "Task Phase-12-11",
           "status": "blocked",
-          "rank": "—",
           "owner": "user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-12-10",
@@ -3244,7 +3104,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-12-11",
@@ -3259,7 +3118,6 @@ exit: 0
           "status": "blocked",
           "rank": "haiku",
           "owner": "agent",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-12-02",
@@ -3279,7 +3137,6 @@ exit: 0
           "status": "blocked",
           "rank": "sonnet",
           "owner": "agent + user",
-          "mode": "—",
           "waits_on": [
             {
               "id": "Phase-12-01",
