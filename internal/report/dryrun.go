@@ -41,7 +41,10 @@ type DryRun struct {
 	Scope string
 	// Slice is the selection walked ("only M1-03, M1-05"); "" for whole
 	// phases (SPEC §5.5).
-	Slice    string
+	Slice string
+	// Worktree says where a worktree run would work (SPEC §6.8); "" in the
+	// project root.
+	Worktree string
 	Steps    []DryStep
 	Sessions int
 	Users    int

@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/drilonrecica/igris/internal/backend"
+	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/prompt"
 	"github.com/drilonrecica/igris/internal/state"
@@ -190,7 +192,7 @@ func (e *Engine) prepareSession(l *launch, how startKind) (sessionStart, error) 
 		}
 		st.text, err = prompt.Render(prompt.VarsFor(t, prompt.Env{
 			Model:        l.model,
-			PlanFile:     e.cfg.Plan,
+			PlanFile:     e.planFile(),
 			CommitPolicy: e.cfg.Run.Commit,
 			Resumed:      how == startFresh,
 		}), e.templatePath())
@@ -202,7 +204,15 @@ func (e *Engine) prepareSession(l *launch, how startKind) (sessionStart, error) 
 	if err != nil {
 		return st, err
 	}
-	hooks, err := WriteHooks(e.dir, t.ID, e.opts.IgrisPath)
+	// The worktree lacks the project's untracked Claude settings, so its
+	// sessions get the `igris done` allow rules `igris init` writes there,
+	// and may read the plan, which is outside the worktree (SPEC §6.8,
+	// §7.4).
+	var allow []string
+	if e.run.Worktree != nil {
+		allow = append(slices.Clone(checks.DoneAllowRules), "Read(/"+e.planPath+")")
+	}
+	hooks, err := WriteHooks(e.dir, t.ID, e.opts.IgrisPath, allow)
 	if err != nil {
 		return st, err
 	}
@@ -233,7 +243,7 @@ func (e *Engine) openSession(ctx context.Context, l *launch, st sessionStart) er
 	}
 	sess, err := e.be.OpenSession(ctx, backend.SessionSpec{
 		TaskID: t.ID,
-		Dir:    e.dir.Root(),
+		Dir:    e.work,
 		Label:  t.ID + " · " + t.Rank,
 		Args:   st.args,
 		// Keys the session's hook state (SPEC §6.3).

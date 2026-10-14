@@ -36,6 +36,29 @@ func TestFindRoot(t *testing.T) {
 			}
 		})
 	}
+	// A session in a run's worktree finds the project, not the worktree's
+	// own copy of igris.toml (SPEC §6.8).
+	t.Run("worktree", func(t *testing.T) {
+		root := t.TempDir()
+		wt := filepath.Join(root, DirName, "worktrees", "20261014-120000-abcd")
+		must(t, os.MkdirAll(filepath.Join(wt, "sub"), 0o750))
+		must(t, os.WriteFile(filepath.Join(root, ConfigFile), nil, 0o600))
+		must(t, os.WriteFile(filepath.Join(wt, ConfigFile), nil, 0o600))
+		for _, start := range []string{wt, filepath.Join(wt, "sub")} {
+			if got, err := FindRoot(start); err != nil || got != root {
+				t.Errorf("FindRoot(%s) = %q, %v; want %q", start, got, err, root)
+			}
+		}
+	})
+	t.Run("a directory named like it outside .igris", func(t *testing.T) {
+		root := t.TempDir()
+		inner := filepath.Join(root, "worktrees", "x")
+		must(t, os.MkdirAll(inner, 0o750))
+		must(t, os.WriteFile(filepath.Join(inner, ConfigFile), nil, 0o600))
+		if got, err := FindRoot(inner); err != nil || got != inner {
+			t.Errorf("FindRoot = %q, %v; want %q", got, err, inner)
+		}
+	})
 	t.Run("nearest wins", func(t *testing.T) {
 		root := t.TempDir()
 		inner := filepath.Join(root, "inner")

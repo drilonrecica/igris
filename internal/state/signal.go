@@ -45,11 +45,17 @@ type Signal struct {
 }
 
 // FindRoot walks up from start to the nearest directory holding igris.toml
-// or .igris/ and returns it (SPEC §6.2).
+// or .igris/ and returns it (SPEC §6.2). Inside a run's worktree
+// (<root>/.igris/worktrees/<name>) it returns <root>, though the worktree
+// has its own copy of igris.toml: `igris done` from a session there must
+// reach the run (SPEC §6.8).
 func FindRoot(start string) (string, error) {
 	dir, err := filepath.Abs(start)
 	if err != nil {
 		return "", fmt.Errorf("find project root from %s: %w", start, err)
+	}
+	if root, ok := worktreeRoot(dir); ok {
+		return root, nil
 	}
 	for {
 		for _, marker := range []string{ConfigFile, DirName} {
@@ -63,6 +69,25 @@ func FindRoot(start string) (string, error) {
 		}
 		dir = parent
 	}
+}
+
+// worktreeRoot returns <root> when dir is <root>/.igris/worktrees/<name> or
+// below it, and <root>/.igris exists.
+func worktreeRoot(dir string) (string, bool) {
+	sep := string(filepath.Separator)
+	marker := sep + WorktreesDir + sep
+	i := strings.LastIndex(dir+sep, marker)
+	if i < 0 {
+		return "", false
+	}
+	root := dir[:i]
+	if root == "" {
+		root = sep
+	}
+	if fi, err := os.Stat(filepath.Join(root, DirName)); err != nil || !fi.IsDir() {
+		return "", false
+	}
+	return root, true
 }
 
 // resetSuffix names the reset slot of a task: <ID>.reset.json.

@@ -30,11 +30,11 @@ verify_max_attempts = 3 · default
 commit              = "ask" · default
 commit_message      = "{{.ID}}: {{.Title}}" · default
 prompt_template     = "" · default
+worktree            = false · default
 
 [verify]
 # none set
 
 [adapt]
 model = "sonnet" · default
-
 [Edit igris.toml] [Doctor] [Close]

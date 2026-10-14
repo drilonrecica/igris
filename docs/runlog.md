@@ -32,6 +32,7 @@ Every line igris v0.5 or later writes has `"v":1`. `v`, `at` and `type` are alwa
 | `owner` | string | `agent`, `user` or `agent + user` | `task_started`, `task_resumed` |
 | `profile` | string | the verify profile | `verify_passed`, `verify_failed` |
 | `commit` | string | the full commit SHA (`git rev-parse HEAD` after the commit; left out, with a warning, if that fails) | `committed` |
+| `branch` | string | the run's worktree branch, `igris/<run-id>`, in worktree mode (since 0.6) | `run_started` |
 | `duration_ms` | integer | milliseconds. `task_done`/`task_skipped`: since this run's `task_started` or `task_resumed` of the task (wall time: watching, verify, questions, everything). `verify_*`: the verify command's run time. `run_stopped`: the run's length. Readers take a negative value or one over 30 days as unknown | those events |
 | `reason` | string | why igris waits on you (below) | `needs_you`, `needs_you_clear` |
 | `detail` | string | free text, see each type | most events |

@@ -64,6 +64,10 @@ type Options struct {
 	// neither, the previous run's selection is resumed.
 	Selection state.Selection
 
+	// Worktree runs this run in a git worktree on a branch of its own
+	// (--worktree, SPEC §6.8), as [run] worktree = true does.
+	Worktree bool
+
 	ForceUnlock bool // clear a stale run lock (--force-unlock)
 	// ConfirmedDrift says the owner accepted that the first write also fixes
 	// the plan's drifted ready/blocked cells (SPEC §5.2).
@@ -137,6 +141,9 @@ type Result struct {
 	// NotRun are the slice's tasks that were left because their deps are
 	// unmet (SPEC §5.5), in the order they were reported.
 	NotRun []plan.Waiting
+	// Worktree is the run's worktree (SPEC §6.8); nil outside worktree
+	// mode.
+	Worktree *WorktreeResult
 }
 
 // Engine runs the tasks of one or more phases, one session at a time
@@ -195,6 +202,13 @@ type Engine struct {
 	// yoloDeferred: the interrupted task runs in skip-permissions mode and
 	// has a pending reset, so its yolo check waits until that is answered.
 	yoloDeferred bool
+	// work is where sessions, verify, task hooks and git run: the project
+	// root, or the run's worktree (SPEC §6.8). newWorktree: prepare found
+	// none to reuse and the run asks for one. leftover: the last run's
+	// worktree, still there and not used by this run.
+	work        string
+	newWorktree bool
+	leftover    *state.Worktree
 }
 
 // New checks opts and returns an engine. It does no I/O.
@@ -246,6 +260,7 @@ func New(opts Options) (*Engine, error) {
 		commitMsg: commitMsg,
 		runMode:   opts.Mode,
 		overrides: map[string]string{},
+		work:      root,
 	}
 	e.writer = plan.NewWriter(e.planPath, e.planOpts, e.rules())
 	return e, nil
@@ -290,9 +305,18 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
+	reused := e.run.Worktree != nil
+	if err := e.enterWorktree(ctx); err != nil {
+		return Result{}, err
+	}
 	scope := e.rng.Scope()
-	e.log(state.Event{Type: state.EventRunStarted, Detail: scope})
+	started := state.Event{Type: state.EventRunStarted, Detail: scope}
+	if e.run.Worktree != nil {
+		started.Branch = e.run.Worktree.Branch
+	}
+	e.log(started)
 	e.emit(Event{Kind: RunStarted, Detail: scope, Slice: e.rng.sliceIDs()})
+	e.announceWorktree(reused)
 
 	if e.configMoved {
 		e.warn("igris.toml changed since the interrupted run; this run uses the file as it is now")
@@ -309,6 +333,7 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 		e.emit(Event{Kind: RunFailed, Detail: err.Error()})
 		e.toast(ctx, notifyRunError, "the run stopped with an error")
 	}
+	e.leaveWorktree(context.WithoutCancel(ctx), &res)
 	// igris can't hold messages once it exits: what is left goes out now,
 	// even when the owner's stop cancelled ctx.
 	e.flushAll(context.WithoutCancel(ctx))
@@ -402,6 +427,9 @@ func (e *Engine) prepare() ([]string, error) {
 	e.run = &state.Run{StartedAt: e.clock.Now(), Phases: ids, Through: rng.Through, ConfigHash: e.cfg.Hash(), Current: cur}
 	if !sel.Empty() {
 		e.run.Selection = &sel
+	}
+	if err := e.pickWorktree(prev, resumed, cur != nil && !resetting); err != nil {
+		return nil, err
 	}
 	if prev != nil && cur != nil && prev.ConfigHash != e.run.ConfigHash {
 		e.configMoved = true

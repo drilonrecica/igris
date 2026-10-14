@@ -17,6 +17,9 @@ type RunRequest struct {
 	// Selection is --only or --from/--until (SPEC §5.5); empty runs the
 	// phases whole.
 	Selection state.Selection
+	// Worktree is --worktree: the run works in a git worktree (SPEC §6.8),
+	// as [run] worktree = true does.
+	Worktree bool
 }
 
 // Confirmations are the owner's answers to arise's start-up questions for

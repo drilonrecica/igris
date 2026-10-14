@@ -53,7 +53,7 @@ Commands:
   report [RUN] [--json]                 one run as markdown (or JSON): RUN is 1 (the newest, default), 2, … or a run ID
   arise [PHASE] [--through PHASE]       run (or resume) with the TUI
         [--mode default|accept|auto|plan|yolo] [--no-tui] [--dry-run]
-        [--force-unlock]
+        [--force-unlock] [--worktree]
         [--only ID[,ID...] | [--from ID] [--until ID]]
                                         run only part of the phases
   done ID [--note TEXT]                 signal that a task is finished
@@ -101,6 +101,7 @@ func commands() []command {
 			fs.Bool("no-tui", false, "plain log output, owner commands from stdin")
 			fs.Bool("dry-run", false, "walk the phase with the fake backend, write nothing")
 			fs.Bool("force-unlock", false, "clear a stale lock left by a run that is no longer alive")
+			fs.Bool("worktree", false, "run in a git worktree on a branch of its own, igris/<run-id>")
 			fs.String("only", "", "run only these tasks, in plan order: ID[,ID...]")
 			fs.String("from", "", "start the run at task ID")
 			fs.String("until", "", "stop the run after task ID")

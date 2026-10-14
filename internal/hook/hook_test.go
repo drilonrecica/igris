@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -197,7 +198,7 @@ func TestRunDeadline(t *testing.T) {
 }
 
 func TestSettings(t *testing.T) {
-	data, err := Settings("/opt/my igris/igris", "/home/o'brien/proj")
+	data, err := Settings("/opt/my igris/igris", "/home/o'brien/proj", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -235,5 +236,24 @@ func TestSettings(t *testing.T) {
 	_ = json.Unmarshal(data, &top)
 	if len(top) != 1 {
 		t.Errorf("%d top-level keys, want only hooks", len(top))
+	}
+}
+
+// In a run's worktree the session also gets the `igris done` allow rules,
+// and nothing more (SPEC §6.8, §7.4).
+func TestSettingsAllow(t *testing.T) {
+	rules := []string{"Bash(igris done:*)", "Bash(igris done *)"}
+	data, err := Settings("/bin/igris", "/p", rules)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var s struct {
+		Permissions map[string][]string `json:"permissions"`
+	}
+	if err := json.Unmarshal(data, &s); err != nil {
+		t.Fatal(err)
+	}
+	if len(s.Permissions) != 1 || !slices.Equal(s.Permissions["allow"], rules) {
+		t.Errorf("permissions = %v, want only allow %v", s.Permissions, rules)
 	}
 }

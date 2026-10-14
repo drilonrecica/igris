@@ -6,6 +6,7 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ### Added
 
+- Worktree mode: `igris arise --worktree` (or `[run] worktree = true`) runs the sessions, verify, task hooks and commits in a git worktree `.igris/worktrees/<run-id>` on a new branch `igris/<run-id>`, so your checkout stays as it is. The plan stays in your checkout. An interrupted run continues in its worktree; a completed one removes it when nothing is left uncommitted and keeps the branch. igris never merges: it prints the `git merge` command. `igris done` from inside a worktree reaches the run.
 - A session waiting on background work is no longer "needs you". When Claude ends its turn with a background task (tests on a simulator, a long build) or a scheduled wakeup pending, the card says `waiting on background work (4m)` and nothing is raised until `waiting_limit` (new, default `30m`). Claude Code's `Stop` hook reports the pending work; with herdr, igris uses it even though herdr shows the turn as finished.
 - igris reminds an agent that stopped without `igris done` once (finish, or say what it waits for) before it raises **Needs you**. `nudge = false` turns it off.
 - Releases are signed from 0.6.0: `checksums.txt.sig` is an SSH signature of `checksums.txt`, made with the igris release key, and the release tags are signed with the same key. The key is in `allowed_signers` and the README, which shows how to check a download with `ssh-keygen` alone.

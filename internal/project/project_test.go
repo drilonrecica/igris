@@ -229,7 +229,7 @@ func TestPrelaunch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pre := p.Prelaunch(context.Background(), nil)
+	pre := p.Prelaunch(context.Background(), nil, report.RunRequest{})
 	if pre.Interrupted != "M0-01" {
 		t.Errorf("interrupted = %q", pre.Interrupted)
 	}
@@ -245,6 +245,45 @@ func TestPrelaunch(t *testing.T) {
 	// which is the one arise asks about.
 	if !reflect.DeepEqual(ids, []string{checks.IDAPIKey, checks.IDGit}) || asks != 1 {
 		t.Errorf("warnings = %+v", pre.Warnings)
+	}
+}
+
+// In worktree mode uncommitted changes in the project don't reach the run
+// (SPEC §6.8): the git warning says so for a new worktree, and a run that
+// continues in its worktree has none (the plan's Status edits are igris's
+// own).
+func TestPrelaunchWorktree(t *testing.T) {
+	root := newProject(t, "")
+	env, _ := testEnv(map[string]string{checks.APIKeyVar: "sk-test"})
+	env.Runner.(*runner.Fake).Func(func(c runner.Cmd) (runner.Result, error) {
+		if c.Args[0] == "rev-parse" {
+			return runner.Result{Stdout: []byte("true\n")}, nil
+		}
+		return runner.Result{Stdout: []byte(" M tasks.md\n")}, nil
+	})
+	p, err := Open(root, env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gitWarning := func(req report.RunRequest) string {
+		for _, w := range p.Prelaunch(context.Background(), nil, req).Warnings {
+			if w.ID == checks.IDGit {
+				return w.Message
+			}
+		}
+		return ""
+	}
+	if got := gitWarning(report.RunRequest{Phase: "M0"}); !strings.Contains(got, "igris's first commit includes them") {
+		t.Errorf("without worktree mode: %q", got)
+	}
+	if got := gitWarning(report.RunRequest{Phase: "M0", Worktree: true}); got != "the working tree has uncommitted changes: the run's new worktree starts from HEAD without them." {
+		t.Errorf("new worktree: %q", got)
+	}
+	writeFile(t, filepath.Join(root, ".igris", "worktrees", "r1", "x"), "")
+	writeFile(t, filepath.Join(root, state.DirName, "state.json"),
+		`{"version":1,"phases":["M0"],"config_hash":"x","worktree":{"path":".igris/worktrees/r1","branch":"igris/r1"}}`)
+	if got := gitWarning(report.RunRequest{}); got != "" {
+		t.Errorf("resuming in the worktree: %q", got)
 	}
 }
 

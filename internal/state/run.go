@@ -38,7 +38,20 @@ type Run struct {
 	Selection  *Selection `json:"selection,omitempty"`
 	ConfigHash string     `json:"config_hash"`       // hash of the config snapshot
 	Current    *Current   `json:"current,omitempty"` // nil between tasks
+	// Worktree is where the run's sessions, verify and commits happen in
+	// worktree mode (SPEC §6.8); nil runs them in the project root.
+	Worktree *Worktree `json:"worktree,omitempty"`
 }
+
+// Worktree is a run's git worktree (SPEC §6.8).
+type Worktree struct {
+	Path   string `json:"path"`   // relative to the project root: .igris/worktrees/<run-id>
+	Branch string `json:"branch"` // igris/<run-id>
+}
+
+// WorktreesDir is where worktree mode puts its worktrees, relative to the
+// project root.
+var WorktreesDir = filepath.Join(DirName, "worktrees")
 
 // Selection is `arise --only` or `--from`/`--until` (SPEC §5.5): task IDs,
 // as the owner named them.

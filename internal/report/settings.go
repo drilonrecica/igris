@@ -78,6 +78,7 @@ func NewSettings(cfg *config.Config, keys config.Keys, getenv func(string) strin
 	set(run, "commit", tomlString(cfg.Run.Commit))
 	set(run, "commit_message", tomlString(cfg.Run.CommitMessage))
 	set(run, "prompt_template", tomlString(cfg.Run.PromptTemplate))
+	set(run, "worktree", strconv.FormatBool(cfg.Run.WorktreeOn()))
 
 	table("verify", cfg.Verify)
 	for _, id := range sortedKeys(cfg.Phases) {

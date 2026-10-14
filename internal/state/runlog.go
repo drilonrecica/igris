@@ -91,6 +91,9 @@ type Event struct {
 	Owner   string `json:"owner,omitempty"`
 	Profile string `json:"profile,omitempty"` // verify profile, on verify_*
 	Commit  string `json:"commit,omitempty"`  // commit SHA, on committed
+	// Branch is the worktree branch on run_started, in worktree mode
+	// (SPEC §6.8).
+	Branch string `json:"branch,omitempty"`
 	// DurationMS is the task's time in this run on task_done/task_skipped,
 	// the verify command's on verify_*, and the run's on run_stopped.
 	DurationMS int64  `json:"duration_ms,omitempty"`

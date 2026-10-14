@@ -9,7 +9,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/drilonrecica/igris/internal/runner"
 	"github.com/drilonrecica/igris/internal/state"
 	"github.com/drilonrecica/igris/internal/textsafe"
 )
@@ -119,17 +118,14 @@ func (e *Engine) head(ctx context.Context) string {
 // commitSHA is a full SHA-1 or SHA-256 commit hash.
 var commitSHA = regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`)
 
-// git runs git in the project root and returns its output; a non-zero exit
-// is an error.
+// git runs git where the run works (the project root or its worktree, SPEC
+// §6.8) and returns its output; a non-zero exit is an error.
 func (e *Engine) git(ctx context.Context, args ...string) (string, error) {
-	res, err := e.runner.Run(ctx, runner.Cmd{Name: "git", Args: args, Dir: e.dir.Root(), Timeout: gitTimeout})
-	if err == nil {
-		err = res.Err()
-	}
+	out, err := e.gitIn(ctx, e.work, args...)
 	if err != nil {
 		return "", fmt.Errorf("commit: %w", err)
 	}
-	return string(res.Stdout), nil
+	return out, nil
 }
 
 // ask raises a yes/no question and waits for the owner's CmdAnswer. Other

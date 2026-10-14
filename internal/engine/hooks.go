@@ -59,7 +59,7 @@ func (e *Engine) runHook(ctx context.Context, l *launch, name string, argv []str
 	res, runErr := e.runner.Run(ctx, runner.Cmd{
 		Name:     argv[0],
 		Args:     argv[1:],
-		Dir:      e.dir.Root(),
+		Dir:      e.work,
 		Env:      env,
 		Timeout:  timeout,
 		Combined: true,

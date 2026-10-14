@@ -51,12 +51,14 @@ func (p *Project) Launch(req report.RunRequest) (*Launch, error) {
 // Prelaunch runs the checks `igris arise` reports before a run starts
 // (SPEC §14). It changes nothing.
 func (l *Launch) Prelaunch(ctx context.Context) report.Prelaunch {
-	return l.p.Prelaunch(ctx, l.Backend)
+	return l.p.Prelaunch(ctx, l.Backend, l.req)
 }
 
 // Prelaunch is Launch.Prelaunch without a launch, so nothing is created:
 // be answers the herdr integration check, which is left out when be is nil.
-func (p *Project) Prelaunch(ctx context.Context, be backend.Backend) report.Prelaunch {
+// req says whether the run works in a worktree (SPEC §6.8), which changes
+// what uncommitted changes in the project mean.
+func (p *Project) Prelaunch(ctx context.Context, be backend.Backend, req report.RunRequest) report.Prelaunch {
 	o := checks.Options{
 		IDs:  []string{checks.IDHerdrIntegration, checks.IDClaude, checks.IDHerdr, checks.IDTmux, checks.IDConfig, checks.IDPlanHints, checks.IDAPIKey, checks.IDGit},
 		Root: p.Root, Runner: p.env.runner(), Getenv: p.env.getenv(), Versions: p.env.versions(),
@@ -66,11 +68,29 @@ func (p *Project) Prelaunch(ctx context.Context, be backend.Backend) report.Prel
 		o.Integration = integration
 	}
 	cs := checks.Run(ctx, o)
+	prev, err := state.PeekRun(p.Root)
+	if err != nil {
+		prev = nil
+	}
+	wt := engine.ChooseWorktree(p.Root, prev, req.Worktree || p.Cfg.Run.WorktreeOn(), req.Phase == "" && req.Selection.Empty(), prev != nil && prev.Current != nil)
+	for i, c := range cs {
+		if c.ID != checks.IDGit || c.Level != checks.Warn || c.Next != "git status" {
+			continue
+		}
+		// Changes in the project don't reach the run's worktree, and the
+		// plan's Status cells, which igris writes there, are among them.
+		switch {
+		case wt.Reuse != nil:
+			cs[i] = checks.Result{ID: checks.IDGit, Level: checks.OK, Message: "git repository; the run continues in its worktree " + wt.Reuse.Path}
+		case wt.New:
+			cs[i].Message = "the working tree has uncommitted changes: the run's new worktree starts from HEAD without them."
+		}
+	}
 	var r report.Prelaunch
 	// Information first, then what may need an answer.
 	r.Warnings = append(r.Warnings, checks.Problems(checks.Pick(cs, checks.IDHerdrIntegration, checks.IDClaude, checks.IDHerdr, checks.IDTmux))...)
 	r.Warnings = append(r.Warnings, checks.Problems(checks.Pick(cs, checks.IDConfig, checks.IDPlanHints, checks.IDAPIKey, checks.IDGit))...)
-	if prev, err := state.PeekRun(p.Root); err == nil && prev.Current != nil {
+	if prev != nil && prev.Current != nil {
 		r.Interrupted = textsafe.Line(prev.Current.TaskID)
 	}
 	return r
@@ -89,6 +109,7 @@ func (l *Launch) Options(c report.Confirmations, events func(engine.Event)) engi
 		Through:        l.req.Through,
 		Mode:           l.req.Mode,
 		Selection:      l.req.Selection,
+		Worktree:       l.req.Worktree,
 		ForceUnlock:    c.ForceUnlock,
 		ConfirmedDrift: c.Drift,
 		ConfirmedYolo:  c.Yolo,
@@ -143,7 +164,7 @@ func (p *Project) DryRun(ctx context.Context, req report.RunRequest) (report.Dry
 	return engine.DryRun(ctx, engine.DryRunOptions{
 		Root: p.Root, Config: p.Cfg, Phase: req.Phase, Through: req.Through, Mode: req.Mode, Selection: req.Selection,
 		Runner: p.env.runner(), Getenv: p.env.getenv(), Versions: p.env.versions(), Format: p.env.format(),
-		BackendName: BackendName(p.Cfg, p.env.getenv()),
+		BackendName: BackendName(p.Cfg, p.env.getenv()), Worktree: req.Worktree,
 	})
 }
 

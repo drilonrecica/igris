@@ -14,6 +14,8 @@ func logLines(ev engine.Event) []string {
 	switch ev.Kind {
 	case engine.RunStarted:
 		return []string{"run started: " + ev.Detail}
+	case engine.WorktreeReady, engine.WorktreeLeft:
+		return []string{ev.Detail}
 	case engine.PhaseStarted:
 		return []string{"phase " + ev.Phase + " started"}
 	case engine.TaskStarted:

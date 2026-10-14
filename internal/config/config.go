@@ -109,7 +109,15 @@ type Run struct {
 	Commit            string   `toml:"commit"`
 	CommitMessage     string   `toml:"commit_message"`
 	PromptTemplate    string   `toml:"prompt_template"`
+	// Worktree runs the sessions, verify and commits in a git worktree on
+	// a branch of their own (SPEC §6.8); nil is off. Left out of the
+	// config hash while unset.
+	Worktree *bool `toml:"worktree,omitempty" json:",omitempty"`
 }
+
+// WorktreeOn reports whether runs use a worktree (SPEC §6.8); off unless
+// worktree = true.
+func (r Run) WorktreeOn() bool { return r.Worktree != nil && *r.Worktree }
 
 // PhaseConfig is a [phases.<id>] table.
 type PhaseConfig struct {

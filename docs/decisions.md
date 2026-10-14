@@ -503,3 +503,18 @@ SPEC §18 amended. Tasks V06-01 (signing, `make sign`, `allowed_signers`, README
 - **Config hash.** Both keys are optional and left out of the hash while unset, so a v0.5 config keeps its hash and an interrupted run resumes without the config notice.
 
 SPEC §6.3, §11.1, §12, §13 and §15 amended. Task WAIT-01 implements it.
+
+## V06-P2 — Worktree mode
+
+**Approved by owner** (2026-10-14, "go with your recommendations"), for V06-03. A run can work in a git worktree on a branch of its own (`[run] worktree = true` or `arise --worktree`), so an unattended run (`auto`, skip permissions) leaves the owner's checkout alone and its result is a branch to review. It is one worktree per run and one task at a time; v2's parallel runs (a worktree per task) build on it.
+
+- **The plan stays in the project root.** igris reads and writes Status there, as in any run; the worktree's copy is never updated, and the task prompt names the project's plan by its absolute path. `igris status`, home, resume and plans git ignores keep working, and one plan written by igris alone is what many worktrees need in v2. The branch's commits hold the sessions' work only. Rejected: the worktree's copy, which puts Status in the branch's commits but needs a fallback for untracked plans and leaves `igris status` in the checkout stale until a merge.
+- **igris never merges.** A completed run whose worktree has nothing uncommitted removes it (`git worktree remove`) and keeps the branch, printing the merge command. A dirty worktree, a stopped or stuck run keep it; the next `arise` continues there.
+- **Opt-in, no warning** (ROADMAP open question #7). The skip-permissions confirmation of `igris arise` suggests `--worktree`; the README recommends it for unattended runs.
+- **What it took** (found in real runs with Claude Code 2.1.299):
+  - `igris done` from inside the worktree found the worktree's tracked `igris.toml` as the root, so `state.FindRoot` returns the project for any path under `.igris/worktrees/<name>`.
+  - The worktree lacks `.claude/settings.local.json` (untracked), so the `igris done` allow rules go into the session's `--settings` file, with `Read(//<plan path>)`: the plan is outside the worktree, and reading it asked for approval. That file held hooks only until now (SPEC §7.4); these rules are the only addition, and only in worktree mode.
+  - Claude Code didn't ask to trust the worktree once the project was trusted.
+  - The start-up git warning ("igris's first commit includes them") is wrong for a worktree: it is reworded for a new one and left out when a run continues in its worktree, whose project now always has the plan's Status edits.
+
+SPEC §6, §6.2, §6.7, new §6.8, §7.3, §7.4, §12, §13 and §14 amended. Task V06-03 implements it.

@@ -1015,6 +1015,27 @@ func TestWaitingLimitAndNudge(t *testing.T) {
 	}
 }
 
+func TestWorktree(t *testing.T) {
+	d := Default()
+	if d.Run.WorktreeOn() || d.Hash() != v04DefaultHash {
+		t.Errorf("default: worktree %v, hash changed %v", d.Run.WorktreeOn(), d.Hash() != v04DefaultHash)
+	}
+	c, err := Parse([]byte("[run]\nworktree = true\n"), "igris.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !c.Run.WorktreeOn() || c.Hash() == v04DefaultHash {
+		t.Errorf("set: worktree %v, hash unchanged %v", c.Run.WorktreeOn(), c.Hash() == v04DefaultHash)
+	}
+	path := filepath.Join(t.TempDir(), "igris.toml")
+	if err := Write(path, c); err != nil {
+		t.Fatal(err)
+	}
+	if back, err := Load(path); err != nil || !back.Run.WorktreeOn() {
+		t.Errorf("Write and Load lost worktree: %v", err)
+	}
+}
+
 func TestDurationShort(t *testing.T) {
 	for d, want := range map[time.Duration]string{
 		30 * time.Minute: "30m", time.Hour: "1h", 90 * time.Minute: "1h30m", 2 * time.Hour: "2h",

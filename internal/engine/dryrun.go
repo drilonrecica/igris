@@ -40,6 +40,9 @@ type DryRunOptions struct {
 	BackendName string
 	// Format renders an event as the lines the walk shows for it.
 	Format func(Event) []string
+	// Worktree is --worktree (SPEC §6.8); the walk says where the run
+	// would work, and makes no worktree.
+	Worktree bool
 }
 
 // DryRun walks the phases on a copy of the plan with the fake backend and
@@ -50,7 +53,21 @@ type DryRunOptions struct {
 func DryRun(ctx context.Context, o DryRunOptions) (report.DryRun, error) {
 	var r report.DryRun
 	f := o
-	switch prev, err := state.PeekRun(o.Root); {
+	on := f.Worktree || f.Config.Run.WorktreeOn()
+	prev, err := state.PeekRun(o.Root)
+	if err == nil {
+		c := ChooseWorktree(f.Root, prev, on, f.Phase == "" && f.Selection.Empty(), prev.Current != nil)
+		switch {
+		case c.Reuse != nil:
+			r.Worktree = textsafe.Line(fmt.Sprintf("sessions, verify and commits would run in the last run's worktree %s on branch %s", c.Reuse.Path, c.Reuse.Branch))
+		case c.Leftover != nil:
+			r.Warnings = append(r.Warnings, textsafe.Line(fmt.Sprintf("the last run's worktree is still at %s (branch %s); this run would work in the project root", c.Leftover.Path, c.Leftover.Branch)))
+		}
+	}
+	if on && r.Worktree == "" {
+		r.Worktree = "sessions, verify and commits would run in a new worktree " + filepath.Join(state.WorktreesDir, "<run-id>") + " on branch igris/<run-id>, made from HEAD"
+	}
+	switch {
 	case errors.Is(err, state.ErrNoRun):
 		if f.Phase == "" && f.Selection.Empty() {
 			return r, errors.New("there is no earlier run to resume; name the phase to run, e.g. `igris arise M0 --dry-run`")
@@ -164,6 +181,7 @@ func DryRun(ctx context.Context, o DryRunOptions) (report.DryRun, error) {
 func dryRunProject(tmp, root string, orig *config.Config) (*config.Config, error) {
 	cfg := *orig
 	cfg.Run.Commit = CommitNever
+	cfg.Run.Worktree = nil // DryRun reports where the run would work; the walk makes no worktree
 	cfg.Notify.Backend.Enabled = false
 	cfg.Notify.Ntfy.Topic = "" // no other remote channel either: dry runs resolve no secrets
 	copyIn := func(rel string) (string, error) {

@@ -112,13 +112,13 @@ func (s *Services) Preview(ctx context.Context, req report.RunRequest) (*report.
 
 // Prelaunch implements tui.Services. It creates nothing; without a usable
 // backend the herdr integration check is left out.
-func (s *Services) Prelaunch(ctx context.Context, _ report.RunRequest) report.Prelaunch {
+func (s *Services) Prelaunch(ctx context.Context, req report.RunRequest) report.Prelaunch {
 	p, err := s.open()
 	if err != nil {
 		return report.Prelaunch{}
 	}
 	be, _ := p.Backend()
-	return p.Prelaunch(ctx, be)
+	return p.Prelaunch(ctx, be, req)
 }
 
 // Start implements tui.Services: the engine `igris arise` would build for

@@ -154,12 +154,15 @@ func record(root string, in io.Reader, now func() time.Time) error {
 	return state.WriteAgentState(root, p.SessionID, state.AgentState{State: st, Event: p.Event, At: now().UTC()})
 }
 
-// Settings returns the hooks-only Claude Code settings file igris passes a
-// session with --settings: every event in Events runs
+// Settings returns the Claude Code settings file igris passes a session
+// with --settings: every event in Events runs
 // '<exe>' hook --root '<root>' <Event>. exe and root come from igris and the
 // owner, never from the plan; they are single-quoted for the shell Claude
-// Code runs hook commands with.
-func Settings(exe, root string) ([]byte, error) {
+// Code runs hook commands with. allow, when not empty, adds permission
+// allow rules: a session in a run's worktree gets the `igris done` rules
+// there, since the worktree lacks the project's untracked
+// .claude/settings.local.json (SPEC §6.8).
+func Settings(exe, root string, allow []string) ([]byte, error) {
 	type command struct {
 		Type    string `json:"type"`
 		Command string `json:"command"`
@@ -182,7 +185,11 @@ func Settings(exe, root string) ([]byte, error) {
 		}
 		hooks[ev] = []matcher{m}
 	}
-	data, err := json.MarshalIndent(map[string]any{"hooks": hooks}, "", "  ")
+	settings := map[string]any{"hooks": hooks}
+	if len(allow) > 0 {
+		settings["permissions"] = map[string]any{"allow": allow}
+	}
+	data, err := json.MarshalIndent(settings, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("hooks settings: %w", err)
 	}

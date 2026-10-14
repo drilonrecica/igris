@@ -40,7 +40,7 @@ _igris() {
             status) COMPREPLY=($(compgen -W "--json --plan" -- "$cur")) ;;
             history) COMPREPLY=($(compgen -W "--json -n" -- "$cur")) ;;
             report) COMPREPLY=($(compgen -W "--json" -- "$cur")) ;;
-            arise) COMPREPLY=($(compgen -W "--dry-run --force-unlock --from --mode --no-tui --only --through --until" -- "$cur")) ;;
+            arise) COMPREPLY=($(compgen -W "--dry-run --force-unlock --from --mode --no-tui --only --through --until --worktree" -- "$cur")) ;;
             done) COMPREPLY=($(compgen -W "--note" -- "$cur")) ;;
             skip) COMPREPLY=($(compgen -W "--reason" -- "$cur")) ;;
             reset) COMPREPLY=($(compgen -W "--force" -- "$cur")) ;;

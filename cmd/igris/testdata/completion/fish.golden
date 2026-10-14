@@ -51,6 +51,7 @@ complete -c igris -n '__fish_seen_subcommand_from arise' -l no-tui
 complete -c igris -n '__fish_seen_subcommand_from arise' -l only -x -a '(__igris_id_list)'
 complete -c igris -n '__fish_seen_subcommand_from arise' -l through -x -a '(__igris_ids phases)'
 complete -c igris -n '__fish_seen_subcommand_from arise' -l until -x -a '(__igris_ids tasks)'
+complete -c igris -n '__fish_seen_subcommand_from arise' -l worktree
 complete -c igris -n '__fish_seen_subcommand_from arise' -a '(__igris_ids phases)'
 complete -c igris -n '__fish_seen_subcommand_from done' -l note -x
 complete -c igris -n '__fish_seen_subcommand_from done' -a '(__igris_ids tasks)'

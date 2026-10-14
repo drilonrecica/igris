@@ -58,6 +58,7 @@ type Wizard struct {
 	Mode        string // --mode; "" is as planned
 	Through     string // --through
 	ForceUnlock bool   // --force-unlock
+	Worktree    bool   // --worktree
 }
 
 func (Home) start()   {}

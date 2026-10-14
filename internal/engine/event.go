@@ -21,6 +21,8 @@ type EventKind string
 // Events of a run, in the order a UI typically sees them.
 const (
 	RunStarted       EventKind = "run_started"
+	WorktreeReady    EventKind = "worktree_ready" // the run works in a git worktree (SPEC §6.8); Detail says where and on which branch
+	WorktreeLeft     EventKind = "worktree_left"  // the run ends; Detail says where its work is and how to merge it
 	PhaseStarted     EventKind = "phase_started"
 	TaskStarted      EventKind = "task_started"       // marked in progress; Changes holds the cells written
 	TaskResumed      EventKind = "task_resumed"       // a task in progress from an earlier run is picked up; Detail says how

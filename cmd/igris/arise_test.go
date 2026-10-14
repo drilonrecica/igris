@@ -244,6 +244,50 @@ func TestDryRunAnnouncesHooks(t *testing.T) {
 	}
 }
 
+// A dry run in worktree mode says where the run would work and makes no
+// worktree; the last run's worktree, still there, is the one a resume
+// continues in (SPEC §6.8).
+func TestDryRunWorktree(t *testing.T) {
+	withVersions(t, "2.1.291 (Claude Code)\n", "herdr 0.9.1\n")
+	root := writeProject(t, map[string]string{"tasks.md": dryPlan})
+	before := snapshot(t, root)
+	var out, errb bytes.Buffer
+	if code := run([]string{"arise", "A", "--dry-run", "--worktree"}, &out, &errb); code != exitOK {
+		t.Fatalf("exit %d, stderr: %s", code, errb.String())
+	}
+	if w := "sessions, verify and commits would run in a new worktree .igris/worktrees/<run-id> on branch igris/<run-id>, made from HEAD"; !strings.Contains(out.String(), w) {
+		t.Errorf("output lacks %q:\n%s", w, out.String())
+	}
+	if after := snapshot(t, root); len(after) != len(before) {
+		t.Errorf("the dry run added files: %d → %d", len(before), len(after))
+	}
+
+	dir, err := state.Open(root, state.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wt := &state.Worktree{Path: ".igris/worktrees/r1", Branch: "igris/r1"}
+	if err := os.MkdirAll(filepath.Join(root, wt.Path), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := dir.SaveRun(&state.Run{Phases: []string{"A"}, Worktree: wt}); err != nil {
+		t.Fatal(err)
+	}
+	for args, want := range map[string]string{
+		"--dry-run":              "would run in the last run's worktree .igris/worktrees/r1 on branch igris/r1",
+		"B --dry-run":            "warning: the last run's worktree is still at .igris/worktrees/r1 (branch igris/r1); this run would work in the project root",
+		"B --dry-run --worktree": "would run in the last run's worktree .igris/worktrees/r1",
+	} {
+		out.Reset()
+		if code := run(append([]string{"arise"}, strings.Fields(args)...), &out, &errb); code != exitOK {
+			t.Fatalf("%s: exit %d, stderr: %s", args, code, errb.String())
+		}
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("%s: output lacks %q:\n%s", args, want, out.String())
+		}
+	}
+}
+
 // A dry run walks a scratch copy of the plan, but its Context cells name
 // the owner's files: they are checked against the project (SPEC §3.2).
 func TestDryRunContext(t *testing.T) {

@@ -51,12 +51,13 @@ func projectEnv() project.Env {
 type ariseFlags struct {
 	phase, through, mode       string
 	noTUI, dryRun, forceUnlock bool
+	worktree                   bool
 	sel                        state.Selection // --only, --from, --until
 	lines                      <-chan string   // --no-tui: the owner's stdin lines
 }
 
 func (f ariseFlags) request() report.RunRequest {
-	return report.RunRequest{Phase: f.phase, Through: f.through, Mode: f.mode, Selection: f.sel}
+	return report.RunRequest{Phase: f.phase, Through: f.through, Mode: f.mode, Selection: f.sel, Worktree: f.worktree}
 }
 
 // parseSelection reads --only, --from and --until (SPEC §5.5). Combining
@@ -116,6 +117,7 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		noTUI:       fs.Lookup("no-tui").Value.String() == "true",
 		dryRun:      fs.Lookup("dry-run").Value.String() == "true",
 		forceUnlock: fs.Lookup("force-unlock").Value.String() == "true",
+		worktree:    fs.Lookup("worktree").Value.String() == "true",
 	}
 	if len(args) > 0 {
 		f.phase = args[0]
@@ -130,7 +132,7 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		return fail("%v", err)
 	}
 	if wantWizard(f, proj.Root) {
-		return runApp(tui.Wizard{Mode: f.mode, Through: f.through, ForceUnlock: f.forceUnlock}, stdout, stderr)
+		return runApp(tui.Wizard{Mode: f.mode, Through: f.through, ForceUnlock: f.forceUnlock, Worktree: f.worktree}, stdout, stderr)
 	}
 	out := &lockedWriter{w: stdout}
 	if f.dryRun {
@@ -196,6 +198,9 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		case errors.Is(err, engine.ErrYoloUnconfirmed) && !conf.Yolo:
 			// SPEC §7.3: typed confirmation, every run.
 			fmt.Fprintf(out, "%v\nSessions in this mode run with --dangerously-skip-permissions: Claude Code acts without asking.\n", err)
+			if !f.worktree && !proj.Cfg.Run.WorktreeOn() {
+				fmt.Fprintln(out, "Tip: --worktree keeps the run's changes on a branch of their own, away from your checkout.")
+			}
 			if !typed(out, ask, engine.YoloPhrase) {
 				return fail("skip-permissions mode not confirmed; nothing was started")
 			}
@@ -316,6 +321,9 @@ func tuiExit(res engine.Result, err error, out, stderr io.Writer) int {
 	// The same words as home's status line after a run (tui.ExitText).
 	fmt.Fprintln(out, tui.ExitText(res, nil))
 	printNotRun(out, res)
+	for _, l := range res.Worktree.Closing() {
+		fmt.Fprintln(out, l)
+	}
 	if res.Outcome == engine.Stuck {
 		return exitFail
 	}
@@ -587,6 +595,8 @@ func formatEvent(ev engine.Event) []string {
 	switch ev.Kind {
 	case engine.RunStarted:
 		return []string{"run started: " + ev.Detail}
+	case engine.WorktreeReady, engine.WorktreeLeft:
+		return []string{ev.Detail}
 	case engine.PhaseStarted:
 		return []string{"phase " + ev.Phase + " started"}
 	case engine.TaskStarted:
@@ -742,6 +752,9 @@ func printDryRun(out io.Writer, r report.DryRun) {
 		scope += "; " + r.Slice
 	}
 	fmt.Fprintf(out, "dry run of phase %s: nothing is written and no session starts\n", scope)
+	if r.Worktree != "" {
+		fmt.Fprintln(out, r.Worktree)
+	}
 	if len(r.Hooks) > 0 {
 		fmt.Fprintf(out, "task hooks %s would run around each agent session; the dry run runs none\n", strings.Join(r.Hooks, " and "))
 	}

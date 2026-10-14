@@ -278,6 +278,17 @@ Each hook runs in the project root with your environment plus `IGRIS_TASK_ID`, `
 
 The log shows when each hook starts. A hook passes when it exits 0, also if it leaves a helper running in the background; igris waits up to 2 s for the hook's output to close and drops what the helper prints after that, so redirect a background helper's output. On a failure the log (TUI and `--no-tui`) shows the last 20 lines of the hook's output (escape sequences stripped); the run log and notifications only get the short reason, such as `before_task hook failed: exit status 1` (or `timed out after 2m`, `not found`, `killed by signal 9 (killed)`, `can't start it`), never the command line. An empty list means no hook; the first element is the program, and no element may contain a control character.
 
+## Worktree mode
+
+`igris arise P1 --worktree` (or `worktree = true` under `[run]` in `igris.toml`) runs the run in a git worktree on a branch of its own, so your checkout and your current branch stay as they are, and you can keep working in them. It is the safe way to leave a run in `auto` or skip-permissions mode unattended: whatever the sessions do lands on a branch you can review, merge or throw away.
+
+- igris makes `.igris/worktrees/<run-id>` on a new branch `igris/<run-id>` from `HEAD`. Sessions, verify, task hooks and commits run there. Uncommitted changes in your checkout are not in it.
+- The plan stays in your checkout: igris updates its Status cells there as usual, so `igris status` and the home screen show the run, and a plan that git ignores works too. The branch holds the sessions' work only. Context files must be committed for the worktree to have them.
+- A session's `igris done` reaches the run from inside the worktree, and igris lets it run `igris done` and read the plan without a prompt there. Claude Code trusts the worktree once it trusts your project.
+- An interrupted run continues in its worktree: plain `igris arise` picks it up, with or without `--worktree`.
+- **igris never merges.** When the run completes with nothing uncommitted, it removes the worktree, keeps the branch and tells you: `the run's work is on branch igris/20261014-100518-7c5d; igris doesn't merge it: git merge igris/20261014-100518-7c5d`. Review it with `git log -p main..igris/<run-id>`, then merge it, or drop it with `git branch -D igris/<run-id>`. A worktree with uncommitted changes is kept (`git worktree remove .igris/worktrees/<run-id>` when you're done with it).
+- `igris arise --dry-run --worktree` shows where the run would work. A fresh worktree has no build caches or `node_modules`, so the first verify may take longer.
+
 ## Modes
 
 Choose the permission mode in the TUI, per run or per task: press `m` (or click **Mode**) for the run, or select a task and press `M` (**Task mode**) to override it for that task (user tasks have no session, so they have no mode to set). A change applies to the next session; a running one keeps its mode. A task's mode is, in order: your override, its `Mode` column, the run mode, `default_mode` in `igris.toml` (`auto` unless you set it: Claude Code approves routine actions itself and asks you about risky ones; set `default_mode = "default"` to get every permission prompt). `claude.extra_args` can't carry model, mode, session or settings flags (`--model`, `--permission-mode`, `--settings`, `-c`/`-r`, …); igris sets those itself and rejects a config that has them. `claude.command` is deprecated and ignored (igris always starts `claude` from your `PATH`); `igris check` warns if it's set to anything else.
@@ -288,7 +299,7 @@ Choose the permission mode in the TUI, per run or per task: press `m` (or click 
 | Accept edits | Edits are accepted automatically. Bash commands still ask, even read-only ones (that is Claude Code's behavior), so igris shows "needs you" when one comes up. |
 | Auto | Claude Code approves routine actions itself and asks you about risky ones. |
 | Plan | Claude plans first; you approve the plan, then it implements. |
-| Skip permissions | `--dangerously-skip-permissions`. Never a single click or key: you type `skip permissions` to confirm, every run, and a red badge shows while it is active. Use it in a worktree or container you trust. |
+| Skip permissions | `--dangerously-skip-permissions`. Never a single click or key: you type `skip permissions` to confirm, every run, and a red badge shows while it is active. Use it in a container you trust, or with [worktree mode](#worktree-mode). |
 
 ## Notifications
 
@@ -394,7 +405,7 @@ No, on purpose. The plan's Model column is the only input: igris launches exactl
 Claude asks in its pane like it always does; igris notices the stalled session, shows it in the TUI and notifies you (herdr or tmux toast, ntfy, Discord, Slack, Gotify or your own webhook; quiet hours hold all but the urgent ones until morning). Answer in the session: press `o` (or click **Open session**) to jump to its tab or window.
 
 **Is skip-permissions safe?**
-Only where you'd trust an unattended agent: a worktree or container. It needs a typed confirmation every run, by design.
+Only where you'd trust an unattended agent: a container, or with [worktree mode](#worktree-mode) (`--worktree`), so the run's changes stay on a branch of their own. It needs a typed confirmation every run, by design.
 
 **What stops a session from changing the plan or igris itself?**
 Igris treats sessions as untrusted. `igris.toml` is read once per run; if it changes mid-run you're told and the old settings stay. If the plan changes in a way igris didn't write (a later task's Mode, Model or Verify, a Status, task text), igris lists the cells, notifies you and pauses until you resume — your own mid-run edits cost one resume. Session IDs and pane IDs read back from `.igris/state.json` are checked before they become command arguments, and anything a session wrote (done notes, verify output, plan text) is cleaned of escape sequences before it reaches your terminal or a session's pane. What igris can't prevent: a session edits files, and `verify` and git hooks run your project's code as you, so the permission mode is the real boundary.

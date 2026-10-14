@@ -201,7 +201,7 @@ func (r *runner) open(ctx context.Context, issues []plan.Issue, proposal string)
 	if err != nil {
 		return nil, err
 	}
-	hooks, err := engine.WriteHooks(d, ID, "")
+	hooks, err := engine.WriteHooks(d, ID, "", nil)
 	if err != nil {
 		return nil, err
 	}

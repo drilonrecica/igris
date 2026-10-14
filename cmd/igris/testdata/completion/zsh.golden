@@ -33,7 +33,7 @@ _igris() {
             status) compadd -- --json --plan ;;
             history) compadd -- --json -n ;;
             report) compadd -- --json ;;
-            arise) compadd -- --dry-run --force-unlock --from --mode --no-tui --only --through --until ;;
+            arise) compadd -- --dry-run --force-unlock --from --mode --no-tui --only --through --until --worktree ;;
             done) compadd -- --note ;;
             skip) compadd -- --reason ;;
             reset) compadd -- --force ;;

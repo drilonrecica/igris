@@ -61,7 +61,7 @@ func (e *Engine) verify(ctx context.Context, l *launch) (bool, error) {
 	profile, script := e.verifyProfile(t)
 	timeout := e.cfg.Run.VerifyTimeout.Std()
 	e.emit(Event{Kind: VerifyStarted, Detail: script})
-	c := runner.Shell(script, e.dir.Root(), timeout)
+	c := runner.Shell(script, e.work, timeout)
 	c.Combined = true
 	began := e.clock.Now()
 	res, err := e.runner.Run(ctx, c)
