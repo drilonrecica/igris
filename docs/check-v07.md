@@ -57,7 +57,19 @@ On the candidate, in `gateB`: `check` 0; `bogus` 2; `check --nope` 2; `done 'B 2
 
 On the gate's tree: `make fmt lint test` (0 lint issues; includes the compatibility suite over all 11 releases and the contract map), `go test -race ./...`, `make fuzz FUZZTIME=30s` (7 targets, no new crashers), govulncheck v1.8.0: **0 vulnerabilities affecting igris**. It lists GO-2026-5024 in `golang.org/x/sys` v0.36.0 (an indirect dependency, fixed in v0.44.0), in code igris doesn't reach.
 
-## Findings
+## Publishing v1.0.0-rc.1
+
+- **The release commit:** `b683911` (`V07-R: release 1.0.0-rc.1`): the CHANGELOG section `[1.0.0-rc.1] - 2026-10-14` and its compare links, the README status line, and `tools/sign.sh` accepting `X.Y.Z-rc.N` (and saying that a candidate is a pre-release that doesn't go to the tap). Pushed with the ten v0.7 commits; CI (tests on Linux and macOS, lint, fuzz, the reproducible-build check on both) and govulncheck passed on it.
+- **Signing:** the owner ran `make sign VERSION=1.0.0-rc.1`. Checked again before publishing: the tag points at `b683911`, `Good "git" signature for igris` and `Good "file" signature for igris` with the key in `allowed_signers` (`SHA256:75VRO2deETEI4kic8DzVMJYOKjFIWGjlvXNRiS5BtgM`), all 8 archives and SBOMs `OK`, `igris version` → `igris 1.0.0-rc.1`.
+- **Published** as a pre-release (`gh release create v1.0.0-rc.1 --prerelease --verify-tag`, 10 assets). The tap's formula was left alone: Homebrew stays on 0.6.0 (owner's decision).
+
+| Check, from GitHub | Result |
+|---|---|
+| The release notes' commands on files from the release URLs, `allowed_signers` from `raw.githubusercontent.com/…/v1.0.0-rc.1/` | `Good "file" signature for igris`; `igris_1.0.0-rc.1_linux_amd64.tar.gz: OK`; `igris 1.0.0-rc.1` |
+| The release | `prerelease=true`, 10 assets; the latest release is still `v0.6.0` |
+| The tag | `verified=true reason=valid` (GitHub shows it as Verified) |
+| `go install …@v1.0.0-rc.1` | Right after the tag was pushed, `sum.golang.org` answered `unknown revision` (it had looked the version up before the tag existed, and caches the miss for a while); fetched directly (`GOPROXY=direct`) it builds `igris 1.0.0-rc.1` |
+
 
 1. **doctor printed the config's absolute path in front of a config error** (`⨯ fail /tmp/…/igris.toml: claude.command …`): `config.Load` names the file by its path, and doctor trimmed only `igris.toml:`. Fixed (`internal/checks/doctor.go`): the result already names the file; `cmd/igris.TestDoctorRemovedClaudeCommand` now fails on the path. Text output only, not part of the contract.
 2. **Not fixed here:** `golang.org/x/sys` v0.36.0 has an advisory igris doesn't reach (Phase E). Bumping it is a dependency change for after the candidate.
