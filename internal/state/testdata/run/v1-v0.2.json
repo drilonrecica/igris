@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "started_at": "2026-10-07T09:30:00Z",
+  "phases": [
+    "M1",
+    "M2"
+  ],
+  "through": "M2",
+  "config_hash": "4b625b91b982f40c0cef9a66a18dadb41543249b665ec2e905020ed7f8039a84",
+  "current": {
+    "task_id": "M1-03",
+    "mode": "auto",
+    "claude_session": "0b7c3a52-5a8e-4c1e-9d2f-6f1e2a3b4c5d",
+    "session": {
+      "backend": "herdr",
+      "tab_id": "t1",
+      "pane_id": "p2",
+      "agent": "igris-M1-03"
+    },
+    "verify_attempts": 1,
+    "started_at": "2026-10-07T09:31:00Z"
+  }
+}

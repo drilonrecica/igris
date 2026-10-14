@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "started_at": "2026-10-07T09:30:00Z",
+  "phases": [
+    "M1",
+    "M2"
+  ],
+  "through": "M2",
+  "selection": {
+    "from": "M1-03",
+    "until": "M2-02"
+  },
+  "config_hash": "4b625b91b982f40c0cef9a66a18dadb41543249b665ec2e905020ed7f8039a84"
+}

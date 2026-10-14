@@ -278,7 +278,7 @@ func TestRunRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(got, want) || got.Version != 1 {
+	if !reflect.DeepEqual(got, want) || got.Version != runVersion {
 		t.Errorf("LoadRun = %+v\nwant %+v", got, want)
 	}
 
@@ -303,16 +303,15 @@ func TestRunSelection(t *testing.T) {
 	if got, err := d.LoadRun(); err != nil || !reflect.DeepEqual(got, want) {
 		t.Errorf("LoadRun = %+v, %v\nwant %+v", got, err, want)
 	}
-	// A sliced run is version 2, which v0.3 refuses ("unsupported version")
-	// instead of silently running the whole phases; a whole run stays 1.
-	if data := readFile(t, d.runPath()); !strings.Contains(data, `"version": 2`) {
-		t.Errorf("sliced state.json = %s, want version 2", data)
-	}
-	if err := d.SaveRun(&Run{StartedAt: t0, Phases: []string{"M1"}}); err != nil {
-		t.Fatal(err)
-	}
-	if data := readFile(t, d.runPath()); !strings.Contains(data, `"version": 1`) {
-		t.Errorf("whole-phase state.json = %s, want version 1", data)
+	// Sliced or not, a run is saved as version 3, which igris v0.6 and
+	// older refuse.
+	for _, r := range []*Run{want, {StartedAt: t0, Phases: []string{"M1"}}} {
+		if err := d.SaveRun(r); err != nil {
+			t.Fatal(err)
+		}
+		if data := readFile(t, d.runPath()); !strings.Contains(data, `"version": 3`) {
+			t.Errorf("state.json = %s, want version 3", data)
+		}
 	}
 
 	v03 := `{"version": 1, "started_at": "2026-10-06T12:00:00Z", "phases": ["M1", "M2"], "through": "M2", "config_hash": "abc"}`

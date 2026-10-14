@@ -16,16 +16,32 @@ import (
 	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
-// State file format versions. A run with a selection (SPEC §5.5) is saved
-// as version 2, so igris v0.3, which knows only 1, refuses it instead of
-// resuming it without its slice; a whole-phase run stays readable by v0.3.
+// State file format versions (SPEC §13, §19). igris writes runVersion and
+// reads every older one, migrating it on read; a newer one is refused.
 const (
-	runVersion      = 1
+	// runVersionWhole is igris v0.2–v0.6's file for a run of whole phases.
+	runVersionWhole = 1
+	// runVersionSlice is v0.4–v0.6's file for a run with a selection (SPEC
+	// §5.5), so v0.3, which knows only 1, refused it instead of running
+	// the whole phases.
 	runVersionSlice = 2
+	// runVersion is igris 1.x's: the selection is optional in it. A new
+	// field gets a new version only when an igris that ignored it would do
+	// something wrong.
+	runVersion = 3
 )
 
-// ErrNoRun is returned by LoadRun when there is no state.json.
-var ErrNoRun = errors.New("no previous run")
+var (
+	// ErrNoRun is returned by LoadRun when there is no state.json.
+	ErrNoRun = errors.New("no previous run")
+	// ErrRunDamaged is wrapped by LoadRun's error for a state.json that
+	// isn't JSON, has no valid version, or holds a value of the wrong type
+	// or shape.
+	ErrRunDamaged = errors.New("damaged")
+	// ErrRunNewer is wrapped by LoadRun's error for a state.json with a
+	// version this igris doesn't know.
+	ErrRunNewer = errors.New("written by a newer igris")
+)
 
 // Run is the current run, stored in .igris/state.json (SPEC §13).
 type Run struct {
@@ -96,9 +112,6 @@ type Current struct {
 // SaveRun writes r to state.json atomically.
 func (d *Dir) SaveRun(r *Run) error {
 	r.Version = runVersion
-	if r.Selection != nil {
-		r.Version = runVersionSlice
-	}
 	data, err := json.MarshalIndent(r, "", "  ")
 	if err != nil {
 		return fmt.Errorf("save run state: %w", err)
@@ -123,12 +136,29 @@ func loadRun(path string) (*Run, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read run state: %w", err)
 	}
+	damaged := func(why string) error {
+		return fmt.Errorf("read run state %s: %w: %s; delete the file to start a new run", path, ErrRunDamaged, why)
+	}
+	// The version first, alone: a newer igris may have changed the shape
+	// of the rest, which is not damage.
+	var probe struct{ Version json.RawMessage }
+	if err := json.Unmarshal(data, &probe); err != nil {
+		return nil, damaged("not a JSON object")
+	}
+	var v int
+	if err := json.Unmarshal(probe.Version, &v); err != nil || v < 1 {
+		return nil, damaged("no valid version")
+	}
+	if v > runVersion {
+		return nil, fmt.Errorf("read run state %s: %w (version %d); upgrade igris, or delete the file to start a new run", path, ErrRunNewer, v)
+	}
 	var r Run
 	if err := json.Unmarshal(data, &r); err != nil {
-		return nil, fmt.Errorf("read run state %s: %w; delete the file to start a new run", path, err)
-	}
-	if r.Version != runVersion && r.Version != runVersionSlice {
-		return nil, fmt.Errorf("read run state %s: unsupported version %d (want %d or %d); delete the file to start a new run", path, r.Version, runVersion, runVersionSlice)
+		var te *json.UnmarshalTypeError
+		if errors.As(err, &te) && te.Field != "" {
+			return nil, damaged(fmt.Sprintf("%s has the wrong type", textsafe.Line(te.Field)))
+		}
+		return nil, damaged("not a run")
 	}
 	if r.Selection != nil {
 		// The IDs end up in messages and on the terminal: a session could
@@ -141,14 +171,27 @@ func loadRun(path string) (*Run, error) {
 		}
 		for _, id := range ids {
 			if !plan.ValidID(id) {
-				return nil, fmt.Errorf("read run state %s: damaged: the selection names %q, which is not a task ID; delete the file to start a new run", path, textsafe.Line(id))
+				return nil, damaged(fmt.Sprintf("the selection names %q, which is not a task ID", textsafe.Line(id)))
 			}
 		}
 	}
-	if err := checkReadBack(&r); err != "" {
-		return nil, fmt.Errorf("read run state %s: damaged: %s; delete the file to start a new run", path, err)
+	if why := checkReadBack(&r); why != "" {
+		return nil, damaged(why)
 	}
+	migrateRun(&r)
 	return &r, nil
+}
+
+// migrateRun brings a run read from an older state file up to runVersion,
+// one version at a time; the next SaveRun writes it as runVersion.
+func migrateRun(r *Run) {
+	switch r.Version {
+	case runVersionWhole, runVersionSlice:
+		// Both have version 3's fields: 1 never has a selection, and a
+		// session ref written before v0.3 has no claude_session, which
+		// version 3 allows too.
+		r.Version = runVersion
+	}
 }
 
 // sessionModes are the run modes a recorded session can have (SPEC §7.1);

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "started_at": "2026-10-14T09:30:00Z",
+  "phases": [
+    "M1"
+  ],
+  "config_hash": "4b625b91b982f40c0cef9a66a18dadb41543249b665ec2e905020ed7f8039a84",
+  "worktree": {
+    "path": ".igris/worktrees/20261014-093000-3fa2",
+    "branch": "igris/20261014-093000-3fa2"
+  }
+}

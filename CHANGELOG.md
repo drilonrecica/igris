@@ -12,6 +12,7 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
   - `status --json` leaves out a task's `rank` and `mode` when the cell has none, instead of `"—"`.
   - The `counts` key `"in progress"` (`phases`, `status`) is now `"in_progress"`. A task's `status` value is still `"in progress"`.
   - `status --json` lists the run's pending signals as `{"task": "M1-03", "action": "done"}` objects instead of `"M1-03 done"` strings, and unreadable signal files as a count, `signals_unreadable`, instead of an `"N unreadable"` entry.
+- **`.igris/state.json` is version 3** (SPEC §13). Older state files (versions 1 and 2, igris 0.2–0.6) are read and upgraded, so an interrupted run resumes after the upgrade. A state file from a newer igris now says to upgrade igris, and a damaged one says it is damaged, instead of both saying "unsupported version". igris 0.6 and older can't read a version-3 file: finish the run, or delete `.igris/state.json`, before going back to an older igris.
 
 ### Added
 

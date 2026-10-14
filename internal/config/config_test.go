@@ -942,7 +942,9 @@ func TestTemplateAllowsConditionals(t *testing.T) {
 	}
 }
 
-// v04DefaultHash is Default().Hash() in igris v0.4.0. A v0.4 config keeps
+// v04DefaultHash is Default().Hash() in igris v0.4.0. The hash is part of
+// the 1.x contract (SPEC §13, §19): keys added later stay out of it while
+// unset, so this value never changes. A v0.4 config keeps
 // its hash: [tui] tail is left out of it while on (the default), like the
 // other v0.5 keys while unset.
 const v04DefaultHash = "4b625b91b982f40c0cef9a66a18dadb41543249b665ec2e905020ed7f8039a84"
