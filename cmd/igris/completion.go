@@ -125,6 +125,7 @@ var (
 		"skip":       "signal that a task is skipped",
 		"reset":      "put a task back to ready or blocked",
 		"notify":     "send a sample of each notification",
+		"config":     "remove deprecated settings from igris.toml",
 		"adapt":      "AI-assisted conversion of a plan with diff review",
 		"completion": "print a shell completion script",
 		"help":       "show the help",
@@ -153,6 +154,7 @@ var (
 		"skip":       {Kind: argTasks},
 		"reset":      {Kind: argTasks},
 		"notify":     {Kind: argValues, Values: []string{"test"}},
+		"config":     {Kind: argValues, Values: []string{"migrate"}},
 		"completion": {Kind: argValues, Values: completionShells},
 	}
 )

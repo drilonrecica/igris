@@ -24,6 +24,7 @@ complete -c igris -n __fish_use_subcommand -a done -d 'signal that a task is fin
 complete -c igris -n __fish_use_subcommand -a skip -d 'signal that a task is skipped'
 complete -c igris -n __fish_use_subcommand -a reset -d 'put a task back to ready or blocked'
 complete -c igris -n __fish_use_subcommand -a notify -d 'send a sample of each notification'
+complete -c igris -n __fish_use_subcommand -a config -d 'remove deprecated settings from igris.toml'
 complete -c igris -n __fish_use_subcommand -a adapt -d 'AI-assisted conversion of a plan with diff review'
 complete -c igris -n __fish_use_subcommand -a completion -d 'print a shell completion script'
 complete -c igris -n __fish_use_subcommand -a help -d 'show the help'
@@ -61,6 +62,8 @@ complete -c igris -n '__fish_seen_subcommand_from reset' -l force
 complete -c igris -n '__fish_seen_subcommand_from reset' -a '(__igris_ids tasks)'
 complete -c igris -n '__fish_seen_subcommand_from notify' -l event -x -a 'needs_input session_lost task_overdue verify_failed_limit task_done phase_done phase_stuck run_error'
 complete -c igris -n '__fish_seen_subcommand_from notify' -a 'test'
+complete -c igris -n '__fish_seen_subcommand_from config' -l yes
+complete -c igris -n '__fish_seen_subcommand_from config' -a 'migrate'
 complete -c igris -n '__fish_seen_subcommand_from adapt' -l model -x -a 'sonnet opus'
 complete -c igris -n '__fish_seen_subcommand_from adapt' -l plan -r -F
 complete -c igris -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'

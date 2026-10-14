@@ -373,7 +373,7 @@ A task's mode is, in order: your override, its `Mode` column, the run mode (`--m
 | Plan | Claude plans first; you approve the plan, then it implements. |
 | Skip permissions | `--dangerously-skip-permissions`. Never a single click or key: you type `skip permissions` to confirm, every run, and a red badge shows while it's active. Use it in a container you trust, or with [worktree mode](#worktree-mode). |
 
-`claude.extra_args` can't carry model, mode, session or settings flags (`--model`, `--permission-mode`, `--settings`, `-c`/`-r`, …): igris sets those itself and rejects a config that has them. `claude.command` is deprecated and ignored (igris always starts `claude` from your `PATH`); `igris check` warns if it's set to anything else.
+`claude.extra_args` can't carry model, mode, session or settings flags (`--model`, `--permission-mode`, `--settings`, `-c`/`-r`, …): igris sets those itself and rejects a config that has them. `claude.command` is deprecated and ignored (igris always starts `claude` from your `PATH`); `igris check` warns if it's set to anything else, and `igris config migrate` removes it (every `igris.toml` that `igris init` wrote before 0.7 has it).
 
 ## Notifications
 
@@ -467,6 +467,7 @@ template = "{{.At.Format \"15:04\"}} {{.TaskID}} {{.What}}"
 | `igris history [TASK-ID]` | Past runs, or every attempt of one task. |
 | `igris report [RUN]` | One run as markdown, for a PR description. |
 | `igris notify test [--event NAME]` | Sends a sample of each notification to your channels. |
+| `igris config migrate [--yes]` | Removes deprecated settings from `igris.toml`: shows the lines, asks, keeps a backup in `.igris/config/`. Run it after upgrading. |
 | `igris adapt` | Converts a plan in another format; see [`igris adapt`](#different-format-igris-adapt). |
 | `igris completion bash\|zsh\|fish` | Prints a shell completion script. |
 | `igris help [COMMAND]` | The help, or one command's (`igris COMMAND -h` is the same). |

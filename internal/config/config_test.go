@@ -658,7 +658,7 @@ func TestWarnings(t *testing.T) {
 		{"", ""},
 		{"[claude]\ncommand = \"claude\"\n", ""},
 		{"[claude]\ncommand = \"\"\n", `claude.command = "" is ignored`},
-		{"[claude]\ncommand = \"/opt/claude\"\n", `claude.command = "/opt/claude" is ignored: igris always starts claude from PATH; remove it from igris.toml (the key is deprecated and goes away before 1.0)`},
+		{"[claude]\ncommand = \"/opt/claude\"\n", "claude.command = \"/opt/claude\" is ignored: igris always starts claude from PATH; run `igris config migrate` to remove it (the key is deprecated and goes away before 1.0)"},
 	}
 	for _, tt := range tests {
 		cfg, err := Parse([]byte(tt.toml), "igris.toml")

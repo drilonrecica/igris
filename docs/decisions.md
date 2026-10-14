@@ -571,3 +571,5 @@ SPEC §6.4, §6.5, §6.7, §12 and §16 amended. Task V06-04 implements it.
 **Deprecation removed: `claude.command`.** It was deprecated in v0.1.2 with a promise to remove it in v0.2, which slipped; the CHANGELOG says so. `igris config migrate` (V07-05) deletes it. After V07-06, a config that still has it fails as an unknown key, and the error names `igris config migrate`. Nothing else is deprecated.
 
 SPEC new §19 (Compatibility) added. Tasks V07-01 (plan format, marker, leniency), V07-02 (state version 3, migration, damaged vs old, config hash), V07-03 (JSON cleanup and schemas), V07-04 (exit codes, help audit), V07-05 (`config migrate`) and V07-06 (remove `claude.command`) implement it.
+
+**Amended** (2026-10-14, V07-04, the owner left it to the agent): **`arise --dry-run` on a stuck phase exits 0.** A preview that shows a phase as stuck did what it was asked; a real run of that phase exits 1. CI that wants to catch a stuck phase reads `igris status --json` (`"outcome": "stuck"`). SPEC §14 says so, and a test pins it.

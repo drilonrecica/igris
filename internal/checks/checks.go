@@ -236,9 +236,13 @@ func configWarnings(cfg *config.Config, getenv func(string) string) []Result {
 	if len(ws) == 0 {
 		return []Result{{ID: IDConfig, Level: OK, Message: "no ignored settings", File: state.ConfigFile}}
 	}
+	deprecated := cfg.Deprecated()
 	out := make([]Result, len(ws))
 	for i, w := range ws {
 		out[i] = Result{ID: IDConfig, Level: Warn, Message: w, File: state.ConfigFile}
+		if slices.Contains(deprecated, w) {
+			out[i].Next = "igris config migrate"
+		}
 	}
 	return out
 }

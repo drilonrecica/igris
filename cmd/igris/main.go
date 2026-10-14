@@ -61,6 +61,7 @@ Commands:
   skip ID --reason TEXT                 signal that a task is skipped
   reset ID [--force]                    put a task back to ready/blocked; --force for done/skipped
   notify test [--event NAME]            send a sample of each notification to the configured channels
+  config migrate [--yes]                remove deprecated settings from igris.toml (asks first, keeps a backup)
   adapt [--model sonnet|opus]           AI-assisted conversion with diff review
         [--plan PATH]
   completion bash|zsh|fish              print a shell completion script
@@ -140,6 +141,7 @@ func commands() []command {
 		}, exec: execSkip},
 		{name: "reset", setup: resetArgs, exec: execReset},
 		{name: "notify", setup: notifyArgs, exec: execNotify},
+		{name: "config", setup: configArgs, exec: execConfig},
 		{name: "adapt", setup: adaptArgs, exec: execAdapt},
 		{name: "completion", setup: completionArgs, exec: execCompletion},
 	}

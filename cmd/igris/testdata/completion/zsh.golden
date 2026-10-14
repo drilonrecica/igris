@@ -3,7 +3,7 @@
 _igris() {
     local cmd prev
     if (( CURRENT == 2 )); then
-        compadd -- init doctor check phases status history report arise done skip reset notify adapt completion help version
+        compadd -- init doctor check phases status history report arise done skip reset notify config adapt completion help version
         return
     fi
     cmd=$words[2]
@@ -38,6 +38,7 @@ _igris() {
             skip) compadd -- --reason ;;
             reset) compadd -- --force ;;
             notify) compadd -- --event ;;
+            config) compadd -- --yes ;;
             adapt) compadd -- --model --plan ;;
         esac
         return
@@ -51,6 +52,7 @@ _igris() {
         skip) compadd -- ${(f)"$(igris __complete tasks 2>/dev/null)"} ;;
         reset) compadd -- ${(f)"$(igris __complete tasks 2>/dev/null)"} ;;
         notify) compadd -- test ;;
+        config) compadd -- migrate ;;
         completion) compadd -- bash zsh fish ;;
     esac
 }

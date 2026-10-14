@@ -12,7 +12,7 @@ _igris() {
         esac
     done
     if [[ -z $cmd ]]; then
-        COMPREPLY=($(compgen -W "init doctor check phases status history report arise done skip reset notify adapt completion help version" -- "$cur"))
+        COMPREPLY=($(compgen -W "init doctor check phases status history report arise done skip reset notify config adapt completion help version" -- "$cur"))
         return
     fi
     case "$cmd:$prev" in
@@ -45,6 +45,7 @@ _igris() {
             skip) COMPREPLY=($(compgen -W "--reason" -- "$cur")) ;;
             reset) COMPREPLY=($(compgen -W "--force" -- "$cur")) ;;
             notify) COMPREPLY=($(compgen -W "--event" -- "$cur")) ;;
+            config) COMPREPLY=($(compgen -W "--yes" -- "$cur")) ;;
             adapt) COMPREPLY=($(compgen -W "--model --plan" -- "$cur")) ;;
         esac
         return
@@ -58,6 +59,7 @@ _igris() {
         skip) COMPREPLY=($(compgen -W "$(igris __complete tasks 2>/dev/null)" -- "$cur")) ;;
         reset) COMPREPLY=($(compgen -W "$(igris __complete tasks 2>/dev/null)" -- "$cur")) ;;
         notify) COMPREPLY=($(compgen -W "test" -- "$cur")) ;;
+        config) COMPREPLY=($(compgen -W "migrate" -- "$cur")) ;;
         completion) COMPREPLY=($(compgen -W "bash zsh fish" -- "$cur")) ;;
     esac
 }

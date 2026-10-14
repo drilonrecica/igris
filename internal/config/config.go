@@ -767,11 +767,7 @@ func (c *Config) validateHooks(add func(string, ...any)) {
 // Warnings reports settings that are accepted but have no effect: they never
 // fail a command (SPEC §12).
 func (c *Config) Warnings() []string {
-	var out []string
-	if c.Claude.Command != defaultClaudeCommand {
-		// Both backends start `claude` from PATH.
-		out = append(out, fmt.Sprintf("claude.command = %q is ignored: igris always starts claude from PATH; remove it from igris.toml (the key is deprecated and goes away before 1.0)", c.Claude.Command))
-	}
+	out := c.Deprecated()
 	// Plain http is allowed (a server on the LAN), but a secret then
 	// crosses the network unencrypted (SPEC §16). An env: URL is not known
 	// here.
@@ -784,6 +780,17 @@ func (c *Config) Warnings() []string {
 	}
 	if !isEnvRef(n.Webhook.URL) && plainHTTP(n.Webhook.URL) {
 		out = append(out, webhookHTTP)
+	}
+	return out
+}
+
+// Deprecated lists the deprecated settings c has that change something if
+// read (Warnings starts with them); `igris config migrate` removes them.
+func (c *Config) Deprecated() []string {
+	var out []string
+	if c.Claude.Command != defaultClaudeCommand {
+		// Both backends start `claude` from PATH.
+		out = append(out, fmt.Sprintf("claude.command = %q is ignored: igris always starts claude from PATH; run `igris config migrate` to remove it (the key is deprecated and goes away before 1.0)", c.Claude.Command))
 	}
 	return out
 }
