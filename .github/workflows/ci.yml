@@ -48,6 +48,27 @@ jobs:
           cache: true
       - run: go test -race ./...
 
+  # A short run of every fuzz target (decisions.md V06-P1, V06-05). A failing
+  # input is printed so it can be committed as a regression seed; nothing is
+  # uploaded.
+  fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: make fuzz FUZZTIME=30s
+      - name: Failing inputs
+        if: failure()
+        run: |
+          git status --porcelain --untracked-files=all -- '*/testdata/fuzz/*' | while read -r _ f; do
+            echo "== $f"; cat "$f"; echo
+          done
+
   # The release build, made on two different runners, must give identical
   # binaries (decisions.md V06-P1). Each runner builds all four targets with
   # the release config; compare checks the hashes, passed as job outputs.

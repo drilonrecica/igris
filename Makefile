@@ -25,7 +25,8 @@ test-race:
 
 # Runs every Fuzz* target for FUZZTIME each, one after another (`make test`
 # only replays their seeds). A failing input is saved under the package's
-# testdata/fuzz/<Target>/; commit it with the fix as a regression seed.
+# testdata/fuzz/<Target>/; commit it with the fix as a regression seed. CI
+# runs it with FUZZTIME=30s on every push (decisions.md V06-P1).
 FUZZTIME ?= 1m
 fuzz:
 	@for f in $$(grep -rl --include='*_test.go' '^func Fuzz' internal); do \
