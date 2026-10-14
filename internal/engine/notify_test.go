@@ -51,14 +51,16 @@ func noSleep(context.Context, time.Duration) {}
 // event, the failure is a warning, and the run completes.
 func TestNotificationsReachEveryChannel(t *testing.T) {
 	const token, hookPath = "tk_secret", "/api/webhooks/1/HOOKSECRET"
+	const signing, whPath = "SIGNSECRET", "/in/WHURLSECRET"
 	ntfy, ntfySrv := newRecorder(t, http.StatusInternalServerError)
 	discord, discordSrv := newRecorder(t, http.StatusNoContent)
+	webhook, webhookSrv := newRecorder(t, http.StatusNoContent)
 
 	h := newHarness(t, chainPlan, "")
 	hook := discordSrv.URL + hookPath
 	cfg := config.Default()
 	cfg.Notify.Ntfy.Topic, cfg.Notify.Ntfy.Server = "igris", ntfySrv.URL
-	secrets := config.Secrets{NtfyToken: token, DiscordWebhook: hook}
+	secrets := config.Secrets{NtfyToken: token, DiscordWebhook: hook, WebhookURL: webhookSrv.URL + whPath, WebhookSecret: signing}
 	// FromConfig is what arise uses; only its sleeping is swapped out here.
 	router := notify.FromConfig(cfg.Notify, secrets, h.be, func(o *notify.Options) { o.Sleep = noSleep })
 
@@ -72,6 +74,9 @@ func TestNotificationsReachEveryChannel(t *testing.T) {
 	}
 	if discord.count() != 1 || !strings.Contains(discord.bodies[0], "phase_done") || !strings.Contains(discord.bodies[0], "phase A") {
 		t.Errorf("discord got %q, want one phase_done message", discord.bodies)
+	}
+	if webhook.count() != 1 || !strings.HasPrefix(webhook.heads[0].Get("X-Igris-Signature"), "sha256=") {
+		t.Errorf("webhook got %d signed requests, want 1", webhook.count())
 	}
 	if ntfy.count() != 2 {
 		t.Errorf("ntfy got %d requests, want 2 (attempt + retry)", ntfy.count())
@@ -89,14 +94,14 @@ func TestNotificationsReachEveryChannel(t *testing.T) {
 	if warned == "" {
 		t.Fatalf("no warning for the failed ntfy delivery in %s", h.kinds())
 	}
-	for _, leak := range []string{token, "HOOKSECRET", discordSrv.URL} {
+	for _, leak := range []string{token, "HOOKSECRET", discordSrv.URL, signing, "WHURLSECRET"} {
 		if strings.Contains(warned, leak) {
 			t.Errorf("warning leaks %q: %s", leak, warned)
 		}
 	}
 	// The run log records deliveries, not secrets.
 	logged := h.read(".igris/runs.jsonl")
-	for _, leak := range []string{token, "HOOKSECRET"} {
+	for _, leak := range []string{token, "HOOKSECRET", signing, "WHURLSECRET"} {
 		if strings.Contains(logged, leak) {
 			t.Errorf("runs.jsonl leaks %q", leak)
 		}

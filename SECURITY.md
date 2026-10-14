@@ -21,6 +21,10 @@ You'll get an answer within a week. Fixes are released as a patch version and cr
 
 From 0.6.0 every release's `checksums.txt` and tag are signed with the igris release key, an SSH key whose public half is in [`allowed_signers`](allowed_signers) and in the README ([Verifying a download](README.md#verifying-a-download)). Only the maintainer holds it, and nothing is signed in CI. A release whose signature doesn't verify against that key is not an igris release: please report it as above.
 
+## Threat model
+
+[`docs/threat-model.md`](docs/threat-model.md) describes what igris protects, from whom, the accepted risks, and which test enforces each safety rule. A report that one of its mitigations doesn't hold, or that an accepted risk is worse than described, is exactly what this policy is for.
+
 ## What counts
 
 igris starts Claude Code sessions that act on your repository, so the interesting boundaries are:

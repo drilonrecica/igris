@@ -257,3 +257,24 @@ func TestSettingsAllow(t *testing.T) {
 		t.Errorf("permissions = %v, want only allow %v", s.Permissions, rules)
 	}
 }
+
+// What a session's hooks report is reduced to a state: the commands and
+// descriptions of its background tasks never reach .igris/ (SPEC §6.3).
+func TestRunStoresOnlyTheState(t *testing.T) {
+	root := project(t)
+	in := `{"session_id":"` + fixtureUUID + `","hook_event_name":"Stop","background_tasks":[{"id":"b1","type":"shell","status":"running","description":"SECRET-DESC","command":"curl SECRET-CMD"}],"session_crons":[{"prompt":"SECRET-CRON"}]}`
+	if err := Run(context.Background(), root, strings.NewReader(in), fixedNow); err != nil {
+		t.Fatal(err)
+	}
+	files, err := filepath.Glob(filepath.Join(root, state.DirName, "agent-state", "*"))
+	if err != nil || len(files) != 1 {
+		t.Fatalf("agent-state files %v, %v", files, err)
+	}
+	data, err := os.ReadFile(files[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "SECRET") || !strings.Contains(string(data), `"waiting"`) {
+		t.Errorf("stored agent state = %s", data)
+	}
+}

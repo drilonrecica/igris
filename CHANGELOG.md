@@ -15,6 +15,7 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ### Security
 
+- A written threat model, [`docs/threat-model.md`](docs/threat-model.md): what igris protects and from whom, the boundaries and their threats, the accepted risks, and the test that enforces each safety rule (a test checks the map stays true).
 - Verify commands, task hooks and git no longer get the environment variables your notification secrets come from (`env:` references in `igris.toml`): a session writes the code verify runs and sees its output. New `[run] env` limits verify and task hooks to the variables you list (PATH and HOME always pass).
 - In worktree mode a session gets only the `igris done` allow rules your project's `.claude/settings.local.json` has.
 - Built with Go 1.27.2, now pinned in `go.mod`. Releases up to 0.5.1 were built with Go 1.27.1, which has 8 standard-library advisories fixed in 1.27.2 (GO-2026-6603, -6605, -6607, -6608, -6610, -6611, -6613, -6617). igris only makes outbound HTTPS requests to the notification endpoints you configure, so the server-side ones don't apply, and the client-side ones need a hostile notification server or a broken TLS connection.

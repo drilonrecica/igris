@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -313,5 +314,18 @@ func TestKilledBy(t *testing.T) {
 	}
 	if _, ok := KilledBy(ErrTimeout); ok {
 		t.Error("KilledBy(ErrTimeout) reports a signal")
+	}
+}
+
+// A command that prints more than maxOutput keeps only the end of it
+// (SPEC §6.4, §16): igris's memory stays bounded whatever verify prints.
+func TestExecOutputIsBounded(t *testing.T) {
+	script := "head -c " + strconv.Itoa(maxOutput+(1<<20)) + " /dev/zero | tr '\\000' a; echo END"
+	res, err := Exec{}.Run(context.Background(), Shell(script, "", time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Stdout) != maxOutput || !bytes.HasSuffix(res.Stdout, []byte("aEND\n")) {
+		t.Errorf("kept %d bytes ending %q, want %d ending in END", len(res.Stdout), res.Stdout[max(0, len(res.Stdout)-8):], maxOutput)
 	}
 }
