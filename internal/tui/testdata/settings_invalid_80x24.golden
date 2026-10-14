@@ -12,6 +12,8 @@ plan              = "tasks.md" · default
 backend           = "auto" · default
 default_mode      = "auto" · default
 needs_input_after = "30s" · default
+waiting_limit     = "30m" · default
+nudge             = true · default
 poll_interval     = "2s" · default
 
 [models]
@@ -19,6 +21,4 @@ fable  = "fable" · default
 haiku  = "haiku" · default
 opus   = "opus" · default
 sonnet = "sonnet" · default
-
-[columns]
 [Edit igris.toml] [Doctor] [Close]

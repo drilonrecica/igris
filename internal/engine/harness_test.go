@@ -61,7 +61,9 @@ type harness struct {
 }
 
 // newHarness writes planText to tasks.md and tomlText to igris.toml in a
-// temp project and loads the config from it, like `igris arise` does.
+// temp project and loads the config from it, like `igris arise` does. The
+// nudge (SPEC §6.3) is off unless tomlText sets it: most tests time Needs
+// you from the first idle poll; nudge_test.go covers the reminder.
 func newHarness(t *testing.T, planText, tomlText string) *harness {
 	t.Helper()
 	h := &harness{t: t, root: t.TempDir(), be: fake.New(), cmds: &runner.Fake{}, clock: NewFakeClock(t0)}
@@ -130,8 +132,13 @@ func (h *harness) run(mutate ...func(*Options)) (Result, error) {
 
 func (h *harness) path(name string) string { return filepath.Join(h.root, name) }
 
+// write writes content to the project file name. igris.toml gets
+// nudge = false unless content sets nudge (see newHarness).
 func (h *harness) write(name, content string) {
 	h.t.Helper()
+	if name == state.ConfigFile && !strings.Contains(content, "nudge") {
+		content = "nudge = false\n" + content
+	}
 	if err := os.WriteFile(h.path(name), []byte(content), 0o600); err != nil {
 		h.t.Fatal(err)
 	}

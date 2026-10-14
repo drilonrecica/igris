@@ -7,8 +7,10 @@ import (
 	"time"
 
 	"github.com/drilonrecica/igris/internal/backend"
+	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/notify"
 	"github.com/drilonrecica/igris/internal/plan"
+	"github.com/drilonrecica/igris/internal/prompt"
 	"github.com/drilonrecica/igris/internal/state"
 )
 
@@ -35,6 +37,14 @@ type episode struct {
 	since    time.Time // first settled observation; zero while working
 	needsYou bool      // NeedsYou was raised for this episode
 	reason   string    // its run log reason: state.ReasonIdle or ReasonBlocked
+	waiting  stretch   // the agent waits on background work instead
+}
+
+// stretch tracks the agent waiting on background work or a wakeup that
+// Claude Code resumes it for (SPEC §6.3): not idle, but not working either.
+type stretch struct {
+	since    time.Time // zero while not waiting
+	needsYou bool      // NeedsYou was raised: waited longer than waiting_limit
 }
 
 // watch polls l's session and the signals until the task is finished, the
@@ -122,7 +132,7 @@ func (e *Engine) watch(ctx context.Context, l *launch) (verdict, error) {
 				stateErr = ""
 				delivered := e.promptDelivered(l)
 				e.checkSubmitted(ctx, l, st, delivered)
-				e.observe(ctx, st, &ep)
+				e.observe(ctx, l, st, &ep)
 			}
 			e.checkOverdue(ctx, l)
 		}
@@ -131,8 +141,11 @@ func (e *Engine) watch(ctx context.Context, l *launch) (verdict, error) {
 }
 
 // observe updates the idle episode with the agent state st and raises Needs
-// you once per episode after needs_input_after without a signal.
-func (e *Engine) observe(ctx context.Context, st backend.AgentState, ep *episode) {
+// you once per episode after needs_input_after without a signal. An idle
+// agent task is first reminded of `igris done` once per attempt (nudge).
+// An agent waiting on background work needs nobody until waiting_limit.
+func (e *Engine) observe(ctx context.Context, l *launch, st backend.AgentState, ep *episode) {
+	now := e.clock.Now()
 	switch {
 	case st == backend.Working:
 		e.endEpisode(ep)
@@ -142,21 +155,61 @@ func (e *Engine) observe(ctx context.Context, st backend.AgentState, ep *episode
 		e.waitOver(state.ReasonVerifyNotSent)
 		e.waitOver(state.ReasonVerifyLimit)
 		e.waitOver(state.ReasonTaskOverdue)
+	case st == backend.Waiting:
+		e.endIdle(ep)
+		w := &ep.waiting
+		if w.since.IsZero() {
+			w.since = now
+			e.emit(Event{Kind: AgentWaiting, Detail: "the agent waits on background work; Claude Code resumes it when that is done"})
+		}
+		if limit := e.cfg.WaitingLimitOrDefault(); !w.needsYou && now.Sub(w.since) >= limit {
+			w.needsYou = true
+			what := "waiting on background work for " + config.Duration(limit).Short()
+			e.needsYou(ctx, notifyNeedsInput, state.ReasonWaiting, "the agent has been "+what, what)
+		}
 	case st.Settled():
-		now := e.clock.Now()
+		e.endWaiting(ep)
 		if ep.since.IsZero() {
 			ep.since = now
 		}
-		if after := e.cfg.NeedsInputAfter.Std(); !ep.needsYou && now.Sub(ep.since) >= after {
-			ep.needsYou, ep.reason = true, state.ReasonIdle
-			words := fmt.Sprintf("idle %s without igris done", after)
-			if st == backend.Blocked {
-				ep.reason, words = state.ReasonBlocked, "waiting for a permission or an answer"
-			}
-			e.needsYou(ctx, notifyNeedsInput, ep.reason, fmt.Sprintf("the agent is %s and has not run `igris done` for %s", st, after), words)
+		after := e.cfg.NeedsInputAfter.Std()
+		if ep.needsYou || now.Sub(ep.since) < after {
+			return
 		}
+		if st != backend.Blocked && e.nudge(ctx, l) {
+			ep.since = now // the agent gets needs_input_after to answer
+			return
+		}
+		ep.needsYou, ep.reason = true, state.ReasonIdle
+		words := fmt.Sprintf("idle %s without igris done", after)
+		if st == backend.Blocked {
+			ep.reason, words = state.ReasonBlocked, "waiting for a permission or an answer"
+		}
+		e.needsYou(ctx, notifyNeedsInput, ep.reason, fmt.Sprintf("the agent is %s and has not run `igris done` for %s", st, after), words)
 	}
 	// Unknown tells nothing about the agent; the episode stays as it is.
+}
+
+// nudge reminds l's idle agent of `igris done` once per attempt, before it
+// needs the owner (SPEC §6.3), and reports whether the reminder went out.
+// User tasks, nudge = false and a session that can't take the prompt get
+// none: Needs you follows at once.
+func (e *Engine) nudge(ctx context.Context, l *launch) bool {
+	if l.nudged || !e.cfg.NudgeOn() || !l.t.Owner.IsAgent() || l.sess == nil {
+		return false
+	}
+	l.nudged = true
+	switch err := l.sess.Prompt(ctx, prompt.Nudge(l.t.ID)); {
+	case errors.Is(err, backend.ErrSessionGone):
+		return false // the next poll finds it gone
+	case err != nil:
+		if ctx.Err() == nil {
+			e.warn(fmt.Sprintf("remind %s of igris done: %v", l.t.ID, err))
+		}
+		return false
+	}
+	e.emit(Event{Kind: Nudged, Detail: "the agent stopped without igris done; igris reminded it once"})
+	return true
 }
 
 // submitAfter is how long a delivered prompt may sit unsubmitted, the
@@ -211,14 +264,36 @@ func (e *Engine) checkSubmitted(ctx context.Context, l *launch, st backend.Agent
 	e.warn("the prompt didn't seem submitted; sent Enter once")
 }
 
-// endEpisode ends the idle episode ep, clearing its wait if Needs you was
-// raised for it.
+// endEpisode ends the idle episode ep and any waiting stretch, clearing
+// their waits if Needs you was raised.
 func (e *Engine) endEpisode(ep *episode) {
+	e.endWaiting(ep)
+	e.endIdle(ep)
+}
+
+// endIdle ends the idle part of ep, clearing its wait if Needs you was
+// raised for it.
+func (e *Engine) endIdle(ep *episode) {
 	if ep.needsYou {
 		e.emit(Event{Kind: NeedsYouClear})
 		e.waitOver(ep.reason)
 	}
-	*ep = episode{}
+	ep.since, ep.needsYou, ep.reason = time.Time{}, false, ""
+}
+
+// endWaiting ends ep's waiting stretch, if any, clearing its wait if it ran
+// past waiting_limit.
+func (e *Engine) endWaiting(ep *episode) {
+	w := &ep.waiting
+	if w.since.IsZero() {
+		return
+	}
+	if w.needsYou {
+		e.emit(Event{Kind: NeedsYouClear})
+		e.waitOver(state.ReasonWaiting)
+	}
+	e.emit(Event{Kind: AgentWaitingOver})
+	*w = stretch{}
 }
 
 // checkOverdue raises the task's Timeout once per attempt (SPEC §6.3): an

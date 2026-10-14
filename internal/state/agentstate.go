@@ -135,7 +135,7 @@ func ParseAgentState(data []byte) (AgentState, error) {
 		return AgentState{}, err
 	}
 	switch s.State {
-	case backend.Working, backend.Idle, backend.Blocked, backend.Exited:
+	case backend.Working, backend.Idle, backend.Blocked, backend.Waiting, backend.Exited:
 	default:
 		return AgentState{}, fmt.Errorf("unexpected state %q", s.State)
 	}

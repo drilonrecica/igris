@@ -38,7 +38,7 @@ func (m *model) rows() rows {
 	r := rows{plan: m.plan, phase: m.phase, mode: m.mode, overrides: m.overrides, th: m.th}
 	if m.cur != nil {
 		r.curID = m.cur.id
-		r.waiting = m.cur.state != stateWorking && m.cur.state != stateVerifying
+		r.waiting = m.cur.state != stateWorking && m.cur.state != stateVerifying && m.cur.state != stateWaiting
 	}
 	return r
 }

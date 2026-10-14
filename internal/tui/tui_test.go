@@ -13,6 +13,7 @@ import (
 
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/engine"
+	"github.com/drilonrecica/igris/internal/plan"
 )
 
 // sender records the commands the TUI sends.
@@ -469,5 +470,52 @@ func TestResetRequestDialog(t *testing.T) {
 	hs.events(engine.Event{Kind: engine.ResetDropped, Task: "M0-01", Detail: "withdrawn"})
 	if hs.m.resetAsk != nil || hs.m.dialog == nil || hs.m.dialog.question != engine.QuestionCommit {
 		t.Errorf("after the withdrawal: reset %v, dialog %+v", hs.m.resetAsk, hs.m.dialog)
+	}
+}
+
+// An agent waiting on background work is shown calmly with how long it has
+// waited; past waiting_limit NEEDS YOU says it was waiting, counted from the
+// start of the wait (SPEC §6.3, §15.3).
+func TestWaitingState(t *testing.T) {
+	for _, size := range [][2]int{{120, 40}, {60, 24}} {
+		hs := newHarness(t, size[0], size[1])
+		hs.events(started("M0-03"), opened("M0-03"))
+		hs.events(engine.Event{Kind: engine.AgentWaiting, Task: "M0-03", Detail: "the agent waits on background work"})
+		hs.now = hs.now.Add(4 * time.Minute)
+		view := hs.m.View()
+		if !strings.Contains(view, "waiting on background work (4m") || strings.Contains(view, "NEEDS YOU") {
+			t.Errorf("%dx%d: waiting view:\n%s", size[0], size[1], view)
+		}
+		if hs.m.stateLook() != lookPlain {
+			t.Errorf("%dx%d: waiting is drawn as an alert", size[0], size[1])
+		}
+		if r := hs.m.rows(); r.needsOwner(&plan.Task{ID: "M0-03"}) {
+			t.Errorf("%dx%d: the task row marks a waiting agent as needing the owner", size[0], size[1])
+		}
+		hs.now = hs.now.Add(26 * time.Minute)
+		hs.events(engine.Event{Kind: engine.NeedsYou, Task: "M0-03", Detail: "the agent has been waiting on background work for 30m"})
+		if view := hs.m.View(); !strings.Contains(view, "NEEDS YOU (waiting 30m") {
+			t.Errorf("%dx%d: past the limit:\n%s", size[0], size[1], view)
+		}
+		hs.events(engine.Event{Kind: engine.NeedsYouClear, Task: "M0-03"}, engine.Event{Kind: engine.AgentWaitingOver, Task: "M0-03"})
+		if hs.m.cur.state != stateWorking || hs.m.cur.waiting {
+			t.Errorf("%dx%d: after the wait: state %v, waiting %v", size[0], size[1], hs.m.cur.state, hs.m.cur.waiting)
+		}
+		// An idle Needs you still says idle.
+		hs.events(engine.Event{Kind: engine.NeedsYou, Task: "M0-03", Detail: "idle"})
+		if view := hs.m.View(); !strings.Contains(view, "NEEDS YOU (idle") {
+			t.Errorf("%dx%d: idle needs you:\n%s", size[0], size[1], view)
+		}
+	}
+}
+
+func TestNudgedLogLine(t *testing.T) {
+	hs := newHarness(t, 120, 40)
+	hs.events(started("M0-03"), opened("M0-03"), engine.Event{Kind: engine.Nudged, Task: "M0-03"})
+	if view := hs.m.View(); !strings.Contains(view, "M0-03 stopped without igris done; igris reminded it once") {
+		t.Errorf("view lacks the reminder line:\n%s", view)
+	}
+	if got := logLines(engine.Event{Kind: engine.AgentWaitingOver, Task: "M0-03"}); got != nil {
+		t.Errorf("agent_waiting_over logs %q, want nothing", got)
 	}
 }

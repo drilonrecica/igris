@@ -6,6 +6,8 @@ plan              = "tasks.md" · default
 backend           = "auto" · default
 default_mode      = "auto" · default
 needs_input_after = "30s" · default
+waiting_limit     = "30m" · default
+nudge             = true · default
 poll_interval     = "2s" · default
 
 [models]
@@ -35,6 +37,4 @@ prompt_template     = "" · default
 [adapt]
 model = "sonnet" · default
 
-[tui]
-mouse = true · default
 [Edit igris.toml] [Doctor] [Close]

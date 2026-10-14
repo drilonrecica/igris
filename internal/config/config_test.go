@@ -978,3 +978,50 @@ func TestHashOfV04Config(t *testing.T) {
 		t.Errorf("round trip: %v tail=%v", err, back != nil && back.TUI.Tail)
 	}
 }
+
+// waiting_limit and nudge (WAIT-P1): defaults when unset, out of the hash
+// while unset, validated and kept by Write when set.
+func TestWaitingLimitAndNudge(t *testing.T) {
+	d := Default()
+	if d.WaitingLimitOrDefault() != DefaultWaitingLimit || !d.NudgeOn() {
+		t.Errorf("defaults: waiting limit %s, nudge %v", d.WaitingLimitOrDefault(), d.NudgeOn())
+	}
+	if d.Hash() != v04DefaultHash {
+		t.Error("the new keys changed the default hash")
+	}
+	c, err := Parse([]byte("waiting_limit = \"2h\"\nnudge = false\n"), "igris.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.WaitingLimitOrDefault() != 2*time.Hour || c.NudgeOn() {
+		t.Errorf("set: waiting limit %s, nudge %v", c.WaitingLimitOrDefault(), c.NudgeOn())
+	}
+	if c.Hash() == v04DefaultHash {
+		t.Error("setting them left the hash unchanged")
+	}
+	path := filepath.Join(t.TempDir(), "igris.toml")
+	if err := Write(path, c); err != nil {
+		t.Fatal(err)
+	}
+	back, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if back.Hash() != c.Hash() {
+		t.Error("Write and Load lost waiting_limit or nudge")
+	}
+	if _, err := Parse([]byte("waiting_limit = \"0s\"\n"), "igris.toml"); err == nil || !strings.Contains(err.Error(), "waiting_limit must be greater than zero") {
+		t.Errorf("waiting_limit = 0s: err = %v", err)
+	}
+}
+
+func TestDurationShort(t *testing.T) {
+	for d, want := range map[time.Duration]string{
+		30 * time.Minute: "30m", time.Hour: "1h", 90 * time.Minute: "1h30m", 2 * time.Hour: "2h",
+		45 * time.Second: "45s", 50 * time.Second: "50s", 2*time.Minute + 5*time.Second: "2m5s",
+	} {
+		if got := Duration(d).Short(); got != want {
+			t.Errorf("Duration(%s).Short() = %q, want %q", d, got, want)
+		}
+	}
+}

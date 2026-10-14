@@ -47,18 +47,35 @@ func (d Duration) MarshalText() ([]byte, error) {
 // Std returns the value as a time.Duration.
 func (d Duration) Std() time.Duration { return time.Duration(d) }
 
+// Short is d as people write it in igris.toml: 30m, 1h, 1h30m, 45s, where
+// time.Duration says 30m0s.
+func (d Duration) Short() string {
+	s := d.Std().String()
+	if strings.HasSuffix(s, "m0s") {
+		s = strings.TrimSuffix(s, "0s")
+	}
+	if strings.HasSuffix(s, "h0m") {
+		s = strings.TrimSuffix(s, "0m")
+	}
+	return s
+}
+
 // Config is the parsed igris.toml. Secret fields hold the text as written
 // (possibly an "env:VAR" reference); use Resolve to obtain the real values.
 type Config struct {
-	Plan            string            `toml:"plan"`
-	Backend         string            `toml:"backend"`
-	DefaultMode     string            `toml:"default_mode"`
-	NeedsInputAfter Duration          `toml:"needs_input_after"`
-	PollInterval    Duration          `toml:"poll_interval"`
-	Models          map[string]string `toml:"models"`
-	Columns         map[string]string `toml:"columns"`
-	Claude          Claude            `toml:"claude"`
-	Run             Run               `toml:"run"`
+	Plan            string   `toml:"plan"`
+	Backend         string   `toml:"backend"`
+	DefaultMode     string   `toml:"default_mode"`
+	NeedsInputAfter Duration `toml:"needs_input_after"`
+	// WaitingLimit and Nudge are nil when not set (WaitingLimitOrDefault,
+	// NudgeOn), so a config without them keeps its hash (SPEC §6.3).
+	WaitingLimit *Duration         `toml:"waiting_limit,omitempty" json:",omitempty"`
+	Nudge        *bool             `toml:"nudge,omitempty" json:",omitempty"`
+	PollInterval Duration          `toml:"poll_interval"`
+	Models       map[string]string `toml:"models"`
+	Columns      map[string]string `toml:"columns"`
+	Claude       Claude            `toml:"claude"`
+	Run          Run               `toml:"run"`
 	// Verify maps verify profile names to shell commands (SPEC §6.4);
 	// run.verify is the profile "default". omitempty keeps the hash of a
 	// config without profiles what it was before they existed.
@@ -100,6 +117,22 @@ type PhaseConfig struct {
 	// not set.
 	Verify string `toml:"verify,omitempty" json:",omitempty"`
 }
+
+// DefaultWaitingLimit is how long a session may wait on background work
+// before it needs the owner, when waiting_limit is not set (SPEC §6.3).
+const DefaultWaitingLimit = 30 * time.Minute
+
+// WaitingLimitOrDefault is waiting_limit, or DefaultWaitingLimit when unset.
+func (c *Config) WaitingLimitOrDefault() time.Duration {
+	if c.WaitingLimit == nil {
+		return DefaultWaitingLimit
+	}
+	return c.WaitingLimit.Std()
+}
+
+// NudgeOn reports whether igris reminds an idle agent of `igris done` once
+// before it needs the owner (SPEC §6.3); on unless nudge = false.
+func (c *Config) NudgeOn() bool { return c.Nudge == nil || *c.Nudge }
 
 // DefaultHookTimeout bounds a task hook when hooks.timeout is not set.
 const DefaultHookTimeout = 2 * time.Minute
@@ -515,6 +548,9 @@ func (c *Config) Validate() error {
 	oneOf("backend", c.Backend, validBackends)
 	oneOf("default_mode", c.DefaultMode, validModes)
 	positive("needs_input_after", c.NeedsInputAfter)
+	if c.WaitingLimit != nil {
+		positive("waiting_limit", *c.WaitingLimit)
+	}
 	positive("poll_interval", c.PollInterval)
 	positive("run.verify_timeout", c.Run.VerifyTimeout)
 	if c.Run.VerifyMaxAttempts < 1 {

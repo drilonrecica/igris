@@ -44,6 +44,12 @@ func TestRecordedEvents(t *testing.T) {
 		{"notification_idle_prompt.json", backend.Idle},
 		{"stop.json", backend.Idle},
 		{"sessionend.json", backend.Exited},
+		// Recorded with Claude Code 2.1.299 (WAIT-01): a Stop while a
+		// background shell runs, the Stop after it finished and resumed the
+		// session, and a Stop with a scheduled wakeup.
+		{"stop_shell_running.json", backend.Waiting},
+		{"stop_after_shell.json", backend.Idle},
+		{"stop_cron.json", backend.Waiting},
 	}
 	for _, tt := range tests {
 		t.Run(tt.file, func(t *testing.T) {
@@ -64,6 +70,68 @@ func TestRecordedEvents(t *testing.T) {
 				t.Errorf("state = %+v, want %s at %s", got, tt.want, fixedNow())
 			}
 		})
+	}
+}
+
+// What a Stop leaves behind decides between idle and waiting. The fields
+// are read leniently: an unexpected shape is no pending work, never a lost
+// Stop.
+func TestStopPending(t *testing.T) {
+	tests := []struct {
+		name, bg, crons string
+		want            backend.AgentState
+	}{
+		{"none", ``, ``, backend.Idle},
+		{"empty", `[]`, `[]`, backend.Idle},
+		{"running shell", `[{"type":"shell","status":"running"}]`, `[]`, backend.Waiting},
+		{"status unknown to igris", `[{"type":"monitor","status":"pending"}]`, `[]`, backend.Waiting},
+		{"no status", `[{"type":"subagent"}]`, `[]`, backend.Waiting},
+		{"only finished", `[{"status":"completed"},{"status":"failed"},{"status":"killed"}]`, `[]`, backend.Idle},
+		{"finished and running", `[{"status":"completed"},{"status":"running"}]`, ``, backend.Waiting},
+		{"cron", `[]`, `[{"id":"7b51c6e5","recurring":false}]`, backend.Waiting},
+		{"not an array", `{"status":"running"}`, `"x"`, backend.Idle},
+		{"null", `null`, `null`, backend.Idle},
+		{"entry of another shape", `[{"status":1}]`, ``, backend.Waiting},
+		{"entry not an object", `["shell"]`, ``, backend.Waiting},
+	}
+	for _, tt := range tests {
+		p := Payload{SessionID: fixtureUUID, Event: "Stop", BackgroundTasks: json.RawMessage(tt.bg), SessionCrons: json.RawMessage(tt.crons)}
+		if got, ok := Map(p); !ok || got != tt.want {
+			t.Errorf("%s: Map = %s, %v; want %s", tt.name, got, ok, tt.want)
+		}
+	}
+}
+
+// Claude Code sends idle_prompt a minute after the Stop even while the
+// background shell runs (recorded with 2.1.299): the session still waits.
+// The next Stop or prompt replaces waiting as usual.
+func TestIdlePromptKeepsWaiting(t *testing.T) {
+	root := project(t)
+	steps := []struct {
+		file string
+		want backend.AgentState
+	}{
+		{"stop_shell_running.json", backend.Waiting},
+		{"notification_idle_prompt_waiting.json", backend.Waiting},
+		{"notification_permission_prompt.json", backend.Blocked},
+		{"stop_shell_running.json", backend.Waiting},
+		{"userpromptsubmit.json", backend.Working},
+		{"stop_after_shell.json", backend.Idle},
+		{"notification_idle_prompt_waiting.json", backend.Idle},
+	}
+	for i, s := range steps {
+		f, err := os.Open(filepath.Join("testdata", s.file))
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = Run(context.Background(), root, f, fixedNow)
+		_ = f.Close()
+		if err != nil {
+			t.Fatalf("step %d (%s): Run: %v", i, s.file, err)
+		}
+		if got, _, _ := state.ReadAgentState(root, fixtureUUID); got.State != s.want {
+			t.Errorf("step %d (%s): state %s, want %s", i, s.file, got.State, s.want)
+		}
 	}
 }
 

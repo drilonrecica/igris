@@ -63,6 +63,7 @@ Every line igris v0.5 or later writes has `"v":1`. `v`, `at` and `type` are alwa
 |---|---|
 | `idle` | the agent settled for `needs_input_after` without `igris done` |
 | `blocked` | the agent waits for a permission or an answer |
+| `waiting` | the agent waited on background work (a background task or a scheduled wakeup) longer than `waiting_limit`; new in WAIT-01, older readers see `other` |
 | `skip_request` | the session asks to skip its task; you confirm or decline |
 | `session_lost` | the session is gone without `igris done` |
 | `task_overdue` | the attempt runs past the task's Timeout |

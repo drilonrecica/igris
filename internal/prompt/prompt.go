@@ -32,6 +32,16 @@ func Continue(id string) string {
 		"When the task is done and nothing waits on the owner, run `igris done " + id + " --note \"<one-line summary>\"` as your very last action.\n"
 }
 
+// Nudge returns the one reminder igris sends a session of task id that
+// stopped without `igris done` and has nothing running in the background
+// (SPEC §6.3). It asks the agent to finish or to say what it waits for, so
+// the owner sees why when Needs you follows.
+func Nudge(id string) string {
+	return "igris: you ended your turn without running `igris done " + id + "`. " +
+		"If the task is finished and nothing waits on the owner, run `igris done " + id + " --note \"<one-line summary>\"` now as your last action. " +
+		"If you are waiting for the owner or for something else, say in one line what it is.\n"
+}
+
 // Vars are the template variables of the task prompt (SPEC §6.1).
 type Vars struct {
 	ID           string

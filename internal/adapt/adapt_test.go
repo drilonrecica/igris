@@ -285,6 +285,38 @@ func TestRunNeedsYouOncePerIdleStretch(t *testing.T) {
 	}
 }
 
+// Waiting on background work is not idle: Needs you only past waiting_limit
+// (30m by default), and once (SPEC §6.3).
+func TestRunWaitingIsNotIdle(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		done  time.Duration
+		notes []notify.Event
+	}{
+		{"within the limit", 10 * time.Minute, nil},
+		{"past the limit", 40 * time.Minute, []notify.Event{notify.NeedsInput}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHarness(t, oldPlan)
+			h.be.Script(ID, backend.Waiting)
+			h.clock.At(tt.done, func() {
+				if err := h.finish(goodProposal); err != nil {
+					t.Error(err)
+				}
+			})
+			if _, err := h.run(context.Background(), "sonnet"); err != nil {
+				t.Fatal(err)
+			}
+			if got := h.notes.events(); !slices.Equal(got, tt.notes) {
+				t.Errorf("notifications = %v, want %v", got, tt.notes)
+			}
+			if got, want := strings.Count(h.out.String(), "needs you"), len(tt.notes); got != want {
+				t.Errorf("needs you said %d times, want %d:\n%s", got, want, h.out.String())
+			}
+		})
+	}
+}
+
 func TestRunIgnoresStaleSignal(t *testing.T) {
 	h := newHarness(t, oldPlan)
 	// A done signal left over from an earlier adapt, before this one started.

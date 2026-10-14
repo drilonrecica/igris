@@ -61,6 +61,8 @@ func NewSettings(cfg *config.Config, keys config.Keys, getenv func(string) strin
 	set(top, "backend", tomlString(cfg.Backend))
 	set(top, "default_mode", tomlString(cfg.DefaultMode))
 	set(top, "needs_input_after", tomlString(cfg.NeedsInputAfter.Std().String()))
+	set(top, "waiting_limit", tomlString(config.Duration(cfg.WaitingLimitOrDefault()).Short()))
+	set(top, "nudge", strconv.FormatBool(cfg.NudgeOn()))
 	set(top, "poll_interval", tomlString(cfg.PollInterval.Std().String()))
 	table("models", cfg.Models)
 	table("columns", cfg.Columns)

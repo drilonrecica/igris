@@ -1,0 +1,24 @@
+{
+  "session_id": "2b7f3c1e-8d4a-4f6b-9c2e-5a1d0e9f8b7c",
+  "transcript_path": "/home/user/.claude/x",
+  "cwd": "/home/user/proj",
+  "scratchpad_dir": "/home/user/.claude/x",
+  "prompt_id": "99999999-8888-4777-8666-555555555555",
+  "permission_mode": "auto",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "Stop",
+  "stop_hook_active": false,
+  "last_assistant_message": "Waiting.",
+  "background_tasks": [
+    {
+      "id": "bxgk0oz8g",
+      "type": "shell",
+      "status": "running",
+      "description": "Run the slow checks",
+      "command": "make slow-checks"
+    }
+  ],
+  "session_crons": []
+}

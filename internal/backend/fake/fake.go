@@ -43,6 +43,7 @@ type Backend struct {
 
 	opened        []backend.SessionSpec
 	prompts       map[string][]string // by task ID
+	laterErr      map[string]error    // by task ID: what prompts after a session's first return
 	submits       map[string]int      // Enter presses by task ID
 	notifications []backend.Notification
 	focused       []backend.SessionRef
@@ -134,6 +135,18 @@ func (b *Backend) Opened() []backend.SessionSpec {
 		out[i] = s
 	}
 	return out
+}
+
+// FailLaterPrompts makes every prompt after a session's first one for
+// taskID fail with err (nil: succeed again), as a pane that stops taking
+// input would; the first prompt still goes out.
+func (b *Backend) FailLaterPrompts(taskID string, err error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.laterErr == nil {
+		b.laterErr = map[string]error{}
+	}
+	b.laterErr[taskID] = err
 }
 
 // Prompts returns the prompts sent to taskID's sessions, in order.
@@ -296,6 +309,10 @@ func (s *Session) Prompt(ctx context.Context, text string) error {
 		s.pending, s.hasPending = text, true
 		s.b.mu.Unlock()
 		return nil
+	}
+	if err := s.b.laterErr[s.taskID]; err != nil && s.prompted {
+		s.b.mu.Unlock()
+		return err
 	}
 	return s.deliver(ctx, text)
 }

@@ -607,6 +607,12 @@ func formatEvent(ev engine.Event) []string {
 		return []string{id + " NEEDS YOU: " + ev.Detail}
 	case engine.NeedsYouClear:
 		return []string{id + " is working again"}
+	case engine.AgentWaiting:
+		return []string{id + " waits on background work; Claude Code resumes it when that is done"}
+	case engine.AgentWaitingOver:
+		return nil // the card shows it; the next event says what followed
+	case engine.Nudged:
+		return []string{id + " stopped without igris done; igris reminded it once"}
 	case engine.TaskOverdue:
 		return []string{id + " OVERDUE: " + ev.Detail + "; its session keeps running"}
 	case engine.SessionLost:

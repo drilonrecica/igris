@@ -243,7 +243,7 @@ func (r *runner) open(ctx context.Context, issues []plan.Issue, proposal string)
 // wait polls for `igris done ADAPT` and the session's state until the
 // session signals done, ends, or ctx ends.
 func (r *runner) wait(ctx context.Context, sess backend.Session) (*state.Signal, error) {
-	var idleSince time.Time
+	var idleSince, waitSince time.Time // idle, or waiting on background work (SPEC §6.3)
 	asked := false
 	for {
 		sig, err := r.o.State.ReadSignal(ID)
@@ -274,9 +274,24 @@ func (r *runner) wait(ctx context.Context, sess backend.Session) (*state.Signal,
 			if asked {
 				r.say("working again")
 			}
-			idleSince, asked = time.Time{}, false
+			idleSince, waitSince, asked = time.Time{}, time.Time{}, false
+		case st == backend.Waiting:
+			// Claude Code resumes the session by itself: not idle, until
+			// waiting_limit (no reminder here; that is for task sessions).
+			now := r.o.Clock.Now()
+			if waitSince.IsZero() {
+				waitSince, idleSince, asked = now, time.Time{}, false
+			}
+			if limit := r.o.Config.WaitingLimitOrDefault(); !asked && now.Sub(waitSince) >= limit {
+				asked = true
+				r.say("needs you: the agent has waited on background work longer than waiting_limit; look at the %s pane", ID)
+				r.notify(ctx, notify.NeedsInput, "needs you")
+			}
 		case st.Settled():
 			now := r.o.Clock.Now()
+			if !waitSince.IsZero() {
+				waitSince, asked = time.Time{}, false
+			}
 			if idleSince.IsZero() {
 				idleSince = now
 			}
@@ -301,7 +316,7 @@ func (r *runner) settle(ctx context.Context, sess backend.Session) {
 	deadline := r.o.Clock.Now().Add(settleMax)
 	for r.o.Clock.Now().Before(deadline) {
 		st, err := sess.State(ctx)
-		if ctx.Err() != nil || (err == nil && (st.Settled() || st == backend.Exited)) {
+		if ctx.Err() != nil || (err == nil && (st.Settled() || st == backend.Waiting || st == backend.Exited)) {
 			return
 		}
 		select {

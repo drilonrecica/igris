@@ -148,7 +148,8 @@ func isRule(l string) bool {
 }
 
 // AgentState is the agent state reported by the backend. The values match
-// herdr's agent_status, plus Exited for a session that is gone.
+// herdr's agent_status, plus Waiting (from the hooks only) and Exited for a
+// session that is gone.
 type AgentState string
 
 const (
@@ -156,6 +157,10 @@ const (
 	Idle    AgentState = "idle"
 	Blocked AgentState = "blocked"
 	Done    AgentState = "done"
+	// Waiting: the agent ended its turn but Claude Code will resume it by
+	// itself, for a background task or a scheduled wakeup (SPEC §6.3). Not
+	// settled: it doesn't wait for input. Only Claude Code's hooks report it.
+	Waiting AgentState = "waiting"
 	Unknown AgentState = "unknown"
 	Exited  AgentState = "exited"
 )

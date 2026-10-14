@@ -49,6 +49,7 @@ const (
 const (
 	ReasonIdle          = "idle"            // settled for needs_input_after without a signal
 	ReasonBlocked       = "blocked"         // waiting for a permission or an answer
+	ReasonWaiting       = "waiting"         // waited on background work longer than waiting_limit
 	ReasonSkipRequest   = "skip_request"    // the session asks to skip its task
 	ReasonSessionLost   = "session_lost"    // the session is gone
 	ReasonTaskOverdue   = "task_overdue"    // the attempt runs past the task's Timeout
@@ -64,7 +65,7 @@ const (
 var reasons = map[string]bool{
 	ReasonIdle: true, ReasonBlocked: true, ReasonSkipRequest: true, ReasonSessionLost: true,
 	ReasonTaskOverdue: true, ReasonVerifyLimit: true, ReasonVerifyNotSent: true, ReasonHookFailed: true,
-	ReasonCommit: true, ReasonResetRequest: true, ReasonPlanChanged: true,
+	ReasonCommit: true, ReasonResetRequest: true, ReasonPlanChanged: true, ReasonWaiting: true,
 }
 
 // Event is one line of .igris/runs.jsonl (SPEC §13, docs/runlog.md). Fields

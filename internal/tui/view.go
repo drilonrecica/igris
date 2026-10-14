@@ -25,7 +25,13 @@ func (m *model) stateText() string {
 	c := m.cur
 	switch c.state {
 	case stateNeedsYou:
-		return fmt.Sprintf("NEEDS YOU (idle %s)", since(m.opts.Now(), c.since))
+		word := "idle"
+		if c.waiting {
+			word = "waiting"
+		}
+		return fmt.Sprintf("NEEDS YOU (%s %s)", word, since(m.opts.Now(), c.since))
+	case stateWaiting:
+		return fmt.Sprintf("waiting on background work (%s)", since(m.opts.Now(), c.since))
 	case stateYourTurn:
 		return "YOUR TURN"
 	case stateVerifying:

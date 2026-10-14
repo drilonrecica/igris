@@ -43,6 +43,39 @@ type Payload struct {
 	Source           string `json:"source"`            // SessionStart
 	ToolName         string `json:"tool_name"`         // PreToolUse, PostToolUse, PermissionRequest
 	NotificationType string `json:"notification_type"` // Notification
+	// Stop: work Claude Code resumes the session for by itself (SPEC §6.3).
+	// Kept raw and read leniently, so an unexpected shape never loses the
+	// Stop itself; only the statuses and the count are looked at.
+	BackgroundTasks json.RawMessage `json:"background_tasks"`
+	SessionCrons    json.RawMessage `json:"session_crons"`
+}
+
+// finished are background task statuses that won't resume the session.
+// Claude Code drops a finished task from the list (2.1.299 sends only
+// "running" ones); these are a guard should it keep some.
+var finished = map[string]bool{
+	"completed": true, "failed": true, "killed": true, "stopped": true,
+	"cancelled": true, "canceled": true, "done": true, "error": true,
+}
+
+// pending reports whether a Stop leaves work that will resume the session:
+// a background task (shell, monitor, subagent, …) that hasn't finished, or
+// a scheduled wakeup or cron.
+// An entry igris can't read counts as pending: Claude Code listed it.
+func (p Payload) pending() bool {
+	var tasks []json.RawMessage
+	if json.Unmarshal(p.BackgroundTasks, &tasks) == nil {
+		for _, raw := range tasks {
+			var t struct {
+				Status string `json:"status"`
+			}
+			if json.Unmarshal(raw, &t) != nil || !finished[t.Status] {
+				return true
+			}
+		}
+	}
+	var crons []json.RawMessage
+	return json.Unmarshal(p.SessionCrons, &crons) == nil && len(crons) > 0
 }
 
 // Map returns the agent state an event means, and false for events that
@@ -69,6 +102,9 @@ func Map(p Payload) (backend.AgentState, bool) {
 		}
 		return backend.Blocked, true
 	case "Stop":
+		if p.pending() {
+			return backend.Waiting, true
+		}
 		return backend.Idle, true
 	case "SessionEnd":
 		return backend.Exited, true
@@ -107,6 +143,13 @@ func record(root string, in io.Reader, now func() time.Time) error {
 	st, ok := Map(p)
 	if !ok {
 		return nil
+	}
+	if p.Event == "Notification" && st == backend.Idle {
+		// Claude Code sends idle_prompt a minute after a Stop even while a
+		// background task runs; the session still waits on that work.
+		if cur, ok, _ := state.ReadAgentState(root, p.SessionID); ok && cur.State == backend.Waiting {
+			return nil
+		}
 	}
 	return state.WriteAgentState(root, p.SessionID, state.AgentState{State: st, Event: p.Event, At: now().UTC()})
 }

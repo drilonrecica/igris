@@ -25,6 +25,7 @@ const (
 	stateVerifying           // the verify command runs
 	stateQuestion            // igris asked the owner something
 	stateLost                // the session is gone
+	stateWaiting             // the agent waits on background work Claude Code resumes it for
 )
 
 // current is the task the run works on.
@@ -36,6 +37,7 @@ type current struct {
 	since                        time.Time // when state began
 	detail                       string    // why it needs the owner
 	overdue                      string    // the overdue detail while the attempt runs past its Timeout
+	waiting                      bool      // the agent waits on background work (SPEC §6.3)
 	session                      *backend.SessionRef
 	claudeSession                string // the session's Claude UUID, for claude --resume
 }
@@ -671,7 +673,24 @@ func (m *model) event(ev engine.Event) {
 		}
 	case engine.YourTurn:
 		m.setState(stateYourTurn, ev)
+	case engine.AgentWaiting:
+		m.setState(stateWaiting, ev)
+		if m.cur != nil {
+			m.cur.waiting = true
+		}
+	case engine.AgentWaitingOver:
+		if m.cur != nil {
+			m.cur.waiting = false
+			if m.cur.state == stateWaiting {
+				m.setState(stateWorking, ev)
+			}
+		}
 	case engine.NeedsYou:
+		if m.cur != nil && m.cur.waiting && m.cur.state == stateWaiting {
+			// Waited past waiting_limit: the time counts from the start.
+			m.cur.state, m.cur.detail = stateNeedsYou, ev.Detail
+			break
+		}
 		m.setState(stateNeedsYou, ev)
 	case engine.NeedsYouClear, engine.VerifyFailed:
 		m.setState(stateWorking, ev)

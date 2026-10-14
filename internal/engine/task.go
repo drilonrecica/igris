@@ -33,6 +33,9 @@ type launch struct {
 	// set once the attempt ran past the task's Timeout.
 	attemptAt time.Time
 	overdue   bool
+	// nudged is set once igris reminded the attempt's idle agent of
+	// `igris done` (SPEC §6.3): at most once per attempt.
+	nudged bool
 	// promptAt is when a session's first prompt (task or continue prompt)
 	// was delivered, while igris still looks for signs that Claude Code
 	// submitted it; zero once it did, after the one Enter (SPEC §6.3), or
@@ -55,7 +58,7 @@ func (e *Engine) nextAttempt(l *launch) {
 }
 
 // startAttempt starts a new attempt's Timeout clock at now.
-func (l *launch) startAttempt(now time.Time) { l.attemptAt, l.overdue = now, false }
+func (l *launch) startAttempt(now time.Time) { l.attemptAt, l.overdue, l.nudged = now, false, false }
 
 func (l *launch) fill(ev Event) Event {
 	ev.Task, ev.Title, ev.Rank, ev.Model, ev.Mode = l.t.ID, l.t.Title, l.t.Rank, l.model, l.mode
@@ -417,13 +420,13 @@ func (e *Engine) finish(ctx context.Context, l *launch, to plan.Status, note str
 	return nil
 }
 
-// settle waits up to max for sess to stop working: idle, done, blocked or
-// gone. A state it can't read counts as not settled.
+// settle waits up to max for sess to stop working: idle, done, blocked,
+// waiting on background work (its turn ended too) or gone. A state it can't read counts as not settled.
 func (e *Engine) settle(ctx context.Context, sess backend.Session, max time.Duration) {
 	deadline := e.clock.Now().Add(max)
 	for {
 		st, err := sess.State(ctx)
-		if ctx.Err() != nil || (err == nil && (st.Settled() || st == backend.Exited)) {
+		if ctx.Err() != nil || (err == nil && (st.Settled() || st == backend.Waiting || st == backend.Exited)) {
 			return
 		}
 		if !e.clock.Now().Before(deadline) {

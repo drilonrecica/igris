@@ -609,7 +609,8 @@ func TestHeldPromptWaitsToSettle(t *testing.T) {
 }
 
 // Without herdr's Claude integration a pane reads `unknown`; the hook state
-// fills in then, and only then (SPEC §6.3, V03-P1).
+// fills in then (SPEC §6.3, V03-P1), and when it knows the session waits on
+// background work that herdr counts as a finished turn.
 func TestStateHookFillIn(t *testing.T) {
 	const uuid = "2b7f3c1e-8d4a-4f6b-9c2e-5a1d0e9f8b7c"
 	unknown := runner.Result{Stdout: []byte(`{"result":{"pane":{"agent":"claude","agent_status":"unknown","pane_id":"w2B:p3"}}}`)}
@@ -619,6 +620,8 @@ func TestStateHookFillIn(t *testing.T) {
 		}
 		return backend.Blocked, true
 	}
+	waiting := func(string) (backend.AgentState, bool) { return backend.Waiting, true }
+	idle := func(string) (backend.AgentState, bool) { return backend.Idle, true }
 	tests := []struct {
 		name  string
 		res   runner.Result
@@ -632,6 +635,12 @@ func TestStateHookFillIn(t *testing.T) {
 		{"no reader", unknown, nil, uuid, backend.Unknown},
 		{"no session uuid", unknown, hooks, "", backend.Unknown},
 		{"pane gone beats hooks", fail(t, "error_pane_not_found.json", 1), hooks, uuid, backend.Exited},
+		// herdr sees a finished turn; the hooks know a background task or a
+		// wakeup resumes it. herdr's working still wins.
+		{"waiting beats herdr idle", ok(t, "pane_get_idle.json"), waiting, uuid, backend.Waiting},
+		{"waiting beats herdr done", ok(t, "pane_get_done.json"), waiting, uuid, backend.Waiting},
+		{"herdr working beats waiting", ok(t, "pane_get_working.json"), waiting, uuid, backend.Working},
+		{"idle hooks keep herdr idle", ok(t, "pane_get_idle.json"), idle, uuid, backend.Idle},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
