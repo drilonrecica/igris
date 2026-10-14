@@ -4,6 +4,8 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+## [1.0.0-rc.1] - 2026-10-14
+
 The first release candidate for igris 1.0. It adds no features: it decides, writes down and tests what 1.0 promises not to break, and makes the few breaking changes that had to come before that promise. Plans need no changes. Configs written by `igris init` need one command, `igris config migrate`, and scripts that read `--json` need small updates (Migration, below).
 
 ### The 1.0 contract
@@ -411,7 +413,8 @@ First release. Linux and macOS, herdr backend only. The full behavior is specifi
 - Release artifacts are not signed (checksums only); signing is planned.
 - No Homebrew tap yet.
 
-[Unreleased]: https://github.com/drilonrecica/igris/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/drilonrecica/igris/compare/v1.0.0-rc.1...HEAD
+[1.0.0-rc.1]: https://github.com/drilonrecica/igris/compare/v0.6.0...v1.0.0-rc.1
 [0.6.0]: https://github.com/drilonrecica/igris/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/drilonrecica/igris/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/drilonrecica/igris/compare/v0.4.0...v0.5.0

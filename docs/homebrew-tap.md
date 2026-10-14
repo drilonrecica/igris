@@ -4,6 +4,8 @@
 
 ## Publishing a release's formula
 
+A release candidate (`X.Y.Z-rc.N`) is published as a GitHub pre-release (`gh release create --prerelease`) and doesn't go to the tap: Homebrew installs stable releases only, so steps 3 to 5 are skipped for it (`make sign` says so).
+
 1. Tag the release, then build it from the tag. From v0.6.0 the owner does this step (V06-01, decisions.md V06-P1); the key's passphrase is the owner's alone, so the agent stops here and asks:
    - The agent commits the release (CHANGELOG `## [X.Y.Z]` section, version references) and pushes it to `master`.
    - The owner runs `make sign VERSION=X.Y.Z` (`tools/sign.sh`). It refuses unless the tree is clean, `HEAD` is the pushed `origin/master`, the tag exists nowhere yet, the CHANGELOG has the section and `~/.ssh/igris-release.pub` is in `allowed_signers`. It then creates the signed tag `vX.Y.Z` (not pushed), builds `dist/` from it with genformula, signs `dist/checksums.txt` into `dist/checksums.txt.sig` and checks all three. It asks for the passphrase twice (once with `ssh-add ~/.ssh/igris-release` first). `make sign-check` signs and verifies a test file only, to try the key.

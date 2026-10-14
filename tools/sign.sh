@@ -43,7 +43,7 @@ if [ "${1:-}" = "--check" ]; then
 fi
 
 version=${1:-}
-echo "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || die "VERSION must be X.Y.Z (no v), got \"$version\": make sign VERSION=0.6.0"
+echo "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$' || die "VERSION must be X.Y.Z or X.Y.Z-rc.N (no v), got \"$version\": make sign VERSION=0.6.0"
 tag=v$version
 
 # The release commit: clean, on master and already pushed, so the tag the
@@ -54,7 +54,7 @@ git fetch -q origin master
 [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/master)" ] || die "HEAD is not origin/master: push the release commit (or pull) first"
 ! git rev-parse -q --verify "refs/tags/$tag" >/dev/null || die "tag $tag exists here already"
 [ -z "$(git ls-remote --tags origin "refs/tags/$tag")" ] || die "tag $tag exists on origin already"
-grep -q "^## \[$version\]" CHANGELOG.md || die "CHANGELOG.md has no \"## [$version]\" section"
+grep -qF "## [$version]" CHANGELOG.md || die "CHANGELOG.md has no \"## [$version]\" section"
 command -v goreleaser >/dev/null || die "goreleaser not found: https://goreleaser.com/install/"
 command -v syft >/dev/null || die "syft not found (makes the SBOMs): https://github.com/anchore/syft#installation"
 
@@ -82,3 +82,6 @@ $tag with dist/*.tar.gz, dist/*.sbom.json, dist/checksums.txt and
 dist/checksums.txt.sig; dist/igris.rb goes to the tap (docs/homebrew-tap.md).
 To undo instead: git tag -d $tag
 EOF
+case $version in
+*-rc.*) echo "This is a release candidate: gh release create --prerelease, and leave the tap's formula alone (Homebrew installs stable releases only)." ;;
+esac
