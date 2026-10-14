@@ -119,6 +119,8 @@
           <div class="feature"><h3>Stops when it needs you</h3><p>Questions, approvals, stalled or overdue sessions and failed checks notify you via herdr or tmux toasts, ntfy, Discord, Slack, Gotify or a signed webhook, with your own message templates and quiet hours that hold all but the urgent ones.</p></div>
           <div class="feature"><h3>Verify and commit</h3><p>Your checks run on every done, with a verify profile per task or phase: a fast check here, the full suite there. Failures go back to the same session. Commits are <code>ask</code>, <code>auto</code> or <code>never</code>.</p></div>
           <div class="feature"><h3>Watch it work, from your phone</h3><p>A live tail of the current session, the phase's progress and an estimate from your past runs. Mouse and keyboard, choice dialogs, and a single-column layout for small terminals over SSH.</p></div>
+          <div class="feature"><h3>On a branch of its own</h3><p>Worktree mode runs a whole run in a git worktree on its own branch, so your checkout stays as it is. Review the branch, merge it or drop it: igris never merges.</p></div>
+          <div class="feature"><h3>Signed and checked</h3><p>Signed releases with an SBOM, your notification secrets kept out of the commands it runs, and a threat model that ties every safety rule to a test.</p></div>
           <div class="feature"><h3>Resumable, and reported</h3><p>Quit any time. <code>igris arise</code> reattaches to the running session or continues where it left off. <code>igris report</code> turns a run into markdown for your PR.</p></div>
         </div>
       </div>
@@ -156,7 +158,7 @@
             <code>brew install drilonrecica/tap/igris</code>
             <button type="button" class="copy" hidden>Copy</button>
           </div>
-          <p>Or download a static binary for Linux or macOS (amd64, arm64; on Windows, the Linux one inside WSL2) from <a href="https://github.com/drilonrecica/igris/releases/latest">Releases</a> and check it against <code>checksums.txt</code>.</p>
+          <p>Or download a static binary for Linux or macOS (amd64, arm64; on Windows, the Linux one inside WSL2) from <a href="https://github.com/drilonrecica/igris/releases/latest">Releases</a>. Releases are signed: check <code>checksums.txt</code> with its signature and <code>ssh-keygen</code>, as the README's <a href="https://github.com/drilonrecica/igris#verifying-a-download">Verifying a download</a> shows.</p>
           <p>Then, in a herdr pane or a tmux session in your project:</p>
           <div class="cmd"><code>igris init &amp;&amp; igris check &amp;&amp; igris arise M0</code></div>
           <p class="note"><a href="https://github.com/drilonrecica/igris#quick-start">Quick start, herdr and tmux setup in the README</a></p>
