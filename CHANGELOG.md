@@ -4,6 +4,24 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+The first release candidate for igris 1.0. It adds no features: it decides, writes down and tests what 1.0 promises not to break, and makes the few breaking changes that had to come before that promise. Plans need no changes. Configs written by `igris init` need one command, `igris config migrate`, and scripts that read `--json` need small updates (Migration, below).
+
+### The 1.0 contract
+
+From 1.0 until 2.0, these keep working unchanged ([SPEC §19](SPEC.md#19-compatibility)); 1.x may add to them (new optional columns, config keys with defaults, commands, flags, JSON fields, run-log events, template variables) but never removes or changes them:
+
+- the **plan format**, format 1: [`docs/plan-format.md`](docs/plan-format.md);
+- **`igris.toml`**: its keys, defaults and validation;
+- the **CLI**: commands, flags, arguments and exit codes (`0` success, `1` failure, `2` usage error, `3`–`9` reserved; SPEC §14);
+- **`--json`** of `check`, `phases`, `status`, `history`, `report` and `doctor`: [`docs/json/`](docs/json/);
+- `igris done`, `skip` and `reset` and the **signal files** they write;
+- **`.igris/`**: its layout, `state.json` (version 3, older versions migrated on read) and the run log (`"v": 1`, [`docs/runlog.md`](docs/runlog.md));
+- the **template variables** of `prompt_template`, `commit_message` and notification templates;
+- the **generic webhook**: payload, `X-Igris-Event` and `X-Igris-Signature`;
+- the **task-hook environment**: `IGRIS_TASK_ID`, `IGRIS_PHASE`, `IGRIS_RANK`, `IGRIS_MODEL`, `IGRIS_RESULT`.
+
+Not part of it: the TUI, the default prompt's wording, text output (`--json` is the machine interface), the hidden `hook` and `__complete` commands, the contents of `.igris/agent-state/`, `hooks/`, `prompts/`, `config/` and `igris.lock`, the text sent to ntfy, Discord, Slack, Gotify and the backend, and the Go packages.
+
 ### Removed
 
 - **`claude.command`** in `igris.toml`. It was deprecated in 0.1.2 and never read, since igris always starts `claude` from your `PATH`. 0.1.2 said it would go in 0.2, which didn't happen; it goes now, before 1.0. Every `igris.toml` that `igris init` wrote before 0.7 has it, so after upgrading `igris check` and `igris arise` stop with `claude.command was removed in 0.7`: run **`igris config migrate`** once to delete the line. The config's hash doesn't change, so an interrupted run resumes after the migration.
@@ -28,6 +46,14 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 - **An optional format marker**, `<!-- igris:format 1 -->`, before a plan's first `##` heading. Plans without one are format 1, always. A plan marked with a format igris doesn't know gets one error, `plan format N needs a newer igris`, and `check`, `doctor` and the home screen say to upgrade instead of offering `igris adapt`.
 - **A compatibility suite** (`testdata/compat/`, run by `go test` and CI): the configs, plans and signal files every release from 0.1.0 to 0.6.0 wrote, captured by building each release from its tag, plus the state files and run logs of each format. All of them keep loading; `make compat TAG=vX.Y.Z` adds each new release.
 - **JSON schemas** for every `--json` output in [`docs/json/`](docs/json/), checked against igris's own output in its tests.
+
+### Migration
+
+- **Run `igris config migrate` once in each project** whose `igris.toml` came from `igris init` before 0.7 (or that sets `claude.command`). It shows the one line it removes, asks, and keeps a backup; until then `check`, `arise` and `doctor` stop with `claude.command was removed in 0.7`. The config hash stays the same, so a run interrupted under 0.6 resumes.
+- **Scripts that read `--json`**: read `doctor`'s checks from `.checks`, the `in_progress` count key, signals as `{task, action}` objects, and treat a missing `rank` or `mode` as none. Ignore fields you don't know: 1.x adds some.
+- **Scripts that test exit codes**: test for non-zero, or for `2`, never for exactly `1`. A malformed task ID in `done`/`skip` and an unknown `notify test --event` now exit `2`.
+- **Plans need nothing.** The optional `<!-- igris:format 1 -->` marker is just that: optional.
+- **Going back to 0.6** after a run under this release: finish the run, or delete `.igris/state.json`, since 0.6 can't read state version 3.
 
 ## [0.6.0] - 2026-10-14
 
