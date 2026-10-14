@@ -4,6 +4,8 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-14
+
 igris v0.6 is about trust. Releases are signed and come with an SBOM, a run can work on a branch of its own so your checkout stays as it is, the commands igris runs no longer see your notification secrets, and the threat model is written down, reviewed and tied to tests. It also stops calling for you while Claude is only waiting on background work.
 
 ### Added
@@ -358,7 +360,8 @@ First release. Linux and macOS, herdr backend only. The full behavior is specifi
 - Release artifacts are not signed (checksums only); signing is planned.
 - No Homebrew tap yet.
 
-[Unreleased]: https://github.com/drilonrecica/igris/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/drilonrecica/igris/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/drilonrecica/igris/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/drilonrecica/igris/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/drilonrecica/igris/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/drilonrecica/igris/compare/v0.3.0...v0.4.0
