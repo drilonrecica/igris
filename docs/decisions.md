@@ -457,3 +457,29 @@ Decided:
 - **Invisible characters.** `textsafe.Clean` (and so `Line`) also drops the bidi controls U+202A–U+202E, U+2066–U+2069, U+200E, U+200F and U+061C, which can make a title read in another order than it is, and the zero-width U+200B, U+2060 and U+FEFF. The joiners U+200C and U+200D stay: emoji sequences and some scripts need them.
 - **ETA from home.** A run started from the home screen gets the rank durations too: the snapshot home reads carries them (`report.Snapshot.RankDurations`), the run view passes them on as `igris arise` does.
 - **Dependency.** `github.com/rivo/uniseg` (v0.4.7, already an indirect dependency through Lip Gloss at the same version in `go.sum`) became a direct dependency in `go.mod` for the grapheme-aware clipping above. No new module is downloaded. The owner approved it with the v0.5 fixes (AGENTS §4: approved dependencies only).
+
+## V06-P1 — Signing, SBOM and CI checks
+
+**Approved by owner** (2026-10-14), decided together for v0.6. Users can check that a download is the one the owner released, each release lists what it is built from, and CI watches for known vulnerabilities and for builds that don't reproduce. P0-04 left signing for later ("revisit with keyless cosign if/when CI publishes"); P0-07 keeps CI from publishing. Both hold: nothing here publishes from CI.
+
+| Option | Pros | Cons |
+|---|---|---|
+| **SSH signatures** (`ssh-keygen -Y sign`) | No new tool for the owner or for users (OpenSSH ≥ 8.1 on every Linux and macOS); the same key signs git tags, which GitHub shows as Verified; signing stays local | Users need an `allowed_signers` line (published in the repo); less known than minisign |
+| minisign, local | Small, made for this, short public key | A new tool for the owner and every user who verifies |
+| cosign keyless, local | No key to keep: a browser login signs, the transparency log records it | Puts the owner's email in a public log for good; users need cosign; a browser login per release |
+| cosign keyless in CI | Provenance and signing in one workflow, no key on the owner's machine | Reverses P0-07: CI gets write rights and publishes |
+
+**Decisions:**
+- **Signing: SSH signatures.** `checksums.txt` is signed with `ssh-keygen -Y sign -n file`, which writes `checksums.txt.sig`. Each archive is covered through its line in `checksums.txt`. The key is a dedicated Ed25519 release key (`~/.ssh/igris-release`), not the owner's GitHub login key. Verifying is `ssh-keygen -Y verify -f allowed_signers -I igris -n file -s checksums.txt.sig < checksums.txt`, then `sha256sum -c --ignore-missing checksums.txt` (`shasum -a 256 -c --ignore-missing checksums.txt` on macOS). The commands were tried on a throwaway key: a good signature verifies, and a changed `checksums.txt` fails.
+- **The owner signs every release.** The key has a passphrase the agent never sees. At release time the agent prepares the release commit, then stops. The owner runs `make sign VERSION=X.Y.Z`: it creates the annotated tag signed with the same key (`gpg.format=ssh`), builds the release from that tag, and signs `dist/checksums.txt`. The agent then checks the tag and the signature against `allowed_signers` before `gh release create`. A compromised agent session can build, but it can't sign.
+- **The public key** is published in three places: `allowed_signers` at the repository root (`igris namespaces="file,git" ssh-ed25519 …`), the README's verifying section, and the owner's GitHub SSH signing keys (for Verified tags).
+- **Rotation.** A new key is added to `allowed_signers` and announced in the CHANGELOG and README. The old line stays with `valid-before="YYYYMMDD"`, so older releases still verify.
+- **SBOM: syft through GoReleaser's `sboms`** (`artifacts: archive`), one SPDX JSON per archive, listed in `checksums.txt` so the signature covers it. syft is a release-time tool on the owner's machine, not a Go dependency; this approves it. A `go version -m` manifest was the no-tool alternative, but it isn't a format scanners read.
+- **CI**, still `contents: read`, no secrets, never publishing:
+  - **govulncheck** on push and pull requests, pinned (`go run golang.org/x/vuln/cmd/govulncheck@vX.Y.Z`); a reachable vulnerability fails the job.
+  - **govulncheck weekly** (`schedule`), so an advisory against unchanged code shows up between pushes.
+  - **Reproducible build:** the job builds the same commit twice with the release flags (`CGO_ENABLED=0`, `-trimpath`, the release ldflags, the commit's timestamp) and fails if the binaries differ.
+  - **Fuzzing** (V06-05): a short run per fuzz target on push, with the corpus committed.
+- **Unchanged:** releases before v0.6.0 stay unsigned (checksums only). Homebrew pins each archive's sha256 from `checksums.txt` and doesn't check the signature, which is for direct downloads. `go install` keeps the module proxy and checksum database.
+
+SPEC §18 amended. Tasks V06-01 (signing, `make sign`, `allowed_signers`, README), V06-02 (SBOM, govulncheck, reproducible build) and V06-05 (fuzzing) implement it.

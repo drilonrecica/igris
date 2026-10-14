@@ -391,7 +391,7 @@ Through WSL2, with herdr or tmux and Claude Code installed inside WSL too; see [
 ## Roadmap
 
 - More multiplexers (zellij) through the same backend interface
-- Signed release artifacts (cosign/minisign)
+- Signed releases (v0.6): SSH signatures over `checksums.txt` and the release tag, verifiable with `ssh-keygen`, plus an SBOM per archive
 
 ## Building releases
 
