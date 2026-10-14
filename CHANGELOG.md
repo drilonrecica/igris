@@ -4,6 +4,10 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+### Added
+
+- Hover in the TUI: with the mouse on, the button, row or dialog option under the pointer is underlined, in every screen (run view, home and its pages, the adapt review). Underline is no color, so it shows under `NO_COLOR`; hovering never moves the focus. The TUI now asks the terminal for all mouse motion; `[tui] mouse = false` turns hover off with the rest of the mouse support.
+
 ## [0.5.1] - 2026-10-08
 
 A patch for small bugs found at the v0.5 gate and its review: a first prompt that stays unsubmitted, blank tail rows, `report` help and completion, a second Ctrl-C, an external interrupt that could hang the TUI, and reading a FIFO or huge run log. No change to the plan format, config keys or file formats.

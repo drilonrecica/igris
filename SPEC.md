@@ -532,7 +532,7 @@ model = "sonnet"                  # sonnet | opus
 
 [tui]
 tail = true                       # live tail of the current session in the task card (§15.3)
-mouse = true                      # click/tap and wheel in the TUI (§15.5); false keeps the terminal's own text selection
+mouse = true                      # click/tap, wheel and hover in the TUI (§15.5); false keeps the terminal's own text selection
 theme = "auto"                    # auto | dark | light: which colors to use (§15.4); auto goes by the terminal's background
 
 [tui.rank_colors]                 # optional: rank -> color, "#rrggbb" or an ANSI color number "0"–"255" (§15.4)
@@ -808,13 +808,13 @@ When a run ends on its own (complete, stuck, error) the run view stays open with
 - Rank colors are configurable (`[tui.rank_colors]`, §12) but each rank also shows its name. The stock ranks have built-in colors; other ranks are uncolored until given one.
 - Respect `NO_COLOR`: no color is drawn. Bold, faint and reverse video are not colors and stay.
 - The focused element is marked without relying on color (reverse video plus `›…‹` brackets on buttons, `›` on rows), so focus is visible under `NO_COLOR`.
-- Buttons have four states: normal, focused, wanting attention (`Answer…` while a question is pending) and inactive (the bar under a dialog or page, dimmed). There is no hover state (§15.5).
+- Buttons have four states: normal, focused, wanting attention (`Answer…` while a question is pending) and inactive (the bar under a dialog or page, dimmed). Hover is drawn over any of them (§15.5): the element under the pointer is underlined, which is no color, so it shows under `NO_COLOR` too, and it never looks like focus.
 
 ### 15.5 Interaction
 Modelled on Claude Code's choice prompts and herdr's clickable UI.
 
 - **Focus.** `tab` / `shift+tab` move between regions: task list, action bar, log (and the open dialog, which keeps the focus until it closes). Inside a region: `←/→` along the action bar, `↑/↓` (and `j/k`) in lists, dialogs and the log, `pgup/pgdn` to scroll. `enter` or `space` activates the focused element. Shortcut keys (§15.3) work from anywhere outside a text field.
-- **Mouse.** Click or tap activates a button, a task row (selects it and opens its details) or a dialog option. The wheel scrolls the list or log under the pointer. Mouse reporting (button presses, wheel and drags; no hover) is on by default; `[tui] mouse = false` turns it off, because while a TUI captures the mouse the terminal's own text selection usually needs `shift`+drag.
+- **Mouse.** Click or tap activates a button, a task row (selects it and opens its details) or a dialog option. The wheel scrolls the list or log under the pointer. While the pointer is over something a click would act on now (a button, a row, a dialog option or field, not the bar under an open dialog or page), its text is underlined (§15.4); hover never moves the focus or changes what `enter` does. Mouse reporting (button presses, wheel and all pointer motion, for hover) is on by default; `[tui] mouse = false` turns it off, hover with it, because while a TUI captures the mouse the terminal's own text selection usually needs `shift`+drag. A terminal that doesn't report motion without a button only loses the hover.
 - **Dialogs.** When the engine asks the owner something, a modal choice list opens at once and is focused on the safe default:
 
   | Question | Options (default first) |

@@ -203,7 +203,7 @@ type Adapt struct {
 
 // TUI configures the terminal UI (SPEC §15).
 type TUI struct {
-	// Mouse turns on click/tap and wheel support (SPEC §15.5). Off keeps the
+	// Mouse turns on click/tap, wheel and hover support (SPEC §15.5). Off keeps the
 	// terminal's own text selection without shift+drag.
 	Mouse bool `toml:"mouse"`
 	// Theme picks the colors for a dark or a light terminal; "auto" goes by

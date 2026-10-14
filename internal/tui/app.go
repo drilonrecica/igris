@@ -87,11 +87,11 @@ func App(ctx context.Context, o AppOptions) (AppResult, error) {
 	// Focus reports make home look at the project again when the owner
 	// comes back to the terminal.
 	opts := append(programOptions(ctx, o.Mouse), tea.WithReportFocus())
-	final, err := tea.NewProgram(a, opts...).Run()
+	final, err := tea.NewProgram(newHover(a), opts...).Run()
 	if errors.Is(err, tea.ErrProgramKilled) && ctx.Err() != nil {
 		err = nil // ctx ended: not a failure of the TUI
 	}
-	if f, ok := final.(*appModel); ok {
+	if f, ok := unwrap(final).(*appModel); ok {
 		a = f
 	}
 	if o.Ending != nil {
@@ -367,7 +367,7 @@ func (a *appModel) applyConfig(c config.TUI) tea.Cmd {
 	}
 	a.o.Mouse = c.Mouse
 	if c.Mouse {
-		return tea.EnableMouseCellMotion
+		return tea.EnableMouseAllMotion
 	}
 	return tea.DisableMouse
 }

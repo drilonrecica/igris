@@ -28,7 +28,7 @@ type Options struct {
 	Project string // shown in the header, e.g. the project directory name
 	Backend string // backend name for the header
 	Mode    string // the run mode chosen for the run; "" for none
-	Mouse   bool   // [tui] mouse: click, tap and wheel (SPEC §15.5)
+	Mouse   bool   // [tui] mouse: click, tap, wheel and hover (SPEC §15.5)
 	// Theme is [tui] theme: "dark" or "light" colors, or "auto" (also "")
 	// to go by the terminal's background (SPEC §15.4).
 	Theme string
@@ -77,7 +77,7 @@ func Run(ctx context.Context, opts Options) error {
 	// Bubble Tea asked the terminal for its background when the process
 	// started, so "auto" costs no query here.
 	m.th = newTheme(lipgloss.NewRenderer(os.Stdout), darkTheme(opts.Theme, lipgloss.HasDarkBackground), opts.RankColors)
-	p := tea.NewProgram(m, programOptions(ctx, opts.Mouse)...)
+	p := tea.NewProgram(newHover(m), programOptions(ctx, opts.Mouse)...)
 	_, err := p.Run()
 	if errors.Is(err, tea.ErrProgramKilled) && ctx.Err() != nil {
 		return nil // ctx ended: not a failure of the TUI
@@ -105,7 +105,7 @@ func darkTheme(setting string, detect func() bool) bool {
 func programOptions(ctx context.Context, mouse bool) []tea.ProgramOption {
 	opts := []tea.ProgramOption{tea.WithAltScreen(), tea.WithContext(ctx), tea.WithoutSignalHandler()}
 	if mouse {
-		opts = append(opts, tea.WithMouseCellMotion())
+		opts = append(opts, tea.WithMouseAllMotion())
 	}
 	return opts
 }

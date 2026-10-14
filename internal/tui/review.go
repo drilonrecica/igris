@@ -44,14 +44,14 @@ type ReviewOptions struct {
 func Review(ctx context.Context, o ReviewOptions) (bool, error) {
 	m := newReview(o)
 	m.th = newTheme(lipgloss.NewRenderer(os.Stdout), darkTheme(o.Theme, lipgloss.HasDarkBackground), nil)
-	final, err := tea.NewProgram(m, programOptions(ctx, o.Mouse)...).Run()
+	final, err := tea.NewProgram(newHover(m), programOptions(ctx, o.Mouse)...).Run()
 	if errors.Is(err, tea.ErrProgramKilled) && ctx.Err() != nil {
 		return false, nil // ctx ended: nothing was accepted
 	}
 	if err != nil {
 		return false, err
 	}
-	r, ok := final.(*review)
+	r, ok := unwrap(final).(*review)
 	return ok && r.accepted, nil
 }
 
