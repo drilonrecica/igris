@@ -11,7 +11,7 @@ Thanks for helping. igris is small and opinionated, so please read this before y
 
 ## Development
 
-You need the Go version in `go.mod` and [golangci-lint](https://golangci-lint.run/) v2.
+You need Go (the toolchain pinned in `go.mod` is fetched by itself) and [golangci-lint](https://golangci-lint.run/) v2. CI also runs govulncheck (on every push and weekly), a 30-second run of every fuzz target, and a check that the release build gives identical binaries on Linux and macOS.
 
 ```sh
 make build        # bin/igris

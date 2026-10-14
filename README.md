@@ -395,7 +395,7 @@ Through WSL2, with herdr or tmux and Claude Code installed inside WSL too; see [
 
 ## Building releases
 
-`make release-local` needs [GoReleaser](https://goreleaser.com/install/). It builds the four release targets (linux and darwin, amd64 and arm64) as static binaries, packs each with `LICENSE` and `README.md`, and writes the archives and `checksums.txt` to `dist/`. It never publishes anything; it also renders the Homebrew formula to `dist/igris.rb` ([`docs/homebrew-tap.md`](docs/homebrew-tap.md)). A release is uploaded to GitHub by hand. What changed in each release is in [`CHANGELOG.md`](CHANGELOG.md); the GitHub release text lives in [`docs/release-notes/`](docs/release-notes/).
+`make release-local` needs [GoReleaser](https://goreleaser.com/install/) and [syft](https://github.com/anchore/syft#installation). It builds the four release targets (linux and darwin, amd64 and arm64) as static binaries with the Go toolchain pinned in `go.mod`, packs each with `LICENSE` and `README.md`, and writes the archives, an SPDX JSON SBOM per archive and `checksums.txt` (covering both) to `dist/`. It never publishes anything; it also renders the Homebrew formula to `dist/igris.rb` ([`docs/homebrew-tap.md`](docs/homebrew-tap.md)). A release is uploaded to GitHub by hand. What changed in each release is in [`CHANGELOG.md`](CHANGELOG.md); the GitHub release text lives in [`docs/release-notes/`](docs/release-notes/).
 
 The [project page](https://drilonrecica.github.io/igris/) is a static page in [`site/`](site/). `make site` builds it into `_site/` (preview with `python3 -m http.server -d _site`), and `.github/workflows/pages.yml` deploys it to GitHub Pages when it changes on `master`.
 

@@ -6,7 +6,16 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ### Added
 
+- An SPDX JSON SBOM per release archive (made by syft), listed in `checksums.txt`.
 - Hover in the TUI: with the mouse on, the button, row or dialog option under the pointer is underlined, in every screen (run view, home and its pages, the adapt review). Underline is no color, so it shows under `NO_COLOR`; hovering never moves the focus. The TUI now asks the terminal for all mouse motion; `[tui] mouse = false` turns hover off with the rest of the mouse support.
+
+### Security
+
+- Built with Go 1.27.2, now pinned in `go.mod`. Releases up to 0.5.1 were built with Go 1.27.1, which has 8 standard-library advisories fixed in 1.27.2 (GO-2026-6603, -6605, -6607, -6608, -6610, -6611, -6613, -6617). igris only makes outbound HTTPS requests to the notification endpoints you configure, so the server-side ones don't apply, and the client-side ones need a hostile notification server or a broken TLS connection.
+
+### Changed
+
+- CI runs govulncheck on every push and weekly, a short run of every fuzz target, and a check that the release build is reproducible on Linux and macOS.
 
 ## [0.5.1] - 2026-10-08
 

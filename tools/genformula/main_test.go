@@ -42,3 +42,21 @@ func TestRenderErrors(t *testing.T) {
 		t.Error("empty version: want error")
 	}
 }
+
+// From v0.6 checksums.txt also lists an SBOM per archive (decisions.md
+// V06-P1); the formula takes the archives' sums only.
+func TestRenderIgnoresSBOMs(t *testing.T) {
+	sums := ""
+	for _, l := range strings.SplitAfter(fakeSums, "\n") {
+		if f := strings.Fields(l); len(f) == 2 {
+			sums += l + "ffff  " + f[1] + ".sbom.json\n"
+		}
+	}
+	got, err := render("1.2.3", strings.NewReader(sums))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := string(got); strings.Contains(s, "ffff") || strings.Contains(s, ".sbom.json") || !strings.Contains(s, `sha256 "bbbb"`) {
+		t.Errorf("formula uses an SBOM line:\n%s", s)
+	}
+}

@@ -35,10 +35,12 @@ fuzz:
 		done; \
 	done
 
-# Snapshot build of all release targets into dist/ (SPEC §18). Needs goreleaser;
-# never publishes: the owner uploads dist/ to a GitHub Release by hand.
+# Snapshot build of all release targets into dist/ (SPEC §18), with an SBOM per
+# archive. Needs goreleaser and syft; never publishes: the owner uploads dist/
+# to a GitHub Release by hand.
 release-local:
 	@command -v goreleaser >/dev/null || { echo "goreleaser not found: https://goreleaser.com/install/"; exit 1; }
+	@command -v syft >/dev/null || { echo "syft not found (makes the SBOMs): https://github.com/anchore/syft#installation"; exit 1; }
 	goreleaser check
 	goreleaser release --snapshot --clean --skip=publish
 	go run ./tools/genformula -dist dist

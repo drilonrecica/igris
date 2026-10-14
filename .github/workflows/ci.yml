@@ -47,3 +47,61 @@ jobs:
           go-version-file: go.mod
           cache: true
       - run: go test -race ./...
+
+  # The release build, made on two different runners, must give identical
+  # binaries (decisions.md V06-P1). Each runner builds all four targets with
+  # the release config; compare checks the hashes, passed as job outputs.
+  repro-linux:
+    runs-on: ubuntu-latest
+    outputs:
+      sums: ${{ steps.sums.outputs.sums }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
+        with:
+          version: v2.17.1
+          args: build --snapshot --clean
+      - id: sums
+        run: |
+          { echo 'sums<<EOF'; (cd dist && shasum -a 256 -- */igris | sort -k2); echo EOF; } >> "$GITHUB_OUTPUT"
+
+  repro-macos:
+    runs-on: macos-latest
+    outputs:
+      sums: ${{ steps.sums.outputs.sums }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
+        with:
+          version: v2.17.1
+          args: build --snapshot --clean
+      - id: sums
+        run: |
+          { echo 'sums<<EOF'; (cd dist && shasum -a 256 -- */igris | sort -k2); echo EOF; } >> "$GITHUB_OUTPUT"
+
+  repro:
+    needs: [repro-linux, repro-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compare
+        env:
+          LINUX: ${{ needs.repro-linux.outputs.sums }}
+          MACOS: ${{ needs.repro-macos.outputs.sums }}
+        run: |
+          printf 'built on linux:\n%s\n\nbuilt on macos:\n%s\n' "$LINUX" "$MACOS"
+          test "$(printf '%s\n' "$LINUX" | wc -l)" -eq 4 || { echo "want 4 binaries"; exit 1; }
+          test "$LINUX" = "$MACOS" || { echo "the release build is not reproducible"; exit 1; }

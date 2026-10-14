@@ -30,6 +30,11 @@ archives:
       - LICENSE
       - README.md
 
+# An SPDX JSON SBOM per archive, made by syft (decisions.md V06-P1). They are
+# listed in checksums.txt, so its signature covers them.
+sboms:
+  - artifacts: archive
+
 checksum:
   name_template: checksums.txt
   algorithm: sha256
