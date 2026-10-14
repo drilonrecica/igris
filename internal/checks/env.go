@@ -29,10 +29,13 @@ func apiKey(getenv func(string) string) Result {
 }
 
 // git checks that root is a git repository with a clean working tree. It
-// only reads; git problems are warnings, never failures.
-func git(ctx context.Context, r runner.Runner, root string) Result {
+// only reads; git problems are warnings, never failures. env is its
+// environment, without the secrets' variables: `git status` can run
+// programs the repository's config names, which a session can write
+// (V06-07).
+func git(ctx context.Context, r runner.Runner, root string, env []string) Result {
 	run := func(args ...string) (string, bool) {
-		res, err := r.Run(ctx, runner.Cmd{Name: "git", Args: args, Dir: root, Timeout: gitTimeout})
+		res, err := r.Run(ctx, runner.Cmd{Name: "git", Args: args, Dir: root, Env: env, Timeout: gitTimeout})
 		if err != nil || res.ExitCode != 0 {
 			return "", false
 		}

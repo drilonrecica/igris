@@ -306,3 +306,20 @@ func TestWriteRules(t *testing.T) {
 		t.Error("path-like ID accepted")
 	}
 }
+
+// A session filling signals/ with files can't make every poll read them
+// all: at most maxSignalFiles are read, and the rest is reported (V06-07).
+func TestSignalScanIsBounded(t *testing.T) {
+	d := testDir(t)
+	dir := filepath.Join(d.Path(), "signals")
+	for i := range maxSignalFiles + 50 {
+		must(t, os.WriteFile(filepath.Join(dir, fmt.Sprintf("X-%04d.json", i)), []byte("not json"), 0o600))
+	}
+	sigs, bad, err := d.ListSignals()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sigs) != 0 || len(bad) != maxSignalFiles+1 || !strings.Contains(bad[len(bad)-1].Error(), "were not read") {
+		t.Errorf("%d signals, %d bad (last %v); want %d unreadable and one note", len(sigs), len(bad), bad[len(bad)-1], maxSignalFiles)
+	}
+}

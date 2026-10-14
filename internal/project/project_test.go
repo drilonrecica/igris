@@ -279,9 +279,9 @@ func TestPrelaunchWorktree(t *testing.T) {
 	if got := gitWarning(report.RunRequest{Phase: "M0", Worktree: true}); got != "the working tree has uncommitted changes: the run's new worktree starts from HEAD without them." {
 		t.Errorf("new worktree: %q", got)
 	}
-	writeFile(t, filepath.Join(root, ".igris", "worktrees", "r1", "x"), "")
+	writeFile(t, filepath.Join(root, ".igris", "worktrees", "20261014-120000-abcd", "x"), "")
 	writeFile(t, filepath.Join(root, state.DirName, "state.json"),
-		`{"version":1,"phases":["M0"],"config_hash":"x","worktree":{"path":".igris/worktrees/r1","branch":"igris/r1"}}`)
+		`{"version":1,"phases":["M0"],"config_hash":"x","worktree":{"path":".igris/worktrees/20261014-120000-abcd","branch":"igris/20261014-120000-abcd"}}`)
 	if got := gitWarning(report.RunRequest{}); got != "" {
 		t.Errorf("resuming in the worktree: %q", got)
 	}

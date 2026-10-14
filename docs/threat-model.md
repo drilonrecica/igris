@@ -136,6 +136,32 @@ What igris protects, from whom, where the boundaries are, and which test enforce
 5. **The sessions' own environment** comes from the herdr or tmux server, not from igris, so the env rules don't apply to Claude Code itself.
 6. **Plain-http notification servers** are allowed with a warning, for servers on the owner's LAN.
 7. **A session can write files igris reads** (signals, agent state, `state.json`); each is checked as above, but a session can always make the run stop or ask the owner.
+8. **The ntfy topic is shown and isn't a secret** (V06-07, owner's decision). On a public server without a token, the topic is what keeps others from reading and sending your notifications; the README says to pick a long random one or set a token.
+9. **A secret written in `igris.toml` itself is part of the config hash** in `state.json` (V06-07, owner's decision): a weak one could be guessed offline from the hash. A session can read `igris.toml` anyway (risk 4); `env:` references keep secrets out of both.
+10. **A skip-permissions session reattached after a stop** asks for the confirmation again only when `state.json` records it as one, or the plan or config give the task that mode (V06-07). A session started under a run-wide `--mode yolo` can rewrite its recorded mode; it already runs with full permissions (risk 2).
+
+## Reviews
+
+### V06-07 (2026-10-14, v0.6)
+
+Four reviewers on the Fable model read the code against this document, one area each (session-facing inputs, commands igris runs, backends, notifications). Each finding was checked against the code before it was fixed or accepted.
+
+| # | Area | Finding | Severity | Outcome |
+|---|---|---|---|---|
+| 1 | state.json, worktree | A rewritten `worktree` path or branch was used as the run's work dir and in git calls: a session could point the next run's sessions, verify and commits at the project root or another repository, or have igris remove another worktree. A symlink in place of the worktree was followed too. | medium | Fixed: only `.igris/worktrees/<run-id>` on `igris/<run-id>` reads back; a symlink is not a worktree (R6, R22) |
+| 2 | state.json, mode | The reattach confirmation trusted the recorded mode, which a session can rewrite. | medium | Partly fixed: the mode must be a run mode, and the plan or config giving the task skip-permissions mode still asks; the rest accepted (risk 10) |
+| 3 | start-up checks | The start-up `git rev-parse`/`git status` got igris's whole environment; `git status` runs programs a repository's config names (`core.fsmonitor`), which a session can write. | medium | Fixed: the secrets' variables are left out (R15) |
+| 4 | terminal | Errors printed to stderr were not cleaned; they can carry a git hook's output or values from `.igris/`. | low | Fixed: all of stderr is cleaned (R12) |
+| 5 | tmux | A process naming itself with a tab or newline could make a live pane read as gone (a false "session lost"). | low | Fixed (R31) |
+| 6 | verify | The excerpt sent back after a failed verify was bounded in lines, not bytes; one long line could exceed herdr's argument limit and turn the retry into a Needs you. | low | Fixed: at most 16 KiB (R9) |
+| 7 | signals | Every poll read every file in `signals/`; a session filling it could slow igris to a stop. | low | Fixed: at most 256 per poll, the rest reported (R14) |
+| 8 | state.json | A negative `verify_attempts` deferred the verify limit; the task ID wasn't checked. | low | Fixed (R6) |
+| 9 | notifications | A webhook URL from an `env:` reference that resolves to plain http wasn't warned about. | low | Fixed (R18) |
+| 10 | config | A secret reading `env:PATH` or `env:HOME` would strip a variable every command needs. | low | Fixed: a config error |
+| 11 | notifications | The ntfy topic, the only protection on a tokenless public server, is shown and not treated as a secret. | low | Accepted (risk 8) |
+| 12 | config hash | A secret written in `igris.toml` is part of the config hash. | info | Accepted (risk 9) |
+
+Checked and holding, among others: redirects never carry tokens or signatures to another host; response bodies are never echoed; templates can't loop or call out and are bounded; tmux names and messages can't expand formats; prompts reach panes as argv or stdin, cleaned; Context paths stay inside the project; plan text never becomes a command.
 
 ## Rule → test map
 
@@ -148,28 +174,29 @@ One row per safety rule. The tests are named `package.TestName`; `tools/threatmo
 | R3 | A session's `igris skip` is a request the owner confirms | §6.2 | `internal/engine.TestSkipSignalNeedsConfirmation` |
 | R4 | A reset signal is a request the owner confirms | §6.2 | `internal/engine.TestResetNeedsTheOwner` |
 | R5 | `claude.extra_args` can't carry model, mode, settings, session or resume flags | §7.4 | `internal/config.TestForbiddenExtraArgs`, `internal/config.TestForbiddenExtraArg`, `internal/engine.TestClaudeArgsErrors` |
-| R6 | Values read back from `state.json` are shape-checked before they become arguments | §7.4, §13 | `internal/engine.TestRetryContinueRefusesATamperedSessionID`, `internal/backend/tmux.TestAttach`, `internal/backend/herdr.TestAttachChecksClaudeSession`, `internal/state.TestLoadRunErrors` |
+| R6 | Values read back from `state.json` are shape-checked before they become arguments | §7.4, §13 | `internal/engine.TestRetryContinueRefusesATamperedSessionID`, `internal/backend/tmux.TestAttach`, `internal/backend/herdr.TestAttachChecksClaudeSession`, `internal/state.TestLoadRunErrors`, `internal/state.TestLoadRunAcceptsItsOwn` |
 | R7 | Plan edits igris didn't make hold the run until the owner looks | §5.4 | `internal/engine.TestPlanEditedBySessionHoldsTheRun`, `internal/engine.TestOwnWritesAreNotPlanChanges` |
 | R8 | Every external command has a timeout | §16 | `internal/runner.TestExecInvalidCommands`, `internal/runner.TestFakeValidatesLikeExec`, `internal/runner.TestExecTimeoutKillsProcessGroup`, `internal/engine.TestHooksRunAroundEachSession` |
-| R9 | Captured output is bounded (last 8 MiB; verify sends back the last 60 lines) | §6.4 | `internal/runner.TestExecOutputIsBounded`, `internal/runner.TestTailBufferKeepsTheEnd`, `internal/engine.TestVerifyFailureGoesBackToTheSession` |
+| R9 | Captured output is bounded (last 8 MiB; verify sends back the last 60 lines, at most 16 KiB) | §6.4 | `internal/engine.TestTailIsBoundedInBytes`, `internal/runner.TestExecOutputIsBounded`, `internal/runner.TestTailBufferKeepsTheEnd`, `internal/engine.TestVerifyFailureGoesBackToTheSession` |
 | R10 | The owner's editor runs as argv, never through a shell, and isn't guessed | §16, §15.6 | `internal/project.TestEditorArgv`, `internal/tui.TestEditWithoutEditorAsks` |
 | R11 | Plan text never passes through a shell; prompts go as argv (herdr) or via stdin (tmux), never into a tmux format | §16, §11.5 | `internal/runner.TestExecArgvIsNotShellInterpreted`, `internal/backend/tmux.TestLoadBufferUsesStdin`, `internal/backend/tmux.TestLiteral`, `internal/backend/herdr.TestPrompt` |
-| R12 | Untrusted text is cleaned before it is drawn, logged, sent, committed or typed into a pane | §16 | `internal/textsafe.TestClean`, `internal/tui.TestHomeCleansEveryTextSource`, `internal/engine.TestUntrustedTextIsCleaned`, `internal/backend/herdr.TestPromptIsCleaned`, `internal/checks.TestResultsAreSafe`, `internal/tui.TestNotifyCleansErrors` (partial: the `--no-tui` log is covered through the engine's cleaned events, not by a test of its own) |
+| R12 | Untrusted text is cleaned before it is drawn, logged, sent, committed or typed into a pane | §16 | `internal/textsafe.TestClean`, `internal/tui.TestHomeCleansEveryTextSource`, `internal/engine.TestUntrustedTextIsCleaned`, `internal/backend/herdr.TestPromptIsCleaned`, `internal/checks.TestResultsAreSafe`, `internal/tui.TestNotifyCleansErrors`, `cmd/igris.TestStderrIsCleaned` (partial: the `--no-tui` log is covered through the engine's cleaned events, not by a test of its own) |
 | R13 | State and signal files are written atomically, `0600` files in `0700` directories | §16, §13 | `internal/state.TestWriteFileAtomic`, `internal/state.TestOpenCreatesPrivateDirs`, `internal/state.TestSignalRoundTrip`, `internal/state.TestAgentStateRoundTrip` |
-| R14 | Files sessions can write are read only as regular files of bounded size | §6.2, §6.3, §13 | `internal/state.TestSignalsFromSessionsAreGuarded`, `internal/state.TestReadAgentStateUntrusted`, `internal/state.TestPeekLogNotRegular`, `internal/state.TestPeekLogSizeCap` |
-| R15 | Verify, task hooks and git never get the secrets' `env:` variables; `run.env` limits verify and hooks | §6.4, §16 | `internal/engine.TestCommandEnv`, `internal/engine.TestChildEnv`, `internal/config.TestRunEnv`, `internal/config.TestSecretEnvNames` |
+| R14 | Files sessions can write are read only as regular files of bounded size | §6.2, §6.3, §13 | `internal/state.TestSignalsFromSessionsAreGuarded`, `internal/state.TestReadAgentStateUntrusted`, `internal/state.TestPeekLogNotRegular`, `internal/state.TestPeekLogSizeCap`, `internal/state.TestSignalScanIsBounded` |
+| R15 | Verify, task hooks and git never get the secrets' `env:` variables; `run.env` limits verify and hooks | §6.4, §16 | `internal/engine.TestCommandEnv`, `internal/engine.TestChildEnv`, `internal/config.TestRunEnv`, `internal/config.TestSecretEnvNames`, `internal/checks.TestGitWithoutSecrets` |
 | R16 | igris never sets `ANTHROPIC_API_KEY`; `check` warns and `arise` asks when it is set | §7.4, §16 | `tools/threatmodel.TestNeverSetsAPIKey`, `cmd/igris.TestCheckWarnsAboutAPIKey`, `cmd/igris.TestAriseStartUpConfirmations` |
 | R17 | Notification secrets never reach the config hash, the run log, errors or home's pages | §10, §16 | `internal/config.TestHash`, `internal/config.TestSecretsAreRedacted`, `internal/notify.TestSecretsAreScrubbedFromErrors`, `internal/engine.TestNotificationsReachEveryChannel`, `internal/tui.TestSettingsPageHidesSecrets`, `internal/project.TestNotifyTestRedactsSecrets`, `internal/checks.TestNotifyChannels` |
-| R18 | Tokens and webhook URLs over plain http are warned about | §16 | `internal/config.TestHTTPWarnings` |
+| R18 | Tokens and webhook URLs over plain http are warned about, also a webhook URL from an `env:` reference | §16 | `internal/config.TestHTTPWarnings`, `internal/config.TestWarningsEnv` |
 | R19 | Skip-permissions mode needs a typed confirmation every run, also to reattach an interrupted task; never one click | §7.3 | `internal/engine.TestSkipPermissionsNeedsConfirmation`, `internal/engine.TestSkipPermissionsIsCheckedAgainAtLaunch`, `internal/engine.TestResumeYoloSessionNeedsConfirmation`, `internal/tui.TestWizardYoloNeedsThePhrasePerLaunch`, `internal/tui.TestYoloNeverOneClick` |
 | R20 | The `--settings` file holds hooks only (in worktree mode also the rules of R22) | §6.3, §7.4 | `internal/hook.TestSettings`, `internal/hook.TestSettingsAllow`, `internal/engine.TestNoWorktree` |
 | R21 | `igris done` is allow-listed by `init`, `igris skip` never; doctor warns about a rule that allows it | §6.2, §7.1 | `cmd/igris.TestInitFresh`, `internal/checks.TestDoctorAllowRules`, `internal/checks.TestAllowsSkip` |
-| R22 | In a worktree, `igris done` finds the project; the session gets only the project's `igris done` rules and reading the plan | §6.8 | `internal/state.TestFindRoot`, `internal/engine.TestWorktreeRun`, `internal/engine.TestWorktreeAllow` |
+| R22 | In a worktree, `igris done` finds the project; the session gets only the project's `igris done` rules and reading the plan | §6.8 | `internal/state.TestFindRoot`, `internal/engine.TestWorktreeRun`, `internal/engine.TestWorktreeAllow`, `internal/engine.TestWorktreeSymlinkIsNotReused` |
 | R23 | One run per project: a live lock is refused, a stale one needs `--force-unlock`, the lock appears complete | §13 | `internal/state.TestLock`, `internal/state.TestLockFileAppearsComplete`, `internal/engine.TestRunRefusesWhenLocked` |
 | R24 | Webhooks are signed with the secret, which never appears in errors or the run log | §10 | `internal/notify.TestWebhookSend`, `internal/notify.TestWebhookErrorsHideSecrets`, `internal/engine.TestNotificationsReachEveryChannel` |
 | R25 | Releases verify against the published key; `allowed_signers` and the README agree | §18 | `tools/signers.TestAllowedSigners`, `tools/signers.TestReadmeQuotesTheKey` |
 | R26 | Commit messages and notifications built from untrusted text are cleaned | §6.5, §10 | `internal/engine.TestUntrustedTextIsCleaned`, `internal/notify.TestTemplatedCleansCutsAndFallsBack` |
 | R27 | A hook payload is read bounded, and only a state is kept from it | §6.3 | `internal/hook.TestRunRejects`, `internal/hook.TestStopPending`, `internal/hook.TestRunStoresOnlyTheState` |
 | R28 | User-facing errors say what to do next | §16 | `internal/state.TestLoadRunErrors`, `internal/state.TestStaleLockNamesTheCommand`, `internal/checks.TestDoctorAllowRules` (partial: checked for state, lock and doctor errors, not for every error) |
+| R31 | What a pane's process calls itself can't forge the pane's state (tmux `pane_current_command`) | §11.5 | `internal/backend/tmux.TestPane` |
 | R29 | Verify and git hooks run session-written code as the owner | §16 | accepted (see Accepted risks 1) |
 | R30 | A session can forge hook state, moving Needs you within `waiting_limit` | §6.3 | accepted (see Accepted risks 3) |

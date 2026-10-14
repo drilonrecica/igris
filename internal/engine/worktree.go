@@ -76,7 +76,7 @@ func (e *Engine) pickWorktree(prev *state.Run, resumed, carried bool) error {
 	c := ChooseWorktree(e.dir.Root(), prev, e.worktreeOn(), resumed, carried)
 	if wt := c.Gone; wt != nil {
 		id := prev.Current.TaskID
-		return fmt.Errorf("the interrupted task %s ran in the worktree %s (branch %s), which is gone: restore it with `git worktree add %s %s`, or reset the task with `igris reset %s`",
+		return fmt.Errorf("the interrupted task %s ran in the worktree %s (branch %s), which is gone (or no longer a directory): restore it with `git worktree add %s %s`, or reset the task with `igris reset %s`",
 			id, wt.Path, wt.Branch, wt.Path, wt.Branch, id)
 	}
 	e.run.Worktree, e.newWorktree, e.leftover = c.Reuse, c.New, c.Leftover
@@ -171,8 +171,11 @@ func (e *Engine) planFile() string {
 	return e.cfg.Plan
 }
 
+// isDir reports whether path is a directory itself, not a symlink to one:
+// a session could put a link to the owner's checkout in place of the
+// run's worktree (V06-07).
 func isDir(path string) bool {
-	fi, err := os.Stat(path)
+	fi, err := os.Lstat(path)
 	return err == nil && fi.IsDir()
 }
 

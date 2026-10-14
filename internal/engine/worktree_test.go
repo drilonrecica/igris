@@ -293,3 +293,23 @@ func TestWorktreeAllow(t *testing.T) {
 		t.Errorf("plan path with pattern characters: %q", got)
 	}
 }
+
+// A symlink in place of the run's worktree is not the worktree: the run
+// doesn't follow it into whatever it points at (V06-07).
+func TestWorktreeSymlinkIsNotReused(t *testing.T) {
+	h := newHarness(t, chainPlan, "")
+	h.worktreeGit(func() bool { return false })
+	h.autoSignalExcept("A-1")
+	h.stopMidTask(6*time.Second, withWorktree)
+	run, _ := h.dir.LoadRun()
+	wt := h.path(run.Worktree.Path)
+	if err := os.RemoveAll(wt); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(h.root, wt); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.run(resumeLast); err == nil || !strings.Contains(err.Error(), "which is gone") {
+		t.Fatalf("Run err = %v, want the worktree treated as gone", err)
+	}
+}

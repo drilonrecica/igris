@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 )
@@ -77,6 +78,21 @@ func quote(s string) string {
 		return s
 	}
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
+// Without returns env ("KEY=value" entries) without the variables named in
+// names, and without entries that have no name; the order is kept. igris
+// uses it to keep the variables the notification secrets come from away
+// from every command it runs in the project (SPEC §16).
+func Without(env, names []string) []string {
+	out := make([]string, 0, len(env))
+	for _, kv := range env {
+		name, _, ok := strings.Cut(kv, "=")
+		if ok && name != "" && !slices.Contains(names, name) {
+			out = append(out, kv)
+		}
+	}
+	return out
 }
 
 // Shell builds a `sh -c script` command. It exists only for the verify

@@ -15,6 +15,7 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ### Security
 
+- Second security review (V06-07; details in `docs/threat-model.md`). igris now checks more of what it reads back from `.igris/state.json`, which a session can rewrite: the worktree (only one igris made, never a symlink), the current task's ID, mode and verify attempts. The start-up git checks no longer get your notification secrets' variables. Everything igris prints to stderr is cleaned of escape sequences. A tmux pane's process can no longer fake "session lost". The verify excerpt sent back to a session is capped at 16 KiB. At most 256 signal files are read per poll. `check` and `arise` warn about a webhook URL from an `env:` reference that is plain http. A secret reading `env:PATH` or `env:HOME` is a config error.
 - A written threat model, [`docs/threat-model.md`](docs/threat-model.md): what igris protects and from whom, the boundaries and their threats, the accepted risks, and the test that enforces each safety rule (a test checks the map stays true).
 - Verify commands, task hooks and git no longer get the environment variables your notification secrets come from (`env:` references in `igris.toml`): a session writes the code verify runs and sees its output. New `[run] env` limits verify and task hooks to the variables you list (PATH and HOME always pass).
 - In worktree mode a session gets only the `igris done` allow rules your project's `.claude/settings.local.json` has.

@@ -1056,10 +1056,11 @@ func TestRunEnv(t *testing.T) {
 		t.Errorf("Write and Load: env %v, %v", back.Run.Env, err)
 	}
 	for toml, want := range map[string]string{ //nolint:gosec // env: references, no credentials
-		"[run]\nenv = [\"A-B\"]\n": `run.env: "A-B" is not a variable name`,
-		"[run]\nenv = [\"*\"]\n":   `run.env: "*" is not a variable name`,
-		"[run]\nenv = [\"A*B\"]\n": `run.env: "A*B" is not a variable name`,
-		"[run]\nenv = []\n":        "run.env is empty",
+		"[run]\nenv = [\"A-B\"]\n":                             `run.env: "A-B" is not a variable name`,
+		"[run]\nenv = [\"*\"]\n":                               `run.env: "*" is not a variable name`,
+		"[run]\nenv = [\"A*B\"]\n":                             `run.env: "A*B" is not a variable name`,
+		"[run]\nenv = []\n":                                    "run.env is empty",
+		"[notify.ntfy]\ntopic = \"t\"\ntoken = \"env:PATH\"\n": "a notification secret refers to env:PATH",
 		"[run]\nenv = [\"NTFY_T\"]\n[notify.ntfy]\ntopic = \"t\"\ntoken = \"env:NTFY_T\"\n": "run.env lists NTFY_T, which a notification secret refers to",
 	} {
 		if _, err := Parse([]byte(toml), "igris.toml"); err == nil || !strings.Contains(err.Error(), want) {
@@ -1091,5 +1092,24 @@ func TestDurationShort(t *testing.T) {
 		if got := Duration(d).Short(); got != want {
 			t.Errorf("Duration(%s).Short() = %q, want %q", d, got, want)
 		}
+	}
+}
+
+// A webhook url from an env: reference is warned about once its value is
+// known to be plain http, without the value in the text (V06-07).
+func TestWarningsEnv(t *testing.T) {
+	c, err := Parse([]byte("[notify.webhook]\nurl = \"env:HOOK\"\n"), "igris.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for val, want := range map[string]bool{"http://hooks.lan/SECRETPATH": true, "https://hooks.example/x": false, "": false} {
+		got := c.WarningsEnv(func(string) string { return val })
+		warned := len(got) == 1 && strings.Contains(got[0], "notify.webhook.url uses http://") && strings.Contains(got[0], "HOOK")
+		if warned != want || strings.Contains(strings.Join(got, " "), "SECRETPATH") {
+			t.Errorf("HOOK=%q: warnings %q, want warned %v and no value", val, got, want)
+		}
+	}
+	if got := c.WarningsEnv(nil); len(got) != 0 {
+		t.Errorf("without the environment: %q", got)
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/runner"
@@ -249,6 +250,17 @@ func TestTail(t *testing.T) {
 		if got := tail(tt.out, tt.n); got != tt.want {
 			t.Errorf("tail(%q, %d) = %q, want %q", tt.out, tt.n, got, tt.want)
 		}
+	}
+}
+
+// The excerpt sent back is bounded in bytes too: one huge line must not
+// make the prompt too long for herdr's argv (128 KiB per argument on
+// Linux), which would turn the retry into a Needs you (V06-07).
+func TestTailIsBoundedInBytes(t *testing.T) {
+	long := strings.Repeat("é", verifyTailBytes) + "END"
+	got := tail("first\n"+long+"\n", 3)
+	if len(got) > verifyTailBytes || !strings.HasPrefix(got, "… (cut)\n") || !strings.HasSuffix(got, "éEND") || !utf8.ValidString(got) {
+		t.Errorf("tail of a %d-byte line: %d bytes, starts %q, ends %q", len(long), len(got), got[:min(12, len(got))], got[max(0, len(got)-6):])
 	}
 }
 

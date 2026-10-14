@@ -266,7 +266,7 @@ func TestDryRunWorktree(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wt := &state.Worktree{Path: ".igris/worktrees/r1", Branch: "igris/r1"}
+	wt := &state.Worktree{Path: ".igris/worktrees/20261014-120000-abcd", Branch: "igris/20261014-120000-abcd"}
 	if err := os.MkdirAll(filepath.Join(root, wt.Path), 0o750); err != nil {
 		t.Fatal(err)
 	}
@@ -274,9 +274,9 @@ func TestDryRunWorktree(t *testing.T) {
 		t.Fatal(err)
 	}
 	for args, want := range map[string]string{
-		"--dry-run":              "would run in the last run's worktree .igris/worktrees/r1 on branch igris/r1",
-		"B --dry-run":            "warning: the last run's worktree is still at .igris/worktrees/r1 (branch igris/r1); this run would work in the project root",
-		"B --dry-run --worktree": "would run in the last run's worktree .igris/worktrees/r1",
+		"--dry-run":              "would run in the last run's worktree .igris/worktrees/20261014-120000-abcd on branch igris/20261014-120000-abcd",
+		"B --dry-run":            "warning: the last run's worktree is still at .igris/worktrees/20261014-120000-abcd (branch igris/20261014-120000-abcd); this run would work in the project root",
+		"B --dry-run --worktree": "would run in the last run's worktree .igris/worktrees/20261014-120000-abcd",
 	} {
 		out.Reset()
 		if code := run(append([]string{"arise"}, strings.Fields(args)...), &out, &errb); code != exitOK {

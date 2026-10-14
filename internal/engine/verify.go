@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/plan"
@@ -18,6 +19,10 @@ const (
 	// verifyTailLines is how much of a failed verify's output goes back into
 	// the session (SPEC §6.4).
 	verifyTailLines = 60
+	// verifyTailBytes bounds the excerpt in bytes too: herdr gets the
+	// prompt as one argument, at most 128 KiB on Linux, and one line can be
+	// any length.
+	verifyTailBytes = 16 << 10
 	// verifyIdleWait bounds the wait for the agent to finish its turn before
 	// a failure is sent (it ran `igris done` as its last action).
 	verifyIdleWait = 30 * time.Second
@@ -127,7 +132,8 @@ func (e *Engine) verify(ctx context.Context, l *launch) (bool, error) {
 	return false, nil
 }
 
-// tail returns the last n lines of out.
+// tail returns the last n lines of out, and at most verifyTailBytes of
+// them.
 func tail(out string, n int) string {
 	out = strings.TrimRight(out, "\n")
 	if strings.TrimSpace(out) == "" {
@@ -137,7 +143,16 @@ func tail(out string, n int) string {
 	if len(lines) > n {
 		lines = lines[len(lines)-n:]
 	}
-	return strings.Join(lines, "\n")
+	s := strings.Join(lines, "\n")
+	const cut = "… (cut)\n"
+	if len(s) > verifyTailBytes {
+		s = s[len(s)-(verifyTailBytes-len(cut)):]
+		for len(s) > 0 && !utf8.RuneStart(s[0]) {
+			s = s[1:] // don't start inside a character
+		}
+		s = cut + s
+	}
+	return s
 }
 
 // times is "once", "2 times", …

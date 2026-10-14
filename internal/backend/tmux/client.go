@@ -151,8 +151,12 @@ func (c *Client) Pane(ctx context.Context, pane string) (PaneInfo, error) {
 	if err != nil {
 		return PaneInfo{}, err
 	}
+	// pane_current_command is whatever the pane's process calls itself, tabs
+	// and newlines included: it comes last and keeps any tabs, and the
+	// pane's first line is its own (a forged one after a newline is never
+	// read, SPEC §11.5).
 	for line := range strings.SplitSeq(strings.TrimRight(string(out), "\n"), "\n") {
-		f := strings.Split(line, "\t")
+		f := strings.SplitN(line, "\t", 4)
 		if len(f) != 4 || f[0] != pane {
 			continue // other panes of the window
 		}

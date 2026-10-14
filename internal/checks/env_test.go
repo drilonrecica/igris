@@ -3,6 +3,8 @@ package checks
 import (
 	"context"
 	"errors"
+	"github.com/drilonrecica/igris/internal/config"
+	"slices"
 	"strings"
 	"testing"
 
@@ -99,5 +101,26 @@ func TestHerdr(t *testing.T) {
 	}
 	if got := Run(context.Background(), Options{IDs: ids}); len(got) != 0 {
 		t.Errorf("no backend: %+v", got)
+	}
+}
+
+// The start-up git calls never get the variables the notification secrets
+// come from: `git status` runs programs a repository's config names
+// (core.fsmonitor), and a session can write that config (V06-07).
+func TestGitWithoutSecrets(t *testing.T) {
+	t.Setenv("NTFY_T", "s3cret")
+	cfg := config.Default()
+	cfg.Notify.Ntfy.Token = "env:NTFY_T"
+	r := &runner.Fake{}
+	r.Func(func(c runner.Cmd) (runner.Result, error) { return runner.Result{Stdout: []byte("true\n")}, nil })
+	Run(context.Background(), Options{IDs: []string{IDGit}, Root: "/proj", Runner: r, Config: cfg})
+	calls := r.Calls()
+	if len(calls) == 0 {
+		t.Fatal("git didn't run")
+	}
+	for _, c := range calls {
+		if c.Env == nil || slices.ContainsFunc(c.Env, func(kv string) bool { return strings.HasPrefix(kv, "NTFY_T=") }) {
+			t.Errorf("git %v env: nil %v, has the secret %v", c.Args, c.Env == nil, slices.Contains(c.Env, "NTFY_T=s3cret"))
+		}
 	}
 }

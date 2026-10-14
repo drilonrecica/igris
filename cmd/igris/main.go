@@ -10,6 +10,7 @@ import (
 	"runtime/debug"
 	"strings"
 
+	"github.com/drilonrecica/igris/internal/textsafe"
 	"github.com/drilonrecica/igris/internal/tui"
 )
 
@@ -144,6 +145,7 @@ func main() {
 
 // run dispatches args to a subcommand and returns the process exit code.
 func run(args []string, stdout, stderr io.Writer) int {
+	stderr = cleanWriter{stderr}
 	if len(args) == 0 {
 		if interactiveTerm() {
 			return runApp(tui.Home{}, stdout, stderr)
@@ -173,6 +175,19 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	fmt.Fprintf(stderr, "igris: unknown command %q\n\n%s", args[0], usageText)
 	return exitUsage
+}
+
+// cleanWriter cleans what it writes of escape sequences and other control
+// characters (textsafe.Clean). Errors carry text igris didn't write, such
+// as a git hook's stderr or values read back from .igris/, so everything
+// on stderr goes through it (SPEC §16, V06-07).
+type cleanWriter struct{ w io.Writer }
+
+func (c cleanWriter) Write(p []byte) (int, error) {
+	if _, err := io.WriteString(c.w, textsafe.Clean(string(p))); err != nil {
+		return 0, err
+	}
+	return len(p), nil
 }
 
 func runCommand(c command, args []string, stdout, stderr io.Writer) int {

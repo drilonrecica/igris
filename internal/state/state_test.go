@@ -355,6 +355,17 @@ func TestLoadRunErrors(t *testing.T) {
 		"bad only":  `{"version": 2, "phases": ["M1"], "selection": {"only": ["M1-01", "\u001b[2Jx"]}}`,
 		"bad from":  `{"version": 2, "phases": ["M1"], "selection": {"from": "a b"}}`,
 		"bad until": `{"version": 2, "phases": ["M1"], "selection": {"until": "../x"}}`,
+		// A session can rewrite the file: what igris uses from it is checked
+		// (V06-07): the reattach's mode, the attempts, the worktree igris
+		// works and commits in.
+		"bad task":               `{"version": 1, "phases": ["M1"], "current": {"task_id": "\u001b[2J"}}`,
+		"bad mode":               `{"version": 1, "phases": ["M1"], "current": {"task_id": "M1-01", "mode": "yolo2"}}`,
+		"negative attempts":      `{"version": 1, "phases": ["M1"], "current": {"task_id": "M1-01", "verify_attempts": -9}}`,
+		"worktree elsewhere":     `{"version": 1, "phases": ["M1"], "worktree": {"path": "/home/o/other", "branch": "igris/20261014-120000-abcd"}}`,
+		"worktree the root":      `{"version": 1, "phases": ["M1"], "worktree": {"path": ".", "branch": "igris/20261014-120000-abcd"}}`,
+		"worktree escapes":       `{"version": 1, "phases": ["M1"], "worktree": {"path": ".igris/worktrees/../../x", "branch": "igris/20261014-120000-abcd"}}`,
+		"owner's branch":         `{"version": 1, "phases": ["M1"], "worktree": {"path": ".igris/worktrees/20261014-120000-abcd", "branch": "main"}}`,
+		"path and branch differ": `{"version": 1, "phases": ["M1"], "worktree": {"path": ".igris/worktrees/20261014-120000-abcd", "branch": "igris/20261014-120001-abcd"}}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			d := testDir(t)
@@ -366,6 +377,19 @@ func TestLoadRunErrors(t *testing.T) {
 				t.Errorf("LoadRun = %v, want an error saying what to do", err)
 			}
 		})
+	}
+}
+
+// What igris itself writes reads back.
+func TestLoadRunAcceptsItsOwn(t *testing.T) {
+	d := testDir(t)
+	in := &Run{Phases: []string{"M1"}, Current: &Current{TaskID: "M1-01", Mode: "yolo", VerifyAttempts: 2},
+		Worktree: &Worktree{Path: filepath.Join(WorktreesDir, "20261014-120000-abcd"), Branch: "igris/20261014-120000-abcd"}}
+	if err := d.SaveRun(in); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := d.LoadRun(); err != nil || out.Worktree.Branch != in.Worktree.Branch || out.Current.Mode != "yolo" {
+		t.Errorf("LoadRun = %+v, %v", out, err)
 	}
 }
 

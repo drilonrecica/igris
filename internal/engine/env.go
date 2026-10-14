@@ -4,6 +4,8 @@ import (
 	"os"
 	"slices"
 	"strings"
+
+	"github.com/drilonrecica/igris/internal/runner"
 )
 
 // alwaysPassed are passed to verify and task hooks whatever run.env lists:
@@ -17,18 +19,17 @@ var alwaysPassed = []string{"PATH", "HOME"}
 // prefix ending in "*". Entries without "=" are dropped; the order of base
 // is kept.
 func childEnv(base, allow, strip []string) []string {
-	out := make([]string, 0, len(base))
-	for _, kv := range base {
-		name, _, ok := strings.Cut(kv, "=")
-		if !ok || name == "" || slices.Contains(strip, name) {
-			continue
-		}
-		if allow != nil && !allowed(name, allow) {
-			continue
-		}
-		out = append(out, kv)
+	out := runner.Without(base, strip)
+	if allow == nil {
+		return out
 	}
-	return out
+	kept := out[:0]
+	for _, kv := range out {
+		if name, _, _ := strings.Cut(kv, "="); allowed(name, allow) {
+			kept = append(kept, kv)
+		}
+	}
+	return kept
 }
 
 // allowed reports whether run.env (allow) lets name through.

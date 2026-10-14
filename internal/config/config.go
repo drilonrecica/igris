@@ -576,6 +576,13 @@ func (c *Config) Validate() error {
 		add("run.env is empty; list the variables verify and task hooks need besides PATH and HOME (e.g. [\"PATH\"] for those two only), or remove it to pass igris's environment")
 	}
 	secrets := c.SecretEnvNames()
+	for _, name := range secrets {
+		// The commands igris runs never get a secret's variable, and they
+		// can't do without these (V06-07).
+		if name == "PATH" || name == "HOME" {
+			add("a notification secret refers to env:%s; igris keeps a secret's variable from every command it runs, and they need %s: use a variable of its own", name, name)
+		}
+	}
 	for _, name := range c.Run.Env {
 		switch {
 		case !envName.MatchString(name):
@@ -776,7 +783,23 @@ func (c *Config) Warnings() []string {
 		out = append(out, "notify.gotify.server uses http://, so the token goes unencrypted; use an https:// server")
 	}
 	if !isEnvRef(n.Webhook.URL) && plainHTTP(n.Webhook.URL) {
-		out = append(out, "notify.webhook.url uses http://, so the payload (and its signature) go unencrypted; use an https:// URL")
+		out = append(out, webhookHTTP)
+	}
+	return out
+}
+
+const webhookHTTP = "notify.webhook.url uses http://, so the payload (and its signature) go unencrypted; use an https:// URL"
+
+// WarningsEnv is Warnings plus what only the environment shows: a webhook
+// url given as an env: reference whose value is plain http (V06-07). The
+// value itself is never in the text. getenv nil is Warnings.
+func (c *Config) WarningsEnv(getenv func(string) string) []string {
+	out := c.Warnings()
+	if getenv == nil {
+		return out
+	}
+	if name, ok := strings.CutPrefix(c.Notify.Webhook.URL, "env:"); ok && plainHTTP(getenv(name)) {
+		out = append(out, webhookHTTP+" (it comes from "+name+")")
 	}
 	return out
 }

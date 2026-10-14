@@ -527,7 +527,7 @@ func TestStatusRunFromSubdirAndBadState(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("a bad state file must not fail status: code %d", code)
 	}
-	if !strings.Contains(out, "state unreadable") || !strings.Contains(out, "running elsewhere") {
+	if !strings.Contains(out, "damaged: the current task's mode is not a run mode") || !strings.Contains(out, "running elsewhere") {
 		t.Errorf("bad state not reported:\n%s", out)
 	}
 }

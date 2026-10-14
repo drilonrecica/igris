@@ -99,7 +99,7 @@ func (p *Project) Snapshot() *report.Snapshot {
 	if p.CfgErr != nil {
 		s.ConfigProblems = problemLines(p.CfgErr)
 	}
-	for _, w := range p.Cfg.Warnings() {
+	for _, w := range p.Cfg.WarningsEnv(p.env.getenv()) {
 		s.ConfigWarnings = append(s.ConfigWarnings, textsafe.Line(w))
 	}
 	pl, err := plan.Load(p.PlanPath, plan.Options{Columns: p.Cfg.Columns})

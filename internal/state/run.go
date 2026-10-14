@@ -145,5 +145,38 @@ func loadRun(path string) (*Run, error) {
 			}
 		}
 	}
+	if err := checkReadBack(&r); err != "" {
+		return nil, fmt.Errorf("read run state %s: damaged: %s; delete the file to start a new run", path, err)
+	}
 	return &r, nil
+}
+
+// sessionModes are the run modes a recorded session can have (SPEC §7.1);
+// "" is a task with no session yet.
+var sessionModes = []string{"", "default", "accept", "auto", "plan", "yolo"}
+
+// checkReadBack checks what igris uses from state.json besides the
+// selection: a session can write the file, and these become paths, git
+// arguments, the reattach's mode check and text on the terminal (SPEC
+// §13, V06-07). It returns what is wrong, or "".
+func checkReadBack(r *Run) string {
+	if c := r.Current; c != nil {
+		switch {
+		case !plan.ValidID(c.TaskID):
+			return "the current task is not a task ID"
+		case !slices.Contains(sessionModes, c.Mode):
+			return "the current task's mode is not a run mode"
+		case c.VerifyAttempts < 0:
+			return "the current task's verify attempts are negative"
+		}
+	}
+	if wt := r.Worktree; wt != nil {
+		// Only the worktree igris makes: .igris/worktrees/<run-id> on
+		// igris/<run-id>, never a path elsewhere or a branch of the owner's.
+		id := strings.TrimPrefix(wt.Branch, "igris/")
+		if !ValidRunID(id) || wt.Branch != "igris/"+id || wt.Path != filepath.Join(WorktreesDir, id) {
+			return "the worktree is not one igris made"
+		}
+	}
+	return ""
 }

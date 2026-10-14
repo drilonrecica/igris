@@ -108,3 +108,14 @@ func TestVersionOverride(t *testing.T) {
 		t.Errorf("got %q", out.String())
 	}
 }
+
+// Everything igris writes to stderr is cleaned of escape sequences: an
+// error can carry text igris didn't write (a flag, a git hook's stderr, a
+// value from .igris/), V06-07.
+func TestStderrIsCleaned(t *testing.T) {
+	var out, errb bytes.Buffer
+	run([]string{"history", "-x\x1b]52;c;aGk=\x07\x1b[2J"}, &out, &errb)
+	if strings.ContainsRune(errb.String(), 0x1b) || strings.ContainsRune(errb.String(), 0x07) || !strings.Contains(errb.String(), "flag provided but not defined") {
+		t.Errorf("stderr = %q", errb.String())
+	}
+}

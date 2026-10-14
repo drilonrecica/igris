@@ -171,11 +171,15 @@ func Run(ctx context.Context, o Options) []Result {
 			}
 		case IDGit:
 			if o.Runner != nil {
-				add(git(ctx, o.Runner, o.Root))
+				var strip []string
+				if o.Config != nil {
+					strip = o.Config.SecretEnvNames()
+				}
+				add(git(ctx, o.Runner, o.Root, runner.Without(os.Environ(), strip)))
 			}
 		case IDConfig:
 			if o.Config != nil {
-				add(configWarnings(o.Config)...)
+				add(configWarnings(o.Config, o.Getenv)...)
 			}
 		case IDProject:
 			add(project(o))
@@ -227,8 +231,8 @@ func Problems(rs []Result) []Result {
 	return out
 }
 
-func configWarnings(cfg *config.Config) []Result {
-	ws := cfg.Warnings()
+func configWarnings(cfg *config.Config, getenv func(string) string) []Result {
+	ws := cfg.WarningsEnv(getenv)
 	if len(ws) == 0 {
 		return []Result{{ID: IDConfig, Level: OK, Message: "no ignored settings", File: state.ConfigFile}}
 	}

@@ -323,6 +323,8 @@ Igris tells you when it needs you (a question, a plan to approve, a stalled sess
 - [Gotify](https://gotify.net) push from your own server
 - a generic webhook: a signed JSON POST to any URL, for your own automation
 
+On a public ntfy server without a token (such as ntfy.sh), the topic is the password: anyone who knows it can read your notifications and send fake ones. Pick a long random topic, or set a `token`. Home's Settings page shows the topic.
+
 ```toml
 [notify.ntfy]
 topic = "my-igris-topic"          # leave empty to turn ntfy off

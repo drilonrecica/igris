@@ -230,17 +230,28 @@ func PeekSignals(root string) (sigs []Signal, bad []error, err error) {
 	return sigs, bad, err
 }
 
+// maxSignalFiles bounds how many signal files one poll reads: a session
+// can fill signals/ with files, and each is read every poll (V06-07). A
+// real run has a few.
+const maxSignalFiles = 256
+
 func listSignals(dir string) (sigs []Signal, bad []error, err error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, nil, fmt.Errorf("list signals: %w", err)
 	}
-	for _, e := range entries {
+	read := 0
+	for i, e := range entries {
 		name := e.Name()
 		id, ok := strings.CutSuffix(name, ".json")
 		if !ok || e.IsDir() || !plan.ValidID(id) { // also skips ".<name>.tmp-*" files
 			continue
 		}
+		if read == maxSignalFiles {
+			bad = append(bad, fmt.Errorf("%d or more files in %s were not read: at most %d are; remove the signals you don't need", len(entries)-i, dir, maxSignalFiles))
+			break
+		}
+		read++
 		path := filepath.Join(dir, name)
 		var (
 			s    *Signal

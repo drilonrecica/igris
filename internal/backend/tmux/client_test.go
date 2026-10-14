@@ -123,6 +123,12 @@ func TestPane(t *testing.T) {
 	if _, err := c.Pane(ctx, "%999"); !IsGone(err) {
 		t.Errorf("gone: %v", err)
 	}
+	// The command comes last and may hold anything a process names itself,
+	// tabs and newlines included: the pane is still found alive.
+	f.On(cmd("list-panes"), runner.Result{Stdout: []byte("%1\t0\t\tx\ty\tz\n%1\t1\t0\tnot-a-pane\n")}, nil)
+	if p, err := c.Pane(ctx, "%1"); err != nil || p.Dead {
+		t.Errorf("command with a tab and a newline: %+v %v", p, err)
+	}
 	// A pane missing from the window's list is gone too.
 	f.On(cmd("list-panes"), ok(t, "list_panes_alive.txt"), nil)
 	if _, err := c.Pane(ctx, "%7"); !IsGone(err) {
