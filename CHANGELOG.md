@@ -4,6 +4,10 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+### Removed
+
+- **`claude.command`** in `igris.toml`. It was deprecated in 0.1.2 and never read, since igris always starts `claude` from your `PATH`. 0.1.2 said it would go in 0.2, which didn't happen; it goes now, before 1.0. Every `igris.toml` that `igris init` wrote before 0.7 has it, so after upgrading `igris check` and `igris arise` stop with `claude.command was removed in 0.7`: run **`igris config migrate`** once to delete the line. The config's hash doesn't change, so an interrupted run resumes after the migration.
+
 ### Changed
 
 - **`--json` output, breaking** (the last change before the 1.0 freeze, SPEC §19). Scripts that read `--json` need these updates:

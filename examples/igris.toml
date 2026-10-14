@@ -21,7 +21,6 @@ haiku = "haiku"
 # "Agent" = "Model"
 
 [claude]
-command = "claude"                # deprecated and ignored (igris starts claude from PATH); removed before 1.0
 extra_args = []                   # appended to every session launch; model/mode/session flags are rejected
 
 [run]

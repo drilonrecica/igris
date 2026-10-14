@@ -373,7 +373,7 @@ A task's mode is, in order: your override, its `Mode` column, the run mode (`--m
 | Plan | Claude plans first; you approve the plan, then it implements. |
 | Skip permissions | `--dangerously-skip-permissions`. Never a single click or key: you type `skip permissions` to confirm, every run, and a red badge shows while it's active. Use it in a container you trust, or with [worktree mode](#worktree-mode). |
 
-`claude.extra_args` can't carry model, mode, session or settings flags (`--model`, `--permission-mode`, `--settings`, `-c`/`-r`, …): igris sets those itself and rejects a config that has them. `claude.command` is deprecated and ignored (igris always starts `claude` from your `PATH`); `igris check` warns if it's set to anything else, and `igris config migrate` removes it (every `igris.toml` that `igris init` wrote before 0.7 has it).
+`claude.extra_args` can't carry model, mode, session or settings flags (`--model`, `--permission-mode`, `--settings`, `-c`/`-r`, …): igris sets those itself and rejects a config that has them. igris always starts `claude` from your `PATH`. The old `claude.command` key was removed in 0.7; every `igris.toml` that `igris init` wrote before then has it, and `igris config migrate` deletes it.
 
 ## Notifications
 

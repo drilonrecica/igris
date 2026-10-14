@@ -68,7 +68,6 @@ func NewSettings(cfg *config.Config, keys config.Keys, getenv func(string) strin
 	table("columns", cfg.Columns)
 
 	cl := sec("claude")
-	set(cl, "command", tomlString(cfg.Claude.Command))
 	set(cl, "extra_args", tomlArray(cfg.Claude.ExtraArgs))
 
 	run := sec("run")

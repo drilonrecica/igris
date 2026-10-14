@@ -140,12 +140,16 @@ func loadConfig(root string) (cfg *config.Config, noConfig bool, rs []Result) {
 	case errors.Is(err, config.ErrNotFound):
 		return config.Default(), true, []Result{{ID: IDConfigValid, Level: OK, Message: "no " + state.ConfigFile + " here; using the defaults", Next: "igris init"}}
 	}
+	next := "edit " + state.ConfigFile + ", then igris doctor"
+	if errors.Is(err, config.ErrRemovedKey) {
+		next = "igris config migrate"
+	}
 	for _, line := range strings.Split(err.Error(), "\n") {
 		line = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), state.ConfigFile+":"))
 		if line == "" {
 			continue
 		}
-		rs = append(rs, Result{ID: IDConfigValid, Level: Fail, Message: line, File: state.ConfigFile, Next: "edit " + state.ConfigFile + ", then igris doctor"})
+		rs = append(rs, Result{ID: IDConfigValid, Level: Fail, Message: line, File: state.ConfigFile, Next: next})
 	}
 	return config.Default(), false, rs
 }

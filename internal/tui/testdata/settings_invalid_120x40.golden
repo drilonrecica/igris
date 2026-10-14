@@ -25,7 +25,6 @@ sonnet = "sonnet" · default
 # none set
 
 [claude]
-command    = "claude" · default
 extra_args = [] · default
 
 [run]
@@ -37,4 +36,5 @@ commit_message      = "{{.ID}}: {{.Title}}" · default
 prompt_template     = "" · default
 worktree            = false · default
 
+[verify]
 [Edit igris.toml] [Doctor] [Close]

@@ -552,7 +552,7 @@ func TestReadsNeverCreateState(t *testing.T) {
 // The snapshot carries igris.toml's path and the settings home shows:
 // the owner's keys apart from the defaults, secrets hidden, warnings.
 func TestSnapshotSettings(t *testing.T) {
-	root := newProject(t, "[claude]\ncommand = \"claudex\"\n[notify.ntfy]\ntopic = \"t\"\ntoken = \"env:NTFY_TOKEN\"\n")
+	root := newProject(t, "[run]\ncommit = \"never\"\n[notify.webhook]\nurl = \"http://example.test/hook\"\n[notify.ntfy]\ntopic = \"t\"\ntoken = \"env:NTFY_TOKEN\"\n")
 	env, _ := testEnv(map[string]string{"NTFY_TOKEN": "tk_secret"})
 	s, err := NewServices(root, env).Snapshot(context.Background())
 	if err != nil {
@@ -573,7 +573,7 @@ func TestSnapshotSettings(t *testing.T) {
 	if r := got["notify.ntfy.token"]; r.Value != "set (env:NTFY_TOKEN)" || r.Default {
 		t.Errorf("token: %+v", r)
 	}
-	if got["notify.ntfy.topic"].Default || !got["notify.ntfy.server"].Default || got["claude.command"].Default {
+	if got["notify.ntfy.topic"].Default || !got["notify.ntfy.server"].Default || got["run.commit"].Default {
 		t.Errorf("defaults marked wrong: %+v", got)
 	}
 

@@ -26,6 +26,10 @@ import (
 // ErrNotFound is returned (wrapped) by Load when the file does not exist.
 var ErrNotFound = errors.New("config file not found")
 
+// ErrRemovedKey is wrapped by the error for a key a release removed, which
+// `igris config migrate` deletes (SPEC §12).
+var ErrRemovedKey = errors.New("removed")
+
 // Duration is a time.Duration written in Go syntax ("30s", "15m") in TOML.
 type Duration time.Duration
 
@@ -90,15 +94,20 @@ type Config struct {
 	Notify Notify `toml:"notify"`
 }
 
-// defaultClaudeCommand is claude.command's only meaningful value: herdr
-// starts claude itself, so any other value is ignored (and warned about).
-const defaultClaudeCommand = "claude"
-
-// Claude configures how Claude Code is launched.
+// Claude configures how Claude Code is launched. The backends start claude
+// from PATH; the claude.command key that never changed that is gone (v0.7).
 type Claude struct {
-	// Command is deprecated and ignored (Warnings); it goes away before 1.0.
-	Command   string   `toml:"command"`
 	ExtraArgs []string `toml:"extra_args"`
+}
+
+// MarshalJSON encodes c for the config hash as it was while Claude had a
+// Command, always "claude" then: the hash is part of the contract (SPEC
+// §13, §19), so every config keeps the hash it had.
+func (c Claude) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Command   string
+		ExtraArgs []string
+	}{"claude", c.ExtraArgs})
 }
 
 // Run configures verification and commits.
@@ -431,7 +440,7 @@ func Default() *Config {
 		PollInterval:    Duration(2 * time.Second),
 		Models:          map[string]string{"sonnet": "sonnet", "opus": "opus", "fable": "fable", "haiku": "haiku"},
 		Columns:         map[string]string{},
-		Claude:          Claude{Command: defaultClaudeCommand, ExtraArgs: []string{}},
+		Claude:          Claude{ExtraArgs: []string{}},
 		Run: Run{
 			VerifyTimeout:     Duration(15 * time.Minute),
 			VerifyMaxAttempts: 3,
@@ -489,6 +498,11 @@ func parse(data []byte, name string) (*Config, Keys, error) {
 		return nil, nil, fmt.Errorf("parse %s: %w; fix that line and run the command again", name, err)
 	}
 	if undec := md.Undecoded(); len(undec) > 0 {
+		for _, k := range undec {
+			if d, ok := removed(k); ok {
+				return nil, nil, fmt.Errorf("%s: %s was %w in %s (%s); run `igris config migrate` to delete it", name, d.name(), ErrRemovedKey, d.removed, d.why)
+			}
+		}
 		keys := make([]string, len(undec))
 		for i, k := range undec {
 			keys[i] = fmt.Sprintf("%q", k.String())
@@ -784,16 +798,10 @@ func (c *Config) Warnings() []string {
 	return out
 }
 
-// Deprecated lists the deprecated settings c has that change something if
-// read (Warnings starts with them); `igris config migrate` removes them.
-func (c *Config) Deprecated() []string {
-	var out []string
-	if c.Claude.Command != defaultClaudeCommand {
-		// Both backends start `claude` from PATH.
-		out = append(out, fmt.Sprintf("claude.command = %q is ignored: igris always starts claude from PATH; run `igris config migrate` to remove it (the key is deprecated and goes away before 1.0)", c.Claude.Command))
-	}
-	return out
-}
+// Deprecated lists the deprecated settings c has (Warnings starts with
+// them); `igris config migrate` removes them. There are none today: the
+// last one, claude.command, was removed in v0.7 (ErrRemovedKey).
+func (c *Config) Deprecated() []string { return nil }
 
 const webhookHTTP = "notify.webhook.url uses http://, so the payload (and its signature) go unencrypted; use an https:// URL"
 

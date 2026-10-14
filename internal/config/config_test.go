@@ -30,7 +30,6 @@ haiku = "haiku"
 "Agent" = "Model"
 
 [claude]
-command = "claude"
 extra_args = ["--verbose"]
 
 [run]
@@ -648,30 +647,32 @@ func TestWriteRoundTrips(t *testing.T) {
 	}
 }
 
-// claude.command is deprecated: any value but "claude" loads with a
-// warning, never an error.
-func TestWarnings(t *testing.T) {
-	tests := []struct {
-		toml string
-		want string // "" = no warning
-	}{
-		{"", ""},
-		{"[claude]\ncommand = \"claude\"\n", ""},
-		{"[claude]\ncommand = \"\"\n", `claude.command = "" is ignored`},
-		{"[claude]\ncommand = \"/opt/claude\"\n", "claude.command = \"/opt/claude\" is ignored: igris always starts claude from PATH; run `igris config migrate` to remove it (the key is deprecated and goes away before 1.0)"},
+// claude.command was removed in v0.7 (V07-06): any value, the one igris
+// init wrote included, is an error that names `igris config migrate`.
+func TestRemovedClaudeCommand(t *testing.T) {
+	for _, src := range []string{
+		"[claude]\ncommand = \"claude\"\n",
+		"[claude]\n  command = \"/opt/claude\"\n  extra_args = []\n",
+		"claude.command = \"\"\n",
+	} {
+		_, err := Parse([]byte(src), "igris.toml")
+		if !errors.Is(err, ErrRemovedKey) || err.Error() != "igris.toml: claude.command was removed in 0.7 (igris always starts claude from PATH); run `igris config migrate` to delete it" {
+			t.Errorf("%q: %v", src, err)
+		}
 	}
-	for _, tt := range tests {
-		cfg, err := Parse([]byte(tt.toml), "igris.toml")
-		if err != nil {
-			t.Fatalf("%q: %v", tt.toml, err)
-		}
-		got := cfg.Warnings()
-		switch {
-		case tt.want == "" && len(got) != 0:
-			t.Errorf("%q: warnings %q, want none", tt.toml, got)
-		case tt.want != "" && (len(got) != 1 || !strings.Contains(got[0], tt.want)):
-			t.Errorf("%q: warnings %q, want %q", tt.toml, got, tt.want)
-		}
+	if _, err := Parse([]byte("[claude]\ncomand = \"x\"\n"), "igris.toml"); errors.Is(err, ErrRemovedKey) || err == nil || !strings.Contains(err.Error(), "unknown key") {
+		t.Errorf("a misspelled key: %v", err)
+	}
+	if got := Default().Deprecated(); len(got) != 0 {
+		t.Errorf("deprecated settings left: %q", got)
+	}
+	// igris init (Write) no longer writes it.
+	path := filepath.Join(t.TempDir(), "igris.toml")
+	if err := Write(path, Default()); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(path); strings.Contains(string(data), "command") { //nolint:gosec // test temp dir
+		t.Errorf("Write wrote claude.command:\n%s", data)
 	}
 }
 

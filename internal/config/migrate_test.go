@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -78,33 +79,30 @@ commit = "ask"
 	}
 }
 
-// Every config `igris init` wrote has claude.command = "claude": migrate
-// removes that line and nothing else, and the result loads to the same
-// config.
+// Every config `igris init` wrote before v0.7 has claude.command =
+// "claude" (testdata/init-v0.6.0.toml is igris v0.6.0's): it no longer
+// loads, migrate removes that line and nothing else, and the result loads
+// with the hash the config always had, so an interrupted run resumes.
 func TestMigrateInitConfig(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "igris.toml")
-	if err := Write(path, Default()); err != nil {
-		t.Fatal(err)
-	}
-	in, err := os.ReadFile(path) //nolint:gosec // the test's own temp dir
+	in, err := os.ReadFile(filepath.Join("testdata", "init-v0.6.0.toml"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(in), "command = \"claude\"") {
-		t.Skip("config.Write no longer writes claude.command")
+	if _, err := Parse(in, "igris.toml"); !errors.Is(err, ErrRemovedKey) {
+		t.Fatalf("v0.6.0 config loads: %v", err)
 	}
 	out, changes, err := Migrate(in)
-	if err != nil || len(changes) != 1 {
+	if err != nil || len(changes) != 1 || changes[0].Line != 16 {
 		t.Fatalf("changes %+v, err %v", changes, err)
 	}
-	if strings.Count(string(in), "\n")-strings.Count(string(out), "\n") != 1 {
-		t.Errorf("more than one line removed:\n%s", out)
+	if want := strings.Replace(string(in), "  command = \"claude\"\n", "", 1); string(out) != want {
+		t.Errorf("migrated:\n%s\nwant:\n%s", out, want)
 	}
 	c, err := Parse(out, "igris.toml")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.Hash() != Default().Hash() {
-		t.Error("the migrated config hashes differently")
+	if c.Hash() != v04DefaultHash {
+		t.Errorf("the migrated v0.6.0 config hashes %s, want %s", c.Hash(), v04DefaultHash)
 	}
 }

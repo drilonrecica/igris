@@ -317,27 +317,18 @@ func TestCheckWarnsAboutVersions(t *testing.T) {
 	}
 }
 
-func TestCheckWarnsAboutClaudeCommand(t *testing.T) {
+// claude.command was removed in v0.7: check fails and says how to fix it.
+func TestCheckRemovedClaudeCommand(t *testing.T) {
 	dir := inDir(t)
 	plan := "## M0 — One\n\n| ID | Status | Model | Deps |\n|---|---|---|---|\n| a | ready | sonnet | — |\n"
-	for name, content := range map[string]string{"tasks.md": plan, configFile: "[claude]\ncommand = \"/opt/claude\"\n"} {
+	for name, content := range map[string]string{"tasks.md": plan, configFile: "[claude]\n  command = \"claude\"\n"} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
-	code, out, _ := runCmd("check")
-	if code != exitOK || !strings.Contains(out, `warning: igris.toml: claude.command = "/opt/claude" is ignored`) || !strings.Contains(out, "1 warnings") {
-		t.Errorf("code %d, out:\n%s", code, out)
-	}
-	code, out, _ = runCmd("check", "--json")
-	var doc struct {
-		Warnings []map[string]any `json:"warnings"`
-	}
-	if err := json.Unmarshal([]byte(out), &doc); err != nil || code != exitOK || len(doc.Warnings) != 1 {
-		t.Fatalf("json: code %d, %v:\n%s", code, err, out)
-	}
-	if w := doc.Warnings[0]; w["file"] != configFile || w["line"] != nil {
-		t.Errorf("warning = %v, want file igris.toml and no line", w)
+	code, _, errs := runCmd("check")
+	if code != exitFail || !strings.Contains(errs, "claude.command was removed in 0.7") || !strings.Contains(errs, "run `igris config migrate`") {
+		t.Errorf("code %d, stderr:\n%s", code, errs)
 	}
 }
 

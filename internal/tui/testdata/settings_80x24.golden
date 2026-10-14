@@ -3,8 +3,8 @@ Settings · igris.toml · e edits
 /src/sinjal/igris.toml
 
 PROBLEMS
-  ! warn  claude.command = "claudex" is ignored: igris always starts claude from
-          PATH; remove it from igris.toml
+  ! warn  notify.webhook.url uses http://, so the payload (and its signature) go
+          unencrypted; use an https:// URL
 
 plan              = "tasks.md" · default
 backend           = "auto" · default

@@ -20,5 +20,5 @@ sonnet = "sonnet" · default
 # none set
 
 [claude]
-command    = "claude" · default
+extra_args = [] · default
 [Edit igris.toml] [Doctor] [Close]

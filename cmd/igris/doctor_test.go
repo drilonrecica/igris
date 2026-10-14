@@ -125,6 +125,19 @@ func TestDoctorFailureExitsOne(t *testing.T) {
 	}
 }
 
+// A config from before v0.7 still has claude.command: doctor fails it and
+// names the command that fixes it.
+func TestDoctorRemovedClaudeCommand(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "igris.toml"), []byte("[claude]\n  command = \"claude\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	code, out, _ := doctorIn(t, dir)
+	if code != exitFail || !strings.Contains(out, "claude.command was removed in 0.7") || !strings.Contains(out, "next: igris config migrate") {
+		t.Errorf("exit %d:\n%s", code, out)
+	}
+}
+
 // A plan from a newer igris is fixed by upgrading igris, not by adapt.
 func TestDoctorNewerPlanFormat(t *testing.T) {
 	dir := t.TempDir()

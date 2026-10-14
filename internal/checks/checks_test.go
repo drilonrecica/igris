@@ -135,10 +135,10 @@ func TestConfigWarnings(t *testing.T) {
 	if got := Run(context.Background(), Options{IDs: []string{IDConfig}, Config: cfg}); len(got) != 1 || got[0].Level != OK {
 		t.Errorf("default config = %+v", got)
 	}
-	cfg.Claude.Command = "/opt/claude"
+	cfg.Notify.Webhook.URL = "http://example.test/hook"
 	got := Run(context.Background(), Options{IDs: []string{IDConfig}, Config: cfg})
-	if len(got) != 1 || got[0].Level != Warn || !strings.HasPrefix(got[0].String(), `igris.toml: claude.command = "/opt/claude" is ignored`) {
-		t.Errorf("claude.command = %+v", got)
+	if len(got) != 1 || got[0].Level != Warn || got[0].Next != "" || !strings.HasPrefix(got[0].String(), "igris.toml: notify.webhook.url uses http://") {
+		t.Errorf("plain http webhook = %+v", got)
 	}
 }
 

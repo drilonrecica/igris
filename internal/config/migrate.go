@@ -15,6 +15,7 @@ import (
 type deprecation struct {
 	table, key string // the key's table ("" for the root) and name
 	since      string // the release that deprecated it
+	removed    string // the release that removed it; "" while still read
 	why        string
 }
 
@@ -28,7 +29,17 @@ func (d deprecation) name() string {
 
 // deprecations are the keys `igris config migrate` removes.
 var deprecations = []deprecation{
-	{table: "claude", key: "command", since: "0.1.2", why: "ignored: igris always starts claude from PATH"},
+	{table: "claude", key: "command", since: "0.1.2", removed: "0.7", why: "igris always starts claude from PATH"},
+}
+
+// removed returns the deprecation a release removed whose key k is.
+func removed(k toml.Key) (deprecation, bool) {
+	for _, d := range deprecations {
+		if d.removed != "" && slices.Equal([]string(k), d.tablePath()) {
+			return d, true
+		}
+	}
+	return deprecation{}, false
 }
 
 // Change is one line `igris config migrate` removes.
@@ -68,7 +79,7 @@ func Migrate(data []byte) (out []byte, changes []Change, err error) {
 		drop[i] = true
 		changes = append(changes, Change{
 			Line: i + 1, Old: strings.TrimRight(string(lines[i]), "\r\n"), Key: d.name(),
-			Why: fmt.Sprintf("deprecated in %s, %s", d.since, d.why),
+			Why: d.reason(),
 		})
 	}
 	if len(changes) == 0 {
@@ -76,6 +87,14 @@ func Migrate(data []byte) (out []byte, changes []Change, err error) {
 	}
 	slices.SortFunc(changes, func(a, b Change) int { return a.Line - b.Line })
 	return join(lines, drop), changes, nil
+}
+
+// reason says since when the key is deprecated or removed, and why.
+func (d deprecation) reason() string {
+	if d.removed != "" {
+		return fmt.Sprintf("deprecated in %s, removed in %s: %s", d.since, d.removed, d.why)
+	}
+	return fmt.Sprintf("deprecated in %s: %s", d.since, d.why)
 }
 
 func (d deprecation) tablePath() []string {

@@ -20,7 +20,6 @@ sonnet = "sonnet" · default
 # none set
 
 [claude]
-command    = "claude" · default
 extra_args = [] · default
 
 [run]
@@ -37,4 +36,5 @@ worktree            = false · default
 
 [adapt]
 model = "sonnet" · default
+
 [Edit igris.toml] [Doctor] [Close]
