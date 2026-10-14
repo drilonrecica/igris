@@ -3,7 +3,6 @@ package tui
 import (
 	"bytes"
 	"context"
-	"reflect"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -235,11 +234,7 @@ func TestHoverInProgram(t *testing.T) {
 }
 
 func TestProgramOptionsReportAllMotion(t *testing.T) {
-	want := reflect.ValueOf(tea.WithMouseAllMotion()).Pointer()
-	for _, o := range programOptions(context.Background(), true) {
-		if reflect.ValueOf(o).Pointer() == want {
-			return
-		}
+	if !hasProgramOption(programOptions(context.Background(), true), "WithMouseAllMotion") {
+		t.Error("with the mouse on, programOptions doesn't report all motion: hover needs it")
 	}
-	t.Error("with the mouse on, programOptions doesn't report all motion: hover needs it")
 }

@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -396,18 +397,26 @@ func TestRunEnd(t *testing.T) {
 // a program that already stopped on ctx, hanging the TUI on an external
 // interrupt; every program (run, home, adapt review) must go without it.
 func TestProgramOptionsWithoutSignalHandler(t *testing.T) {
-	want := reflect.ValueOf(tea.WithoutSignalHandler()).Pointer()
 	for _, mouse := range []bool{false, true} {
-		found := false
-		for _, o := range programOptions(context.Background(), mouse) {
-			if reflect.ValueOf(o).Pointer() == want {
-				found = true
-			}
-		}
-		if !found {
+		if !hasProgramOption(programOptions(context.Background(), mouse), "WithoutSignalHandler") {
 			t.Errorf("programOptions(mouse=%v) lacks tea.WithoutSignalHandler", mouse)
 		}
 	}
+}
+
+// hasProgramOption reports whether opts has an option made by Bubble Tea's
+// constructor name. Options are closures and can't be compared, and their
+// pointers differ when the compiler inlines the constructor (Go 1.26 does);
+// the closure's name keeps the constructor's either way:
+// "bubbletea.WithMouseAllMotion.func1" or
+// "tui.programOptions.WithMouseAllMotion.func4".
+func hasProgramOption(opts []tea.ProgramOption, name string) bool {
+	for _, o := range opts {
+		if f := runtime.FuncForPC(reflect.ValueOf(o).Pointer()); f != nil && strings.Contains(f.Name(), "."+name+".func") {
+			return true
+		}
+	}
+	return false
 }
 
 func TestProgramOptionsMouse(t *testing.T) {
