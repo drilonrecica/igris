@@ -4,26 +4,46 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+igris v0.6 is about trust. Releases are signed and come with an SBOM, a run can work on a branch of its own so your checkout stays as it is, the commands igris runs no longer see your notification secrets, and the threat model is written down, reviewed and tied to tests. It also stops calling for you while Claude is only waiting on background work.
+
 ### Added
 
-- Worktree mode: `igris arise --worktree` (or `[run] worktree = true`) runs the sessions, verify, task hooks and commits in a git worktree `.igris/worktrees/<run-id>` on a new branch `igris/<run-id>`, so your checkout stays as it is. The plan stays in your checkout. An interrupted run continues in its worktree; a completed one removes it when nothing is left uncommitted and keeps the branch. igris never merges: it prints the `git merge` command. `igris done` from inside a worktree reaches the run.
-- A session waiting on background work is no longer "needs you". When Claude ends its turn with a background task (tests on a simulator, a long build) or a scheduled wakeup pending, the card says `waiting on background work (4m)` and nothing is raised until `waiting_limit` (new, default `30m`). Claude Code's `Stop` hook reports the pending work; with herdr, igris uses it even though herdr shows the turn as finished.
-- igris reminds an agent that stopped without `igris done` once (finish, or say what it waits for) before it raises **Needs you**. `nudge = false` turns it off.
-- Releases are signed from 0.6.0: `checksums.txt.sig` is an SSH signature of `checksums.txt`, made with the igris release key, and the release tags are signed with the same key. The key is in `allowed_signers` and the README, which shows how to check a download with `ssh-keygen` alone.
-- An SPDX JSON SBOM per release archive (made by syft), listed in `checksums.txt`.
-- Hover in the TUI: with the mouse on, the button, row or dialog option under the pointer is underlined, in every screen (run view, home and its pages, the adapt review). Underline is no color, so it shows under `NO_COLOR`; hovering never moves the focus. The TUI now asks the terminal for all mouse motion; `[tui] mouse = false` turns hover off with the rest of the mouse support.
+- **Signed releases** (SPEC §18): from 0.6.0, `checksums.txt` and the release tag are signed with the igris release key, an SSH key. `checksums.txt.sig` is the signature; [`allowed_signers`](allowed_signers) and the README hold the key. Checking a download needs only `ssh-keygen`, see [Verifying a download](README.md#verifying-a-download).
+- **An SBOM per release archive**: `<archive>.sbom.json` (SPDX JSON, made by syft) lists the modules each binary is built from, and is listed in the signed `checksums.txt`.
+- **Worktree mode** (SPEC §6.8): `igris arise --worktree` (or `[run] worktree = true`) runs the sessions, verify, task hooks and commits in a git worktree `.igris/worktrees/<run-id>` on a new branch `igris/<run-id>`, so your checkout and branch stay as they are. The plan stays in your checkout, where igris updates it as usual. An interrupted run continues in its worktree; a completed one removes it when nothing is uncommitted and keeps the branch. igris never merges: it prints the `git merge` command. `--dry-run --worktree` shows where the run would work. See [Worktree mode](README.md#worktree-mode).
+- **`[run] env`**, an allowlist of the environment variables verify commands and task hooks get (names, or prefixes like `LC_*`; `PATH` and `HOME` always pass). Unset, they get igris's environment as before, minus the secrets' variables (see Security).
+- **Waiting on background work is not "needs you"** (SPEC §6.3): when Claude ends its turn with a background task (tests on a simulator, a long build) or a scheduled wakeup pending, the card says `waiting on background work (4m)` and nothing is raised until `waiting_limit` (new, default `30m`). Claude Code's `Stop` hook reports the pending work; with herdr, igris uses it even though herdr shows the turn as finished.
+- **One reminder before Needs you**: an agent that stops without `igris done` and with nothing pending gets one message first (finish with `igris done`, or say what it waits for); Needs you follows if it stays idle. Never for a session waiting on a permission or a question. `nudge = false` turns it off.
+- **Hover in the TUI**: with the mouse on, the button, row or dialog option under the pointer is underlined, on every screen. Underline is no color, so it shows under `NO_COLOR`; hovering never moves the focus. `[tui] mouse = false` turns it off with the rest of the mouse support.
+- **A threat model**, [`docs/threat-model.md`](docs/threat-model.md): what igris protects and from whom, the boundaries and their threats, the accepted risks, the security reviews, and the test that enforces each safety rule (a test keeps that map true).
 
 ### Security
 
-- Second security review (V06-07; details in `docs/threat-model.md`). igris now checks more of what it reads back from `.igris/state.json`, which a session can rewrite: the worktree (only one igris made, never a symlink), the current task's ID, mode and verify attempts. The start-up git checks no longer get your notification secrets' variables. Everything igris prints to stderr is cleaned of escape sequences. A tmux pane's process can no longer fake "session lost". The verify excerpt sent back to a session is capped at 16 KiB. At most 256 signal files are read per poll. `check` and `arise` warn about a webhook URL from an `env:` reference that is plain http. A secret reading `env:PATH` or `env:HOME` is a config error.
-- A written threat model, [`docs/threat-model.md`](docs/threat-model.md): what igris protects and from whom, the boundaries and their threats, the accepted risks, and the test that enforces each safety rule (a test checks the map stays true).
-- Verify commands, task hooks and git no longer get the environment variables your notification secrets come from (`env:` references in `igris.toml`): a session writes the code verify runs and sees its output. New `[run] env` limits verify and task hooks to the variables you list (PATH and HOME always pass).
-- In worktree mode a session gets only the `igris done` allow rules your project's `.claude/settings.local.json` has.
-- Built with Go 1.27.2, now pinned in `go.mod`. Releases up to 0.5.1 were built with Go 1.27.1, which has 8 standard-library advisories fixed in 1.27.2 (GO-2026-6603, -6605, -6607, -6608, -6610, -6611, -6613, -6617). igris only makes outbound HTTPS requests to the notification endpoints you configure, so the server-side ones don't apply, and the client-side ones need a hostile notification server or a broken TLS connection.
+- **The commands igris runs never get the variables your notification secrets come from** (the `env:` references in `igris.toml`): verify, task hooks, git, and the start-up git checks. A session writes the code verify runs and sees its output, and `git status` can run a program a repository's config names.
+- **Second security review** ([`docs/threat-model.md`](docs/threat-model.md#reviews)), 12 findings, 10 fixed:
+  - igris checks more of what it reads back from `.igris/state.json`, which a session can rewrite: the worktree (only one igris made, never a symlink), the current task's ID, mode and verify attempts.
+  - Everything igris prints to stderr is cleaned of escape sequences.
+  - A tmux pane's process can no longer make igris think the session is lost.
+  - The verify excerpt sent back to a session is capped at 16 KiB.
+  - At most 256 signal files are read per poll.
+  - `check` and `arise` warn about a webhook URL from an `env:` reference that is plain http.
+  - A secret reading `env:PATH` or `env:HOME` is a config error.
+- **In worktree mode a session gets only the `igris done` allow rules your project's `.claude/settings.local.json` already has**, plus reading the plan, which is outside the worktree.
+- **Built with Go 1.27.2**, now pinned in `go.mod`. Releases up to 0.5.1 were built with Go 1.27.1, which has 8 standard-library advisories fixed in 1.27.2 (GO-2026-6603, -6605, -6607, -6608, -6610, -6611, -6613, -6617). igris only makes outbound HTTPS requests to the notification endpoints you configure, so the server-side ones don't apply, and the client-side ones need a hostile notification server or a broken TLS connection.
 
 ### Changed
 
 - CI runs govulncheck on every push and weekly, a short run of every fuzz target, and a check that the release build is reproducible on Linux and macOS.
+- The settings file igris passes each session with `--settings` held hooks only; in worktree mode it also holds the allow rules above (SPEC §7.4).
+- The README says that on a public ntfy server without a token the topic works like a password: use a long random one, or set a token.
+
+### Migration
+
+- **No plan or config migration is needed.** `waiting_limit`, `nudge`, `[run] worktree` and `[run] env` are optional, and a config that doesn't set them keeps its config hash, so a run interrupted under v0.5 resumes without the "igris.toml changed" notice.
+- **`state.json` is checked more strictly.** A file whose current task, mode or verify attempts, or worktree, isn't one igris wrote (a session's or a hand edit) is reported as damaged, with "delete the file to start a new run". A v0.5 file igris wrote reads as before; `worktree` is a new optional field.
+- **Releases are signed from 0.6.0**, and earlier ones stay checksums-only. Homebrew and `go install` work as before.
+- **Builds use Go 1.27.2.** `go install` fetches it on a machine with an older Go (`GOTOOLCHAIN=auto`).
+- **Going back to v0.5** is safe for a run without a worktree; v0.5 doesn't know worktree mode and would run a resumed worktree run in the project root.
 
 ## [0.5.1] - 2026-10-08
 
