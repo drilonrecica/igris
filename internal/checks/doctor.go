@@ -145,7 +145,10 @@ func loadConfig(root string) (cfg *config.Config, noConfig bool, rs []Result) {
 		next = "igris config migrate"
 	}
 	for _, line := range strings.Split(err.Error(), "\n") {
-		line = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), state.ConfigFile+":"))
+		// The result names the file (File), so the message doesn't: config's
+		// errors start with the path they were loaded from.
+		line = strings.TrimSpace(line)
+		line = strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(line, path+":"), state.ConfigFile+":"))
 		if line == "" {
 			continue
 		}

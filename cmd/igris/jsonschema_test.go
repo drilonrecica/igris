@@ -303,6 +303,35 @@ func TestJSONGoldensMatchSchemas(t *testing.T) {
 	}
 }
 
+// TestSchemaCheckDir checks --json output saved from real runs against the
+// schemas, as the release gates do (docs/check-v07.md): each NAME.json or
+// NAME-anything.json in $IGRIS_SCHEMA_CHECK_DIR against NAME.schema.json,
+// strictly. Skipped when the variable isn't set.
+func TestSchemaCheckDir(t *testing.T) {
+	dir := os.Getenv("IGRIS_SCHEMA_CHECK_DIR")
+	if dir == "" {
+		t.Skip("IGRIS_SCHEMA_CHECK_DIR not set")
+	}
+	files, err := filepath.Glob(filepath.Join(dir, "*.json"))
+	if err != nil || len(files) == 0 {
+		t.Fatalf("no .json files in %s: %v", dir, err)
+	}
+	for _, f := range files {
+		name, _, _ := strings.Cut(strings.TrimSuffix(filepath.Base(f), ".json"), "-")
+		if _, err := os.Stat(filepath.Join(schemaDir, name+".schema.json")); err != nil {
+			continue // not --json output (a saved state.json, say)
+		}
+		data, err := os.ReadFile(f) //nolint:gosec // a file the gate saved
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, e := range validate(loadSchema(t, name), data, true) {
+			t.Errorf("%s against %s.schema.json: %s", filepath.Base(f), name, e)
+		}
+		t.Logf("%s: valid against %s.schema.json", filepath.Base(f), name)
+	}
+}
+
 // TestJSONRunGoldens adds the goldens the plan fixtures can't give: doctor,
 // and status with a run (a selection, signals, an unreadable signal).
 func TestJSONRunGoldens(t *testing.T) {

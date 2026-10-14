@@ -620,6 +620,10 @@ With `igris arise PHASE`, the start-up questions (an API key in the environment,
 - **Nothing is shown by color alone:** statuses are glyphs, ranks are named, and the focused button or row is in reverse video with `›` markers. With `NO_COLOR` set, igris draws no color and keeps bold, reverse video and the hover underline; copying works too.
 - **Small terminals:** the layout collapses to a single column, so it works over SSH from a phone.
 
+## Compatibility
+
+From 1.0, igris keeps the plan format, `igris.toml`, the CLI and its exit codes, the `--json` output, `.igris/` and the webhook stable until 2.0: 1.x only adds. [`docs/compatibility.md`](docs/compatibility.md) lists what is promised, how files mark their version, and how to upgrade (`igris config migrate`).
+
 ## Security
 
 - **igris treats every session as untrusted.** It snapshots `igris.toml` per run, pauses when the plan changes in a way it didn't write, checks what it reads back from `.igris/`, asks you before applying a session's skip or reset, and cleans everything a session wrote (notes, verify output, plan text) of escape sequences before it reaches your terminal, a notification or a session's pane.

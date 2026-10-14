@@ -1015,7 +1015,7 @@ Every answer belongs to that one launch and is thrown away afterwards; nothing �
 
 ## 19. Compatibility
 
-What igris 1.x promises not to break (V07-P1). Until v2.0, every surface below keeps working unchanged. Additions are allowed; removals and changed meanings are not.
+What igris 1.x promises not to break (V07-P1). Until v2.0, every surface below keeps working unchanged. Additions are allowed; removals and changed meanings are not. [`docs/compatibility.md`](docs/compatibility.md) maps each frozen surface to the tests that keep it, and `tools/contract` fails when a surface has no row or a named test is gone.
 
 **Frozen:**
 - **The plan format, format 1**: §3–4, also written out on its own in `docs/plan-format.md`. A plan may declare `<!-- igris:format 1 -->` on a line of its own before the first phase heading; without the marker it is format 1, forever. A plan declaring a format igris doesn't know is refused with "plan format N needs a newer igris". Format 1 includes the leniency the parser has always had: Mode and Verify values and phase IDs are case-insensitive (§3.1–3.2), header cells are trimmed of spaces, tabs, `*` and backticks. Model ranks are case-sensitive.

@@ -174,6 +174,22 @@ func TestCommitMessageTemplate(t *testing.T) {
 	}
 }
 
+// Every variable SPEC §6.5 gives commit_message is there: frozen for 1.x
+// (SPEC §19).
+func TestCommitMessageEveryVariable(t *testing.T) {
+	tmpl, err := parseCommitMessage("{{.ID}}|{{.Title}}|{{.Phase}}|{{.Rank}}|{{.Model}}|{{.Note}}")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b strings.Builder
+	if err := tmpl.Execute(&b, CommitVars{ID: "A-1", Title: "One", Phase: "A", Rank: "opus", Model: "opus", Note: "n"}); err != nil {
+		t.Fatal(err)
+	}
+	if b.String() != "A-1|One|A|opus|opus|n" {
+		t.Errorf("got %q", b.String())
+	}
+}
+
 func TestBadCommitMessageTemplate(t *testing.T) {
 	h := newHarness(t, chainPlan, "[run]\ncommit_message = \"{{.ID\"\n")
 	_, err := New(Options{Config: h.cfg, Backend: h.be, State: h.dir, Phase: "A"})

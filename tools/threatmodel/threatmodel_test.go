@@ -6,36 +6,15 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/drilonrecica/igris/tools/testmap"
 )
 
 const mapHeading = "## Rule → test map"
 
-// testRef is a test the map names: `internal/engine.TestName`.
-var testRef = regexp.MustCompile("`((?:internal|cmd|tools)/[a-z0-9_/]+)\\.(Test[A-Za-z0-9_]+)`")
-
-// mapRows returns the rows of the rule → test map: each row's cells.
 func mapRows(t *testing.T) [][]string {
 	t.Helper()
-	data, err := os.ReadFile("../../docs/threat-model.md")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, after, ok := strings.Cut(string(data), "\n"+mapHeading+"\n")
-	if !ok {
-		t.Fatalf("docs/threat-model.md has no %q section", mapHeading)
-	}
-	if next := strings.Index(after, "\n## "); next >= 0 {
-		after = after[:next]
-	}
-	var rows [][]string
-	for _, line := range strings.Split(after, "\n") {
-		if !strings.HasPrefix(line, "| ") || strings.HasPrefix(line, "|---") || strings.HasPrefix(line, "| ID ") {
-			continue
-		}
-		cells := strings.Split(strings.Trim(line, "| "), " | ")
-		rows = append(rows, cells)
-	}
-	return rows
+	return testmap.Rows(t, "docs/threat-model.md", mapHeading)
 }
 
 // Every rule names at least one test that exists, or is an accepted risk.
@@ -53,36 +32,16 @@ func TestMapNamesRealTests(t *testing.T) {
 		}
 		seen[id] = true
 		tests := cells[len(cells)-1]
-		refs := testRef.FindAllStringSubmatch(tests, -1)
+		refs := testmap.Ref.FindAllStringSubmatch(tests, -1)
 		if len(refs) == 0 && !strings.Contains(tests, "accepted") {
 			t.Errorf("rule %s names no test and isn't an accepted risk: %q", id, tests)
 		}
 		for _, ref := range refs {
-			if !testExists(t, ref[1], ref[2]) {
+			if !testmap.TestExists(t, ref[1], ref[2]) {
 				t.Errorf("rule %s: %s.%s doesn't exist", id, ref[1], ref[2])
 			}
 		}
 	}
-}
-
-// testExists reports whether package dir pkg has `func name(` in a test
-// file.
-func testExists(t *testing.T, pkg, name string) bool {
-	t.Helper()
-	files, err := filepath.Glob(filepath.Join("../..", pkg, "*_test.go"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, f := range files {
-		data, err := os.ReadFile(f) //nolint:gosec // the repository's own test files
-		if err != nil {
-			t.Fatal(err)
-		}
-		if strings.Contains(string(data), "\nfunc "+name+"(") {
-			return true
-		}
-	}
-	return false
 }
 
 // igris never sets ANTHROPIC_API_KEY (SPEC §7.4, §16): no source file

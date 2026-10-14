@@ -70,6 +70,43 @@ func TestOpenCreatesPrivateDirs(t *testing.T) {
 	}
 }
 
+// The .igris/ paths SPEC §13 lists are frozen for 1.x (SPEC §19): other
+// tools may read them, and every igris 1.x looks for its files there.
+func TestLayout(t *testing.T) {
+	root := t.TempDir()
+	d, err := Open(root, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := func(p ...string) string { return filepath.Join(append([]string{root, ".igris"}, p...)...) }
+	for got, want := range map[string]string{
+		d.runPath():                       in("state.json"),
+		d.eventsPath():                    in("runs.jsonl"),
+		d.lockPath():                      in("igris.lock"),
+		d.SignalsDir():                    in("signals"),
+		d.PromptsDir():                    in("prompts"),
+		d.AdaptDir():                      in("adapt"),
+		HooksDir(root):                    in("hooks"),
+		AgentStateDir(root):               in("agent-state"),
+		filepath.Join(root, WorktreesDir): in("worktrees"),
+	} {
+		if got != want {
+			t.Errorf("path %s, want %s", got, want)
+		}
+	}
+	if err := d.WriteSignal(Signal{ID: "A-1", Action: ActionDone}); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.WriteSignal(Signal{ID: "A-1", Action: ActionReset}); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range []string{"A-1.json", "A-1.reset.json"} {
+		if _, err := os.Stat(in("signals", f)); err != nil {
+			t.Errorf("signal slot %s: %v", f, err)
+		}
+	}
+}
+
 func TestWriteFileAtomic(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "f.json")

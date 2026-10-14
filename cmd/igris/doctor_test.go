@@ -133,7 +133,9 @@ func TestDoctorRemovedClaudeCommand(t *testing.T) {
 		t.Fatal(err)
 	}
 	code, out, _ := doctorIn(t, dir)
-	if code != exitFail || !strings.Contains(out, "claude.command was removed in 0.7") || !strings.Contains(out, "next: igris config migrate") {
+	// The message has no absolute path in front (found at the
+	// v0.7 gate).
+	if code != exitFail || !strings.Contains(out, "⨯ fail claude.command was removed in 0.7") || strings.Contains(out, dir) || !strings.Contains(out, "next: igris config migrate") {
 		t.Errorf("exit %d:\n%s", code, out)
 	}
 }

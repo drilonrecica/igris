@@ -126,6 +126,25 @@ func TestRenderCustomTemplate(t *testing.T) {
 	}
 }
 
+// Every variable SPEC §6.1 gives a prompt_template is there: the template
+// variables are frozen for 1.x (SPEC §19), so dropping or renaming one
+// fails here.
+func TestPromptTemplateEveryVariable(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "all.tmpl")
+	const all = "{{.ID}}|{{.Title}}|{{.Text}}|{{.Phase}}|{{.PhaseTitle}}|{{.Rank}}|{{.Model}}|{{.Owner}}|{{.Deps}}|" +
+		"{{.Extra}}|{{.Context}}|{{.PlanFile}}|{{.Resumed}}|{{.CommitPolicy}}|{{.DoneCommand}}\n"
+	if err := os.WriteFile(path, []byte(all), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Render(VarsFor(testTask(t, "M1-02"), Env{Model: "opus", PlanFile: "tasks.md", CommitPolicy: "ask"}), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(got, "M1-02|Frob widgets|") || strings.Count(got, "|") != 14 {
+		t.Errorf("got %q", got)
+	}
+}
+
 func TestRenderErrors(t *testing.T) {
 	write := func(content string) string {
 		p := filepath.Join(t.TempDir(), "t.tmpl")
