@@ -26,6 +26,7 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 - **An exit-code table** in SPEC §14: `0` success, `1` failure, `2` usage error, `3`–`9` reserved, and what exits `1` for each command. It is part of the 1.x contract.
 - **The plan format on its own page**, [`docs/plan-format.md`](docs/plan-format.md): format 1, with every rule and an example plan (a test keeps the example valid), for people and tools writing plans. It is what 1.x promises; the leniency igris always had (Mode and Verify values in any case, phase IDs compared without case, tabs around header names) is now written down as part of it.
 - **An optional format marker**, `<!-- igris:format 1 -->`, before a plan's first `##` heading. Plans without one are format 1, always. A plan marked with a format igris doesn't know gets one error, `plan format N needs a newer igris`, and `check`, `doctor` and the home screen say to upgrade instead of offering `igris adapt`.
+- **A compatibility suite** (`testdata/compat/`, run by `go test` and CI): the configs, plans and signal files every release from 0.1.0 to 0.6.0 wrote, captured by building each release from its tag, plus the state files and run logs of each format. All of them keep loading; `make compat TAG=vX.Y.Z` adds each new release.
 - **JSON schemas** for every `--json` output in [`docs/json/`](docs/json/), checked against igris's own output in its tests.
 
 ## [0.6.0] - 2026-10-14

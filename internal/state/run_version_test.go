@@ -9,11 +9,16 @@ import (
 	"testing"
 )
 
-// copyRunFixture puts testdata/run/name in a project's .igris/state.json
-// and returns the project root.
+// copyRunFixture puts a state file in a project's .igris/state.json and
+// returns the project root: testdata/run/name for the damaged and newer
+// ones, else the compatibility suite's, shaped like what each release wrote.
 func copyRunFixture(t *testing.T, name string) string {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join("testdata", "run", name)) //nolint:gosec // a fixture in the repo
+	path := filepath.Join("testdata", "run", name)
+	if _, err := os.Stat(path); err != nil {
+		path = filepath.Join("..", "..", "testdata", "compat", "state", name)
+	}
+	data, err := os.ReadFile(path) //nolint:gosec // a fixture in the repo
 	if err != nil {
 		t.Fatal(err)
 	}

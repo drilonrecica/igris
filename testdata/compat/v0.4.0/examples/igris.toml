@@ -1,0 +1,69 @@
+# Example igris.toml (SPEC §12). Every key is optional; the values below are
+# the defaults except where a comment says otherwise. `igris init` writes
+# the same file for you.
+
+plan = "tasks.md"                 # path to the plan, relative to the project root
+backend = "auto"                  # auto | herdr | tmux
+default_mode = "auto"             # default | accept | auto | plan | yolo
+needs_input_after = "30s"
+poll_interval = "2s"
+
+[models]                          # rank alias -> claude --model value
+sonnet = "sonnet"
+opus = "opus"
+fable = "fable"
+haiku = "haiku"
+
+[columns]                         # header aliases -> canonical column, for plans that name them differently
+# "Depends on" = "Deps"
+# "Agent" = "Model"
+
+[claude]
+command = "claude"                # deprecated and ignored (igris starts claude from PATH); removed before 1.0
+extra_args = []                   # appended to every session launch; model/mode/session flags are rejected
+
+[run]
+verify = "make test"              # checks to run when a session says it is done (the profile "default"); empty = none
+verify_timeout = "15m"            # for every verify profile
+verify_max_attempts = 3
+commit = "ask"                    # ask | auto | never
+commit_message = "{{.ID}}: {{.Title}}"
+prompt_template = ""              # path to a custom task prompt template
+
+[verify]                          # optional verify profiles: name -> shell command; a plan's Verify cell names one
+# fast = "go test ./internal/..."
+# full = "make fmt lint test"
+
+# [phases.P2]                     # optional, per phase: the verify profile of its tasks
+# verify = "full"                 # a profile, or "none"
+
+[hooks]                           # optional task hooks, argv lists run without a shell
+# before_task = ["./scripts/dev-db", "up"]
+# after_task = ["./scripts/post-status"]
+# timeout = "2m"
+
+[adapt]
+model = "sonnet"                  # sonnet | opus
+
+[tui]
+mouse = true                      # false keeps the terminal's own text selection
+theme = "auto"                    # auto | dark | light
+
+[tui.rank_colors]                 # optional: rank -> "#rrggbb" or an ANSI color number "0"-"255"
+# opus = "#B48CFF"
+# fable = "220"
+
+[notify.backend]
+enabled = true                    # herdr toasts
+
+# Uncomment a channel and set its topic or URL to turn it on. Secrets are
+# env:VAR references, so this file stays safe to commit.
+# [notify.ntfy]
+# server = "https://ntfy.sh"
+# topic = "my-igris-topic"
+# token = "env:NTFY_TOKEN"        # optional
+# events = ["needs_input", "session_lost", "task_overdue", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]
+#
+# [notify.discord]
+# webhook_url = "env:IGRIS_DISCORD_WEBHOOK"
+# events = ["needs_input", "phase_done"]

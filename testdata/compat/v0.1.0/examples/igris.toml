@@ -1,0 +1,57 @@
+# Example igris.toml (SPEC §12). Every key is optional; the values below are
+# the defaults except where a comment says otherwise. `igris init` writes
+# the same file for you.
+
+plan = "tasks.md"                 # path to the plan, relative to the project root
+backend = "herdr"
+default_mode = "default"          # default | accept | auto | plan | yolo
+needs_input_after = "30s"
+poll_interval = "2s"
+
+[models]                          # rank alias -> claude --model value
+sonnet = "sonnet"
+opus = "opus"
+fable = "fable"
+haiku = "haiku"
+
+[columns]                         # header aliases -> canonical column, for plans that name them differently
+# "Depends on" = "Deps"
+# "Agent" = "Model"
+
+[claude]
+command = "claude"
+extra_args = []                   # appended to every session launch; model/mode/session flags are rejected
+
+[run]
+verify = "make test"              # checks to run when a session says it is done; empty = none
+verify_timeout = "15m"
+verify_max_attempts = 3
+commit = "ask"                    # ask | auto | never
+commit_message = "{{.ID}}: {{.Title}}"
+prompt_template = ""              # path to a custom task prompt template
+
+[adapt]
+model = "sonnet"                  # sonnet | opus
+
+[tui]
+mouse = true                      # false keeps the terminal's own text selection
+theme = "auto"                    # auto | dark | light
+
+[tui.rank_colors]                 # optional: rank -> "#rrggbb" or an ANSI color number "0"-"255"
+# opus = "#B48CFF"
+# fable = "220"
+
+[notify.backend]
+enabled = true                    # herdr toasts
+
+# Uncomment a channel and set its topic or URL to turn it on. Secrets are
+# env:VAR references, so this file stays safe to commit.
+# [notify.ntfy]
+# server = "https://ntfy.sh"
+# topic = "my-igris-topic"
+# token = "env:NTFY_TOKEN"        # optional
+# events = ["needs_input", "session_lost", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]
+#
+# [notify.discord]
+# webhook_url = "env:IGRIS_DISCORD_WEBHOOK"
+# events = ["needs_input", "phase_done"]

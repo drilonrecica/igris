@@ -57,6 +57,12 @@ sign:
 sign-check:
 	sh tools/sign.sh --check
 
+# Captures what release TAG wrote into testdata/compat/TAG for the
+# compatibility suite (SPEC §17, §19); run after tagging, then commit.
+compat:
+	@test -n "$(TAG)" || { echo "usage: make compat TAG=vX.Y.Z"; exit 1; }
+	sh tools/compat.sh $(TAG)
+
 # Records the README demo GIF (docs/demo/README.md). Needs vhs, herdr and a
 # logged-in claude; runs real sessions. Installs this build first: herdr panes
 # and Claude's `igris done` find igris through your shell's PATH, not ours.

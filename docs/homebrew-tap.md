@@ -21,6 +21,7 @@
    git push
    ```
 
-4. Check it: `brew update && brew install drilonrecica/tap/igris && brew test igris`. Without Homebrew on the host, run the same commands inside the `docker.io/homebrew/brew` container (for example with podman).
+4. Capture the release for the compatibility suite: `make compat TAG=vX.Y.Z`, then commit `testdata/compat/vX.Y.Z/` (`compat: vX.Y.Z`). It builds the tag in a temporary worktree and records its `init` config and plan, its examples and its signal files; `go test` fails at the next release's commit if this is skipped.
+5. Check it: `brew update && brew install drilonrecica/tap/igris && brew test igris`. Without Homebrew on the host, run the same commands inside the `docker.io/homebrew/brew` container (for example with podman).
 
 To change the formula (description, install steps), edit the template and run `make release-local` to preview it; `go test ./tools/...` renders it from a fake checksums file.
