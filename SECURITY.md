@@ -17,6 +17,10 @@ Include the igris version (`igris version`), your OS, and the steps or the plan/
 
 You'll get an answer within a week. Fixes are released as a patch version and credited in the release notes unless you'd rather stay anonymous.
 
+## Release signatures
+
+From 0.6.0 every release's `checksums.txt` and tag are signed with the igris release key, an SSH key whose public half is in [`allowed_signers`](allowed_signers) and in the README ([Verifying a download](README.md#verifying-a-download)). Only the maintainer holds it, and nothing is signed in CI. A release whose signature doesn't verify against that key is not an igris release: please report it as above.
+
 ## What counts
 
 igris starts Claude Code sessions that act on your repository, so the interesting boundaries are:

@@ -4,8 +4,13 @@
 
 ## Publishing a release's formula
 
-1. Tag the release, then build it from the tag. From v0.6.0 the owner does this step with `make sign VERSION=X.Y.Z` (V06-01, decisions.md V06-P1): it creates the signed tag, builds from it and writes `dist/checksums.txt.sig`. The key's passphrase is the owner's alone, so the agent stops here and asks. Then check the tag and the signature (`git -c gpg.ssh.allowedSignersFile=allowed_signers verify-tag vX.Y.Z`, `ssh-keygen -Y verify -f allowed_signers -I igris -n file -s dist/checksums.txt.sig < dist/checksums.txt`). Before v0.6.0: `git checkout vX.Y.Z && goreleaser release --clean --skip=publish && go run ./tools/genformula -dist dist`. `make release-local` is the snapshot dry run: it always builds with `--snapshot`, so its archives and formula carry a `-SNAPSHOT-…` version that must not be published.
-2. Upload the `dist/*.tar.gz` archives, `checksums.txt` and, from v0.6.0, `checksums.txt.sig` and the `*.sbom.json` files to the GitHub Release `vX.Y.Z`. The formula's URLs point at those assets, so the release has to exist before the formula is pushed.
+1. Tag the release, then build it from the tag. From v0.6.0 the owner does this step (V06-01, decisions.md V06-P1); the key's passphrase is the owner's alone, so the agent stops here and asks:
+   - The agent commits the release (CHANGELOG `## [X.Y.Z]` section, version references) and pushes it to `master`.
+   - The owner runs `make sign VERSION=X.Y.Z` (`tools/sign.sh`). It refuses unless the tree is clean, `HEAD` is the pushed `origin/master`, the tag exists nowhere yet, the CHANGELOG has the section and `~/.ssh/igris-release.pub` is in `allowed_signers`. It then creates the signed tag `vX.Y.Z` (not pushed), builds `dist/` from it with genformula, signs `dist/checksums.txt` into `dist/checksums.txt.sig` and checks all three. It asks for the passphrase twice (once with `ssh-add ~/.ssh/igris-release` first). `make sign-check` signs and verifies a test file only, to try the key.
+   - The agent checks again: `git -c gpg.ssh.allowedSignersFile=allowed_signers verify-tag vX.Y.Z`, `ssh-keygen -Y verify -f allowed_signers -I igris -n file -s dist/checksums.txt.sig < dist/checksums.txt` and `(cd dist && sha256sum -c --ignore-missing checksums.txt)`, then pushes the tag (`git push origin vX.Y.Z`).
+
+   Before v0.6.0: `git checkout vX.Y.Z && goreleaser release --clean --skip=publish && go run ./tools/genformula -dist dist`. `make release-local` is the snapshot dry run: it always builds with `--snapshot`, so its archives and formula carry a `-SNAPSHOT-…` version that must not be published.
+2. Upload the `dist/*.tar.gz` archives, `checksums.txt` and, from v0.6.0, `checksums.txt.sig` and the `*.sbom.json` files to the GitHub Release `vX.Y.Z` (`gh release create vX.Y.Z --verify-tag …`). The formula's URLs point at those assets, so the release has to exist before the formula is pushed.
 3. Copy the formula into the tap and push it:
 
    ```sh

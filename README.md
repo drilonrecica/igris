@@ -81,16 +81,33 @@ With Go (the version pinned in `go.mod` or newer):
 go install github.com/drilonrecica/igris/cmd/igris@latest
 ```
 
-Or download a prebuilt binary from the [Releases](https://github.com/drilonrecica/igris/releases) page: `igris_<version>_<os>_<arch>.tar.gz` for linux and darwin on amd64 and arm64. Check the download against `checksums.txt` (SHA-256), then put the binary on your `PATH`:
+Or download a prebuilt binary from the [Releases](https://github.com/drilonrecica/igris/releases) page: `igris_<version>_<os>_<arch>.tar.gz` for linux and darwin on amd64 and arm64. [Check the download](#verifying-a-download), then put the binary on your `PATH`:
 
 ```sh
-sha256sum --ignore-missing -c checksums.txt    # macOS: shasum -a 256 --ignore-missing -c checksums.txt
 tar xzf igris_<version>_<os>_<arch>.tar.gz
 install -m 755 igris ~/.local/bin/igris
 igris version
 ```
 
-The binaries are static and not signed yet; the checksums guard against a corrupted download.
+### Verifying a download
+
+From 0.6.0 every release is signed with the igris release key, an SSH key (OpenSSH 8.1 or later, on every Linux and macOS, verifies it; nothing else to install). Its public half is:
+
+```
+igris namespaces="file,git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOFweVw8An9/KLs+Po4SB3jP7G/N8AkqtC67FHi48Xj+
+```
+
+It is also in [`allowed_signers`](allowed_signers) at the root of this repository, and the release tags are signed with it (GitHub shows them as Verified). Next to the archive, download `checksums.txt` and `checksums.txt.sig` from the same release. Fetch `allowed_signers` from the release's tag (the `curl` line), check that it holds the key above, and verify:
+
+```sh
+curl -fsSLO https://raw.githubusercontent.com/drilonrecica/igris/v<version>/allowed_signers
+ssh-keygen -Y verify -f allowed_signers -I igris -n file -s checksums.txt.sig < checksums.txt
+sha256sum -c --ignore-missing checksums.txt    # macOS: shasum -a 256 -c --ignore-missing checksums.txt
+```
+
+The first command must print `Good "file" signature for igris`, and the second `OK` for your archive. The signature covers `checksums.txt`, and `checksums.txt` lists every archive and its SBOM (`<archive>.sbom.json`, SPDX JSON, the modules the binary is built from). In a clone, `git -c gpg.ssh.allowedSignersFile=allowed_signers verify-tag v<version>` checks the tag. Releases before 0.6.0 have checksums only: they guard against a corrupted download, not a replaced one. Homebrew checks each archive against the sha256 in the formula; `go install` checks modules against the Go checksum database.
+
+If the release key is ever replaced, the new key is announced in the CHANGELOG and here, and the old one stays in `allowed_signers` with a `valid-before` date, so older releases still verify.
 
 ## Shell completion
 

@@ -1,7 +1,7 @@
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -X main.version=$(VERSION)
 
-.PHONY: build install fmt lint test test-race fuzz release-local demo site
+.PHONY: build install fmt lint test test-race fuzz release-local sign sign-check demo site
 
 build:
 	go build -ldflags "$(LDFLAGS)" -o bin/igris ./cmd/igris
@@ -45,6 +45,17 @@ release-local:
 	goreleaser check
 	goreleaser release --snapshot --clean --skip=publish
 	go run ./tools/genformula -dist dist
+
+# The release itself (SPEC §18, decisions.md V06-P1), run by the owner: signs
+# tag vVERSION with the release key, builds dist/ from it and signs
+# dist/checksums.txt. Pushes nothing. sign-check only proves the key, its
+# passphrase and allowed_signers match. KEY= overrides ~/.ssh/igris-release.
+sign:
+	@test -n "$(filter command line,$(origin VERSION))" || { echo "usage: make sign VERSION=X.Y.Z"; exit 1; }
+	sh tools/sign.sh $(VERSION)
+
+sign-check:
+	sh tools/sign.sh --check
 
 # Records the README demo GIF (docs/demo/README.md). Needs vhs, herdr and a
 # logged-in claude; runs real sessions. Installs this build first: herdr panes
