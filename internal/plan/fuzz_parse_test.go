@@ -41,6 +41,7 @@ func fuzzPlanSeeds(t testing.TB) [][]byte {
 		head + "| a | A | — | ready | sonnet | agent |\n| b | B | a…a | blocked | sonnet | user |\n| c | | |\n",
 		"## Phase 2\n\n| ID | Status | Model | Depends on |\n|---|---|---|---|\n| 1 | ready | sonnet | — |\r",
 		"\ufeff" + strings.ReplaceAll(head+"| a | A | — | ready | sonnet | agent |\n", "\n", "\r\n"),
+		"<!-- igris:format 1 -->\n" + head + "| a | A | — | ready | sonnet | agent |\n<!-- igris:format 2 -->\n",
 	} {
 		seeds = append(seeds, []byte(s))
 	}

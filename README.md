@@ -215,6 +215,8 @@ A plan is a markdown file (default `tasks.md`) with one task table per `##` phas
 - **User tasks** are yours to do outside igris. The card says **YOUR TURN — yours to do outside igris (no session). Then: d done · s skip**. Do the work wherever it happens, then press `d` (with an optional note, e.g. the name you picked, which lands in `igris history`) or `s` to skip with a reason. `igris done ID --note …` and `igris skip ID --reason …` work from any terminal too.
 - **Blocked on something outside the plan?** (API keys from a client, a deploy, a date.) Add a `user` task that names the blocker and make the waiting task depend on it, e.g. `| X-00 | **Wait for API keys from client** | — | ready | — | user |`. igris notifies you when it's your turn and carries on once you mark it done. `igris adapt` turns prose like "waits on" or "blocked by deploy" into such a task.
 
+The full format, with every rule and a larger example, is in [`docs/plan-format.md`](docs/plan-format.md); it is frozen for igris 1.x. A plan may declare it with `<!-- igris:format 1 -->` before its first `##` heading; without that line it is format 1 anyway.
+
 A complete small plan is in [`examples/tasks.md`](examples/tasks.md), and a commented config in [`examples/igris.toml`](examples/igris.toml); copy them and run `igris check` and `igris arise P1 --dry-run` to see how igris reads them. [`examples/advanced/`](examples/advanced/) is the same plan with Verify profiles, Timeouts and Context paths, and the `igris.toml` that defines its profiles.
 
 ### Different format? `igris adapt`

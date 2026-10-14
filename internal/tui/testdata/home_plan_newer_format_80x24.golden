@@ -1,0 +1,24 @@
+igris · sinjal · herdr ✓                                            PLAN INVALID
+── NOW ─────────────────────────────────────────────────────────────────────────
+PLAN INVALID · tasks.md · 1 problem
+tasks.md:1: plan format 2 needs a newer igris (this igris reads format 1)
+── PHASES ──────────────────────────────────────────────────────────────────────
+plan invalid — Check shows the problems
+
+
+
+
+
+
+
+
+
+
+
+── HEALTH ──────────────────────────────────────────────────────────────────────
+⨯ plan invalid · 1 problem
+! doctor: 1 warning — uncommitted changes
+── RECENT ──────────────────────────────────────────────────────────────────────
+no runs yet
+
+[›Check‹] [Doctor] [Edit plan] [Settings] [Notify] [?] [Quit]

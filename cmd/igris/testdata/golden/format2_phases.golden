@@ -1,0 +1,5 @@
+exit: 1
+--- stdout
+--- stderr
+igris phases: tasks.md is not valid; run `igris check` and fix:
+  tasks.md:3: plan format 2 needs a newer igris (this igris reads format 1)

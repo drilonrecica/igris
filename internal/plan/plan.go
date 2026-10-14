@@ -2,6 +2,8 @@ package plan
 
 import (
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -22,6 +24,13 @@ const (
 	ColTimeout = "Timeout"
 	ColContext = "Context"
 )
+
+// FormatVersion is the plan format igris reads: format 1 (SPEC §3, §19).
+const FormatVersion = 1
+
+// formatMarker matches a format marker line, `<!-- igris:format 1 -->`;
+// the group is what follows "igris:format".
+var formatMarker = regexp.MustCompile(`^<!--\s*igris:format\b(.*)-->$`)
 
 var canonicalCols = []string{ColID, ColTask, ColDeps, ColStatus, ColModel, ColOwner, ColMode, ColVerify, ColTimeout, ColContext}
 
@@ -51,11 +60,17 @@ type Plan struct {
 	Path   string   // file name used in messages
 	Phases []*Phase // phases with a task table, in file order
 	Tasks  []*Task  // all tasks in file order
+	// Format is the plan format the file declares with a format marker
+	// (SPEC §3), or FormatVersion when it declares none.
+	Format int
 
 	lines    []line
 	issues   []Issue    // structural problems found while parsing
 	nearMiss []nearMiss // tables with an ID column that lack Status or Model
-	byID     map[string]*Task
+	// newerFormat is the issue for a format this igris doesn't read; then
+	// it is the plan's only issue.
+	newerFormat *Issue
+	byID        map[string]*Task
 }
 
 // Phase is a "##" section holding one task table.
@@ -121,7 +136,7 @@ type section struct {
 // recorded and reported by Validate, so every problem is shown at once.
 // name is used in messages.
 func Parse(name string, data []byte, opts Options) *Plan {
-	p := &Plan{Path: name, lines: splitLines(data)}
+	p := &Plan{Path: name, lines: splitLines(data), Format: FormatVersion}
 	aliases := make(map[string]string, len(opts.Columns))
 	for k, v := range opts.Columns {
 		aliases[strings.ToLower(normalizeHeader(k))] = v
@@ -130,6 +145,7 @@ func Parse(name string, data []byte, opts Options) *Plan {
 	var cur *section
 	var fence string
 	firstPhase := map[string]int{} // lower-case phase ID -> heading line
+	markerLine := 0                // line of the format marker, 0 for none
 	for i := 0; i < len(p.lines); i++ {
 		l := p.lines[i]
 		if fence != "" {
@@ -140,6 +156,10 @@ func Parse(name string, data []byte, opts Options) *Plan {
 		}
 		if f := fenceOpen(l.text); f != "" {
 			fence = f
+			continue
+		}
+		if m := formatMarker.FindStringSubmatch(strings.TrimSpace(l.text)); m != nil {
+			p.formatMarker(cur != nil, m[1], l.num, &markerLine)
 			continue
 		}
 		if text, ok := headingText(l.text); ok {
@@ -169,6 +189,35 @@ func Parse(name string, data []byte, opts Options) *Plan {
 	p.buildTasks()
 	p.resolveDeps()
 	return p
+}
+
+// NewerFormat says the plan declares a format this igris doesn't read, so
+// the fix is a newer igris, not an edit or `igris adapt`.
+func (p *Plan) NewerFormat() bool { return p.newerFormat != nil }
+
+// formatMarker reads a format marker line (SPEC §3): one, before the first
+// "##" heading, naming a whole number. A format other than FormatVersion
+// is recorded as the plan's only issue.
+func (p *Plan) formatMarker(afterHeading bool, arg string, num int, markerLine *int) {
+	switch {
+	case afterHeading:
+		p.addIssue(num, "the format marker must come before the first ## heading")
+		return
+	case *markerLine != 0:
+		p.addIssue(num, "a second format marker (the first is on line %d)", *markerLine)
+		return
+	}
+	*markerLine = num
+	arg = strings.TrimSpace(arg)
+	n, err := strconv.Atoi(arg)
+	if !isDigits(arg) || err != nil || n < 1 {
+		p.addIssue(num, "the format marker needs a whole number, e.g. <!-- igris:format %d -->", FormatVersion)
+		return
+	}
+	p.Format = n
+	if n != FormatVersion {
+		p.newerFormat = &Issue{File: p.Path, Line: num, Msg: fmt.Sprintf("plan format %d needs a newer igris (this igris reads format %d)", n, FormatVersion)}
+	}
 }
 
 // addTable attaches a task table to the current section.

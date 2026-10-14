@@ -138,6 +138,8 @@ func execCheck(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 			}
 		}
 		switch {
+		case l.plan.NewerFormat():
+			fmt.Fprintf(stdout, "%s: written for a newer igris; upgrade igris and run `igris check` again\n", r.Plan)
 		case !r.Valid:
 			fmt.Fprintf(stdout, "%s: %d problem(s); fix them (or run `igris adapt`) and run `igris check` again\n", r.Plan, len(r.Issues))
 		case strictFail:

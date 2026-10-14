@@ -173,9 +173,13 @@ func doctorPlan(root string, cfg *config.Config, noConfig bool) (*plan.Plan, []R
 	if len(issues) == 0 {
 		return p, []Result{{ID: IDPlanValid, Level: OK, Message: fmt.Sprintf("%s is valid (%d phases, %d tasks)", cfg.Plan, len(p.Phases), len(p.Tasks)), File: p.Path}}
 	}
+	next := "igris adapt"
+	if p.NewerFormat() {
+		next = "upgrade igris"
+	}
 	out := make([]Result, len(issues))
 	for i, is := range issues {
-		out[i] = Result{ID: IDPlanValid, Level: Fail, Message: is.Msg, File: is.File, Line: is.Line, Next: "igris adapt"}
+		out[i] = Result{ID: IDPlanValid, Level: Fail, Message: is.Msg, File: is.File, Line: is.Line, Next: next}
 	}
 	return nil, out
 }

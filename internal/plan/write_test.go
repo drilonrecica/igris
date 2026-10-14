@@ -334,6 +334,27 @@ func TestWriterKeepsBOM(t *testing.T) {
 	}
 }
 
+// A format marker is outside every Status cell: the writer keeps it byte
+// for byte, and refuses a plan in a format this igris doesn't read.
+func TestWriterKeepsFormatMarker(t *testing.T) {
+	in := "# Plan\r\n<!--  igris:format 1 -->\r\n\r\n## M0\r\n\r\n| ID | Status | Model |\r\n|---|---|---|\r\n| a | ready | sonnet |\r\n"
+	path := writePlan(t, in)
+	if _, err := NewWriter(path, Options{}, testRules).Update(context.Background(), set("a", Done)); err != nil {
+		t.Fatal(err)
+	}
+	if out, want := readPlan(t, path), strings.Replace(in, "| ready |", "| done |", 1); out != want {
+		t.Fatalf("output differs:\n got %q\nwant %q", out, want)
+	}
+	newer := strings.Replace(in, "format 1", "format 2", 1)
+	path = writePlan(t, newer)
+	if _, err := NewWriter(path, Options{}, testRules).Update(context.Background(), set("a", Done)); err == nil || !strings.Contains(err.Error(), "needs a newer igris") {
+		t.Errorf("format 2 plan: err = %v", err)
+	}
+	if out := readPlan(t, path); out != newer {
+		t.Errorf("format 2 plan was changed: %q", out)
+	}
+}
+
 // A plan that is a symlink stays one: the write replaces the file it points
 // to, byte for byte except the Status cell.
 func TestWriterKeepsSymlink(t *testing.T) {

@@ -28,6 +28,7 @@ func TestReportGoldens(t *testing.T) {
 		{"invalid", "testdata/plans/invalid.md", []string{"M0"}},
 		{"drift", "testdata/plans/drift.md", []string{"A", "B"}},
 		{"large", "../../internal/plan/testdata/large.md", []string{"F1"}},
+		{"format2", "testdata/plans/format2.md", []string{"A"}},
 	}
 	cmds := [][]string{
 		{"check"}, {"check", "--json"},

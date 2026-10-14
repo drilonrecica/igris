@@ -250,7 +250,7 @@ var goldenSchemas = []struct {
 	re     *regexp.Regexp
 	schema string
 }{
-	{regexp.MustCompile(`^invalid_(phases|status)_json$`), "invalid-plan"},
+	{regexp.MustCompile(`^(invalid|format2)_(phases|status)_json$`), "invalid-plan"},
 	{regexp.MustCompile(`_check_json$`), "check"},
 	{regexp.MustCompile(`_phases_json$`), "phases"},
 	{regexp.MustCompile(`_status_json$`), "status"},

@@ -18,11 +18,17 @@ var (
 // Invalid is the error for a plan that fails validation.
 type Invalid struct {
 	Issues []Issue
+	// Newer: the plan is in a format this igris doesn't read.
+	Newer bool
 }
 
 func (e *Invalid) Error() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "plan has %d problem(s); fix them (or run `igris adapt`) and try again:", len(e.Issues))
+	if e.Newer {
+		b.WriteString("plan is in a format this igris can't read; upgrade igris:")
+	} else {
+		fmt.Fprintf(&b, "plan has %d problem(s); fix them (or run `igris adapt`) and try again:", len(e.Issues))
+	}
 	for _, i := range e.Issues {
 		b.WriteString("\n  ")
 		b.WriteString(i.Error())
@@ -59,6 +65,11 @@ const VerifyNone = "none"
 
 // Validate returns every problem in the plan (SPEC §3), sorted by line.
 func (p *Plan) Validate(r Rules) []Issue {
+	if p.newerFormat != nil {
+		// The rest may follow rules this igris doesn't know: its problems
+		// would only mislead.
+		return []Issue{*p.newerFormat}
+	}
 	v := &validator{p: p, models: r.Models, verify: r.Verify, rules: r, firstLine: map[string]int{}}
 	v.issues = append(v.issues, p.issues...)
 	for _, t := range p.Tasks {
@@ -87,7 +98,7 @@ func (p *Plan) Validate(r Rules) []Issue {
 // Check validates the plan and returns *Invalid if it has any problem.
 func (p *Plan) Check(r Rules) error {
 	if issues := p.Validate(r); len(issues) > 0 {
-		return &Invalid{Issues: issues}
+		return &Invalid{Issues: issues, Newer: p.NewerFormat()}
 	}
 	return nil
 }

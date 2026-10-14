@@ -213,7 +213,9 @@ func (m *homeScreen) buttons() []option {
 	add(live && s.Run != nil && s.Run.Session != "", "Open session", actOpen)
 	add(m.planValid(), "Preview", actPreview)
 	add(m.planFile(), "Check", actCheck)
-	add(m.planFile() && !m.planValid() && m.herdr() && !live, "Adapt", actAdapt)
+	// A plan from a newer igris needs an upgrade, not a conversion.
+	newer := m.snap != nil && m.snap.Plan != nil && m.snap.Plan.NewerFormat()
+	add(m.planFile() && !m.planValid() && !newer && m.herdr() && !live, "Adapt", actAdapt)
 	add(true, "Doctor", actDoctor)
 	add(found && (len(s.Recent) > 0 || s.Stamp.Log.Exists), "History", actHistory)
 	add(m.planFile(), "Edit plan", actEdit)

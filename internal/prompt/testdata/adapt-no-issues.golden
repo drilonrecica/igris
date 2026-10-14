@@ -74,17 +74,21 @@ igris done ADAPT --note "<one-line summary of the conversion>"
 
 Igris's parser is deterministic and strict. Plans that don't match this format are rejected by `igris check` and can be converted with `igris adapt` (§9).
 
+This is **format 1**, frozen for 1.x (§19). [`docs/plan-format.md`](docs/plan-format.md) describes it on its own, with examples, for people and tools writing plans; this section and §4 are normative.
+
+**Format marker.** A plan may declare its format with `<!-- igris:format 1 -->` on a line of its own (spaces inside the comment don't matter) before the first `##` heading. Without one it is format 1, forever. A marker inside a fenced code block is not one. A marker that isn't a whole number (digits only, at least 1), a second marker, or a marker after the first `##` heading is a validation error. A plan declaring another format is refused with `plan format N needs a newer igris (this igris reads format 1)` as its only validation issue (its tables may follow rules this igris doesn't know); `check`, `arise`, `doctor` and the home screen say to upgrade igris rather than suggest `igris adapt`, and the plan writer refuses it.
+
 ### 3.1 Phases
 - A phase is a level-2 heading (`## `) whose section contains a task table.
 - **Phase ID** = the first whitespace-delimited token of the heading text (`## M0 — Repository foundation` → `M0`). Matching on the command line is case-insensitive.
 - If the first token is alphabetic and the second is a number (`## Phase 2 — API`), the phase ID is the two tokens joined with a hyphen: `Phase-2`. The second token must be digits only (`## Phase 2: API` has phase ID `Phase`).
 - Only level-2 headings start a phase; `###` and deeper headings stay inside the current phase. Headings and tables inside fenced code blocks (```` ``` ```` / `~~~`) are ignored.
-- Phase IDs must be unique within a plan.
+- Phase IDs must be unique within a plan, compared case-insensitively (`## m0` and `## M0` clash); `[phases.<id>]` in config (§12) matches a phase case-insensitively too.
 - `##` sections without a task table (Legend, Working rules, traceability tables) are ignored. A plan needs at least one task table; a plan without any is a validation error (it is most likely in another format, §9).
 - **Phase order** is file order.
 
 ### 3.2 Task tables
-A task table is a GitHub-flavored markdown table whose header row contains at least the columns **ID**, **Status** and **Model** (case-insensitive, surrounding `*`/backticks ignored). Recognized columns:
+A task table is a GitHub-flavored markdown table whose header row contains at least the columns **ID**, **Status** and **Model** (case-insensitive, with surrounding spaces, tabs, `*` and backticks ignored). Recognized columns:
 
 | Column | Required | Purpose |
 |---|---|---|
@@ -99,7 +103,7 @@ A task table is a GitHub-flavored markdown table whose header row contains at le
 | `Timeout` | no | Go duration (`45m`, `1h30m`) after which a running task is reported overdue (§6.3). Never stops a session. |
 | `Context` | no | Comma-separated repo-relative paths (files or directories) the task prompt names as required reading (§6.1). |
 
-- In `Model` and `Mode`, `—`, `-`, `none` (case-insensitive) and an empty cell all mean "no model" / "no override", as in `Deps`. `Owner` is case-insensitive (`Agent + User` = `agent+user` = `agent + user`); an empty cell means `agent`.
+- In `Model` and `Mode`, `—`, `-`, `none` (case-insensitive) and an empty cell all mean "no model" / "no override", as in `Deps`. `Owner` is case-insensitive (`Agent + User` = `agent+user` = `agent + user`); an empty cell means `agent`. `Mode` and `Verify` values are case-insensitive too (`YOLO` = `yolo`); the `Model` rank is case-sensitive (`check` suggests the rank a near miss like `Sonnet` meant).
 - `Verify` and `Timeout` cells are trimmed with surrounding backticks stripped (`` ` none ` `` is `none`). In `Verify`, `Timeout` and `Context`, an empty cell, `—` or `-` means "not set". In `Verify` only, `none` is not "not set": it turns verification off for the task, while an unset cell falls back to the phase's and the project's default (§6.4).
 - `Verify`, `Timeout` and `Context` are checked only on tasks that are not `done` or `skipped`, since igris never runs those; a violation is a validation error:
   - a Verify profile must be defined in config (§12): `[verify]`, or `default` for `run.verify`; a cell that looks like a command (a space, a `/` or a shell character) is rejected with `Verify "make test" names a profile from [verify], never a command`;

@@ -16,6 +16,8 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ### Added
 
+- **The plan format on its own page**, [`docs/plan-format.md`](docs/plan-format.md): format 1, with every rule and an example plan (a test keeps the example valid), for people and tools writing plans. It is what 1.x promises; the leniency igris always had (Mode and Verify values in any case, phase IDs compared without case, tabs around header names) is now written down as part of it.
+- **An optional format marker**, `<!-- igris:format 1 -->`, before a plan's first `##` heading. Plans without one are format 1, always. A plan marked with a format igris doesn't know gets one error, `plan format N needs a newer igris`, and `check`, `doctor` and the home screen say to upgrade instead of offering `igris adapt`.
 - **JSON schemas** for every `--json` output in [`docs/json/`](docs/json/), checked against igris's own output in its tests.
 
 ## [0.6.0] - 2026-10-14

@@ -164,6 +164,13 @@ var homeStates = []struct {
 		s.Status, s.Recent = nil, nil
 		return homeFixture{snap: s, doctor: homeDoctor, doctorDone: true}
 	}},
+	{"plan_newer_format", func() homeFixture {
+		s := homeSnap("ready")
+		s.Plan = plan.Parse("tasks.md", []byte("<!-- igris:format 2 -->\n"+homeInvalidPlan), plan.Options{})
+		s.Issues = report.Issues(s.Plan.Validate(s.Config.Rules("")))
+		s.Status, s.Recent = nil, nil
+		return homeFixture{snap: s, doctor: homeDoctor, doctorDone: true}
+	}},
 	{"plan_invalid_no_herdr", func() homeFixture {
 		s := homeSnap("ready")
 		s.Plan = plan.Parse("tasks.md", []byte(homeInvalidPlan), plan.Options{})
@@ -330,6 +337,7 @@ func TestHomeButtonsOnlyWhenTheyApply(t *testing.T) {
 		"get_started":           "Init Doctor Settings ? Quit",
 		"plan_missing":          "Example plan Doctor Settings Notify ? Quit",
 		"plan_invalid":          "Check Adapt Doctor Edit plan Settings Notify ? Quit",
+		"plan_newer_format":     "Check Doctor Edit plan Settings Notify ? Quit", // an upgrade, not adapt
 		"plan_invalid_no_herdr": "Check Doctor Edit plan Settings Notify ? Quit",
 		"config_invalid":        "Settings Preview Check Doctor History Edit plan Notify ? Quit",
 		"interrupted":           "Resume… Preview Check Doctor History Edit plan Settings Notify ? Quit",

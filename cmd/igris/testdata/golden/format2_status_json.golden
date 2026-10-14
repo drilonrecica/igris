@@ -1,0 +1,15 @@
+exit: 1
+--- stdout
+{
+  "v": 1,
+  "issues": [
+    {
+      "file": "tasks.md",
+      "line": 3,
+      "message": "plan format 2 needs a newer igris (this igris reads format 1)"
+    }
+  ],
+  "plan": "tasks.md",
+  "valid": false
+}
+--- stderr
