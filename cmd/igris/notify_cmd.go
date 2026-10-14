@@ -12,10 +12,13 @@ import (
 
 // notifyArgs checks `igris notify test`.
 func notifyArgs(fs *flag.FlagSet) func([]string) error {
-	fs.String("event", "", "send only this event (default: every event a channel is set up for)")
+	event := fs.String("event", "", "send only this event (default: every event a channel is set up for)")
 	return func(args []string) error {
 		if len(args) == 0 || args[0] != "test" {
 			return fmt.Errorf("missing subcommand; use `igris notify test`")
+		}
+		if *event != "" && !isEvent(notify.Event(*event)) {
+			return fmt.Errorf("unknown event %q; use any of: %v", *event, notify.AllEvents)
 		}
 		return atMost(args, 1)
 	}
@@ -27,9 +30,6 @@ func execNotify(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 		return exitFail
 	}
 	only := notify.Event(fs.Lookup("event").Value.String())
-	if only != "" && !isEvent(only) {
-		return fail("unknown event %q; use any of: %v", only, notify.AllEvents)
-	}
 	proj, err := loadProject("")
 	if err != nil {
 		return fail("%v", err)

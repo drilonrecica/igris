@@ -469,19 +469,23 @@ template = "{{.At.Format \"15:04\"}} {{.TaskID}} {{.What}}"
 | `igris notify test [--event NAME]` | Sends a sample of each notification to your channels. |
 | `igris adapt` | Converts a plan in another format; see [`igris adapt`](#different-format-igris-adapt). |
 | `igris completion bash\|zsh\|fish` | Prints a shell completion script. |
+| `igris help [COMMAND]` | The help, or one command's (`igris COMMAND -h` is the same). |
+| `igris version` | Prints the version (`-v` and `--version` too). |
 
 `check`, `phases` and `status` take `--plan PATH` (default: `plan` in `igris.toml`, else `tasks.md`), and they, `doctor`, `history` and `report` take `--json`. Each `--json` output is one object starting with `"v": 1`; its schema is in [`docs/json/`](docs/json/), and fields may be added but never removed or changed in 1.x. `igris <command> -h` lists a command's flags.
 
+**Exit codes**: `0` success (also when you stop a run or an adapt), `1` failure, `2` usage error (an unknown flag, a missing or malformed argument). `3`–`9` are reserved, so test for non-zero rather than for `1`. What exits `1` for each command is listed in [SPEC §14](SPEC.md#14-cli).
+
 `igris init` is safe to re-run: it never overwrites an existing `igris.toml`, appends to `.gitignore` only if `.igris/` isn't ignored yet, and merges its two `igris done` allow rules (`Bash(igris done:*)`, `Bash(igris done *)`) into `.claude/settings.local.json` without touching your other settings. `--example` writes the example plan only when there is none (it prints `kept tasks.md` and leaves an existing plan alone).
 
-`arise`, `adapt` and `notify test` find the nearest `igris.toml` or `.igris/` upward; a folder with neither works only if it has your `tasks.md`, otherwise igris asks you to run `igris init` and creates nothing.
+`arise`, `adapt` and `notify test` find the nearest `igris.toml` or `.igris/` upward; a folder with neither works only if it has your plan (`tasks.md`, or `adapt --plan`), otherwise igris asks you to run `igris init` and creates nothing.
 
 <details>
 <summary><code>igris check</code>, <code>phases</code> and <code>status</code></summary>
 
 They read your plan without changing it.
 
-- **`check`** exits 0 for a valid plan, 1 for an invalid one, and warns when `ready`/`blocked` cells don't match the dependencies, when `ANTHROPIC_API_KEY` is set, and when you run it from a subfolder of a project (it reads `igris.toml` only from the current folder).
+- **`check`** exits 0 for a valid plan, 1 for an invalid one (2 on a usage error), and warns when `ready`/`blocked` cells don't match the dependencies, when `ANTHROPIC_API_KEY` is set, and when you run it from a subfolder of a project (it reads `igris.toml` only from the current folder).
 - **`check --strict`** also lints the plan and exits 1 on any plan or config warning, which suits CI:
   - a Task cell without a `**bold**` title, or longer than 400 characters;
   - an `agent + user` row that never says what the owner does;
@@ -521,7 +525,7 @@ Each line is `ok`, `warn` or `fail`; a problem is followed by the command that f
 - per phase, a table with each task's result, duration, attempts (retries and resumes count), verify results (`fast ✗ ✓`: the profile, one ✗ per failure, ✓ per pass), short commit SHA and needs-you time;
 - the done notes and skip reasons, and a `claude --resume <uuid>` line per agent session you can reopen (run it in the project root).
 
-`RUN` is `1` (the newest run, the default), `2` for the one before, and so on, or a run ID from `igris history`. Needs-you time counts only while igris waited on you: an idle wait ends when the session runs `igris done`, and an overdue task or the verify limit stops counting once the agent works again. Text from the log is escaped in the markdown, so a task title or note can't add links or formatting. `--json` prints the same as one object; it exits 1 when there is no such run.
+`RUN` is `1` (the newest run, the default), `2` for the one before, and so on, or a run ID from `igris history`. Needs-you time counts only while igris waited on you: an idle wait ends when the session runs `igris done`, and an overdue task or the verify limit stops counting once the agent works again. Text from the log is escaped in the markdown, so a task title or note can't add links or formatting. `--json` prints the same as one object. It exits 1 when there is no such run, and 2 when `RUN` is neither a number nor a run ID.
 
 Both are read-only: they take no lock and never create `.igris/`. A line they can't read (a crash cut it short, something else wrote to the file) is skipped with a note, and the rest still shows. The log format, one JSON object per line, is documented in [`docs/runlog.md`](docs/runlog.md). Logs from igris v0.4 and earlier still read; `report` shows `—` for the details they lack.
 

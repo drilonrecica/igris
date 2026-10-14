@@ -27,6 +27,22 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+// Every command's help is asked for, so it goes to stdout with the
+// command's synopsis, and exits 0 (SPEC §14).
+func TestEveryCommandHelp(t *testing.T) {
+	for _, c := range commands() {
+		for _, args := range [][]string{{c.name, "-h"}, {"help", c.name}} {
+			var out, errb bytes.Buffer
+			if code := run(args, &out, &errb); code != exitOK {
+				t.Errorf("%v: exit %d", args, code)
+			}
+			if !strings.HasPrefix(out.String(), "Usage:\n  igris "+c.name) || errb.Len() != 0 {
+				t.Errorf("%v: stdout %q, stderr %q", args, out.String(), errb.String())
+			}
+		}
+	}
+}
+
 func TestRun(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -47,15 +63,29 @@ func TestRun(t *testing.T) {
 		{"status two phases", []string{"status", "M0", "M1"}, exitUsage, "", "unexpected argument"},
 		{"arise flags", []string{"arise", "M0", "--through", "M1", "--mode", "plan", "--no-tui", "--dry-run", "--plan-is-not-a-flag"}, exitUsage, "", "flag provided but not defined"},
 		{"arise force-unlock flag", []string{"arise", "--force-unlock", "--mode", "wild"}, exitUsage, "", "invalid --mode"},
-		{"arise help lists force-unlock", []string{"arise", "-h"}, exitOK, "", "-force-unlock"},
+		{"arise help lists force-unlock", []string{"arise", "-h"}, exitOK, "-force-unlock", ""},
 		{"arise bad mode", []string{"arise", "--mode", "wild"}, exitUsage, "", "invalid --mode"},
 		{"done missing id", []string{"done"}, exitUsage, "", "missing ID"},
 		{"skip missing reason", []string{"skip", "M0-01"}, exitUsage, "", "skip needs a reason: igris skip ID --reason TEXT; see `igris skip -h`"},
 		{"skip missing id", []string{"skip", "--reason", "x"}, exitUsage, "", "missing ID"},
 		{"adapt extra arg", []string{"adapt", "x"}, exitUsage, "", "unexpected argument"},
-		{"adapt help lists plan", []string{"adapt", "-h"}, exitOK, "", "-plan"},
+		{"adapt help lists plan", []string{"adapt", "-h"}, exitOK, "-plan", ""},
 		{"adapt bad model", []string{"adapt", "--model", "gpt"}, exitUsage, "", "invalid --model"},
-		{"subcommand help", []string{"check", "-h"}, exitOK, "", "Usage of igris check"},
+		{"subcommand help", []string{"check", "-h"}, exitOK, "Usage:\n  igris check [--plan PATH]", ""},
+		// The exit codes SPEC §14 lists for the command line itself.
+		{"help flag", []string{"-h"}, exitOK, "Exit codes: 0 success", ""},
+		{"help command", []string{"help", "check"}, exitOK, "Usage:\n  igris check [--plan PATH]", ""},
+		{"help unknown command", []string{"help", "nope"}, exitUsage, "", "igris help: unknown command \"nope\""},
+		{"help two commands", []string{"help", "check", "status"}, exitUsage, "", "at most one command"},
+		{"version -v", []string{"-v"}, exitOK, "igris dev", ""},
+		{"version --version", []string{"--version"}, exitOK, "igris dev", ""},
+		{"version extra arg", []string{"version", "x"}, exitUsage, "", "takes no arguments"},
+		{"init extra arg", []string{"init", "x"}, exitUsage, "", "unexpected argument"},
+		{"done bad id", []string{"done", "M1 03"}, exitUsage, "", "invalid task ID \"M1 03\""},
+		{"skip bad id", []string{"skip", "../evil", "--reason", "r"}, exitUsage, "", "invalid task ID"},
+		{"skip blank reason", []string{"skip", "M0-01", "--reason", "   "}, exitUsage, "", "skip needs a reason"},
+		{"notify bad event", []string{"notify", "test", "--event", "bogus"}, exitUsage, "", "unknown event \"bogus\""},
+		{"notify extra arg", []string{"notify", "test", "x"}, exitUsage, "", "unexpected argument"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

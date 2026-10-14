@@ -64,8 +64,10 @@ Commands:
   adapt [--model sonnet|opus]           AI-assisted conversion with diff review
         [--plan PATH]
   completion bash|zsh|fish              print a shell completion script
-  version                               print the version
+  help [COMMAND]                        this help, or a command's (same as igris COMMAND -h); also -h, --help
+  version                               print the version; also -v, --version
 
+Exit codes: 0 success, 1 failure, 2 usage error (SPEC §14).
 Run "igris <command> -h" for the flags of a command.
 `
 
@@ -74,8 +76,7 @@ Run "igris <command> -h" for the flags of a command.
 type command struct {
 	name  string
 	setup func(fs *flag.FlagSet) (validate func(args []string) error)
-	// exec runs the command after flags and arguments validated. Commands
-	// without it are not implemented yet.
+	// exec runs the command after flags and arguments validated.
 	exec func(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int
 }
 
@@ -118,7 +119,12 @@ func commands() []command {
 		}, exec: execArise},
 		{name: "done", setup: func(fs *flag.FlagSet) func([]string) error {
 			fs.String("note", "", "short note stored with the signal")
-			return exactArgs("ID", 1)
+			return func(args []string) error {
+				if err := exactArgs("ID", 1)(args); err != nil {
+					return err
+				}
+				return taskIDArg(args[0])
+			}
 		}, exec: execDone},
 		{name: "skip", setup: func(fs *flag.FlagSet) func([]string) error {
 			reason := fs.String("reason", "", "why the task is skipped (required)")
@@ -129,7 +135,7 @@ func commands() []command {
 				if strings.TrimSpace(*reason) == "" {
 					return fmt.Errorf("skip needs a reason: igris skip ID --reason TEXT")
 				}
-				return nil
+				return taskIDArg(args[0])
 			}
 		}, exec: execSkip},
 		{name: "reset", setup: resetArgs, exec: execReset},
@@ -155,9 +161,12 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	switch args[0] {
 	case "-h", "--help", "help":
-		fmt.Fprint(stdout, usageText)
-		return exitOK
+		return execHelp(args[1:], stdout, stderr)
 	case "version", "-v", "--version":
+		if len(args) > 1 {
+			fmt.Fprintf(stderr, "igris %s: takes no arguments; see `igris -h`\n", args[0])
+			return exitUsage
+		}
 		info, ok := debug.ReadBuildInfo()
 		fmt.Fprintf(stdout, "igris %s\n", resolveVersion(version, info, ok))
 		return exitOK
@@ -190,9 +199,48 @@ func (c cleanWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+// execHelp prints the general help, or with a command's name that command's
+// help, as `igris COMMAND -h` does.
+func execHelp(args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		fmt.Fprint(stdout, usageText)
+		return exitOK
+	}
+	if len(args) != 1 {
+		fmt.Fprintf(stderr, "igris help: name at most one command\n\n%s", usageText)
+		return exitUsage
+	}
+	name := args[0]
+	for _, c := range commands() {
+		if c.name == name {
+			return runCommand(c, []string{"-h"}, stdout, stderr)
+		}
+	}
+	fmt.Fprintf(stderr, "igris help: unknown command %q\n\n%s", name, usageText)
+	return exitUsage
+}
+
+// helpRequested says args ask for the command's help: asked-for help goes
+// to stdout, while a usage error's goes to stderr.
+func helpRequested(args []string) bool {
+	for _, a := range args {
+		switch a {
+		case "--":
+			return false
+		case "-h", "-help", "--help":
+			return true
+		}
+	}
+	return false
+}
+
 func runCommand(c command, args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("igris "+c.name, flag.ContinueOnError)
 	fs.SetOutput(stderr)
+	if helpRequested(args) {
+		fs.SetOutput(stdout)
+	}
+	synopsisUsage(fs, c.name)
 	validate := c.setup(fs)
 	if err := fs.Parse(reorder(fs, args)); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -203,10 +251,6 @@ func runCommand(c command, args []string, stdout, stderr io.Writer) int {
 	if err := validate(fs.Args()); err != nil {
 		fmt.Fprintf(stderr, "igris %s: %v; see `igris %s -h`\n", c.name, err, c.name)
 		return exitUsage
-	}
-	if c.exec == nil {
-		fmt.Fprintf(stderr, "igris %s: not implemented yet\n", c.name)
-		return exitFail
 	}
 	return c.exec(fs, fs.Args(), stdout, stderr)
 }

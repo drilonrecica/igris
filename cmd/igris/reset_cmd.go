@@ -24,10 +24,7 @@ func resetArgs(fs *flag.FlagSet) func([]string) error {
 		if err := one(args); err != nil {
 			return err
 		}
-		if !plan.ValidID(args[0]) {
-			return fmt.Errorf("invalid task ID %q: IDs are letters, digits, '.', '_' and '-' (e.g. M0-01); check it with `igris status`", args[0])
-		}
-		return nil
+		return taskIDArg(args[0])
 	}
 }
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -18,10 +19,11 @@ import (
 )
 
 // Seams for tests: the clock that paces the adapt session's polling and
-// stamps the backup, and the diff review.
+// stamps the backup, the diff review, and the context Ctrl-C cancels.
 var (
-	adaptClock  engine.Clock = engine.SystemClock()
-	adaptReview              = tui.Review
+	adaptClock   engine.Clock = engine.SystemClock()
+	adaptReview               = tui.Review
+	adaptContext              = interruptContext
 )
 
 func adaptArgs(fs *flag.FlagSet) func([]string) error {
@@ -70,8 +72,8 @@ func execAdapt(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "warning: %s\n", checks.APIKeyWarning)
 	}
 
-	ctx, cancel, _ := interruptContext() // a second Ctrl-C exits at once
-	defer cancel()                       // Ctrl-C stops waiting; the session stays open
+	ctx, cancel, _ := adaptContext() // a second Ctrl-C exits at once
+	defer cancel()                   // Ctrl-C stops waiting; the session stays open
 	res, err := adapt.Run(ctx, adapt.Options{
 		Config:   cfg,
 		PlanPath: planPath,
@@ -84,6 +86,12 @@ func execAdapt(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	})
 	if errors.Is(err, adapt.ErrAlreadyValid) {
 		fmt.Fprintf(stdout, "%s passes `igris check`; nothing to adapt\n", planPath)
+		return exitOK
+	}
+	if errors.Is(err, context.Canceled) {
+		// The owner stopped waiting (Ctrl-C): a choice, not a failure,
+		// as for arise (SPEC §14).
+		fmt.Fprintln(stdout, err)
 		return exitOK
 	}
 	if err != nil {

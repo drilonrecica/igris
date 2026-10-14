@@ -72,6 +72,27 @@ func adaptProject(t *testing.T, planFile, planText, proposal string) (root strin
 	return root, be
 }
 
+// Ctrl-C while the adapt session works stops waiting: the owner's choice,
+// so exit 0 as for arise (SPEC §14), and nothing is replaced.
+func TestAdaptCommandCtrlC(t *testing.T) {
+	root, be := adaptProject(t, "tasks.md", foreignPlan, adaptedPlan)
+	ctx, cancel := context.WithCancel(context.Background())
+	saved := adaptContext
+	t.Cleanup(func() { adaptContext = saved; cancel() })
+	adaptContext = func() (context.Context, context.CancelFunc, func()) { return ctx, cancel, func() {} }
+	be.SetAutoSignal(func(context.Context, string) error { cancel(); return nil }) // the session never signals
+	var out, errb bytes.Buffer
+	if code := run([]string{"adapt"}, &out, &errb); code != exitOK {
+		t.Fatalf("exit %d, want 0; stderr %q", code, errb.String())
+	}
+	if !strings.Contains(out.String(), "adapt stopped; the ADAPT session stays open") {
+		t.Errorf("stdout %q", out.String())
+	}
+	if data, _ := os.ReadFile(filepath.Join(root, "tasks.md")); string(data) != foreignPlan { //nolint:gosec // test temp dir
+		t.Error("the plan was replaced")
+	}
+}
+
 // decide makes the review answer accept and records what it was shown.
 func decide(accept bool, shown *tui.ReviewOptions) {
 	adaptReview = func(_ context.Context, o tui.ReviewOptions) (bool, error) {

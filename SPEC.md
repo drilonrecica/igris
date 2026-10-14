@@ -671,7 +671,7 @@ Quitting the TUI (`q`) never kills a running session; it saves state and exits. 
 igris                                       on a terminal: the home screen (§15.6); otherwise help, exit 2
 igris init [--example]                      create igris.toml, .igris/, .gitignore entry, Claude allow rules;
                                             --example also writes the example plan when there is none
-igris doctor [--json]                       read-only health check of this project and machine
+igris doctor [--json]                       read-only health check of this project and machine; exit 1 on a failure
 igris check [--plan PATH] [--json]          validate the plan; exit 0 valid, 1 invalid, 2 usage error
            [--strict]                       also lint the plan; exit 1 on any plan or config warning
 igris phases [--plan PATH] [--json]         list phases with task counts per status
@@ -690,10 +690,38 @@ igris notify test [--event NAME]            send a sample of each notification t
 igris adapt [--model sonnet|opus]           AI-assisted conversion with diff review
            [--plan PATH]
 igris completion bash|zsh|fish              print a shell completion script
-igris version
+igris help [COMMAND]                        the help, or a command's (= igris COMMAND -h); also -h, --help
+igris version                               print the version; also -v, --version
 ```
 
-- **Bare `igris`** opens the home screen (§15.6) only when both stdin and stdout are terminals (character devices, `ModeCharDevice`), stdin is not `/dev/null` (which is also a character device), and `TERM` is not `dumb`. Otherwise — piped, scripted, under cron — it prints the help to stderr and exits 2, as before. Home exits 0, or 1 if the TUI fails. It works in the project root found as for `arise` (below); outside a project it shows the get-started steps. Every subcommand is unchanged by home.
+**Exit codes** (frozen for 1.x, §19):
+
+| Code | Meaning |
+|---|---|
+| `0` | Success, including a run or an adapt the owner stopped. |
+| `1` | Failure: the command ran and something is wrong (below). |
+| `2` | Usage error: an unknown command or flag, a bad flag value, a missing, extra or malformed argument. It is found before the project is read. |
+| `3`–`9` | Reserved. A 1.x release may give a case that exits `1` today its own code from this range, so scripts test for non-zero, or for `2`, never for exactly `1`. |
+
+No other code is used. Per command:
+
+- **`check`**: 1 for an invalid plan (a newer plan format included, §3), a plan or `igris.toml` that can't be read, and under `--strict` any plan or config warning.
+- **`phases`, `status`**: 1 for a plan or `igris.toml` that can't be read, an invalid plan, and (`status`) an unknown PHASE.
+- **`doctor`**: 1 when some check is `fail`; warnings exit 0.
+- **`history`**: 1 when the run log can't be read; no project or no runs is 0. `-n` below 1 and a malformed TASK-ID are usage errors (2).
+- **`report`**: 1 when there are no runs or no such run; a RUN that is neither a positive number nor a run ID is a usage error (2).
+- **`arise`**: 0 when the run completes or the owner stops it (`stop`, quitting the TUI, Ctrl-C). 1 when a phase is stuck, the run ends with an error, a start-up confirmation is declined or stdin ends before it is answered, the lock is held by a live igris (or is stale without `--force-unlock`), igris is not inside herdr or tmux, there is no project, or the selection names tasks that aren't in the plan or are out of order. `--dry-run` exits 1 when it can't walk the run (an unknown phase, nothing to resume, an invalid plan, a selection that doesn't fit); a phase it shows as stuck is a result, not a failure, so that exits 0. A bad `--mode`, `--only` with `--from`/`--until`, an empty `--only` and a malformed ID are usage errors (2).
+- **Bare `igris`** (home): 0; 1 when the TUI fails or a run it held ended stuck or with an error; 2 when it isn't on a terminal.
+- **`done`, `skip`**: 0 when the signal is written; 1 outside a project, for a task that isn't in the plan, an unreadable plan or config, or a failed write. A missing or malformed ID and an empty `--reason` are usage errors (2).
+- **`reset`**: 0 also when there is nothing to reset (the task is `ready` or `blocked`); 1 for a `done` or `skipped` task without `--force`, a task that isn't in the plan, an invalid plan, a run on another host holding the lock, or a failed write. A malformed ID is a usage error (2).
+- **`notify test`**: 1 when a delivery fails or no channel is set up to send the event; an unknown `--event` is a usage error (2).
+- **`adapt`**: 0 when the plan is already valid, the proposal is accepted or rejected, or the owner stops waiting with Ctrl-C (the session stays open); 1 when the session is lost or skipped, the backend or project can't be used, or the review fails. A `--model` other than `sonnet` or `opus` is a usage error (2).
+- **`init`**: 1 when it can't write its files (an unreadable `.claude/settings.local.json`, say).
+- **`completion`**: a missing or unknown shell is a usage error (2).
+- **`help`, `-h`, `--help`**: 0, printed on stdout; `igris COMMAND -h` and `igris help COMMAND` print the command's synopsis and flags. `help` with an unknown command or more than one is a usage error (2). **`version`, `-v`, `--version`**: 0; with an argument, 2.
+- The hidden **`hook`** and **`__complete`** always exit 0.
+
+- **Bare `igris`** opens the home screen (§15.6) only when both stdin and stdout are terminals (character devices, `ModeCharDevice`), stdin is not `/dev/null` (which is also a character device), and `TERM` is not `dumb`. Otherwise — piped, scripted, under cron — it prints the help to stderr and exits 2, as before. Home exits 0, or 1 if the TUI fails or a run it held ended stuck or with an error (exit codes, above). It works in the project root found as for `arise` (below); outside a project it shows the get-started steps. Every subcommand is unchanged by home.
 - **`igris arise` without a phase and with nothing to resume** (no `state.json`, or one without phases) opens the app in the start-run wizard (§15.6) when it runs on a terminal (as for bare `igris`) without `--no-tui` or `--dry-run`; `--mode`, `--through` and `--force-unlock` are prefilled, and `esc` leaves the wizard for home instead of exiting. In every other case it exits 1 and asks for a phase, as before. `igris arise PHASE` goes straight to the run view, as before.
 - `arise`, `adapt` and `notify test` work in the project root: the nearest directory, from the working directory up, that holds `igris.toml` or `.igris/`. Without one, the working directory is the root only if it holds the plan (`adapt --plan`, else `tasks.md`); otherwise they exit 1 with a hint to run `igris init` and create nothing.
 - The plan file is `--plan`, else `plan` in `igris.toml` in the working directory, else `tasks.md`. `check`, `phases` and `status` stay working-directory-based (they don't search upward like `arise` and home do). `check` and `phases` read the plan only; `status` reads the plan plus the `.igris/` run state, read-only (§13), and never creates `.igris/`; `phases` and `status` refuse an invalid plan (exit 1, listing the problems) and report to stdout, errors to stderr. `--json` prints one JSON document instead of text.

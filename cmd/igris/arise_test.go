@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"io/fs"
 	"os"
@@ -424,6 +425,8 @@ type noTUIRun struct {
 	ui func(context.Context, tui.Options) error
 	// noSignal: sessions never signal, so agent tasks stay in progress.
 	noSignal bool
+	// before runs on the project before igris starts.
+	before func(root string)
 }
 
 func (r noTUIRun) run(t *testing.T) (code int, output, root string) {
@@ -443,6 +446,9 @@ func (r noTUIRun) run(t *testing.T) (code int, output, root string) {
 		"tasks.md":   r.plan,
 		"igris.toml": "poll_interval = \"5ms\"\n[notify.backend]\nenabled = false\n" + r.toml,
 	})
+	if r.before != nil {
+		r.before(root)
+	}
 	dir, err := state.Open(root, state.Options{})
 	if err != nil {
 		t.Fatal(err)
@@ -773,6 +779,76 @@ func TestAriseWithoutPlan(t *testing.T) {
 	}
 }
 
+// arise's exit codes (SPEC §14): a stuck phase is a failure, the owner's
+// stop is not, and a run held by a live igris is refused.
+func TestAriseExitCodes(t *testing.T) {
+	t.Run("stuck", func(t *testing.T) {
+		const stuck = "## A\n\n| ID | Task | Deps | Status | Model | Owner |\n|---|---|---|---|---|---|\n" +
+			"| A-1 | **Waits** | B-1 | blocked | sonnet | agent |\n\n## B\n\n| ID | Task | Deps | Status | Model | Owner |\n|---|---|---|---|---|---|\n" +
+			"| B-1 | **Later** | — | ready | sonnet | agent |\n"
+		code, got, _ := noTUIRun{plan: stuck, args: []string{"A", "--no-tui"}}.run(t)
+		if code != exitFail || !strings.Contains(got, "stuck") {
+			t.Errorf("exit %d, want 1; output:\n%s", code, got)
+		}
+	})
+	t.Run("stuck dry run", func(t *testing.T) {
+		// A preview that shows the phase as stuck did its job: exit 0.
+		writeProject(t, map[string]string{"tasks.md": "## A\n\n| ID | Task | Deps | Status | Model | Owner |\n|---|---|---|---|---|---|\n" +
+			"| A-1 | **Waits** | B-1 | blocked | sonnet | agent |\n\n## B\n\n| ID | Task | Deps | Status | Model | Owner |\n|---|---|---|---|---|---|\n" +
+			"| B-1 | **Later** | — | ready | sonnet | agent |\n"})
+		var out, errb bytes.Buffer
+		if code := run([]string{"arise", "A", "--dry-run"}, &out, &errb); code != exitOK || !strings.Contains(out.String(), "STUCK") {
+			t.Errorf("exit %d, want 0; output:\n%s%s", code, out.String(), errb.String())
+		}
+	})
+	t.Run("owner stops", func(t *testing.T) {
+		code, got, _ := noTUIRun{args: []string{"A", "--no-tui"}, noSignal: true,
+			replies: [][2]string{{"A-1 session open", "stop"}}}.run(t)
+		if code != exitOK || !strings.Contains(got, "run stopped: stopped") {
+			t.Errorf("exit %d, want 0; output:\n%s", code, got)
+		}
+	})
+	t.Run("lock held", func(t *testing.T) {
+		var held *state.Lock
+		code, got, _ := noTUIRun{args: []string{"A", "--no-tui"}, before: func(root string) {
+			dir, err := state.Open(root, state.Options{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if held, err = dir.Lock(false); err != nil { // this process: alive
+				t.Fatal(err)
+			}
+		}}.run(t)
+		if held != nil {
+			_ = held.Release()
+		}
+		if code != exitFail || !strings.Contains(got, "running") {
+			t.Errorf("exit %d, want 1; output:\n%s", code, got)
+		}
+	})
+}
+
+// tuiExit maps how a run shown in the TUI ended (arise's TUI and a run
+// held in home) to the exit code (SPEC §14).
+func TestTUIExit(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		res  engine.Result
+		err  error
+		want int
+	}{
+		{"completed", engine.Result{Outcome: engine.Completed}, nil, exitOK},
+		{"stopped", engine.Result{Outcome: engine.Stopped}, nil, exitOK},
+		{"stuck", engine.Result{Outcome: engine.Stuck}, nil, exitFail},
+		{"error", engine.Result{}, errors.New("boom"), exitFail},
+	} {
+		var out, errb bytes.Buffer
+		if got := tuiExit(tc.res, tc.err, &out, &errb); got != tc.want {
+			t.Errorf("%s: exit %d, want %d", tc.name, got, tc.want)
+		}
+	}
+}
+
 // Outside a project (no igris.toml or .igris/ up the tree) and without a
 // plan, the commands that keep state refuse and create nothing.
 func TestOutsideAProject(t *testing.T) {
@@ -788,6 +864,19 @@ func TestOutsideAProject(t *testing.T) {
 				t.Errorf("created %v", entries)
 			}
 		})
+	}
+}
+
+// A session's done or skip outside any project fails (exit 1) and says
+// where to run it.
+func TestSignalOutsideAProject(t *testing.T) {
+	for _, args := range [][]string{{"done", "A-1"}, {"skip", "A-1", "--reason", "x"}} {
+		dir := t.TempDir()
+		t.Chdir(dir)
+		var out, errb bytes.Buffer
+		if code := run(args, &out, &errb); code != exitFail || !strings.Contains(errb.String(), "no igris.toml or .igris found") {
+			t.Errorf("%v: exit %d, stderr %q", args, code, errb.String())
+		}
 	}
 }
 

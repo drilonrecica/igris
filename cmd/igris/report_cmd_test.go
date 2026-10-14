@@ -111,7 +111,7 @@ func TestReportEscapesMarkdown(t *testing.T) {
 }
 
 // `report -h` and `history -h` show the positional arguments, not only
-// the flags, and exit 0.
+// the flags, on stdout, and exit 0.
 func TestReportHistoryHelp(t *testing.T) {
 	for _, c := range []struct {
 		args []string
@@ -125,8 +125,8 @@ func TestReportHistoryHelp(t *testing.T) {
 			t.Errorf("%v: exit %d", c.args, code)
 		}
 		for _, w := range c.want {
-			if !strings.Contains(errb.String(), w) {
-				t.Errorf("%v: help lacks %q:\n%s", c.args, w, errb.String())
+			if !strings.Contains(out.String(), w) {
+				t.Errorf("%v: help lacks %q:\n%s", c.args, w, out.String())
 			}
 		}
 	}

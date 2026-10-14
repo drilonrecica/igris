@@ -22,15 +22,21 @@ func execSkip(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 	return sendSignal(state.ActionSkip, args[0], fs.Lookup("reason").Value.String(), stdout, stderr)
 }
 
+// taskIDArg checks a command's task ID argument: a malformed one is a usage
+// error (exit 2, SPEC §14), found before the project is read.
+func taskIDArg(id string) error {
+	if !plan.ValidID(id) {
+		return fmt.Errorf("invalid task ID %q: IDs are letters, digits, '.', '_' and '-' (e.g. M0-01); check it with `igris status`", id)
+	}
+	return nil
+}
+
 // sendSignal writes the signal file for task id. It never edits the plan:
 // only the running igris consumes signals (SPEC §6.2).
 func sendSignal(action, id, note string, stdout, stderr io.Writer) int {
 	fail := func(format string, a ...any) int {
 		fmt.Fprintf(stderr, "igris %s: %s\n", action, fmt.Sprintf(format, a...))
 		return exitFail
-	}
-	if !plan.ValidID(id) {
-		return fail("invalid task ID %q: IDs are letters, digits, '.', '_' and '-' (e.g. M0-01); check it with `igris status`", id)
 	}
 	cwd, err := os.Getwd()
 	if err != nil {

@@ -106,7 +106,7 @@ func TestNotifyTestReportsFailuresAndMissingChannels(t *testing.T) {
 	if code := run([]string{"notify"}, &out, &errb); code != exitUsage {
 		t.Errorf("`igris notify` exit %d, want usage error", code)
 	}
-	if code := run([]string{"notify", "test", "--event", "bogus"}, &out, &errb); code != exitFail {
+	if code := run([]string{"notify", "test", "--event", "bogus"}, &out, &errb); code != exitUsage {
 		t.Errorf("unknown event exit %d", code)
 	}
 }

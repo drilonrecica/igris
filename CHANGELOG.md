@@ -13,9 +13,12 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
   - The `counts` key `"in progress"` (`phases`, `status`) is now `"in_progress"`. A task's `status` value is still `"in progress"`.
   - `status --json` lists the run's pending signals as `{"task": "M1-03", "action": "done"}` objects instead of `"M1-03 done"` strings, and unreadable signal files as a count, `signals_unreadable`, instead of an `"N unreadable"` entry.
 - **`.igris/state.json` is version 3** (SPEC §13). Older state files (versions 1 and 2, igris 0.2–0.6) are read and upgraded, so an interrupted run resumes after the upgrade. A state file from a newer igris now says to upgrade igris, and a damaged one says it is damaged, instead of both saying "unsupported version". igris 0.6 and older can't read a version-3 file: finish the run, or delete `.igris/state.json`, before going back to an older igris.
+- **Exit codes, settled for 1.0** (SPEC §14): a malformed task ID in `igris done` and `igris skip`, and an unknown `igris notify test --event`, are usage errors now (exit 2, was 1), as in every other command. `igris adapt` stopped with Ctrl-C exits 0 (was 1), as `igris arise` does. `igris version` with an argument exits 2.
+- **Help**: `igris help COMMAND` shows that command's help (it showed the general help). A command's help (`-h`) goes to stdout and starts with its synopsis, for every command.
 
 ### Added
 
+- **An exit-code table** in SPEC §14: `0` success, `1` failure, `2` usage error, `3`–`9` reserved, and what exits `1` for each command. It is part of the 1.x contract.
 - **The plan format on its own page**, [`docs/plan-format.md`](docs/plan-format.md): format 1, with every rule and an example plan (a test keeps the example valid), for people and tools writing plans. It is what 1.x promises; the leniency igris always had (Mode and Verify values in any case, phase IDs compared without case, tabs around header names) is now written down as part of it.
 - **An optional format marker**, `<!-- igris:format 1 -->`, before a plan's first `##` heading. Plans without one are format 1, always. A plan marked with a format igris doesn't know gets one error, `plan format N needs a newer igris`, and `check`, `doctor` and the home screen say to upgrade instead of offering `igris adapt`.
 - **JSON schemas** for every `--json` output in [`docs/json/`](docs/json/), checked against igris's own output in its tests.

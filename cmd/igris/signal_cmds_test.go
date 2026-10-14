@@ -81,7 +81,6 @@ func TestSignalErrors(t *testing.T) {
 		want string
 	}{
 		{"unknown task", []string{"done", "M9-99"}, "igris status"},
-		{"bad id", []string{"done", "../evil"}, "invalid task ID \"../evil\": IDs are letters, digits"},
 		{"skip unknown task", []string{"skip", "M9-99", "--reason", "x"}, "not in"},
 	}
 	for _, tt := range tests {
