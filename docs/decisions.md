@@ -531,3 +531,43 @@ SPEC §6, §6.2, §6.7, new §6.8, §7.3, §7.4, §12, §13 and §14 amended. Ta
 - Checked in a real run: without `env`, verify saw everything but `IGRIS_TEST_TOKEN` (the ntfy token's variable); with `env = ["LANG"]`, it saw `HOME LANG PATH` and what `sh` sets itself (`PWD SHLVL _`).
 
 SPEC §6.4, §6.5, §6.7, §12 and §16 amended. Task V06-04 implements it.
+
+## V07-P1 — The 1.0 contract
+
+**Approved by owner** (2026-10-14), decided together for v0.7. 1.0 is meant to be a tool other people build a workflow on: scripts read its `--json`, CI runs `igris check`, other tools write plans igris reads, webhooks feed dashboards. This decision fixes what 1.x promises not to break, cleans up the few shapes that are awkward to promise forever while igris is still 0.x, and sets how versioned files evolve. The inventory behind it was taken from v0.6.0.
+
+**Frozen for 1.x** (owner chose the ROADMAP's list plus the task-hook environment and the webhook headers):
+- **The plan format** (format 1): SPEC §3–4, written out on its own in `docs/plan-format.md` (V07-01). It covers columns, status values, deps grammar with ranges, phase ID rules and the writer's guarantees (only Status cells change, bytes, BOM and CRLF preserved).
+- **`igris.toml`**: keys, defaults and validation. Unknown keys stay an error.
+- **CLI**: commands, flags, arguments and exit codes (SPEC §14). Text output is for people and is not frozen; `--json` is the machine interface.
+- **`--json` output** of `check`, `phases`, `status`, `history`, `report` and `doctor`, each with a JSON schema in `docs/json/` (V07-03).
+- **Signals and the session contract**: `igris done`, `skip` and `reset` with their flags and exit codes, and the signal file format.
+- **`.igris/`**: the paths in SPEC §13, `state.json` (versioned, below) and the run log (`runs.jsonl`, `"v": 1`, `docs/runlog.md`).
+- **Template variables** of `prompt_template`, `commit_message` and the notification `template`s.
+- **The generic webhook**: its JSON payload (`"v": 1`), the `X-Igris-Event` and `X-Igris-Signature` headers and the HMAC-SHA256 signature.
+- **The task-hook environment**: `IGRIS_TASK_ID`, `IGRIS_PHASE`, `IGRIS_RANK`, `IGRIS_MODEL`, and `IGRIS_RESULT` for `after_task`.
+
+**Not frozen:** the TUI (layout, keys, colors); the default task prompt's wording; text output; the hidden `hook` and `__complete` commands; the contents of `.igris/agent-state/`, `.igris/hooks/`, `.igris/prompts/` and `igris.lock`; the text igris sends to ntfy, Discord, Slack, Gotify and the backend's toasts; the Go packages (`internal/` stays internal; igris is not a library).
+
+**What "frozen" allows in 1.x.** Additions: new optional plan columns (an older igris passes them to the prompt as extra columns), new config keys with defaults, new commands and flags, new JSON fields, new run-log event types, new template variables. Not allowed: removals and changed meanings. Readers of JSON, the run log and the webhook ignore fields and event types they don't know. Something deprecated in 1.x warns until 2.0 and is only removed then.
+
+**JSON cleanup before the freeze** (owner chose to clean up now; breaking, so listed in the CHANGELOG):
+- Every `--json` output is an object with `"v": 1`. `doctor` becomes `{"v": 1, "checks": [...]}` instead of a bare array.
+- An empty rank or mode is left out instead of `"—"`.
+- The `counts` key `"in progress"` becomes `"in_progress"`. Status values in a task's `status` field are unchanged: they are the plan's words.
+- `run.signals` becomes a list of `{"task": "M1-03", "action": "done"}` objects instead of `"M1-03 done"` strings.
+- The invalid-plan output of `phases` and `status` and the per-task view of `history` keep their own shapes, each with its own schema.
+- `doctor`'s `confirm`, `file`, `line`, `task`, `from` and `to` fields are documented and get a golden test.
+
+**Exit codes: 0, 1, 2** (owner's choice). 0 is success, 2 is a usage error, 1 is everything else. SPEC §14 gets a table listing, per command, what exits 1. 3–9 are reserved: 1.x may give a case that exits 1 today its own code from that range. Scripts test for non-zero, or for 2, and never for exactly 1.
+
+**`state.json`: keep the key, write 3, migrate** (owner's choice). The key stays `"version"`; the ROADMAP's `"v"` would be a rename for nothing. 1.0 writes version 3, and the selection is an optional field in it. It reads 1, 2 and 3 and migrates 1 and 2 in memory; the next save writes 3. A newer version is refused with "written by a newer igris (version N); upgrade igris, or delete the file to start a new run". A file that is damaged (bad JSON, a value of the wrong shape) is reported as damaged, separately from an old one. In 1.x a new field gets a new version only when an igris that ignored it would do something wrong, as the selection did and the worktree should have. Every 1.x igris reads every older version.
+- **The config hash is part of the contract.** A config that doesn't set a key added later keeps its hash, so an interrupted run resumes without the "config changed" notice. Today `omitempty` fields and `TUI.MarshalJSON` do this; SPEC §13 now says so.
+
+**Plan format marker: optional forever** (ROADMAP open question #8). A plan may declare `<!-- igris:format 1 -->` on a line of its own before the first phase heading; without one it is format 1. A plan marked with a format igris doesn't know is refused with "plan format N needs a newer igris". A format 2, if one ever comes, needs its marker, so no plan written today ever has to be edited.
+
+**Leniency is documented, not removed** (owner's choice). What the parser accepts today becomes part of format 1: Mode and Verify values in any case (`YOLO`, `Fast`), phase IDs compared case-insensitively for duplicates and `[phases.<id>]`, tabs trimmed from header cells along with `*` and backticks. Model ranks stay case-sensitive, with the "did you mean" hint. No plan that loads in v0.6 stops loading.
+
+**Deprecation removed: `claude.command`.** It was deprecated in v0.1.2 with a promise to remove it in v0.2, which slipped; the CHANGELOG says so. `igris config migrate` (V07-05) deletes it. After V07-06, a config that still has it fails as an unknown key, and the error names `igris config migrate`. Nothing else is deprecated.
+
+SPEC new §19 (Compatibility) added. Tasks V07-01 (plan format, marker, leniency), V07-02 (state version 3, migration, damaged vs old, config hash), V07-03 (JSON cleanup and schemas), V07-04 (exit codes, help audit), V07-05 (`config migrate`) and V07-06 (remove `claude.command`) implement it.
