@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -45,7 +44,7 @@ func (e *Engine) runHook(ctx context.Context, l *launch, name string, argv []str
 	if t.Phase != nil {
 		phase = t.Phase.ID
 	}
-	env := append(os.Environ(),
+	env := append(e.commandEnv(),
 		"IGRIS_TASK_ID="+t.ID,
 		"IGRIS_PHASE="+phase,
 		"IGRIS_RANK="+t.Rank,

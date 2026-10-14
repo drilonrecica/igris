@@ -139,6 +139,9 @@ func (h *harness) write(name, content string) {
 	if name == state.ConfigFile && !strings.Contains(content, "nudge") {
 		content = "nudge = false\n" + content
 	}
+	if err := os.MkdirAll(filepath.Dir(h.path(name)), 0o750); err != nil {
+		h.t.Fatal(err)
+	}
 	if err := os.WriteFile(h.path(name), []byte(content), 0o600); err != nil {
 		h.t.Fatal(err)
 	}

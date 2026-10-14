@@ -99,6 +99,24 @@ func TestSettingsNewChannels(t *testing.T) {
 	}
 }
 
+// run.env is shown only when set (SPEC §6.4).
+func TestSettingsRunEnv(t *testing.T) {
+	cfg, keys, err := loadKeys(t, "[run]\nenv = [\"GOPATH\", \"LC_*\"]\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r := find(t, NewSettings(cfg, keys, nil), "run", "env"); r.Value != `["GOPATH", "LC_*"]` || r.Default {
+		t.Errorf("run.env row %+v", r)
+	}
+	for _, s := range NewSettings(config.Default(), nil, nil) {
+		for _, r := range s.Rows {
+			if s.Name == "run" && r.Key == "env" {
+				t.Errorf("run.env shown while unset: %+v", r)
+			}
+		}
+	}
+}
+
 func TestSettingsMarkDefaults(t *testing.T) {
 	cfg, keys, err := loadKeys(t, "[run]\nverify = \"make test\"\n[models]\nopus = \"opus\"\nx = \"claude-x\"\n[columns]\n\"Depends on\" = \"Deps\"\n")
 	if err != nil {

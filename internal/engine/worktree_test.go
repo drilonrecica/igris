@@ -56,6 +56,7 @@ const worktreeToml = "[run]\ncommit = \"auto\"\nverify = \"make check\"\n[hooks]
 // removes the worktree once it completes with nothing uncommitted.
 func TestWorktreeRun(t *testing.T) {
 	h := newHarness(t, chainPlan, worktreeToml)
+	h.write(".claude/settings.local.json", `{"permissions": {"allow": ["Bash(igris done:*)", "Bash(npm test)"]}}`)
 	committed := false
 	git := h.worktreeGit(func() bool { return !committed })
 	h.onEvent = func(ev Event) { committed = ev.Kind == Committed && ev.Task == "A-3" || committed }
@@ -105,13 +106,17 @@ func TestWorktreeRun(t *testing.T) {
 	if p := h.be.Prompts("A-1"); len(p) == 0 || !strings.Contains(p[0], h.path("tasks.md")) {
 		t.Errorf("A-1 prompt doesn't name %s", h.path("tasks.md"))
 	}
-	// The session may run `igris done` and read the plan outside the
-	// worktree (an absolute path is "//path" in a Claude Code rule).
+	// The session may run `igris done` as the project allows it, and read
+	// the plan outside the worktree (an absolute path is "//path" in a
+	// Claude Code rule); nothing else of the project's rules.
 	s, err := os.ReadFile(arg(h.be.Opened()[0], "--settings"))
 	for _, rule := range []string{`"Bash(igris done:*)"`, `"Read(/` + h.path("tasks.md") + `)"`} {
 		if err != nil || !strings.Contains(string(s), rule) {
 			t.Errorf("session settings lack %s: %v\n%s", rule, err, s)
 		}
+	}
+	if strings.Contains(string(s), "igris done *") || strings.Contains(string(s), "npm test") {
+		t.Errorf("session settings allow more than the project does:\n%s", s)
 	}
 	if got := h.event(WorktreeReady, "").Detail; got != "sessions, verify and commits run in new worktree "+rel+" on branch igris/"+id {
 		t.Errorf("worktree_ready = %q", got)
@@ -269,5 +274,22 @@ func TestWorktreeGone(t *testing.T) {
 	_, err := h.run(resumeLast)
 	if err == nil || !strings.Contains(err.Error(), "A-1 ran in the worktree "+run.Worktree.Path) || !strings.Contains(err.Error(), "igris reset A-1") {
 		t.Fatalf("Run err = %v", err)
+	}
+}
+
+// A worktree session gets no `igris done` rule the project doesn't have,
+// and no plan rule when the plan's path holds pattern characters, which
+// could match more than the plan (SPEC §6.8, §7.4).
+func TestWorktreeAllow(t *testing.T) {
+	h := newHarness(t, chainPlan, "")
+	if _, err := h.run(withWorktree); err != nil {
+		t.Fatal(err)
+	}
+	if got := h.eng.worktreeAllow(); len(got) != 1 || got[0] != "Read(/"+h.path("tasks.md")+")" {
+		t.Errorf("without project rules: %q", got)
+	}
+	h.eng.planPath = h.path("plans/[x]/tasks.md")
+	if got := h.eng.worktreeAllow(); len(got) != 0 {
+		t.Errorf("plan path with pattern characters: %q", got)
 	}
 }

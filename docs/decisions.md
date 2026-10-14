@@ -514,7 +514,20 @@ SPEC §6.3, §11.1, §12, §13 and §15 amended. Task WAIT-01 implements it.
 - **What it took** (found in real runs with Claude Code 2.1.299):
   - `igris done` from inside the worktree found the worktree's tracked `igris.toml` as the root, so `state.FindRoot` returns the project for any path under `.igris/worktrees/<name>`.
   - The worktree lacks `.claude/settings.local.json` (untracked), so the `igris done` allow rules go into the session's `--settings` file, with `Read(//<plan path>)`: the plan is outside the worktree, and reading it asked for approval. That file held hooks only until now (SPEC §7.4); these rules are the only addition, and only in worktree mode.
+  - **Amended** (2026-10-14, after a security review of the commit flagged it as a widening): the session gets only the `igris done` rules the project's `.claude/settings.local.json` already has, so worktree mode never allows what the owner's own settings don't. The plan rule is left out when the plan's path holds pattern characters, which Claude Code would read as a pattern matching more than the plan.
   - Claude Code didn't ask to trust the worktree once the project was trusted.
   - The start-up git warning ("igris's first commit includes them") is wrong for a worktree: it is reworded for a new one and left out when a run continues in its worktree, whose project now always has the plan's Status edits.
 
 SPEC §6, §6.2, §6.7, new §6.8, §7.3, §7.4, §12, §13 and §14 amended. Task V06-03 implements it.
+
+## V06-P3 — What the commands igris runs see of its environment
+
+**Approved by owner** (2026-10-14, with the V06-04 plan). Verify commands, task hooks and the git hooks a commit triggers are the project's code, which a session writes. They ran with igris's whole environment, including the variables `igris.toml`'s `env:` references read notification secrets from. A session that can't read the token can write a test that prints it into verify's output, which igris pastes back into the session.
+
+- **Secrets' variables are never passed**, to verify, task hooks or git, with or without an allowlist. They come from the config snapshot's `env:` references (`config.SecretEnvNames`, the same field table `Resolve` reads). Listing one in `run.env` is a config error rather than a silent drop.
+- **`[run] env` is an opt-in allowlist** for verify and task hooks (ROADMAP v0.6): names, or prefixes ending in `*` (`LC_*`). Unset keeps today's behavior (the whole environment, minus the secrets). `PATH` and `HOME` always pass: `sh` and nearly every tool need them, and leaving them out is a footgun with no security value. `env = []` is an error: a written config drops an empty list, which would turn "nothing" into "everything".
+- **Git gets the stripping, not the allowlist**: commit hooks and signing need `SSH_AUTH_SOCK`, `GPG_TTY` and others no list would think of.
+- **Out of scope:** the Claude sessions' environment (it comes from the backend's server, not from igris), `adapt` and the owner's editor (no project code runs).
+- Checked in a real run: without `env`, verify saw everything but `IGRIS_TEST_TOKEN` (the ntfy token's variable); with `env = ["LANG"]`, it saw `HOME LANG PATH` and what `sh` sets itself (`PWD SHLVL _`).
+
+SPEC §6.4, §6.5, §6.7, §12 and §16 amended. Task V06-04 implements it.

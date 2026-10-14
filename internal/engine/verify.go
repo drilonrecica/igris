@@ -63,6 +63,7 @@ func (e *Engine) verify(ctx context.Context, l *launch) (bool, error) {
 	e.emit(Event{Kind: VerifyStarted, Detail: script})
 	c := runner.Shell(script, e.work, timeout)
 	c.Combined = true
+	c.Env = e.commandEnv()
 	began := e.clock.Now()
 	res, err := e.runner.Run(ctx, c)
 	took := e.sinceMS(began)

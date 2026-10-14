@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/drilonrecica/igris/internal/config"
@@ -177,6 +178,32 @@ func doctorPlan(root string, cfg *config.Config, noConfig bool) (*plan.Plan, []R
 		out[i] = Result{ID: IDPlanValid, Level: Fail, Message: is.Msg, File: is.File, Line: is.Line, Next: "igris adapt"}
 	}
 	return nil, out
+}
+
+// ProjectDoneRules returns the DoneAllowRules that the project's
+// .claude/settings.local.json allows; none when it is missing or can't be
+// read. A session in a run's worktree gets exactly these (SPEC §6.8): the
+// owner's choice, never more.
+func ProjectDoneRules(root string) []string {
+	data, err := os.ReadFile(filepath.Join(root, claudeSettingsFile)) //nolint:gosec // the owner's own Claude settings
+	if err != nil {
+		return nil
+	}
+	var settings struct {
+		Permissions struct {
+			Allow []any `json:"allow"`
+		} `json:"permissions"`
+	}
+	if json.Unmarshal(data, &settings) != nil {
+		return nil
+	}
+	var out []string
+	for _, rule := range DoneAllowRules {
+		if slices.Contains(settings.Permissions.Allow, any(rule)) {
+			out = append(out, rule)
+		}
+	}
+	return out
 }
 
 // allowRules checks .claude/settings.local.json: the `igris done` rules

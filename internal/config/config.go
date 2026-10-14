@@ -109,6 +109,12 @@ type Run struct {
 	Commit            string   `toml:"commit"`
 	CommitMessage     string   `toml:"commit_message"`
 	PromptTemplate    string   `toml:"prompt_template"`
+	// Env is the environment allowlist of verify and task hooks (SPEC
+	// §6.4): variable names, or prefixes ending in "*". PATH and HOME are
+	// always passed. nil passes igris's whole environment. Either way the
+	// secrets' env: variables are never passed. Left out of the config hash
+	// while unset.
+	Env []string `toml:"env,omitempty" json:",omitempty"`
 	// Worktree runs the sessions, verify and commits in a git worktree on
 	// a branch of their own (SPEC §6.8); nil is off. Left out of the
 	// config hash while unset.
@@ -564,6 +570,20 @@ func (c *Config) Validate() error {
 	if c.Run.VerifyMaxAttempts < 1 {
 		add("run.verify_max_attempts must be at least 1")
 	}
+	if c.Run.Env != nil && len(c.Run.Env) == 0 {
+		// A written config leaves an empty list out, which would pass
+		// everything: the opposite of what it asks for.
+		add("run.env is empty; list the variables verify and task hooks need besides PATH and HOME (e.g. [\"PATH\"] for those two only), or remove it to pass igris's environment")
+	}
+	secrets := c.SecretEnvNames()
+	for _, name := range c.Run.Env {
+		switch {
+		case !envName.MatchString(name):
+			add("run.env: %q is not a variable name; use names like \"GOPATH\" or a prefix like \"LC_*\"", name)
+		case slices.Contains(secrets, name):
+			add("run.env lists %s, which a notification secret refers to; igris never passes it to commands, so remove it from run.env", name)
+		}
+	}
 	oneOf("run.commit", c.Run.Commit, validCommit)
 	oneOf("adapt.model", c.Adapt.Model, validAdapt)
 	oneOf("tui.theme", c.TUI.Theme, validThemes)
@@ -675,6 +695,9 @@ func httpURL(s string) bool {
 	return err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
 }
 
+// envName is a run.env entry: a variable name, or a prefix ending in "*".
+var envName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*\*?$`)
+
 func isEnvRef(s string) bool { return strings.HasPrefix(s, "env:") }
 
 // validateVerify checks [verify] and [phases.<id>] (SPEC §12).
@@ -758,6 +781,40 @@ func (c *Config) Warnings() []string {
 	return out
 }
 
+// secretField is a notification secret: its key, its value as written and
+// where Resolve puts the resolved value.
+type secretField struct {
+	key, val string
+	dst      *string
+}
+
+// secretFields lists every secret field of the config, the one table
+// Resolve and SecretEnvNames read. s receives the resolved values.
+func (c *Config) secretFields(s *Secrets) []secretField {
+	return []secretField{
+		{"notify.ntfy.token", c.Notify.Ntfy.Token, &s.NtfyToken},
+		{"notify.discord.webhook_url", c.Notify.Discord.WebhookURL, &s.DiscordWebhook},
+		{"notify.webhook.url", c.Notify.Webhook.URL, &s.WebhookURL},
+		{"notify.webhook.secret", c.Notify.Webhook.Secret, &s.WebhookSecret},
+		{"notify.slack.webhook_url", c.Notify.Slack.WebhookURL, &s.SlackWebhook},
+		{"notify.gotify.token", c.Notify.Gotify.Token, &s.GotifyToken},
+	}
+}
+
+// SecretEnvNames returns the environment variables the secret fields refer
+// to through env:, sorted and without duplicates. igris never passes them
+// to the commands it runs (SPEC §16).
+func (c *Config) SecretEnvNames() []string {
+	var names []string
+	for _, f := range c.secretFields(&Secrets{}) {
+		if name, ok := strings.CutPrefix(f.val, "env:"); ok && name != "" && !slices.Contains(names, name) {
+			names = append(names, name)
+		}
+	}
+	slices.Sort(names)
+	return names
+}
+
 // Resolve expands env:VAR references in the secret fields. A reference to an
 // unset or empty variable is an error; other values pass through as written.
 func (c *Config) Resolve(getenv func(string) string) (Secrets, error) {
@@ -774,12 +831,9 @@ func (c *Config) Resolve(getenv func(string) string) (Secrets, error) {
 		}
 		return v
 	}
-	s.NtfyToken = resolve("notify.ntfy.token", c.Notify.Ntfy.Token)
-	s.DiscordWebhook = resolve("notify.discord.webhook_url", c.Notify.Discord.WebhookURL)
-	s.WebhookURL = resolve("notify.webhook.url", c.Notify.Webhook.URL)
-	s.WebhookSecret = resolve("notify.webhook.secret", c.Notify.Webhook.Secret)
-	s.SlackWebhook = resolve("notify.slack.webhook_url", c.Notify.Slack.WebhookURL)
-	s.GotifyToken = resolve("notify.gotify.token", c.Notify.Gotify.Token)
+	for _, f := range c.secretFields(&s) {
+		*f.dst = resolve(f.key, f.val)
+	}
 	// Validate checks a URL written in igris.toml; one from the environment
 	// is checked here, once it is known.
 	if isEnvRef(c.Notify.Webhook.URL) && s.WebhookURL != "" && !httpURL(s.WebhookURL) {

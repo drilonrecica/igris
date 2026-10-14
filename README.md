@@ -260,6 +260,17 @@ For each task igris uses its Verify cell, else `[phases.<id>] verify` for its ph
 
 After a task passes, igris commits everything in the tree (`commit = "ask"`, the default, asks you first; `auto` just commits; `never` leaves git alone). The message comes from `commit_message`, `{{.ID}}: {{.Title}}` by default, with the session's done note as the body.
 
+### What verify and hooks see
+
+Verify commands, task hooks and git (a commit runs your git hooks) never get the environment variables your notification secrets come from: with `token = "env:NTFY_TOKEN"`, `NTFY_TOKEN` is left out, since a session writes the code verify runs and sees its output. Everything else in igris's environment is passed, unless you list what verify and task hooks may see:
+
+```toml
+[run]
+env = ["GOPATH", "LANG", "LC_*"]     # PATH and HOME are always passed; a trailing * is a prefix
+```
+
+`env` doesn't limit git, whose hooks and commit signing need variables like `SSH_AUTH_SOCK` or `GPG_TTY`.
+
 ### Task hooks
 
 `[hooks]` runs your own commands around every agent session, for example to start a dev database before a task and report its result after:
@@ -284,7 +295,7 @@ The log shows when each hook starts. A hook passes when it exits 0, also if it l
 
 - igris makes `.igris/worktrees/<run-id>` on a new branch `igris/<run-id>` from `HEAD`. Sessions, verify, task hooks and commits run there. Uncommitted changes in your checkout are not in it.
 - The plan stays in your checkout: igris updates its Status cells there as usual, so `igris status` and the home screen show the run, and a plan that git ignores works too. The branch holds the sessions' work only. Context files must be committed for the worktree to have them.
-- A session's `igris done` reaches the run from inside the worktree, and igris lets it run `igris done` and read the plan without a prompt there. Claude Code trusts the worktree once it trusts your project.
+- A session's `igris done` reaches the run from inside the worktree. It runs without a prompt when your project allows it (`igris init` adds the rule to `.claude/settings.local.json`; igris gives the worktree session that rule, nothing more), and the session may read the plan. Claude Code trusts the worktree once it trusts your project.
 - An interrupted run continues in its worktree: plain `igris arise` picks it up, with or without `--worktree`.
 - **igris never merges.** When the run completes with nothing uncommitted, it removes the worktree, keeps the branch and tells you: `the run's work is on branch igris/20261014-100518-7c5d; igris doesn't merge it: git merge igris/20261014-100518-7c5d`. Review it with `git log -p main..igris/<run-id>`, then merge it, or drop it with `git branch -D igris/<run-id>`. A worktree with uncommitted changes is kept (`git worktree remove .igris/worktrees/<run-id>` when you're done with it).
 - `igris arise --dry-run --worktree` shows where the run would work. A fresh worktree has no build caches or `node_modules`, so the first verify may take longer.

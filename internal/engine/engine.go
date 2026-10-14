@@ -79,6 +79,9 @@ type Options struct {
 	// IgrisPath is the igris binary the session hooks run (SPEC §6.3); ""
 	// means the running one.
 	IgrisPath string
+	// Environ is igris's environment, which verify, task hooks and git
+	// inherit (SPEC §6.4, §16); nil means os.Environ.
+	Environ func() []string
 
 	// Events receives every event, on the goroutine that called Run. It may
 	// call Send.
@@ -209,6 +212,9 @@ type Engine struct {
 	work        string
 	newWorktree bool
 	leftover    *state.Worktree
+	// secretEnv are the variables the snapshot's notification secrets refer
+	// to; no command igris runs gets them (SPEC §16).
+	secretEnv []string
 }
 
 // New checks opts and returns an engine. It does no I/O.
@@ -261,6 +267,7 @@ func New(opts Options) (*Engine, error) {
 		runMode:   opts.Mode,
 		overrides: map[string]string{},
 		work:      root,
+		secretEnv: opts.Config.SecretEnvNames(),
 	}
 	e.writer = plan.NewWriter(e.planPath, e.planOpts, e.rules())
 	return e, nil

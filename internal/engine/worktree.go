@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/runner"
 	"github.com/drilonrecica/igris/internal/state"
 )
@@ -145,6 +146,21 @@ func (e *Engine) leaveWorktree(ctx context.Context, res *Result) {
 	}
 }
 
+// worktreeAllow are the permission allow rules of a session in the run's
+// worktree (SPEC §6.8, §7.4). The worktree lacks the project's untracked
+// .claude/settings.local.json, so the session gets the `igris done` rules
+// that file allows, no more, and may read the plan, which is outside the
+// worktree. Claude Code reads a rule's path as a pattern, so a plan path
+// with pattern characters gets no rule (the session asks instead): it
+// could match more than the plan.
+func (e *Engine) worktreeAllow() []string {
+	allow := checks.ProjectDoneRules(e.dir.Root())
+	if !strings.ContainsAny(e.planPath, `*?[]{}!\`) {
+		allow = append(allow, "Read(/"+e.planPath+")")
+	}
+	return allow
+}
+
 // planFile is the plan's path as the task prompt names it: as configured,
 // or the absolute path in the project root from a worktree, whose own copy
 // of the plan igris doesn't update (SPEC §6.8).
@@ -163,7 +179,7 @@ func isDir(path string) bool {
 // gitIn runs git in dir and returns its output; a non-zero exit is an
 // error.
 func (e *Engine) gitIn(ctx context.Context, dir string, args ...string) (string, error) {
-	res, err := e.runner.Run(ctx, runner.Cmd{Name: "git", Args: args, Dir: dir, Timeout: gitTimeout})
+	res, err := e.runner.Run(ctx, runner.Cmd{Name: "git", Args: args, Dir: dir, Env: e.gitEnv(), Timeout: gitTimeout})
 	if err == nil {
 		err = res.Err()
 	}

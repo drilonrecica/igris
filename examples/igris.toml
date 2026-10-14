@@ -30,6 +30,7 @@ commit = "ask"                    # ask | auto | never
 commit_message = "{{.ID}}: {{.Title}}"
 prompt_template = ""              # path to a custom task prompt template
 worktree = false                  # true: run in a git worktree on branch igris/<run-id>; igris never merges it
+# env = ["GOPATH", "LANG", "LC_*"] # the only variables verify and task hooks get, besides PATH and HOME
 
 [verify]                          # optional verify profiles: name -> shell command; a plan's Verify cell names one
 # fast = "go test ./internal/..."

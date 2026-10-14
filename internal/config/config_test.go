@@ -1036,6 +1036,53 @@ func TestWorktree(t *testing.T) {
 	}
 }
 
+func TestRunEnv(t *testing.T) {
+	d := Default()
+	if d.Run.Env != nil || d.Hash() != v04DefaultHash {
+		t.Errorf("default: env %v, hash changed %v", d.Run.Env, d.Hash() != v04DefaultHash)
+	}
+	c, err := Parse([]byte("[run]\nenv = [\"GOPATH\", \"LC_*\"]\n"), "igris.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(c.Run.Env, []string{"GOPATH", "LC_*"}) || c.Hash() == v04DefaultHash {
+		t.Errorf("set: env %v, hash unchanged %v", c.Run.Env, c.Hash() == v04DefaultHash)
+	}
+	path := filepath.Join(t.TempDir(), "igris.toml")
+	if err := Write(path, c); err != nil {
+		t.Fatal(err)
+	}
+	if back, err := Load(path); err != nil || !slices.Equal(back.Run.Env, c.Run.Env) {
+		t.Errorf("Write and Load: env %v, %v", back.Run.Env, err)
+	}
+	for toml, want := range map[string]string{ //nolint:gosec // env: references, no credentials
+		"[run]\nenv = [\"A-B\"]\n": `run.env: "A-B" is not a variable name`,
+		"[run]\nenv = [\"*\"]\n":   `run.env: "*" is not a variable name`,
+		"[run]\nenv = [\"A*B\"]\n": `run.env: "A*B" is not a variable name`,
+		"[run]\nenv = []\n":        "run.env is empty",
+		"[run]\nenv = [\"NTFY_T\"]\n[notify.ntfy]\ntopic = \"t\"\ntoken = \"env:NTFY_T\"\n": "run.env lists NTFY_T, which a notification secret refers to",
+	} {
+		if _, err := Parse([]byte(toml), "igris.toml"); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%q: err = %v, want %q", toml, err, want)
+		}
+	}
+}
+
+func TestSecretEnvNames(t *testing.T) {
+	c := Default()
+	c.Notify.Ntfy.Token = "env:NTFY_T"
+	c.Notify.Webhook.URL = "env:HOOK"
+	c.Notify.Webhook.Secret = "env:HOOK"
+	c.Notify.Discord.WebhookURL = "https://discord.example/x"
+	c.Notify.Gotify.Token = "env:A_TOKEN"
+	if got, want := c.SecretEnvNames(), []string{"A_TOKEN", "HOOK", "NTFY_T"}; !slices.Equal(got, want) {
+		t.Errorf("SecretEnvNames = %v, want %v", got, want)
+	}
+	if got := Default().SecretEnvNames(); len(got) != 0 {
+		t.Errorf("default: %v", got)
+	}
+}
+
 func TestDurationShort(t *testing.T) {
 	for d, want := range map[time.Duration]string{
 		30 * time.Minute: "30m", time.Hour: "1h", 90 * time.Minute: "1h30m", 2 * time.Hour: "2h",
