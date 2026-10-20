@@ -3,7 +3,7 @@
 _igris() {
     local cmd prev
     if (( CURRENT == 2 )); then
-        compadd -- init doctor check phases status history report arise done skip reset notify config adapt completion help version
+        compadd -- init doctor check phases status history report usage arise done skip reset notify config adapt completion help version
         return
     fi
     cmd=$words[2]
@@ -13,6 +13,7 @@ _igris() {
         phases:--plan) _files ; return ;;
         status:--plan) _files ; return ;;
         history:-n) return ;;
+        usage:--since) return ;;
         arise:--from) compadd -- ${(f)"$(igris __complete tasks 2>/dev/null)"} ; return ;;
         arise:--mode) compadd -- default accept auto plan yolo plan:default plan:accept plan:auto plan:yolo ; return ;;
         arise:--only) compset -P '*,' ; compadd -- ${(f)"$(igris __complete tasks 2>/dev/null)"} ; return ;;
@@ -33,6 +34,7 @@ _igris() {
             status) compadd -- --json --plan ;;
             history) compadd -- --json -n ;;
             report) compadd -- --json ;;
+            usage) compadd -- --json --since ;;
             arise) compadd -- --dry-run --force-unlock --from --mode --no-tui --only --through --until --worktree ;;
             done) compadd -- --note ;;
             skip) compadd -- --reason ;;
@@ -47,6 +49,7 @@ _igris() {
         status) compadd -- ${(f)"$(igris __complete phases 2>/dev/null)"} ;;
         history) compadd -- ${(f)"$(igris __complete tasks 2>/dev/null)"} ;;
         report) compadd -V runs -- ${(f)"$(igris __complete runs 2>/dev/null)"} ;;
+        usage) compadd -V runs -- ${(f)"$(igris __complete runs 2>/dev/null)"} ;;
         arise) compadd -- ${(f)"$(igris __complete phases 2>/dev/null)"} ;;
         done) compadd -- ${(f)"$(igris __complete tasks 2>/dev/null)"} ;;
         skip) compadd -- ${(f)"$(igris __complete tasks 2>/dev/null)"} ;;

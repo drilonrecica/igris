@@ -12,7 +12,7 @@ _igris() {
         esac
     done
     if [[ -z $cmd ]]; then
-        COMPREPLY=($(compgen -W "init doctor check phases status history report arise done skip reset notify config adapt completion help version" -- "$cur"))
+        COMPREPLY=($(compgen -W "init doctor check phases status history report usage arise done skip reset notify config adapt completion help version" -- "$cur"))
         return
     fi
     case "$cmd:$prev" in
@@ -20,6 +20,7 @@ _igris() {
         phases:--plan) COMPREPLY=($(compgen -f -- "$cur")) ; return ;;
         status:--plan) COMPREPLY=($(compgen -f -- "$cur")) ; return ;;
         history:-n) return ;;
+        usage:--since) return ;;
         arise:--from) COMPREPLY=($(compgen -W "$(igris __complete tasks 2>/dev/null)" -- "$cur")) ; return ;;
         arise:--mode) COMPREPLY=($(compgen -W "default accept auto plan yolo plan:default plan:accept plan:auto plan:yolo" -- "$cur")) ; return ;;
         arise:--only) local pre=; [[ $cur == *,* ]] && pre="${cur%,*},"; COMPREPLY=($(compgen -P "$pre" -W "$(igris __complete tasks 2>/dev/null)" -- "${cur##*,}")) ; return ;;
@@ -40,6 +41,7 @@ _igris() {
             status) COMPREPLY=($(compgen -W "--json --plan" -- "$cur")) ;;
             history) COMPREPLY=($(compgen -W "--json -n" -- "$cur")) ;;
             report) COMPREPLY=($(compgen -W "--json" -- "$cur")) ;;
+            usage) COMPREPLY=($(compgen -W "--json --since" -- "$cur")) ;;
             arise) COMPREPLY=($(compgen -W "--dry-run --force-unlock --from --mode --no-tui --only --through --until --worktree" -- "$cur")) ;;
             done) COMPREPLY=($(compgen -W "--note" -- "$cur")) ;;
             skip) COMPREPLY=($(compgen -W "--reason" -- "$cur")) ;;
@@ -54,6 +56,7 @@ _igris() {
         status) COMPREPLY=($(compgen -W "$(igris __complete phases 2>/dev/null)" -- "$cur")) ;;
         history) COMPREPLY=($(compgen -W "$(igris __complete tasks 2>/dev/null)" -- "$cur")) ;;
         report) compopt -o nosort 2>/dev/null; COMPREPLY=($(compgen -W "$(igris __complete runs 2>/dev/null)" -- "$cur")) ;;
+        usage) compopt -o nosort 2>/dev/null; COMPREPLY=($(compgen -W "$(igris __complete runs 2>/dev/null)" -- "$cur")) ;;
         arise) COMPREPLY=($(compgen -W "$(igris __complete phases 2>/dev/null)" -- "$cur")) ;;
         done) COMPREPLY=($(compgen -W "$(igris __complete tasks 2>/dev/null)" -- "$cur")) ;;
         skip) COMPREPLY=($(compgen -W "$(igris __complete tasks 2>/dev/null)" -- "$cur")) ;;

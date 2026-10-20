@@ -1,0 +1,424 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "igris usage --json",
+  "description": "Token usage and the rank audit of one run or of the runs since a time (SPEC §14). Tokens recorded in the session transcripts, never a cost.",
+  "type": "object",
+  "properties": {
+    "v": {
+      "const": 1,
+      "description": "Document version. Changes only with a breaking change (igris 2.0); fields may be added in 1.x, and readers ignore fields they don't know."
+    },
+    "runs": {
+      "type": "array",
+      "description": "The runs covered, oldest first.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "run": {
+            "type": "string"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end": {
+            "type": "string",
+            "description": "As report's end."
+          }
+        },
+        "required": [
+          "started_at",
+          "end"
+        ]
+      }
+    },
+    "totals": {
+      "$ref": "#/$defs/row"
+    },
+    "unavailable": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Attempts whose usage could not be read; left out of the totals."
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/task"
+      }
+    },
+    "models": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/model"
+      }
+    },
+    "ranks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/rank"
+      }
+    },
+    "top": {
+      "type": "array",
+      "description": "The top 5 tasks by in + out.",
+      "items": {
+        "$ref": "#/$defs/task"
+      }
+    },
+    "audit": {
+      "type": "object",
+      "description": "The rank audit over the attempts covered, in attempts.",
+      "properties": {
+        "ok": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unchecked": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unavailable": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "mismatch": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "mismatches": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "run": {
+                "type": "string"
+              },
+              "task": {
+                "type": "string"
+              },
+              "rank": {
+                "type": "string"
+              },
+              "model": {
+                "type": "string",
+                "description": "What the rank resolved to."
+              },
+              "models": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "What the main thread ran on."
+              }
+            },
+            "required": [
+              "task",
+              "models"
+            ]
+          }
+        }
+      },
+      "required": [
+        "ok",
+        "unchecked",
+        "unavailable",
+        "mismatch",
+        "mismatches"
+      ]
+    },
+    "note": {
+      "type": "string",
+      "description": "Lines of runs.jsonl that could not be used, or come from a newer igris."
+    }
+  },
+  "required": [
+    "v",
+    "runs",
+    "totals",
+    "unavailable",
+    "tasks",
+    "models",
+    "ranks",
+    "top",
+    "audit"
+  ],
+  "$defs": {
+    "tokens": {
+      "type": "object",
+      "description": "Summed token counts as recorded in the session transcripts.",
+      "properties": {
+        "in": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Input + cache read + cache write."
+        },
+        "output": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "input": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cache_read": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cache_write": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "messages": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "in",
+        "output",
+        "input",
+        "cache_read",
+        "cache_write",
+        "messages"
+      ]
+    },
+    "row": {
+      "type": "object",
+      "description": "Usage of an item over the attempts whose usage could be read. The tokens include the subagents', `sub` is their part.",
+      "properties": {
+        "attempts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "in": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Input + cache read + cache write."
+        },
+        "output": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "input": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cache_read": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cache_write": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "messages": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sub": {
+          "$ref": "#/$defs/tokens"
+        }
+      },
+      "required": [
+        "attempts",
+        "in",
+        "output",
+        "input",
+        "cache_read",
+        "cache_write",
+        "messages",
+        "sub"
+      ]
+    },
+    "task": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "rank": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string",
+          "description": "The model the rank resolved to."
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "in": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Input + cache read + cache write."
+        },
+        "output": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "input": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cache_read": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cache_write": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "messages": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sub": {
+          "$ref": "#/$defs/tokens"
+        },
+        "unavailable": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Attempts whose usage could not be read."
+        },
+        "models": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Model ids the main thread ran on."
+        },
+        "sub_models": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Model ids the subagents ran on."
+        },
+        "audit": {
+          "enum": [
+            "ok",
+            "unchecked",
+            "unavailable",
+            "mismatch"
+          ],
+          "description": "The worst audit of the task's attempts."
+        }
+      },
+      "required": [
+        "id",
+        "models",
+        "attempts",
+        "in",
+        "output",
+        "input",
+        "cache_read",
+        "cache_write",
+        "messages",
+        "sub"
+      ]
+    },
+    "model": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": "string",
+          "description": "The model ids an attempt's thread ran on, joined with \", \"; unknown without one."
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "in": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Input + cache read + cache write."
+        },
+        "output": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "input": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cache_read": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cache_write": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "messages": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sub": {
+          "$ref": "#/$defs/tokens"
+        }
+      },
+      "required": [
+        "model",
+        "attempts",
+        "in",
+        "output",
+        "input",
+        "cache_read",
+        "cache_write",
+        "messages",
+        "sub"
+      ]
+    },
+    "rank": {
+      "type": "object",
+      "properties": {
+        "rank": {
+          "type": "string"
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "in": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Input + cache read + cache write."
+        },
+        "output": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "input": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cache_read": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cache_write": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "messages": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sub": {
+          "$ref": "#/$defs/tokens"
+        }
+      },
+      "required": [
+        "rank",
+        "attempts",
+        "in",
+        "output",
+        "input",
+        "cache_read",
+        "cache_write",
+        "messages",
+        "sub"
+      ]
+    }
+  }
+}

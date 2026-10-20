@@ -195,3 +195,58 @@ func TestCardShowsOverdueUntilTheAttemptEnds(t *testing.T) {
 		})
 	}
 }
+
+// The card counts the attempt's tokens as the engine reads them (SPEC
+// §15.1): `tokens 2.3M in · 41k out · model` wide, `2.3M/41k` narrow, and
+// `usage unavailable` when the transcript can't be read.
+func TestCardShowsTokenUsage(t *testing.T) {
+	read := engine.Event{Kind: engine.UsageRead, Task: "M0-02",
+		Tokens: &engine.Tokens{In: 2_345_678, Out: 41_900, Models: []string{"claude-sonnet-5-5"}}}
+	for _, size := range cardSizes {
+		t.Run(fmt.Sprint(size), func(t *testing.T) {
+			hs := cardHarness(t, size[0], size[1], "M0-02")
+			if v := hs.m.View(); strings.Contains(v, "tokens") || strings.Contains(v, "usage unavailable") {
+				t.Errorf("card shows usage before any read:\n%s", v)
+			}
+			hs.events(read)
+			v := hs.m.View()
+			checkFits(t, v, size[0], size[1])
+			want := "tokens 2.3M in · 41k out · claude-sonnet-5-5"
+			if size[0] < wideWidth {
+				want = "tokens 2.3M/41k"
+			}
+			if !strings.Contains(v, want) {
+				t.Errorf("card lacks %q:\n%s", want, v)
+			}
+			// Another task's counter is not this card's.
+			hs.events(engine.Event{Kind: engine.UsageRead, Task: "M0-03", Tokens: &engine.Tokens{In: 7}})
+			if v := hs.m.View(); !strings.Contains(v, want) {
+				t.Errorf("another task's usage replaced the card's:\n%s", v)
+			}
+			hs.events(engine.Event{Kind: engine.UsageRead, Task: "M0-02", Tokens: &engine.Tokens{Unavailable: true}})
+			if v := hs.m.View(); !strings.Contains(v, "usage unavailable") || strings.Contains(v, "tokens 2.3M") {
+				t.Errorf("card lacks usage unavailable:\n%s", v)
+			}
+			// A new attempt starts counting again.
+			hs.events(read, engine.Event{Kind: engine.SessionOpened, Task: "M0-02", Mode: "plan", Session: &backend.SessionRef{Backend: "herdr", PaneID: "p2"}})
+			if v := hs.m.View(); strings.Contains(v, "tokens") {
+				t.Errorf("card keeps the old attempt's tokens:\n%s", v)
+			}
+		})
+	}
+}
+
+// The model id is red on a rank mismatch, and it is the only change: the
+// words stay the same.
+func TestCardTokenModelIsRedOnMismatch(t *testing.T) {
+	hs := cardHarness(t, 120, 40, "M0-02")
+	hs.m.th = colorTheme(t, true, nil)
+	hs.events(engine.Event{Kind: engine.UsageRead, Task: "M0-02", Tokens: &engine.Tokens{In: 5, Out: 1, Models: []string{"claude-opus-5-5"}}})
+	plain := hs.m.View()
+	hs.events(engine.Event{Kind: engine.RankMismatch, Task: "M0-02", Detail: "on claude-opus-5-5, not its rank sonnet"})
+	red := hs.m.View()
+	paint := hs.m.th.paint(lookAlert, "claude-opus-5-5")
+	if !strings.Contains(red, "· "+paint) || strings.Contains(plain, paint) {
+		t.Errorf("model id not painted only on a mismatch:\n%s", red)
+	}
+}

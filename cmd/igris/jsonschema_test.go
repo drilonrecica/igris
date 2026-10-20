@@ -257,6 +257,7 @@ var goldenSchemas = []struct {
 	{regexp.MustCompile(`^history(_v1)?_json$`), "history"},
 	{regexp.MustCompile(`^history(_v1)?_[A-Z][^_]*_json$`), "history-task"},
 	{regexp.MustCompile(`^report(_[^_]+)*_json$`), "report"},
+	{regexp.MustCompile(`^usage(_[^_]+)*_json$`), "usage"},
 	{regexp.MustCompile(`_?doctor_json$`), "doctor"},
 }
 

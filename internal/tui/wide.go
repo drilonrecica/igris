@@ -5,6 +5,7 @@ import (
 
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/plan"
+	"github.com/drilonrecica/igris/internal/usage"
 )
 
 // The wide layout (SPEC §15.1), drawn with box characters so every cell's
@@ -256,6 +257,9 @@ func (m *model) renderCard(w, x, y, rows int, record bool) []string {
 		}
 	}
 	head = append(head, fit(state, w))
+	if line := m.tokensLine(w); line != "" {
+		head = append(head, line)
+	}
 	if c.overdue != "" {
 		// Until the attempt ends (SPEC §6.3), in words, not color alone.
 		head = append(head, fit(m.th.paint(lookAlert, "OVERDUE: "+c.overdue), w))
@@ -440,4 +444,29 @@ func (m *model) barAt(x, y, w int) string {
 		b.WriteString(label + " ")
 	}
 	return strings.TrimRight(b.String(), " ")
+}
+
+// tokensLine is the card's usage counter (SPEC §15.1): `tokens 2.3M in ·
+// 41k out · claude-sonnet-5-5`, `2.3M/41k` in the narrow layout, `usage
+// unavailable` when the transcript can't be read; "" until something is
+// read. The model id is red on a rank mismatch.
+func (m *model) tokensLine(w int) string {
+	t := m.cur.tokens
+	switch {
+	case t == nil:
+		return ""
+	case t.Unavailable:
+		return fit(m.th.paint(lookDim, "usage unavailable"), w)
+	case !m.wide():
+		return fit("tokens "+usage.Short(t.In)+"/"+usage.Short(t.Out), w)
+	}
+	line := "tokens " + usage.Short(t.In) + " in · " + usage.Short(t.Out) + " out"
+	if len(t.Models) > 0 {
+		id := strings.Join(t.Models, ", ")
+		if m.cur.rankMismatch != "" {
+			id = m.th.paint(lookAlert, id)
+		}
+		line += " · " + id
+	}
+	return fit(line, w)
 }

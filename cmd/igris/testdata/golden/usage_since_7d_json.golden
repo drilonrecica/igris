@@ -1,0 +1,193 @@
+exit: 0
+--- stdout
+{
+  "v": 1,
+  "runs": [
+    {
+      "started_at": "2026-09-30T09:00:00Z",
+      "end": "interrupted"
+    },
+    {
+      "run": "20261001-090000-3fa2",
+      "started_at": "2026-10-01T09:00:00Z",
+      "end": "stopped"
+    },
+    {
+      "run": "20261002-100000-00ff",
+      "started_at": "2026-10-02T10:00:00Z",
+      "end": "interrupted"
+    }
+  ],
+  "totals": {
+    "attempts": 2,
+    "in": 152015,
+    "output": 3000,
+    "input": 15,
+    "cache_read": 140000,
+    "cache_write": 12000,
+    "messages": 18,
+    "sub": {
+      "in": 0,
+      "output": 0,
+      "input": 0,
+      "cache_read": 0,
+      "cache_write": 0,
+      "messages": 0
+    }
+  },
+  "unavailable": 1,
+  "tasks": [
+    {
+      "id": "M1-03",
+      "rank": "sonnet",
+      "model": "sonnet",
+      "attempts": 2,
+      "in": 152015,
+      "output": 3000,
+      "input": 15,
+      "cache_read": 140000,
+      "cache_write": 12000,
+      "messages": 18,
+      "sub": {
+        "in": 0,
+        "output": 0,
+        "input": 0,
+        "cache_read": 0,
+        "cache_write": 0,
+        "messages": 0
+      },
+      "models": [
+        "claude-sonnet-5-5",
+        "claude-opus-5-5"
+      ],
+      "audit": "mismatch"
+    },
+    {
+      "id": "M2-01",
+      "rank": "opus",
+      "model": "opus",
+      "attempts": 0,
+      "in": 0,
+      "output": 0,
+      "input": 0,
+      "cache_read": 0,
+      "cache_write": 0,
+      "messages": 0,
+      "sub": {
+        "in": 0,
+        "output": 0,
+        "input": 0,
+        "cache_read": 0,
+        "cache_write": 0,
+        "messages": 0
+      },
+      "unavailable": 1,
+      "models": [],
+      "audit": "unavailable"
+    }
+  ],
+  "models": [
+    {
+      "model": "claude-sonnet-5-5, claude-opus-5-5",
+      "attempts": 1,
+      "in": 98010,
+      "output": 2000,
+      "input": 10,
+      "cache_read": 90000,
+      "cache_write": 8000,
+      "messages": 12,
+      "sub": {
+        "in": 0,
+        "output": 0,
+        "input": 0,
+        "cache_read": 0,
+        "cache_write": 0,
+        "messages": 0
+      }
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "attempts": 1,
+      "in": 54005,
+      "output": 1000,
+      "input": 5,
+      "cache_read": 50000,
+      "cache_write": 4000,
+      "messages": 6,
+      "sub": {
+        "in": 0,
+        "output": 0,
+        "input": 0,
+        "cache_read": 0,
+        "cache_write": 0,
+        "messages": 0
+      }
+    }
+  ],
+  "ranks": [
+    {
+      "rank": "sonnet",
+      "attempts": 2,
+      "in": 152015,
+      "output": 3000,
+      "input": 15,
+      "cache_read": 140000,
+      "cache_write": 12000,
+      "messages": 18,
+      "sub": {
+        "in": 0,
+        "output": 0,
+        "input": 0,
+        "cache_read": 0,
+        "cache_write": 0,
+        "messages": 0
+      }
+    }
+  ],
+  "top": [
+    {
+      "id": "M1-03",
+      "rank": "sonnet",
+      "model": "sonnet",
+      "attempts": 2,
+      "in": 152015,
+      "output": 3000,
+      "input": 15,
+      "cache_read": 140000,
+      "cache_write": 12000,
+      "messages": 18,
+      "sub": {
+        "in": 0,
+        "output": 0,
+        "input": 0,
+        "cache_read": 0,
+        "cache_write": 0,
+        "messages": 0
+      },
+      "models": [
+        "claude-sonnet-5-5",
+        "claude-opus-5-5"
+      ],
+      "audit": "mismatch"
+    }
+  ],
+  "audit": {
+    "ok": 1,
+    "unchecked": 0,
+    "unavailable": 1,
+    "mismatch": 1,
+    "mismatches": [
+      {
+        "run": "20261001-090000-3fa2",
+        "task": "M1-03",
+        "rank": "sonnet",
+        "model": "sonnet",
+        "models": [
+          "claude-sonnet-5-5",
+          "claude-opus-5-5"
+        ]
+      }
+    ]
+  }
+}
+--- stderr

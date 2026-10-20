@@ -1,0 +1,42 @@
+exit: 0
+--- stdout
+{
+  "v": 1,
+  "runs": [
+    {
+      "run": "20261002-100000-00ff",
+      "started_at": "2026-10-02T10:00:00Z",
+      "end": "interrupted"
+    }
+  ],
+  "totals": {
+    "attempts": 0,
+    "in": 0,
+    "output": 0,
+    "input": 0,
+    "cache_read": 0,
+    "cache_write": 0,
+    "messages": 0,
+    "sub": {
+      "in": 0,
+      "output": 0,
+      "input": 0,
+      "cache_read": 0,
+      "cache_write": 0,
+      "messages": 0
+    }
+  },
+  "unavailable": 0,
+  "tasks": [],
+  "models": [],
+  "ranks": [],
+  "top": [],
+  "audit": {
+    "ok": 0,
+    "unchecked": 0,
+    "unavailable": 0,
+    "mismatch": 0,
+    "mismatches": []
+  }
+}
+--- stderr

@@ -2,11 +2,9 @@ package report
 
 import (
 	"errors"
-	"fmt"
 	"regexp"
 	"slices"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -136,22 +134,11 @@ func NewReport(in HistoryInput, project, sel string) (Report, error) {
 	if len(recs) == 0 {
 		return Report{}, ErrNoRuns
 	}
-	i := len(recs) - 1
-	switch {
-	case sel == "":
-	case isIndex(sel):
-		// Too large for an int is past the end too.
-		n, err := strconv.Atoi(sel)
-		if err != nil || n < 1 || n > len(recs) {
-			return Report{}, fmt.Errorf("only %d %s recorded", len(recs), plural(len(recs), "run", "runs"))
-		}
-		i = len(recs) - n
-	default:
-		if i = slices.IndexFunc(recs, func(r *runRec) bool { return r.id == sel }); i < 0 {
-			return Report{}, fmt.Errorf("no run %s in .igris/runs.jsonl; igris history lists them", textsafe.Line(sel))
-		}
+	r, err := pickRun(recs, sel)
+	if err != nil {
+		return Report{}, err
 	}
-	rep := recs[i].report(in.Live && i == len(recs)-1)
+	rep := r.report(in.Live && r == recs[len(recs)-1])
 	rep.Project, rep.Note = textsafe.Line(project), logNote(in)
 	return rep, nil
 }

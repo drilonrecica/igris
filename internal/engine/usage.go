@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"math"
+	"slices"
 	"time"
 
 	"github.com/drilonrecica/igris/internal/backend"
@@ -26,6 +28,8 @@ type attemptUsage struct {
 	// mismatch is set once the rank audit found the main thread on a model
 	// its rank doesn't resolve to: raised once per attempt (SPEC §6.9).
 	mismatch bool
+	// shown is the last counter sent to the UI, so it hears of changes only.
+	shown *Tokens
 }
 
 // startUsage starts counting the usage of l's attempt from from, unless
@@ -72,6 +76,41 @@ func (e *Engine) readUsage(l *launch, final bool) {
 		u.warned = true
 		e.warn(fmt.Sprintf("can't read the transcript of %s: %v; its token usage may be incomplete", l.t.ID, err))
 	}
+	e.showUsage(u)
+}
+
+// showUsage tells the UI the attempt's counter when it changed (SPEC §15.1):
+// the tokens read so far, or that the transcript can't be read.
+func (e *Engine) showUsage(u *attemptUsage) {
+	if u.r == nil {
+		return
+	}
+	t := &Tokens{Unavailable: !u.r.Available()}
+	if !t.Unavailable {
+		got := u.r.Usage()
+		t.In = sumIn(got.Main) + sumIn(got.Sub)
+		t.Out = satAdd(got.Main.Output, got.Sub.Output)
+		t.Models = got.Models
+	}
+	if u.shown != nil && u.shown.In == t.In && u.shown.Out == t.Out &&
+		u.shown.Unavailable == t.Unavailable && slices.Equal(u.shown.Models, t.Models) {
+		return
+	}
+	u.shown = t
+	e.emit(Event{Kind: UsageRead, Tokens: t})
+}
+
+// sumIn is the input side of c: input + cache read + cache write.
+func sumIn(c usage.Counts) int64 {
+	return satAdd(satAdd(c.Input, c.CacheRead), c.CacheWrite)
+}
+
+// satAdd adds two non-negative counts without overflowing.
+func satAdd(a, b int64) int64 {
+	if a > math.MaxInt64-b {
+		return math.MaxInt64
+	}
+	return a + b
 }
 
 // auditRank checks the model ids the attempt's main thread ran on against
@@ -128,6 +167,9 @@ func (e *Engine) endUsage(ctx context.Context, l *launch) {
 			why = "the transcript could not be read"
 		}
 		ev.Audit, ev.Detail = state.AuditUnavailable, why
+		if u.r == nil {
+			e.emit(Event{Kind: UsageRead, Tokens: &Tokens{Unavailable: true}})
+		}
 		if !u.warned {
 			e.warn(fmt.Sprintf("token usage of %s unavailable: %s", l.t.ID, why))
 		}

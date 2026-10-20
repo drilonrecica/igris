@@ -470,6 +470,7 @@ template = "{{.At.Format \"15:04\"}} {{.TaskID}} {{.What}}"
 | `igris done` / `skip` / `reset` | Signal a task done or skipped, or put it back; see [Done, skip and reset](#done-skip-and-reset). |
 | `igris history [TASK-ID]` | Past runs, or every attempt of one task. |
 | `igris report [RUN]` | One run as markdown, for a PR description. |
+| `igris usage [RUN \| --since D]` | Token usage and the rank audit of a run, or of the runs since `7d`, `36h` or `2026-10-01`. |
 | `igris notify test [--event NAME]` | Sends a sample of each notification to your channels. |
 | `igris config migrate [--yes]` | Removes deprecated settings from `igris.toml`: shows the lines, asks, keeps a backup in `.igris/config/`. Run it after upgrading. |
 | `igris adapt` | Converts a plan in another format; see [`igris adapt`](#different-format-igris-adapt). |
@@ -477,7 +478,7 @@ template = "{{.At.Format \"15:04\"}} {{.TaskID}} {{.What}}"
 | `igris help [COMMAND]` | The help, or one command's (`igris COMMAND -h` is the same). |
 | `igris version` | Prints the version (`-v` and `--version` too). |
 
-`check`, `phases` and `status` take `--plan PATH` (default: `plan` in `igris.toml`, else `tasks.md`), and they, `doctor`, `history` and `report` take `--json`. Each `--json` output is one object starting with `"v": 1`; its schema is in [`docs/json/`](docs/json/), and fields may be added but never removed or changed in 1.x. `igris <command> -h` lists a command's flags.
+`check`, `phases` and `status` take `--plan PATH` (default: `plan` in `igris.toml`, else `tasks.md`), and they, `doctor`, `history`, `report` and `usage` take `--json`. Each `--json` output is one object starting with `"v": 1`; its schema is in [`docs/json/`](docs/json/), and fields may be added but never removed or changed in 1.x. `igris <command> -h` lists a command's flags.
 
 **Exit codes**: `0` success (also when you stop a run or an adapt), `1` failure, `2` usage error (an unknown flag, a missing or malformed argument). `3`–`9` are reserved, so test for non-zero rather than for `1`. What exits `1` for each command is listed in [SPEC §14](SPEC.md#14-cli).
 
@@ -520,7 +521,7 @@ Each line is `ok`, `warn` or `fail`; a problem is followed by the command that f
 </details>
 
 <details>
-<summary><code>igris history</code> and <code>igris report</code></summary>
+<summary><code>igris history</code>, <code>igris report</code> and <code>igris usage</code></summary>
 
 **`igris history [TASK-ID] [-n N] [--json]`** lists the last N runs (default 10, newest first) from `.igris/runs.jsonl`: phases, tasks done and skipped, how long each task took, verify attempts, commits and how the run ended (`completed`, `stuck`, `stopped`, `error`, or `interrupted` when it has no stop event). Each run shows its run ID (e.g. `20261008-091500-3fa2`) when the log has one (`"run"` in `--json`). With a task ID it lists every attempt of that task across all runs.
 
@@ -532,7 +533,9 @@ Each line is `ok`, `warn` or `fail`; a problem is followed by the command that f
 
 `RUN` is `1` (the newest run, the default), `2` for the one before, and so on, or a run ID from `igris history`. Needs-you time counts only while igris waited on you: an idle wait ends when the session runs `igris done`, and an overdue task or the verify limit stops counting once the agent works again. Text from the log is escaped in the markdown, so a task title or note can't add links or formatting. `--json` prints the same as one object. It exits 1 when there is no such run, and 2 when `RUN` is neither a number nor a run ID.
 
-Both are read-only: they take no lock and never create `.igris/`. A line they can't read (a crash cut it short, something else wrote to the file) is skipped with a note, and the rest still shows. The log format, one JSON object per line, is documented in [`docs/runlog.md`](docs/runlog.md). Logs from igris v0.4 and earlier still read; `report` shows `—` for the details they lack.
+**`igris usage [RUN | --since D] [--json]`** (since 1.1) reports the tokens recorded in the sessions' transcripts (the Token usage setting above) from the run log, without reading a transcript: the runs covered; totals (`in` is input + cache read + cache write, all four counts shown, subagents included); tables by task (attempts, in, out, subagents, model ids, audit), by model and by rank; the top 5 tasks by in + out; and the rank audit, naming each mismatch. `RUN` is as for `report`; `--since` takes a duration (`7d`, `36h`; `d` is 24 h) or a date (`2026-10-01`, local midnight) and covers every run started since then, but not together with `RUN`. An attempt whose usage couldn't be read is counted as `unavailable` and left out of the totals. These are tokens, never a cost. The live run card shows the current task's counter, `tokens 2.3M in · 41k out · claude-sonnet-5-5` (`2.3M/41k` on a narrow terminal), with the model id red on a rank mismatch. It exits 1 with no runs, no such run or no run since D, and 2 for a malformed `RUN` or `D`.
+
+All three are read-only: they take no lock and never create `.igris/`. A line they can't read (a crash cut it short, something else wrote to the file) is skipped with a note, and the rest still shows. The log format, one JSON object per line, is documented in [`docs/runlog.md`](docs/runlog.md). Logs from igris v0.4 and earlier still read; `report` shows `—` for the details they lack.
 
 </details>
 

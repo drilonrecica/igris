@@ -1,0 +1,4 @@
+exit: 1
+--- stdout
+--- stderr
+igris usage: no run since 2026-10-03; igris history lists the runs

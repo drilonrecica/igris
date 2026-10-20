@@ -35,11 +35,12 @@ type current struct {
 	user                         bool
 	started                      time.Time
 	state                        taskState
-	since                        time.Time // when state began
-	detail                       string    // why it needs the owner
-	overdue                      string    // the overdue detail while the attempt runs past its Timeout
-	rankMismatch                 string    // the rank audit's detail once the attempt ran on another model (SPEC §6.9)
-	waiting                      bool      // the agent waits on background work (SPEC §6.3)
+	since                        time.Time      // when state began
+	detail                       string         // why it needs the owner
+	overdue                      string         // the overdue detail while the attempt runs past its Timeout
+	rankMismatch                 string         // the rank audit's detail once the attempt ran on another model (SPEC §6.9)
+	tokens                       *engine.Tokens // the attempt's token usage so far (SPEC §6.9, §15.1); nil until read
+	waiting                      bool           // the agent waits on background work (SPEC §6.3)
 	session                      *backend.SessionRef
 	claudeSession                string // the session's Claude UUID, for claude --resume
 }
@@ -685,7 +686,11 @@ func (m *model) event(ev engine.Event) {
 	case engine.SessionOpened:
 		if m.cur != nil {
 			m.cur.session, m.cur.mode, m.cur.claudeSession = ev.Session, ev.Mode, ev.ClaudeSession
-			m.cur.overdue, m.cur.rankMismatch = "", "" // a new attempt
+			m.cur.overdue, m.cur.rankMismatch, m.cur.tokens = "", "", nil // a new attempt
+		}
+	case engine.UsageRead:
+		if m.cur != nil && m.cur.id == ev.Task {
+			m.cur.tokens = ev.Tokens
 		}
 	case engine.TaskOverdue:
 		if m.cur != nil {

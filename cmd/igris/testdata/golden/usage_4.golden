@@ -1,0 +1,4 @@
+exit: 1
+--- stdout
+--- stderr
+igris usage: only 3 runs recorded
