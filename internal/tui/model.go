@@ -38,6 +38,7 @@ type current struct {
 	since                        time.Time // when state began
 	detail                       string    // why it needs the owner
 	overdue                      string    // the overdue detail while the attempt runs past its Timeout
+	rankMismatch                 string    // the rank audit's detail once the attempt ran on another model (SPEC §6.9)
 	waiting                      bool      // the agent waits on background work (SPEC §6.3)
 	session                      *backend.SessionRef
 	claudeSession                string // the session's Claude UUID, for claude --resume
@@ -684,11 +685,15 @@ func (m *model) event(ev engine.Event) {
 	case engine.SessionOpened:
 		if m.cur != nil {
 			m.cur.session, m.cur.mode, m.cur.claudeSession = ev.Session, ev.Mode, ev.ClaudeSession
-			m.cur.overdue = "" // a new attempt
+			m.cur.overdue, m.cur.rankMismatch = "", "" // a new attempt
 		}
 	case engine.TaskOverdue:
 		if m.cur != nil {
 			m.cur.overdue = ev.Detail
+		}
+	case engine.RankMismatch:
+		if m.cur != nil && m.cur.id == ev.Task {
+			m.cur.rankMismatch = ev.Detail
 		}
 	case engine.YourTurn:
 		m.setState(stateYourTurn, ev)
@@ -718,7 +723,7 @@ func (m *model) event(ev engine.Event) {
 	case engine.SessionLost:
 		m.setState(stateLost, ev)
 		if m.cur != nil {
-			m.cur.session, m.cur.overdue = nil, "" // the attempt ended
+			m.cur.session, m.cur.overdue, m.cur.rankMismatch = nil, "", "" // the attempt ended
 		}
 	case engine.Asked:
 		e := ev
@@ -743,7 +748,7 @@ func (m *model) event(ev engine.Event) {
 		m.dropResetAsk(ev.Task)
 	case engine.Retrying:
 		if m.cur != nil {
-			m.cur.session, m.cur.overdue = nil, ""
+			m.cur.session, m.cur.overdue, m.cur.rankMismatch = nil, "", ""
 		}
 		m.setState(stateWorking, ev)
 		m.settle()

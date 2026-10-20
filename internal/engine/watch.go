@@ -137,6 +137,7 @@ func (e *Engine) watch(ctx context.Context, l *launch) (verdict, error) {
 				e.checkPlanRequest(ctx, l)
 				e.observe(ctx, l, st, &ep)
 				e.readUsage(l, false)
+				e.auditRank(ctx, l, false)
 			}
 			e.checkOverdue(ctx, l)
 		}
@@ -155,10 +156,12 @@ func (e *Engine) observe(ctx context.Context, l *launch, st backend.AgentState, 
 		e.endEpisode(ep)
 		// Working again, the agent waits on nobody (Decision W, V05-P1):
 		// the owner told it about the failed verify or the verify limit
-		// themselves, and an overdue task that works is not waiting.
+		// themselves, and an overdue task, or one on another model, that
+		// works is not waiting.
 		e.waitOver(state.ReasonVerifyNotSent)
 		e.waitOver(state.ReasonVerifyLimit)
 		e.waitOver(state.ReasonTaskOverdue)
+		e.waitOver(state.ReasonRankMismatch)
 	case st == backend.Waiting:
 		e.endIdle(ep)
 		w := &ep.waiting
@@ -340,7 +343,7 @@ func (e *Engine) needsYou(ctx context.Context, event notify.Event, reason, why, 
 // lose marks l's session lost and asks the owner how to go on (SPEC §6.3).
 func (e *Engine) lose(ctx context.Context, l *launch) {
 	l.lost = true
-	e.endUsage(l)
+	e.endUsage(ctx, l)
 	e.dropPlan(l, "the session is gone")
 	e.emit(Event{Kind: SessionLost, Detail: "the session is gone without `igris done`"})
 	e.waitOn(state.ReasonSessionLost, "session lost")

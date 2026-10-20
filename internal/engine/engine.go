@@ -356,7 +356,7 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 	if e.task != nil {
 		// The task stays in progress; its attempt's usage so far is logged
 		// (SPEC §13), and the next run counts from when it reattaches.
-		e.endUsage(e.task)
+		e.endUsage(context.WithoutCancel(ctx), e.task)
 	}
 	e.leaveWorktree(context.WithoutCancel(ctx), &res)
 	// igris can't hold messages once it exits: what is left goes out now,

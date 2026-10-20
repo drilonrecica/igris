@@ -66,14 +66,20 @@ func execReport(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 	if jsonFlag(fs) {
 		writeJSON(stdout, r)
 	} else {
-		printReport(stdout, r)
+		f, _ := stdout.(*os.File)
+		printReport(stdout, r, isCharDevice(f) && os.Getenv("TERM") != "dumb")
 	}
 	return exitOK
 }
 
+// rankMark is the result cell's mark of a task that ran on a model its rank
+// doesn't resolve to (SPEC §6.9, §14).
+const rankMark = "⚠ rank"
+
 // printReport writes the run as markdown, for a PR description or a
-// journal. Every value the log doesn't record is "—".
-func printReport(w io.Writer, r report.Report) {
+// journal. Every value the log doesn't record is "—". color paints the rank
+// mark red, on a terminal.
+func printReport(w io.Writer, r report.Report, color bool) {
 	fmt.Fprintf(w, "# igris report · %s\n\n", md(r.Project))
 	if r.Note != "" {
 		fmt.Fprintf(w, "note: %s\n\n", r.Note)
@@ -117,8 +123,16 @@ func printReport(w io.Writer, r report.Report) {
 			if t.NeedsYouS != nil {
 				needs = fmtSeconds(*t.NeedsYouS)
 			}
+			result := t.Result
+			if t.RankMismatch() {
+				mark := rankMark
+				if color {
+					mark = "\x1b[31m" + mark + "\x1b[0m"
+				}
+				result += " " + mark
+			}
 			fmt.Fprintf(w, "| %s | %s | %s | %s | %s | %s | %s |\n",
-				cell(strings.TrimSpace(t.ID+" "+t.Title)), t.Result, dash(fmtSeconds(t.DurationS)), dash(attempts),
+				cell(strings.TrimSpace(t.ID+" "+t.Title)), result, dash(fmtSeconds(t.DurationS)), dash(attempts),
 				dash(cell(verifyMarks(t.Verify))), dash(shortSHA(t.Commit)), dash(needs))
 		}
 		var notes, resume []string

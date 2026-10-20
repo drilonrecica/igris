@@ -69,6 +69,25 @@ type ReportTask struct {
 	// Resume is `claude --resume <uuid>` for an agent task's last session.
 	Resume    string `json:"resume,omitempty"`
 	NeedsYouS *int   `json:"needs_you_s,omitempty"` // nil for a v0 run or a user task
+	// Audit is the rank audit over the task's attempts (SPEC §6.9): its
+	// worst result, mismatch before unavailable, unchecked and ok; "" when
+	// the log has none. Since 1.1.
+	Audit string `json:"audit,omitempty"`
+}
+
+// RankMismatch reports that some attempt of the task ran on a model its
+// rank doesn't resolve to: the report marks it.
+func (t ReportTask) RankMismatch() bool { return t.Audit == state.AuditMismatch }
+
+// auditOrder ranks the audit results, the one to show last.
+var auditOrder = []string{state.AuditOK, state.AuditUnchecked, state.AuditUnavailable, state.AuditMismatch}
+
+// audit keeps the worse of the task's audit so far and a, a usage line's
+// audit (already checked when read).
+func (t *taskRec) audit(a string) {
+	if slices.Index(auditOrder, a) > slices.Index(auditOrder, t.t.Audit) {
+		t.t.Audit = a
+	}
 }
 
 // ReportVerify is one verify result.
@@ -260,6 +279,15 @@ func (r *runRec) report(live bool) Report {
 			if t := byID[e.Task]; t != nil {
 				// The task's last commit, also when its SHA is unknown.
 				t.t.Commit = c.SHA
+			}
+		case state.EventUsage:
+			if t := byID[e.Task]; t != nil {
+				t.audit(e.Audit)
+			}
+		case state.EventRankMismatch:
+			// Also when the run stopped before the attempt's usage line.
+			if t := byID[e.Task]; t != nil {
+				t.audit(state.AuditMismatch)
 			}
 		case state.EventNeedsYou:
 			waits = append(waits, &wait{task: e.Task, reason: e.Reason, start: e.At})

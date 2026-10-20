@@ -262,12 +262,14 @@ func TestNotifyKeepsChannelOrder(t *testing.T) {
 
 func TestUrgent(t *testing.T) {
 	for _, ev := range AllEvents {
-		want := ev == NeedsInput || ev == SessionLost || ev == TaskOverdue
+		want := ev == NeedsInput || ev == SessionLost || ev == TaskOverdue || ev == RankMismatch
 		if got := ev.Urgent(); got != want {
 			t.Errorf("%s.Urgent() = %v, want %v", ev, got, want)
 		}
 	}
-	if !slices.Contains(DefaultEvents, TaskOverdue) {
-		t.Errorf("task_overdue is not a default event: %v", DefaultEvents)
+	for _, ev := range []Event{TaskOverdue, RankMismatch} {
+		if !slices.Contains(DefaultEvents, ev) {
+			t.Errorf("%s is not a default event: %v", ev, DefaultEvents)
+		}
 	}
 }

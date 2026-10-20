@@ -36,6 +36,7 @@ var testWhat = map[notify.Event]string{
 	notify.NeedsInput:        "needs you",
 	notify.SessionLost:       "session lost",
 	notify.TaskOverdue:       "needs you (running longer than its Timeout 45m)",
+	notify.RankMismatch:      "needs you (on claude-opus-5-5, not its rank sonnet)",
 	notify.VerifyFailedLimit: "verification keeps failing; needs you",
 	notify.TaskDone:          "done",
 	notify.PhaseDone:         "complete",

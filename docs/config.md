@@ -101,7 +101,7 @@
 | `server` | string | `"https://ntfy.sh"` | ntfy server URL. |
 | `topic` | string | `""` | ntfy topic. The channel is off while this is empty. |
 | `token` | string | `""` | ntfy access token, or `"env:VAR"` to read it from the environment. |
-| `events` | list of strings | `["needs_input", "session_lost", "task_overdue", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]` | Events sent to ntfy. A file igris writes leaves this out while it is the default list. Allowed: event names (see below). |
+| `events` | list of strings | `["needs_input", "session_lost", "task_overdue", "rank_mismatch", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]` | Events sent to ntfy. A file igris writes leaves this out while it is the default list. Allowed: event names (see below). |
 | `template` | string | `""` | Message text template (SPEC §10), at most 1000 characters. Empty uses the default text. |
 
 ## `[notify.discord]`
@@ -109,7 +109,7 @@
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `webhook_url` | string | `""` | Discord webhook URL (https only), or `"env:VAR"`. The channel is off while this is empty. |
-| `events` | list of strings | `["needs_input", "session_lost", "task_overdue", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]` | Events sent to Discord. Allowed: event names (see below). |
+| `events` | list of strings | `["needs_input", "session_lost", "task_overdue", "rank_mismatch", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]` | Events sent to Discord. Allowed: event names (see below). |
 | `template` | string | `""` | Message text template (SPEC §10). |
 
 ## `[notify.webhook]`
@@ -118,7 +118,7 @@
 |---|---|---|---|
 | `url` | string | `""` | Generic webhook URL (http or https), or `"env:VAR"`. The channel is off while url and secret are empty. |
 | `secret` | string | `""` | Signs the body (`X-Igris-Signature`), or `"env:VAR"`. A secret without a url is an error. |
-| `events` | list of strings | `["needs_input", "session_lost", "task_overdue", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]` | Events sent to the webhook. Allowed: event names (see below). |
+| `events` | list of strings | `["needs_input", "session_lost", "task_overdue", "rank_mismatch", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]` | Events sent to the webhook. Allowed: event names (see below). |
 | `template` | string | `""` | Message text template (SPEC §10). |
 
 ## `[notify.slack]`
@@ -126,7 +126,7 @@
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `webhook_url` | string | `""` | Slack incoming-webhook URL (https only), or `"env:VAR"`. The channel is off while this is empty. |
-| `events` | list of strings | `["needs_input", "session_lost", "task_overdue", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]` | Events sent to Slack. Allowed: event names (see below). |
+| `events` | list of strings | `["needs_input", "session_lost", "task_overdue", "rank_mismatch", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]` | Events sent to Slack. Allowed: event names (see below). |
 | `template` | string | `""` | Message text template (SPEC §10). |
 
 ## `[notify.gotify]`
@@ -135,11 +135,11 @@
 |---|---|---|---|
 | `server` | string | `""` | Gotify server URL, for example `https://gotify.example.org`. Needs `token` too. |
 | `token` | string | `""` | Gotify application token, or `"env:VAR"`. Needs `server` too. |
-| `events` | list of strings | `["needs_input", "session_lost", "task_overdue", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]` | Events sent to Gotify. Allowed: event names (see below). |
+| `events` | list of strings | `["needs_input", "session_lost", "task_overdue", "rank_mismatch", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]` | Events sent to Gotify. Allowed: event names (see below). |
 | `template` | string | `""` | Message text template (SPEC §10). |
 
 ## Event names
 
-`events` and `break_through` take any of: `needs_input`, `session_lost`, `task_overdue`, `verify_failed_limit`, `task_done`, `phase_done`, `phase_stuck`, `run_error`.
+`events` and `break_through` take any of: `needs_input`, `session_lost`, `task_overdue`, `rank_mismatch`, `verify_failed_limit`, `task_done`, `phase_done`, `phase_stuck`, `run_error`.
 
-The default `events` of a channel are `["needs_input", "session_lost", "task_overdue", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]`; the default `break_through` is `["needs_input", "session_lost", "task_overdue"]`.
+The default `events` of a channel are `["needs_input", "session_lost", "task_overdue", "rank_mismatch", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]`; the default `break_through` is `["needs_input", "session_lost", "task_overdue"]`.

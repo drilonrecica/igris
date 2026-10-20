@@ -40,9 +40,9 @@ Every line igris v0.5 or later writes has `"v":1`. `v`, `at` and `type` are alwa
 | `mode` | string | the mode the session switches to: `default`, `accept` or `auto` (since 1.1) | `plan_approved` |
 | `usage` | object | the tokens the attempt's main thread recorded in its transcript: `{"input", "output", "cache_read", "cache_write", "messages"}`, integers, `messages` being the responses counted (since 1.1). Left out when the usage is unavailable | `usage` |
 | `sub` | object | the same for the attempt's subagents; left out when they recorded nothing (since 1.1) | `usage` |
-| `models` | array of strings | the model ids the attempt's main thread ran on, in the order first seen, e.g. `["claude-sonnet-5-5"]` (since 1.1) | `usage` |
+| `models` | array of strings | the model ids the attempt's main thread ran on, in the order first seen, e.g. `["claude-sonnet-5-5"]`; on `rank_mismatch`, those seen so far (since 1.1) | `usage`, `rank_mismatch` |
 | `sub_models` | array of strings | the model ids its subagents ran on (since 1.1) | `usage` |
-| `audit` | string | the rank audit's result (SPEC §6.9): `unavailable` when igris could not read the attempt's transcript (since 1.1) | `usage` |
+| `audit` | string | the rank audit's result (SPEC §6.9): `ok` (the main thread ran only on models its rank resolves to), `mismatch` (on another one), `unchecked` (the resolved `[models]` value is one igris can't check, such as `default` or `opusplan`) or `unavailable` (igris could not read the attempt's transcript) (since 1.1). A reader shows any other value as absent | `usage` |
 | `detail` | string | free text, see each type | most events |
 
 ## Event types
@@ -69,6 +69,7 @@ Every line igris v0.5 or later writes has `"v":1`. `v`, `at` and `type` are alwa
 | `plan_approved` | you approved it in igris | empty |
 | `plan_rejected` | you rejected it with feedback in igris; the session revises it and presents it again | empty |
 | `usage` | an attempt of an agent task ended: after its `task_done` or `task_skipped`, before its `task_retried`, when its session is lost, or before `run_stopped` while it runs. Once per attempt that had a session; not with `[usage] enabled = false` (SPEC §6.9; since 1.1) | empty, or why the usage is `unavailable`: `no transcript reported by the session's hooks` or `the transcript could not be read` |
+| `rank_mismatch` | the attempt's main thread ran on a model its rank doesn't resolve to; at most once per attempt, when the read that first sees it happens, so possibly right before the attempt's `usage` line. The session is left running. Not with `[usage] enabled = false` (SPEC §6.9; since 1.1) | `on <model id>, not its rank <rank>` (`<rank> → <model>` when they differ) |
 | `error` | a task hook failed, or the run stopped with an error | the hook's reason (`before_task hook failed: exit status 1`) or the error |
 
 ### Needs-you reasons
@@ -88,13 +89,14 @@ Every line igris v0.5 or later writes has `"v":1`. `v`, `at` and `type` are alwa
 | `reset_request` | a reset request waits for your confirmation (`task` is the task to reset, which may not be the current one) |
 | `plan_changed` | the plan changed outside igris and the run holds (SPEC §5.4); run-wide, no `task` |
 | `plan_approval` | a plan waits for your approval in igris (SPEC §6.3; since 1.1) |
+| `rank_mismatch` | the session runs on a model its rank doesn't resolve to; igris leaves it running (SPEC §6.9; since 1.1) |
 
 A reader treats any other reason as `other`. The config-changed notice is not a wait (the run goes on with its snapshot) and is not logged as `needs_you`.
 
 Needs-you time is the time igris waited on you. So:
 
 - `idle` and `blocked` end when the agent works again or the session runs `igris done` (also when its verify then fails: a new idle stretch is a new wait).
-- `task_overdue`, `verify_limit` and `verify_not_sent` end when the agent is seen working again: an overdue task that keeps working waits on nobody.
+- `task_overdue`, `rank_mismatch`, `verify_limit` and `verify_not_sent` end when the agent is seen working again: an overdue task, or one on another model, that keeps working waits on nobody. A mismatch first seen by the read at the attempt's end is logged and notified, but is no wait.
 - `plan_approval` ends when you approve or reject the plan, or when it is answered in the session's pane (then the session's own `blocked` wait may follow, as when you pick *Answer in the pane*).
 - `plan_changed` starts when the run holds: the change is noticed between tasks, after the current task ended. It ends when you resume.
 - A wait that is already open is not logged again: a second skip request from the session, the verify limit hit again, another plan edit while the run holds.
@@ -131,7 +133,7 @@ One line per type, as igris writes them:
 {"v":1,"at":"2026-10-08T09:29:01Z","type":"verify_passed","run":"20261008-091500-3fa2","task":"M1-03","rank":"sonnet","model":"sonnet","attempt":2,"profile":"fast","duration_ms":11020,"detail":"profile fast"}
 {"v":1,"at":"2026-10-08T09:29:03Z","type":"committed","run":"20261008-091500-3fa2","task":"M1-03","rank":"sonnet","model":"sonnet","attempt":2,"commit":"3fa29c1e0b6d4a8f9c2e7b1d5a0f6e3c8b9d2a4f","detail":"M1-03: Config loader"}
 {"v":1,"at":"2026-10-08T09:29:03Z","type":"task_done","run":"20261008-091500-3fa2","task":"M1-03","rank":"sonnet","model":"sonnet","attempt":2,"duration_ms":842000,"detail":"tests added"}
-{"v":1,"at":"2026-10-08T09:29:04Z","type":"usage","run":"20261008-091500-3fa2","task":"M1-03","rank":"sonnet","model":"sonnet","attempt":2,"session":"7d1e9b20-3c4a-4f5e-8b6d-0a1b2c3d4e5f","usage":{"input":412,"output":41210,"cache_read":2104577,"cache_write":187340,"messages":96},"sub":{"input":20,"output":3100,"cache_read":0,"cache_write":8000,"messages":4},"models":["claude-sonnet-5-5"],"sub_models":["claude-haiku-5-5"]}
+{"v":1,"at":"2026-10-08T09:29:04Z","type":"usage","run":"20261008-091500-3fa2","task":"M1-03","rank":"sonnet","model":"sonnet","attempt":2,"session":"7d1e9b20-3c4a-4f5e-8b6d-0a1b2c3d4e5f","usage":{"input":412,"output":41210,"cache_read":2104577,"cache_write":187340,"messages":96},"sub":{"input":20,"output":3100,"cache_read":0,"cache_write":8000,"messages":4},"models":["claude-sonnet-5-5"],"sub_models":["claude-haiku-5-5"],"audit":"ok"}
 {"v":1,"at":"2026-10-08T09:30:00Z","type":"task_resumed","run":"20261008-093000-c01d","task":"M1-05","rank":"opus","model":"opus","attempt":1,"session":"9aa07c5e-d5cc-43b5-812b-1a20c5336f67","phase":"M1","title":"Docs","owner":"agent"}
 {"v":1,"at":"2026-10-08T09:33:40Z","type":"task_skipped","run":"20261008-093000-c01d","task":"M1-05","rank":"opus","model":"opus","attempt":1,"duration_ms":220000,"detail":"covered by M1-03"}
 {"v":1,"at":"2026-10-08T09:33:41Z","type":"usage","run":"20261008-093000-c01d","task":"M1-05","rank":"opus","model":"opus","attempt":1,"session":"9aa07c5e-d5cc-43b5-812b-1a20c5336f67","audit":"unavailable","detail":"the transcript could not be read"}

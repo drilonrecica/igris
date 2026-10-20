@@ -24,6 +24,7 @@ const (
 	NeedsInput        Event = "needs_input"
 	SessionLost       Event = "session_lost"
 	TaskOverdue       Event = "task_overdue"
+	RankMismatch      Event = "rank_mismatch" // since 1.1 (SPEC §6.9)
 	VerifyFailedLimit Event = "verify_failed_limit"
 	TaskDone          Event = "task_done"
 	PhaseDone         Event = "phase_done"
@@ -36,14 +37,16 @@ const (
 const Digest Event = "digest"
 
 // AllEvents lists every event.
-var AllEvents = []Event{NeedsInput, SessionLost, TaskOverdue, VerifyFailedLimit, TaskDone, PhaseDone, PhaseStuck, RunError}
+var AllEvents = []Event{NeedsInput, SessionLost, TaskOverdue, RankMismatch, VerifyFailedLimit, TaskDone, PhaseDone, PhaseStuck, RunError}
 
 // DefaultEvents are the events a channel gets when its config lists none.
-var DefaultEvents = []Event{NeedsInput, SessionLost, TaskOverdue, PhaseDone, PhaseStuck, RunError, VerifyFailedLimit}
+var DefaultEvents = []Event{NeedsInput, SessionLost, TaskOverdue, RankMismatch, PhaseDone, PhaseStuck, RunError, VerifyFailedLimit}
 
 // Urgent reports whether the owner is needed now (high priority on ntfy,
 // the "request" sound on a toast).
-func (e Event) Urgent() bool { return e == NeedsInput || e == SessionLost || e == TaskOverdue }
+func (e Event) Urgent() bool {
+	return e == NeedsInput || e == SessionLost || e == TaskOverdue || e == RankMismatch
+}
 
 // Message is what a notification says. It carries identifiers and a few
 // words only: never file contents, diffs or command output (SPEC §10).

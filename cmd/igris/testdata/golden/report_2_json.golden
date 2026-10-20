@@ -62,7 +62,8 @@ exit: 0
         "7d1e9b20-3c4a-4f5e-8b6d-0a1b2c3d4e5f"
       ],
       "resume": "claude --resume 7d1e9b20-3c4a-4f5e-8b6d-0a1b2c3d4e5f",
-      "needs_you_s": 240
+      "needs_you_s": 240,
+      "audit": "mismatch"
     },
     {
       "id": "M1-05",
@@ -91,7 +92,8 @@ exit: 0
         "9aa07c5e-d5cc-43b5-812b-1a20c5336f67"
       ],
       "resume": "claude --resume 9aa07c5e-d5cc-43b5-812b-1a20c5336f67",
-      "needs_you_s": 300
+      "needs_you_s": 300,
+      "audit": "unavailable"
     }
   ]
 }

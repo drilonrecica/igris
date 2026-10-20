@@ -111,7 +111,8 @@ func TestUsageLoggedWhenTheTaskEnds(t *testing.T) {
 		respond(t, dir, s, ev.At.Add(3*time.Second), "msg_sub", "claude-haiku-5-5", 5, 7, 1, true)
 		h.clock.At(ev.At.Sub(t0)+15*time.Second, func() {
 			// Written while the task runs, read by a later read.
-			respond(t, dir, s, h.clock.Now(), "msg_2", "claude-opus-5-5", 3, 40, 2, false)
+			// Another id, still sonnet: the rank audit ignores [1m].
+			respond(t, dir, s, h.clock.Now(), "msg_2", "claude-sonnet-5-5[1m]", 3, 40, 2, false)
 		})
 		h.signalAt(ev.At.Sub(t0)+30*time.Second, "A-1")
 	}
@@ -127,14 +128,14 @@ func TestUsageLoggedWhenTheTaskEnds(t *testing.T) {
 	want := state.Event{
 		Usage:     &usage.Counts{Input: 5, Output: 70, CacheRead: 200, CacheWrite: 20, Messages: 2},
 		Sub:       &usage.Counts{Input: 5, Output: 7, CacheRead: 100, CacheWrite: 10, Messages: 1},
-		Models:    []string{"claude-sonnet-5-5", "claude-opus-5-5"},
+		Models:    []string{"claude-sonnet-5-5", "claude-sonnet-5-5[1m]"},
 		SubModels: []string{"claude-haiku-5-5"},
 	}
 	if !reflect.DeepEqual(u.Usage, want.Usage) || !reflect.DeepEqual(u.Sub, want.Sub) ||
 		!reflect.DeepEqual(u.Models, want.Models) || !reflect.DeepEqual(u.SubModels, want.SubModels) {
 		t.Errorf("usage = %+v %+v %q %q", u.Usage, u.Sub, u.Models, u.SubModels)
 	}
-	if u.Session != started.Session || u.Attempt != 1 || u.Rank != "sonnet" || u.Model != "sonnet" || u.Audit != "" || u.Detail != "" {
+	if u.Session != started.Session || u.Attempt != 1 || u.Rank != "sonnet" || u.Model != "sonnet" || u.Audit != state.AuditOK || u.Detail != "" {
 		t.Errorf("usage line = %+v", u)
 	}
 	if got := h.logged(); !strings.HasPrefix(got, "run_started task_started task_done usage task_started") {

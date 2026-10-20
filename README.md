@@ -290,6 +290,7 @@ The hooks run the hidden `igris hook` command on Claude's lifecycle events (prom
 - **One reminder.** When Claude stops without `igris done` and nothing is pending, igris first reminds it once (finish with `igris done`, or say what it waits for). If it stays idle another `needs_input_after` (default `30s`), you get **Needs you**. `nudge = false` turns the reminder off.
 - **The state only drives Needs you;** a task still advances only on `igris done` or your action. One exception: if a session sits idle 15 s after igris sent its first prompt and the hooks show the prompt was never submitted (it's still pasted in Claude Code's input box), igris presses Enter in the pane once and says so in the feed.
 - **Token usage** (since 1.1). The hooks also report where Claude Code keeps the session's transcript. About every 10 seconds, and once when the attempt ends, igris reads from it (and from its subagents' files next to it) the token counts and model ids, never the messages. It logs each attempt's totals in `runs.jsonl` as a `usage` line. These are the tokens recorded in the transcripts, not a bill: igris never prices them. If it can't read the transcript, it says so once in the feed and logs the usage as `unavailable`; the task goes on. `[usage] enabled = false` turns this off. A session could forge its own transcript; see the [threat model](docs/threat-model.md).
+- **Rank audit** (since 1.1). From the same reads igris checks that the session's main thread runs on the model its rank resolved to: `opus` (and the other aliases) matches any `claude-opus-…` id, `[1m]` is ignored, a full id matches itself with or without its date. The first response on another model (a `/model` in the pane, a setting that slipped through) marks the task **Needs you**, with `RANK MISMATCH` on its card, a `rank_mismatch` notification and a `rank_mismatch` line in `runs.jsonl`, once per attempt. igris never stops, switches or tells the session anything: you decide. Subagents may run on other models and aren't checked. A `[models]` value igris can't check (`default`, `opusplan`, a custom name) is logged as `unchecked`. Each attempt's `usage` line carries the result: `ok`, `mismatch`, `unchecked` or `unavailable`.
 
 ## Verification and commits
 
@@ -396,7 +397,7 @@ token = "env:NTFY_TOKEN"          # optional
 
 [notify.discord]
 webhook_url = "env:IGRIS_DISCORD_WEBHOOK"   # https only, as Discord gives it
-events = ["needs_input", "phase_done"]   # default: needs_input, session_lost, task_overdue, phase_done, phase_stuck, run_error, verify_failed_limit
+events = ["needs_input", "phase_done"]   # default: needs_input, session_lost, task_overdue, rank_mismatch, phase_done, phase_stuck, run_error, verify_failed_limit
 
 [notify.slack]
 webhook_url = "env:IGRIS_SLACK_WEBHOOK"     # https only
@@ -418,7 +419,7 @@ Check your setup with `igris notify test`: it sends a sample of each event to ev
 - **Secrets** (the ntfy and Gotify tokens, the Discord, Slack and webhook URLs, the webhook secret) can be `env:VAR_NAME` references, are never logged, and are scrubbed from error messages.
 - **Delivery:** each channel has a 10 s timeout and one retry; a channel that fails is shown as a warning and never stops the run. igris doesn't follow redirects (a `3xx` is reported as a failure: set the final URL), and a failure says only what went wrong (`connection refused`, `TLS failed`, `server answered 403 Forbidden`, …), never the URL.
 - **Plain `http://`** works for ntfy, Gotify and the webhook (a server on your LAN), with a warning from `igris check` where a token or the payload would go unencrypted.
-- **Priorities:** ntfy sends urgent events (`needs_input`, `session_lost`, `task_overdue`) at high priority; Gotify sends them at priority 8, `task_done` at 3 and everything else at 5.
+- **Priorities:** ntfy sends urgent events (`needs_input`, `session_lost`, `task_overdue`, `rank_mismatch`) at high priority; Gotify sends them at priority 8, `task_done` at 3 and everything else at 5.
 - **Escaping:** Slack messages have `&`, `<` and `>` escaped, so a task title can't ping `@channel` or add links; Discord messages have `[` and `]` escaped, so a title can't make a masked link.
 
 <details>
@@ -526,7 +527,7 @@ Each line is `ok`, `warn` or `fail`; a problem is followed by the command that f
 **`igris report [RUN] [--json]`** prints one run as markdown, to paste into a PR description or a journal:
 
 - the run's ID, start, end and how it ended, its phases and slice, the counts (done, skipped, unfinished, commits) and how long igris waited on you (*needs you*);
-- per phase, a table with each task's result, duration, attempts (retries and resumes count), verify results (`fast ✗ ✓`: the profile, one ✗ per failure, ✓ per pass), short commit SHA and needs-you time;
+- per phase, a table with each task's result, duration, attempts (retries and resumes count), verify results (`fast ✗ ✓`: the profile, one ✗ per failure, ✓ per pass), short commit SHA and needs-you time; a task that ran on a model its rank doesn't resolve to is marked `⚠ rank` (red on a terminal; `audit` in `--json`);
 - the done notes and skip reasons, and a `claude --resume <uuid>` line per agent session you can reopen (run it in the project root).
 
 `RUN` is `1` (the newest run, the default), `2` for the one before, and so on, or a run ID from `igris history`. Needs-you time counts only while igris waited on you: an idle wait ends when the session runs `igris done`, and an overdue task or the verify limit stops counting once the agent works again. Text from the log is escaped in the markdown, so a task title or note can't add links or formatting. `--json` prints the same as one object. It exits 1 when there is no such run, and 2 when `RUN` is neither a number nor a run ID.

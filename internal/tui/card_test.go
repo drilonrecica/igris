@@ -147,6 +147,31 @@ func TestUserTaskCardHasNoSession(t *testing.T) {
 	}
 }
 
+// A session on another model says so on its card until the attempt ends
+// (SPEC §6.9), in words.
+func TestCardShowsRankMismatchUntilTheAttemptEnds(t *testing.T) {
+	for _, size := range cardSizes {
+		t.Run(fmt.Sprint(size), func(t *testing.T) {
+			hs := cardHarness(t, size[0], size[1], "M0-02")
+			hs.events(engine.Event{Kind: engine.RankMismatch, Task: "M0-02", Detail: "on claude-opus-5-5, not its rank sonnet"},
+				engine.Event{Kind: engine.NeedsYou, Task: "M0-02", Detail: "the session runs on claude-opus-5-5, not its rank sonnet; igris leaves it running"})
+			v := hs.m.View()
+			checkFits(t, v, size[0], size[1])
+			if !strings.Contains(v, "RANK MISMATCH") {
+				t.Errorf("card lacks the rank mismatch line:\n%s", v)
+			}
+			hs.events(engine.Event{Kind: engine.NeedsYouClear, Task: "M0-02"})
+			if v := hs.m.View(); !strings.Contains(v, "RANK MISMATCH") {
+				t.Errorf("rank mismatch cleared while the attempt runs:\n%s", v)
+			}
+			hs.events(engine.Event{Kind: engine.Retrying, Task: "M0-02", Detail: "fresh"})
+			if v := hs.m.View(); strings.Contains(v, "RANK MISMATCH") {
+				t.Errorf("rank mismatch kept after the attempt ended:\n%s", v)
+			}
+		})
+	}
+}
+
 // An overdue task says so on its card until the attempt ends (SPEC §6.3).
 func TestCardShowsOverdueUntilTheAttemptEnds(t *testing.T) {
 	for _, size := range cardSizes {

@@ -1269,3 +1269,44 @@ func TestLoadRefusesNonRegularFiles(t *testing.T) {
 		t.Errorf("Load(huge) = %v, want too large", err)
 	}
 }
+
+// rank_mismatch joined the default events in 1.1 (V11-04): a config that
+// doesn't set events keeps the hash it had, and still gets the event.
+func TestHashWithNewDefaultEventIsUnchanged(t *testing.T) {
+	parse := func(src string) *Config {
+		t.Helper()
+		c, err := Parse([]byte(src), "igris.toml")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return c
+	}
+	const ntfy = "[notify.ntfy]\ntopic = \"t\"\n"
+	unset := parse(ntfy)
+	if !slices.Contains(unset.Notify.Ntfy.Events, "rank_mismatch") {
+		t.Fatalf("default events lack rank_mismatch: %v", unset.Notify.Ntfy.Events)
+	}
+	v10 := parse(ntfy + `events = ["needs_input", "session_lost", "task_overdue", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]` + "\n")
+	if unset.Hash() != v10.Hash() {
+		t.Error("the new default event changed the hash of a config without events")
+	}
+	if !slices.Contains(unset.Notify.Ntfy.Events, "rank_mismatch") {
+		t.Error("Hash changed the config's events")
+	}
+	if other := parse(ntfy + `events = ["needs_input", "rank_mismatch"]` + "\n"); other.Hash() == unset.Hash() {
+		t.Error("an events list of its own left the hash unchanged")
+	}
+	for _, src := range []string{"[notify.discord]\n", "[notify.slack]\nwebhook_url = \"env:S\"\n", "[notify.gotify]\nserver = \"https://g\"\ntoken = \"env:T\"\n"} {
+		c := parse(src)
+		before := c.Hash()
+		h := *c
+		for _, ev := range []*[]string{&h.Notify.Discord.Events, &h.Notify.Slack.Events, &h.Notify.Gotify.Events} {
+			if slices.Equal(*ev, defaultEvents()) {
+				*ev = hashEvents()
+			}
+		}
+		if h.Hash() != before {
+			t.Errorf("%q: the default events and 1.0's hash differently", src)
+		}
+	}
+}

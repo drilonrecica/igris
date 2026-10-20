@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -22,6 +23,9 @@ type attemptUsage struct {
 	r      *usage.Reader // nil until the hooks reported the transcript
 	last   time.Time     // the last read
 	warned bool          // the attempt's one warning was shown
+	// mismatch is set once the rank audit found the main thread on a model
+	// its rank doesn't resolve to: raised once per attempt (SPEC §6.9).
+	mismatch bool
 }
 
 // startUsage starts counting the usage of l's attempt from from, unless
@@ -70,15 +74,49 @@ func (e *Engine) readUsage(l *launch, final bool) {
 	}
 }
 
+// auditRank checks the model ids the attempt's main thread ran on against
+// the model l's rank resolved to (SPEC §6.9). The first one that doesn't
+// match raises rank_mismatch once per attempt: the UI event, the run log
+// and the notification, and while the attempt runs Needs you. The session
+// is never stopped, switched or told anything; the owner decides. final is
+// the read at the attempt's end, when nobody is waited on any more.
+func (e *Engine) auditRank(ctx context.Context, l *launch, final bool) {
+	u := l.usage
+	if u == nil || u.r == nil || u.mismatch {
+		return
+	}
+	got := u.r.Usage()
+	bad, ok := usage.Mismatch(l.model, got.Models)
+	if !ok {
+		return
+	}
+	u.mismatch = true
+	want := l.model
+	if l.t.Rank != l.model {
+		want = l.t.Rank + " → " + l.model
+	}
+	// bad has the shape of a model id (usage.ValidModel): no markup, no
+	// control characters.
+	what := "on " + bad + ", not its rank " + want
+	e.emit(Event{Kind: RankMismatch, Detail: what})
+	e.log(state.Event{Type: state.EventRankMismatch, Models: got.Models, Detail: what})
+	if final {
+		e.toast(ctx, notifyRankMismatch, "ran "+what)
+		return
+	}
+	e.needsYou(ctx, notifyRankMismatch, state.ReasonRankMismatch, "the session runs "+what+"; igris leaves it running", what)
+}
+
 // endUsage reads l's transcript one last time and logs the attempt's usage
-// (SPEC §6.9, §13): when it is done, skipped, retried, lost, or the run
-// stops while it runs. Once per attempt; nothing without a session.
-func (e *Engine) endUsage(l *launch) {
+// and audit (SPEC §6.9, §13): when it is done, skipped, retried, lost, or
+// the run stops while it runs. Once per attempt; nothing without a session.
+func (e *Engine) endUsage(ctx context.Context, l *launch) {
 	u := l.usage
 	if u == nil {
 		return
 	}
 	e.readUsage(l, true)
+	e.auditRank(ctx, l, true)
 	l.usage = nil
 	ev := state.Event{Type: state.EventUsage}
 	if s := l.cur.ClaudeSession; backend.ValidClaudeSession(s) {
@@ -100,6 +138,14 @@ func (e *Engine) endUsage(l *launch) {
 	ev.Usage, ev.Models, ev.SubModels = &got.Main, got.Models, got.SubModels
 	if !got.Sub.IsZero() {
 		ev.Sub = &got.Sub
+	}
+	switch {
+	case u.mismatch:
+		ev.Audit = state.AuditMismatch
+	case !usage.Checkable(l.model):
+		ev.Audit = state.AuditUnchecked
+	default:
+		ev.Audit = state.AuditOK
 	}
 	e.log(ev)
 }

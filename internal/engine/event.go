@@ -48,6 +48,7 @@ const (
 	Nudged           EventKind = "nudged"             // igris reminded the idle agent of igris done once; Detail says so
 	SessionLost      EventKind = "session_lost"       // the pane is gone or Claude Code exited without a signal
 	TaskOverdue      EventKind = "task_overdue"       // the attempt runs longer than the task's Timeout; Detail says how long
+	RankMismatch     EventKind = "rank_mismatch"      // the session runs on a model its rank doesn't resolve to (SPEC §6.9); Detail names both
 	Asked            EventKind = "asked"              // Question waits for the owner's answer; Detail is the question
 	PlanClosed       EventKind = "plan_closed"        // the plan shown for approval is answered or gone; Detail says how
 	Retrying         EventKind = "retrying"           // the session is replaced; Detail is "continue" or "fresh"
@@ -285,14 +286,15 @@ func (e *Engine) waitsOver() {
 
 // Notification events (SPEC §10) the engine raises.
 const (
-	notifyTaskDone    = notify.TaskDone
-	notifyNeedsInput  = notify.NeedsInput
-	notifySessionLost = notify.SessionLost
-	notifyTaskOverdue = notify.TaskOverdue
-	notifyVerifyLimit = notify.VerifyFailedLimit
-	notifyPhaseDone   = notify.PhaseDone
-	notifyPhaseStuck  = notify.PhaseStuck
-	notifyRunError    = notify.RunError
+	notifyTaskDone     = notify.TaskDone
+	notifyNeedsInput   = notify.NeedsInput
+	notifySessionLost  = notify.SessionLost
+	notifyTaskOverdue  = notify.TaskOverdue
+	notifyRankMismatch = notify.RankMismatch
+	notifyVerifyLimit  = notify.VerifyFailedLimit
+	notifyPhaseDone    = notify.PhaseDone
+	notifyPhaseStuck   = notify.PhaseStuck
+	notifyRunError     = notify.RunError
 )
 
 // toast sends a SPEC §10 notification through the router: to the backend

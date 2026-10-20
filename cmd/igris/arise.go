@@ -632,6 +632,8 @@ func formatEvent(ev engine.Event) []string {
 		return []string{id + " stopped without igris done; igris reminded it once"}
 	case engine.TaskOverdue:
 		return []string{id + " OVERDUE: " + ev.Detail + "; its session keeps running"}
+	case engine.RankMismatch:
+		return []string{id + " RANK MISMATCH: " + ev.Detail + "; its session keeps running"}
 	case engine.SessionLost:
 		return []string{id + " SESSION LOST: " + ev.Detail}
 	case engine.Asked:

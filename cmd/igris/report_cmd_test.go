@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/drilonrecica/igris/internal/report"
 )
 
 // TestRunReportGoldens pins the markdown and --json output of `igris report`
@@ -129,5 +131,23 @@ func TestReportHistoryHelp(t *testing.T) {
 				t.Errorf("%v: help lacks %q:\n%s", c.args, w, out.String())
 			}
 		}
+	}
+}
+
+// The rank mark is red only when report writes to a terminal (SPEC §14).
+func TestReportRankMarkColor(t *testing.T) {
+	r := report.Report{V: 1, Run: "20261001-090000-3fa2", StartedAt: "2026-10-01T09:00:00Z", End: "completed",
+		Tasks: []report.ReportTask{{ID: "A-1", Result: report.ResultDone, Audit: "mismatch"}, {ID: "A-2", Result: report.ResultDone, Audit: "ok"}}}
+	var plain, color strings.Builder
+	printReport(&plain, r, false)
+	printReport(&color, r, true)
+	if !strings.Contains(plain.String(), "| A-1 | done ⚠ rank |") || strings.Contains(plain.String(), "\x1b") {
+		t.Errorf("plain report:\n%s", plain.String())
+	}
+	if !strings.Contains(color.String(), "| A-1 | done \x1b[31m⚠ rank\x1b[0m |") {
+		t.Errorf("terminal report:\n%q", color.String())
+	}
+	if strings.Contains(plain.String(), "| A-2 | done ⚠") {
+		t.Error("A-2 marked without a mismatch")
 	}
 }

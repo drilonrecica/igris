@@ -53,7 +53,10 @@ const (
 	// EventUsage: an attempt of an agent task ended; what its transcripts
 	// recorded (SPEC §6.9). Since 1.1.
 	EventUsage EventType = "usage"
-	EventError EventType = "error"
+	// EventRankMismatch: the attempt's main thread ran on a model its rank
+	// doesn't resolve to (SPEC §6.9); at most once per attempt. Since 1.1.
+	EventRankMismatch EventType = "rank_mismatch"
+	EventError        EventType = "error"
 )
 
 // Why a needs_you event says igris waits on the owner (SPEC §13). Readers
@@ -72,18 +75,25 @@ const (
 	ReasonResetRequest  = "reset_request"   // a reset request waits for confirmation
 	ReasonPlanChanged   = "plan_changed"    // the plan changed outside igris (SPEC §5.4)
 	ReasonPlanApproval  = "plan_approval"   // a plan awaits approval in igris (SPEC §6.3); since 1.1
+	ReasonRankMismatch  = "rank_mismatch"   // the session runs on a model its rank doesn't resolve to (SPEC §6.9); since 1.1
 	ReasonOther         = "other"
 )
 
-// AuditUnavailable is a usage event's audit when the attempt's transcript
-// could not be read (SPEC §6.9).
-const AuditUnavailable = "unavailable"
+// A usage event's audit (SPEC §6.9): the main thread ran only on models
+// its rank resolves to, on another one, on a [models] value igris can't
+// check, or the attempt's transcript could not be read.
+const (
+	AuditOK          = "ok"
+	AuditMismatch    = "mismatch"
+	AuditUnchecked   = "unchecked"
+	AuditUnavailable = "unavailable"
+)
 
 var reasons = map[string]bool{
 	ReasonIdle: true, ReasonBlocked: true, ReasonSkipRequest: true, ReasonSessionLost: true,
 	ReasonTaskOverdue: true, ReasonVerifyLimit: true, ReasonVerifyNotSent: true, ReasonHookFailed: true,
 	ReasonCommit: true, ReasonResetRequest: true, ReasonPlanChanged: true, ReasonWaiting: true,
-	ReasonPlanApproval: true,
+	ReasonPlanApproval: true, ReasonRankMismatch: true,
 }
 
 // Event is one line of .igris/runs.jsonl (SPEC §13, docs/runlog.md). Fields
@@ -125,9 +135,10 @@ type Event struct {
 	Mode       string `json:"mode,omitempty"`
 	// Usage and Sub are the tokens an attempt's main thread and its
 	// subagents recorded, Models and SubModels their model ids, on usage
-	// (SPEC §6.9). Audit is the rank audit's result; AuditUnavailable when
-	// nothing could be read, with the reason in Detail. Never message
-	// content or the transcript path. Since 1.1.
+	// (SPEC §6.9), and on rank_mismatch Models the main thread's ids so
+	// far. Audit is the rank audit's result on usage (an Audit* value);
+	// AuditUnavailable when nothing could be read, with the reason in
+	// Detail. Never message content or the transcript path. Since 1.1.
 	Usage     *usage.Counts `json:"usage,omitempty"`
 	Sub       *usage.Counts `json:"sub,omitempty"`
 	Models    []string      `json:"models,omitempty"`
@@ -371,6 +382,11 @@ func (e Event) checked() Event {
 	// ids of the shape the transcript reader keeps (SPEC §6.9).
 	e.Usage, e.Sub = checkedCounts(e.Usage), checkedCounts(e.Sub)
 	e.Models, e.SubModels = checkedModels(e.Models), checkedModels(e.SubModels)
+	switch e.Audit {
+	case AuditOK, AuditMismatch, AuditUnchecked, AuditUnavailable:
+	default:
+		e.Audit = "" // unknown: not shown, never counted as a result
+	}
 	return e
 }
 

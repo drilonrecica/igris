@@ -212,6 +212,15 @@
         "needs_you_s": {
           "type": "integer",
           "minimum": 0
+        },
+        "audit": {
+          "enum": [
+            "ok",
+            "mismatch",
+            "unchecked",
+            "unavailable"
+          ],
+          "description": "Since 1.1: the rank audit over the task's attempts (SPEC §6.9), its worst result; absent when the log has none."
         }
       },
       "required": [

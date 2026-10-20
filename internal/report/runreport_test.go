@@ -174,3 +174,40 @@ func TestReportUnreadableNote(t *testing.T) {
 		t.Errorf("truncated history note %q", h.Note)
 	}
 }
+
+// A task's audit is the worst over its attempts; a rank_mismatch line alone
+// (a run stopped before the usage line) marks it too (SPEC §6.9).
+func TestReportAudit(t *testing.T) {
+	const id = "20261001-090000-3fa2"
+	line := func(min int, typ state.EventType, task, audit string) state.Event {
+		return state.Event{V: 1, At: t0.Add(time.Duration(min) * time.Minute), Type: typ, Run: id, Task: task, Owner: "agent", Audit: audit}
+	}
+	events := []state.Event{
+		{V: 1, At: t0, Type: state.EventRunStarted, Run: id, Detail: "phase A"},
+		line(1, state.EventTaskStarted, "A-1", ""),
+		line(2, state.EventUsage, "A-1", state.AuditOK),
+		line(3, state.EventTaskRetried, "A-1", ""),
+		line(4, state.EventUsage, "A-1", state.AuditUnchecked),
+		line(5, state.EventTaskStarted, "A-2", ""),
+		line(6, state.EventRankMismatch, "A-2", ""),
+		line(7, state.EventTaskStarted, "A-3", ""),
+		line(8, state.EventUsage, "A-3", state.AuditUnavailable),
+		line(9, state.EventUsage, "A-3", state.AuditOK),
+		line(10, state.EventTaskStarted, "A-4", ""),
+	}
+	r, err := NewReport(HistoryInput{Events: events}, "demo", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]string{}
+	for _, task := range r.Tasks {
+		got[task.ID] = task.Audit
+		if task.RankMismatch() != (task.ID == "A-2") {
+			t.Errorf("%s: RankMismatch() = %v", task.ID, task.RankMismatch())
+		}
+	}
+	want := map[string]string{"A-1": "unchecked", "A-2": "mismatch", "A-3": "unavailable", "A-4": ""}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("audits = %v, want %v", got, want)
+	}
+}

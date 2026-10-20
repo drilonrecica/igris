@@ -454,7 +454,7 @@ var (
 	validCommit  = []string{"ask", "auto", "never"}
 	validAdapt   = []string{"sonnet", "opus"}
 	validThemes  = []string{"auto", "dark", "light"}
-	validEvents  = []string{"needs_input", "session_lost", "task_overdue", "verify_failed_limit", "task_done", "phase_done", "phase_stuck", "run_error"}
+	validEvents  = []string{"needs_input", "session_lost", "task_overdue", "rank_mismatch", "verify_failed_limit", "task_done", "phase_done", "phase_stuck", "run_error"}
 	forbiddenArg = []string{
 		"--model", "--fallback-model", "--permission-mode",
 		"--dangerously-skip-permissions", "--allow-dangerously-skip-permissions",
@@ -489,6 +489,14 @@ func ForbiddenExtraArg(arg string) bool {
 }
 
 func defaultEvents() []string {
+	return []string{"needs_input", "session_lost", "task_overdue", "rank_mismatch", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"}
+}
+
+// hashEvents is the default events list as the config hash encodes it: the
+// list of igris 1.0. A later default event (rank_mismatch, 1.1) must not
+// change the hash of a config that doesn't set events (SPEC §19); a config
+// that lists 1.0's defaults itself hashes the same.
+func hashEvents() []string {
 	return []string{"needs_input", "session_lost", "task_overdue", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"}
 }
 
@@ -1035,7 +1043,13 @@ func Write(path string, c *Config) error {
 // Hash returns a stable digest of the configuration as written (env:
 // references unresolved), recorded in the run snapshot (SPEC §13).
 func (c *Config) Hash() string {
-	b, err := json.Marshal(c) // map keys are sorted, so the encoding is canonical
+	h := *c
+	for _, ev := range []*[]string{&h.Notify.Ntfy.Events, &h.Notify.Discord.Events, &h.Notify.Webhook.Events, &h.Notify.Slack.Events, &h.Notify.Gotify.Events} {
+		if slices.Equal(*ev, defaultEvents()) {
+			*ev = hashEvents() // replaced, never written through: c keeps its lists
+		}
+	}
+	b, err := json.Marshal(&h) // map keys are sorted, so the encoding is canonical
 	if err != nil {
 		// Config contains only strings, numbers, bools, slices and maps.
 		panic(fmt.Sprintf("config: hash: %v", err))

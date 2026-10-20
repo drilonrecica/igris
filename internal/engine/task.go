@@ -373,7 +373,7 @@ func (e *Engine) retry(ctx context.Context, l *launch, cont bool) error {
 			e.warn(fmt.Sprintf("close the session of %s: %v; close its pane by hand", l.t.ID, err))
 		}
 	}
-	e.endUsage(l) // the old attempt's, before the retry counts a new one
+	e.endUsage(ctx, l) // the old attempt's, before the retry counts a new one
 	st, err := e.prepareSession(l, how)
 	if err != nil {
 		return err
@@ -426,7 +426,7 @@ func (e *Engine) finish(ctx context.Context, l *launch, to plan.Status, note str
 		}
 	}
 	// After the close, so the agent's final message counts.
-	e.endUsage(l)
+	e.endUsage(ctx, l)
 	if to == plan.Done && t.Owner.IsAgent() {
 		// After the session is closed, so a slow channel doesn't keep it open.
 		e.toast(ctx, notifyTaskDone, "done")

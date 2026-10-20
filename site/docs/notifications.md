@@ -32,7 +32,7 @@ url = "env:IGRIS_WEBHOOK_URL"     # http or https
 secret = "env:IGRIS_WEBHOOK_SECRET"   # optional: signs the body
 ```
 
-The default events are `needs_input`, `session_lost`, `task_overdue`, `phase_done`, `phase_stuck`, `run_error` and `verify_failed_limit`. Every key is in the [configuration reference](../../docs/config.md).
+The default events are `needs_input`, `session_lost`, `task_overdue`, `rank_mismatch` (since 1.1: a session runs on a model its rank doesn't resolve to), `phase_done`, `phase_stuck`, `run_error` and `verify_failed_limit`. Every key is in the [configuration reference](../../docs/config.md).
 
 Check your setup with `igris notify test`: it sends a sample of each event to every configured channel (the toast too, when run inside herdr or tmux) and prints `ok` or the reason for each failure. `--event needs_input` sends just one.
 
@@ -45,7 +45,7 @@ Check your setup with `igris notify test`: it sends a sample of each event to ev
 - Verify commands, task hooks and git never get the environment variables your notification secrets come from.
 - Each channel has a 10 s timeout and one retry. A channel that fails is shown as a warning and never stops the run. igris doesn't follow redirects: a `3xx` is a failure, so set the final URL.
 - Plain `http://` works for ntfy, Gotify and the webhook (a server on your LAN), with a warning from `igris check` where a token or the payload would go unencrypted.
-- ntfy sends urgent events (`needs_input`, `session_lost`, `task_overdue`) at high priority. Slack messages have `&`, `<` and `>` escaped and Discord messages have `[` and `]` escaped, so a task title can't ping `@channel` or make a link.
+- ntfy sends urgent events (`needs_input`, `session_lost`, `task_overdue`, `rank_mismatch`) at high priority. Slack messages have `&`, `<` and `>` escaped and Discord messages have `[` and `]` escaped, so a task title can't ping `@channel` or make a link.
 
 ## Templates, quiet hours and digests
 
