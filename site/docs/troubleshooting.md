@@ -73,6 +73,14 @@ The session's main thread answered on a model its rank doesn't resolve to, usual
 
 For tokens: igris couldn't read the session's transcript (it says so once in the feed), or `[usage] enabled = false`. For quota: it is opt-in (`[usage] statusline = true`), and Claude Code reports it only with a subscription login after its first response. See [usage and plans](usage.md).
 
+## plan format 2 needs a newer igris
+
+The plan declares `<!-- igris:format 2 -->`, which igris 1.2 introduced for plans that include other files. Upgrade igris on this machine (`igris version` shows what it runs), or remove the includes and the marker. See [split plans](split-plans.md).
+
+## An include is rejected
+
+`igris check` names the file and line. The usual causes: the plan doesn't declare `<!-- igris:format 2 -->`, the path has a `..` or leaves the project, the file isn't `.md`, it is included twice, or the included file has an include of its own (only the main plan includes). The rules are in [split plans](split-plans.md#the-rules).
+
 ## A notification doesn't arrive
 
 Run `igris notify test`. It sends a sample of each event to every channel and prints `ok` or the reason per channel: `connection refused`, `TLS failed`, `server answered 403 Forbidden`. igris doesn't follow redirects, so a `3xx` means the URL should be the final one. During quiet hours only the `break_through` events reach ntfy, Discord, Slack, Gotify and the webhook; the rest arrive as one digest afterwards. See [notifications](notifications.md).

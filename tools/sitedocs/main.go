@@ -42,11 +42,14 @@ var pages = []page{
 	{"modes", "Modes", "The permission modes, and which one a task gets.", "site/docs/modes.md"},
 	{"notifications", "Notifications", "Toasts, ntfy, Discord, Slack, Gotify and a signed webhook.", "site/docs/notifications.md"},
 	{"usage", "Usage and plans", "Approve plans in igris, token usage, the rank audit and quota.", "site/docs/usage.md"},
+	{"split-plans", "Split plans", "Spread a long plan over several files with includes.", "site/docs/split-plans.md"},
+	{"templates", "Plan templates", "Start a project from go-cli, web-app or library.", "site/docs/templates.md"},
+	{"side-sessions", "Side sessions", "A Claude Code session of your own next to a run.", "site/docs/side-sessions.md"},
 	{"adapt", "Adapt a plan", "Convert a plan in another format, and review it first.", "site/docs/adapt.md"},
 	{"several-projects", "Several projects", "Running igris in more than one project at once.", "site/docs/several-projects.md"},
 	{"faq", "FAQ", "Subscription or API, models, skip-permissions, Windows.", "site/docs/faq.md"},
 	{"troubleshooting", "Troubleshooting", "What the symptoms mean and what to do.", "site/docs/troubleshooting.md"},
-	{"upgrade", "Upgrade", "From any 0.x release to 1.0, and from 1.0 to 1.1.", "site/docs/upgrade.md"},
+	{"upgrade", "Upgrade", "From any 0.x release to 1.0, then 1.1 and 1.2.", "site/docs/upgrade.md"},
 	{"compatibility", "Compatibility", "What 1.x promises not to break, and the tests behind it.", "docs/compatibility.md"},
 }
 

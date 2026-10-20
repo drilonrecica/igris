@@ -4,6 +4,28 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-21
+
+igris 1.2 adds to what 1.0 promised and breaks nothing: you can open a side session of your own next to a run, split a long plan across files, and start a project from a plan template. Plans, `igris.toml` and scripts written for 1.0 or 1.1 need no changes ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). All of it is additive: a command flag, config keys with defaults, plan format 2, `--json` fields, run-log events and a directory in `.igris/`. One thing needs planning: a split plan needs igris 1.2 on every machine that runs it ([upgrade guide](site/docs/upgrade.md#from-11-to-12)).
+
+### Added
+
+- **Side sessions.** `S` on home and in the run view opens a Claude Code session of your own in a pane next to the run's, for a question or a look into something. It is not a task: no `igris done` watch, no attempt, no Status, no Needs you, no notification, no timeout. The dialog offers a preset (**Blank**, **About this task**, **igris problem**) with an editable first prompt, a model and a mode (`default`, `accept`, `auto` or `plan`; never skip-permissions), and during a run the shared tree (with a warning, `default` mode preselected) or its own worktree. The header shows `side N`, home shows `SIDE N open`, and the **Side sessions** page lists them with focus and close. Quitting igris never closes them; the next home or run view reattaches each to its own pane. Inside one, `igris done`, `skip` and `reset` refuse (`IGRIS_SIDE`). New `[side]` settings: `model`, `mode`. Records live in `.igris/side/`; `state.json` stays version 3. Not with `--no-tui`, and no CLI in 1.2.
+- **Side session usage.** A side session's transcript is read as a task's (counts and model ids only) and logged as `side_usage` when it ends, with `side_opened` and `side_closed` lines and a `side` field. It is never an attempt and never audited. `igris usage` shows a table of side sessions of its own, outside every total, and `--json` gets an additive `side` array.
+- **Split plans (plan format 2).** `<!-- igris:include PATH -->` on a line of its own pulls another file's phases into the plan, in a plan that declares `<!-- igris:format 2 -->`. One level, paths relative to the plan and inside the project (symlinks resolved), at most 32 files and 16 MiB, IDs unique across files, dependencies and ranges across files. `check`, `phases`, `status` and `arise --dry-run` read a split plan as one and report every problem as `file:line`. `arise` writes each Status cell in the file its row is in, leaving every other byte alone; the planwatch re-reads every file, so an edit to any of them, or an include added, removed or moved, holds the run. The task prompt names the file the row is in (`TaskFile` in a `prompt_template`), and a worktree run lets sessions read each file. `igris adapt` refuses a split plan. A fuzz target covers the include loader. igris 1.0 and 1.1 refuse a format-2 plan.
+- **Plan templates.** `igris init --template go-cli|web-app|library` writes a starter plan when there is none: phases `M0`, `M1`, … each ending in a gate, a first task for you (write the spec) that everything waits on, and a decision task in plan mode. Ranks are suggestions, said so in the plan and by `init`. It never overwrites a plan or touches an existing `igris.toml`. Home's **Example plan** is now **Plan from template…**. The files are in [`examples/templates/`](examples/templates/), and `make compat` captures them.
+- `--json`: `file` on each phase and a `files` list in `check`, `phases` and `status`; `side` in `usage`. Schemas in [`docs/json/`](docs/json/) updated.
+- Docs: site pages for [side sessions](site/docs/side-sessions.md), [split plans](site/docs/split-plans.md) and [plan templates](site/docs/templates.md), a 1.1 to 1.2 section in the [upgrade guide](site/docs/upgrade.md), two [troubleshooting](site/docs/troubleshooting.md) entries, and the threat model for both (below).
+
+### Changed
+
+- `igris usage`: an attempt that ran on several models is counted under each model it used, not in one row keyed `a, b`. A run with no `usage` lines says why (made before 1.1, or `[usage] enabled = false`) instead of printing a table of zeros.
+- `igris init` and home's init step print the template step when one was chosen; without `--template` the output is unchanged.
+
+### Security
+
+- A session can add or change an include like any plan edit, and a side session is not exempt from the plan hold or the config snapshot. Includes are bounded, kept inside the project and read as regular files; the writer re-hashes every file before it renames and gives up rather than overwrite one that changed. `IGRIS_SIDE` stops an honest mistake, not a session that unsets it. Side session records are read bounded and never through a symlink, a side session reattaches only to the pane started for it, and its first prompt is cleaned and bounded. See [`docs/threat-model.md`](docs/threat-model.md) (rules R41–R50, accepted risks 18–20).
+
 ## [1.1.0] - 2026-10-20
 
 igris 1.1 adds to what 1.0 promised and breaks nothing: you can approve a plan-mode session's plan from igris, see the tokens each run, task and model used, and be told when a task ran on a model its rank doesn't name. Plans, `igris.toml` and scripts written for 1.0 need no changes ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). All of it is additive: new config keys with defaults, a command, `--json` fields and a schema, run-log events and a notification event.
@@ -487,7 +509,8 @@ First release. Linux and macOS, herdr backend only. The full behavior is specifi
 - Release artifacts are not signed (checksums only); signing is planned.
 - No Homebrew tap yet.
 
-[Unreleased]: https://github.com/drilonrecica/igris/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/drilonrecica/igris/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/drilonrecica/igris/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/drilonrecica/igris/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/drilonrecica/igris/compare/v1.0.0-rc.2...v1.0.0
 [1.0.0-rc.2]: https://github.com/drilonrecica/igris/compare/v1.0.0-rc.1...v1.0.0-rc.2

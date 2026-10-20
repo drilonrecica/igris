@@ -69,7 +69,7 @@ igris arise M0      # runs phase M0 (inside a herdr pane or tmux)
 
 Or run bare `igris` in a terminal: the [home screen](#home-screen) walks you through the same steps, from a new project to a run.
 
-No plan yet? `igris init --example` writes an example one. A plan in another format? [`igris adapt`](#different-format-igris-adapt) converts it.
+No plan yet? `igris init --example` writes an example one, and `igris init --template go-cli` (or `web-app`, `library`) a starter plan with phases, gates and suggested ranks to adapt; see [Plan templates](#plan-templates). A plan in another format? [`igris adapt`](#different-format-igris-adapt) converts it.
 
 **The first time,** Claude Code asks whether you trust the project folder ("Is this a project you trust?"). igris can't answer that for you: the task waits, and after about 30 seconds igris shows **needs you: the agent is blocked**. Open the session (`o` in the TUI), answer once, and the task carries on. Later sessions in that folder don't ask again.
 
@@ -218,6 +218,10 @@ A plan is a markdown file (default `tasks.md`) with one task table per `##` phas
 The full format, with every rule and a larger example, is in [`docs/plan-format.md`](docs/plan-format.md); it is frozen for igris 1.x. A plan may declare it with `<!-- igris:format 1 -->` before its first `##` heading; without that line it is format 1 anyway.
 
 **A long plan can be split across files** (since 1.2): declare `<!-- igris:format 2 -->` before the first `##` heading, and put `<!-- igris:include phases/v2.md -->` on a line of its own where that file's phases belong. Paths are relative to the plan's directory and stay inside the project; only the main plan includes files, each once; task and phase IDs are unique across all of them, and dependencies may cross files. `igris check`, `phases`, `status` and `arise --dry-run` read a split plan as one, and every problem names the file it is in (`phases/v2.md:12: …`). `arise` writes each Status cell in the file its row is in, leaving include lines and every other byte alone, and re-reads every file at each poll: an edit to any of them holds the run, and so does a row moved to another file or an include added or removed. The task prompt names the file the row is in (`TaskFile` in a `prompt_template`), and a worktree run lets its sessions read each file of the plan. `igris adapt` converts one file, so it refuses a split plan: inline the included files, or adapt one of them with `--plan`. igris 1.0 and 1.1 refuse a format-2 plan, so run one with igris 1.2 everywhere. The rules are in [`docs/plan-format.md`](docs/plan-format.md#split-plans-format-2).
+
+### Plan templates
+
+Since 1.2, `igris init --template NAME` writes a starter plan when there is none (never over one, never changing an existing `igris.toml`): `go-cli` (a Go command-line tool), `web-app` (stack decided in M0) or `library` (API decided in M0). Each has phases `M0`, `M1`, …, every phase ends in a gate for you, `M0-01` is yours (**write the spec**, which every other task waits on) and `M0-02` is a decision task in plan mode. **The ranks are suggestions**: the template says so under its title and `init` repeats it, so review the Model column, set `[run] verify`, then run `igris check`. They are in [`examples/templates/`](examples/templates/) and on the [site](https://drilonrecica.github.io/igris/docs/templates.html).
 
 A complete small plan is in [`examples/tasks.md`](examples/tasks.md), and a commented config in [`examples/igris.toml`](examples/igris.toml); copy them and run `igris check` and `igris arise P1 --dry-run` to see how igris reads them. [`examples/advanced/`](examples/advanced/) is the same plan with Verify profiles, Timeouts and Context paths, and the `igris.toml` that defines its profiles.
 
@@ -467,7 +471,7 @@ template = "{{.At.Format \"15:04\"}} {{.TaskID}} {{.What}}"
 | Command | What it does |
 |---|---|
 | `igris` | On a terminal: the [home screen](#home-screen). Piped or scripted: the help, exit 2. |
-| `igris init [--example]` | Creates `igris.toml` and `.igris/`, ignores `.igris/` in git, allows `igris done` for Claude. `--example` also writes the example plan. |
+| `igris init [--example \| --template NAME]` | Creates `igris.toml` and `.igris/`, ignores `.igris/` in git, allows `igris done` for Claude. `--example` also writes the example plan; `--template` (since 1.2: `go-cli`, `web-app` or `library`) writes a starter plan. Neither overwrites a plan. |
 | `igris doctor [--json]` | Read-only health check of the machine and the project. |
 | `igris check [--strict]` | Validates the plan; `--strict` also lints it, for CI. |
 | `igris phases` / `igris status [PHASE]` | Task counts per phase, with each phase's critical path, width and the tasks that could run together (also shown by `arise --dry-run`; igris itself still runs one task at a time) / tasks with rank, owner and what each waits on, plus the current run. |
@@ -552,7 +556,7 @@ All three are read-only: they take no lock and never create `.igris/`. A line th
 
 Bare `igris` on a terminal opens the home screen: the project at a glance. From a new project to a run:
 
-1. **No `igris.toml` yet.** The NOW card is a **GET STARTED** stepper (igris.toml, plan, check, preview, arise). `I` (**Init**) lists the files it would touch and creates only the missing ones; `E` (**Example plan**) writes the example plan when you have none. Nothing is overwritten, so a first run reaches Arise without leaving the TUI.
+1. **No `igris.toml` yet.** The NOW card is a **GET STARTED** stepper (igris.toml, plan, check, preview, arise). `I` (**Init**) lists the files it would touch and creates only the missing ones; `E` (**Plan from template…**) writes the example plan or a template (since 1.2) when you have none. Nothing is overwritten, so a first run reaches Arise without leaving the TUI.
 2. **Look around.** `c` checks the plan, `i` runs the doctor, `h` shows the run history, `,` shows the settings (secrets never in the clear), `e` opens the plan in `$VISUAL`/`$EDITOR`. A plan igris can't read offers `A` (**Adapt**) right there.
 3. **Preview.** `v` shows the dry run: the tasks in order with rank → model and mode, and the warnings.
 4. **Arise.** `a` opens the start-run wizard and then the run view.
@@ -578,7 +582,7 @@ What's on it:
 | `e` | Your editor | The plan (or `igris.toml` from Settings) in `$VISUAL`, else `$EDITOR`. |
 | `A` | Adapt | Runs `igris adapt` in the app (shown when the plan is invalid and the backend is reachable). |
 | `n` | Notify test | Sends a sample of each event to each channel and fills in `✓ ok` or `⨯ FAILED: reason` per row (shown when a channel is set up). |
-| `I` / `E` | Init / Example plan | As in step 1. |
+| `I` / `E` | Init / Plan from template… | As in step 1. |
 | `o` | Open session | Jumps to a running session. |
 | `S` | Side sessions | Since 1.2, a [side session](#side-sessions) of your own; HEALTH shows `SIDE N open` while any are. |
 | `?` / `q` | Help / Quit | |
@@ -685,7 +689,7 @@ Through WSL2, with herdr or tmux and Claude Code installed inside WSL too; see [
 
 Plans, not promises:
 
-- **1.x, additive:** side sessions for a quick question without leaving igris; plan includes; creating plans from a template, a goal or a spec.
+- **1.x, additive:** creating plans from a goal or a spec (1.2 added side sessions, plan includes and templates).
 - **2.0:** running independent tasks in parallel, each in its own worktree and merged back in plan order; remote control from a browser or a notification; usage limits and budgets.
 - **Later:** other agents next to Claude Code (Codex CLI, Kiro CLI, Gemini CLI, …).
 

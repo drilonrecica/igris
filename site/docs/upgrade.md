@@ -45,3 +45,17 @@ What is new, all additive:
 - **Subscription quota**, off until you set `[usage] statusline = true`.
 - **A parallelism report** in `igris phases` and `arise --dry-run`.
 - New `--json` fields and a `usage` schema, new run-log events and a `plans/` and `quota.json` in `.igris/`. Read all of them ignoring what you don't know, as 1.0 already asked.
+
+## From 1.1 to 1.2
+
+Install the new igris and you are done: 1.2 only adds to 1.1, and nothing in your plan, `igris.toml`, scripts or `.igris/` needs to change. A run interrupted under 1.1 resumes. `state.json` stays version 3.
+
+What is new, all additive:
+
+- **[Side sessions](side-sessions.md).** `S` opens a Claude Code session of your own next to a run. New `[side]` settings (`model`, `mode`), a `.igris/side/` directory, and `IGRIS_SIDE` in the session's environment, with which `igris done`, `skip` and `reset` refuse.
+- **[Split plans](split-plans.md).** `<!-- igris:include PATH -->` in a plan that declares `<!-- igris:format 2 -->`. A plan without includes is unchanged and stays format 1.
+- **[Plan templates](templates.md).** `igris init --template go-cli|web-app|library`, and **Plan from template…** on home.
+- **Usage.** A model an attempt used is counted once under each model it ran on, and a run with no `usage` lines says why. Side sessions have a table of their own in `igris usage`.
+- New `--json` fields (`file` on each phase and a `files` list in `check`, `phases` and `status`; a `side` array in `usage`), three new run-log events (`side_opened`, `side_closed`, `side_usage`) with a `side` field. Read all of them ignoring what you don't know, as 1.0 already asked.
+
+**One thing to plan for:** a split plan needs igris 1.2 on every machine that runs it. igris 1.0 and 1.1 refuse a format-2 plan with `plan format 2 needs a newer igris` rather than run only the main file's phases. Going back to 1.1 is fine as long as no plan declares format 2.
