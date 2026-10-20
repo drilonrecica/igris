@@ -210,7 +210,7 @@ func TestRunDeadline(t *testing.T) {
 }
 
 func TestSettings(t *testing.T) {
-	data, err := Settings("/opt/my igris/igris", "/home/o'brien/proj", nil, nil)
+	data, err := Settings("/opt/my igris/igris", "/home/o'brien/proj", nil, nil, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -255,7 +255,7 @@ func TestSettings(t *testing.T) {
 // and nothing more (SPEC §6.8, §7.4).
 func TestSettingsAllow(t *testing.T) {
 	rules := []string{"Bash(igris done:*)", "Bash(igris done *)"}
-	data, err := Settings("/bin/igris", "/p", rules, nil)
+	data, err := Settings("/bin/igris", "/p", rules, nil, "")
 	if err != nil {
 		t.Fatal(err)
 	}

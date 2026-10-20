@@ -86,9 +86,13 @@ func execUsage(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		return exitFail
 	}
 	var in report.HistoryInput
+	var quota *state.Quota
 	name := filepath.Base(cwd)
 	if root, err := state.FindRoot(cwd); err == nil {
 		name = filepath.Base(root)
+		if q, ok, _ := state.ReadQuota(root); ok { // an unusable file is no quota
+			quota = &q
+		}
 		if in, err = project.HistoryInput(root, 0); err != nil {
 			fmt.Fprintf(stderr, "igris usage: %v\n", err)
 			return exitFail
@@ -111,6 +115,7 @@ func execUsage(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "igris usage: %v\n", err)
 		return exitFail
 	}
+	u.Quota = quota
 	if jsonFlag(fs) {
 		writeJSON(stdout, u)
 	} else {
@@ -195,7 +200,7 @@ func printUsage(w io.Writer, u report.Usage, color bool) {
 		}
 		fmt.Fprintf(w, "  ⚠ %s\n", line)
 	}
-	fmt.Fprint(w, "\nQuota: quota unavailable\n")
+	fmt.Fprintf(w, "\nQuota: %s\n", quotaText(u.Quota))
 	fmt.Fprint(w, "\nTokens recorded in the session transcripts, not a bill.\n")
 }
 
@@ -235,4 +240,24 @@ func allModels(lists ...[]string) []string {
 		}
 	}
 	return out
+}
+
+// quotaText is the subscription quota as `igris usage` prints it: each
+// window with its reset time, and when it was recorded, or `quota
+// unavailable` when the status line never recorded one (SPEC §6.3, §14).
+func quotaText(q *state.Quota) string {
+	if q == nil {
+		return "quota unavailable"
+	}
+	const layout = "2006-01-02 15:04"
+	var parts []string
+	for _, w := range []struct {
+		name string
+		w    *state.QuotaWindow
+	}{{"5h", q.FiveHour}, {"7d", q.SevenDay}} {
+		if w.w != nil {
+			parts = append(parts, fmt.Sprintf("%s %.0f%% (resets %s)", w.name, w.w.Used, time.Unix(w.w.ResetsAt, 0).Format(layout)))
+		}
+	}
+	return strings.Join(parts, " · ") + " · recorded " + q.At.Local().Format(layout)
 }

@@ -1,10 +1,14 @@
 package tui
 
 import (
+	"fmt"
+	"math"
 	"strings"
+	"time"
 
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/plan"
+	"github.com/drilonrecica/igris/internal/state"
 	"github.com/drilonrecica/igris/internal/usage"
 )
 
@@ -83,10 +87,15 @@ func line(lines []string, i int) string {
 func (m *model) topRule(w int) string {
 	title := " " + m.th.paint(lookAccentBold, "igris") + " · " + m.opts.Project + " "
 	facts := ""
+	// The quota goes first when the width runs out, before the progress
+	// bar is shortened (SPEC §15.1).
+fit:
 	for level := range progressLevels {
-		facts = " " + m.facts(false, level) + " "
-		if w-2-textWidth(title)-textWidth(facts) >= 1 {
-			break
+		for _, quota := range []bool{true, false} {
+			facts = " " + m.facts(false, level, quota) + " "
+			if w-2-textWidth(title)-textWidth(facts) >= 1 {
+				break fit
+			}
 		}
 	}
 	fill := w - 2 - textWidth(title) - textWidth(facts)
@@ -100,8 +109,8 @@ func (m *model) topRule(w int) string {
 // facts are the header's run facts: phase and its progress, mode,
 // backend, pause. The narrow status bar has the shorter bar and, next to
 // the progress, the phase without "phase"; level says how much of the
-// progress to show.
-func (m *model) facts(narrow bool, level int) string {
+// progress to show, quota whether to add the subscription quota.
+func (m *model) facts(narrow bool, level int, quota bool) string {
 	var parts []string
 	if m.phase != "" {
 		cells := wideProgressBar
@@ -125,6 +134,9 @@ func (m *model) facts(narrow bool, level int) string {
 		parts = append(parts, m.th.paint(lookAlert, "SKIP PERMISSIONS"))
 	}
 	parts = append(parts, m.opts.Backend)
+	if q := m.quotaText(); quota && q != "" {
+		parts = append(parts, q)
+	}
 	if m.paused {
 		parts = append(parts, m.th.paint(lookTitle, "PAUSE AFTER TASK"))
 	}
@@ -469,4 +481,54 @@ func (m *model) tokensLine(w int) string {
 		line += " · " + id
 	}
 	return fit(line, w)
+}
+
+// quotaStale is how old the recorded quota may get before the header says
+// so (SPEC §15.1).
+const quotaStale = 10 * time.Minute
+
+// quotaText is the header's subscription quota, `5h 4% · 7d 52%` (amber from
+// 80%, red from 95%, with the age once it is over 10 minutes old); "" when
+// none was recorded.
+func (m *model) quotaText() string {
+	q := m.quota
+	if q == nil {
+		return ""
+	}
+	var parts []string
+	for _, w := range []struct {
+		name string
+		w    *state.QuotaWindow
+	}{{"5h", q.FiveHour}, {"7d", q.SevenDay}} {
+		if w.w == nil {
+			continue
+		}
+		look := lookPlain
+		switch {
+		case w.w.Used >= 95:
+			look = lookAlert
+		case w.w.Used >= 80:
+			look = lookWarn
+		}
+		parts = append(parts, m.th.paint(look, fmt.Sprintf("%s %.0f%%", w.name, math.Round(w.w.Used))))
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	text := strings.Join(parts, " · ")
+	if age := m.opts.Now().Sub(q.At); age > quotaStale {
+		text += " · " + m.th.paint(lookDim, ageText(age)+" ago")
+	}
+	return text
+}
+
+// ageText is a short age: 25m, 3h, 2d.
+func ageText(d time.Duration) string {
+	switch {
+	case d < time.Hour:
+		return fmt.Sprintf("%dm", int(d/time.Minute))
+	case d < 24*time.Hour:
+		return fmt.Sprintf("%dh", int(d/time.Hour))
+	}
+	return fmt.Sprintf("%dd", int(d/(24*time.Hour)))
 }

@@ -71,9 +71,12 @@ func (m *model) narrowView() string {
 func (m *model) statusBar(w int) string {
 	head := m.th.paint(lookAccentBold, "igris") + " · " + m.opts.Project + " · "
 	s := ""
+fit:
 	for level := range progressLevels {
-		if s = head + m.facts(true, level); textWidth(s) <= w {
-			break
+		for _, quota := range []bool{true, false} {
+			if s = head + m.facts(true, level, quota); textWidth(s) <= w {
+				break fit
+			}
 		}
 	}
 	return fit(s, w)

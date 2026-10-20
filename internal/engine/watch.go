@@ -137,6 +137,7 @@ func (e *Engine) watch(ctx context.Context, l *launch) (verdict, error) {
 				e.checkPlanRequest(ctx, l)
 				e.observe(ctx, l, st, &ep)
 				e.readUsage(l, false)
+				e.readQuota()
 				e.auditRank(ctx, l, false)
 			}
 			e.checkOverdue(ctx, l)

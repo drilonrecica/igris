@@ -144,7 +144,10 @@ type Usage struct {
 	Ranks       []UsageRank  `json:"ranks"`  // most tokens first
 	Top         []UsageTask  `json:"top"`    // TopTasks tasks by in + out
 	Audit       UsageAudit   `json:"audit"`
-	Note        string       `json:"note,omitempty"` // as History.Note
+	// Quota is the subscription quota last recorded by igris's status line
+	// (SPEC §6.3), nil when none is: the caller fills it in.
+	Quota *state.Quota `json:"quota"`
+	Note  string       `json:"note,omitempty"` // as History.Note
 }
 
 // NewUsage reports the usage of the run sel names (as for NewReport), or

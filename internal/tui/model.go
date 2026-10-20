@@ -71,6 +71,10 @@ type model struct {
 
 	width, height int
 
+	// quota is the subscription quota the status line recorded (SPEC §6.3,
+	// §15.1); nil until one is, and always without [usage] statusline.
+	quota *state.Quota
+
 	phase string
 	// slice holds the IDs of a sliced run's tasks (SPEC §5.5), from
 	// RunStarted; nil when the run takes its phases whole.
@@ -692,6 +696,8 @@ func (m *model) event(ev engine.Event) {
 		if m.cur != nil && m.cur.id == ev.Task {
 			m.cur.tokens = ev.Tokens
 		}
+	case engine.QuotaRead:
+		m.quota = ev.Quota
 	case engine.TaskOverdue:
 		if m.cur != nil {
 			m.cur.overdue = ev.Detail

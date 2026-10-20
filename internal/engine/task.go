@@ -206,7 +206,7 @@ func (e *Engine) prepareSession(l *launch, how startKind) (sessionStart, error) 
 	if e.run.Worktree != nil {
 		allow = e.worktreeAllow()
 	}
-	hooks, err := WriteHooks(e.dir, t.ID, e.opts.IgrisPath, allow, e.planApproval(st.mode))
+	hooks, err := WriteHooks(e.dir, t.ID, e.opts.IgrisPath, allow, e.planApproval(st.mode), e.cfg.Usage.Statusline)
 	if err != nil {
 		return st, err
 	}

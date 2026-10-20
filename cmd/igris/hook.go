@@ -16,7 +16,9 @@ import (
 // block the session. The event name argument is informational; the event
 // on stdin decides. `igris hook [--root DIR] plan-approve --mode M --wait D`
 // is the plan approval hook: it waits for igris and prints Claude Code's
-// answer, or nothing.
+// answer, or nothing. `igris hook [--root DIR] statusline ID` is the status
+// line command ([usage] statusline): it prints the one status line and
+// records the subscription quota.
 func execHook(args []string, stdin io.Reader, stdout io.Writer) int {
 	root := ""
 	if len(args) >= 2 && args[0] == "--root" {
@@ -33,6 +35,14 @@ func execHook(args []string, stdin io.Reader, stdout io.Writer) int {
 	}
 	if len(args) > 0 && args[0] == hook.PlanCommand {
 		approvePlan(root, args[1:], stdin, stdout)
+		return exitOK
+	}
+	if len(args) > 0 && args[0] == hook.StatusLineCommand {
+		task := ""
+		if len(args) > 1 {
+			task = args[1]
+		}
+		_ = hook.StatusLine(context.Background(), root, task, stdin, stdout, time.Now)
 		return exitOK
 	}
 	_ = hook.Run(context.Background(), root, stdin, time.Now)

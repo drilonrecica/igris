@@ -20,6 +20,7 @@ const (
 	lookAccent          // the working color: running, done, borders of dialogs
 	lookAccentBold      // the app title, the focused region, what wants a click
 	lookAlert           // needs the owner; skip permissions
+	lookWarn            // running low: the subscription quota from 80%
 	lookFrame           // box lines and rules
 	lookTitle           // titles and what matters now
 	lookDim             // finished or unavailable; secondary text
@@ -51,6 +52,7 @@ var (
 	accentShade = shade{"#3CC8FF", "#0A86C8"}
 	alertShade  = shade{"#E3172B", "#E3172B"}
 	frameShade  = shade{"#2C5AA0", "#8FA9CC"}
+	warnShade   = shade{"#FFB000", "#9A6700"}
 )
 
 // rankShades are the colors of the stock ranks; [tui.rank_colors] sets
@@ -87,6 +89,7 @@ func newTheme(r *lipgloss.Renderer, dark bool, rankColors map[string]string) *th
 		lookAccent:     {color: accent},
 		lookAccentBold: {color: accent, attrs: sgrBold},
 		lookAlert:      {color: alertShade.pick(dark), attrs: sgrBold},
+		lookWarn:       {color: warnShade.pick(dark), attrs: sgrBold},
 		lookFrame:      {color: frameShade.pick(dark)},
 		lookTitle:      {attrs: sgrBold},
 		lookDim:        {attrs: sgrFaint},

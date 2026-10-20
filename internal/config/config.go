@@ -239,6 +239,9 @@ func (p PlanMode) ApproveTimeoutOrDefault() time.Duration {
 type Usage struct {
 	// Enabled is nil when not set: see On.
 	Enabled *bool `toml:"enabled,omitempty" json:",omitempty"`
+	// Statusline makes igris's status line the one in task panes, to record
+	// the subscription quota (SPEC §6.3). It replaces the owner's own.
+	Statusline bool `toml:"statusline,omitempty" json:",omitempty"`
 }
 
 // On reports whether igris reads its sessions' transcripts for usage and

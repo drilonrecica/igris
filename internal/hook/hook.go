@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/drilonrecica/igris/internal/backend"
+	planpkg "github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/state"
 )
 
@@ -171,8 +172,10 @@ func record(root string, in io.Reader, now func() time.Time) error {
 // .claude/settings.local.json (SPEC §6.8). plan, when not nil, adds the
 // plan approval entry: a second PermissionRequest matcher for ExitPlanMode
 // that runs plan-approve with the mode and the wait as arguments, so a
-// session can't change either once it runs (SPEC §6.3).
-func Settings(exe, root string, allow []string, plan *PlanApproval) ([]byte, error) {
+// session can't change either once it runs (SPEC §6.3). statusTask, when
+// not empty, is the task ID of a session whose status line is igris's, to
+// record the subscription quota (StatusLineCommand, [usage] statusline).
+func Settings(exe, root string, allow []string, plan *PlanApproval, statusTask string) ([]byte, error) {
 	type command struct {
 		Type    string `json:"type"`
 		Command string `json:"command"`
@@ -208,6 +211,16 @@ func Settings(exe, root string, allow []string, plan *PlanApproval) ([]byte, err
 		}}})
 	}
 	settings := map[string]any{"hooks": hooks}
+	if statusTask != "" {
+		if !planpkg.ValidID(statusTask) {
+			return nil, fmt.Errorf("hooks settings: invalid task ID %q for the status line", statusTask)
+		}
+		settings["statusLine"] = map[string]string{
+			"type": "command",
+			"command": shellQuote(exe) + " hook --root " + shellQuote(root) + " " + StatusLineCommand +
+				" " + shellQuote(statusTask),
+		}
+	}
 	if len(allow) > 0 {
 		settings["permissions"] = map[string]any{"allow": allow}
 	}

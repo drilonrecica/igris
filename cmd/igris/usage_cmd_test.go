@@ -2,11 +2,14 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/drilonrecica/igris/internal/state"
 )
 
 // TestUsageGoldens pins the text and --json output of `igris usage` on the
@@ -71,5 +74,48 @@ func TestUsageReadOnlyAndArgs(t *testing.T) {
 	out.Reset()
 	if code := run([]string{"usage"}, &out, &errb); code != exitOK || !strings.Contains(out.String(), "0 attempts") {
 		t.Errorf("run without usage: code %d, out %q, err %q", code, out.String(), errb.String())
+	}
+}
+
+// The quota line shows what igris's status line recorded, with its time and
+// reset times, and `quota unavailable` otherwise (SPEC §6.3, §14).
+func TestUsageQuotaLine(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	d, err := state.Open(root, state.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = d
+	writeLog(t, root, []byte(`{"v":1,"at":"2026-10-01T09:00:00Z","type":"run_started","run":"20261001-090000-3fa2","detail":"phase A"}`+"\n"))
+	var out, errb bytes.Buffer
+	if code := run([]string{"usage"}, &out, &errb); code != exitOK || !strings.Contains(out.String(), "Quota: quota unavailable") {
+		t.Fatalf("no quota: code %d, out %q, err %q", code, out.String(), errb.String())
+	}
+	q := state.Quota{At: time.Date(2026, 10, 20, 12, 0, 0, 0, time.Local),
+		FiveHour: &state.QuotaWindow{Used: 4, ResetsAt: time.Date(2026, 10, 20, 15, 0, 0, 0, time.Local).Unix()},
+		SevenDay: &state.QuotaWindow{Used: 52, ResetsAt: time.Date(2026, 10, 25, 9, 30, 0, 0, time.Local).Unix()}}
+	if err := state.WriteQuota(root, q); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	if code := run([]string{"usage"}, &out, &errb); code != exitOK {
+		t.Fatalf("code %d, err %q", code, errb.String())
+	}
+	want := "Quota: 5h 4% (resets 2026-10-20 15:00) · 7d 52% (resets 2026-10-25 09:30) · recorded 2026-10-20 12:00\n"
+	if !strings.Contains(out.String(), want) {
+		t.Errorf("out %q lacks %q", out.String(), want)
+	}
+	out.Reset()
+	if code := run([]string{"usage", "--json"}, &out, &errb); code != exitOK {
+		t.Fatalf("json: code %d", code)
+	}
+	var got struct {
+		Quota *struct {
+			FiveHour struct{ Used float64 } `json:"five_hour"`
+		} `json:"quota"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil || got.Quota == nil || got.Quota.FiveHour.Used != 4 {
+		t.Errorf("json quota = %+v err %v\n%s", got, err, out.String())
 	}
 }

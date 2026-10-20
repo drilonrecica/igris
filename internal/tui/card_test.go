@@ -2,12 +2,17 @@ package tui
 
 import (
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
+
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/engine"
+	"github.com/drilonrecica/igris/internal/state"
 )
 
 // The CURRENT card says what the task is about, offers its details and
@@ -248,5 +253,47 @@ func TestCardTokenModelIsRedOnMismatch(t *testing.T) {
 	paint := hs.m.th.paint(lookAlert, "claude-opus-5-5")
 	if !strings.Contains(red, "· "+paint) || strings.Contains(plain, paint) {
 		t.Errorf("model id not painted only on a mismatch:\n%s", red)
+	}
+}
+
+// The header shows the subscription quota once one is recorded (SPEC
+// §15.1): amber from 80%, red from 95% (words carry the meaning, so the
+// plain text is what is checked), its age once over 10 minutes, dropped
+// before the progress bar when the width runs out.
+func TestHeaderShowsTheQuota(t *testing.T) {
+	hs := cardHarness(t, 120, 40, "M0-02")
+	if v := hs.m.View(); strings.Contains(v, "5h ") {
+		t.Errorf("quota shown before one is recorded:\n%s", v)
+	}
+	at := hs.now
+	hs.events(engine.Event{Kind: engine.QuotaRead, Quota: &state.Quota{At: at,
+		FiveHour: &state.QuotaWindow{Used: 4, ResetsAt: 1}, SevenDay: &state.QuotaWindow{Used: 52, ResetsAt: 2}}})
+	first := strings.Split(hs.m.View(), "\n")[0]
+	if !strings.Contains(first, "5h 4% · 7d 52%") || strings.Contains(first, "ago") {
+		t.Errorf("header = %q", first)
+	}
+	hs.now = hs.now.Add(25 * time.Minute)
+	if first = strings.Split(hs.m.View(), "\n")[0]; !strings.Contains(first, "5h 4% · 7d 52% · 25m ago") {
+		t.Errorf("stale header = %q", first)
+	}
+	// Whatever the width, the header still fits with the quota in it.
+	for _, w := range []int{100, 70, 50} {
+		n := cardHarness(t, w, 24, "M0-02")
+		n.events(engine.Event{Kind: engine.QuotaRead, Quota: &state.Quota{At: n.now, FiveHour: &state.QuotaWindow{Used: 96, ResetsAt: 1}}})
+		checkFits(t, n.m.View(), w, 24)
+	}
+}
+
+func TestQuotaWarningLooks(t *testing.T) {
+	m := &model{th: &theme{}, opts: Options{Now: func() time.Time { return t0 }}}
+	m.quota = &state.Quota{At: t0, FiveHour: &state.QuotaWindow{Used: 96}, SevenDay: &state.QuotaWindow{Used: 81.4}}
+	if got := m.quotaText(); got != "5h 96% · 7d 81%" {
+		t.Errorf("quotaText = %q", got)
+	}
+	m.th = newTheme(lipgloss.NewRenderer(io.Discard), true, nil)
+	m.th.r.SetColorProfile(termenv.TrueColor)
+	got := m.quotaText()
+	if !strings.Contains(got, m.th.paint(lookAlert, "5h 96%")) || !strings.Contains(got, m.th.paint(lookWarn, "7d 81%")) {
+		t.Errorf("quotaText = %q", got)
 	}
 }

@@ -64,6 +64,7 @@
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `enabled` | boolean | `true` | Read the task sessions' transcripts for token usage in the run log (SPEC §6.9). `false` reads none. |
+| `statusline` | boolean | `false` | Use igris's status line in task panes to record your subscription quota (5-hour and 7-day usage) for the header and `igris usage` (SPEC §6.3). It replaces your own status line in those panes. `false` leaves it alone and the quota is unavailable. |
 
 ## `[adapt]`
 

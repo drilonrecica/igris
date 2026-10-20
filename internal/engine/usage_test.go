@@ -254,3 +254,71 @@ func TestUsageStopAndResume(t *testing.T) {
 		t.Fatalf("usage lines = %+v", lines)
 	}
 }
+
+// With [usage] statusline the UI hears of the quota the status line
+// recorded, once per change; without it, never (SPEC §6.3).
+func TestQuotaEvents(t *testing.T) {
+	for _, on := range []bool{true, false} {
+		toml := usageOn
+		if on {
+			toml += "statusline = true\n"
+		}
+		h := newHarness(t, chainPlan, toml)
+		q := state.Quota{At: t0, FiveHour: &state.QuotaWindow{Used: 4, ResetsAt: 1792518000}}
+		h.reportTranscripts()
+		h.autoSignalExcept("A-1")
+		prev := h.onEvent
+		h.onEvent = func(ev Event) {
+			prev(ev)
+			if ev.Kind == SessionOpened && ev.Task == "A-1" {
+				if err := state.WriteQuota(h.root, q); err != nil {
+					t.Error(err)
+				}
+				h.clock.At(ev.At.Sub(t0)+15*time.Second, func() {
+					q.FiveHour = &state.QuotaWindow{Used: 9, ResetsAt: 1792518000}
+					q.At = h.clock.Now()
+					if err := state.WriteQuota(h.root, q); err != nil {
+						t.Error(err)
+					}
+				})
+				h.signalAt(ev.At.Sub(t0)+40*time.Second, "A-1")
+			}
+		}
+		if _, err := h.run(); err != nil {
+			t.Fatalf("Run: %v", err)
+		}
+		var got []float64
+		for _, ev := range h.events {
+			if ev.Kind == QuotaRead {
+				got = append(got, ev.Quota.FiveHour.Used)
+			}
+		}
+		if want := []float64{4, 9}; on && !reflect.DeepEqual(got, want) {
+			t.Errorf("statusline on: quota events %v, want %v", got, want)
+		} else if !on && len(got) != 0 {
+			t.Errorf("statusline off: quota events %v", got)
+		}
+	}
+}
+
+// A task's settings file has igris's status line only with [usage]
+// statusline (SPEC §6.3).
+func TestHooksFileStatusLine(t *testing.T) {
+	for _, on := range []bool{true, false} {
+		dir, err := state.Open(t.TempDir(), state.Options{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		path, err := WriteHooks(dir, "A-1", "/bin/igris", nil, nil, on)
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, err := os.ReadFile(path) //nolint:gosec // test temp dir
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := strings.Contains(string(data), `"statusLine"`); got != on {
+			t.Errorf("statusline %v: settings file has it = %v\n%s", on, got, data)
+		}
+	}
+}

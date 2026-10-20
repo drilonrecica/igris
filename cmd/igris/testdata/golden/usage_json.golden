@@ -37,6 +37,7 @@ exit: 0
     "unavailable": 0,
     "mismatch": 0,
     "mismatches": []
-  }
+  },
+  "quota": null
 }
 --- stderr

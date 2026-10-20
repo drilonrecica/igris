@@ -191,3 +191,34 @@ func (e *Engine) endUsage(ctx context.Context, l *launch) {
 	}
 	e.log(ev)
 }
+
+// quotaWatch remembers the subscription quota last shown to the UI.
+type quotaWatch struct {
+	last  time.Time // the last read
+	shown *state.Quota
+}
+
+// readQuota looks at the quota the status line recorded, at most every
+// usageEvery, and tells the UI when its windows changed (SPEC §6.3). It
+// does nothing unless [usage] statusline is on; a quota.json that can't be
+// read counts as none, since a session can write it.
+func (e *Engine) readQuota() {
+	if !e.cfg.Usage.Statusline {
+		return
+	}
+	now := e.clock.Now()
+	w := &e.quota
+	if !w.last.IsZero() && now.Sub(w.last) < usageEvery {
+		return
+	}
+	w.last = now
+	q, ok, _ := state.ReadQuota(e.dir.Root())
+	if !ok {
+		return
+	}
+	if w.shown != nil && w.shown.SameWindows(q) && w.shown.At.Equal(q.At) {
+		return
+	}
+	w.shown = &q
+	e.emit(Event{Kind: QuotaRead, Quota: &q})
+}

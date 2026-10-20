@@ -129,6 +129,63 @@
     "note": {
       "type": "string",
       "description": "Lines of runs.jsonl that could not be used, or come from a newer igris."
+    },
+    "quota": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "The subscription quota igris's status line last recorded (needs [usage] statusline = true, SPEC §6.3); null when none was. The age is at. Not a cost.",
+      "properties": {
+        "at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When it was recorded."
+        },
+        "five_hour": {
+          "type": "object",
+          "description": "One subscription rate-limit window.",
+          "properties": {
+            "used": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Percent of the window used."
+            },
+            "resets_at": {
+              "type": "integer",
+              "description": "When the window resets, Unix seconds."
+            }
+          },
+          "required": [
+            "used",
+            "resets_at"
+          ]
+        },
+        "seven_day": {
+          "type": "object",
+          "description": "One subscription rate-limit window.",
+          "properties": {
+            "used": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Percent of the window used."
+            },
+            "resets_at": {
+              "type": "integer",
+              "description": "When the window resets, Unix seconds."
+            }
+          },
+          "required": [
+            "used",
+            "resets_at"
+          ]
+        }
+      },
+      "required": [
+        "at"
+      ]
     }
   },
   "required": [

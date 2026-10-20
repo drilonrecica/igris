@@ -254,7 +254,7 @@ func TestApprovePlanRefuses(t *testing.T) {
 }
 
 func TestSettingsPlanApproval(t *testing.T) {
-	data, err := Settings("/bin/igris", "/p", nil, &PlanApproval{Mode: "auto", Wait: 30 * time.Minute})
+	data, err := Settings("/bin/igris", "/p", nil, &PlanApproval{Mode: "auto", Wait: 30 * time.Minute}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -262,7 +262,7 @@ func TestSettingsPlanApproval(t *testing.T) {
 		t.Errorf("settings:\n%s", data)
 	}
 	for _, bad := range []PlanApproval{{Mode: "dontAsk", Wait: time.Minute}, {Mode: "plan", Wait: time.Minute}, {Mode: "auto"}} {
-		if _, err := Settings("/bin/igris", "/p", nil, &bad); err == nil {
+		if _, err := Settings("/bin/igris", "/p", nil, &bad, ""); err == nil {
 			t.Errorf("%+v accepted", bad)
 		}
 	}
@@ -277,7 +277,7 @@ func TestApprovePlanAllowBypass(t *testing.T) {
 	if !strings.Contains(out, `{"type":"setMode","mode":"bypassPermissions","destination":"session"}`) {
 		t.Errorf("output %s", out)
 	}
-	data, err := Settings("/bin/igris", "/p", nil, &PlanApproval{Mode: "bypassPermissions", Wait: time.Minute})
+	data, err := Settings("/bin/igris", "/p", nil, &PlanApproval{Mode: "bypassPermissions", Wait: time.Minute}, "")
 	if err != nil || !strings.Contains(string(data), "plan-approve --mode 'bypassPermissions'") {
 		t.Errorf("settings %s, %v", data, err)
 	}

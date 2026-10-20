@@ -626,7 +626,7 @@ func formatEvent(ev engine.Event) []string {
 		return []string{id + " is working again"}
 	case engine.AgentWaiting:
 		return []string{id + " waits on background work; Claude Code resumes it when that is done"}
-	case engine.AgentWaitingOver, engine.UsageRead:
+	case engine.AgentWaitingOver, engine.UsageRead, engine.QuotaRead:
 		return nil // the card shows it; the next event says what followed
 	case engine.Nudged:
 		return []string{id + " stopped without igris done; igris reminded it once"}

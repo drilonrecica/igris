@@ -202,6 +202,7 @@ type Engine struct {
 	attempts map[string]int  // the last attempt of each agent task in this run (SPEC §13)
 	// configMoved: igris.toml differs from the one of the run being resumed.
 	configMoved bool
+	quota       quotaWatch        // the subscription quota last read (SPEC §6.3)
 	runMode     string            // the run mode chosen for this run; see CmdMode
 	overrides   map[string]string // per-task modes by task ID; see CmdTaskMode
 	yoloOK      bool              // skip-permissions mode was confirmed through CmdMode or CmdTaskMode
