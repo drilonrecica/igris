@@ -2,12 +2,12 @@
 
 ## Supported versions
 
-igris is pre-1.0. Only the latest release gets security fixes.
+Security fixes go to the latest 1.x minor release, as a patch version. Upgrading within 1.x is safe: 1.x keeps the 1.0 contract ([`docs/compatibility.md`](docs/compatibility.md)).
 
 | Version | Supported |
 |---|---|
-| latest 0.6.x | yes |
-| older | no — please upgrade |
+| latest 1.x | yes |
+| 0.x and release candidates | no — please upgrade to 1.x |
 
 ## Reporting a vulnerability
 

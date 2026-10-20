@@ -22,7 +22,7 @@
 
 You write the plan and decide which tasks need Fable, which need Opus and which are fine on Sonnet. igris makes sure that's what happens: it never runs a Sonnet task on a more expensive model, never lets one task's context bleed into the next, and stops to wait for you whenever a task needs a decision.
 
-> **Status:** v1.0.0-rc.2, the release candidate for 1.0: what 1.x keeps stable is in [`docs/compatibility.md`](docs/compatibility.md). The latest stable release, and the one Homebrew installs, is v0.6.0. Linux and macOS, Windows through WSL2; runs in herdr or tmux. The full behavior is specified in [`SPEC.md`](SPEC.md).
+> **Status:** v1.0.0, stable: what 1.x keeps stable is in [`docs/compatibility.md`](docs/compatibility.md). Linux and macOS, Windows through WSL2; runs in herdr or tmux. The full behavior is specified in [`SPEC.md`](SPEC.md).
 
 **Contents:** [Why](#why) · [Quick start](#quick-start) · [Install](#install) · [Where igris runs](#where-igris-runs) · [Your plan](#your-plan) · [Running a phase](#running-a-phase) · [Verification and commits](#verification-and-commits) · [Worktree mode](#worktree-mode) · [Modes](#modes) · [Notifications](#notifications) · [Commands](#commands) · [The TUI](#the-tui) · [Security](#security) · [FAQ](#faq)
 
@@ -661,9 +661,11 @@ Through WSL2, with herdr or tmux and Claude Code installed inside WSL too; see [
 
 ## Roadmap
 
-- **v0.7, contract freeze:** the plan format, `igris.toml` and the file formats written down as versioned schemas, a compatibility suite, `igris config migrate`, then a release candidate.
-- **v1.0, stable:** a soak on herdr and tmux, an upgrade guide, a final review.
-- **After 1.0:** more multiplexers (zellij), plan includes; later, running independent tasks in parallel (each in its own worktree), remote control, and usage visibility.
+Plans, not promises:
+
+- **1.x, additive:** approving a plan-mode session's plan from igris, and the mode it continues in; usage per run, task and model, with a check that each task ran on its rank's model; side sessions for a quick question without leaving igris; plan includes; creating plans from a template, a goal or a spec.
+- **2.0:** running independent tasks in parallel, each in its own worktree and merged back in plan order; remote control from a browser or a notification; usage limits and budgets.
+- **Later:** other agents next to Claude Code (Codex CLI, Kiro CLI, Gemini CLI, …).
 
 ## Development
 
