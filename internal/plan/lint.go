@@ -36,7 +36,7 @@ type Lint struct {
 func (p *Plan) Lint() []Lint {
 	var out []Lint
 	add := func(t *Task, name, format string, a ...any) {
-		out = append(out, Lint{Name: name, Issue: Issue{File: p.Path, Line: t.Line, Msg: fmt.Sprintf(format, a...)}})
+		out = append(out, Lint{Name: name, Issue: Issue{File: t.Phase.File, Line: t.Line, Msg: fmt.Sprintf(format, a...)}})
 	}
 	for _, t := range p.Tasks {
 		if t.Status.Satisfied() {
@@ -66,7 +66,8 @@ func (p *Plan) Lint() []Lint {
 			add(t, LintFable, "%s: the only heavy-rank task of phase %s is fable; check that this task needs fable", t.ID, t.Phase.ID)
 		}
 	}
-	sort.SliceStable(out, func(i, j int) bool { return out[i].Line < out[j].Line })
+	less := p.issueOrder()
+	sort.SliceStable(out, func(i, j int) bool { return less(out[i].Issue, out[j].Issue) })
 	return out
 }
 

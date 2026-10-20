@@ -20,16 +20,16 @@ const MaxContext = 20
 // with a trailing slash, or leading outside the root once symlinks are
 // resolved. igris only names the paths in the
 // prompt; it never reads the files.
-func (v *validator) checkContext(at int, name string, t *Task) {
+func (v *validator) checkContext(t *Task, name string) {
 	if len(t.Context) > MaxContext {
-		v.add(at, "%s: Context lists %d paths, more than %d; name only the files and directories the task must read", name, len(t.Context), MaxContext)
+		v.task(t, "%s: Context lists %d paths, more than %d; name only the files and directories the task must read", name, len(t.Context), MaxContext)
 	}
 	for _, e := range t.Context {
 		if textsafe.HasControl(e) {
 			continue // the row is reported for it already (SPEC §3.5)
 		}
 		if msg := v.contextProblem(e); msg != "" {
-			v.add(at, "%s: Context %q %s", name, e, msg)
+			v.task(t, "%s: Context %q %s", name, e, msg)
 		}
 	}
 }
@@ -71,19 +71,10 @@ func (v *validator) contextProblem(e string) string {
 }
 
 // realRoot is the root Context paths are resolved against, absolute and
-// with symlinks resolved, computed once per validation. Abs comes first:
-// for "." it reads $PWD, which may name a symlink.
+// with symlinks resolved, computed once per validation.
 func (v *validator) realRoot() (string, error) {
 	if v.root == "" && v.rootErr == nil {
-		root := v.rules.Root
-		if root == "" {
-			root = "."
-		}
-		r, err := filepath.Abs(root)
-		if err == nil {
-			r, err = filepath.EvalSymlinks(r)
-		}
-		v.root, v.rootErr = r, err
+		v.root, v.rootErr = resolveRoot(v.rules.Root)
 	}
 	return v.root, v.rootErr
 }

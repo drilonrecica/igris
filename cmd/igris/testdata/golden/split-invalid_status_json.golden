@@ -1,0 +1,50 @@
+exit: 1
+--- stdout
+{
+  "v": 1,
+  "issues": [
+    {
+      "file": "tasks.md",
+      "line": 9,
+      "message": "an include needs plan format 2; add \u003c!-- igris:format 2 --\u003e on a line of its own before the first ## heading"
+    },
+    {
+      "file": "phases/b.md",
+      "line": 5,
+      "message": "task A-1 is also in tasks.md:7; task IDs must be unique across the plan's files"
+    },
+    {
+      "file": "phases/b.md",
+      "line": 8,
+      "message": "only the main plan may include files; move this include to tasks.md"
+    },
+    {
+      "file": "tasks.md",
+      "line": 10,
+      "message": "an include needs plan format 2; add \u003c!-- igris:format 2 --\u003e on a line of its own before the first ## heading"
+    },
+    {
+      "file": "tasks.md",
+      "line": 10,
+      "message": "included file phases/missing.md does not exist; fix the path or remove the include"
+    },
+    {
+      "file": "tasks.md",
+      "line": 11,
+      "message": "an include needs plan format 2; add \u003c!-- igris:format 2 --\u003e on a line of its own before the first ## heading"
+    },
+    {
+      "file": "tasks.md",
+      "line": 11,
+      "message": "include \"../outside.md\" has a .. element; included files must stay inside the project"
+    },
+    {
+      "file": "tasks.md",
+      "line": 17,
+      "message": "C-1 depends on unknown task B-9; check the ID or remove it from Deps"
+    }
+  ],
+  "plan": "tasks.md",
+  "valid": false
+}
+--- stderr

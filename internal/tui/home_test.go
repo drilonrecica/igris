@@ -166,7 +166,7 @@ var homeStates = []struct {
 	}},
 	{"plan_newer_format", func() homeFixture {
 		s := homeSnap("ready")
-		s.Plan = plan.Parse("tasks.md", []byte("<!-- igris:format 2 -->\n"+homeInvalidPlan), plan.Options{})
+		s.Plan = plan.Parse("tasks.md", []byte("<!-- igris:format 3 -->\n"+homeInvalidPlan), plan.Options{})
 		s.Issues = report.Issues(s.Plan.Validate(s.Config.Rules("")))
 		s.Status, s.Recent = nil, nil
 		return homeFixture{snap: s, doctor: homeDoctor, doctorDone: true}

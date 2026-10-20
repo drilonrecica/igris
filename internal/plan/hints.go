@@ -1,7 +1,6 @@
 package plan
 
 import (
-	"sort"
 	"strings"
 )
 
@@ -27,7 +26,7 @@ func (p *Plan) Hints() []Issue {
 		}
 		for _, c := range ph.Columns {
 			if depsLikeColumns[strings.ToLower(c)] {
-				out = append(out, Issue{File: p.Path, Line: ph.tableLine, Msg: "column \"" + c + "\" looks like dependencies, but igris reads them only from a Deps column, so every task in phase " + ph.ID + " runs as if it had none; rename the column to Deps or add \"" + c + "\" = \"Deps\" under [columns] in igris.toml"})
+				out = append(out, Issue{File: ph.File, Line: ph.tableLine, Msg: "column \"" + c + "\" looks like dependencies, but igris reads them only from a Deps column, so every task in phase " + ph.ID + " runs as if it had none; rename the column to Deps or add \"" + c + "\" = \"Deps\" under [columns] in igris.toml"})
 				break
 			}
 		}
@@ -38,10 +37,10 @@ func (p *Plan) Hints() []Issue {
 		}
 		for _, c := range []struct{ name, value string }{{ColVerify, t.Verify}, {ColTimeout, t.TimeoutText}, {ColContext, t.ContextText}} {
 			if c.value != "" {
-				out = append(out, Issue{File: p.Path, Line: t.Line, Msg: t.ID + ": user tasks have no session, so its " + c.name + " is ignored; clear the cell"})
+				out = append(out, Issue{File: t.Phase.File, Line: t.Line, Msg: t.ID + ": user tasks have no session, so its " + c.name + " is ignored; clear the cell"})
 			}
 		}
 	}
-	sort.SliceStable(out, func(i, j int) bool { return out[i].Line < out[j].Line })
+	p.sortIssues(out)
 	return out
 }

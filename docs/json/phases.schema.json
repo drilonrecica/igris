@@ -8,6 +8,13 @@
       "const": 1,
       "description": "Document version. Changes only with a breaking change (igris 2.0); fields may be added in 1.x, and readers ignore fields they don't know."
     },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The plan's files as messages name them: the main plan first, then each file it includes, in plan order (SPEC §3.7). Added in 1.2; absent from older output."
+    },
     "phases": {
       "type": "array",
       "items": {
@@ -65,6 +72,10 @@
         },
         "title": {
           "type": "string"
+        },
+        "file": {
+          "type": "string",
+          "description": "The file the phase is in, as messages name it: the main plan, or a file it includes (SPEC §3.7). Added in 1.2; absent from older output."
         },
         "total": {
           "type": "integer",

@@ -345,13 +345,13 @@ func TestWriterKeepsFormatMarker(t *testing.T) {
 	if out, want := readPlan(t, path), strings.Replace(in, "| ready |", "| done |", 1); out != want {
 		t.Fatalf("output differs:\n got %q\nwant %q", out, want)
 	}
-	newer := strings.Replace(in, "format 1", "format 2", 1)
+	newer := strings.Replace(in, "format 1", "format 3", 1)
 	path = writePlan(t, newer)
 	if _, err := NewWriter(path, Options{}, testRules).Update(context.Background(), set("a", Done)); err == nil || !strings.Contains(err.Error(), "needs a newer igris") {
-		t.Errorf("format 2 plan: err = %v", err)
+		t.Errorf("format 3 plan: err = %v", err)
 	}
 	if out := readPlan(t, path); out != newer {
-		t.Errorf("format 2 plan was changed: %q", out)
+		t.Errorf("format 3 plan was changed: %q", out)
 	}
 }
 

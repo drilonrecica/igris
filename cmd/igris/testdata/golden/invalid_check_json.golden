@@ -2,6 +2,9 @@ exit: 1
 --- stdout
 {
   "v": 1,
+  "files": [
+    "tasks.md"
+  ],
   "issues": [
     {
       "file": "tasks.md",

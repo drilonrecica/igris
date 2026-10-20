@@ -1,7 +1,7 @@
 igris · sinjal · herdr ✓                                            PLAN INVALID
 ── NOW ─────────────────────────────────────────────────────────────────────────
 PLAN INVALID · tasks.md · 1 problem
-tasks.md:1: plan format 2 needs a newer igris (this igris reads format 1)
+tasks.md:1: plan format 3 needs a newer igris (this igris reads formats 1 and 2)
 ── PHASES ──────────────────────────────────────────────────────────────────────
 plan invalid — Check shows the problems
 

@@ -1,0 +1,12 @@
+exit: 1
+--- stdout
+--- stderr
+igris status: tasks.md is not valid; run `igris check` and fix:
+  tasks.md:9: an include needs plan format 2; add <!-- igris:format 2 --> on a line of its own before the first ## heading
+  phases/b.md:5: task A-1 is also in tasks.md:7; task IDs must be unique across the plan's files
+  phases/b.md:8: only the main plan may include files; move this include to tasks.md
+  tasks.md:10: an include needs plan format 2; add <!-- igris:format 2 --> on a line of its own before the first ## heading
+  tasks.md:10: included file phases/missing.md does not exist; fix the path or remove the include
+  tasks.md:11: an include needs plan format 2; add <!-- igris:format 2 --> on a line of its own before the first ## heading
+  tasks.md:11: include "../outside.md" has a .. element; included files must stay inside the project
+  tasks.md:17: C-1 depends on unknown task B-9; check the ID or remove it from Deps

@@ -314,6 +314,13 @@ func (c *Config) Rules(root string) plan.Rules {
 	return plan.Rules{Models: c.Models, Verify: sortedKeys(c.VerifyProfiles()), Root: root}
 }
 
+// PlanOptions are the options the plan is parsed with: the [columns]
+// aliases, and root as the directory included files must stay inside
+// (SPEC §3.7), the same root as for Rules.
+func (c *Config) PlanOptions(root string) plan.Options {
+	return plan.Options{Columns: c.Columns, Root: root}
+}
+
 // PhaseVerify returns the [phases.<id>] verify setting of phase id
 // (case-insensitive), lower-case; "" if there is none.
 func (c *Config) PhaseVerify(id string) string {

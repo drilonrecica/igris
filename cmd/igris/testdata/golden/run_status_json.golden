@@ -2,10 +2,14 @@ exit: 0
 --- stdout
 {
   "v": 1,
+  "files": [
+    "tasks.md"
+  ],
   "phases": [
     {
       "id": "A",
       "title": "First",
+      "file": "tasks.md",
       "total": 4,
       "counts": {
         "blocked": 1,
@@ -60,6 +64,7 @@ exit: 0
     {
       "id": "B",
       "title": "Second",
+      "file": "tasks.md",
       "total": 2,
       "counts": {
         "blocked": 0,

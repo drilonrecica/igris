@@ -1,6 +1,6 @@
-# The igris plan format (format 1)
+# The igris plan format (formats 1 and 2)
 
-This is the format of the markdown plans igris runs: how a plan is split into phases and tasks, what each column means, and what igris changes when it runs one. It is written for people writing plans by hand and for tools that produce them. It describes **format 1**, the only format so far, and is frozen for igris 1.x ([SPEC §19](../SPEC.md#19-compatibility)). [SPEC §3–4](../SPEC.md#3-canonical-plan-format) is the normative text; this page says the same with more examples. If they ever disagree, the SPEC wins and this page is fixed.
+This is the format of the markdown plans igris runs: how a plan is split into phases and tasks, what each column means, and what igris changes when it runs one. It is written for people writing plans by hand and for tools that produce them. It describes **format 1** and **format 2** (since igris 1.2: format 1 plus [includes](#split-plans-format-2)), both frozen for igris 1.x ([SPEC §19](../SPEC.md#19-compatibility)). [SPEC §3–4](../SPEC.md#3-canonical-plan-format) is the normative text; this page says the same with more examples. If they ever disagree, the SPEC wins and this page is fixed.
 
 `igris check` validates a plan against all of this and prints every problem at once as `file:line: message`. A plan in another format can be converted with [`igris adapt`](../README.md#different-format-igris-adapt).
 
@@ -46,14 +46,67 @@ A plan may declare its format on a line of its own **before the first `##` headi
 - It is optional, and stays optional: a plan without a marker is format 1, in every igris 1.x and later.
 - Spaces inside the comment don't matter (`<!--igris:format 1-->` is the same). A marker inside a fenced code block is not one.
 - A marker that isn't a whole number, a second marker, or a marker after the first `##` heading is a validation error.
-- A plan marked with a format igris doesn't know (`<!-- igris:format 2 -->`) is refused with `plan format 2 needs a newer igris`, and nothing else about it is reported or changed. A future format will need its marker, so an unmarked plan never has to be edited.
+- `<!-- igris:format 2 -->` declares format 2, which a plan that [includes other files](#split-plans-format-2) needs. A format-2 plan without includes is valid too.
+- A plan marked with a format igris doesn't know (`<!-- igris:format 3 -->`) is refused with `plan format 3 needs a newer igris`, and nothing else about it is reported or changed. igris 1.0 and 1.1 read format 1 only, so they refuse a format-2 plan this way. A future format will need its marker, so an unmarked plan never has to be edited.
+
+## Split plans (format 2)
+
+Since igris 1.2 a plan may be split across files. The **main plan** is the file igris reads (`tasks.md`, or `plan` in `igris.toml`); a line `<!-- igris:include PATH -->` in it pulls in another file's phases at that point:
+
+**`tasks.md`**
+
+```markdown
+# Shop backend
+
+<!-- igris:format 2 -->
+
+## M0 — Foundation
+
+| ID | Task | Deps | Status | Model | Owner |
+|---|---|---|---|---|---|
+| M0-01 | **Go module** | — | done | sonnet | agent |
+
+<!-- igris:include phases/v2.md -->
+
+## M9 — Release
+
+| ID | Task | Deps | Status | Model | Owner |
+|---|---|---|---|---|---|
+| M9-01 | **Tag 2.0** | V2-01…V2-02 | blocked | sonnet | agent |
+```
+
+**`phases/v2.md`**
+
+```markdown
+# Version 2, planned apart
+
+## V2 — Payments
+
+| ID | Task | Deps | Status | Model | Owner |
+|---|---|---|---|---|---|
+| V2-01 | **Stripe client** | M0-01 | ready | opus | agent |
+| V2-02 | **Webhooks** | V2-01 | blocked | sonnet | agent |
+```
+
+The phases run `M0`, `V2`, `M9`: **plan order** is the main plan with each include line replaced by its file, and "file order" everywhere on this page means plan order.
+
+- **Format 2.** A plan with an include line declares `<!-- igris:format 2 -->`; without it (or with `1`) each include line is an error saying to add it. Only the main plan's marker counts; an included file may declare format 1 or 2, so it can be checked on its own.
+- **The line.** `<!-- igris:include PATH -->` on a line of its own, outside a fenced code block, spaces inside the comment ignored. PATH is everything between `igris:include` and `-->`, trimmed, without quotes, and ends in `.md`.
+- **Where.** Anywhere in the main plan, before or between phases. An include line ends the section above it, so a task table right after it, before the next `##` heading, is an error. Text in an included file before its first `##` heading is prose.
+- **One level.** Only the main plan includes files; an include line in an included file is an error. Each file is included once: including a file a second time, or the main plan itself, is an error naming the first.
+- **Paths** are relative to the main plan's directory, like a markdown link. Not absolute, not starting with `~`, no `..`. Once symlinks are followed, the file must be inside the project (the project root for `arise` and the home screen, the working directory for `check`, `phases` and `status`), must not be the main plan and must not be under `.igris/`. It must be a regular file.
+- **Limits.** Each file, and all files of the plan together, at most 16 MiB; at most 32 files, the main plan included.
+- **IDs** are unique across all files; a clash names both places (`phases/v2.md:12: task V2-01 is also in tasks.md:40`). Dependencies may point into any file, and a range follows plan order.
+- **Errors** are `file:line: message` in the file the line is in, sorted in plan order. A problem with an include (missing, outside the project, not `.md`, too large, too many files, included twice, nested, no format 2) is reported at the include line.
+- `--json` of `check`, `phases` and `status` lists the plan's `files` (the main plan first) and each phase's `file`.
+- Context paths stay relative to the project root, whichever file the row is in.
 
 ## Phases
 
 - A phase is a level-2 heading (`## `) whose section has a task table. `###` and deeper headings stay inside the current phase. `##` sections without a task table are ignored.
 - The **phase ID** is the first word of the heading: `## M0 — Foundation` is `M0`. When the first word is alphabetic and the second is all digits, both make the ID with a hyphen: `## Phase 2 — API` is `Phase-2` (but `## Phase 2: API` is `Phase`, since `2:` isn't all digits).
 - Phase IDs are unique within a plan, compared without regard to case (`## m0` and `## M0` clash). Wherever a phase is named (the command line, `[phases.<id>]` in `igris.toml`), case doesn't matter either.
-- Phases run in file order. Headings and tables inside fenced code blocks (```` ``` ```` or `~~~`) are ignored.
+- Phases run in file order (plan order in a [split plan](#split-plans-format-2)). Headings and tables inside fenced code blocks (```` ``` ```` or `~~~`) are ignored.
 - A plan needs at least one task table.
 
 ## Task tables
@@ -100,7 +153,7 @@ Rules that tie the columns together:
 ## Dependencies
 
 - Empty, `—`, `-` or `none`: no dependencies. Otherwise a comma-separated list of task IDs, from any phase.
-- A **range** `A…B` (or `A...B`, `A..B`) is every task from `A` to `B` in file order. Both ends must exist and `A` must come first. An entry that is itself a task ID is never read as a range, since IDs may contain dots.
+- A **range** `A…B` (or `A...B`, `A..B`) is every task from `A` to `B` in file order (plan order in a split plan). Both ends must exist and `A` must come first. An entry that is itself a task ID is never read as a range, since IDs may contain dots.
 - Duplicates are ignored. An unknown ID, a task depending on itself and a cycle are errors (a cycle is shown as its path, `a → b → a`).
 - To wait on something outside the plan (keys from a client, a deploy, a date), depend on a `user` task that names it, like `A-01` above.
 

@@ -316,7 +316,7 @@ func loadValidPlan(o Options) *plan.Plan {
 			path = filepath.Join(o.Root, path)
 		}
 		var err error
-		if p, err = plan.Load(path, plan.Options{Columns: o.Config.Columns}); err != nil {
+		if p, err = plan.Load(path, o.Config.PlanOptions(o.Root)); err != nil {
 			return nil
 		}
 	}
@@ -356,7 +356,7 @@ func drift(p *plan.Plan) []Result {
 	for i, c := range changes {
 		t := p.Task(c.ID)
 		out[i] = Result{
-			ID: IDDrift, Level: Warn, Confirm: true, File: p.Path, Line: t.Line,
+			ID: IDDrift, Level: Warn, Confirm: true, File: t.Phase.File, Line: t.Line,
 			Task: c.ID, From: c.From.String(), To: c.To.String(),
 			Message: fmt.Sprintf("%s is %s but %s; igris will set it to %s", c.ID, c.From, DriftReason(p, t, c.To), c.To),
 		}

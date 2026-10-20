@@ -67,6 +67,9 @@ func (w *Writer) attempt(fn UpdateFunc) (changes []Change, retry bool, err error
 	sum := sha256.Sum256(data)
 
 	p := Parse(w.path, data, w.opts)
+	if p.Split() && !p.NewerFormat() {
+		return nil, false, fmt.Errorf("not writing %s: it includes other files, and this igris can't write Status cells in a split plan yet; inline the included files to run it", w.path)
+	}
 	if err := p.Check(w.rules); err != nil {
 		return nil, false, fmt.Errorf("not writing %s: %w", w.path, err)
 	}

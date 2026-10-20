@@ -54,7 +54,7 @@ func loadPlan(fs *flag.FlagSet, stderr io.Writer) (*loaded, int) {
 	if v := fs.Lookup("plan").Value.String(); v != "" {
 		path = v
 	}
-	p, err := plan.Load(path, plan.Options{Columns: cfg.Columns})
+	p, err := plan.Load(path, cfg.PlanOptions(""))
 	if err != nil {
 		hint := ""
 		if l.parentConfig != "" {

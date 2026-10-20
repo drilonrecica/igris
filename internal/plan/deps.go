@@ -36,7 +36,7 @@ func (p *Plan) parseDeps(t *Task, index map[string]int) []string {
 	for _, tok := range strings.Split(t.DepsText, ",") {
 		tok = strings.Trim(tok, " \t`")
 		if tok == "" {
-			p.addIssue(t.Line, "%s: empty entry in Deps %q; separate task IDs with single commas", t.ID, t.DepsText)
+			p.addIssue(t.Phase.File, t.Line, "%s: empty entry in Deps %q; separate task IDs with single commas", t.ID, t.DepsText)
 			continue
 		}
 		from, to, isRange := splitRange(tok, index)
@@ -45,7 +45,7 @@ func (p *Plan) parseDeps(t *Task, index map[string]int) []string {
 			continue
 		}
 		if from == "" || to == "" {
-			p.addIssue(t.Line, "%s: malformed Deps range %q; write it as A…B with two task IDs", t.ID, tok)
+			p.addIssue(t.Phase.File, t.Line, "%s: malformed Deps range %q; write it as A…B with two task IDs", t.ID, tok)
 			continue
 		}
 		a, okA := index[from]
@@ -56,9 +56,9 @@ func (p *Plan) parseDeps(t *Task, index map[string]int) []string {
 			if okA {
 				missing = to
 			}
-			p.addIssue(t.Line, "%s: Deps range %q refers to unknown task %s", t.ID, tok, missing)
+			p.addIssue(t.Phase.File, t.Line, "%s: Deps range %q refers to unknown task %s", t.ID, tok, missing)
 		case a >= b:
-			p.addIssue(t.Line, "%s: Deps range %q is not in file order (%s does not come before %s); swap the endpoints", t.ID, tok, from, to)
+			p.addIssue(t.Phase.File, t.Line, "%s: Deps range %q is not in file order (%s does not come before %s); swap the endpoints", t.ID, tok, from, to)
 		default:
 			for _, dep := range p.Tasks[a : b+1] {
 				add(dep.ID)

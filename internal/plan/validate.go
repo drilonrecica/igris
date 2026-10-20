@@ -37,19 +37,22 @@ func (e *Invalid) Error() string {
 	return b.String()
 }
 
-// MaxSize is the largest plan file igris reads (SPEC §16): the plan is
-// read every poll, and a session can replace it.
+// MaxSize is the most a plan file, and all files of a plan together, may
+// hold (SPEC §3.7, §16): the plan is read every poll, and a session can
+// replace it.
 const MaxSize = 16 << 20
 
-// Load reads and parses the plan at path. It fails only if the file can't
-// be read (also when it is not a regular file, or over MaxSize); call
-// Validate for the plan's problems.
+// Load reads and parses the plan at path with the files it includes (SPEC
+// §3.7), checked against opts.Root. It fails only if the main plan can't be
+// read (also when it is not a regular file, or over MaxSize); a problem with
+// an included file is an issue at its include line, so call Validate for
+// the plan's problems.
 func Load(path string, opts Options) (*Plan, error) {
 	data, err := readPlanFile(path)
 	if err != nil {
 		return nil, err
 	}
-	return Parse(path, data, opts), nil
+	return parse(path, data, opts, newIncluder(path, len(data), opts.Root)), nil
 }
 
 // readPlanFile reads the plan file as a regular file of at most MaxSize,
@@ -84,14 +87,15 @@ type Rules struct {
 // off (SPEC §6.4).
 const VerifyNone = "none"
 
-// Validate returns every problem in the plan (SPEC §3), sorted by line.
+// Validate returns every problem in the plan (SPEC §3), sorted in plan
+// order (§3.7).
 func (p *Plan) Validate(r Rules) []Issue {
 	if p.newerFormat != nil {
 		// The rest may follow rules this igris doesn't know: its problems
 		// would only mislead.
 		return []Issue{*p.newerFormat}
 	}
-	v := &validator{p: p, models: r.Models, verify: r.Verify, rules: r, firstLine: map[string]int{}}
+	v := &validator{p: p, models: r.Models, verify: r.Verify, rules: r, first: map[string]*Task{}}
 	v.issues = append(v.issues, p.issues...)
 	for _, t := range p.Tasks {
 		v.checkTask(t)
@@ -105,14 +109,14 @@ func (p *Plan) Validate(r Rules) []Issue {
 			if nm.hasStatus {
 				missing, example = "Model", `"Agent" = "Model"`
 			}
-			v.add(nm.line, "no task table found: this table has an ID column but no %s column; rename that column to %s or alias it under [columns] in igris.toml (e.g. %s)", missing, missing, example)
+			v.addIn(nm.file, nm.line, "no task table found: this table has an ID column but no %s column; rename that column to %s or alias it under [columns] in igris.toml (e.g. %s)", missing, missing, example)
 		}
 		if len(p.nearMiss) == 0 {
 			v.add(0, "no task table found; add a table with ID, Status and Model columns under a ## heading")
 		}
 	}
 
-	sort.SliceStable(v.issues, func(i, j int) bool { return v.issues[i].Line < v.issues[j].Line })
+	p.sortIssues(v.issues)
 	return v.issues
 }
 
@@ -126,38 +130,50 @@ func (p *Plan) Check(r Rules) error {
 
 // validator collects semantic issues without modifying the plan.
 type validator struct {
-	p         *Plan
-	models    map[string]string
-	verify    []string
-	rules     Rules
-	firstLine map[string]int // task ID -> line of its first occurrence
-	issues    []Issue
+	p      *Plan
+	models map[string]string
+	verify []string
+	rules  Rules
+	first  map[string]*Task // task ID -> its first occurrence
+	issues []Issue
 
 	root    string // rules.Root with symlinks resolved; see realRoot
 	rootErr error
 }
 
 func (v *validator) add(line int, format string, a ...any) {
-	v.issues = append(v.issues, Issue{File: v.p.Path, Line: line, Msg: fmt.Sprintf(format, a...)})
+	v.addIn(v.p.Path, line, format, a...)
+}
+
+func (v *validator) addIn(file string, line int, format string, a ...any) {
+	v.issues = append(v.issues, Issue{File: file, Line: line, Msg: fmt.Sprintf(format, a...)})
+}
+
+// task reports a problem at t's row.
+func (v *validator) task(t *Task, format string, a ...any) {
+	v.addIn(t.Phase.File, t.Line, format, a...)
 }
 
 func (v *validator) checkTask(t *Task) {
-	at := t.Line
 	switch {
 	case t.ID == "":
-		v.add(at, "row has no ID; every task needs a unique ID")
+		v.task(t, "row has no ID; every task needs a unique ID")
 	case !idPattern.MatchString(t.ID):
 		if bare := strings.Trim(t.ID, "`*_ "); bare != t.ID && idPattern.MatchString(bare) {
-			v.add(at, "%q is not a valid task ID; write it as %s, without markdown around it", t.ID, bare)
+			v.task(t, "%q is not a valid task ID; write it as %s, without markdown around it", t.ID, bare)
 			break
 		}
-		v.add(at, "%q is not a valid task ID; use letters, digits, '.', '_' and '-', starting with a letter or digit", t.ID)
+		v.task(t, "%q is not a valid task ID; use letters, digits, '.', '_' and '-', starting with a letter or digit", t.ID)
 	}
 	if t.ID != "" {
-		if first, dup := v.firstLine[t.ID]; dup {
-			v.add(at, "duplicate task ID %s (first at line %d); task IDs must be unique across the plan", t.ID, first)
-		} else {
-			v.firstLine[t.ID] = at
+		first, dup := v.first[t.ID]
+		switch {
+		case !dup:
+			v.first[t.ID] = t
+		case first.Phase.File == t.Phase.File:
+			v.task(t, "duplicate task ID %s (first at line %d); task IDs must be unique across the plan", t.ID, first.Line)
+		default:
+			v.task(t, "task %s is also in %s:%d; task IDs must be unique across the plan's files", t.ID, first.Phase.File, first.Line)
 		}
 	}
 	name := t.ID
@@ -170,18 +186,18 @@ func (v *validator) checkTask(t *Task) {
 		if s, ok := statusSynonym(t.StatusText); ok {
 			hint = fmt.Sprintf(" (did you mean %s?)", s)
 		}
-		v.add(at, "%s: unknown status %q%s; use ready, blocked, in progress, done or skipped", name, t.StatusText, hint)
+		v.task(t, "%s: unknown status %q%s; use ready, blocked, in progress, done or skipped", name, t.StatusText, hint)
 	}
 	if t.Owner == "" {
-		v.add(at, "%s: unknown owner %q; use agent, user or agent + user", name, t.OwnerText)
+		v.task(t, "%s: unknown owner %q; use agent, user or agent + user", name, t.OwnerText)
 	}
 	if t.Mode != "" && !contains(validModes, t.Mode) {
-		v.add(at, "%s: unknown mode %q; use default, accept, auto, plan, plan:default, plan:accept, plan:auto, plan:yolo, yolo or —", name, t.Mode)
+		v.task(t, "%s: unknown mode %q; use default, accept, auto, plan, plan:default, plan:accept, plan:auto, plan:yolo, yolo or —", name, t.Mode)
 	}
 
 	switch {
 	case t.Owner == OwnerUser && t.Rank != "":
-		v.add(at, "%s: user tasks must have Model —, not %q (igris runs no session for them)", name, t.Rank)
+		v.task(t, "%s: user tasks must have Model —, not %q (igris runs no session for them)", name, t.Rank)
 	case t.Owner.IsAgent() && t.Rank == "" && t.Status.Satisfied():
 		// A finished task never gets a session, so it needs no model (SPEC
 		// §3.5). If it goes back to ready or blocked, this check catches it.
@@ -191,10 +207,10 @@ func (v *validator) checkTask(t *Task) {
 			// Without an Owner column every task is an agent task (SPEC §3.2).
 			hint = "this table has no Owner column, so every task is an agent task; add an Owner column with user for tasks without a session"
 		}
-		v.add(at, "%s: %s task needs a Model (a rank from [models], e.g. sonnet); %s", name, t.Owner, hint)
+		v.task(t, "%s: %s task needs a Model (a rank from [models], e.g. sonnet); %s", name, t.Owner, hint)
 	case t.Owner.IsAgent() && t.Rank == "?":
 		// `igris adapt` leaves "?" where the original plan had no usable model.
-		v.add(at, "%s: model not set yet (\"?\"); fill in one of: %s", name, strings.Join(sortedKeys(v.models), ", "))
+		v.task(t, "%s: model not set yet (\"?\"); fill in one of: %s", name, strings.Join(sortedKeys(v.models), ", "))
 	case t.Owner.IsAgent():
 		if _, ok := v.models[t.Rank]; !ok {
 			hint := ""
@@ -203,7 +219,7 @@ func (v *validator) checkTask(t *Task) {
 					hint = fmt.Sprintf(" (did you mean %s?)", bare)
 				}
 			}
-			v.add(at, "%s: unknown model rank %q%s; add it to [models] in igris.toml or use one of: %s", name, t.Rank, hint, strings.Join(sortedKeys(v.models), ", "))
+			v.task(t, "%s: unknown model rank %q%s; add it to [models] in igris.toml or use one of: %s", name, t.Rank, hint, strings.Join(sortedKeys(v.models), ", "))
 		}
 	}
 
@@ -213,23 +229,23 @@ func (v *validator) checkTask(t *Task) {
 		switch {
 		case t.Verify == "" || t.Verify == VerifyNone || contains(v.verify, t.Verify):
 		case looksLikeCommand(t.Verify):
-			v.add(at, "%s: Verify %q names a profile from [verify], never a command; put the command under [verify] in igris.toml and write the profile name here", name, t.Verify)
+			v.task(t, "%s: Verify %q names a profile from [verify], never a command; put the command under [verify] in igris.toml and write the profile name here", name, t.Verify)
 		default:
 			names := append(slices.Sorted(slices.Values(v.verify)), VerifyNone)
-			v.add(at, "%s: unknown verify profile %q; define it under [verify] in igris.toml or use one of: %s", name, t.Verify, strings.Join(names, ", "))
+			v.task(t, "%s: unknown verify profile %q; define it under [verify] in igris.toml or use one of: %s", name, t.Verify, strings.Join(names, ", "))
 		}
 		if t.TimeoutText != "" && t.Timeout == 0 {
-			v.checkTimeout(at, name, t.TimeoutText)
+			v.checkTimeout(t, name, t.TimeoutText)
 		}
-		v.checkContext(at, name, t)
+		v.checkContext(t, name)
 	}
 
 	for _, d := range t.Deps {
 		switch {
 		case d == t.ID:
-			v.add(at, "%s depends on itself; remove it from Deps", name)
+			v.task(t, "%s depends on itself; remove it from Deps", name)
 		case !idPattern.MatchString(d):
-			v.add(at, "%s: Deps entry %q is not a task ID; list task IDs separated by commas", name, d)
+			v.task(t, "%s: Deps entry %q is not a task ID; list task IDs separated by commas", name, d)
 		}
 	}
 }
@@ -239,15 +255,15 @@ func (v *validator) checkTask(t *Task) {
 var durationSyntax = regexp.MustCompile(`^[-+]?((\d+(\.\d*)?|\.\d+)(ns|us|µs|μs|ms|s|m|h))+$`)
 
 // checkTimeout reports why a set Timeout cell gave no duration.
-func (v *validator) checkTimeout(at int, name, cell string) {
+func (v *validator) checkTimeout(t *Task, name, cell string) {
 	d, err := time.ParseDuration(cell)
 	switch {
 	case err == nil && d < MinTimeout:
-		v.add(at, "%s: Timeout %q must be at least %s; write e.g. 45m or 1h30m", name, cell, MinTimeout)
+		v.task(t, "%s: Timeout %q must be at least %s; write e.g. 45m or 1h30m", name, cell, MinTimeout)
 	case err != nil && durationSyntax.MatchString(cell):
-		v.add(at, "%s: Timeout %q is too large; write e.g. 45m or 1h30m", name, cell)
+		v.task(t, "%s: Timeout %q is too large; write e.g. 45m or 1h30m", name, cell)
 	default:
-		v.add(at, "%s: Timeout %q is not a duration; write e.g. 45m or 1h30m", name, cell)
+		v.task(t, "%s: Timeout %q is not a duration; write e.g. 45m or 1h30m", name, cell)
 	}
 }
 
@@ -264,7 +280,7 @@ func (v *validator) checkDeps() {
 	for _, t := range p.Tasks {
 		for _, d := range t.Deps {
 			if p.Task(d) == nil && idPattern.MatchString(d) {
-				v.add(t.Line, "%s depends on unknown task %s; check the ID or remove it from Deps", t.ID, d)
+				v.task(t, "%s depends on unknown task %s; check the ID or remove it from Deps", t.ID, d)
 			}
 		}
 	}
@@ -332,7 +348,7 @@ func (v *validator) reportCycle(stack []*Task, d *Task, index map[*Task]int, rep
 		return
 	}
 	reported[path] = true
-	v.add(cycle[first].Line, "dependency cycle %s (each task waits on the next); remove one of these dependencies", path)
+	v.task(cycle[first], "dependency cycle %s (each task waits on the next); remove one of these dependencies", path)
 }
 
 func contains(list []string, s string) bool {

@@ -1,0 +1,9 @@
+exit: 0
+--- stdout
+warning: this is not a git repository: sessions' changes can't be reviewed or undone with git, and commits fail unless commit = "never". Run `git init` first.
+dry run of phase A: nothing is written and no session starts
+     phase A: critical path A-2 (1), width 1
+  1. A-2        sonnet  → model sonnet  mode auto         Config
+     phase A complete
+dry run: 1 session(s), 0 user task(s)
+--- stderr

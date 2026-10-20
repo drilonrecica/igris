@@ -60,7 +60,9 @@ func NewInvalid(path string, issues []plan.Issue) Invalid {
 
 // CheckReport is the result of `igris check`.
 type CheckReport struct {
-	V        int       `json:"v"`
+	V int `json:"v"`
+	// Files are the plan's files, the main plan first (SPEC §3.7).
+	Files    []string  `json:"files"`
 	Issues   []Issue   `json:"issues"`
 	Phases   int       `json:"phases"`
 	Plan     string    `json:"plan"`
@@ -95,6 +97,7 @@ func Check(in CheckInput) CheckReport {
 	issues := p.Validate(in.Rules)
 	r := CheckReport{
 		V:        JSONVersion,
+		Files:    files(p),
 		Issues:   Issues(issues),
 		Phases:   len(p.Phases),
 		Plan:     textsafe.Line(p.Path),

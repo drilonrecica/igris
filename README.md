@@ -217,6 +217,8 @@ A plan is a markdown file (default `tasks.md`) with one task table per `##` phas
 
 The full format, with every rule and a larger example, is in [`docs/plan-format.md`](docs/plan-format.md); it is frozen for igris 1.x. A plan may declare it with `<!-- igris:format 1 -->` before its first `##` heading; without that line it is format 1 anyway.
 
+**A long plan can be split across files** (since 1.2): declare `<!-- igris:format 2 -->` before the first `##` heading, and put `<!-- igris:include phases/v2.md -->` on a line of its own where that file's phases belong. Paths are relative to the plan's directory and stay inside the project; only the main plan includes files, each once; task and phase IDs are unique across all of them, and dependencies may cross files. `igris check`, `phases`, `status` and `arise --dry-run` read a split plan as one, and every problem names the file it is in (`phases/v2.md:12: …`). A real `arise` on a split plan refuses to write it for now: in this build igris writes Status cells in a one-file plan only. igris 1.0 and 1.1 refuse a format-2 plan, so run one with igris 1.2 everywhere. The rules are in [`docs/plan-format.md`](docs/plan-format.md#split-plans-format-2).
+
 A complete small plan is in [`examples/tasks.md`](examples/tasks.md), and a commented config in [`examples/igris.toml`](examples/igris.toml); copy them and run `igris check` and `igris arise P1 --dry-run` to see how igris reads them. [`examples/advanced/`](examples/advanced/) is the same plan with Verify profiles, Timeouts and Context paths, and the `igris.toml` that defines its profiles.
 
 ### Different format? `igris adapt`

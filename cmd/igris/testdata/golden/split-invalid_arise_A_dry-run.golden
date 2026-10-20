@@ -1,0 +1,13 @@
+exit: 1
+--- stdout
+warning: this is not a git repository: sessions' changes can't be reviewed or undone with git, and commits fail unless commit = "never". Run `git init` first.
+--- stderr
+igris arise --dry-run: plan has 8 problem(s); fix them (or run `igris adapt`) and try again:
+  <dir>/tasks.md:9: an include needs plan format 2; add <!-- igris:format 2 --> on a line of its own before the first ## heading
+  <dir>/phases/b.md:5: task A-1 is also in <dir>/tasks.md:7; task IDs must be unique across the plan's files
+  <dir>/phases/b.md:8: only the main plan may include files; move this include to <dir>/tasks.md
+  <dir>/tasks.md:10: an include needs plan format 2; add <!-- igris:format 2 --> on a line of its own before the first ## heading
+  <dir>/tasks.md:10: included file <dir>/phases/missing.md does not exist; fix the path or remove the include
+  <dir>/tasks.md:11: an include needs plan format 2; add <!-- igris:format 2 --> on a line of its own before the first ## heading
+  <dir>/tasks.md:11: include "../outside.md" has a .. element; included files must stay inside the project
+  <dir>/tasks.md:17: C-1 depends on unknown task B-9; check the ID or remove it from Deps

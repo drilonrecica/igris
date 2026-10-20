@@ -84,9 +84,9 @@ igris done ADAPT --note "<one-line summary of the conversion>"
 
 Igris's parser is deterministic and strict. Plans that don't match this format are rejected by `igris check` and can be converted with `igris adapt` (§9).
 
-This is **format 1**, frozen for 1.x (§19). [`docs/plan-format.md`](docs/plan-format.md) describes it on its own, with examples, for people and tools writing plans; this section and §4 are normative.
+This is **format 1**, frozen for 1.x (§19), and **format 2** (since 1.2): format 1 plus includes (§3.7), frozen for 1.x too. [`docs/plan-format.md`](docs/plan-format.md) describes it on its own, with examples, for people and tools writing plans; this section and §4 are normative.
 
-**Format marker.** A plan may declare its format with `<!-- igris:format 1 -->` on a line of its own (spaces inside the comment don't matter) before the first `##` heading. Without one it is format 1, forever. A marker inside a fenced code block is not one. A marker that isn't a whole number (digits only, at least 1), a second marker, or a marker after the first `##` heading is a validation error. A plan declaring another format is refused with `plan format N needs a newer igris (this igris reads format 1)` as its only validation issue (its tables may follow rules this igris doesn't know); `check`, `arise`, `doctor` and the home screen say to upgrade igris rather than suggest `igris adapt`, and the plan writer refuses it.
+**Format marker.** A plan may declare its format with `<!-- igris:format 1 -->` (or `2`) on a line of its own (spaces inside the comment don't matter) before the first `##` heading. Without one it is format 1, forever. A plan with an include line must declare format 2 (§3.7). A marker inside a fenced code block is not one. A marker that isn't a whole number (digits only, at least 1), a second marker, or a marker after the first `##` heading is a validation error. A plan declaring another format is refused with `plan format N needs a newer igris (this igris reads formats 1 and 2)` as its only validation issue (its tables may follow rules this igris doesn't know); `check`, `arise`, `doctor` and the home screen say to upgrade igris rather than suggest `igris adapt`, and the plan writer refuses it. igris 1.0 and 1.1 read format 1 only, so they refuse a format-2 plan the same way.
 
 ### 3.1 Phases
 - A phase is a level-2 heading (`## `) whose section contains a task table.
@@ -145,7 +145,7 @@ A task table is a GitHub-flavored markdown table whose header row contains at le
 - An unknown Owner or Mode value is a validation error.
 - A control character (other than tab) in a task row or a phase heading — an escape sequence, say — is a validation error. Parsed cell text never carries one: the TUI, the prompts and the notifications only ever see cleaned text.
 
-Validation reports **every** problem at once, each as `file:line: message` saying what to fix, sorted by line; a dependency cycle is reported once with its path (`a → b → a`).
+Validation reports **every** problem at once, each as `file:line: message` saying what to fix, sorted by line (in a split plan, the file the line is in, sorted in plan order, §3.7); a dependency cycle is reported once with its path (`a → b → a`).
 
 ### 3.6 Example
 
@@ -159,3 +159,16 @@ Validation reports **every** problem at once, each as `file:line: message` sayin
 | M0-03 | **Crypto envelope** — `v1 \| nonce \| ciphertext` | M0-01 | blocked | opus | agent |
 | M0-G | **M0 gate** — owner smoke test | M0-02…M0-03 | blocked | sonnet | agent + user |
 ```
+
+### 3.7 Includes (format 2)
+Since 1.2 a plan may be split across files (decisions.md V12-P2). The **main plan** is the file igris is pointed at (`--plan`, `plan` in config); the files it includes are part of the plan.
+
+- **Syntax.** `<!-- igris:include PATH -->` on a line of its own (spaces inside the comment don't matter). A line inside a fenced code block is not one. PATH is the text between `igris:include` and `-->`, trimmed, without quoting, and must end in `.md`.
+- **Format 2.** A plan with an include line must declare `<!-- igris:format 2 -->`; without that marker (or with `1`) each include line is a validation error saying to add it. Only the main plan's marker counts; an included file may declare format 1 or 2 (so it can be checked on its own), and any other value is an error at its line.
+- **Where.** Anywhere in the main plan outside a fenced code block. The included file's phases take the line's place: **plan order** (what "file order" means in §3.1, §3.4, §5 and §5.5) is the order of the plan with each include line replaced by its file. An include line ends the current section, so a task table after it and before the next `##` heading is an error. Text in an included file before its first `##` heading is prose.
+- **One level.** Only the main plan includes; an include line in an included file is an error. Each file is included at most once: a second include of a file, or of the main plan, is an error naming the first.
+- **Paths.** Relative to the main plan's directory. Not absolute, not starting with `~`, no `..` element. Once symlinks are resolved (the root's own included), the file must be inside the root Context paths are checked against (§3.2), must not be the main plan and must not be under `.igris/`. It is read as a regular file, following symlinks as the plan is, never blocking (§16).
+- **Limits.** Each file, and all files of the plan together, at most 16 MiB; at most 32 files, the main plan included.
+- **IDs.** Phase and task IDs are unique across all files; a clash names both places (`phases/v2.md:12: task V2-01 is also in tasks.md:40`). Dependencies may point into any file; a range follows plan order.
+- **Errors** name the file the line is in, its path being the main plan's directory joined with the include's path. A problem with an include (missing, outside the root, not `.md`, too large, too many files, included twice, nested, no format 2) is reported at the include line. Context paths (§3.2) stay relative to the root wherever the row is.
+- The `--json` output of `check`, `phases` and `status` adds `file` to each phase and a `files` list (the main plan first).

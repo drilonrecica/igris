@@ -105,7 +105,7 @@ func (p *Project) Snapshot() *report.Snapshot {
 	for _, w := range p.Cfg.WarningsEnv(p.env.getenv()) {
 		s.ConfigWarnings = append(s.ConfigWarnings, textsafe.Line(w))
 	}
-	pl, err := plan.Load(p.PlanPath, plan.Options{Columns: p.Cfg.Columns})
+	pl, err := plan.Load(p.PlanPath, p.Cfg.PlanOptions(p.Root))
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
 		s.PlanMissing = true

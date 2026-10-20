@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
 
 // Run a target for longer with `make fuzz` (FUZZTIME=10m) or
-// `go test -run '^$' -fuzz '^FuzzParse$' ./internal/plan`. A failing input
+// `go test -run '^$' -fuzz '^FuzzParse$' ./internal/plan` (or FuzzLoadIncludes). A failing input
 // lands in testdata/fuzz/<Target>/; commit it with the fix.
 
 // fuzzPlanSeeds are the shapes the parser and writer must survive: the
@@ -117,4 +118,73 @@ func FuzzParse(f *testing.F) {
 			t.Fatalf("parsing twice differs:\n--- first ---\n%s--- second ---\n%s", a, b)
 		}
 	})
+}
+
+// FuzzLoadIncludes: for an arbitrary main plan and an arbitrary included
+// file, loading and validation never panic, every issue names a file of
+// the plan, the same files always give the same result, and a valid split
+// plan reads the same as its Inline copy (a dry run walks that copy).
+func FuzzLoadIncludes(f *testing.F) {
+	const b = "## B — Two\n\n| ID | Deps | Status | Model |\n|---|---|---|---|\n| b | a | blocked | sonnet |\n"
+	main := "<!-- igris:format 2 -->\n## A — One\n\n| ID | Deps | Status | Model |\n|---|---|---|---|\n| a | — | ready | sonnet |\n"
+	f.Add([]byte(main+"<!-- igris:include b.md -->\n"), []byte(b))
+	f.Add([]byte(main+"| x | y |\n<!-- igris:include b.md -->\n| z | w |\n"), []byte("| p | q |\n"+b+"```\n"))
+	f.Add([]byte(main+"<!-- igris:include b.md -->\n<!-- igris:include ./b.md -->\n"), []byte("<!-- igris:format 1 -->\r\n"+b+"<!-- igris:include c.md -->\n"))
+	f.Add([]byte("<!-- igris:include tasks.md -->\n"+main), []byte(""))
+	for _, s := range fuzzPlanSeeds(f)[:4] {
+		f.Add([]byte(main+"<!-- igris:include b.md -->\n"), s)
+	}
+	f.Fuzz(func(t *testing.T, mainData, incData []byte) {
+		dir := t.TempDir()
+		mainPath := filepath.Join(dir, "tasks.md")
+		if err := os.WriteFile(mainPath, mainData, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "b.md"), incData, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		opts := Options{Root: dir}
+		load := func() (*Plan, []Issue) {
+			p, err := Load(mainPath, opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return p, p.Validate(testRules)
+		}
+		p, issues := load()
+		_ = p.Hints()
+		files := p.Files()
+		for _, is := range issues {
+			if !slices.Contains(files, is.File) {
+				t.Fatalf("issue %q names a file not in the plan %q", is, files)
+			}
+		}
+		again, againIssues := load()
+		if a, b := planSummary(p, issues), planSummary(again, againIssues); a != b {
+			t.Fatalf("loading twice differs:\n--- first ---\n%s--- second ---\n%s", a, b)
+		}
+		if len(issues) > 0 {
+			return
+		}
+		one := Parse(mainPath, p.Inline(), Options{})
+		oneIssues := one.Validate(Rules{Models: testRules.Models, Root: dir})
+		if len(oneIssues) > 0 {
+			t.Fatalf("the Inline copy of a valid plan is invalid: %v", oneIssues)
+		}
+		if a, b := phaseSummary(p), phaseSummary(one); a != b {
+			t.Fatalf("Inline copy differs:\n--- split ---\n%s--- inline ---\n%s", a, b)
+		}
+	})
+}
+
+// phaseSummary renders the phases and tasks, without lines or files.
+func phaseSummary(p *Plan) string {
+	var b strings.Builder
+	for _, ph := range p.Phases {
+		fmt.Fprintf(&b, "phase %q %q %q\n", ph.ID, ph.Title, ph.Columns)
+		for _, t := range ph.Tasks {
+			fmt.Fprintf(&b, "  task %q %q %v %q %q %q %q %q %q\n", t.ID, t.Title, t.Status, t.OwnerText, t.Rank, t.Mode, t.Deps, t.Verify, t.Context)
+		}
+	}
+	return b.String()
 }

@@ -140,7 +140,7 @@ func (l *Launch) TUIOptions(feed *tui.Feed, sender tui.Sender) tui.Options {
 		RankColors: cfg.TUI.RankColors,
 		// The task list reads the plan the engine writes.
 		PlanPath:    l.p.PlanPath,
-		PlanOptions: plan.Options{Columns: cfg.Columns},
+		PlanOptions: cfg.PlanOptions(l.p.Root),
 		Feed:        feed,
 		Sender:      sender,
 		Focus:       Focus(l.Backend),
@@ -181,7 +181,7 @@ func (p *Project) CheckSelection(req report.RunRequest) error {
 	if req.Selection.Empty() {
 		return nil
 	}
-	pl, err := plan.Load(p.PlanPath, plan.Options{Columns: p.Cfg.Columns})
+	pl, err := plan.Load(p.PlanPath, p.Cfg.PlanOptions(p.Root))
 	if err != nil || pl.Check(p.Cfg.Rules(p.Root)) != nil {
 		return nil
 	}

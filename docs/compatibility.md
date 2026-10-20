@@ -12,7 +12,7 @@ Not promised: the TUI (layout, keys, colors), the default task prompt's wording,
 
 | Where | Marker | What a reader does |
 |---|---|---|
-| A plan | `<!-- igris:format 1 -->`, optional | No marker is format 1, forever. A format igris doesn't know is refused: upgrade igris. ([plan format](plan-format.md)) |
+| A plan | `<!-- igris:format 1 -->`, optional; `<!-- igris:format 2 -->` for a plan that includes other files (since 1.2) | No marker is format 1, forever. A format igris doesn't know is refused: upgrade igris. igris 1.0 and 1.1 refuse format 2, so a split plan needs igris 1.2 wherever it runs. ([plan format](plan-format.md)) |
 | `--json` output | `"v": 1`, first key | Stays 1 in 1.x. Ignore fields you don't know. ([schemas](json/)) |
 | `.igris/runs.jsonl` | `"v": 1` per line; none on lines from igris ≤ 0.4 | Ignore event types and fields you don't know. ([run log](runlog.md)) |
 | `.igris/state.json` | `"version"`: 3 from 0.7; 1 and 2 before | igris reads and upgrades older versions; a newer one says to upgrade igris. |
@@ -28,7 +28,7 @@ One row per frozen surface. `tools/contract` fails when a named test no longer e
 
 | ID | Surface | SPEC | Tests |
 |---|---|---|---|
-| C1 | Plan format 1: phases, columns, statuses, dependencies, the format marker, the documented leniency | §3, §19 | `internal/plan.TestGoldenLargeSummary`, `internal/plan.TestGoldenInvalid`, `internal/plan.TestResolveDeps`, `internal/plan.TestFormatMarker`, `internal/plan.TestPlanFormatDocExamples` |
+| C1 | Plan format 1: phases, columns, statuses, dependencies, the format marker, the documented leniency; format 2: includes (since 1.2) | §3, §19 | `internal/plan.TestGoldenLargeSummary`, `internal/plan.TestGoldenInvalid`, `internal/plan.TestResolveDeps`, `internal/plan.TestFormatMarker`, `internal/plan.TestPlanFormatDocExamples`, `internal/plan.TestIncludeSplitPlan`, `internal/plan.TestIncludeProblems`, `cmd/igris.TestReportGoldens` |
 | C2 | What igris writes in a plan: only Status cells, every other byte kept | §4 | `internal/plan.TestWriterPreservesBytes`, `internal/plan.TestWriterEveryCellIsolated`, `internal/plan.TestWriterKeepsBOM`, `internal/plan.TestWriterKeepsFormatMarker` |
 | C3 | `igris.toml`: keys, defaults, validation; the config hash; removed keys | §12, §13 | `internal/config.TestParseFullSample`, `internal/config.TestParseEmptyGivesDefaults`, `internal/config.TestHashOfV04Config`, `internal/config.TestRemovedClaudeCommand`, `internal/config.TestMigrateInitConfig` |
 | C4 | CLI commands, flags and arguments | §14 | `cmd/igris.TestEveryCommandHelp`, `cmd/igris.TestCompletionGoldens`, `cmd/igris.TestCompletionCoversCommands` |

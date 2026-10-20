@@ -2,10 +2,14 @@ exit: 0
 --- stdout
 {
   "v": 1,
+  "files": [
+    "tasks.md"
+  ],
   "phases": [
     {
       "id": "F1",
       "title": "Foundation",
+      "file": "tasks.md",
       "total": 14,
       "counts": {
         "blocked": 2,
@@ -26,6 +30,7 @@ exit: 0
     {
       "id": "F2",
       "title": "Storage",
+      "file": "tasks.md",
       "total": 14,
       "counts": {
         "blocked": 2,
@@ -46,6 +51,7 @@ exit: 0
     {
       "id": "F3",
       "title": "Ingest",
+      "file": "tasks.md",
       "total": 14,
       "counts": {
         "blocked": 6,
@@ -77,6 +83,7 @@ exit: 0
     {
       "id": "Phase-4",
       "title": "Index",
+      "file": "tasks.md",
       "total": 14,
       "counts": {
         "blocked": 13,
@@ -119,6 +126,7 @@ exit: 0
     {
       "id": "F5",
       "title": "Query",
+      "file": "tasks.md",
       "total": 14,
       "counts": {
         "blocked": 13,
@@ -161,6 +169,7 @@ exit: 0
     {
       "id": "F6",
       "title": "Auth",
+      "file": "tasks.md",
       "total": 14,
       "counts": {
         "blocked": 13,
@@ -203,6 +212,7 @@ exit: 0
     {
       "id": "F7",
       "title": "API",
+      "file": "tasks.md",
       "total": 14,
       "counts": {
         "blocked": 13,
@@ -245,6 +255,7 @@ exit: 0
     {
       "id": "Phase-8",
       "title": "Workers",
+      "file": "tasks.md",
       "total": 14,
       "counts": {
         "blocked": 13,
@@ -287,6 +298,7 @@ exit: 0
     {
       "id": "F9",
       "title": "Billing",
+      "file": "tasks.md",
       "total": 14,
       "counts": {
         "blocked": 13,
@@ -329,6 +341,7 @@ exit: 0
     {
       "id": "F10",
       "title": "Reports",
+      "file": "tasks.md",
       "total": 14,
       "counts": {
         "blocked": 13,
@@ -371,6 +384,7 @@ exit: 0
     {
       "id": "F11",
       "title": "Admin",
+      "file": "tasks.md",
       "total": 14,
       "counts": {
         "blocked": 13,
@@ -413,6 +427,7 @@ exit: 0
     {
       "id": "Phase-12",
       "title": "Release",
+      "file": "tasks.md",
       "total": 14,
       "counts": {
         "blocked": 13,

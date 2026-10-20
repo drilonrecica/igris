@@ -101,7 +101,7 @@ func DryRun(ctx context.Context, o DryRunOptions) (report.DryRun, error) {
 		}
 		warn(c.Message + asks)
 	}
-	p, err := plan.Load(inRoot(f.Root, f.Config.Plan), plan.Options{Columns: f.Config.Columns})
+	p, err := plan.Load(inRoot(f.Root, f.Config.Plan), f.Config.PlanOptions(f.Root))
 	if err != nil {
 		return r, PlanLoadError(err)
 	}
@@ -122,7 +122,7 @@ func DryRun(ctx context.Context, o DryRunOptions) (report.DryRun, error) {
 		return r, err
 	}
 	defer func() { _ = os.RemoveAll(tmp) }()
-	cfg, err := dryRunProject(tmp, f.Root, f.Config)
+	cfg, err := dryRunProject(tmp, f.Root, f.Config, p)
 	if err != nil {
 		return r, err
 	}
@@ -181,7 +181,7 @@ func DryRun(ctx context.Context, o DryRunOptions) (report.DryRun, error) {
 // It returns that config. Its verify profiles stay, so the plan validates
 // and the walk shows each task's profile, and so do its task hooks, so the
 // walk can name them; the engine runs none of either.
-func dryRunProject(tmp, root string, orig *config.Config) (*config.Config, error) {
+func dryRunProject(tmp, root string, orig *config.Config, p *plan.Plan) (*config.Config, error) {
 	cfg := *orig
 	cfg.Run.Commit = CommitNever
 	cfg.Run.Worktree = nil // DryRun reports where the run would work; the walk makes no worktree
@@ -189,14 +189,16 @@ func dryRunProject(tmp, root string, orig *config.Config) (*config.Config, error
 	cfg.Notify.Ntfy.Topic = "" // no other remote channel either: dry runs resolve no secrets
 	off := false
 	cfg.Usage.Enabled = &off // the walk's sessions have no transcripts
-	copyIn := func(rel string) (string, error) {
+	copyIn := func(rel string, data []byte) (string, error) {
 		name := rel
 		if filepath.IsAbs(rel) || !filepath.IsLocal(rel) {
 			name = filepath.Base(rel)
 		}
-		data, err := os.ReadFile(inRoot(root, rel)) //nolint:gosec // the owner's own plan/template
-		if err != nil {
-			return "", err
+		if data == nil {
+			var err error
+			if data, err = os.ReadFile(inRoot(root, rel)); err != nil { //nolint:gosec // the owner's own plan/template
+				return "", err
+			}
 		}
 		dst := filepath.Join(tmp, name)
 		if err := os.MkdirAll(filepath.Dir(dst), 0o700); err != nil {
@@ -205,11 +207,17 @@ func dryRunProject(tmp, root string, orig *config.Config) (*config.Config, error
 		return name, os.WriteFile(dst, data, 0o600) //nolint:gosec // dst is a local name inside our own temp dir
 	}
 	var err error
-	if cfg.Plan, err = copyIn(orig.Plan); err != nil {
+	// A split plan's walk works on it as one file: the phases and tasks
+	// are the same, and the copy is the engine's to write (SPEC §3.7).
+	var inline []byte
+	if p.Split() {
+		inline = p.Inline()
+	}
+	if cfg.Plan, err = copyIn(orig.Plan, inline); err != nil {
 		return nil, err
 	}
 	if orig.Run.PromptTemplate != "" {
-		if cfg.Run.PromptTemplate, err = copyIn(orig.Run.PromptTemplate); err != nil {
+		if cfg.Run.PromptTemplate, err = copyIn(orig.Run.PromptTemplate, nil); err != nil {
 			return nil, fmt.Errorf("read prompt_template: %w", err)
 		}
 	}

@@ -2,11 +2,14 @@ exit: 1
 --- stdout
 {
   "v": 1,
+  "files": [
+    "tasks.md"
+  ],
   "issues": [
     {
       "file": "tasks.md",
       "line": 3,
-      "message": "plan format 2 needs a newer igris (this igris reads format 1)"
+      "message": "plan format 3 needs a newer igris (this igris reads formats 1 and 2)"
     }
   ],
   "phases": 1,

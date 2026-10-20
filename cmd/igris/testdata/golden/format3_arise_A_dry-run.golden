@@ -3,4 +3,4 @@ exit: 1
 warning: this is not a git repository: sessions' changes can't be reviewed or undone with git, and commits fail unless commit = "never". Run `git init` first.
 --- stderr
 igris arise --dry-run: plan is in a format this igris can't read; upgrade igris:
-  <dir>/tasks.md:3: plan format 2 needs a newer igris (this igris reads format 1)
+  <dir>/tasks.md:3: plan format 3 needs a newer igris (this igris reads formats 1 and 2)

@@ -12,8 +12,10 @@ var statuses = []plan.Status{plan.Ready, plan.Blocked, plan.InProgress, plan.Don
 
 // Phase is one phase and its task counts per status.
 type Phase struct {
-	ID     string         `json:"id"`
-	Title  string         `json:"title"`
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	// File is the file the phase is in (SPEC §3.7).
+	File   string         `json:"file"`
 	Total  int            `json:"total"`
 	Counts map[string]int `json:"counts"`
 }
@@ -55,14 +57,16 @@ type PhaseRow struct {
 
 // PhasesReport is the result of `igris phases`.
 type PhasesReport struct {
-	V      int        `json:"v"`
+	V int `json:"v"`
+	// Files are the plan's files, the main plan first (SPEC §3.7).
+	Files  []string   `json:"files"`
 	Phases []PhaseRow `json:"phases"`
 	Plan   string     `json:"plan"`
 }
 
 // Phases lists the phases of a valid plan.
 func Phases(p *plan.Plan) PhasesReport {
-	r := PhasesReport{V: JSONVersion, Phases: make([]PhaseRow, len(p.Phases)), Plan: textsafe.Line(p.Path)}
+	r := PhasesReport{V: JSONVersion, Files: files(p), Phases: make([]PhaseRow, len(p.Phases)), Plan: textsafe.Line(p.Path)}
 	for i, ph := range p.Phases {
 		r.Phases[i] = PhaseRow{Phase: phaseOf(ph), Parallelism: ParallelismOf(ph, nil)}
 	}
@@ -70,7 +74,16 @@ func Phases(p *plan.Plan) PhasesReport {
 }
 
 func phaseOf(ph *plan.Phase) Phase {
-	return Phase{ID: textsafe.Line(ph.ID), Title: textsafe.Line(ph.Title), Total: len(ph.Tasks), Counts: countStatuses(ph)}
+	return Phase{ID: textsafe.Line(ph.ID), Title: textsafe.Line(ph.Title), File: textsafe.Line(ph.File), Total: len(ph.Tasks), Counts: countStatuses(ph)}
+}
+
+// files lists the plan's files, the main plan first (SPEC §3.7).
+func files(p *plan.Plan) []string {
+	out := []string{}
+	for _, f := range p.Files() {
+		out = append(out, textsafe.Line(f))
+	}
+	return out
 }
 
 func countStatuses(ph *plan.Phase) map[string]int {
@@ -129,7 +142,9 @@ type PhaseStatus struct {
 
 // StatusReport is the result of `igris status`.
 type StatusReport struct {
-	V      int           `json:"v"`
+	V int `json:"v"`
+	// Files are the plan's files, the main plan first (SPEC §3.7).
+	Files  []string      `json:"files"`
 	Phases []PhaseStatus `json:"phases"`
 	Plan   string        `json:"plan"`
 	Run    *RunInfo      `json:"run,omitempty"` // set by the caller; nil when there is no run
@@ -150,7 +165,7 @@ func Status(p *plan.Plan, phaseID string) (StatusReport, error) {
 		}
 		phases = []*plan.Phase{ph}
 	}
-	r := StatusReport{V: JSONVersion, Phases: make([]PhaseStatus, len(phases)), Plan: textsafe.Line(p.Path)}
+	r := StatusReport{V: JSONVersion, Files: files(p), Phases: make([]PhaseStatus, len(phases)), Plan: textsafe.Line(p.Path)}
 	for _, t := range p.Tasks {
 		r.Optional.Verify = r.Optional.Verify || t.Verify != ""
 		r.Optional.Timeout = r.Optional.Timeout || t.TimeoutText != ""

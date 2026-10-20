@@ -272,7 +272,7 @@ func New(opts Options) (*Engine, error) {
 		clock:     opts.Clock,
 		runner:    opts.Runner,
 		planPath:  inRoot(root, opts.Config.Plan),
-		planOpts:  plan.Options{Columns: opts.Config.Columns},
+		planOpts:  opts.Config.PlanOptions(root),
 		conf:      newConfigWatch(filepath.Join(root, state.ConfigFile), opts.Config),
 		wake:      make(chan struct{}, 1),
 		reported:  map[string]bool{},

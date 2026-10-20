@@ -143,12 +143,12 @@ func TestDoctorRemovedClaudeCommand(t *testing.T) {
 // A plan from a newer igris is fixed by upgrading igris, not by adapt.
 func TestDoctorNewerPlanFormat(t *testing.T) {
 	dir := t.TempDir()
-	plan := "<!-- igris:format 2 -->\n## A\n\n| ID | Status | Model |\n|---|---|---|\n| a | ready | sonnet |\n"
+	plan := "<!-- igris:format 3 -->\n## A\n\n| ID | Status | Model |\n|---|---|---|\n| a | ready | sonnet |\n"
 	if err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(plan), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	code, out, _ := doctorIn(t, dir)
-	if code != exitFail || !strings.Contains(out, "plan format 2 needs a newer igris") || !strings.Contains(out, "next: upgrade igris") || strings.Contains(out, "next: igris adapt") {
+	if code != exitFail || !strings.Contains(out, "plan format 3 needs a newer igris") || !strings.Contains(out, "next: upgrade igris") || strings.Contains(out, "next: igris adapt") {
 		t.Errorf("exit %d:\n%s", code, out)
 	}
 }

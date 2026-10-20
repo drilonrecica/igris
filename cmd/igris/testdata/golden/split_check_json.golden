@@ -1,0 +1,17 @@
+exit: 0
+--- stdout
+{
+  "v": 1,
+  "files": [
+    "tasks.md",
+    "phases/b.md",
+    "phases/c.md"
+  ],
+  "issues": [],
+  "phases": 4,
+  "plan": "tasks.md",
+  "tasks": 8,
+  "valid": true,
+  "warnings": []
+}
+--- stderr

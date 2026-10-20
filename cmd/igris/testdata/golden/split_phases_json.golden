@@ -1,0 +1,97 @@
+exit: 0
+--- stdout
+{
+  "v": 1,
+  "files": [
+    "tasks.md",
+    "phases/b.md",
+    "phases/c.md"
+  ],
+  "phases": [
+    {
+      "id": "A",
+      "title": "Foundation",
+      "file": "tasks.md",
+      "total": 2,
+      "counts": {
+        "blocked": 0,
+        "done": 1,
+        "in_progress": 0,
+        "ready": 1,
+        "skipped": 0
+      },
+      "parallelism": {
+        "critical_path": [
+          "A-2"
+        ],
+        "width": 1,
+        "together": []
+      }
+    },
+    {
+      "id": "B",
+      "title": "Core",
+      "file": "phases/b.md",
+      "total": 2,
+      "counts": {
+        "blocked": 1,
+        "done": 0,
+        "in_progress": 0,
+        "ready": 1,
+        "skipped": 0
+      },
+      "parallelism": {
+        "critical_path": [
+          "B-1",
+          "B-2"
+        ],
+        "width": 1,
+        "together": []
+      }
+    },
+    {
+      "id": "C",
+      "title": "Docs",
+      "file": "phases/c.md",
+      "total": 2,
+      "counts": {
+        "blocked": 2,
+        "done": 0,
+        "in_progress": 0,
+        "ready": 0,
+        "skipped": 0
+      },
+      "parallelism": {
+        "critical_path": [
+          "C-1",
+          "C-2"
+        ],
+        "width": 1,
+        "together": []
+      }
+    },
+    {
+      "id": "D",
+      "title": "Release",
+      "file": "tasks.md",
+      "total": 2,
+      "counts": {
+        "blocked": 2,
+        "done": 0,
+        "in_progress": 0,
+        "ready": 0,
+        "skipped": 0
+      },
+      "parallelism": {
+        "critical_path": [
+          "D-1",
+          "D-G"
+        ],
+        "width": 1,
+        "together": []
+      }
+    }
+  ],
+  "plan": "tasks.md"
+}
+--- stderr

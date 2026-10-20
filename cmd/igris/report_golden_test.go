@@ -28,7 +28,10 @@ func TestReportGoldens(t *testing.T) {
 		{"invalid", "testdata/plans/invalid.md", []string{"M0"}},
 		{"drift", "testdata/plans/drift.md", []string{"A", "B"}},
 		{"large", "../../internal/plan/testdata/large.md", []string{"F1"}},
-		{"format2", "testdata/plans/format2.md", []string{"A"}},
+		{"format3", "testdata/plans/format3.md", []string{"A"}},
+		// A directory is a split plan: every file in it is copied.
+		{"split", "testdata/plans/split", []string{"A", "B"}},
+		{"split-invalid", "testdata/plans/split-invalid", []string{"A"}},
 	}
 	cmds := [][]string{
 		{"check"}, {"check", "--json"},
@@ -40,10 +43,7 @@ func TestReportGoldens(t *testing.T) {
 		for _, ph := range fx.dryPhases {
 			cmds = append(cmds[:len(cmds):len(cmds)], []string{"arise", ph, "--dry-run"})
 		}
-		data, err := os.ReadFile(fx.src) // read before the subtests change directory
-		if err != nil {
-			t.Fatal(err)
-		}
+		files := readFixture(t, fx.src) // read before the subtests change directory
 		for _, args := range cmds {
 			args := append([]string(nil), args...)
 			goldenDir := mustAbs("testdata/golden")
@@ -52,9 +52,15 @@ func TestReportGoldens(t *testing.T) {
 				dir := t.TempDir()
 				t.Chdir(dir)
 				ariseRunner = &runner.Fake{}
-				//nolint:gosec // a fixture copied into the test's own temp dir
-				if err := os.WriteFile(filepath.Join(dir, "tasks.md"), data, 0o600); err != nil {
-					t.Fatal(err)
+				for name, data := range files {
+					path := filepath.Join(dir, name)
+					if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+						t.Fatal(err)
+					}
+					//nolint:gosec // a fixture copied into the test's own temp dir
+					if err := os.WriteFile(path, data, 0o600); err != nil {
+						t.Fatal(err)
+					}
 				}
 				var out, errb bytes.Buffer
 				code := run(args, &out, &errb)
@@ -78,4 +84,37 @@ func TestReportGoldens(t *testing.T) {
 			})
 		}
 	}
+}
+
+// readFixture returns a fixture's files by their path in the project: a
+// file is tasks.md, a directory gives every file under it.
+func readFixture(t *testing.T, src string) map[string][]byte {
+	t.Helper()
+	fi, err := os.Stat(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !fi.IsDir() {
+		data, err := os.ReadFile(src) //nolint:gosec // a fixture under testdata/
+		if err != nil {
+			t.Fatal(err)
+		}
+		return map[string][]byte{"tasks.md": data}
+	}
+	files := map[string][]byte{}
+	err = filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		files[rel], err = os.ReadFile(path) //nolint:gosec // a fixture under testdata/
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return files
 }

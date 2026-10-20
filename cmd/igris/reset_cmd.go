@@ -55,7 +55,7 @@ func execReset(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 	case err != nil:
 		return fail("%v", err)
 	}
-	opts, rules := plan.Options{Columns: cfg.Columns}, cfg.Rules(root)
+	opts, rules := cfg.PlanOptions(root), cfg.Rules(root)
 	p, err := plan.Load(rootPath(root, cfg.Plan), opts)
 	if err != nil {
 		return fail("%v; set plan in %s", err, state.ConfigFile)

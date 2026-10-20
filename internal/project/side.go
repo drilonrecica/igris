@@ -179,7 +179,7 @@ func (s *SideSessions) Prefill(ctx context.Context, req tui.SidePrefill) (string
 	}
 	switch req.Preset {
 	case state.SidePresetTask:
-		pl, err := plan.Load(p.PlanPath, plan.Options{Columns: p.Cfg.Columns})
+		pl, err := plan.Load(p.PlanPath, p.Cfg.PlanOptions(p.Root))
 		if err != nil {
 			return "", err
 		}

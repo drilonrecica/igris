@@ -1,7 +1,7 @@
 igris · sinjal · tasks.md · herdr ✓ · mode auto                                                             PLAN INVALID
 ─ PHASES ──────────────────────────────────────────────────┬─ NOW ──────────────────────────────────────────────────────
 plan invalid — Check shows the problems                    │ PLAN INVALID · tasks.md · 1 problem                        
-                                                           │ tasks.md:1: plan format 2 needs a newer igris (this igris …
+                                                           │ tasks.md:1: plan format 3 needs a newer igris (this igris …
                                                            ├─ HEALTH ───────────────────────────────────────────────────
                                                            │ ⨯ plan invalid · 1 problem                                 
                                                            │ ! doctor: 1 warning — uncommitted changes                  

@@ -167,7 +167,7 @@ func doctorPlan(root string, cfg *config.Config, noConfig bool) (*plan.Plan, []R
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(root, path)
 	}
-	p, err := plan.Load(path, plan.Options{Columns: cfg.Columns})
+	p, err := plan.Load(path, cfg.PlanOptions(root))
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			// Without igris.toml there may simply be no project here.

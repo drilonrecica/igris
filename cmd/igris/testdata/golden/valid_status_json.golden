@@ -2,10 +2,14 @@ exit: 0
 --- stdout
 {
   "v": 1,
+  "files": [
+    "tasks.md"
+  ],
   "phases": [
     {
       "id": "P1",
       "title": "Hello CLI",
+      "file": "tasks.md",
       "total": 5,
       "counts": {
         "blocked": 1,
@@ -78,6 +82,7 @@ exit: 0
     {
       "id": "P2",
       "title": "Polish",
+      "file": "tasks.md",
       "total": 3,
       "counts": {
         "blocked": 3,

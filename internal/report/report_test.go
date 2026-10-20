@@ -68,7 +68,7 @@ func TestCheckKeepsJSONKeyOrderAndNeverNull(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(string(out), `{"v":1,"issues":[],"phases":1,"plan":"tasks.md","tasks":3,"valid":true,"warnings":[`) {
+	if !strings.HasPrefix(string(out), `{"v":1,"files":["tasks.md"],"issues":[],"phases":1,"plan":"tasks.md","tasks":3,"valid":true,"warnings":[`) {
 		t.Errorf("json = %s", out)
 	}
 	if w := r.Warnings[1]; w.Task != "A-2" || w.From != "blocked" || w.To != "ready" {
