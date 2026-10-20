@@ -237,12 +237,14 @@ Igris polls the backend every 2 s (configurable) for the pane's agent state and 
 
 `waiting` (WAIT-P1) means the turn ended but Claude Code resumes the session by itself when that work is done: a finished background task re-invokes it through `UserPromptSubmit`, and the last `Stop` then has none pending (recorded with Claude Code 2.1.299). Claude Code sends `idle_prompt` about a minute after a `Stop` even while a background task runs, so `idle_prompt` never replaces a recorded `waiting`; only the next `Stop`, prompt, tool use, permission prompt or `SessionEnd` does. Only the statuses and the count of the pending work are read; the commands and descriptions are never stored. The tmux backend takes the agent state from these files; the herdr backend uses them when herdr reports `unknown` (its Claude integration is not installed), and when herdr reports `idle` or `done` while the hooks recorded `waiting` (herdr sees a finished turn only). `igris hook` reads at most 64 KiB, needs a UUID-shaped `session_id`, prints nothing, does no network I/O, gives up after 2 s and always exits 0 (a failing hook must never block Claude Code). The files are untrusted (a session can write them): read only as regular files of at most 4 KiB, shape-checked, keyed by the UUID igris generated. A forged state can at worst raise or clear **Needs you**.
 
+**Plan approval (V11-P1).** For a session in a plan mode (`plan`, `plan:<mode>`, §7.1) the settings file also has a `PermissionRequest` entry with `"matcher": "ExitPlanMode"` that runs `'<igris>' hook --root '<root>' plan-approve` with a timeout of `approve_timeout` + 30 s (`[plan_mode]`, §12). It is the one hook that doesn't give up after 2 s: it reads at most 1 MiB, needs a UUID-shaped `session_id` and `tool_name` `ExitPlanMode`, writes `.igris/plan-approval/<session uuid>.json` (`{"n","at","plan"}`, the plan from `tool_input.plan` only, never `planFilePath`) and polls every 200 ms for igris's `<session uuid>.decision.json` (`{"n","behavior","message"}`, `behavior` `allow`, `deny` or `pane`; a decision with another `n` is ignored). It answers Claude Code itself: allow echoes the `tool_input` it received as `updatedInput` (Claude Code ignores an allow for `ExitPlanMode` without it) and adds `updatedPermissions` `setMode` for the mode after approval (§7.1); deny passes the owner's feedback as `message`, and Claude revises the plan and presents it again. It prints nothing, so the pane decides, on `pane`, after `approve_timeout`, when `igris.lock` is gone or its PID isn't alive, or on any error. It does no network I/O and always exits 0. Claude Code shows its own plan dialog in the pane meanwhile; the first answer wins (an answer in the pane cancels the hook; Claude Code kills it at its timeout). On a request igris saves the plan (§13), marks **Needs you** with reason `plan awaiting approval`, and the TUI shows it with approve (naming the mode it switches to), reject with feedback (cleaned, at most 4 KiB) and answer in the pane. The entry is not written for `--no-tui`, for `adapt`, or with `approve_timeout = "0"`. The exchange files are untrusted like the state files; a session that forges a decision approves its own plan, an accepted risk (approval from igris is a convenience, not a guard).
+
 | Observation | Action |
 |---|---|
 | Signal present | Proceed to verification. |
 | Agent `working` | Clear any "needs you" flag. |
 | Agent `idle` or `done` without a signal for ≥ `needs_input_after` (default 30 s), an agent task, not yet reminded in this attempt, `nudge` on (the default) | **Remind it once** (WAIT-P1): igris sends the session `igris: you ended your turn without running igris done <ID>. If the task is finished and nothing waits on the owner, run igris done <ID> --note "<one-line summary>" now as your last action. If you are waiting for the owner or for something else, say in one line what it is.` and shows it in the feed (not in the run log). The `needs_input_after` count starts again. At most once per attempt, so an agent that answers and stops again needs the owner. A reminder that can't be sent is reported as a warning, and Needs you follows at once. |
-| Agent `blocked`, `idle` or `done` without a signal for ≥ `needs_input_after` (default 30 s), after that reminder or without one (blocked, user task, `nudge = false`, already reminded) | Mark the task **Needs you** in the TUI; send a `needs_input` notification once per idle episode. Possible causes: a question, a permission prompt, a plan awaiting approval, a usage limit, or a stall — igris doesn't try to tell them apart. |
+| Agent `blocked`, `idle` or `done` without a signal for ≥ `needs_input_after` (default 30 s), after that reminder or without one (blocked, user task, `nudge = false`, already reminded) | Mark the task **Needs you** in the TUI; send a `needs_input` notification once per idle episode. Possible causes: a question, a permission prompt, a plan awaiting approval, a usage limit, or a stall — igris doesn't try to tell them apart, except a plan it was asked to approve (reason `plan awaiting approval`, below). |
 | Agent `waiting` | Not idle: the TUI says `waiting on background work (4m)`, and any Needs you of an idle or blocked episode is cleared. After `waiting_limit` (default 30m) without the agent working again: **Needs you** with reason `waiting`, once per stretch. A task's `Timeout` applies as usual. |
 | Task running longer than its `Timeout` (§3.2) | Once per attempt: mark it **overdue** in the TUI (until the attempt ends) and **Needs you**, log `task_overdue` and send a `task_overdue` notification. The session is never closed or stopped for it. |
 | Agent `unknown` | Nothing; it says nothing about the agent (e.g. no hook has fired yet and herdr's integration is missing). |
@@ -268,10 +270,10 @@ Igris never advances on agent state alone — only on a signal or an explicit ow
 ### 6.5 Commits
 - `commit = "ask"` (default) — the TUI (or `--no-tui` stdin) asks y/n after each verified task.
 - `commit = "never"` — igris never touches git. Uncommitted changes then carry over into the next task's session; the task prompt says so, and `Resumed` sessions can't tell whose changes they're looking at. Use `never` only if you commit by hand between tasks.
-- `commit = "auto"` — after verification passes: `git add -A && git commit -m "<template>"`. Default message template: `{{.ID}}: {{.Title}}` plus the done note as body. If there's nothing to commit, continue silently. A commit failure stops the run and notifies.
+- `commit = "auto"` — after verification passes: `git add -A && git commit -m "<template>"`. Default message template: `{{.ID}}: {{.Title}}` plus the done note as body, and, when igris approved a plan for the task (§6.3), the plan, capped at 8 KiB. If there's nothing to commit, continue silently. A commit failure stops the run and notifies.
 - Git runs with igris's environment without the variables the notification secrets refer to (§6.4); a commit runs the project's git hooks. `run.env` doesn't limit it: hooks and commit signing need variables (`SSH_AUTH_SOCK`, `GPG_TTY`, …) no list would think of.
 - Igris checks `git status --porcelain` first: with nothing to commit, `ask` doesn't ask. The commit happens before the task is marked `done` (§6 steps 8–9). Git runs as argv, never through a shell, with a timeout.
-- `commit_message` is a Go `text/template` with `ID`, `Title`, `Phase`, `Rank`, `Model` and `Note`; a template that doesn't parse stops `arise` before anything starts. User tasks are never committed.
+- `commit_message` is a Go `text/template` with `ID`, `Title`, `Phase`, `Rank`, `Model`, `Note` and `Plan` (the approved plan, empty without one; since 1.1); a template that doesn't parse stops `arise` before anything starts. User tasks are never committed.
 
 ### 6.6 Closing
 After a task is accepted, igris waits up to 30 s for the agent to become idle (so it can finish its final message), then closes the pane.
@@ -308,10 +310,12 @@ After a task is accepted, igris waits up to 30 s for the agent to become idle (s
 | Default | `default` | none (user's normal settings) | Every permission prompt goes to the owner. |
 | Accept edits | `accept` | `--permission-mode acceptEdits` | |
 | Auto | `auto` | `--permission-mode auto` | Claude Code approves routine actions itself and asks for risky ones. Middle ground between `accept` and `yolo`. **The default** (`default_mode`, §12). |
-| Plan | `plan` | `--permission-mode plan` | Session plans first; owner approves the plan in Claude Code, then it implements. `igris done` only becomes possible after approval, since plan mode blocks commands. |
+| Plan | `plan`, `plan:<mode>` | `--permission-mode plan` | Session plans first; the owner approves the plan in igris (§6.3) or in Claude Code, then it implements. `igris done` only becomes possible after approval, since plan mode blocks commands. |
 | Skip permissions | `yolo` | `--dangerously-skip-permissions` | Shown with a red badge everywhere; needs per-run confirmation (§7.3). |
 
 Exact flag spellings are verified against the installed Claude Code (P0-02, 2.1.291; the verified versions are in §11.4) and kept in one table in code. `--permission-mode` accepts `acceptEdits`, `auto`, `bypassPermissions`, `manual`, `dontAsk`, `plan`; there is no `default` value, so Default mode passes **no** permission flag (`manual` behaves the same but is not used).
+
+**Mode after plan approval** (V11-P1). `plan:default`, `plan:accept`, `plan:auto` and `plan:yolo` name the mode the session switches to when igris approves its plan; plain `plan` means `plan:<then>` with `[plan_mode] then` (default `auto`, §12). The switch happens only through `setMode` in the hook's decision (`default` → `default`, `accept` → `acceptEdits`, `auto` → `auto`, `yolo` → `bypassPermissions`), never by keystrokes. An owner who answers in the pane picks Claude Code's own options instead. `plan:yolo` needs the typed confirmation (§7.3).
 
 Verified behavior that the design relies on:
 - **`auto` does not pre-approve `igris done`.** An unfamiliar shell command still prompts (headless: denied; interactive: "This command requires approval"). `igris done` must therefore be allow-listed (below) in every mode that is not `yolo`.
@@ -329,7 +333,7 @@ Verified behavior that the design relies on:
 Mode changes in the TUI apply to the **next** session launched; a running session keeps its mode.
 
 ### 7.3 Skip-permissions guardrails
-- Choosing `yolo` (for the run or any task) requires typing the confirmation shown in the TUI, every run. Config can't silently enable it: `default_mode = "yolo"` still asks once at start.
+- Choosing `yolo` or `plan:yolo` (for the run or any task) requires typing the confirmation shown in the TUI, every run. Config can't silently enable it: `default_mode = "yolo"` still asks once at start.
 - The TUI header shows a persistent red `SKIP PERMISSIONS` badge while any session runs in this mode.
 - Igris warns at start if the project is not a git repository or has uncommitted changes. When it asks for the confirmation without worktree mode, `igris arise` suggests `--worktree` (§6.8), which keeps the run's changes on a branch of their own.
 
@@ -551,6 +555,10 @@ timeout = "2m"
 [adapt]
 model = "sonnet"                  # sonnet | opus
 
+[plan_mode]                       # since 1.1: plan approval from igris (§6.3, §7.1)
+then = "auto"                     # mode after igris approves a plain `plan` task: default | accept | auto
+approve_timeout = "30m"           # how long the plan hook waits for igris (1m–24h); "0": answer in the pane only
+
 [tui]
 tail = true                       # live tail of the current session in the task card (§15.3)
 mouse = true                      # click/tap, wheel and hover in the TUI (§15.5); false keeps the terminal's own text selection
@@ -618,6 +626,8 @@ token = ""                        # application token, or "env:GOTIFY_TOKEN"
 | `hooks/` | `<ID>.settings.json`: the Claude Code settings file igris passes with `--settings` (§6.3): hooks only, plus two allow rules in worktree mode (§6.8). Rewritten before every session. |
 | `worktrees/` | `<run-id>/`: a run's git worktree in worktree mode (§6.8), removed when the run completes clean. |
 | `agent-state/` | `<session uuid>.json`: `{"state","event","at"}`, the agent state written by `igris hook` (§6.3). Untrusted; read bounded and shape-checked. |
+| `plan-approval/` | `<session uuid>.json` (a plan waiting for approval, written by `igris hook plan-approve`) and `<session uuid>.decision.json` (igris's answer), §6.3. Untrusted; read bounded and shape-checked. |
+| `plans/` | `<ID>-a<attempt>-<n>.md`: every plan a session presented for approval, rejected ones too (§6.3). 0600, directory 0700. |
 | `runs.jsonl` | Append-only log: one JSON line per event (task started/done/skipped, verify result, commits, needs-you waits, notifications, errors) with timestamps, run ID, task ID, rank and model; schema v1 below. |
 | `adapt/` | Adapt proposals and backups (§9). |
 | `config/` | `igris.<timestamp>.bak.toml`: the `igris.toml` `igris config migrate` replaced (§14). Not frozen (§19). |
@@ -948,7 +958,7 @@ Focus regions in tab order: PHASES → action bar → HEALTH/RECENT (each line o
 1. **What to run** — only when something can be resumed: **Resume last run (T first)** · Start a phase…. Resume continues the previous range with the interrupted task first (§13); the session-lost question then comes in the run view.
 2. **Phase** — phases with work first, each with `n/m` and its outcome word; complete phases last, labelled `complete`. Default: the selected phase if it has work, else the first with work.
 3. **Through** — **Only P** · P through Q … (later phases only).
-4. **Mode** — **As planned** (Mode column, then `default_mode`) · default · accept · auto · plan · yolo `[SKIP PERMISSIONS]`. yolo opens the typed-phrase field (§7.3, §15.5).
+4. **Mode** — **As planned** (Mode column, then `default_mode`) · default · accept · auto · plan · plan:default · plan:accept · plan:auto · plan:yolo `[SKIP PERMISSIONS]` · yolo `[SKIP PERMISSIONS]`. yolo and plan:yolo open the typed-phrase field (§7.3, §15.5).
 5. **Summary** — `Arise P through Q · mode M · N tasks · first T rank`, with the warnings `arise` prints (plan hints, the integration hint, not a git repository, uncommitted changes, the interrupted task first): **Arise** · Preview · Cancel.
 6. **Confirmations** — every start warning that `arise` asks about becomes a dialog, Cancel first (e.g. `ANTHROPIC_API_KEY`: **Cancel** · Start anyway).
 7. **Launch** — "starting… checking the backend, taking the lock" with Cancel. An error before the run starts becomes the matching dialog and the launch is retried: readiness drift → the list of changes, **Cancel** · Let igris fix them; a task needing yolo → the typed phrase (unless typed in step 4 of this launch); a stale or remote lock → **Cancel** · Clear the lock and start (the `--force-unlock` equivalent, §14). A live local lock, an unavailable backend or any other error → an error dialog with the next step and a link to Doctor; no retry. A failed launch leaves no engine behind.
@@ -1030,9 +1040,9 @@ What igris 1.x promises not to break (V07-P1). Until v2.0, every surface below k
 - **The generic webhook** (§10): the payload (`"v": 1`), the `X-Igris-Event` and `X-Igris-Signature` headers and the signature.
 - **The task-hook environment** (§6.7): `IGRIS_TASK_ID`, `IGRIS_PHASE`, `IGRIS_RANK`, `IGRIS_MODEL`, `IGRIS_RESULT`.
 
-**Not frozen:** the TUI (§15); the default task prompt's wording; text output; the hidden `hook` and `__complete` commands; the contents of `.igris/agent-state/`, `.igris/hooks/`, `.igris/prompts/` and `igris.lock`; the messages sent to ntfy, Discord, Slack, Gotify and the backend; the Go packages under `internal/`.
+**Not frozen:** the TUI (§15); the default task prompt's wording; text output; the hidden `hook` and `__complete` commands; the contents of `.igris/agent-state/`, `.igris/hooks/`, `.igris/plan-approval/`, `.igris/prompts/` and `igris.lock`; the messages sent to ntfy, Discord, Slack, Gotify and the backend; the Go packages under `internal/`.
 
-**Allowed in 1.x:** new optional plan columns (an older igris treats them as extra columns), new config keys with defaults, new commands and flags, new JSON fields, new run-log event types, new template variables. Readers of `--json`, the run log and the webhook must ignore fields and event types they don't know. A config using a key added in a later 1.x fails on an older igris as an unknown key; the fix is to upgrade. A feature deprecated in 1.x warns until 2.0 and is removed only then.
+**Allowed in 1.x:** new optional plan columns (an older igris treats them as extra columns), new Mode values (an older igris reports them as an unknown Mode, like a config key it doesn't know), new config keys with defaults, new commands and flags, new JSON fields, new run-log event types, new template variables. Readers of `--json`, the run log and the webhook must ignore fields and event types they don't know. A config using a key added in a later 1.x fails on an older igris as an unknown key; the fix is to upgrade. A feature deprecated in 1.x warns until 2.0 and is removed only then.
 
 **`state.json` versions.** igris 1.0 writes `"version": 3` and reads 1, 2 and 3, migrating older state in memory; the next save writes 3. A higher version is refused with "written by a newer igris; upgrade igris, or delete the file to start a new run". A damaged file (bad JSON, a value of the wrong shape) is reported as damaged, separately from an old one. A new field gets a new version only when an igris that ignored it would do something wrong; every 1.x igris reads every older version. A config that doesn't set a key added later keeps its snapshot hash, so adding keys never shows an interrupted run the "config changed" notice.
 
