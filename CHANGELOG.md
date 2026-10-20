@@ -4,6 +4,20 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-20
+
+igris 1.0. From here until 2.0, igris keeps its promises: the plan format, `igris.toml`, the CLI and its exit codes, `--json`, `.igris/`, the run log, the template variables, the generic webhook and the task-hook environment don't break. 1.x may add to them (new optional columns, config keys with defaults, commands, flags, JSON fields, run-log events, template variables), never remove or change them. What is covered, and the test that keeps each surface honest, is in [`docs/compatibility.md`](docs/compatibility.md) ([SPEC §19](SPEC.md#19-compatibility)).
+
+1.0.0 is [1.0.0-rc.2](#100-rc2---2026-10-20) with no further code changes. If you ran an rc, nothing more is needed. Coming from 0.x, install 1.0.0 and run `igris config migrate` once in each project; plans need nothing. The full upgrade path is [`site/docs/upgrade.md`](site/docs/upgrade.md) (on the site: `/docs/upgrade.html`).
+
+What got igris here, release by release: the 1.0 contract, the removal of `claude.command`, the `--json` and exit-code changes, `igris config migrate` and the compatibility suite are in [1.0.0-rc.1](#100-rc1---2026-10-14); the stricter config validation, the final security review's fixes and the docs pages are in [1.0.0-rc.2](#100-rc2---2026-10-20). Both candidates are summarized under **Migration** there, and the **Changed** and **Removed** lists are what to check when upgrading from 0.x.
+
+### Verification
+
+- **Soaked on real projects** with 1.0.0-rc.1, on Linux and macOS, on herdr, driven over Termius, with `adapt` used on a non-canonical plan.
+- **Waivers.** tmux was not soaked by hand; it is covered by the backend conformance suite in `make test`. rc.2, which changed reattach and config confirmation, was approved without a separate soak: those fixes are covered by their regression tests and the conformance suite, not by a real resume on herdr or tmux.
+- A **final security review** ([`docs/threat-model.md`](docs/threat-model.md)) and the compatibility suite (every release from 0.1.0 to 0.6.0 still loads) run on every change.
+
 ## [1.0.0-rc.2] - 2026-10-20
 
 The second release candidate for igris 1.0. It carries the fixes from the final security review, which make a few configs that rc.1 accepted invalid (**Changed**, below; `igris check` names the key), and the docs pages on the project site. Plans need no changes.
@@ -444,7 +458,8 @@ First release. Linux and macOS, herdr backend only. The full behavior is specifi
 - Release artifacts are not signed (checksums only); signing is planned.
 - No Homebrew tap yet.
 
-[Unreleased]: https://github.com/drilonrecica/igris/compare/v1.0.0-rc.2...HEAD
+[Unreleased]: https://github.com/drilonrecica/igris/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/drilonrecica/igris/compare/v1.0.0-rc.2...v1.0.0
 [1.0.0-rc.2]: https://github.com/drilonrecica/igris/compare/v1.0.0-rc.1...v1.0.0-rc.2
 [1.0.0-rc.1]: https://github.com/drilonrecica/igris/compare/v0.6.0...v1.0.0-rc.1
 [0.6.0]: https://github.com/drilonrecica/igris/compare/v0.5.1...v0.6.0
