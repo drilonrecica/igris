@@ -43,6 +43,7 @@ type fakeServices struct {
 	edit       func(path string) (tea.ExecCommand, error)
 	vi         func(path string) tea.ExecCommand
 	focusErr   error
+	side       SideSessions // nil: Side returns none
 }
 
 var _ Services = (*fakeServices)(nil)
@@ -179,3 +180,5 @@ func (f *fakeServices) Focus(context.Context, backend.SessionRef, string) error 
 	f.count("Focus")
 	return f.focusErr
 }
+
+func (f *fakeServices) Side() SideSessions { return f.side }

@@ -449,6 +449,7 @@ func (m *homeScreen) runView(req report.RunRequest, r *liveRun) tea.Model {
 		Feed:     r.h.feed,
 		Sender:   r.sender,
 		Focus:    m.svc.Focus,
+		Side:     m.svc.Side(),
 		Leave:    func() tea.Msg { return ownedMsg{m, leaveRunMsg{}} },
 		// The ETA's history, as read by the snapshot the run started from
 		// (SPEC §15.3), as `igris arise` reads it at its start.

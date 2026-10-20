@@ -28,6 +28,7 @@ type Services struct {
 
 	mu   sync.Mutex
 	last *Project // the project of the last Snapshot, for Stamp
+	side *SideSessions
 }
 
 var _ tui.Services = (*Services)(nil)

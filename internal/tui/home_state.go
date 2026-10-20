@@ -10,6 +10,7 @@ import (
 	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/report"
+	"github.com/drilonrecica/igris/internal/side"
 	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
@@ -221,6 +222,9 @@ func (m *homeScreen) buttons() []option {
 	add(m.planFile(), "Edit plan", actEdit)
 	add(true, "Settings", actSettings)
 	add(m.channels(), "Notify", actNotify)
+	// Side sessions need a reachable backend, or one open to look at; they
+	// never touch the plan, so a read-only home offers them too.
+	add(found && m.side != nil && (m.herdr() || m.side.count() > 0), "Side…", actSide)
 	add(found && s.NoConfig && !live, "Init", actInit)
 	add(found && !s.NoConfig && len(s.ConfigProblems) == 0 && s.PlanMissing && !live, "Example plan", actExample)
 	out = append(out, option{"?", actHelp}, option{"Quit", actQuit})
@@ -252,7 +256,7 @@ func (m *homeScreen) buttons() []option {
 
 // homeFold lists the actions the bar folds into More… first when it
 // doesn't fit; the first button (the state's own action) is never folded.
-var homeFold = []action{actNotify, actSettings, actEdit, actHistory, actDoctor, actAdapt, actInit, actExample, actCheck, actPreview, actOpen, actHelp, actArise}
+var homeFold = []action{actSide, actNotify, actSettings, actEdit, actHistory, actDoctor, actAdapt, actInit, actExample, actCheck, actPreview, actOpen, actHelp, actArise}
 
 // phaseRow is one PHASES row, ready to lay out.
 type phaseRow struct {
@@ -737,7 +741,34 @@ func (m *homeScreen) healthLines() []homeLine {
 			doc.text += " — " + first
 		}
 	}
-	return []homeLine{planLine, doc}
+	out := []homeLine{planLine, doc}
+	if n := m.side.count(); n > 0 {
+		out = append(out, homeLine{"SIDE " + strconv.Itoa(n) + " open · S lists them", "SIDE " + strconv.Itoa(n) + " open", actSide})
+	}
+	return out
+}
+
+// sideAt is what a side session opened from home can be about (SPEC
+// §15.7): the run's current or interrupted task, else the selected
+// phase's next one; the run going here is another igris's, which Setup
+// reads.
+func (m *homeScreen) sideAt() sideAt {
+	at := sideAt{place: m.sessionPlace()}
+	s := m.snap
+	if s == nil {
+		return at
+	}
+	live := s.Lock.Alive && s.Run != nil
+	if s.Run != nil && s.Run.Task != "" {
+		at.task = s.Run.Task
+		at.running = live
+	} else if i := m.phaseIndex(); i >= 0 {
+		at.task = m.phases()[i].Next
+	}
+	if live {
+		at.state = &side.RunInfo{Phase: strings.Join(s.Run.Phases, ", "), Task: s.Run.Task}
+	}
+	return at
 }
 
 // recentLines are the RECENT lines: the last runs, newest first.

@@ -62,6 +62,9 @@ type Options struct {
 	TailEvery time.Duration
 	// Now is the clock for elapsed times; nil means time.Now.
 	Now func() time.Time
+	// Side opens, lists, focuses and closes side sessions (SPEC §15.7);
+	// nil offers none.
+	Side SideSessions
 	// Leave, when set, is how the run view is left when the owner quits it
 	// (the bar says "Home" then): the message it returns goes to the
 	// program holding the view. Nil means quitting ends the program, as

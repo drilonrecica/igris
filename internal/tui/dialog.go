@@ -43,6 +43,11 @@ type dialog struct {
 	// pre keeps the detail's line breaks and indentation (a plan in
 	// markdown); wide lets the box grow past the usual width.
 	pre, wide bool
+	// echo, when set, makes the detail the field's whole value, its end in
+	// view while the field has the focus (a side session's first prompt,
+	// longer than one line); echo itself is the detail while the value is
+	// empty.
+	echo string
 }
 
 type option struct {
@@ -306,6 +311,12 @@ func (d *dialog) fieldKey(msg tea.KeyMsg) (action, bool) {
 		return actNone, true
 	case tea.KeyEsc:
 		return d.cancel, true
+	case tea.KeyPgUp:
+		d.scrollBy(-3)
+		return actNone, true
+	case tea.KeyPgDown:
+		d.scrollBy(3)
+		return actNone, true
 	}
 	return actNone, false
 }
@@ -357,11 +368,21 @@ func (d *dialog) render(th *theme, w, h int) ([]string, zones) {
 			input = append(input, fit(d.input.hint, inner))
 		}
 	}
+	text := d.detail
+	if d.echo != "" && d.input != nil {
+		text = d.echo
+		if d.input.value != "" {
+			text = d.input.value
+		}
+		if d.inField {
+			d.scroll = maxTop // what is typed shows; render clamps
+		}
+	}
 	var detail []string
-	if d.detail != "" {
-		detail = wrap(d.detail, inner)
+	if text != "" {
+		detail = wrap(text, inner)
 		if d.pre {
-			detail = wrapPre(d.detail, inner)
+			detail = wrapPre(text, inner)
 		}
 		// Borders, the title, a blank line before the detail and before the
 		// options, the field and the blank line after it.
@@ -447,12 +468,14 @@ func (d *dialog) fieldLine(w int) string {
 		cursor = "▏"
 	}
 	room := max(w-textWidth(f.label)-3, 1) // "[" + value + cursor + "]"
-	v := []rune(f.value)
+	// A pasted value may hold line breaks and tabs: one line here.
+	full := []rune(strings.NewReplacer("\r\n", "↵", "\n", "↵", "\r", "↵", "\t", " ").Replace(f.value))
+	v := full
 	for textWidth(string(v)) > room {
 		v = v[1:]
 	}
 	val := string(v)
-	if len(v) < len([]rune(f.value)) {
+	if len(v) < len(full) {
 		val = "…" + string(v[1:])
 	}
 	return fit(f.label+"["+pad(val+cursor, room+1)+"]", w)

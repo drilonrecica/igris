@@ -112,6 +112,9 @@ func (m *model) buttons() []option {
 	if !m.ended {
 		out = append(out, option{"Stop", actStopAsk})
 	}
+	if m.side != nil {
+		out = append(out, option{"Side…", actSide})
+	}
 	quit := "Quit"
 	if m.opts.Leave != nil {
 		quit = "Home"

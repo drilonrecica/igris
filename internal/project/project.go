@@ -46,6 +46,9 @@ type Env struct {
 	// Format renders an event as the lines the dry run shows for it; the
 	// CLI's plain log format. nil shows the event's kind and detail.
 	Format func(engine.Event) []string
+	// Version is igris's version, for a side session's igris problem
+	// prompt (SPEC §6.10); "" when not known.
+	Version string
 }
 
 func (e Env) getenv() func(string) string {

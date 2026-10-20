@@ -18,6 +18,12 @@ import (
 // version is set at build time with -ldflags "-X main.version=...".
 var version = "dev"
 
+// igrisVersion is the running igris's version.
+func igrisVersion() string {
+	info, ok := debug.ReadBuildInfo()
+	return resolveVersion(version, info, ok)
+}
+
 // resolveVersion prefers the ldflags version; a `go install …@vX.Y.Z` build has
 // none, so it falls back to the module version from the build info (SPEC §18).
 func resolveVersion(ldflags string, info *debug.BuildInfo, ok bool) string {
@@ -173,8 +179,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stderr, "igris %s: takes no arguments; see `igris -h`\n", args[0])
 			return exitUsage
 		}
-		info, ok := debug.ReadBuildInfo()
-		fmt.Fprintf(stdout, "igris %s\n", resolveVersion(version, info, ok))
+		fmt.Fprintf(stdout, "igris %s\n", igrisVersion())
 		return exitOK
 	}
 	if args[0] == "__complete" { // hidden: not in the help, SPEC §14

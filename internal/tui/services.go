@@ -64,6 +64,9 @@ type Services interface {
 	// Focus brings a session's pane to the front; taskID is the task the
 	// ref was recorded for (backend.Backend.Attach).
 	Focus(ctx context.Context, ref backend.SessionRef, taskID string) error
+	// Side is the project's side sessions (SPEC §15.7), the same for every
+	// call, so home and a run view it starts share them.
+	Side() SideSessions
 }
 
 // ErrNoEditor says neither $VISUAL nor $EDITOR is set: home then asks,

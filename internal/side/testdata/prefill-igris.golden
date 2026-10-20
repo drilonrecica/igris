@@ -1,0 +1,25 @@
+I have a problem with igris, the tool that runs this project's plan one Claude Code session per task.
+
+igris version: 1.2.0
+Backend: tmux
+Run: phase M1, current task M1-12, agent state working
+
+The last 10 run-log events, oldest first:
+- task_started M1-04
+- task_started M1-05
+- task_started M1-06
+- task_started M1-07
+- task_started M1-08
+- task_started M1-09
+- task_started M1-10
+- task_started M1-11
+- task_started M1-12
+- verify_failed M1-12: exit 1: make test
+
+Doctor: 1 warning(s), 1 failure(s); `igris doctor` says what and what fixes it:
+- warn: claude
+- fail: config
+
+Read .igris/runs.jsonl and .igris/state.json to look into it; don't change the plan.
+
+Problem: 

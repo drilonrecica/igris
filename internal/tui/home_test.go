@@ -691,7 +691,7 @@ func TestHomeHelpKeys(t *testing.T) {
 	for _, e := range m.helpKeys() {
 		keys = append(keys, e.key)
 	}
-	want := "a v c i h e , n A I o ? q"
+	want := "a v c i h e , n A I o S ? q"
 	if got := strings.Join(keys, " "); got != want {
 		t.Errorf("help keys %q, want %q", got, want)
 	}

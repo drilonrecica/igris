@@ -96,7 +96,10 @@ type Config struct {
 	PlanMode PlanMode `toml:"plan_mode,omitempty" json:",omitzero"`
 	// Usage configures token usage and the rank audit (SPEC §6.9); left
 	// out of the hash and the written file while unset (since 1.1).
-	Usage  Usage  `toml:"usage,omitempty" json:",omitzero"`
+	Usage Usage `toml:"usage,omitempty" json:",omitzero"`
+	// Side configures the side-session dialog's defaults (SPEC §6.10); left
+	// out of the hash and the written file while unset (since 1.2).
+	Side   Side   `toml:"side,omitempty" json:",omitzero"`
 	Adapt  Adapt  `toml:"adapt"`
 	TUI    TUI    `toml:"tui"`
 	Notify Notify `toml:"notify"`
@@ -247,6 +250,43 @@ type Usage struct {
 // On reports whether igris reads its sessions' transcripts for usage and
 // the rank audit; on unless usage.enabled = false.
 func (u Usage) On() bool { return u.Enabled == nil || *u.Enabled }
+
+// Side session defaults (SPEC §12, V12-P1).
+const (
+	DefaultSideModel = "sonnet"
+	DefaultSideMode  = "default"
+)
+
+// SideModes are the modes a side session may run in: never yolo nor a
+// plan:<mode> value (V12-P1).
+var SideModes = []string{"default", "accept", "auto", "plan"}
+
+// Side is the [side] table (SPEC §12): what the side-session dialog
+// preselects (SPEC §6.10). Both keys are empty when not set.
+type Side struct {
+	// Model is the rank preselected, a [models] key; "" is
+	// DefaultSideModel.
+	Model string `toml:"model,omitempty" json:",omitempty"`
+	// Mode is the mode preselected, one of SideModes; "" is
+	// DefaultSideMode.
+	Mode string `toml:"mode,omitempty" json:",omitempty"`
+}
+
+// ModelOrDefault is side.model, trimmed, or DefaultSideModel.
+func (s Side) ModelOrDefault() string {
+	if m := strings.TrimSpace(s.Model); m != "" {
+		return m
+	}
+	return DefaultSideModel
+}
+
+// ModeOrDefault is side.mode, lower-case, or DefaultSideMode.
+func (s Side) ModeOrDefault() string {
+	if m := strings.ToLower(strings.TrimSpace(s.Mode)); m != "" {
+		return m
+	}
+	return DefaultSideMode
+}
 
 // VerifyDefault is the profile run.verify defines.
 const VerifyDefault = "default"
@@ -723,6 +763,8 @@ func (c *Config) Validate() error {
 		add("plan_mode.approve_timeout = %q is out of range; use 1m to 24h, or \"0\" to approve plans in the pane only", t.Short())
 	}
 
+	c.validateSide(add)
+
 	for i, arg := range c.Claude.ExtraArgs {
 		switch {
 		case ForbiddenExtraArg(arg):
@@ -872,6 +914,25 @@ func (c *Config) validateVerify(add func(string, ...any)) {
 		if _, ok := profiles[v]; v != "" && v != plan.VerifyNone && !ok {
 			add("phases.%s.verify = %q is not a verify profile; define it under [verify] or use one of: %s", id, c.Phases[id].Verify, strings.Join(names, ", "))
 		}
+	}
+}
+
+// validateSide checks [side] (SPEC §12): a set model is a [models] rank,
+// a set mode never skips permissions.
+func (c *Config) validateSide(add func(string, ...any)) {
+	if m := strings.TrimSpace(c.Side.Model); m != "" {
+		if _, ok := c.Models[m]; !ok {
+			add("side.model = %q is not a [models] rank; use one of: %s", textsafe.Line(m), strings.Join(sortedKeys(c.Models), ", "))
+		}
+	}
+	if c.Side.Mode == "" {
+		return
+	}
+	switch mode := c.Side.ModeOrDefault(); {
+	case mode == "yolo" || strings.HasPrefix(mode, "plan:"):
+		add("side.mode = %q: side sessions never skip permissions; use one of: %s", textsafe.Line(c.Side.Mode), strings.Join(SideModes, ", "))
+	case !contains(SideModes, mode):
+		add("side.mode = %q is invalid; use one of: %s", textsafe.Line(c.Side.Mode), strings.Join(SideModes, ", "))
 	}
 }
 

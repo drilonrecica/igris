@@ -144,6 +144,7 @@ func (l *Launch) TUIOptions(feed *tui.Feed, sender tui.Sender) tui.Options {
 		Feed:        feed,
 		Sender:      sender,
 		Focus:       Focus(l.Backend),
+		Side:        l.Side(),
 		// The ETA's history, read once as the run starts (SPEC §15.3).
 		RankDurations: rankDurations(l.p.Root),
 	}

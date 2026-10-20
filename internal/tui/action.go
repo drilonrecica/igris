@@ -86,6 +86,16 @@ const (
 	actPlanReject        // ask for the feedback that rejects it
 	actPlanRejectConfirm // reject it with the feedback typed
 	actPlanPane          // answer it in the session's pane, which opens
+	// Side sessions (SPEC §15.7, side.go); a picked row, preset, rank,
+	// mode or place is the dialog's selected option.
+	actSide             // S: the Side sessions page, or the dialog
+	actSidePick         // the selected option of a side dialog
+	actSideNew          // the page's New…
+	actSideNext         // the first prompt's Next
+	actSideOpen         // the summary's Open
+	actSideCloseAsk     // the page's Close a session…
+	actSideCloseConfirm // Close session
+	actSideBack         // back to the page (Keep it)
 )
 
 // modeActs maps the mode picker's actions to their modes, in the order
@@ -153,6 +163,7 @@ var shortcuts = map[string]action{
 	"s":      actSkip,
 	"r":      actRetry,
 	"x":      actStopAsk,
+	"S":      actSide,
 	"y":      actCopy,
 	"?":      actHelp,
 	"q":      actQuit,
@@ -173,6 +184,7 @@ var helpActions = []helpEntry{
 	{"s", "Skip", "skip the current task; asks for a reason and closes its session"},
 	{"r", "Retry", "close the session and start fresh or continue the conversation"},
 	{"x", "Stop", "stop igris after confirming; the session stays open"},
+	{"S", "Side session", "a Claude Code session of your own, not a task"},
 	{"y", "Copy", "copy claude --resume for the current session, or the log line at the bottom when the log has the focus"},
 	{"q", "Quit", "quit the TUI; sessions keep running, igris arise resumes"},
 	{"?", "Help", "this page"},

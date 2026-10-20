@@ -49,6 +49,8 @@ var keyDocs = map[string]keyDoc{
 	"plan_mode.approve_timeout":  {desc: "How long a plan presented for approval waits for your answer in igris before the pane decides (SPEC §6.3). 1m to 24h; `\"0\"` approves plans in the pane only.", def: "`\"30m\"`"},
 	"usage.enabled":              {desc: "Read the task sessions' transcripts for token usage in the run log (SPEC §6.9). `false` reads none.", def: "`true`"},
 	"usage.statusline":           {desc: "Use igris's status line in task panes to record your subscription quota (5-hour and 7-day usage) for the header and `igris usage` (SPEC §6.3). It replaces your own status line in those panes. `false` leaves it alone and the quota is unavailable.", def: "`false`"},
+	"side.model":                 {desc: "The rank the side-session dialog preselects (SPEC §6.10), a `[models]` key. Unset, `sonnet`, or the first rank when there is none of that name.", def: "`\"sonnet\"`"},
+	"side.mode":                  {desc: "The mode the side-session dialog preselects (SPEC §6.10); during a run in the shared tree it preselects `default` whatever this says. Never `yolo` nor a `plan:<mode>` value: side sessions never skip permissions.", values: "`default`, `accept`, `auto`, `plan`", def: "`\"default\"`"},
 	"adapt.model":                {desc: "Model rank `igris adapt` uses (SPEC §9).", values: "`sonnet`, `opus`"},
 	"tui.mouse":                  {desc: "Click/tap, wheel and hover in the TUI (SPEC §15.5). `false` keeps the terminal's own text selection."},
 	"tui.theme":                  {desc: "Which colors to use (SPEC §15.4). `auto` goes by the terminal's background.", values: "`auto`, `dark`, `light`"},

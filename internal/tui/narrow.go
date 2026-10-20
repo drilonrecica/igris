@@ -73,8 +73,8 @@ func (m *model) statusBar(w int) string {
 	s := ""
 fit:
 	for level := range progressLevels {
-		for _, quota := range []bool{true, false} {
-			if s = head + m.facts(true, level, quota); textWidth(s) <= w {
+		for extras := factsAll; extras >= factsNone; extras-- {
+			if s = head + m.facts(true, level, extras); textWidth(s) <= w {
 				break fit
 			}
 		}

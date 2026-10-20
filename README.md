@@ -578,6 +578,7 @@ What's on it:
 | `n` | Notify test | Sends a sample of each event to each channel and fills in `✓ ok` or `⨯ FAILED: reason` per row (shown when a channel is set up). |
 | `I` / `E` | Init / Example plan | As in step 1. |
 | `o` | Open session | Jumps to a running session. |
+| `S` | Side sessions | Since 1.2, a [side session](#side-sessions) of your own; HEALTH shows `SIDE N open` while any are. |
 | `?` / `q` | Help / Quit | |
 
 <details>
@@ -614,6 +615,7 @@ Every action is a button you can click or tap, reach with `tab` and the arrow ke
 | `s` | Skip: asks for a reason and closes the session |
 | `r` | Retry: close the session and start fresh or continue the conversation |
 | `x` | Stop igris after confirming; the session stays open |
+| `S` | Side sessions: open one of your own, or focus and close the open ones ([below](#side-sessions)) |
 | `y` | Copy `claude --resume <session id>`, or the log line at the bottom when the log has the focus |
 | `q` | Quit the TUI; sessions keep running and `igris arise` resumes |
 | `?` | Help |
@@ -621,6 +623,14 @@ Every action is a button you can click or tap, reach with `tab` and the arrow ke
 `tab` moves between the task list, the action bar and the log; the arrow keys (or `j`/`k`) move within them; `enter` or `space` activates; `1`…`9` pick a dialog option; `esc` closes a dialog or page with its safe choice. Dialogs open on the safe choice. Click a task, the card's title or **[t] Details** to see a task in full; `enter` on the log opens the whole log, scrollable with the wheel or the keys.
 
 With `igris arise PHASE`, the start-up questions (an API key in the environment, plan drift, an `igris.toml` that changed during the last run, skip-permissions confirmation) are plain prompts before the TUI opens.
+
+### Side sessions
+
+Since 1.2: press `S` on home or in the run view for a Claude Code session of your own, for a question or a look into something, in a pane next to the run's. It is not a task: igris doesn't watch it, counts no attempt and writes no Status for it, and inside it `igris done`, `skip` and `reset` refuse.
+
+- **The dialog** asks what it is about: **Blank** (no first prompt), **About this task** (the selected or current task's ID, title, phase, the plan's path and its text, then `Question: `) or **igris problem** (igris's version, the backend, the run state, the last 10 run-log events and doctor's summary, never config values or secrets). The first prompt is a field you can add to (it is cleaned of escape sequences, at most 8 KiB, and typed once the session is ready); then the model (`[side] model` first, `sonnet` unless you set another) and the mode (`[side] mode` first; `default`, `accept`, `auto` or `plan`, never yolo).
+- **During a run** it also asks **Where**: the **Shared tree** (the default, with the warning `M2-04 is working in this tree; a plan edit holds the run`, and `default` mode first) or its **Own worktree** (`.igris/worktrees/side-<id>` on the branch `igris/side-<id>`). A plan edit from a side session holds the run like any other.
+- **With some open,** `S` lists them (`side a3f2c1 · working · 12m · M2-04 · sonnet · default`): `enter` or `o` brings one to the front, `x` asks before closing it (a worktree of its own is removed when it has no changes, its branch stays), **New…** opens another. The header shows `side N`. Quitting igris leaves them open, and the next home or run view finds them again.
 
 ### Mouse, clipboard and colors
 

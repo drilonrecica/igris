@@ -10,6 +10,7 @@ import (
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/plan"
+	"github.com/drilonrecica/igris/internal/side"
 	"github.com/drilonrecica/igris/internal/state"
 )
 
@@ -123,6 +124,12 @@ type model struct {
 	tailBusy bool
 	tailGen  int
 
+	// side is the side sessions (side.go); nil without Options.Side.
+	// worktree says the run works in a worktree of its own (SPEC §6.8),
+	// so a side session in the project root shares no files with it.
+	side     *sideUI
+	worktree bool
+
 	zones zones // of the last frame
 	th    *theme
 }
@@ -131,7 +138,11 @@ func newModel(ctx context.Context, opts Options) *model {
 	if opts.Now == nil {
 		opts.Now = time.Now
 	}
-	return &model{ctx: ctx, opts: opts, mode: opts.Mode, width: 80, height: 24, taskTop: -1, loc: time.Local, overrides: map[string]string{}, th: &theme{}}
+	m := &model{ctx: ctx, opts: opts, mode: opts.Mode, width: 80, height: 24, taskTop: -1, loc: time.Local, overrides: map[string]string{}, th: &theme{}}
+	if opts.Side != nil {
+		m.side = newSideUI(ctx, opts.Side, opts.Now, nil)
+	}
+	return m
 }
 
 // Messages besides the feed's batches.
@@ -145,7 +156,7 @@ type (
 )
 
 func (m *model) Init() tea.Cmd {
-	return tea.Batch(m.listen(false), tick(), m.loadPlan(), m.tailTick())
+	return tea.Batch(m.listen(false), tick(), m.loadPlan(), m.tailTick(), m.side.list())
 }
 
 // loadPlan reads the plan for the task list. The engine writes it
@@ -227,6 +238,18 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case focusErrMsg:
 		m.addLog(m.opts.Now(), "could not open the session: "+msg.err.Error(), lookTitle)
+	case sideMsg:
+		if msg.ui != m.side {
+			break
+		}
+		d, ok, cmd, lines := m.side.result(msg, m.dialog)
+		if ok {
+			m.dialog = d
+		}
+		for _, l := range lines {
+			m.addLog(m.opts.Now(), l, lookTitle)
+		}
+		return m, cmd
 	case tea.KeyMsg:
 		return m, m.key(msg)
 	case tea.MouseMsg:
@@ -244,6 +267,12 @@ func (m *model) key(msg tea.KeyMsg) tea.Cmd {
 		return m.activate(actQuit)
 	}
 	if m.dialog != nil {
+		if m.side.owns(m.dialog) {
+			if d, cmd, ok := m.side.key(msg); ok {
+				m.dialog = d
+				return cmd
+			}
+		}
 		a, _ := m.dialog.key(msg)
 		return m.pick(a)
 	}
@@ -455,6 +484,11 @@ func (m *model) pageMouse(msg tea.MouseMsg, t target, ok bool) tea.Cmd {
 // itself (More…, Stop, Skip…) closes once something is picked.
 func (m *model) pick(a action) tea.Cmd {
 	d := m.dialog
+	if m.side.owns(d) {
+		var cmd tea.Cmd
+		m.dialog, cmd = m.side.pick(a)
+		return cmd
+	}
 	if a == actSkipConfirm && d != nil && d.input != nil {
 		reason := strings.TrimSpace(d.input.value)
 		if reason == "" {
@@ -560,6 +594,13 @@ func (m *model) activate(a action) tea.Cmd {
 	case actHelp:
 		m.page = helpPage(m.th)
 		return nil
+	case actSide:
+		if m.side != nil {
+			var cmd tea.Cmd
+			m.dialog, cmd = m.side.open(m.sideAt())
+			return cmd
+		}
+		return nil
 	case actDetails:
 		if i := m.selected(); i >= 0 {
 			m.page = m.detailPage(m.phaseTasks()[i].ID)
@@ -635,6 +676,39 @@ func (m *model) activate(a action) tea.Cmd {
 		return m.focusSession() // Claude Code's own plan dialog waits there
 	}
 	return nil
+}
+
+// sideAt is what a side session opened now can be about (SPEC §15.7): the
+// selected task, else the current one, and the run going in this tree.
+func (m *model) sideAt() sideAt {
+	at := sideAt{place: sessionPlace(m.opts.Backend)}
+	if i := m.selected(); i >= 0 {
+		at.task = m.phaseTasks()[i].ID
+	} else if m.cur != nil {
+		at.task = m.cur.id
+	}
+	if m.ended {
+		return at
+	}
+	at.run = &SideRun{Worktree: m.worktree}
+	at.state = &side.RunInfo{Phase: m.phase}
+	if c := m.cur; c != nil {
+		at.running = c.id == at.task
+		at.state.Task, at.state.Agent = c.id, m.stateText()
+		if !c.user {
+			at.run.Task = c.id // a user task has no session working on it
+		}
+	}
+	return at
+}
+
+// sessionPlace is what a session opens in on backend: a tmux window or a
+// herdr tab.
+func sessionPlace(backend string) string {
+	if backend == "tmux" {
+		return "tmux window"
+	}
+	return "herdr tab"
 }
 
 // focusSession brings the current session's pane to the front.
@@ -790,11 +864,15 @@ func (m *model) event(ev engine.Event) {
 		m.mode = ev.Detail
 	case engine.TaskModeChanged:
 		m.overrides[ev.Task] = ev.Detail
+	case engine.WorktreeReady:
+		m.worktree = true
 	case engine.RunStopped:
 		m.ended = true
 		m.endText = "the run stopped: " + ev.Detail
 		m.settle()
-		m.dialog = nil // nothing left to ask or confirm
+		if !m.side.owns(m.dialog) {
+			m.dialog = nil // nothing left to ask or confirm; a side session isn't the run's
+		}
 	}
 }
 

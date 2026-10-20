@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"io"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -80,6 +81,9 @@ type homeScreen struct {
 	// notifying says the Notify dialog is open (notifypage.go).
 	notifying bool
 
+	// side is the side sessions (side.go); nil without services.
+	side *sideUI
+
 	status   string // the last action's result
 	statusAt time.Time
 	zones    zones
@@ -128,7 +132,14 @@ type (
 const pollEvery = 2 * time.Second
 
 func newHome(ctx context.Context, svc Services, th *theme) *homeScreen {
-	return &homeScreen{ctx: ctx, svc: svc, th: th, w: 80, h: 24, now: time.Now, loc: time.Local, phaseTop: -1}
+	m := &homeScreen{ctx: ctx, svc: svc, th: th, w: 80, h: 24, now: time.Now, loc: time.Local, phaseTop: -1}
+	if svc != nil {
+		if ss := svc.Side(); ss != nil {
+			// The results reach home wherever it is on the stack.
+			m.side = newSideUI(ctx, ss, func() time.Time { return m.now() }, func(msg tea.Msg) tea.Msg { return ownedMsg{m, msg} })
+		}
+	}
+	return m
 }
 
 // Init reads the project, then asks for the slow checks.
@@ -196,6 +207,7 @@ func (m *homeScreen) helpKeys() []helpEntry {
 		{"A", "Adapt", "let Claude propose a canonical plan (when the plan is invalid)"},
 		{"I", "Init", "create igris.toml and .igris/ (when there is no igris.toml)"},
 		{"o", "Open session", "bring the running session's pane to the front"},
+		{"S", "Side session", "a Claude Code session of your own, not a task"},
 		{"?", "Help", "this page"},
 		{"q", "Quit", "quit igris"},
 	}
@@ -204,7 +216,7 @@ func (m *homeScreen) helpKeys() []helpEntry {
 // homeShortcuts maps home's keys to their actions (SPEC §15.6).
 var homeShortcuts = map[string]action{
 	"a": actArise, "v": actPreview, "c": actCheck, "i": actDoctor, "h": actHistory,
-	"e": actEdit, ",": actSettings, "n": actNotify, "A": actAdapt, "I": actInit, "E": actExample, "o": actOpen,
+	"e": actEdit, ",": actSettings, "n": actNotify, "A": actAdapt, "I": actInit, "E": actExample, "o": actOpen, "S": actSide,
 	"?": actHelp, "q": actQuit,
 }
 
@@ -228,6 +240,11 @@ func (m *homeScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.reading = false
 		m.snap, m.snapErr = msg.s, msg.err
 		m.keepSelection()
+		// Home's refresh reads the side sessions again (SPEC §6.10).
+		var sides tea.Cmd
+		if msg.s != nil && msg.s.Found {
+			sides = m.side.list()
+		}
 		if m.afterEdit != nil {
 			m.setStatus(m.editStatus(*m.afterEdit))
 			m.afterEdit = nil
@@ -236,10 +253,22 @@ func (m *homeScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.stamp = msg.s.Stamp
 			if msg.s.Config != nil && len(msg.s.ConfigProblems) == 0 {
 				tui := msg.s.Config.TUI
-				return m, tea.Batch(func() tea.Msg { return configMsg{tui} }, m.openPending())
+				return m, tea.Batch(func() tea.Msg { return configMsg{tui} }, m.openPending(), sides)
 			}
 		}
-		return m, m.openPending()
+		return m, tea.Batch(m.openPending(), sides)
+	case sideMsg:
+		if msg.ui != m.side {
+			break
+		}
+		d, ok, cmd, lines := m.side.result(msg, m.dialog)
+		if ok {
+			m.dialog = d
+		}
+		if len(lines) > 0 {
+			m.setStatus(strings.Join(lines, "; "))
+		}
+		return m, cmd
 	case backendMsg:
 		m.backendErr, m.backendKnown = msg.err, true
 		return m, m.openPending()
@@ -329,6 +358,12 @@ func (m *homeScreen) phaseIndex() int {
 func (m *homeScreen) key(msg tea.KeyMsg) tea.Cmd {
 	k := msg.String()
 	if m.dialog != nil {
+		if m.side.owns(m.dialog) {
+			if d, cmd, ok := m.side.key(msg); ok {
+				m.dialog = d
+				return cmd
+			}
+		}
 		if k == "y" && m.editing != nil {
 			return m.pick(actCopy)
 		}
@@ -376,6 +411,11 @@ func (m *homeScreen) key(msg tea.KeyMsg) tea.Cmd {
 // pick runs what the open dialog chose: the wizard's answer, or a More…
 // action (that dialog closes).
 func (m *homeScreen) pick(a action) tea.Cmd {
+	if m.side.owns(m.dialog) {
+		var cmd tea.Cmd
+		m.dialog, cmd = m.side.pick(a)
+		return cmd
+	}
 	if m.launch != nil {
 		return m.wizardPick(a)
 	}
@@ -607,6 +647,13 @@ func (m *homeScreen) activate(a action) tea.Cmd {
 		return m.openAdapt()
 	case actNotify:
 		return m.openNotify()
+	case actSide:
+		if m.dialog == nil {
+			var cmd tea.Cmd
+			m.dialog, cmd = m.side.open(m.sideAt())
+			return cmd
+		}
+		return nil
 	}
 	return m.notYet(label)
 }

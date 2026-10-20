@@ -357,7 +357,11 @@ func (m *homeScreen) wideHome(w, h int) []string {
 // dialogRows fills rows lines below row y with the More… dialog, centered,
 // and records its options.
 func (m *homeScreen) dialogRows(x, y, w, rows int) []string {
-	box, z := m.dialog.render(m.th, min(w-2, 72), rows)
+	width := 72
+	if m.dialog.wide {
+		width = 100 // a side session's first prompt
+	}
+	box, z := m.dialog.render(m.th, min(w-2, width), rows)
 	top := max((rows-len(box))/2, 0)
 	left := max((w-textWidth(box[0]))/2, 0)
 	m.zones.merge(z, x+left, y+top)

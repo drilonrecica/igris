@@ -87,12 +87,12 @@ func line(lines []string, i int) string {
 func (m *model) topRule(w int) string {
 	title := " " + m.th.paint(lookAccentBold, "igris") + " · " + m.opts.Project + " "
 	facts := ""
-	// The quota goes first when the width runs out, before the progress
-	// bar is shortened (SPEC §15.1).
+	// The side count goes first when the width runs out, then the quota,
+	// before the progress bar is shortened (SPEC §15.1).
 fit:
 	for level := range progressLevels {
-		for _, quota := range []bool{true, false} {
-			facts = " " + m.facts(false, level, quota) + " "
+		for extras := factsAll; extras >= factsNone; extras-- {
+			facts = " " + m.facts(false, level, extras) + " "
 			if w-2-textWidth(title)-textWidth(facts) >= 1 {
 				break fit
 			}
@@ -106,11 +106,20 @@ fit:
 	return fit(m.th.paint(lookFrame, "┌")+title+m.th.paint(lookFrame, strings.Repeat("─", fill))+facts+m.th.paint(lookFrame, "┐"), w)
 }
 
+// The header's facts that go when the width runs out, in this order
+// (SPEC §15.1): facts(…, factsAll) has them all.
+const (
+	factsNone  = iota // neither
+	factsQuota        // the subscription quota
+	factsAll          // the quota and the side session count
+)
+
 // facts are the header's run facts: phase and its progress, mode,
-// backend, pause. The narrow status bar has the shorter bar and, next to
-// the progress, the phase without "phase"; level says how much of the
-// progress to show, quota whether to add the subscription quota.
-func (m *model) facts(narrow bool, level int, quota bool) string {
+// backend, side sessions, pause. The narrow status bar has the shorter bar
+// and, next to the progress, the phase without "phase"; level says how
+// much of the progress to show, extras which of the quota and the side
+// count to add.
+func (m *model) facts(narrow bool, level, extras int) string {
 	var parts []string
 	if m.phase != "" {
 		cells := wideProgressBar
@@ -134,7 +143,10 @@ func (m *model) facts(narrow bool, level int, quota bool) string {
 		parts = append(parts, m.th.paint(lookAlert, "SKIP PERMISSIONS"))
 	}
 	parts = append(parts, m.opts.Backend)
-	if q := m.quotaText(); quota && q != "" {
+	if n := m.side.count(); n > 0 && extras >= factsAll {
+		parts = append(parts, fmt.Sprintf("side %d", n))
+	}
+	if q := m.quotaText(); extras >= factsQuota && q != "" {
 		parts = append(parts, q)
 	}
 	if m.paused {

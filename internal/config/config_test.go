@@ -1098,6 +1098,49 @@ func TestUsage(t *testing.T) {
 	}
 }
 
+// [side] (V12-P1): the defaults when unset, out of the hash while unset,
+// kept by Write when set, and never a mode that skips permissions.
+func TestSide(t *testing.T) {
+	d := Default()
+	if d.Side.ModelOrDefault() != "sonnet" || d.Side.ModeOrDefault() != "default" || d.Hash() != v04DefaultHash {
+		t.Errorf("default: model %s, mode %s, hash changed %v", d.Side.ModelOrDefault(), d.Side.ModeOrDefault(), d.Hash() != v04DefaultHash)
+	}
+	c, err := Parse([]byte("[side]\nmodel = \"opus\"\nmode = \"Accept\"\n"), "igris.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Side.ModelOrDefault() != "opus" || c.Side.ModeOrDefault() != "accept" || c.Hash() == v04DefaultHash {
+		t.Errorf("set: model %s, mode %s, hash unchanged %v", c.Side.ModelOrDefault(), c.Side.ModeOrDefault(), c.Hash() == v04DefaultHash)
+	}
+	path := filepath.Join(t.TempDir(), "igris.toml")
+	if err := Write(path, c); err != nil {
+		t.Fatal(err)
+	}
+	if back, err := Load(path); err != nil || back.Side.ModelOrDefault() != "opus" {
+		t.Errorf("Write and Load lost [side]: %v", err)
+	}
+	for _, tc := range []struct{ toml, want string }{
+		{"mode = \"yolo\"", "never skip permissions"},
+		{"mode = \"plan:yolo\"", "never skip permissions"},
+		{"mode = \"plan:accept\"", "never skip permissions"},
+		{"mode = \"careful\"", "side.mode"},
+		{"model = \"mythos\"", "side.model = \"mythos\" is not a [models] rank"},
+	} {
+		if _, err := Parse([]byte("[side]\n"+tc.toml+"\n"), "igris.toml"); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: %v, want %q", tc.toml, err, tc.want)
+		}
+	}
+	for _, ok := range []string{"mode = \"default\"", "mode = \"accept\"", "mode = \"auto\"", "mode = \"plan\"", "model = \"haiku\""} {
+		if _, err := Parse([]byte("[side]\n"+ok+"\n"), "igris.toml"); err != nil {
+			t.Errorf("%s: %v", ok, err)
+		}
+	}
+	// The unset default needn't be a rank: the dialog picks another.
+	if _, err := Parse([]byte("[models]\nsmall = \"haiku\"\n"), "igris.toml"); err != nil {
+		t.Errorf("no sonnet rank: %v", err)
+	}
+}
+
 func TestWorktree(t *testing.T) {
 	d := Default()
 	if d.Run.WorktreeOn() || d.Hash() != v04DefaultHash {
