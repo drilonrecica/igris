@@ -4,6 +4,15 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+## [1.0.0-rc.2] - 2026-10-20
+
+The second release candidate for igris 1.0. It carries the fixes from the final security review, which make a few configs that rc.1 accepted invalid (**Changed**, below; `igris check` names the key), and the docs pages on the project site. Plans need no changes.
+
+### Added
+
+- Docs pages on the project site (`/docs/`): install, quick start, plan format, config reference, modes, notifications, adapt, running several projects at once, FAQ, troubleshooting and the upgrade guide from 0.x.
+- [`docs/config.md`](docs/config.md), every `igris.toml` key with its default, generated from the code (`make config-ref`); a test fails when it drifts.
+
 ### Changed
 
 Configs that 1.0.0-rc.1 accepted and the next release rejects (from the final security review; [`docs/decisions.md`](docs/decisions.md), V07-P1 amendment of 2026-10-20). Nothing else in the 1.0 contract changes. `igris check` names the key to fix.
@@ -435,7 +444,8 @@ First release. Linux and macOS, herdr backend only. The full behavior is specifi
 - Release artifacts are not signed (checksums only); signing is planned.
 - No Homebrew tap yet.
 
-[Unreleased]: https://github.com/drilonrecica/igris/compare/v1.0.0-rc.1...HEAD
+[Unreleased]: https://github.com/drilonrecica/igris/compare/v1.0.0-rc.2...HEAD
+[1.0.0-rc.2]: https://github.com/drilonrecica/igris/compare/v1.0.0-rc.1...v1.0.0-rc.2
 [1.0.0-rc.1]: https://github.com/drilonrecica/igris/compare/v0.6.0...v1.0.0-rc.1
 [0.6.0]: https://github.com/drilonrecica/igris/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/drilonrecica/igris/compare/v0.5.0...v0.5.1
