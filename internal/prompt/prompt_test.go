@@ -182,6 +182,22 @@ func TestRules(t *testing.T) {
 	}
 }
 
+// A side session's rules (SPEC §6.10) forbid done, skip, reset and plan or
+// config edits; during a run in the shared tree they add the running task.
+func TestSideRules(t *testing.T) {
+	alone, during := SideRules(""), SideRules("M1-03")
+	checkGolden(t, "side-rules", alone)
+	checkGolden(t, "side-rules-run", during)
+	for _, want := range []string{"side session", "igris done", "igris skip", "igris reset", "igris.toml", "plan"} {
+		if !strings.Contains(alone, want) {
+			t.Errorf("side rules missing %q", want)
+		}
+	}
+	if strings.Contains(alone, "M1-03") || !strings.Contains(during, "M1-03 is working in this working tree") || !strings.HasPrefix(during, alone) {
+		t.Errorf("SideRules(M1-03) doesn't add the running task to the rules:\n%s", during)
+	}
+}
+
 func TestContinue(t *testing.T) {
 	got := Continue("M0-03")
 	for _, want := range []string{"M0-03", "git status", "igris done M0-03 --note"} {

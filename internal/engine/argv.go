@@ -86,6 +86,10 @@ func igrisPath() string {
 	return self
 }
 
+// IgrisPath is igrisPath for the hooks of sessions igris opens outside a
+// run: side sessions (SPEC §6.10).
+func IgrisPath() string { return igrisPath() }
+
 func sameFile(a, b string) bool {
 	ia, err1 := os.Stat(a)
 	ib, err2 := os.Stat(b)

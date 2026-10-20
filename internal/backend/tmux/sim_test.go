@@ -32,6 +32,7 @@ type sim struct {
 type simPane struct {
 	window, pane, name string
 	argv               []string
+	env                []string // -e entries
 	dead               bool
 	pasted             []string // prompts submitted with Enter
 	typed              string   // pasted, not yet submitted
@@ -149,6 +150,10 @@ func (s *sim) run(c runner.Cmd) (runner.Result, error) {
 		for i, x := range a {
 			if x == "--" {
 				p.argv = a[i+1:]
+				break
+			}
+			if x == "-e" {
+				p.env = append(p.env, a[i+1])
 			}
 		}
 		s.windows[p.window], s.panes[p.pane] = p, p

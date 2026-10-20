@@ -462,7 +462,7 @@ type Submitter interface {
 
 `State` reports a vanished pane or exited Claude Code as `exited` rather than an error; `Prompt`, `Focus` and `Attach` fail with a "session gone" error for it, and `Close` on a gone session is a no-op. The engine treats both as **Session lost** (§6.3).
 
-Igris ships `herdr` (§11.2), `tmux` (§11.5, since v0.3) and `fake` (in-process, used by tests and `--dry-run`); tmux fits this interface without engine changes. `SessionSpec` and `SessionRef` also carry the Claude session UUID, so a backend can read the session's hook state (§6.3); in a ref it is shape-checked like the other IDs. A backend conformance suite (`internal/backend/conformance`) runs the same behavioral tests against every backend: open, prompt, state, focus, close, a gone session, attach after a restart, a multi-line prompt with control characters, and, for a `Tailer`, `Tail` after a prompt (at most n lines, no error) and on a gone session.
+Igris ships `herdr` (§11.2), `tmux` (§11.5, since v0.3) and `fake` (in-process, used by tests and `--dry-run`); tmux fits this interface without engine changes. `SessionSpec` and `SessionRef` also carry the Claude session UUID, so a backend can read the session's hook state (§6.3); in a ref it is shape-checked like the other IDs. A backend conformance suite (`internal/backend/conformance`) runs the same behavioral tests against every backend: open, prompt, state, focus, close, a gone session, attach after a restart, attach refusing another task's pane, a multi-line prompt with control characters, a side session (opened with `SessionSpec.Side`, reattached with `AttachSide`, which refuses a task's pane and another side session's, while `Attach` refuses a side session's), and, for a `Tailer`, `Tail` after a prompt (at most n lines, no error) and on a gone session.
 
 ### 11.2 herdr backend (v1)
 Igris itself runs in a herdr pane. It uses the herdr CLI (JSON output), never the raw socket in v1:
@@ -471,7 +471,7 @@ Igris itself runs in a herdr pane. It uses the herdr CLI (JSON output), never th
 |---|---|
 | Availability | `herdr status server`; require `HERDR_WORKSPACE_ID` (igris must run inside a herdr pane) |
 | Open pane | `herdr tab create --workspace $HERDR_WORKSPACE_ID --cwd <root> --label "<ID> · <rank>" --no-focus` → `.result.tab.tab_id`, `.result.root_pane.pane_id` |
-| Start Claude | `herdr agent start <name> --kind claude --pane <pane_id> --timeout 120000 -- <claude args>`; `<name>` = `igris-<id>` lowercased, sanitized to `[a-z][a-z0-9_-]{0,31}`. Timeout must be > 3000 and ≤ 300000 ms. Returns `.result.agent` (`agent_status`, `interactive_ready`, `name`, `pane_id`) and `argv` |
+| Start Claude | `herdr agent start <name> --kind claude --pane <pane_id> --timeout 120000 -- <claude args>`; `<name>` = `igris-<id>` lowercased, sanitized to `[a-z][a-z0-9_-]{0,31}`, or `igside-<id>` for a side session (§6.10). Timeout must be > 3000 and ≤ 300000 ms. Returns `.result.agent` (`agent_status`, `interactive_ready`, `name`, `pane_id`) and `argv` |
 | Shell not ready yet | `agent_pane_busy` ("is not an available shell"): the new tab's shell hasn't reached its prompt (slow rc file, fresh herdr server) → retry `agent start` every 250 ms for up to 15 s, then fail the start (and close the tab) |
 | Startup blocked (e.g. folder-trust prompt) | `agent_not_ready` (non-zero exit, message "blocked during startup"; the name stays usable) → mark **Needs you**, hold the task prompt, poll state until the agent is past the prompt, then deliver it once the agent has stayed idle for 2 s (Claude Code shows its input box a moment before it takes input; a prompt sent in that moment is lost although herdr accepts it). The held prompt is also recorded in `state.json`, so a reattach after an igris restart still delivers it (§13) |
 | Wait for state | `herdr agent wait <name> [--until STATUS]… [--timeout MS]`. Without `--until` it returns at the first settled state (`idle`, `done` **or `blocked`**), so check `.result.agent.agent_status` on return; it returns at once if already settled. `timeout` error code on expiry. Replaces tight polling for "is it ready for feedback"; `Needs you` still needs `pane get` polling |
@@ -512,7 +512,7 @@ Igris runs inside a tmux client (`TMUX` set) and drives that server with the `tm
 | Step | tmux call |
 |---|---|
 | Availability | `TMUX` set; `tmux display-message -p '#{version}'` succeeds |
-| Open | `tmux new-window -d -P -F '#{window_id} #{pane_id}' -c <root> -n '<ID> · <rank>' -- claude <args…>` → `@N %N`; then `set-option -w -t @N remain-on-exit on` so an exited Claude Code stays visible |
+| Open | `tmux new-window -d -P -F '#{window_id} #{pane_id}' -c <root> -n '<ID> · <rank>' [-e KEY=VALUE…] -- claude <args…>` → `@N %N`, one `-e` per environment addition (`IGRIS_SIDE` for a side session, §6.10; not a format); then `set-option -w -t @N remain-on-exit on` so an exited Claude Code stays visible |
 | Startup | wait for the first hook state (`SessionStart` → `idle`); without one after 15 s (folder-trust question, slow start) hold the task prompt, report `blocked`, deliver it once the hook state is `idle` (also recorded in `state.json`, as for herdr) |
 | Prompt | `tmux load-buffer -b igris-<id> -` (text on stdin) → `paste-buffer -p -d -b igris-<id> -t %N` (bracketed paste) → `send-keys -t %N Enter`. Refused while the hook state is `blocked` |
 | State | `list-panes -t %N -F '#{pane_id}\t#{pane_dead}…'`: missing or dead pane → `exited`; else the hook state (§6.3); `unknown` before the first hook |
@@ -521,7 +521,7 @@ Igris runs inside a tmux client (`TMUX` set) and drives that server with the `tm
 | Focus | `select-window -t @N` |
 | Close | `kill-window -t @N`; `can't find window` is not an error |
 | Notify | `display-message -d 5000 '<title>: <body>'` on the current client, plus the router's other channels |
-| Attach | rebuild from `@N`/`%N` in the stored ref (shape `^@[0-9]+$`, `^%[0-9]+$`), check the pane with `list-panes` |
+| Attach | rebuild from `@N`/`%N` in the stored ref (shape `^@[0-9]+$`, `^%[0-9]+$`), check the pane with `list-panes` and its start command with `display-message -p -t %N '#{pane_start_command}'` (§13); `AttachSide` the same with the side session's rules file |
 
 - The window command is argv: tmux execs a multi-argument command without a shell (verified). No prompt text is in it.
 - `-n` names and `display-message` texts are tmux formats (`#(…)` would run a command), so igris escapes every `#` as `##` and cleans control characters. Prompts never pass through a format: buffers hold raw data.
@@ -663,7 +663,7 @@ token = ""                        # application token, or "env:GOTIFY_TOKEN"
 | `plan-approval/` | `<session uuid>.json` (a plan waiting for approval, `{"n","at","plan","pid"}`, written by `igris hook plan-approve`) and `<session uuid>.decision.json` (igris's answer, `{"n","behavior","message"}`), §6.3. 0600, directory 0700; removed by the hook when it ends. Untrusted; read bounded and shape-checked, never through a symlink. |
 | `quota.json` | Since 1.1, with `[usage] statusline = true`: the last subscription quota the status line reported, `{"at", "five_hour": {"used", "resets_at"}, "seven_day": {…}}` (§6.3), written by `igris hook statusline`. Untrusted; read bounded and shape-checked. |
 | `plans/` | `<ID>-a<attempt>-<n>.md`: every plan a session presented for approval, rejected ones too (§6.3). 0600, directory 0700. |
-| `side/` | Since 1.2: `<id>.json`, one open side session (§6.10), `{"v":1, "id", "at", "backend", "ref", "claude_session", "model", "rank", "mode", "preset", "task", "dir", "worktree"}`, written atomically; `<id>.rules.md` and `<id>.settings.json`, its rules and hooks files. 0600, directory 0700. Untrusted; read bounded and shape-checked, never through a symlink. `state.json` holds nothing about side sessions. |
+| `side/` | Since 1.2: `<id>.json`, one open side session (§6.10), `{"v":1, "id", "at", "backend", "ref", "claude_session", "model", "rank", "mode", "preset", "task", "dir", "worktree"}` (`preset` is `blank`, `task` or `igris`; `dir` is where it works relative to the project root, `.` or its worktree's path; `worktree` is `{"path", "branch"}` as in `state.json`), written atomically; `<id>.rules.md` and `<id>.settings.json`, its rules and hooks files. 0600, directory 0700. Untrusted; read bounded and shape-checked, never through a symlink. `state.json` holds nothing about side sessions. |
 | `runs.jsonl` | Append-only log: one JSON line per event (task started/done/skipped, verify result, commits, needs-you waits, notifications, errors) with timestamps, run ID, task ID, rank and model; schema v1 below. |
 | `adapt/` | Adapt proposals and backups (§9). |
 | `config/` | `igris.<timestamp>.bak.toml`: the `igris.toml` `igris config migrate` replaced (§14). Not frozen (§19). |

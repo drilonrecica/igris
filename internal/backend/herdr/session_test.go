@@ -105,6 +105,36 @@ func TestOpenSession(t *testing.T) {
 	}
 }
 
+// A side session's agent is igside-<id>, which no task's agent can be, and
+// IGRIS_SIDE reaches its tab (SPEC §6.10).
+func TestOpenSideSession(t *testing.T) {
+	f := started(t)
+	side := backend.SessionSpec{Side: "a3f2c1", Dir: "/work/demo", Label: "side · T-01 · opus", Args: []string{"--model", "opus"}, Env: []string{"IGRIS_SIDE=a3f2c1"}}
+	s, err := New(f, "w2B").OpenSession(context.Background(), side)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := s.Ref().Agent; got != "igside-a3f2c1" || got != SideAgentName("a3f2c1") {
+		t.Errorf("agent %q, want igside-a3f2c1", got)
+	}
+	wantArgs := [][]string{
+		{"tab", "create", "--workspace", "w2B", "--cwd", "/work/demo", "--label", "side · T-01 · opus", "--env", "IGRIS_SIDE=a3f2c1", "--no-focus"},
+		{"agent", "start", "igside-a3f2c1", "--kind", "claude", "--pane", "w2B:p3", "--timeout", "120000", "--", "--model", "opus"},
+	}
+	if got := argv(f); !slices.EqualFunc(got, wantArgs, slices.Equal) {
+		t.Errorf("calls =\n  %q\nwant\n  %q", got, wantArgs)
+	}
+	for _, id := range []string{"a3f2c1", "ffffff", "000000"} {
+		if strings.HasPrefix(SideAgentName(id), "igris-") || !refAgentPattern.MatchString(SideAgentName(id)) {
+			t.Errorf("SideAgentName(%s) = %q", id, SideAgentName(id))
+		}
+	}
+	// A task whose ID looks like a side agent still gets an igris- name.
+	if got := AgentName("igside-a3f2c1"); got == SideAgentName("a3f2c1") {
+		t.Errorf("AgentName(igside-a3f2c1) = %q, a side session's name", got)
+	}
+}
+
 func TestOpenSessionFailures(t *testing.T) {
 	t.Run("tab create fails", func(t *testing.T) {
 		f := &runner.Fake{}

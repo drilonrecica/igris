@@ -345,3 +345,44 @@ func TestAttachBindsThePaneToTheTask(t *testing.T) {
 		t.Fatalf("the simulation doesn't quote like tmux: %q", s.startCommand(spaced.pane))
 	}
 }
+
+// A side session's window gets IGRIS_SIDE and is bound to it by its rules
+// file, .igris/side/<id>.rules.md: AttachSide takes it, Attach for any task
+// refuses it, and AttachSide refuses a task's pane (SPEC §6.10).
+func TestSideSessionBinding(t *testing.T) {
+	ctx := context.Background()
+	s := newSim()
+	const sideUUID = "7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f"
+	side := backend.SessionSpec{
+		Side: "a3f2c1", Dir: "/work/proj", Label: "side · opus", Env: []string{"IGRIS_SIDE=a3f2c1"},
+		Args:          []string{"--model", "opus", "--session-id", sideUUID, "--append-system-prompt-file", "/work/proj/.igris/side/a3f2c1.rules.md"},
+		ClaudeSession: sideUUID,
+	}
+	sess, err := s.backend().OpenSession(ctx, side)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ref := sess.Ref()
+	if p := s.pane(ref.PaneID); !slices.Equal(p.env, []string{"IGRIS_SIDE=a3f2c1"}) {
+		t.Errorf("window environment %q", p.env)
+	}
+	if !StartedForSide(s.startCommand(ref.PaneID), sideUUID, "a3f2c1") || StartedFor(s.startCommand(ref.PaneID), sideUUID, "a3f2c1") {
+		t.Errorf("StartedForSide/StartedFor disagree on %q", s.startCommand(ref.PaneID))
+	}
+	b := s.backend()
+	if _, err := b.AttachSide(ctx, ref, "a3f2c1"); err != nil {
+		t.Errorf("AttachSide of its own pane = %v", err)
+	}
+	if _, err := b.Attach(ctx, ref, "a3f2c1"); !errors.Is(err, backend.ErrSessionForeign) {
+		t.Errorf("Attach as task a3f2c1 = %v, want ErrSessionForeign", err)
+	}
+	task := openSim(t, s).Ref()
+	if _, err := b.AttachSide(ctx, task, "a3f2c1"); !errors.Is(err, backend.ErrSessionForeign) {
+		t.Errorf("AttachSide of a task's pane = %v, want ErrSessionForeign", err)
+	}
+	// A pane started with another side session's rules file.
+	other := s.addPane([]string{"claude", "--session-id", sideUUID, "--append-system-prompt-file", "/work/proj/.igris/side/b4e3d2.rules.md"})
+	if _, err := b.AttachSide(ctx, backend.SessionRef{Backend: Name, TabID: other.window, PaneID: other.pane, ClaudeSession: sideUUID}, "a3f2c1"); !errors.Is(err, backend.ErrSessionForeign) {
+		t.Errorf("AttachSide of b4e3d2's pane = %v, want ErrSessionForeign", err)
+	}
+}

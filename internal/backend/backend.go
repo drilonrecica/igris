@@ -16,10 +16,11 @@ import (
 var ErrSessionGone = errors.New("session is gone")
 
 // ErrSessionForeign is wrapped, together with ErrSessionGone, by Attach
-// when the ref's pane exists but was not started for the task: state.json,
-// which a session can write, named another pane. The engine treats it as a
-// lost session and says why (SPEC §13, V10-05).
-var ErrSessionForeign = errors.New("the pane was not started for this task")
+// and AttachSide when the ref's pane exists but was not started for the
+// task (or side session): state.json or the side record, which a session
+// can write, named another pane. The engine treats it as a lost session
+// and says why (SPEC §13, V10-05).
+var ErrSessionForeign = errors.New("the pane was not started for this session")
 
 // Backend opens and reattaches sessions and shows notifications.
 type Backend interface {
@@ -36,6 +37,10 @@ type Backend interface {
 	// since the ref comes from state.json, which a session can write. A
 	// session that no longer exists yields an error wrapping ErrSessionGone.
 	Attach(ctx context.Context, ref SessionRef, taskID string) (Session, error)
+	// AttachSide is Attach for a side session (SPEC §6.10, since 1.2):
+	// sideID is the side session the ref was recorded for in .igris/side/,
+	// and a pane not started for it is refused the same way.
+	AttachSide(ctx context.Context, ref SessionRef, sideID string) (Session, error)
 	Notify(ctx context.Context, n Notification) error
 }
 
@@ -180,16 +185,29 @@ func (s AgentState) Settled() bool {
 	return s == Idle || s == Done || s == Blocked
 }
 
-// SessionSpec describes a session to open.
+// SessionSpec describes a session to open: a task's, or with Side set
+// instead of TaskID a side session's (SPEC §6.10).
 type SessionSpec struct {
-	TaskID string   // the plan task; backends derive session names from it
-	Dir    string   // working directory (the project root)
-	Label  string   // pane label, "<ID> · <rank>"
-	Args   []string // Claude Code argv without the program name
-	Env    []string // environment additions, KEY=VALUE
+	TaskID string // the plan task; backends derive session names from it
+	// Side is the side session's ID (ValidSideID) for a side session, which
+	// has no TaskID; backends derive its names from it (herdr's
+	// igside-<id>).
+	Side  string
+	Dir   string   // working directory (the project root)
+	Label string   // pane label, "<ID> · <rank>"
+	Args  []string // Claude Code argv without the program name
+	Env   []string // environment additions, KEY=VALUE
 	// ClaudeSession is the session's Claude UUID (--session-id): the key
 	// of its hook state (SPEC §6.3). Backends copy it into the ref.
 	ClaudeSession string
+}
+
+// Subject names the session in messages: the task ID, or "side <id>".
+func (s SessionSpec) Subject() string {
+	if s.Side != "" {
+		return "side " + s.Side
+	}
+	return s.TaskID
 }
 
 // SessionRef is the serializable identity of a session. Backends fill the
@@ -217,6 +235,18 @@ var sessionUUIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4
 // §6.3; state.Dir.WriteRules writes it). A backend that can read a pane's
 // start command binds the pane to its task through it (V10-05).
 func RulesFile(taskID string) string { return ".igris/prompts/" + taskID + ".rules.md" }
+
+// SideRulesFile is RulesFile for side session id: the rules file it is
+// started with, .igris/side/<id>.rules.md (SPEC §6.10), which binds its
+// pane to it on tmux.
+func SideRulesFile(id string) string { return ".igris/side/" + id + ".rules.md" }
+
+var sideIDPattern = regexp.MustCompile(`^[0-9a-f]{6}$`)
+
+// ValidSideID reports whether id has the shape of a side session ID: 6
+// lowercase hex characters (SPEC §6.10). IDs read back from .igris/side/
+// are checked with it before they name a file, a pane or an agent.
+func ValidSideID(id string) bool { return sideIDPattern.MatchString(id) }
 
 // ValidClaudeSession reports whether s has the shape of a Claude session
 // UUID as igris generates it. Refs read back from state.json are checked

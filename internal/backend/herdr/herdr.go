@@ -58,6 +58,19 @@ func AgentName(taskID string) string {
 	return b.String()
 }
 
+// SideAgentName is the herdr agent name of side session id (a
+// backend.ValidSideID): "igside-<id>", which no task's AgentName can equal
+// since those start with "igris-" (SPEC §6.10).
+func SideAgentName(id string) string { return "igside-" + id }
+
+// agentName is the agent name of the session spec describes.
+func agentName(spec backend.SessionSpec) string {
+	if spec.Side != "" {
+		return SideAgentName(spec.Side)
+	}
+	return AgentName(spec.TaskID)
+}
+
 // Backend runs sessions in herdr tabs of one workspace. The zero value is
 // not usable; call New.
 type Backend struct {
@@ -110,6 +123,9 @@ func (b *Backend) Name() string { return Name }
 // blocked at a startup prompt such as folder trust; the session then holds
 // the first prompt until the owner is past it.
 func (b *Backend) OpenSession(ctx context.Context, spec backend.SessionSpec) (backend.Session, error) {
+	if spec.Side != "" && !backend.ValidSideID(spec.Side) {
+		return nil, fmt.Errorf("open a herdr tab: invalid side session ID %q", spec.Side)
+	}
 	tab, pane, err := b.c.TabCreate(ctx, TabCreateOpts{
 		Workspace: b.workspace,
 		Cwd:       spec.Dir,
@@ -117,18 +133,18 @@ func (b *Backend) OpenSession(ctx context.Context, spec backend.SessionSpec) (ba
 		Env:       spec.Env,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("open a herdr tab for %s: %w", spec.TaskID, err)
+		return nil, fmt.Errorf("open a herdr tab for %s: %w", spec.Subject(), err)
 	}
 	s := &Session{
 		c:     b.c,
-		id:    spec.TaskID,
+		id:    spec.Subject(),
 		sleep: b.sleep,
 		hooks: b.hooks,
 		ref: backend.SessionRef{
 			Backend:       Name,
 			TabID:         tab.TabID,
 			PaneID:        pane.PaneID,
-			Agent:         AgentName(spec.TaskID),
+			Agent:         agentName(spec),
 			ClaudeSession: spec.ClaudeSession,
 		},
 	}
@@ -139,7 +155,7 @@ func (b *Backend) OpenSession(ctx context.Context, spec backend.SessionSpec) (ba
 		// Blocked during startup; the agent name stays usable (P0-03).
 		s.startupBlocked = true
 	case err != nil:
-		err = fmt.Errorf("start Claude Code for %s in herdr tab %s: %w", spec.TaskID, tab.TabID, err)
+		err = fmt.Errorf("start Claude Code for %s in herdr tab %s: %w", spec.Subject(), tab.TabID, err)
 		// Don't leave an empty tab behind, even when ctx is cancelled.
 		if cerr := b.c.TabClose(context.WithoutCancel(ctx), tab.TabID); cerr != nil && !IsCode(cerr, CodeTabNotFound) {
 			err = errors.Join(err, fmt.Errorf("close herdr tab %s by hand: %w", tab.TabID, cerr))
@@ -174,15 +190,31 @@ func (b *Backend) startAgent(ctx context.Context, name, paneID string, args []st
 // (V10-05). A startup prompt the session may have been blocked at is not
 // remembered: State reports what `pane get` says.
 func (b *Backend) Attach(ctx context.Context, ref backend.SessionRef, taskID string) (backend.Session, error) {
+	return b.attach(ctx, ref, AgentName(taskID), taskID, "state.json", "delete it to start a new run")
+}
+
+// AttachSide is Attach for side session sideID, whose agent is
+// igside-<id> (SPEC §6.10).
+func (b *Backend) AttachSide(ctx context.Context, ref backend.SessionRef, sideID string) (backend.Session, error) {
+	if !backend.ValidSideID(sideID) {
+		return nil, fmt.Errorf("attach: invalid side session ID %q", sideID)
+	}
+	return b.attach(ctx, ref, SideAgentName(sideID), "side "+sideID, "its record in .igris/side/", "igris forgets it")
+}
+
+// attach is Attach for the session whose agent is want. For messages, what
+// names the session, source the file the ref came from and fix what to do
+// about a bad one.
+func (b *Backend) attach(ctx context.Context, ref backend.SessionRef, want, what, source, fix string) (backend.Session, error) {
 	if ref.Backend != Name {
 		return nil, fmt.Errorf("attach: session ref is for backend %q, not %s", ref.Backend, Name)
 	}
 	if !refIDPattern.MatchString(ref.TabID) || !refIDPattern.MatchString(ref.PaneID) || !refAgentPattern.MatchString(ref.Agent) ||
 		(ref.ClaudeSession != "" && !backend.ValidClaudeSession(ref.ClaudeSession)) {
-		return nil, fmt.Errorf("attach: session ref (tab %q, pane %q, agent %q) is incomplete or malformed; state.json looks damaged, delete it to start a new run", ref.TabID, ref.PaneID, ref.Agent)
+		return nil, fmt.Errorf("attach: session ref (tab %q, pane %q, agent %q) is incomplete or malformed; %s looks damaged, %s", ref.TabID, ref.PaneID, ref.Agent, source, fix)
 	}
-	if want := AgentName(taskID); ref.Agent != want {
-		return nil, fmt.Errorf("attach %s for %s: %w: %w (the task's agent is %s); state.json names another agent, delete it to start a new run", ref.Agent, taskID, backend.ErrSessionGone, backend.ErrSessionForeign, want)
+	if ref.Agent != want {
+		return nil, fmt.Errorf("attach %s for %s: %w: %w (its agent is %s); %s names another agent, %s", ref.Agent, what, backend.ErrSessionGone, backend.ErrSessionForeign, want, source, fix)
 	}
 	s := &Session{c: b.c, id: ref.Agent, ref: ref, sleep: b.sleep, hooks: b.hooks}
 	p, err := b.c.PaneGet(ctx, ref.PaneID)

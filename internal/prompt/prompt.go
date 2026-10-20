@@ -19,9 +19,25 @@ var rules string
 //go:embed task.md.tmpl
 var defaultTemplate string
 
+//go:embed side_rules.md
+var sideRules string
+
 // Rules returns the igris rules passed with --append-system-prompt-file.
 // They are static (no template variables) so they hold after compaction.
 func Rules() string { return rules }
+
+// SideRules returns the rules of a side session (SPEC §6.10), passed with
+// --append-system-prompt-file. runTask is the task a run's session works
+// on in the side session's working tree right now, "" when none does (no
+// run, or the side session has its own worktree); it must be a valid task
+// ID.
+func SideRules(runTask string) string {
+	if runTask == "" {
+		return sideRules
+	}
+	return sideRules + "4. **A task runs in this tree.** igris's session for " + runTask +
+		" is working in this working tree right now. Ask the owner before you edit any file, so the two sessions don't get in each other's way.\n"
+}
 
 // Continue returns the first prompt of a session that continues an earlier
 // conversation about task id (`claude --resume`). The conversation already

@@ -25,6 +25,19 @@ var (
 	_ backend.Submitter    = (*Session)(nil)
 )
 
+// SideKey is what the fake keys a side session's scripts, tails, prompts
+// and Enter presses by, in place of a task ID: "side:<id>", which no task
+// ID can equal.
+func SideKey(id string) string { return "side:" + id }
+
+// key is what the fake keys the session spec describes by.
+func key(spec backend.SessionSpec) string {
+	if spec.Side != "" {
+		return SideKey(spec.Side)
+	}
+	return spec.TaskID
+}
+
 // AutoSignalFunc is called after a session's first prompt (the task prompt),
 // e.g. to write the task's done signal the way a real session would.
 type AutoSignalFunc func(ctx context.Context, taskID string) error
@@ -74,7 +87,8 @@ func (b *Backend) StartupPrompt(taskID string) {
 	b.startup[taskID] = true
 }
 
-// Script queues the agent states for the next session opened for taskID.
+// Script queues the agent states for the next session opened for taskID
+// (or SideKey).
 // Each State call returns the next state; the last one repeats. Calling
 // Script again for the same task queues a sequence for the session after
 // that (e.g. a retry). Sessions without a script are always idle. A
@@ -149,7 +163,20 @@ func (b *Backend) FailLaterPrompts(taskID string, err error) {
 	b.laterErr[taskID] = err
 }
 
-// Prompts returns the prompts sent to taskID's sessions, in order.
+// SessionPrompts returns the prompts sent to the session ref's task (or
+// side session) in order, nil for an unknown ref.
+func (b *Backend) SessionPrompts(ref backend.SessionRef) []string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	s := b.sessions[ref.PaneID]
+	if s == nil {
+		return nil
+	}
+	return slices.Clone(b.prompts[s.taskID])
+}
+
+// Prompts returns the prompts sent to taskID's (or SideKey's) sessions, in
+// order.
 func (b *Backend) Prompts(taskID string) []string {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -199,7 +226,7 @@ func (b *Backend) Available(ctx context.Context) error {
 }
 
 // OpenSession records spec and returns a new session following the next
-// script queued for spec.TaskID.
+// script queued for spec.TaskID (or SideKey(spec.Side)).
 func (b *Backend) OpenSession(ctx context.Context, spec backend.SessionSpec) (backend.Session, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -208,25 +235,30 @@ func (b *Backend) OpenSession(ctx context.Context, spec backend.SessionSpec) (ba
 	defer b.mu.Unlock()
 	if err := b.openErr; err != nil {
 		b.openErr = nil
-		return nil, fmt.Errorf("open session for %s: %w", spec.TaskID, err)
+		return nil, fmt.Errorf("open session for %s: %w", spec.Subject(), err)
+	}
+	if spec.Side != "" && !backend.ValidSideID(spec.Side) {
+		return nil, fmt.Errorf("open session: invalid side session ID %q", spec.Side)
 	}
 
+	k := key(spec)
 	states := []backend.AgentState{backend.Idle}
-	if q := b.scripts[spec.TaskID]; len(q) > 0 {
+	if q := b.scripts[k]; len(q) > 0 {
 		if len(q[0]) > 0 {
 			states = q[0]
 		}
-		b.scripts[spec.TaskID] = q[1:]
+		b.scripts[k] = q[1:]
 	}
 	b.next++
 	s := &Session{
 		b:       b,
-		taskID:  spec.TaskID,
-		ref:     backend.SessionRef{Backend: Name, PaneID: fmt.Sprintf("fake-%d", b.next), Agent: spec.TaskID, ClaudeSession: spec.ClaudeSession},
+		taskID:  k,
+		side:    spec.Side != "",
+		ref:     backend.SessionRef{Backend: Name, PaneID: fmt.Sprintf("fake-%d", b.next), Agent: k, ClaudeSession: spec.ClaudeSession},
 		states:  states,
-		holding: b.startup[spec.TaskID],
+		holding: b.startup[k],
 	}
-	delete(b.startup, spec.TaskID)
+	delete(b.startup, k)
 	b.sessions[s.ref.PaneID] = s
 	spec.Args = slices.Clone(spec.Args)
 	spec.Env = slices.Clone(spec.Env)
@@ -235,8 +267,23 @@ func (b *Backend) OpenSession(ctx context.Context, spec backend.SessionSpec) (ba
 }
 
 // Attach returns the live session with ref, or an error wrapping
-// backend.ErrSessionGone; a session of another task is foreign.
+// backend.ErrSessionGone; a session of another task, or a side session, is
+// foreign.
 func (b *Backend) Attach(ctx context.Context, ref backend.SessionRef, taskID string) (backend.Session, error) {
+	return b.attach(ctx, ref, taskID)
+}
+
+// AttachSide is Attach for side session sideID.
+func (b *Backend) AttachSide(ctx context.Context, ref backend.SessionRef, sideID string) (backend.Session, error) {
+	if !backend.ValidSideID(sideID) {
+		return nil, fmt.Errorf("attach: invalid side session ID %q", sideID)
+	}
+	return b.attach(ctx, ref, SideKey(sideID))
+}
+
+// attach returns the live session with ref if it was opened for k (a task
+// ID or SideKey).
+func (b *Backend) attach(ctx context.Context, ref backend.SessionRef, k string) (backend.Session, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -249,8 +296,8 @@ func (b *Backend) Attach(ctx context.Context, ref backend.SessionRef, taskID str
 	if s == nil || s.gone {
 		return nil, fmt.Errorf("attach session %s: %w", ref.PaneID, backend.ErrSessionGone)
 	}
-	if s.ref.Agent != taskID {
-		return nil, fmt.Errorf("attach session %s for %s: %w: %w (it runs %s)", ref.PaneID, taskID, backend.ErrSessionGone, backend.ErrSessionForeign, s.ref.Agent)
+	if s.taskID != k {
+		return nil, fmt.Errorf("attach session %s for %s: %w: %w (it runs %s)", ref.PaneID, k, backend.ErrSessionGone, backend.ErrSessionForeign, s.taskID)
 	}
 	s.pending, s.hasPending = "", false // a restarted igris doesn't know it
 	return s, nil
@@ -270,7 +317,8 @@ func (b *Backend) Notify(ctx context.Context, n backend.Notification) error {
 // Session is a fake session. Its fields are guarded by the backend's mutex.
 type Session struct {
 	b        *Backend
-	taskID   string
+	taskID   string // the task ID, or SideKey for a side session
+	side     bool   // a side session: never auto-signalled
 	ref      backend.SessionRef
 	states   []backend.AgentState // next state first; the last one repeats
 	prompted bool
@@ -328,6 +376,9 @@ func (s *Session) deliver(ctx context.Context, text string) error {
 	first := !s.prompted
 	s.prompted = true
 	auto := s.b.autoSignal
+	if s.side {
+		auto = nil // a side session is no task: nothing signals for it
+	}
 	s.b.mu.Unlock()
 
 	// Called without the lock so the function may use the backend.

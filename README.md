@@ -262,6 +262,7 @@ Name the tasks: `igris arise --only M1-03,M1-05` runs just those, `--from M1-03`
 - A signal for a task that isn't the current one is kept and shown, never applied.
 - A `skip` from an agent session is only a request: igris asks you to confirm it. `igris init` allows `igris done` for Claude, never `igris skip`, so a session that wants to skip has to ask you.
 - If you mark a task done yourself, igris takes your word and skips verify.
+- Inside a side session (since 1.2; its environment has `IGRIS_SIDE`), `done`, `skip` and `reset` refuse: a side session doesn't finish, skip or reset tasks.
 
 `igris reset ID [--force]` puts a task back to `ready` (or `blocked`, if a dependency is unfinished), e.g. to run it again. It works on a task `in progress`, and with `--force` on a `done` or `skipped` one. User tasks work the same way.
 

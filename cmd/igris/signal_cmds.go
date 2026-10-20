@@ -11,8 +11,17 @@ import (
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/prompt"
+	"github.com/drilonrecica/igris/internal/side"
 	"github.com/drilonrecica/igris/internal/state"
 )
+
+// errSideSession is why done, skip and reset refuse inside a side session
+// (SPEC §6.2, §6.10): its environment holds IGRIS_SIDE. It stops a
+// mistake, not a session that unsets the variable.
+const errSideSession = "this is a side session; it doesn't finish, skip or reset tasks"
+
+// inSideSession reports whether igris runs inside a side session.
+func inSideSession() bool { return os.Getenv(side.Env) != "" }
 
 func execDone(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 	return sendSignal(state.ActionDone, args[0], fs.Lookup("note").Value.String(), stdout, stderr)
@@ -37,6 +46,9 @@ func sendSignal(action, id, note string, stdout, stderr io.Writer) int {
 	fail := func(format string, a ...any) int {
 		fmt.Fprintf(stderr, "igris %s: %s\n", action, fmt.Sprintf(format, a...))
 		return exitFail
+	}
+	if inSideSession() {
+		return fail(errSideSession)
 	}
 	cwd, err := os.Getwd()
 	if err != nil {

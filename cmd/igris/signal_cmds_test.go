@@ -152,3 +152,36 @@ func TestDoneDuringARun(t *testing.T) {
 		t.Errorf("stdout = %q", out.String())
 	}
 }
+
+// Inside a side session (IGRIS_SIDE set) done, skip and reset refuse and
+// write nothing (SPEC §6.2, §6.10).
+func TestSideSessionRefusesSignals(t *testing.T) {
+	root := signalProject(t)
+	t.Setenv("IGRIS_SIDE", "a3f2c1")
+	for _, args := range [][]string{
+		{"done", "M0-01"},
+		{"skip", "--reason", "x", "M0-01"},
+		{"reset", "M0-01"},
+		{"reset", "--force", "M0-01"},
+	} {
+		var out, errb bytes.Buffer
+		if got := run(args, &out, &errb); got != exitFail {
+			t.Errorf("%v: exit %d, want %d", args, got, exitFail)
+		}
+		want := "igris " + args[0] + ": this is a side session; it doesn't finish, skip or reset tasks\n"
+		if errb.String() != want || out.Len() != 0 {
+			t.Errorf("%v: stdout %q, stderr %q; want stderr %q", args, out.String(), errb.String(), want)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(root, ".igris")); !os.IsNotExist(err) {
+		t.Errorf("a refused signal created .igris/: %v", err)
+	}
+	if data, _ := os.ReadFile(filepath.Join(root, "tasks.md")); string(data) != signalPlan { //nolint:gosec // test temp dir
+		t.Errorf("the plan changed:\n%s", data)
+	}
+	// A malformed ID is still a usage error, found first.
+	var out, errb bytes.Buffer
+	if got := run([]string{"done", "--bad"}, &out, &errb); got != exitUsage {
+		t.Errorf("done --bad: exit %d, want %d", got, exitUsage)
+	}
+}

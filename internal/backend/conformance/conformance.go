@@ -1,7 +1,9 @@
 // Package conformance is the behavioral test suite every backend must pass
 // (SPEC §11.1): open, prompt, state, focus and close a session; a session
 // that went away; attach after an igris restart; a multi-line prompt with
-// control characters; and, for a backend.Tailer, the tail. Each backend's tests run it against a World: the
+// control characters; a side session (SPEC §6.10) and how attaching keeps
+// it and task sessions apart; and, for a backend.Tailer, the tail. Each
+// backend's tests run it against a World: the
 // fake directly, herdr and tmux against simulations built from their
 // recorded fixtures. It keeps "a new backend fits the interface without
 // engine changes" honest.
@@ -40,6 +42,23 @@ var Spec = backend.SessionSpec{
 	Label:         "T-01 · sonnet",
 	Args:          []string{"--model", "sonnet", "--session-id", UUID, "--append-system-prompt-file", "/work/demo/" + backend.RulesFile("T-01")},
 	ClaudeSession: UUID,
+}
+
+// SideID and SideUUID are the side session the suite opens.
+const (
+	SideID   = "a3f2c1"
+	SideUUID = "7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f"
+)
+
+// SideSpec is the side session the suite opens: no task, its own rules
+// file and IGRIS_SIDE in its environment.
+var SideSpec = backend.SessionSpec{
+	Side:          SideID,
+	Dir:           "/work/demo",
+	Label:         "side · sonnet",
+	Args:          []string{"--model", "sonnet", "--session-id", SideUUID, "--append-system-prompt-file", "/work/demo/" + backend.SideRulesFile(SideID)},
+	Env:           []string{"IGRIS_SIDE=" + SideID},
+	ClaudeSession: SideUUID,
 }
 
 // Run runs the suite; newWorld returns a fresh world per subtest.
@@ -177,6 +196,80 @@ func Run(t *testing.T, newWorld func(t *testing.T) World) {
 		}
 	})
 
+	// A side session opens like a task's and reattaches only as itself:
+	// Attach for a task and AttachSide for another side session refuse its
+	// pane (SPEC §6.10).
+	t.Run("side session", func(t *testing.T) {
+		w := newWorld(t)
+		be := w.Backend()
+		s, err := be.OpenSession(ctx, SideSpec)
+		if err != nil {
+			t.Fatalf("OpenSession: %v", err)
+		}
+		ref := s.Ref()
+		if ref.Backend != be.Name() || ref.ClaudeSession != SideUUID || ref.PaneID == "" {
+			t.Fatalf("ref %+v: want backend %q, Claude session %s and a pane", ref, be.Name(), SideUUID)
+		}
+		if err := s.Prompt(ctx, "Question: why?"); err != nil {
+			t.Fatalf("Prompt: %v", err)
+		}
+		be = w.Backend() // igris restarted
+		if _, err := be.Attach(ctx, ref, Spec.TaskID); !errors.Is(err, backend.ErrSessionGone) || !errors.Is(err, backend.ErrSessionForeign) {
+			t.Errorf("Attach as task %s = %v, want ErrSessionGone and ErrSessionForeign", Spec.TaskID, err)
+		}
+		if _, err := be.AttachSide(ctx, ref, "b4e3d2"); !errors.Is(err, backend.ErrSessionGone) || !errors.Is(err, backend.ErrSessionForeign) {
+			t.Errorf("AttachSide as b4e3d2 = %v, want ErrSessionGone and ErrSessionForeign", err)
+		}
+		s, err = be.AttachSide(ctx, ref, SideID)
+		if err != nil {
+			t.Fatalf("AttachSide: %v", err)
+		}
+		if s.Ref() != ref {
+			t.Errorf("ref %+v, want %+v", s.Ref(), ref)
+		}
+		if err := s.Prompt(ctx, "and then?"); err != nil {
+			t.Fatalf("Prompt after AttachSide: %v", err)
+		}
+		if got := w.Prompts(ref); !slices.Equal(got, []string{"Question: why?", "and then?"}) {
+			t.Errorf("prompts %q", got)
+		}
+		if err := s.Focus(ctx); err != nil {
+			t.Errorf("Focus: %v", err)
+		}
+		if err := s.Close(ctx); err != nil {
+			t.Fatalf("Close: %v", err)
+		}
+		if _, err := w.Backend().AttachSide(ctx, ref, SideID); !errors.Is(err, backend.ErrSessionGone) {
+			t.Errorf("AttachSide after Close = %v, want ErrSessionGone", err)
+		}
+	})
+
+	t.Run("attach side refuses a task's pane", func(t *testing.T) {
+		w := newWorld(t)
+		ref := open(t, w).Ref()
+		_, err := w.Backend().AttachSide(ctx, ref, SideID)
+		if !errors.Is(err, backend.ErrSessionGone) || !errors.Is(err, backend.ErrSessionForeign) {
+			t.Errorf("AttachSide = %v, want ErrSessionGone and ErrSessionForeign", err)
+		}
+	})
+
+	// A side ID that isn't one names no agent or file.
+	t.Run("side IDs are shape-checked", func(t *testing.T) {
+		w := newWorld(t)
+		be := w.Backend()
+		bad := SideSpec
+		bad.Side = "--help"
+		if _, err := be.OpenSession(ctx, bad); err == nil {
+			t.Error("OpenSession with side ID --help succeeded")
+		}
+		ref := open(t, w).Ref()
+		for _, id := range []string{"", "--help", "A3F2C1", "a3f2c1x", "../x"} {
+			if _, err := be.AttachSide(ctx, ref, id); err == nil {
+				t.Errorf("AttachSide(%q) succeeded", id)
+			}
+		}
+	})
+
 	// A ref of another backend, or one state.json mangled, is refused.
 	t.Run("attach refuses foreign refs", func(t *testing.T) {
 		w := newWorld(t)
@@ -188,6 +281,9 @@ func Run(t *testing.T, newWorld func(t *testing.T) World) {
 		} {
 			if _, err := be.Attach(ctx, ref, Spec.TaskID); err == nil {
 				t.Errorf("Attach(%+v) succeeded", ref)
+			}
+			if _, err := be.AttachSide(ctx, ref, SideID); err == nil {
+				t.Errorf("AttachSide(%+v) succeeded", ref)
 			}
 		}
 	})

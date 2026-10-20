@@ -10,6 +10,7 @@ import (
 
 	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/runner"
+	"github.com/drilonrecica/igris/internal/side"
 )
 
 // TestMain keeps the tests off the real claude and herdr: no version check
@@ -24,6 +25,8 @@ func TestMain(m *testing.M) {
 		return os.Getenv(k)
 	}
 	interactiveTerm = func() bool { return false } // tests are not on a terminal
+	// Run from a side session, done, skip and reset would refuse.
+	_ = os.Unsetenv(side.Env)
 	os.Exit(m.Run())
 }
 

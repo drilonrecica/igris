@@ -99,14 +99,17 @@ func (b *Backend) Available(ctx context.Context) error {
 // folder-trust question, or a slow start) the session holds its first
 // prompt until the hooks say Claude Code is idle.
 func (b *Backend) OpenSession(ctx context.Context, spec backend.SessionSpec) (backend.Session, error) {
+	if spec.Side != "" && !backend.ValidSideID(spec.Side) {
+		return nil, fmt.Errorf("open a tmux window: invalid side session ID %q", spec.Side)
+	}
 	argv := append([]string{"claude"}, spec.Args...)
-	window, pane, err := b.c.NewWindow(ctx, spec.Dir, spec.Label, argv)
+	window, pane, err := b.c.NewWindow(ctx, spec.Dir, spec.Label, spec.Env, argv)
 	if err != nil {
-		return nil, fmt.Errorf("open a tmux window for %s: %w", spec.TaskID, err)
+		return nil, fmt.Errorf("open a tmux window for %s: %w", spec.Subject(), err)
 	}
 	s := &Session{
 		c:     b.c,
-		id:    spec.TaskID,
+		id:    spec.Subject(),
 		sleep: b.sleep,
 		hooks: b.hooks,
 		ref: backend.SessionRef{
@@ -117,7 +120,7 @@ func (b *Backend) OpenSession(ctx context.Context, spec backend.SessionSpec) (ba
 		},
 	}
 	fail := func(err error) (backend.Session, error) {
-		err = fmt.Errorf("start Claude Code for %s in tmux window %s: %w", spec.TaskID, window, err)
+		err = fmt.Errorf("start Claude Code for %s in tmux window %s: %w", spec.Subject(), window, err)
 		// Don't leave a window behind, even when ctx is cancelled.
 		if cerr := b.c.KillWindow(context.WithoutCancel(ctx), window); cerr != nil && !IsGone(cerr) {
 			err = errors.Join(err, fmt.Errorf("close tmux window %s by hand: %w", window, cerr))
@@ -131,7 +134,7 @@ func (b *Backend) OpenSession(ctx context.Context, spec backend.SessionSpec) (ba
 		p, err := b.c.Pane(ctx, pane)
 		switch {
 		case IsGone(err):
-			return nil, fmt.Errorf("start Claude Code for %s: it exited at once; run `claude` in a terminal to see why", spec.TaskID)
+			return nil, fmt.Errorf("start Claude Code for %s: it exited at once; run `claude` in a terminal to see why", spec.Subject())
 		case err != nil:
 			return fail(err)
 		case p.Dead:
@@ -164,12 +167,28 @@ func (b *Backend) OpenSession(ctx context.Context, spec backend.SessionSpec) (ba
 // could otherwise name the owner's shell as its pane and have igris type
 // there (V10-05).
 func (b *Backend) Attach(ctx context.Context, ref backend.SessionRef, taskID string) (backend.Session, error) {
+	return b.attach(ctx, ref, backend.RulesFile(taskID), taskID, "state.json", "delete the file to start a new run")
+}
+
+// AttachSide is Attach for side session sideID: the pane's start command
+// must name its rules file, .igris/side/<id>.rules.md (SPEC §6.10).
+func (b *Backend) AttachSide(ctx context.Context, ref backend.SessionRef, sideID string) (backend.Session, error) {
+	if !backend.ValidSideID(sideID) {
+		return nil, fmt.Errorf("attach: invalid side session ID %q", sideID)
+	}
+	return b.attach(ctx, ref, backend.SideRulesFile(sideID), "side "+sideID, "its record in .igris/side/", "igris forgets it")
+}
+
+// attach is Attach for the session started with the rules file rules. For
+// messages, what names the session, source the file the ref came from and
+// fix what to do about a bad one.
+func (b *Backend) attach(ctx context.Context, ref backend.SessionRef, rules, what, source, fix string) (backend.Session, error) {
 	if ref.Backend != Name {
 		return nil, fmt.Errorf("attach: session ref is for backend %q, not %s", ref.Backend, Name)
 	}
 	if !windowPattern.MatchString(ref.TabID) || !panePattern.MatchString(ref.PaneID) ||
 		(ref.ClaudeSession != "" && !backend.ValidClaudeSession(ref.ClaudeSession)) {
-		return nil, fmt.Errorf("attach: session ref (window %q, pane %q) is incomplete or malformed; state.json looks damaged, delete it to start a new run", ref.TabID, ref.PaneID)
+		return nil, fmt.Errorf("attach: session ref (window %q, pane %q) is incomplete or malformed; %s looks damaged, %s", ref.TabID, ref.PaneID, source, fix)
 	}
 	s := &Session{c: b.c, id: ref.TabID, ref: ref, sleep: b.sleep, hooks: b.hooks}
 	p, err := b.c.Pane(ctx, ref.PaneID)
@@ -190,8 +209,8 @@ func (b *Backend) Attach(ctx context.Context, ref backend.SessionRef, taskID str
 		return nil, s.goneErr("attach", err)
 	case err != nil:
 		return nil, fmt.Errorf("attach tmux pane %s: %w", ref.PaneID, err)
-	case !StartedFor(start, ref.ClaudeSession, taskID):
-		return nil, fmt.Errorf("attach tmux pane %s for %s: %w: %w; state.json names a pane igris did not start for it, delete the file to start a new run", ref.PaneID, taskID, backend.ErrSessionGone, backend.ErrSessionForeign)
+	case !startedWith(start, ref.ClaudeSession, rules):
+		return nil, fmt.Errorf("attach tmux pane %s for %s: %w: %w; %s names a pane igris did not start for it, %s", ref.PaneID, what, backend.ErrSessionGone, backend.ErrSessionForeign, source, fix)
 	}
 	return s, nil
 }
@@ -202,6 +221,18 @@ func (b *Backend) Attach(ctx context.Context, ref backend.SessionRef, taskID str
 // prompts/<task>.rules.md>`. tmux joins the arguments with spaces and
 // quotes one that holds a space.
 func StartedFor(start, uuid, taskID string) bool {
+	return startedWith(start, uuid, backend.RulesFile(taskID))
+}
+
+// StartedForSide is StartedFor for side session id, whose rules file is
+// .igris/side/<id>.rules.md.
+func StartedForSide(start, uuid, id string) bool {
+	return startedWith(start, uuid, backend.SideRulesFile(id))
+}
+
+// startedWith reports whether start is claude with the Claude session uuid
+// and the rules file rules (relative to the project root).
+func startedWith(start, uuid, rules string) bool {
 	f := strings.Fields(start)
 	if len(f) == 0 || f[0] != "claude" {
 		return false
@@ -212,7 +243,6 @@ func StartedFor(start, uuid, taskID string) bool {
 			session = true
 		}
 	}
-	rules := backend.RulesFile(taskID)
 	return session && (strings.Contains(start, "/"+rules+" ") || strings.HasSuffix(start, "/"+rules) || strings.Contains(start, "/"+rules+"\""))
 }
 

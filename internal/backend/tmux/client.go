@@ -99,13 +99,21 @@ func (c *Client) Version(ctx context.Context) (string, error) {
 
 // NewWindow opens a detached window named name in dir running argv
 // directly (tmux execs a multi-argument command without a shell, V03-P2)
-// and returns its window and pane IDs. name is escaped: -n is a tmux
-// format, where #(…) would run a command.
-func (c *Client) NewWindow(ctx context.Context, dir, name string, argv []string) (window, pane string, err error) {
+// with the KEY=VALUE entries of env added to its environment (-e, not a
+// format), and returns its window and pane IDs. name is escaped: -n is a
+// tmux format, where #(…) would run a command.
+func (c *Client) NewWindow(ctx context.Context, dir, name string, env, argv []string) (window, pane string, err error) {
 	if len(argv) == 0 {
 		return "", "", fmt.Errorf("tmux new-window: no command")
 	}
-	args := []string{"new-window", "-d", "-P", "-F", "#{window_id} #{pane_id}", "-c", dir, "-n", Literal(name), "--"}
+	args := []string{"new-window", "-d", "-P", "-F", "#{window_id} #{pane_id}", "-c", dir, "-n", Literal(name)}
+	for _, kv := range env {
+		if k, _, ok := strings.Cut(kv, "="); !ok || k == "" || strings.HasPrefix(kv, "-") || textsafe.Line(kv) != kv {
+			return "", "", fmt.Errorf("tmux new-window: environment entry %q is not KEY=VALUE text", textsafe.Line(kv))
+		}
+		args = append(args, "-e", kv)
+	}
+	args = append(args, "--")
 	out, err := c.exec(ctx, nil, append(args, argv...)...)
 	if err != nil {
 		return "", "", err

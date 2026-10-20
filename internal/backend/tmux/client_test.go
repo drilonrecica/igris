@@ -41,12 +41,16 @@ func TestClientCommands(t *testing.T) {
 		args []string
 	}{
 		{"new window: argv after --, name escaped", ok(t, "new_window.txt"), func(c *Client) error {
-			w, p, err := c.NewWindow(ctx, "/x y/proj", "P1-01 · #(touch pwn) #{pane_id}", []string{"claude", "--model", "opus", "--settings", "/a;b"})
+			w, p, err := c.NewWindow(ctx, "/x y/proj", "P1-01 · #(touch pwn) #{pane_id}", nil, []string{"claude", "--model", "opus", "--settings", "/a;b"})
 			if err == nil && (w != "@1" || p != "%1") {
 				t.Errorf("window %q pane %q", w, p)
 			}
 			return err
 		}, []string{"new-window", "-d", "-P", "-F", "#{window_id} #{pane_id}", "-c", "/x y/proj", "-n", "P1-01 · ##(touch pwn) ##{pane_id}", "--", "claude", "--model", "opus", "--settings", "/a;b"}},
+		{"new window: environment additions as -e", ok(t, "new_window.txt"), func(c *Client) error {
+			_, _, err := c.NewWindow(ctx, "/p", "side · opus", []string{"IGRIS_SIDE=a3f2c1"}, []string{"claude"})
+			return err
+		}, []string{"new-window", "-d", "-P", "-F", "#{window_id} #{pane_id}", "-c", "/p", "-n", "side · opus", "-e", "IGRIS_SIDE=a3f2c1", "--", "claude"}},
 		{"remain on exit", runner.Result{}, func(c *Client) error { return c.RemainOnExit(ctx, "@1") },
 			[]string{"set-option", "-w", "-t", "@1", "remain-on-exit", "on"}},
 		{"paste", runner.Result{}, func(c *Client) error { return c.PasteBuffer(ctx, "igris-b", "%1") },
@@ -151,8 +155,13 @@ func TestErrors(t *testing.T) {
 	if !errors.As(err, &e) || IsGone(err) || !strings.Contains(e.Message, "error connecting") {
 		t.Errorf("version: %v", err)
 	}
-	if _, _, err := c.NewWindow(ctx, "/p", "x", []string{"claude"}); err == nil {
+	if _, _, err := c.NewWindow(ctx, "/p", "x", nil, []string{"claude"}); err == nil {
 		t.Error("accepted garbage window IDs")
+	}
+	for _, kv := range []string{"NOVALUE", "=x", "-t=x", "A=b\nc", "A=\x1b[31m"} {
+		if _, _, err := c.NewWindow(ctx, "/p", "x", []string{kv}, []string{"claude"}); err == nil || !strings.Contains(err.Error(), "KEY=VALUE") {
+			t.Errorf("environment entry %q: %v, want refused", kv, err)
+		}
 	}
 }
 

@@ -37,6 +37,9 @@ func execReset(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "igris reset: %s\n", fmt.Sprintf(format, a...))
 		return exitFail
 	}
+	if inSideSession() {
+		return fail(errSideSession)
+	}
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fail("%v", err)
