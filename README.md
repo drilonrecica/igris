@@ -22,7 +22,7 @@
 
 You write the plan and decide which tasks need Fable, which need Opus and which are fine on Sonnet. igris makes sure that's what happens: it never runs a Sonnet task on a more expensive model, never lets one task's context bleed into the next, and stops to wait for you whenever a task needs a decision.
 
-> **Status:** v1.0.0, stable: what 1.x keeps stable is in [`docs/compatibility.md`](docs/compatibility.md). Linux and macOS, Windows through WSL2; runs in herdr or tmux. The full behavior is specified in [`SPEC.md`](SPEC.md).
+> **Status:** v1.1.0, stable: what 1.x keeps stable is in [`docs/compatibility.md`](docs/compatibility.md). Linux and macOS, Windows through WSL2; runs in herdr or tmux. The full behavior is specified in [`SPEC.md`](SPEC.md).
 
 **Contents:** [Why](#why) · [Quick start](#quick-start) · [Install](#install) · [Where igris runs](#where-igris-runs) · [Your plan](#your-plan) · [Running a phase](#running-a-phase) · [Verification and commits](#verification-and-commits) · [Worktree mode](#worktree-mode) · [Modes](#modes) · [Notifications](#notifications) · [Commands](#commands) · [The TUI](#the-tui) · [Security](#security) · [FAQ](#faq)
 

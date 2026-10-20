@@ -4,7 +4,7 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
-## [1.1.0] - unreleased
+## [1.1.0] - 2026-10-20
 
 igris 1.1 adds to what 1.0 promised and breaks nothing: you can approve a plan-mode session's plan from igris, see the tokens each run, task and model used, and be told when a task ran on a model its rank doesn't name. Plans, `igris.toml` and scripts written for 1.0 need no changes ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). All of it is additive: new config keys with defaults, a command, `--json` fields and a schema, run-log events and a notification event.
 
@@ -31,7 +31,7 @@ igris 1.1 adds to what 1.0 promised and breaks nothing: you can approve a plan-m
 
 ### Verification
 
-- Plan approval was verified against Claude Code 2.1.304 (the `ExitPlanMode` permission hook, its decision fields, the pane and timeout fallbacks); the decisions are in [`docs/decisions.md`](docs/decisions.md). The gate run (a real plan-mode task approved from igris on herdr and tmux, a usage report of a real run, a forced rank mismatch) is recorded with the release.
+- Plan approval was verified against Claude Code 2.1.304 (the `ExitPlanMode` permission hook, its decision fields, the pane and timeout fallbacks); the decisions are in [`docs/decisions.md`](docs/decisions.md). The gate run (a real plan-mode task approved from igris on herdr and tmux, a usage report of a real run, a forced rank mismatch caught) is recorded in [`docs/check-v11.md`](docs/check-v11.md).
 
 ## [1.0.0] - 2026-10-20
 
