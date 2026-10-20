@@ -16,7 +16,7 @@ What got igris here, release by release: the 1.0 contract, the removal of `claud
 
 - **Soaked on real projects** with 1.0.0-rc.1, on Linux and macOS, on herdr, driven over Termius, with `adapt` used on a non-canonical plan.
 - **Waivers.** tmux was not soaked by hand; it is covered by the backend conformance suite in `make test`. rc.2, which changed reattach and config confirmation, was approved without a separate soak: those fixes are covered by their regression tests and the conformance suite, not by a real resume on herdr or tmux.
-- A **final security review** ([`docs/threat-model.md`](docs/threat-model.md)) and the compatibility suite (every release from 0.1.0 to 0.6.0 still loads) run on every change.
+- A **final security review** before 1.0 ([`docs/threat-model.md`](docs/threat-model.md)); the compatibility suite (what every release from 0.1.0 on wrote still loads) and the fuzz targets run in CI on every push.
 
 ## [1.0.0-rc.2] - 2026-10-20
 
