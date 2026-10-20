@@ -4,6 +4,16 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+### Changed
+
+Configs that 1.0.0-rc.1 accepted and the next release rejects (from the final security review; [`docs/decisions.md`](docs/decisions.md), V07-P1 amendment of 2026-10-20). Nothing else in the 1.0 contract changes. `igris check` names the key to fix.
+
+- `claude.extra_args` with a flag that changes the session's tools, permissions, directory, system prompt or shape: `--allowedTools`, `--disallowedTools`, `--tools`, `--add-dir`, `--permission-prompt-tool`, `--bare`, `--setting-sources`, `--plugin-dir`, `--plugin-url`, `--mcp-config`, `--strict-mcp-config`, `--agent`, `--agents`, `--system-prompt`, `--system-prompt-snapshot`, `--ide`, `--worktree`/`-w`, `--fork-session`, `--no-session-persistence` (and the kebab-case spellings).
+- A control character in a `claude.extra_args` value or in a `[models]` rank or model.
+- `notify.ntfy.server` or `notify.gotify.server` with a `user:password@` part; use `token`.
+- An `igris.toml` that isn't a regular file or is over 1 MiB, and a plan over 16 MiB.
+- `arise` asks before using an `igris.toml` that changed during the previous run; unattended scripts that hit this exit 1 until someone confirms once.
+
 ### Security
 
 The final security review before 1.0 (V10-05, [`docs/threat-model.md`](docs/threat-model.md)). Nothing in the 1.0 contract changes; `state.json` gains an optional `config_changed` field within version 3 and the run log a `config_changed` event.
