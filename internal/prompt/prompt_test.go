@@ -64,6 +64,7 @@ func TestRenderGolden(t *testing.T) {
 		{"context", "M1-04", Env{Model: "sonnet", PlanFile: "tasks.md", CommitPolicy: "auto"}},
 		{"context-resumed", "M1-04", Env{Model: "sonnet", PlanFile: "tasks.md", CommitPolicy: "ask", Resumed: true}},
 		{"commit-never-resumed", "M1-02", Env{Model: "opus", PlanFile: "tasks.md", CommitPolicy: "never", Resumed: true}},
+		{"included-task-file", "M1-01", Env{Model: "sonnet", PlanFile: "tasks.md", TaskFile: "phases/m1.md", CommitPolicy: "ask"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -92,6 +93,18 @@ func TestVarsFor(t *testing.T) {
 	}
 	if v.Context != nil || len(v.Extra) != 1 {
 		t.Errorf("Context = %q, Extra = %v; want no paths and only Spec", v.Context, v.Extra)
+	}
+	if v.TaskFile != "p.md" {
+		t.Errorf("TaskFile = %q, want PlanFile", v.TaskFile)
+	}
+	// A row in the main plan renders as before TaskFile existed.
+	one := Env{Model: "sonnet", PlanFile: "tasks.md", CommitPolicy: "ask"}
+	same := one
+	same.TaskFile = "tasks.md"
+	a, errA := Render(VarsFor(testTask(t, "M1-01"), one), "")
+	b, errB := Render(VarsFor(testTask(t, "M1-01"), same), "")
+	if errA != nil || errB != nil || a != b {
+		t.Errorf("TaskFile = PlanFile changes the prompt (%v, %v)", errA, errB)
 	}
 	v = VarsFor(testTask(t, "M1-02"), Env{DoneCommand: "x done"})
 	if v.DoneCommand != "x done" {
@@ -132,7 +145,7 @@ func TestRenderCustomTemplate(t *testing.T) {
 func TestPromptTemplateEveryVariable(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "all.tmpl")
 	const all = "{{.ID}}|{{.Title}}|{{.Text}}|{{.Phase}}|{{.PhaseTitle}}|{{.Rank}}|{{.Model}}|{{.Owner}}|{{.Deps}}|" +
-		"{{.Extra}}|{{.Context}}|{{.PlanFile}}|{{.Resumed}}|{{.CommitPolicy}}|{{.DoneCommand}}\n"
+		"{{.Extra}}|{{.Context}}|{{.PlanFile}}|{{.TaskFile}}|{{.Resumed}}|{{.CommitPolicy}}|{{.DoneCommand}}\n"
 	if err := os.WriteFile(path, []byte(all), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +153,7 @@ func TestPromptTemplateEveryVariable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(got, "M1-02|Frob widgets|") || strings.Count(got, "|") != 14 {
+	if !strings.HasPrefix(got, "M1-02|Frob widgets|") || strings.Count(got, "|") != 15 {
 		t.Errorf("got %q", got)
 	}
 }

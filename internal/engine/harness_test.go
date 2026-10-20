@@ -182,7 +182,7 @@ func (h *harness) autoSignalExcept(ids ...string) {
 // statuses returns "ID=status" for every task, in file order.
 func (h *harness) statuses() string {
 	h.t.Helper()
-	p, err := plan.Load(h.path("tasks.md"), plan.Options{})
+	p, err := plan.Load(h.path("tasks.md"), plan.Options{Root: h.root})
 	if err != nil {
 		h.t.Fatal(err)
 	}

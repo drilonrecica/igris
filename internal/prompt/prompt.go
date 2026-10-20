@@ -72,6 +72,7 @@ type Vars struct {
 	Extra        map[string]string // extra columns, e.g. Spec
 	Context      []string          // the Context cell's paths as written (SPEC §3.2)
 	PlanFile     string
+	TaskFile     string // the file the task's row is in (SPEC §3.7); PlanFile for a one-file plan
 	Resumed      bool
 	CommitPolicy string // "ask", "auto" or "never"
 	DoneCommand  string // e.g. "igris done M0-01"
@@ -81,6 +82,7 @@ type Vars struct {
 type Env struct {
 	Model        string
 	PlanFile     string
+	TaskFile     string // default: PlanFile
 	CommitPolicy string
 	DoneCommand  string // default: "igris done <ID>"
 	Resumed      bool
@@ -99,6 +101,7 @@ func VarsFor(t *plan.Task, e Env) Vars {
 		Extra:        nonEmpty(t.Extra),
 		Context:      t.Context,
 		PlanFile:     e.PlanFile,
+		TaskFile:     e.TaskFile,
 		Resumed:      e.Resumed,
 		CommitPolicy: e.CommitPolicy,
 		DoneCommand:  e.DoneCommand,
@@ -109,6 +112,9 @@ func VarsFor(t *plan.Task, e Env) Vars {
 	}
 	if v.DoneCommand == "" {
 		v.DoneCommand = "igris done " + t.ID
+	}
+	if v.TaskFile == "" {
+		v.TaskFile = v.PlanFile
 	}
 	return v
 }

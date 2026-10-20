@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -212,6 +213,36 @@ func TestRunAlreadyValid(t *testing.T) {
 	}
 	if len(h.be.Opened()) != 0 {
 		t.Error("a session was opened for a valid plan")
+	}
+}
+
+// A split plan is refused before any session opens, valid or not, naming
+// its first include (SPEC §9); and a proposal with an include line fails
+// its review's validation, since accepting it would bring in files the
+// owner never reviewed.
+func TestRunRefusesSplitPlan(t *testing.T) {
+	for _, text := range []string{
+		"<!-- igris:format 2 -->\n" + goodProposal + "\n<!-- igris:include phases/v2.md -->\n",
+		oldPlan + "\n<!-- igris:include phases/v2.md -->\n",
+	} {
+		h := newHarness(t, text)
+		_, err := h.run(context.Background(), "sonnet")
+		if err == nil || err.Error() != "igris adapt converts one file; plan.md includes phases/v2.md (line "+strconv.Itoa(strings.Count(text, "\n"))+"): inline the included files, or adapt one with --plan" {
+			t.Errorf("err = %v", err)
+		}
+		if len(h.be.Opened()) != 0 {
+			t.Error("a session was opened for a split plan")
+		}
+	}
+
+	h := newHarness(t, oldPlan)
+	h.finishOnPrompt("<!-- igris:format 2 -->\n" + goodProposal + "<!-- igris:include phases/v2.md -->\n")
+	res, err := h.run(context.Background(), "sonnet")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Issues) != 1 || !strings.Contains(res.Issues[0].Msg, "includes are not read here") {
+		t.Errorf("issues = %v, want the include", res.Issues)
 	}
 }
 

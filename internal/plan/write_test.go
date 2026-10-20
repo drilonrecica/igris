@@ -55,29 +55,37 @@ func set(id string, s Status) UpdateFunc {
 	}
 }
 
+// preserveHead starts a plan whose first table holds a preserveCases row.
+const preserveHead = "# Plan\n\nIntro with | pipes and `code`.\n\n## M0 — Foundation\n\n" +
+	"| ID | Task | Deps | Spec | Status | Model | Owner |\n|:---|---|---|--:|:-:|---|---|\n"
+
+// preserveCases are the Status cells the writer must change and nothing
+// else, in a row of the table preserveHead starts.
+var preserveCases = []struct {
+	name     string
+	row      string
+	to       Status
+	wantCell string // the row's Status cell after the write, padding included
+	oldCell  string
+}{
+	{"plain", "| a | **A** — x | — | 1 | ready | sonnet | agent |", InProgress, " in progress ", " ready "},
+	{"wide padding", "| a | x | — | 1 |    ready     | sonnet | agent |", Done, "    done     ", "    ready     "},
+	{"no padding", "| a | x | — | 1 |ready| sonnet | agent |", Done, "done", "ready"},
+	{"tabs", "| a | x | — | 1 |\tready\t| sonnet | agent |", Done, "\tdone\t", "\tready\t"},
+	{"backticks", "| a | x | — | 1 | `ready` | sonnet | agent |", Done, " `done` ", " `ready` "},
+	{"suffix dropped", "| a | x | — | 1 | blocked (waits on vendor) | sonnet | agent |", Ready, " ready ", " blocked (waits on vendor) "},
+	{"backtick suffix dropped", "| a | x | — | 1 | `skipped` (not needed) | sonnet | agent |", Done, " `done` ", " `skipped` (not needed) "},
+	{"backticked suffix dropped", "| a | x | — | 1 | `skipped (not needed)` | sonnet | agent |", Ready, " `ready` ", " `skipped (not needed)` "},
+	{"case normalized", "| a | x | — | 1 | READY | sonnet | agent |", Done, " done ", " READY "},
+	{"escaped pipes elsewhere", "| a | `v1 \\| nonce` | — | 1 | ready | sonnet | agent |", Done, " done ", " ready "},
+	{"same status rewritten", "| a | x | — | 1 | Done (by hand) | sonnet | agent |", Done, " done ", " Done (by hand) "},
+}
+
+// preserveTail follows the row of a preserveCases case.
+const preserveTail = "| b | other ready row | a | 2 | blocked | opus | agent |\n\n## Notes\n\n| Status | ready |\n|---|---|\n"
+
 func TestWriterPreservesBytes(t *testing.T) {
-	const head = "# Plan\n\nIntro with | pipes and `code`.\n\n## M0 — Foundation\n\n" +
-		"| ID | Task | Deps | Spec | Status | Model | Owner |\n|:---|---|---|--:|:-:|---|---|\n"
-	tests := []struct {
-		name     string
-		row      string
-		to       Status
-		wantCell string // the row's Status cell after the write, padding included
-		oldCell  string
-	}{
-		{"plain", "| a | **A** — x | — | 1 | ready | sonnet | agent |", InProgress, " in progress ", " ready "},
-		{"wide padding", "| a | x | — | 1 |    ready     | sonnet | agent |", Done, "    done     ", "    ready     "},
-		{"no padding", "| a | x | — | 1 |ready| sonnet | agent |", Done, "done", "ready"},
-		{"tabs", "| a | x | — | 1 |\tready\t| sonnet | agent |", Done, "\tdone\t", "\tready\t"},
-		{"backticks", "| a | x | — | 1 | `ready` | sonnet | agent |", Done, " `done` ", " `ready` "},
-		{"suffix dropped", "| a | x | — | 1 | blocked (waits on vendor) | sonnet | agent |", Ready, " ready ", " blocked (waits on vendor) "},
-		{"backtick suffix dropped", "| a | x | — | 1 | `skipped` (not needed) | sonnet | agent |", Done, " `done` ", " `skipped` (not needed) "},
-		{"backticked suffix dropped", "| a | x | — | 1 | `skipped (not needed)` | sonnet | agent |", Ready, " `ready` ", " `skipped (not needed)` "},
-		{"case normalized", "| a | x | — | 1 | READY | sonnet | agent |", Done, " done ", " READY "},
-		{"escaped pipes elsewhere", "| a | `v1 \\| nonce` | — | 1 | ready | sonnet | agent |", Done, " done ", " ready "},
-		{"same status rewritten", "| a | x | — | 1 | Done (by hand) | sonnet | agent |", Done, " done ", " Done (by hand) "},
-	}
-	const tail = "| b | other ready row | a | 2 | blocked | opus | agent |\n\n## Notes\n\n| Status | ready |\n|---|---|\n"
+	head, tail, tests := preserveHead, preserveTail, preserveCases
 	for _, ending := range []struct{ name, nl string }{{"lf", "\n"}, {"crlf", "\r\n"}} {
 		for _, trailing := range []bool{true, false} {
 			for _, tt := range tests {

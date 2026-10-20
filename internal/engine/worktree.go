@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/drilonrecica/igris/internal/checks"
+	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/runner"
 	"github.com/drilonrecica/igris/internal/state"
 )
@@ -149,16 +150,24 @@ func (e *Engine) leaveWorktree(ctx context.Context, res *Result) {
 // worktreeAllow are the permission allow rules of a session in the run's
 // worktree (SPEC §6.8, §7.4). The worktree lacks the project's untracked
 // .claude/settings.local.json, so the session gets the `igris done` rules
-// that file allows, no more, and may read the plan, which is outside the
-// worktree. Claude Code reads a rule's path as a pattern, so a plan path
-// with pattern characters gets no rule (the session asks instead): it
-// could match more than the plan.
+// that file allows, no more, and may read the plan's files, which are
+// outside the worktree. Claude Code reads a rule's path as a pattern, so a
+// file whose path holds pattern characters gets no rule (the session asks
+// instead): it could match more than that file.
 func (e *Engine) worktreeAllow() []string {
 	allow := checks.ProjectDoneRules(e.dir.Root())
-	if !strings.ContainsAny(e.planPath, `*?[]{}!\`) {
-		allow = append(allow, "Read(/"+e.planPath+")")
+	for _, f := range e.planFiles() {
+		if !strings.ContainsAny(f, `*?[]{}!\`) {
+			allow = append(allow, "Read(/"+f+")")
+		}
 	}
 	return allow
+}
+
+// planFiles are the absolute paths of the plan's files as igris last read
+// them: the main plan, then each file it includes (SPEC §3.7).
+func (e *Engine) planFiles() []string {
+	return append([]string{e.planPath}, e.included...)
 }
 
 // planFile is the plan's path as the task prompt names it: as configured,
@@ -169,6 +178,16 @@ func (e *Engine) planFile() string {
 		return e.planPath
 	}
 	return e.cfg.Plan
+}
+
+// taskFile is the file t's row is in as the task prompt names it (SPEC
+// §6.1): planFile for a row of the main plan, else the include's path
+// joined to planFile's directory, so in the same form.
+func (e *Engine) taskFile(t *plan.Task) string {
+	if t.Phase == nil || t.Phase.Include == "" {
+		return e.planFile()
+	}
+	return filepath.Join(filepath.Dir(e.planFile()), filepath.FromSlash(t.Phase.Include))
 }
 
 // isDir reports whether path is a directory itself, not a symlink to one:

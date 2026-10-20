@@ -27,7 +27,7 @@ func checkSplice(t *testing.T, data []byte, pick uint, s Status) {
 	if p.Task(target.ID) != target {
 		return // an empty or duplicate ID: splice addresses tasks by ID
 	}
-	out, err := splice(data, p, []Change{{ID: target.ID, To: s}})
+	out, err := spliceMain(p, []Change{{ID: target.ID, To: s}})
 	if err != nil {
 		t.Fatalf("splice %s: %v", target.ID, err)
 	}
@@ -57,10 +57,19 @@ func checkSplice(t *testing.T, data []byte, pick uint, s Status) {
 			t.Fatalf("after setting %s to %s, task %s is %s, want %s", target.ID, s, b.ID, b.Status, wantStatus)
 		}
 	}
-	again, err := splice(out, q, []Change{{ID: target.ID, To: s}})
+	again, err := spliceMain(q, []Change{{ID: target.ID, To: s}})
 	if err != nil || !bytes.Equal(again, out) {
 		t.Fatalf("setting %s to %s twice is not a no-op (err %v)", target.ID, s, err)
 	}
+}
+
+// spliceMain returns the main file of p, a one-file plan, after changes.
+func spliceMain(p *Plan, changes []Change) ([]byte, error) {
+	edits, err := splice(p, changes)
+	if err != nil || len(edits) == 0 {
+		return p.files[0].data, err
+	}
+	return edits[0].out, nil
 }
 
 func slicesConcat(parts ...[]byte) []byte {
@@ -166,7 +175,7 @@ func TestGeneratedPlanThroughWriter(t *testing.T) {
 			if _, err := NewWriter(path, Options{}, testRules).Update(context.Background(), set("P1-01", Done)); err != nil {
 				t.Fatal(err)
 			}
-			want, err := splice(data, p, []Change{{ID: "P1-01", To: Done}})
+			want, err := spliceMain(p, []Change{{ID: "P1-01", To: Done}})
 			if err != nil {
 				t.Fatal(err)
 			}

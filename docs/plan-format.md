@@ -100,6 +100,8 @@ The phases run `M0`, `V2`, `M9`: **plan order** is the main plan with each inclu
 - **Errors** are `file:line: message` in the file the line is in, sorted in plan order. A problem with an include (missing, outside the project, not `.md`, too large, too many files, included twice, nested, no format 2) is reported at the include line.
 - `--json` of `check`, `phases` and `status` lists the plan's `files` (the main plan first) and each phase's `file`.
 - Context paths stay relative to the project root, whichever file the row is in.
+- **When igris runs it**, each Status cell is written in the file its row is in; include lines and every other byte of every file stay as they are. Every file is re-read whenever igris looks at the plan, so an edit to any of them holds the run, as does a row moved to another file or an include added or removed. The task prompt names the file the row is in.
+- **`igris adapt`** converts one file: it refuses a split plan. Inline the included files first, or adapt one of them on its own with `--plan`.
 
 ## Phases
 
@@ -162,7 +164,7 @@ Rules that tie the columns together:
 - **Only Status cells.** igris writes `in progress`, `done` and `skipped`, and moves tasks between `ready` and `blocked` as dependencies are met. Every other byte stays as it is: other cells, whitespace, line endings (CRLF too), the trailing newline, a UTF-8 byte order mark, the format marker.
 - In a Status cell, the padding and backticks are kept (`` `ready` `` becomes `` `done` ``); text after the old word is dropped, since it described the old status.
 - igris never adds, removes or reorders rows. The only exception is `igris adapt`, which replaces the plan only after you accept its proposal.
-- Writes are atomic, and a plan someone else changed in the meantime is re-read rather than overwritten.
+- Writes are atomic, and a plan someone else changed in the meantime is re-read rather than overwritten. In a [split plan](#split-plans-format-2) each file is replaced atomically, one after the other; a change to any file of the plan before then discards the write and re-reads them all.
 
 ## What can change in igris 1.x
 

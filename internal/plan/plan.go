@@ -97,7 +97,11 @@ type Phase struct {
 	Columns []string // table header in order; canonical names where recognized
 	Header  []string // table header cells as written (emphasis removed), in the order of Columns
 	Tasks   []*Task  // in file order
+	// Include is the include path as written (SPEC §3.7) for a phase of
+	// an included file, "" for one in the main plan.
+	Include string
 
+	file      *planFile
 	tableLine int // line of the table header
 	rows      []row
 }
@@ -114,7 +118,10 @@ type nearMiss struct {
 type planFile struct {
 	name    string // as in messages: the main plan's path, or its directory joined with the include path
 	lines   []line
-	incLine int // the main plan's line that includes the file; 0 for the main plan
+	incLine int    // the main plan's line that includes the file; 0 for the main plan
+	inc     string // the include path as written; "" for the main plan
+	real    string // an included file's path with symlinks resolved, as read
+	data    []byte // the file as read
 
 	markers []int  // lines holding a format marker
 	fence   string // the fence still open at the end of the file, "" for none
@@ -165,6 +172,22 @@ func (p *Plan) Files() []string {
 
 // Split reports whether the main plan has include lines.
 func (p *Plan) Split() bool { return len(p.includes) > 0 }
+
+// Include is an include line of the main plan (SPEC §3.7).
+type Include struct {
+	Line int
+	Path string // as written, trimmed
+}
+
+// Includes lists the main plan's include lines in file order, also those
+// that were not read.
+func (p *Plan) Includes() []Include {
+	out := make([]Include, len(p.includes))
+	for i, inc := range p.includes {
+		out[i] = Include{Line: inc.line, Path: inc.path}
+	}
+	return out
+}
 
 func (p *Plan) addIssue(file string, line int, format string, a ...any) {
 	p.issues = append(p.issues, Issue{File: file, Line: line, Msg: fmt.Sprintf(format, a...)})
@@ -221,7 +244,7 @@ func parse(name string, data []byte, opts Options, inc *includer) *Plan {
 	for k, v := range opts.Columns {
 		aliases[strings.ToLower(normalizeHeader(k))] = v
 	}
-	main := &planFile{name: name, lines: splitLines(data)}
+	main := &planFile{name: name, lines: splitLines(data), data: data}
 	p.files = []*planFile{main}
 	items := (&scanner{p: p, f: main, aliases: aliases}).scan()
 
@@ -315,7 +338,7 @@ func (s *scanner) scan() []item {
 		}
 		if text, ok := headingText(l.text); ok {
 			ph := newPhase(textsafe.Line(text), l.num)
-			ph.File = s.f.name
+			ph.File, ph.Include, ph.file = s.f.name, s.f.inc, s.f
 			cur = &section{phase: ph, control: textsafe.HasControl(l.text)}
 			continue
 		}

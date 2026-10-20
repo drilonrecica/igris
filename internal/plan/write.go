@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/drilonrecica/igris/internal/fsafe"
 )
 
 // writeAttempts is how often Update retries when the file changes under it
@@ -25,13 +27,14 @@ var ErrConcurrentEdit = errors.New("plan changed on disk while igris was writing
 // It may run more than once, each time on a new parse.
 type UpdateFunc func(p *Plan) ([]Change, error)
 
-// Writer changes Status cells of the plan file and nothing else (SPEC §4).
+// Writer changes Status cells of the plan's files and nothing else (SPEC
+// §4).
 type Writer struct {
 	path  string
 	opts  Options
 	rules Rules
 
-	beforeRename func() // test hook: runs after the temp file is written
+	beforeRename func() // test hook: runs after the temp files are written
 }
 
 // NewWriter returns a writer for the plan at path. opts and rules are the
@@ -40,10 +43,11 @@ func NewWriter(path string, opts Options, rules Rules) *Writer {
 	return &Writer{path: path, opts: opts, rules: rules}
 }
 
-// Update re-reads and validates the plan, asks fn for the changes and writes
-// them atomically. If the file changes between the read and the rename, the
-// write is discarded and retried from the read, up to 3 times. It returns the
-// changes written; none means the file was left untouched.
+// Update re-reads and validates the plan with the files it includes, asks
+// fn for the changes and writes each Status cell in the file its row is in
+// (SPEC §4). If any file of the plan changes between the read and the
+// renames, the write is discarded and retried from the read, up to 3 times.
+// It returns the changes written; none means every file was left untouched.
 func (w *Writer) Update(ctx context.Context, fn UpdateFunc) ([]Change, error) {
 	for range writeAttempts {
 		if err := ctx.Err(); err != nil {
@@ -57,21 +61,27 @@ func (w *Writer) Update(ctx context.Context, fn UpdateFunc) ([]Change, error) {
 	return nil, fmt.Errorf("write %s: %w %d times; stop editing it while igris runs, then retry", w.path, ErrConcurrentEdit, writeAttempts)
 }
 
-// attempt makes one read-validate-write pass. retry reports that the file
-// changed before the rename and nothing was written.
+// pending is a file of the plan with its new content in a temp file.
+type pending struct {
+	f   *planFile
+	dst string // the file the temp file replaces
+	tmp string
+}
+
+// attempt makes one read-validate-write pass. retry reports that a file of
+// the plan changed before the renames and nothing was written.
 func (w *Writer) attempt(fn UpdateFunc) (changes []Change, retry bool, err error) {
 	data, err := readPlanFile(w.path)
 	if err != nil {
 		return nil, false, err
 	}
-	sum := sha256.Sum256(data)
-
-	p := Parse(w.path, data, w.opts)
-	if p.Split() && !p.NewerFormat() {
-		return nil, false, fmt.Errorf("not writing %s: it includes other files, and this igris can't write Status cells in a split plan yet; inline the included files to run it", w.path)
-	}
+	p := parse(w.path, data, w.opts, newIncluder(w.path, len(data), w.opts.Root))
 	if err := p.Check(w.rules); err != nil {
 		return nil, false, fmt.Errorf("not writing %s: %w", w.path, err)
+	}
+	sums := make(map[*planFile][sha256.Size]byte, len(p.files))
+	for _, f := range p.files {
+		sums[f] = sha256.Sum256(f.data)
 	}
 	changes, err = fn(p)
 	if err != nil {
@@ -80,47 +90,90 @@ func (w *Writer) attempt(fn UpdateFunc) (changes []Change, retry bool, err error
 	if len(changes) == 0 {
 		return nil, false, nil
 	}
-	out, err := splice(data, p, changes)
+	edits, err := splice(p, changes)
 	if err != nil {
 		return nil, false, err
 	}
 
-	// The file the plan path resolves to is the one replaced, so a plan that
-	// is a symlink stays one.
-	dst, err := resolve(w.path)
-	if err != nil {
-		return nil, false, err
-	}
-	info, err := os.Stat(dst)
-	if err != nil {
-		return nil, false, fmt.Errorf("stat plan %s: %w", w.path, err)
-	}
-	tmp, err := writeTemp(dst, out, info.Mode().Perm())
-	if err != nil {
-		return nil, false, err
-	}
+	var writes []*pending
 	defer func() {
-		if tmp != "" {
-			_ = os.Remove(tmp) // best effort; the write already failed or was discarded
+		for _, pw := range writes {
+			if pw.tmp != "" {
+				_ = os.Remove(pw.tmp) // best effort; the write already failed or was discarded
+			}
 		}
 	}()
+	for _, e := range edits {
+		if bytes.Equal(e.out, e.f.data) {
+			continue
+		}
+		pw := &pending{f: e.f, dst: e.f.real}
+		if e.f == p.files[0] {
+			// The file the plan path resolves to is the one replaced, so
+			// a plan that is a symlink stays one. An included file is
+			// replaced at the path it was read from, resolved the same way.
+			if pw.dst, err = resolve(w.path); err != nil {
+				return nil, false, err
+			}
+		}
+		info, err := os.Stat(pw.dst)
+		if err != nil {
+			return nil, false, fmt.Errorf("stat plan %s: %w", e.f.name, err)
+		}
+		if pw.tmp, err = writeTemp(pw.dst, e.out, info.Mode().Perm()); err != nil {
+			return nil, false, err
+		}
+		writes = append(writes, pw)
+	}
+	if len(writes) == 0 {
+		return changes, false, nil
+	}
 
 	if w.beforeRename != nil {
 		w.beforeRename()
 	}
-	now, err := readPlanFile(w.path)
-	if err != nil {
-		return nil, false, fmt.Errorf("re-read: %w", err)
-	}
-	if sha256.Sum256(now) != sum {
+	switch same, err := w.unchanged(p, sums); {
+	case err != nil:
+		return nil, false, err
+	case !same:
 		return nil, true, nil
 	}
-	if err := os.Rename(tmp, dst); err != nil {
-		return nil, false, fmt.Errorf("replace plan %s: %w", w.path, err)
+	for _, pw := range writes {
+		if err := os.Rename(pw.tmp, pw.dst); err != nil {
+			return nil, false, fmt.Errorf("replace plan %s: %w", pw.f.name, err)
+		}
+		pw.tmp = ""
+		syncDir(filepath.Dir(pw.dst))
 	}
-	tmp = ""
-	syncDir(filepath.Dir(dst))
 	return changes, false, nil
+}
+
+// unchanged reports whether every file of p still holds what was read: the
+// main plan, and each included file at the path its include resolves to.
+// An included file that can no longer be read counts as changed, so the
+// retry's validation reports it.
+func (w *Writer) unchanged(p *Plan, sums map[*planFile][sha256.Size]byte) (bool, error) {
+	now, err := readPlanFile(w.path)
+	if err != nil {
+		return false, fmt.Errorf("re-read: %w", err)
+	}
+	if sha256.Sum256(now) != sums[p.files[0]] {
+		return false, nil
+	}
+	for _, f := range p.files[1:] {
+		real, err := filepath.Abs(f.name)
+		if err == nil {
+			real, err = filepath.EvalSymlinks(real)
+		}
+		if err != nil || real != f.real {
+			return false, nil
+		}
+		data, err := fsafe.ReadFile(real, MaxSize, false)
+		if err != nil || sha256.Sum256(data) != sums[f] {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 // resolve follows symlinks in path. Renaming a temp file over path itself
@@ -134,23 +187,42 @@ func resolve(path string) (string, error) {
 	return dst, nil
 }
 
-// splice returns data with the Status cell of every changed task replaced.
+// edit is the new content of one file of the plan.
+type edit struct {
+	f   *planFile
+	out []byte
+}
+
+// splice returns, in plan order, each file of p holding a changed task with
+// the Status cell of every changed task in it replaced (SPEC §4 rule 7).
 // Cell padding and the backtick style are kept; any suffix after the old
 // keyword is dropped. Every other byte is copied unchanged.
-func splice(data []byte, p *Plan, changes []Change) ([]byte, error) {
+func splice(p *Plan, changes []Change) ([]edit, error) {
 	final := map[string]Status{} // last change per task wins
+	byFile := map[*planFile][]*Task{}
 	for _, c := range changes {
-		if p.Task(c.ID) == nil {
+		t := p.Task(c.ID)
+		if t == nil {
 			return nil, fmt.Errorf("task %s is no longer in %s; not writing (check whether its row was removed or renamed)", c.ID, p.Path)
+		}
+		if _, seen := final[c.ID]; !seen {
+			byFile[t.Phase.file] = append(byFile[t.Phase.file], t)
 		}
 		final[c.ID] = c.To
 	}
-	tasks := make([]*Task, 0, len(final))
-	for id := range final {
-		tasks = append(tasks, p.Task(id))
+	var edits []edit
+	for _, f := range p.files {
+		if tasks := byFile[f]; len(tasks) > 0 {
+			edits = append(edits, edit{f: f, out: spliceFile(f.data, tasks, final)})
+		}
 	}
-	sort.Slice(tasks, func(i, j int) bool { return tasks[i].statusStart < tasks[j].statusStart })
+	return edits, nil
+}
 
+// spliceFile returns data, one file of the plan, with the Status cell of
+// each of tasks (all in that file) set to its final status.
+func spliceFile(data []byte, tasks []*Task, final map[string]Status) []byte {
+	sort.Slice(tasks, func(i, j int) bool { return tasks[i].statusStart < tasks[j].statusStart })
 	var b bytes.Buffer
 	b.Grow(len(data) + 16*len(tasks))
 	pos := 0
@@ -160,7 +232,7 @@ func splice(data []byte, p *Plan, changes []Change) ([]byte, error) {
 		pos = t.statusEnd
 	}
 	b.Write(data[pos:])
-	return b.Bytes(), nil
+	return b.Bytes()
 }
 
 // statusCell renders s in the style of the old cell content: backticked if

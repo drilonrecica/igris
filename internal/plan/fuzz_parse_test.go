@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -174,7 +175,29 @@ func FuzzLoadIncludes(f *testing.F) {
 		if a, b := phaseSummary(p), phaseSummary(one); a != b {
 			t.Fatalf("Inline copy differs:\n--- split ---\n%s--- inline ---\n%s", a, b)
 		}
+		for i, target := range p.Tasks {
+			checkSplitSplice(t, p, target, fuzzStatuses[i%len(fuzzStatuses)])
+		}
 	})
+}
+
+// checkSplitSplice is the writer's byte-preservation property for a split
+// plan: changing target's Status to s changes the file its row is in, and
+// in it nothing but that cell; no other file of the plan is touched.
+func checkSplitSplice(t *testing.T, p *Plan, target *Task, s Status) {
+	t.Helper()
+	edits, err := splice(p, []Change{{ID: target.ID, To: s}})
+	if err != nil {
+		t.Fatalf("splice %s: %v", target.ID, err)
+	}
+	if len(edits) != 1 || edits[0].f.name != target.Phase.File {
+		t.Fatalf("splice %s (in %s) edits %d file(s)", target.ID, target.Phase.File, len(edits))
+	}
+	data := edits[0].f.data
+	cell := statusCell(string(data[target.statusStart:target.statusEnd]), s)
+	if want := slicesConcat(data[:target.statusStart], []byte(cell), data[target.statusEnd:]); !bytes.Equal(edits[0].out, want) {
+		t.Fatalf("splice %s → %s changed bytes of %s outside its Status cell", target.ID, s, target.Phase.File)
+	}
 }
 
 // phaseSummary renders the phases and tasks, without lines or files.

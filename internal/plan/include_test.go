@@ -1,7 +1,6 @@
 package plan
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"slices"
@@ -323,18 +322,5 @@ func TestInline(t *testing.T) {
 	}
 	if a, b := summary(p), summary(one); a != b {
 		t.Errorf("inlined plan differs:\n%s---\n%s", a, b)
-	}
-}
-
-// Until the writer learns split plans, it refuses one and writes nothing.
-func TestWriterRefusesSplitPlan(t *testing.T) {
-	in := format2 + phaseTable("A", "| A-1 | — | ready | sonnet |") + "<!-- igris:include b.md -->\n"
-	writeFiles(t, map[string]string{"tasks.md": in, "b.md": phaseTable("B", "| B-1 | — | ready | sonnet |")})
-	_, err := NewWriter("tasks.md", Options{}, testRules).Update(context.Background(), set("A-1", Done))
-	if err == nil || !strings.Contains(err.Error(), "split plan") {
-		t.Errorf("err = %v", err)
-	}
-	if out := readPlan(t, "tasks.md"); out != in {
-		t.Errorf("plan changed: %q", out)
 	}
 }

@@ -87,7 +87,13 @@ func Run(ctx context.Context, o Options) (*Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read plan %s: %w; set plan in igris.toml or pass --plan", o.PlanPath, err)
 	}
-	issues, err := needsAdapt(plan.Parse(o.PlanPath, original, opts), cfg.Rules(o.State.Root()))
+	p := plan.Parse(o.PlanPath, original, opts)
+	if inc := p.Includes(); len(inc) > 0 {
+		// A split plan is more than the one file a proposal replaces
+		// (SPEC §9).
+		return nil, fmt.Errorf("igris adapt converts one file; %s includes %s (line %d): inline the included files, or adapt one with --plan", relTo(o.State.Root(), o.PlanPath), inc[0].Path, inc[0].Line)
+	}
+	issues, err := needsAdapt(p, cfg.Rules(o.State.Root()))
 	if err != nil {
 		return nil, err
 	}
@@ -155,6 +161,14 @@ func lockError(err error) error {
 	return fmt.Errorf("%w; adapt can't run while igris arise runs in this project", err)
 }
 
+// relTo returns p relative to root when it is inside root, else p.
+func relTo(root, p string) string {
+	if rp, err := filepath.Rel(root, p); err == nil && !strings.HasPrefix(rp, "..") {
+		return rp
+	}
+	return p
+}
+
 // runner is one adapt session.
 type runner struct {
 	o       Options
@@ -174,15 +188,9 @@ func (r *runner) open(ctx context.Context, issues []plan.Issue, proposal string)
 	if model == "" {
 		model = r.o.Model // sonnet and opus are Claude Code aliases themselves
 	}
-	rel := func(p string) string {
-		if rp, err := filepath.Rel(d.Root(), p); err == nil && !strings.HasPrefix(rp, "..") {
-			return rp
-		}
-		return p
-	}
 	vars := prompt.AdaptVars{
-		PlanFile:     rel(r.o.PlanPath),
-		ProposalFile: rel(proposal),
+		PlanFile:     relTo(d.Root(), r.o.PlanPath),
+		ProposalFile: relTo(d.Root(), proposal),
 		Models:       prompt.Aliases(cfg.Models),
 		Verify:       cfg.Rules("").Verify,
 	}

@@ -100,7 +100,7 @@ func (r *includer) read(p *Plan, inc *include) (*planFile, string) {
 		return nil, fmt.Sprintf("include %q takes the plan's files over %d MiB together; move what is not a plan out of them", path, MaxSize>>20)
 	}
 	r.total += int64(len(data))
-	return &planFile{name: inc.name, lines: splitLines(data), incLine: inc.line}, ""
+	return &planFile{name: inc.name, lines: splitLines(data), incLine: inc.line, inc: path, real: real, data: data}, ""
 }
 
 func (r *includer) realRoot() (string, error) {

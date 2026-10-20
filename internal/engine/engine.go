@@ -175,6 +175,7 @@ type Engine struct {
 	planPath  string
 	planOpts  plan.Options
 	writer    *plan.Writer
+	included  []string // the files the plan includes as loadPlan last read it (SPEC §3.7)
 	conf      configWatch
 	plans     planWatch
 	commitMsg *template.Template
@@ -499,6 +500,7 @@ func (e *Engine) loadPlan() (*plan.Plan, error) {
 	if err := p.Check(e.rules()); err != nil {
 		return nil, err
 	}
+	e.included = p.Files()[1:]
 	return p, nil
 }
 

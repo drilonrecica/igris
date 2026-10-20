@@ -228,6 +228,7 @@ func (e *Engine) taskPrompt(l *launch, resumed bool) (string, error) {
 	return prompt.Render(prompt.VarsFor(l.t, prompt.Env{
 		Model:        l.model,
 		PlanFile:     e.planFile(),
+		TaskFile:     e.taskFile(l.t),
 		CommitPolicy: e.cfg.Run.Commit,
 		Resumed:      resumed,
 	}), e.templatePath())

@@ -4,7 +4,7 @@
 You are working on **exactly one task** of an automated sequential igris run. Do nothing beyond it.
 
 - Phase: {{.Phase}}{{if .PhaseTitle}} — {{.PhaseTitle}}{{end}}
-- Plan file: `{{.PlanFile}}` (find the row for `{{.ID}}`)
+- Plan file: `{{.PlanFile}}`{{if eq .TaskFile .PlanFile}} (find the row for `{{.ID}}`){{else}}; the row for `{{.ID}}` is in `{{.TaskFile}}`, which it includes{{end}}
 - Model rank: {{.Rank}} ({{.Model}})
 - Owner: {{.Owner}}
 {{- if .Deps}}
@@ -36,7 +36,7 @@ A previous session already worked on this task and may have left partial changes
 
 ## How to work
 
-1. Read the project's agent rules (`CLAUDE.md`, `AGENTS.md` if present), the task's row in `{{.PlanFile}}`,{{if .Context}} the required reading above,{{end}} and every spec section or document the task references.
+1. Read the project's agent rules (`CLAUDE.md`, `AGENTS.md` if present), the task's row in `{{.TaskFile}}`,{{if .Context}} the required reading above,{{end}} and every spec section or document the task references.
 2. Implement the task to the project's definition of done.
 3. Don't edit the Status column of the plan; igris updates it.
 {{- if eq .CommitPolicy "never"}}

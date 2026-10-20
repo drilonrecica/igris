@@ -3,6 +3,8 @@ package engine
 import (
 	"context"
 	"fmt"
+	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/drilonrecica/igris/internal/plan"
@@ -20,19 +22,27 @@ type rowSig struct {
 	rank, mode, owner, deps string
 	verify, timeout, paths  string
 	text                    string
+	// file is the file the row is in, relative to the main plan's
+	// directory (SPEC §3.7).
+	file string
 }
 
-func sigOf(t *plan.Task) rowSig {
+func sigOf(p *plan.Plan, t *plan.Task) rowSig {
+	file := filepath.Base(p.Path)
+	if t.Phase != nil && t.Phase.Include != "" {
+		file = path.Clean(filepath.ToSlash(t.Phase.Include))
+	}
 	return rowSig{
 		status: t.Status, rank: t.Rank, mode: t.Mode, owner: string(t.Owner), deps: t.DepsText,
-		verify: t.Verify, timeout: t.TimeoutText, paths: t.ContextText, text: t.Text,
+		verify: t.Verify, timeout: t.TimeoutText, paths: t.ContextText, text: t.Text, file: file,
 	}
 }
 
-// planWatch remembers every row as igris last saw or wrote it.
+// planWatch remembers every row as igris last saw or wrote it, in every
+// file of the plan.
 type planWatch struct {
 	rows  map[string]rowSig
-	order []string // task IDs in file order
+	order []string // task IDs in plan order
 }
 
 // reset takes p as the new baseline.
@@ -40,7 +50,7 @@ func (w *planWatch) reset(p *plan.Plan) {
 	w.rows = make(map[string]rowSig, len(p.Tasks))
 	w.order = w.order[:0]
 	for _, t := range p.Tasks {
-		w.rows[t.ID] = sigOf(t)
+		w.rows[t.ID] = sigOf(p, t)
 		w.order = append(w.order, t.ID)
 	}
 }
@@ -55,9 +65,10 @@ func (w *planWatch) wrote(changes []plan.Change) {
 	}
 }
 
-// diff describes every row of p that differs from the baseline, in file
+// diff describes every row of p that differs from the baseline, in plan
 // order, and makes p the new baseline. Nothing is returned for a plan that
-// matches.
+// matches. An include added or removed shows as the rows it adds or
+// removes.
 func (w *planWatch) diff(p *plan.Plan) []string {
 	if w.rows == nil {
 		w.reset(p)
@@ -72,7 +83,7 @@ func (w *planWatch) diff(p *plan.Plan) []string {
 			out = append(out, t.ID+" added")
 			continue
 		}
-		out = append(out, rowChanges(t.ID, old, sigOf(t))...)
+		out = append(out, rowChanges(t.ID, old, sigOf(p, t))...)
 	}
 	for _, id := range w.order {
 		if !seen[id] {
@@ -93,6 +104,8 @@ func rowChanges(id string, a, b rowSig) []string {
 			out = append(out, fmt.Sprintf("%s %s %s → %s", id, name, orDash(from), orDash(to)))
 		}
 	}
+	// A row moved to another file is a plan edit like any other.
+	cell("file", a.file, b.file)
 	cell("Status", a.status.String(), b.status.String())
 	cell("Model", a.rank, b.rank)
 	cell("Mode", a.mode, b.mode)
