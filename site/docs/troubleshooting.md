@@ -61,6 +61,18 @@ A session can edit `igris.toml`. The run it happened in kept the configuration i
 
 You downgraded. The message says to upgrade igris, or delete `.igris/state.json` to start a new run. A file reported as *damaged* (bad JSON) is a different message; delete it the same way.
 
+## A plan waits in the pane instead of igris
+
+igris shows a plan-mode session's plan only in the TUI, so `arise --no-tui` leaves it to the pane. In the TUI it falls back to the pane when you don't answer within `[plan_mode] approve_timeout` or igris stopped meanwhile. Answer there, or reattach with `igris arise`. See [usage and plans](usage.md#approving-plans-in-igris).
+
+## RANK MISMATCH on a task
+
+The session's main thread answered on a model its rank doesn't resolve to, usually after a `/model` in the pane. igris only tells you: switch the model back in the pane, or carry on if you meant it. A `[models]` value igris can't check (`default`, `opusplan`, a custom name) never raises it; `igris usage` shows it as `unchecked`.
+
+## igris usage says unavailable
+
+For tokens: igris couldn't read the session's transcript (it says so once in the feed), or `[usage] enabled = false`. For quota: it is opt-in (`[usage] statusline = true`), and Claude Code reports it only with a subscription login after its first response. See [usage and plans](usage.md).
+
 ## A notification doesn't arrive
 
 Run `igris notify test`. It sends a sample of each event to every channel and prints `ok` or the reason per channel: `connection refused`, `TLS failed`, `server answered 403 Forbidden`. igris doesn't follow redirects, so a `3xx` means the URL should be the final one. During quiet hours only the `break_through` events reach ntfy, Discord, Slack, Gotify and the webhook; the rest arrive as one digest afterwards. See [notifications](notifications.md).

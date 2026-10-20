@@ -672,7 +672,7 @@ Through WSL2, with herdr or tmux and Claude Code installed inside WSL too; see [
 
 Plans, not promises:
 
-- **1.x, additive:** approving a plan-mode session's plan from igris, and the mode it continues in; usage per run, task and model, with a check that each task ran on its rank's model; side sessions for a quick question without leaving igris; plan includes; creating plans from a template, a goal or a spec.
+- **1.x, additive:** side sessions for a quick question without leaving igris; plan includes; creating plans from a template, a goal or a spec.
 - **2.0:** running independent tasks in parallel, each in its own worktree and merged back in plan order; remote control from a browser or a notification; usage limits and budgets.
 - **Later:** other agents next to Claude Code (Codex CLI, Kiro CLI, Gemini CLI, …).
 

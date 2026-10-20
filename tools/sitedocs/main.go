@@ -41,11 +41,12 @@ var pages = []page{
 	{"config", "Configuration", "Every igris.toml key with its type and default.", "docs/config.md"},
 	{"modes", "Modes", "The permission modes, and which one a task gets.", "site/docs/modes.md"},
 	{"notifications", "Notifications", "Toasts, ntfy, Discord, Slack, Gotify and a signed webhook.", "site/docs/notifications.md"},
+	{"usage", "Usage and plans", "Approve plans in igris, token usage, the rank audit and quota.", "site/docs/usage.md"},
 	{"adapt", "Adapt a plan", "Convert a plan in another format, and review it first.", "site/docs/adapt.md"},
 	{"several-projects", "Several projects", "Running igris in more than one project at once.", "site/docs/several-projects.md"},
 	{"faq", "FAQ", "Subscription or API, models, skip-permissions, Windows.", "site/docs/faq.md"},
 	{"troubleshooting", "Troubleshooting", "What the symptoms mean and what to do.", "site/docs/troubleshooting.md"},
-	{"upgrade", "Upgrade to 1.0", "From any 0.x release.", "site/docs/upgrade.md"},
+	{"upgrade", "Upgrade", "From any 0.x release to 1.0, and from 1.0 to 1.1.", "site/docs/upgrade.md"},
 	{"compatibility", "Compatibility", "What 1.x promises not to break, and the tests behind it.", "docs/compatibility.md"},
 }
 

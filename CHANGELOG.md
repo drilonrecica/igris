@@ -4,6 +4,35 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+## [1.1.0] - unreleased
+
+igris 1.1 adds to what 1.0 promised and breaks nothing: you can approve a plan-mode session's plan from igris, see the tokens each run, task and model used, and be told when a task ran on a model its rank doesn't name. Plans, `igris.toml` and scripts written for 1.0 need no changes ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). All of it is additive: new config keys with defaults, a command, `--json` fields and a schema, run-log events and a notification event.
+
+### Added
+
+- **Plan approval from igris.** When a plan-mode session presents its plan, igris shows it in a dialog and marks the task **needs you**: **Approve**, **Reject with feedback** (Claude revises and presents again) or **Answer in the pane**. Claude Code's own dialog stays open in the pane; whichever you answer first wins. After `[plan_mode] approve_timeout` (30 minutes by default; `"0"` turns it off), or when igris is gone, the plan waits in the pane as before. Every plan is kept under `.igris/plans/`, logged as `plan_presented`, `plan_approved` and `plan_rejected` lines (the file and a hash, never the text), and the approved plan goes into the commit body (`{{.Plan}}` in `commit_message`). Not with `--no-tui`. New `[plan_mode]` settings: `then`, `approve_timeout`.
+- **Mode after plan approval.** `plan:default`, `plan:accept`, `plan:auto` and `plan:yolo` in a task's Mode column, `--mode` and the TUI name the mode the session continues in once you approve; plain `plan` uses `[plan_mode] then`. The switch is made through the hook's decision, never by typing into the pane. `plan:yolo` needs the same typed confirmation as `yolo`, every run.
+- **Token usage.** igris reads the token counts and model ids (never the messages) from each session's transcript and its subagents' files, about every 10 seconds and when the attempt ends, and logs a `usage` line per attempt. These are the tokens in the transcripts, never a cost. `[usage] enabled = false` turns it off.
+- **Rank audit.** If a session's main thread runs on a model its rank doesn't resolve to, the task is marked **needs you** with `RANK MISMATCH` on its card, a `rank_mismatch` notification (a new default event) is sent and a `rank_mismatch` line is logged, once per attempt. igris never stops or switches the session. `usage` lines record `ok`, `mismatch`, `unchecked` or `unavailable`.
+- **`igris usage [RUN | --since D] [--json]`**: tokens by task, model and rank for a run or across runs, the top consumers, the audit result and the last recorded quota. `igris report` gets a Tokens column and a `⚠ rank` mark; the TUI's run card shows the current task's counter.
+- **Subscription quota** (opt-in). With `[usage] statusline = true`, igris's own status line runs in task panes and records your 5-hour and 7-day limits in `.igris/quota.json`; the TUI header shows them and `igris usage` prints the last quota. Off by default because it replaces your status line in those panes; without it, or without a subscription login, the quota is `unavailable`. igris never reads credentials or calls an API for it.
+- **Parallelism report.** `igris phases` and `igris arise --dry-run` show, per phase, the critical path, the width of the dependency graph and the sets of tasks that could run together. Read-only: igris still runs one task at a time.
+- `--json`: [`docs/json/usage.schema.json`](docs/json/usage.schema.json); a `parallelism` object per phase in `phases --json`; `usage`, `sub`, `models` and `audit` per task in `report --json`.
+- Docs: a [usage and plan approval](site/docs/usage.md) page on the site and a 1.0 to 1.1 section in the [upgrade guide](site/docs/upgrade.md).
+
+### Changed
+
+- `rank_mismatch` joins the default `events` of every notification channel. A channel that sets `events` itself is left as it is, and the config hash of one that doesn't is unchanged, so an interrupted run resumes without a "config changed" notice.
+- Run log, `.igris/` and the hook gained fields and files (`runs.jsonl` events above, `agent-state/` records the transcript path, `plans/`, `quota.json`): older readers ignore them ([`docs/runlog.md`](docs/runlog.md)). `state.json` stays version 3.
+
+### Security
+
+- A session can write `.igris/` like everything else in the project, so it could forge an approval of its own plan, its transcript or `quota.json`. It can't choose the mode the session switches to, and igris reads each file bounded and shape-checked. Details: [`docs/threat-model.md`](docs/threat-model.md).
+
+### Verification
+
+- Plan approval was verified against Claude Code 2.1.304 (the `ExitPlanMode` permission hook, its decision fields, the pane and timeout fallbacks); the decisions are in [`docs/decisions.md`](docs/decisions.md). The gate run (a real plan-mode task approved from igris on herdr and tmux, a usage report of a real run, a forced rank mismatch) is recorded with the release.
+
 ## [1.0.0] - 2026-10-20
 
 igris 1.0. From here until 2.0, igris keeps its promises: the plan format, `igris.toml`, the CLI and its exit codes, `--json`, `.igris/`, the run log, the template variables, the generic webhook and the task-hook environment don't break. 1.x may add to them (new optional columns, config keys with defaults, commands, flags, JSON fields, run-log events, template variables), never remove or change them. What is covered, and the test that keeps each surface honest, is in [`docs/compatibility.md`](docs/compatibility.md) ([SPEC §19](SPEC.md#19-compatibility)).
@@ -458,7 +487,8 @@ First release. Linux and macOS, herdr backend only. The full behavior is specifi
 - Release artifacts are not signed (checksums only); signing is planned.
 - No Homebrew tap yet.
 
-[Unreleased]: https://github.com/drilonrecica/igris/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/drilonrecica/igris/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/drilonrecica/igris/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/drilonrecica/igris/compare/v1.0.0-rc.2...v1.0.0
 [1.0.0-rc.2]: https://github.com/drilonrecica/igris/compare/v1.0.0-rc.1...v1.0.0-rc.2
 [1.0.0-rc.1]: https://github.com/drilonrecica/igris/compare/v0.6.0...v1.0.0-rc.1

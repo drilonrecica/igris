@@ -33,3 +33,15 @@ The [CHANGELOG](../../CHANGELOG.md) lists every release in full.
 ## Going back
 
 A config that uses a key added in a later 1.x fails on an older igris as an unknown key; the fix is to upgrade. igris 0.6 and older can't read a version-3 `state.json`: finish the run first, or delete `.igris/state.json` to start a new one.
+
+## From 1.0 to 1.1
+
+Install the new igris and you are done: 1.1 only adds to 1.0, and nothing in your plan, `igris.toml`, scripts or `.igris/` needs to change. A run interrupted under 1.0 resumes.
+
+What is new, all additive:
+
+- **Plan approval in igris** for plan-mode tasks, with `plan:accept`-style Modes and `[plan_mode]` settings. See [usage and plans](usage.md#approving-plans-in-igris).
+- **Token usage and the rank audit.** `igris usage`, a counter on the run card and a `rank_mismatch` notification, which is now a default event. Turn the reading off with `[usage] enabled = false`.
+- **Subscription quota**, off until you set `[usage] statusline = true`.
+- **A parallelism report** in `igris phases` and `arise --dry-run`.
+- New `--json` fields and a `usage` schema, new run-log events and a `plans/` and `quota.json` in `.igris/`. Read all of them ignoring what you don't know, as 1.0 already asked.
