@@ -726,8 +726,9 @@ Quitting the TUI (`q`) never kills a running session; it saves state and exits. 
 
 ```
 igris                                       on a terminal: the home screen (§15.6); otherwise help, exit 2
-igris init [--example]                      create igris.toml, .igris/, .gitignore entry, Claude allow rules;
-                                            --example also writes the example plan when there is none
+igris init [--example | --template NAME]    create igris.toml, .igris/, .gitignore entry, Claude allow rules;
+                                            --example also writes the example plan when there is none,
+                                            --template a starter plan (go-cli, web-app, library)
 igris doctor [--json]                       read-only health check of this project and machine; exit 1 on a failure
 igris check [--plan PATH] [--json]          validate the plan; exit 0 valid, 1 invalid, 2 usage error
            [--strict]                       also lint the plan; exit 1 on any plan or config warning
@@ -778,7 +779,7 @@ No other code is used. Per command:
 - **`notify test`**: 1 when a delivery fails or no channel is set up to send the event; an unknown `--event` is a usage error (2).
 - **`config migrate`**: 0 when it migrated, there was nothing to migrate (or no `igris.toml`), or the owner declined; 1 outside a project, for an `igris.toml` that can't be read or holds a deprecated key it can't remove by itself, when stdin ends without an answer, when the file changed while it asked, or on a failed write. A missing or unknown subcommand is a usage error (2).
 - **`adapt`**: 0 when the plan is already valid, the proposal is accepted or rejected, or the owner stops waiting with Ctrl-C (the session stays open); 1 when the session is lost or skipped, the backend or project can't be used, or the review fails. A `--model` other than `sonnet` or `opus` is a usage error (2).
-- **`init`**: 1 when it can't write its files (an unreadable `.claude/settings.local.json`, say).
+- **`init`**: 1 when it can't write its files (an unreadable `.claude/settings.local.json`, say). `--template` with `--example`, or an unknown or empty template name, is a usage error (2).
 - **`completion`**: a missing or unknown shell is a usage error (2).
 - **`help`, `-h`, `--help`**: 0, printed on stdout; `igris COMMAND -h` and `igris help COMMAND` print the command's synopsis and flags. `help` with an unknown command or more than one is a usage error (2). **`version`, `-v`, `--version`**: 0; with an argument, 2.
 - The hidden **`hook`** and **`__complete`** always exit 0.
@@ -818,6 +819,7 @@ No other code is used. Per command:
   - With a remote lock: exit 1, saying to run `reset` on that host or clear the lock with `arise --force-unlock`.
   - It prints what it did (`M1-03: in progress → ready`, or `M1-03: reset requested; confirm it in the running igris (if none is running, the next `igris arise` asks)`) and lists the task's dependents that are `in progress`, which it never changes. Exit 0, 1 on failure, 2 on a usage error: a missing or malformed task ID (`igris reset "bad id"`), checked before anything is read. A well-formed ID that is not in the plan exits 1.
 - `init --example` also writes the canonical example plan (the one in `examples/tasks.md`) as the configured plan path when no plan exists; it never overwrites (`kept existing tasks.md`). Without `--example`, `init` behaves as before.
+- **`init --template NAME`** (since 1.2) writes a starter plan instead, under the same rule (only when no plan exists, never overwriting): `go-cli`, `web-app` or `library`, the files in `examples/templates/<name>/tasks.md` (decisions.md V12-P3). It never changes `igris.toml`. Each template passes `check --strict` as written; its phases start with a `user` task to write `SPEC.md` and end in gates, and its ranks are suggestions, which the template's first paragraph and `init`'s step line (`… its ranks are suggestions: review the Model column, then run igris check`) say, with a hint to set `[run] verify`. Names are matched exactly; `--template` with `--example`, or an unknown name (`init: unknown template "rust"; templates: go-cli, library, web-app`), is a usage error (2). `igris help init` lists the templates.
 - `doctor` is **read-only, now and later**: it never writes, creates or fixes anything (no `--fix`), and for every problem it prints the exact command that would fix it. It works outside a project (it reports "no igris.toml" and checks the machine). Checks, in this order:
   1. `claude` found, with its version (§11.4);
   2. `ANTHROPIC_API_KEY` set in the environment (§7.4);
@@ -968,7 +970,7 @@ Bare `igris` on a terminal (§14) opens home: the project at a glance and the wa
 
 | State | Card | Default action |
 |---|---|---|
-| No `igris.toml` | **GET STARTED**: numbered steps `igris.toml`, plan, check, preview, arise, each turning `✓` as data refreshes; after init, the plan step offers **Example plan** (`init --example`), or **Check** / **Adapt** when a non-canonical plan exists | Init |
+| No `igris.toml` | **GET STARTED**: numbered steps `igris.toml`, plan, check, preview, arise, each turning `✓` as data refreshes; after init, the plan step offers **Plan from template…** (`init --example` or `--template`), or **Check** / **Adapt** when a non-canonical plan exists | Init |
 | `igris.toml` invalid | **CONFIG INVALID**: the first few problems, "… N more — Settings shows all"; igris uses the defaults meanwhile | Settings |
 | Plan missing | **NO PLAN**: the path igris looked at | — |
 | Plan invalid | **PLAN INVALID**: file, problem count, the first few `file:line: message`, "… N more — Check shows all"; without a backend, why Adapt is unavailable | Check |
@@ -989,7 +991,7 @@ Bare `igris` on a terminal (§14) opens home: the project at a glance and the wa
 | Settings | `,` | problems first, then the effective config in TOML-shaped sections; defaults marked `· default` in words; secrets never shown (`token = set (env:NTFY_TOKEN)` / `set (hidden)`) | Edit igris.toml (`e`), Doctor, Init (no file) |
 | Preview | `v` | the dry run (§14) as numbered steps: task, rank → model, mode, `[SKIP PERMISSIONS]`, resumed; warnings, totals | Arise with these settings |
 | Notify test | `n` | after a confirm dialog, one row per event × channel filled in live (`· sending` → `✓ ok` / `⨯ FAILED: reason`), as `notify test` (§14) | Cancel while sending, Send again |
-| Init | `I` | after a confirm dialog listing the files it touches (**Create files** · Cancel; never overwrites), each step's result as `init` prints it, then the backend hint | **Example plan** (`E`; a confirm dialog, then `init --example`, never overwriting a plan), Check, Doctor |
+| Init | `I` | after a confirm dialog listing the files it touches (**Create files** · Cancel; never overwrites), each step's result as `init` prints it, then the backend hint | **Plan from template…** (`E`; a picker of Example and the templates, a confirm dialog, then `init --example` or `--template NAME`, never overwriting a plan), Check, Doctor |
 | Adapt | `A` | after a confirm dialog (**Cancel** · Adapt with sonnet · Adapt with opus; the `ANTHROPIC_API_KEY` warning when it applies), `adapt`'s progress, then the adapt review (§9) | Open session, Cancel; then Accept / Reject as in §9 |
 
 **Keys on home.** The run view's letters (`o m M p d s r x q ?`) never mean something else on home; `y` is copy and `j`/`k` navigate everywhere. Actions appear only when they apply (§15.3):
@@ -1006,7 +1008,7 @@ Bare `igris` on a terminal (§14) opens home: the project at a glance and the wa
 | `n` | Notify test | a channel is set up |
 | `A` | Adapt | the plan exists, is invalid, and the backend is reachable |
 | `I` | Init | there is no `igris.toml` |
-| `E` | Example plan | `igris.toml` is valid and the plan file is missing |
+| `E` | Plan from template… (Example, go-cli, web-app, library) | `igris.toml` is valid and the plan file is missing |
 | `o` | Open session | another igris runs here and `state.json` has a session ref |
 | `S` | Side sessions (§15.7); home shows `SIDE N open` in its right column while any are, which opens the page | the backend is reachable, or a side session is open; also while another igris runs here |
 | `?` `q` `esc` `ctrl+c` | help, back or quit, back, quit the app | always |
@@ -1073,7 +1075,7 @@ Since 1.2 (§6.10). `S` on home and in the run view, not in `--no-tui`.
 - **TUI:** model update tests (teatest) for key handling and both layouts. Home, its pages and the wizard (§15.6) have teatest goldens at 120×40, 80×24 and 50×20, run against a fake of the services seam; a test injects escape sequences into every untrusted text source and checks every screen draws them cleaned; the lock is released on every exit path of a run started from home (leave, stop, ctrl+c, a recovered panic, a failed launch), checked under the race detector; the existing run-view goldens stay unchanged. A benchmark on the large fixture keeps home's `View` under 2 ms at 120×40.
 - **Notifications:** httptest servers for ntfy and Discord; secret redaction.
 - **Fuzzing** (stdlib `testing.F`): the table tokenizer and parser (no panic, deterministic, validation never crashes), the Status writer (only the target Status cell changes, for any input), the config loader and the signal reader (arbitrary bytes give an error, never a panic). `make test` replays the seeds; `make fuzz` runs each target (10 minutes each before a release); a failing input is committed under `testdata/fuzz/` as a regression seed.
-- **Compatibility suite** (§19): `testdata/compat/<tag>/` for every release, captured from the release itself by `make compat TAG=vX.Y.Z` (its `igris init` config and plan, its example configs and plans, the signal files its `done` and `skip` wrote); `testdata/compat/state/` and `runs/` hold the state files and run logs each release wrote, shaped after its structs. In `go test` (so in CI) every config loads (after `igris config migrate` where a key was removed), every plan passes `check` and a dry run, every `--json` output matches its schema, every signal, state file and run log is read whole. A release in the CHANGELOG without its directory fails the suite, the newest excepted until it is tagged.
+- **Compatibility suite** (§19): `testdata/compat/<tag>/` for every release, captured from the release itself by `make compat TAG=vX.Y.Z` (its `igris init` config and plan, its example configs and plans and its plan templates, the signal files its `done` and `skip` wrote); `testdata/compat/state/` and `runs/` hold the state files and run logs each release wrote, shaped after its structs. In `go test` (so in CI) every config loads (after `igris config migrate` where a key was removed), every plan passes `check` and a dry run, every `--json` output matches its schema, every signal, state file and run log is read whole. A release in the CHANGELOG without its directory fails the suite, the newest excepted until it is tagged.
 - `go test -race ./...` clean.
 
 ---
