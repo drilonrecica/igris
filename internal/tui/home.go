@@ -640,9 +640,9 @@ func (m *homeScreen) activate(a action) tea.Cmd {
 		}
 		return nil
 	case actInit:
-		return m.openInit(false)
+		return m.openInit()
 	case actExample:
-		return m.openInit(true)
+		return m.openStarters()
 	case actAdapt:
 		return m.openAdapt()
 	case actNotify:

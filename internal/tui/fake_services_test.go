@@ -33,7 +33,7 @@ type fakeServices struct {
 	start      func(req report.RunRequest, c report.Confirmations, events func(engine.Event)) (Runner, error)
 	initSteps  []report.Step
 	initErr    error
-	onInit     func(example bool) // runs inside Init, to change what Snapshot reads next
+	onInit     func(starter string) // runs inside Init, to change what Snapshot reads next
 	notify     []report.NotifyResult
 	notifyErr  error
 	notifyFn   func(ctx context.Context, emit func(report.NotifyResult)) error // overrides notify
@@ -118,18 +118,18 @@ func (f *fakeServices) Start(_ context.Context, req report.RunRequest, c report.
 	return f.start(req, c, events)
 }
 
-func (f *fakeServices) Init(_ context.Context, example bool) ([]report.Step, error) {
+func (f *fakeServices) Init(_ context.Context, starter string) ([]report.Step, error) {
 	f.count("Init")
 	if f.onInit != nil {
-		f.onInit(example)
+		f.onInit(starter)
 	}
 	return f.initSteps, f.initErr
 }
 
-func (f *fakeServices) InitFiles(example bool) []string {
+func (f *fakeServices) InitFiles(starter string) []string {
 	f.count("InitFiles")
 	files := []string{"igris.toml", ".igris/", ".gitignore", ".claude/settings.local.json"}
-	if example {
+	if starter != "" {
 		files = append(files, "tasks.md")
 	}
 	return files

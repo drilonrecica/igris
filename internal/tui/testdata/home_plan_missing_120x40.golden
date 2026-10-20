@@ -6,8 +6,8 @@ tasks.md not found                                         │ GET STARTED
                                                            │ · 3 check       —                                          
                                                            │ · 4 preview     —                                          
                                                            │ · 5 arise       —                                          
-                                                           │ Example plan writes a small canonical plan to try igris on;
-                                                           │ or write your own at /src/sinjal/tasks.md.                 
+                                                           │ Plan from template… writes a starter plan (the example plan
+                                                           │ or a template); or write your own at /src/sinjal/tasks.md. 
                                                            ├─ HEALTH ───────────────────────────────────────────────────
                                                            │ ⨯ plan missing · tasks.md not found                        
                                                            │ ! doctor: 1 warning — uncommitted changes                  
@@ -37,4 +37,4 @@ tasks.md not found                                         │ GET STARTED
                                                            │
 ───────────────────────────────────────────────────────────┴────────────────────────────────────────────────────────────
 
-[›Example plan‹] [Doctor] [Settings] [Notify] [?] [Quit]
+[›Plan from template…‹] [Doctor] [Settings] [Notify] [?] [Quit]

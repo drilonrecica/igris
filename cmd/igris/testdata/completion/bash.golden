@@ -16,6 +16,7 @@ _igris() {
         return
     fi
     case "$cmd:$prev" in
+        init:--template) COMPREPLY=($(compgen -W "go-cli library web-app" -- "$cur")) ; return ;;
         check:--plan) COMPREPLY=($(compgen -f -- "$cur")) ; return ;;
         phases:--plan) COMPREPLY=($(compgen -f -- "$cur")) ; return ;;
         status:--plan) COMPREPLY=($(compgen -f -- "$cur")) ; return ;;
@@ -34,7 +35,7 @@ _igris() {
     esac
     if [[ $cur == -* ]]; then
         case "$cmd" in
-            init) COMPREPLY=($(compgen -W "--example" -- "$cur")) ;;
+            init) COMPREPLY=($(compgen -W "--example --template" -- "$cur")) ;;
             doctor) COMPREPLY=($(compgen -W "--json" -- "$cur")) ;;
             check) COMPREPLY=($(compgen -W "--json --plan --strict" -- "$cur")) ;;
             phases) COMPREPLY=($(compgen -W "--json --plan" -- "$cur")) ;;

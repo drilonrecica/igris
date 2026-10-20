@@ -138,16 +138,16 @@ func (s *Services) Start(_ context.Context, req report.RunRequest, c report.Conf
 
 // Init implements tui.Services: `igris init` in the project root (the
 // working directory outside a project).
-func (s *Services) Init(ctx context.Context, example bool) ([]report.Step, error) {
+func (s *Services) Init(ctx context.Context, starter string) ([]report.Step, error) {
 	p, err := s.open()
 	if err != nil {
 		return nil, err
 	}
-	return Init(ctx, p.Root, example, s.env)
+	return Init(ctx, p.Root, starter, s.env)
 }
 
 // InitFiles implements tui.Services: what Init would touch.
-func (s *Services) InitFiles(example bool) []string { return InitFiles(example) }
+func (s *Services) InitFiles(starter string) []string { return InitFiles(starter) }
 
 // NotifyTest implements tui.Services: `igris notify test` for every event,
 // each delivery reported as soon as it is over. The backend toast is left

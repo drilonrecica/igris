@@ -335,7 +335,7 @@ func TestHomeButtonsOnlyWhenTheyApply(t *testing.T) {
 		"ready_tmux":            "Arise… Preview Check Doctor History Edit plan Settings Notify ? Quit",
 		"no_multiplexer":        "Preview Check Doctor History Edit plan Settings Notify ? Quit",
 		"get_started":           "Init Doctor Settings ? Quit",
-		"plan_missing":          "Example plan Doctor Settings Notify ? Quit",
+		"plan_missing":          "Plan from template… Doctor Settings Notify ? Quit",
 		"plan_invalid":          "Check Adapt Doctor Edit plan Settings Notify ? Quit",
 		"plan_newer_format":     "Check Doctor Edit plan Settings Notify ? Quit", // an upgrade, not adapt
 		"plan_invalid_no_herdr": "Check Doctor Edit plan Settings Notify ? Quit",

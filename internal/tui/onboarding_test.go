@@ -40,8 +40,8 @@ func onboardingServices() (*fakeServices, *atomic.Int32, *starts) {
 		return s, nil
 	}
 	svc.preview = func(report.RunRequest) (*report.DryRun, error) { return &report.DryRun{Scope: "M2"}, nil }
-	svc.onInit = func(example bool) {
-		if example {
+	svc.onInit = func(starter string) {
+		if starter != "" {
 			stage.Store(stageExample)
 		} else {
 			stage.Store(stageInit)
@@ -69,13 +69,15 @@ func TestOnboardingFirstRunReachesArise(t *testing.T) {
 	tm.Type("I")
 	seen(t, tm, ".gitignore", ".claude/settings.local.json", "1. Create files")
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
-	seen(t, tm, "Init · done", "created igris.toml", "added .igris/ to .gitignore", "herdr", "[Example plan]")
+	seen(t, tm, "Init · done", "created igris.toml", "added .igris/ to .gitignore", "herdr", "[Plan from template…]")
 	if n := svc.called("Init"); n != 1 {
 		t.Fatalf("Init called %d times, want 1", n)
 	}
 
 	// The page offers the example plan; it goes back to home, which asks.
 	tm.Type("E")
+	seen(t, tm, "1. Example", "go-cli", "library", "web-app")
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 	seen(t, tm, "1. Create example plan")
 	svc.initSteps = []report.Step{{ID: report.StepExamplePlan, Path: "tasks.md", Message: "created tasks.md (example plan)"}}
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
@@ -161,7 +163,30 @@ func TestOnboardingNonCanonicalPlanOffersCheckAndAdapt(t *testing.T) {
 			t.Errorf("no %q:\n%s", want, v)
 		}
 	}
-	if strings.Contains(v, "Example plan") {
+	if strings.Contains(v, "Plan from template") {
 		t.Errorf("example plan offered over an existing plan:\n%s", v)
+	}
+}
+
+// Plan from template… offers the example plan and the templates; a
+// template is confirmed, then written through Init under its name.
+func TestPlanFromTemplatePicker(t *testing.T) {
+	svc, stage, _ := onboardingServices()
+	stage.Store(stageInit)
+	svc.initSteps = []report.Step{{ID: report.StepExamplePlan, Path: "tasks.md", Message: "created tasks.md from the go-cli template"}}
+	var got string
+	svc.onInit = func(starter string) { got = starter }
+	tm := appProgram(t, svc, 120, 40)
+
+	seen(t, tm, "[›Plan from template…‹]")
+	tm.Type("E")
+	seen(t, tm, "1. Example", "2. go-cli", "3. library", "4. web-app")
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	seen(t, tm, "1. Create plan", "suggestions")
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	seen(t, tm, "Init · done", "from the go-cli template")
+	if got != "go-cli" {
+		t.Errorf("Init got starter %q, want go-cli", got)
 	}
 }

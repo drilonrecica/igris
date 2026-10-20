@@ -226,7 +226,7 @@ func (m *homeScreen) buttons() []option {
 	// never touch the plan, so a read-only home offers them too.
 	add(found && m.side != nil && (m.herdr() || m.side.count() > 0), "Side…", actSide)
 	add(found && s.NoConfig && !live, "Init", actInit)
-	add(found && !s.NoConfig && len(s.ConfigProblems) == 0 && s.PlanMissing && !live, "Example plan", actExample)
+	add(found && !s.NoConfig && len(s.ConfigProblems) == 0 && s.PlanMissing && !live, "Plan from template…", actExample)
 	out = append(out, option{"?", actHelp}, option{"Quit", actQuit})
 
 	// The state's own action goes first: it is the one enter runs.
@@ -420,7 +420,7 @@ func (m *homeScreen) getStartedCard(w int) []string {
 	hint := "Init creates igris.toml, .igris/, a .gitignore entry and the Claude allow rule for `igris done`."
 	switch {
 	case !s.NoConfig && !m.planFile():
-		hint = "Example plan writes a small canonical plan to try igris on; or write your own at " + m.planPath() + "."
+		hint = "Plan from template… writes a starter plan (the example plan or a template); or write your own at " + m.planPath() + "."
 	case m.planFile() && !m.planValid():
 		hint += " The plan has problems: Check lists them, Adapt proposes a canonical one."
 	}

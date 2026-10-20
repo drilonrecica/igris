@@ -11,6 +11,8 @@
 #              where init had no --example (v0.1.x)
 #   examples/  the release's examples/igris.toml and examples/tasks.md
 #   advanced/  the release's examples/advanced/, when it has one
+#   templates/ the release's plan templates (examples/templates/<name>/tasks.md),
+#              when it has them (1.2 on)
 #   signals/   the files `igris done` and `igris skip` wrote
 # state.json and runs.jsonl need a live session, so they are not captured
 # here: testdata/compat/state/ and runs/ hold them, shaped after each
@@ -64,6 +66,11 @@ git show "$tag:examples/tasks.md" >"$out/examples/tasks.md"
 if git cat-file -e "$tag:examples/advanced" 2>/dev/null; then
   git archive "$tag" examples/advanced | tar -x -C "$work"
   cp -R "$work/examples/advanced" "$out/advanced"
+fi
+
+if git cat-file -e "$tag:examples/templates" 2>/dev/null; then
+  git archive "$tag" examples/templates | tar -x -C "$work"
+  cp -R "$work/examples/templates" "$out/templates"
 fi
 
 echo "captured $tag into testdata/compat/$tag"

@@ -10,7 +10,9 @@ import (
 	"runtime/debug"
 	"strings"
 
+	"github.com/drilonrecica/igris/examples"
 	"github.com/drilonrecica/igris/internal/engine"
+	"github.com/drilonrecica/igris/internal/project"
 	"github.com/drilonrecica/igris/internal/textsafe"
 	"github.com/drilonrecica/igris/internal/tui"
 )
@@ -51,7 +53,8 @@ Usage:
   igris <command> [flags]
 
 Commands:
-  init [--example]                      create igris.toml, .igris/, .gitignore entry, Claude allow rules
+  init [--example | --template NAME]    create igris.toml, .igris/, .gitignore entry, Claude allow rules;
+                                        --template a starter plan (go-cli, library, web-app)
   doctor [--json]                       read-only health check of this project and machine; exit 1 on a failure
   check [--plan PATH] [--json]          validate the plan; exit 0 valid, 1 invalid, 2 usage error
         [--strict]                      also lint the plan; exit 1 on any plan or config warning
@@ -96,7 +99,21 @@ func commands() []command {
 	return []command{
 		{name: "init", setup: func(fs *flag.FlagSet) func([]string) error {
 			fs.Bool("example", false, "also write the example plan when there is none")
-			return maxArgs(fs, 0)
+			fs.String("template", "", "also write a starter plan when there is none: "+strings.Join(examples.TemplateNames(), ", "))
+			return func(args []string) error {
+				if !flagSet(fs, "template") {
+					return atMost(args, 0)
+				}
+				if flagSet(fs, "example") {
+					return errors.New("--template and --example can't be used together")
+				}
+				if name := fs.Lookup("template").Value.String(); name == "" {
+					return fmt.Errorf("empty template name; templates: %s", strings.Join(examples.TemplateNames(), ", "))
+				} else if _, ok := examples.Template(name); !ok {
+					return project.UnknownTemplateError(name)
+				}
+				return atMost(args, 0)
+			}
 		}, exec: execInit},
 		{name: "doctor", setup: doctorArgs, exec: execDoctor},
 		{name: "check", setup: func(fs *flag.FlagSet) func([]string) error {

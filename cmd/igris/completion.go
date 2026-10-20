@@ -13,6 +13,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/drilonrecica/igris/examples"
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/notify"
 	"github.com/drilonrecica/igris/internal/plan"
@@ -144,6 +145,7 @@ var (
 		"arise:until":   {Kind: argTasks},
 		"adapt:model":   {Kind: argValues, Values: []string{"sonnet", "opus"}},
 		"notify:event":  {Kind: argValues, Values: eventNames()},
+		"init:template": {Kind: argValues, Values: examples.TemplateNames()},
 		"adapt:plan":    {Kind: argFile},
 	}
 	compPositional = map[string]compArg{

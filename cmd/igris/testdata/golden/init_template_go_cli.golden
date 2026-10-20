@@ -1,0 +1,6 @@
+created igris.toml
+ready .igris/
+added .igris/ to .gitignore
+allowed `igris done` in .claude/settings.local.json
+created tasks.md from the go-cli template; its ranks are suggestions: review the Model column, then run igris check. Set [run] verify in igris.toml to your checks (go test ./...)
+runs in herdr or tmux; igris reads Claude's state from Claude Code hooks (in herdr, `herdr integration install claude` adds herdr's own)

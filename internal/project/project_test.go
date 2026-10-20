@@ -290,7 +290,7 @@ func TestPrelaunchWorktree(t *testing.T) {
 func TestInit(t *testing.T) {
 	env, _ := testEnv(nil)
 	dir := t.TempDir()
-	steps, err := Init(context.Background(), dir, true, env)
+	steps, err := Init(context.Background(), dir, StarterExample, env)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -305,12 +305,12 @@ func TestInit(t *testing.T) {
 	if !reflect.DeepEqual(steps, want) {
 		t.Errorf("steps =\n%+v\nwant\n%+v", steps, want)
 	}
-	if got := InitFiles(false); !reflect.DeepEqual(got, []string{"igris.toml", ".igris/", ".gitignore", ClaudeSettingsPath}) {
+	if got := InitFiles(""); !reflect.DeepEqual(got, []string{"igris.toml", ".igris/", ".gitignore", ClaudeSettingsPath}) {
 		t.Errorf("init files = %v", got)
 	}
 
 	// Again: everything is kept.
-	steps, err = Init(context.Background(), dir, false, env)
+	steps, err = Init(context.Background(), dir, "", env)
 	if err != nil || len(steps) != 5 {
 		t.Fatalf("steps = %+v, %v", steps, err)
 	}
@@ -323,7 +323,7 @@ func TestInit(t *testing.T) {
 	// A failing step returns the steps before it.
 	broken := t.TempDir()
 	writeFile(t, filepath.Join(broken, ClaudeSettingsPath), "[1,2]")
-	steps, err = Init(context.Background(), broken, false, env)
+	steps, err = Init(context.Background(), broken, "", env)
 	if err == nil || len(steps) != 3 || steps[2].ID != report.StepGitignore {
 		t.Errorf("steps = %+v, err = %v; want three steps and the error", steps, err)
 	}

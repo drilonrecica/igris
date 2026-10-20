@@ -104,6 +104,25 @@ func TestCompatConfigsAndPlans(t *testing.T) {
 	}
 }
 
+// The plan templates a release shipped (1.2 on) still pass check and a
+// dry run of their first phase, each in a project of its own.
+func TestCompatTemplates(t *testing.T) {
+	for _, rel := range compatReleases(t) {
+		plans, _ := filepath.Glob(filepath.Join(rel, "templates", "*", "tasks.md"))
+		for _, src := range plans {
+			name := filepath.Base(filepath.Dir(src))
+			t.Run(filepath.Base(rel)+"/"+name, func(t *testing.T) {
+				root := compatProject(t, filepath.Dir(src))
+				runJSON(t, "check", "check", "--strict", "--json")
+				var out, errb bytes.Buffer
+				if code := run([]string{"arise", "M0", "--dry-run"}, &out, &errb); code != exitOK {
+					t.Errorf("%s: arise M0 --dry-run: exit %d\n%s%s", root, code, out.String(), errb.String())
+				}
+			})
+		}
+	}
+}
+
 // The signal files every release's `igris done` and `igris skip` wrote are
 // read as done and skip signals.
 func TestCompatSignals(t *testing.T) {

@@ -41,12 +41,12 @@ type Services interface {
 	// `igris arise` does; events receives the run's events. The run starts
 	// when the caller calls Run.
 	Start(ctx context.Context, req report.RunRequest, c report.Confirmations, events func(engine.Event)) (Runner, error)
-	// Init is `igris init` (--example with example). On an error the steps
+	// Init is `igris init` (--example with "example", --template NAME with a template name). On an error the steps
 	// finished before it are returned with it.
-	Init(ctx context.Context, example bool) ([]report.Step, error)
+	Init(ctx context.Context, starter string) ([]report.Step, error)
 	// InitFiles are the files and directories Init touches, for the dialog
-	// that asks before it runs (with example, the example plan too).
-	InitFiles(example bool) []string
+	// that asks before it runs (with a starter, its plan too).
+	InitFiles(starter string) []string
 	// NotifyTest is `igris notify test`: emit gets each delivery as soon
 	// as it is over. The error says why nothing could be sent.
 	NotifyTest(ctx context.Context, emit func(report.NotifyResult)) error

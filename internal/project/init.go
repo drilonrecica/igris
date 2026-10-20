@@ -32,24 +32,52 @@ type initStep struct {
 	run      func(root string) (string, error)
 }
 
-func initSteps(example bool) []initStep {
+// StarterExample names the example plan as the starter plan of Init; a
+// template is named by its own name, and "example" is not a template name.
+const StarterExample = "example"
+
+// verifyHints is the test command each template's step line suggests for
+// [run] verify.
+var verifyHints = map[string]string{"go-cli": "go test ./..."}
+
+// initSteps are the steps for starter: "" for none, StarterExample or the
+// name of a template.
+func initSteps(starter string) []initStep {
 	steps := []initStep{
 		{report.StepConfig, state.ConfigFile, initConfig},
 		{report.StepState, state.DirName + "/", initState},
 		{report.StepGitignore, ".gitignore", initGitignore},
 		{report.StepClaudeSettings, ClaudeSettingsPath, initClaudeSettings},
 	}
-	if example {
-		steps = append(steps, initStep{report.StepExamplePlan, "", initExamplePlan})
+	switch starter {
+	case "":
+	case StarterExample:
+		steps = append(steps, initStep{report.StepExamplePlan, "", func(root string) (string, error) {
+			return initStarterPlan(root, examples.Plan, "example plan")
+		}})
+	default:
+		steps = append(steps, initStep{report.StepExamplePlan, "", func(root string) (string, error) {
+			data, ok := examples.Template(starter)
+			if !ok {
+				return "", UnknownTemplateError(starter)
+			}
+			return initStarterPlan(root, data, "template:"+starter)
+		}})
 	}
 	return steps
 }
 
-// InitFiles are the files and directories `igris init` touches (with
-// example, the example plan too, at the path igris.toml gives).
-func InitFiles(example bool) []string {
+// UnknownTemplateError is the usage error for a template name that is not
+// one of the embedded templates.
+func UnknownTemplateError(name string) error {
+	return fmt.Errorf("unknown template %q; templates: %s", name, strings.Join(examples.TemplateNames(), ", "))
+}
+
+// InitFiles are the files and directories `igris init` touches (with a
+// starter, the starter plan too, at the path igris.toml gives).
+func InitFiles(starter string) []string {
 	var out []string
-	for _, s := range initSteps(example) {
+	for _, s := range initSteps(starter) {
 		if s.path != "" {
 			out = append(out, s.path)
 		}
@@ -61,9 +89,9 @@ func InitFiles(example bool) []string {
 // what is missing and never overwrites. The steps' results come in order,
 // the herdr hint last. On an error the steps finished before it are
 // returned with it.
-func Init(ctx context.Context, dir string, example bool, env Env) ([]report.Step, error) {
+func Init(ctx context.Context, dir string, starter string, env Env) ([]report.Step, error) {
 	var out []report.Step
-	for _, s := range initSteps(example) {
+	for _, s := range initSteps(starter) {
 		msg, err := s.run(dir)
 		if err != nil {
 			return out, err
@@ -101,9 +129,10 @@ func initConfig(root string) (string, error) {
 	return "created " + state.ConfigFile, nil
 }
 
-// initExamplePlan writes the canonical example plan at the configured plan
-// path unless a file is already there.
-func initExamplePlan(root string) (string, error) {
+// initStarterPlan writes data (the example plan, or a template: what is
+// "template:NAME") at the configured plan path unless a file is already
+// there.
+func initStarterPlan(root string, data []byte, what string) (string, error) {
 	cfg, err := config.Load(filepath.Join(root, state.ConfigFile))
 	if err != nil {
 		return "", err
@@ -126,14 +155,24 @@ func initExamplePlan(root string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("create %s: %w", path, err)
 	}
-	if _, err := f.Write(examples.Plan); err != nil {
+	if _, err := f.Write(data); err != nil {
 		_ = f.Close()
 		return "", fmt.Errorf("write %s: %w", path, err)
 	}
 	if err := f.Close(); err != nil {
 		return "", fmt.Errorf("write %s: %w", path, err)
 	}
-	return "created " + cfg.Plan + " (example plan)", nil
+	name, isTemplate := strings.CutPrefix(what, "template:")
+	if !isTemplate {
+		return "created " + cfg.Plan + " (" + what + ")", nil
+	}
+	msg := "created " + cfg.Plan + " from the " + name + " template; its ranks are suggestions: review the Model column, then run igris check"
+	if cmd := verifyHints[name]; cmd != "" {
+		msg += ". Set [run] verify in igris.toml to your checks (" + cmd + ")"
+	} else {
+		msg += ". Set [run] verify in igris.toml to your stack's test command"
+	}
+	return msg, nil
 }
 
 // initState creates .igris/ with its subdirectories.

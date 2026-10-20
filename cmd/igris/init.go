@@ -20,11 +20,14 @@ func execInit(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "igris init: %v\n", err)
 		return exitFail
 	}
-	example := false
+	starter := ""
 	if f := fs.Lookup("example"); f != nil && f.Value.String() == "true" {
-		example = true
+		starter = project.StarterExample
 	}
-	steps, err := project.Init(context.Background(), root, example, projectEnv())
+	if f := fs.Lookup("template"); f != nil && f.Value.String() != "" {
+		starter = f.Value.String()
+	}
+	steps, err := project.Init(context.Background(), root, starter, projectEnv())
 	for _, s := range steps {
 		fmt.Fprintln(stdout, s.Message)
 	}

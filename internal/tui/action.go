@@ -67,8 +67,9 @@ const (
 	actAdaptSonnet // the Adapt dialog's Adapt with sonnet
 	actAdaptOpus   // the Adapt dialog's Adapt with opus
 	actInit        // igris init
-	actExample     // write the example plan (init --example)
+	actExample     // Plan from template…: the picker of the example plan and the templates
 	actInitCreate  // the Init dialog's Create files
+	actInitPick    // the picker's selected starter plan
 	actPhaseRow    // a PHASES row; the zone's option is the phase's index
 	actLine        // a HEALTH or RECENT line; the zone's option is its index
 	// The start-run wizard's choices (launch.go); a phase or through

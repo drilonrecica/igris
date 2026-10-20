@@ -9,6 +9,7 @@ _igris() {
     cmd=$words[2]
     prev=$words[CURRENT-1]
     case "$cmd:$prev" in
+        init:--template) compadd -- go-cli library web-app ; return ;;
         check:--plan) _files ; return ;;
         phases:--plan) _files ; return ;;
         status:--plan) _files ; return ;;
@@ -27,7 +28,7 @@ _igris() {
     esac
     if [[ $PREFIX == -* ]]; then
         case "$cmd" in
-            init) compadd -- --example ;;
+            init) compadd -- --example --template ;;
             doctor) compadd -- --json ;;
             check) compadd -- --json --plan --strict ;;
             phases) compadd -- --json --plan ;;
