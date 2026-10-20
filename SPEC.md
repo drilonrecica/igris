@@ -40,6 +40,7 @@ This document is the normative source for igris v1. If code and this spec disagr
 | **Agent task** | Owner is `agent` or `agent + user`. Igris launches a session. |
 | **User task** | Owner is `user` (Model is `—`). Igris pauses and waits for the owner to finish it. |
 | **Session** | One Claude Code process in one multiplexer pane, bound to exactly one task. |
+| **Side session** | Since 1.2: a Claude Code session the owner opens from igris in a pane of its own, bound to no task: igris doesn't watch it for `igris done` and it changes no Status (§6.10). |
 | **Backend** | The adapter that creates panes, starts Claude Code, reads agent state and closes panes: herdr or tmux (§11). |
 | **Signal** | A file written by `igris done` / `igris skip` that tells the running igris a task is finished. |
 | **Run mode** | Claude Code permission mode used to launch a session: `default`, `acceptEdits`, `auto`, `plan`, `bypassPermissions`. |
@@ -213,6 +214,7 @@ The default prompt must tell the session:
 
 ### 6.2 Completion protocol
 - `igris done <ID> [--note TEXT]` and `igris skip <ID> --reason TEXT` locate the project root (walk up from cwd to the nearest `igris.toml` or `.igris/`; from inside a run's worktree `<root>/.igris/worktrees/<name>`, it is `<root>`, §6.8), validate that `<ID>` exists, and write a signal file `.igris/signals/<ID>.json` (`{"id","action":"done|skip","note","at"}`) atomically. They print a one-line confirmation and exit 0; when no igris run holds the project lock (§13), the confirmation adds that the next `igris arise` applies the signal.
+- Since 1.2, `igris done`, `skip` and `reset` refuse with `this is a side session; it doesn't finish, skip or reset tasks` and exit 1 when `IGRIS_SIDE` is set, as it is in every side session (§6.10). It stops a mistake, not a session set on getting around it.
 - They do **not** edit the plan themselves; only the running igris consumes signals. This keeps a single writer.
 - A signal for a task that isn't the current one is kept and reported in the TUI; it is never applied silently.
 - Signal files are read only if they are regular files of at most 64 KiB (sessions can write into `signals/`; a FIFO or a huge file must not stall igris); anything else is reported as unreadable. The note is cleaned of control characters before it is shown, logged or used as a commit body.
@@ -307,6 +309,17 @@ Igris counts the tokens each attempt of an agent task used, and checks that the 
 - **Source.** Only the transcript of the session igris started, whose path the hooks report (§6.3), and its subagents' files next to it (`<transcript without .jsonl>/subagents/agent-*.jsonl`, at most 256). igris never guesses or searches for paths, never reads credentials, and never calls the API. It reads each file as untrusted input (`fsafe`: a regular file, never blocking), streaming, skipping lines over 1 MiB unparsed. From each line it decodes only `type`, `isSidechain`, `timestamp`, `requestedModel`, `message.id`, `message.model` and the four token counts in `message.usage` (`input_tokens`, `output_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens`). Message content is never kept, logged or shown.
 - **Counting.** Only `assistant` records. A record whose model is `<synthetic>` (an API error) or that has no `message.id` is skipped. Claude Code writes one record per content block, each repeating the response's usage, so a `message.id` counts once. An attempt counts the records whose `timestamp` falls inside it, so a continued session (`--resume`) doesn't count the previous attempt again. Per attempt: `input`, `output`, `cache_read`, `cache_write` and `messages` (responses), the model ids seen, and the same for the subagents. igris reads only what is new since its last read: about every 10 s while the task runs, and once when the attempt ends. Calls Claude Code doesn't record in the transcript are not counted, so the figures are tokens recorded in the transcripts, not a bill. Never for `adapt`.
 - **Rank audit.** Only the main thread is checked; subagents may run on other models, and their usage is counted, not audited. The resolved `[models]` value decides what is expected. `fable`, `opus`, `sonnet` and `haiku` match any id `claude-<alias>-…`, and a bracketed suffix such as `[1m]` is ignored. A full id (`claude-…`) matches itself, with or without a `-YYYYMMDD` suffix. igris can't check any other value (`default`, `opusplan`, a custom name), so the audit says `unchecked` and raises nothing. The first main-thread response on a model that doesn't match raises **Needs you** with reason `rank_mismatch`, a `rank_mismatch` notification (§10) and a `rank_mismatch` run-log line, once per attempt. The session is never stopped, switched or told anything; the owner decides. Each attempt's audit is `ok`, `mismatch`, `unchecked` or `unavailable` (nothing could be read).
+
+### 6.10 Side sessions
+Since 1.2 (decisions.md V12-P1). A side session is a Claude Code session the owner opens from the TUI (§15.7) for a question or an investigation while igris runs, or between runs. It is not a task: igris watches it for no signal, counts no attempt, writes no Status and raises no Needs you, notification, Timeout or reminder for it, and offers no plan approval for it.
+
+- **Opening.** Through the backend's `OpenSession` (§11.1) with `SessionSpec.Side` set to the side ID (6 random lowercase hex characters) and no task ID, in the project root, or in its own worktree (below). The pane is labelled `side · <subject> · <rank>`, the subject being the task ID for *about this task*, `igris` for *igris problem* and nothing for *blank*; on herdr the agent is `igside-<id>`, a name no task's `igris-<id>` can equal. Claude Code starts as for a task (§6 step 4) with the chosen rank's model and mode, a fresh `--session-id`, `--append-system-prompt-file .igris/side/<id>.rules.md` and `--settings .igris/side/<id>.settings.json` (the state hooks of §6.3 and their transcript path; no `plan-approve` entry, no status line), plus `claude.extra_args`. The environment gets `IGRIS_SIDE=<id>`, so `igris done`, `skip` and `reset` refuse inside it (§6.2). The first prompt, when there is one, is typed with `Prompt` once the session is idle. At most 8 side sessions are open at a time.
+- **Rules.** The rules file says it is a side session the owner opened, that it runs no plan task and has no `igris done`, and that it must not run `igris done`, `skip` or `reset` nor edit the plan or `igris.toml` (an edit holds the run). During a run in the shared tree it adds that a session is working on `<ID>` in this tree now, so it asks the owner before editing files.
+- **Presets.** **Blank**: no first prompt. **About this task** (a task selected or current): the task's ID, title and phase, the plan's absolute path, the task text, whether it is running now, then `Question: `. **igris problem**: igris's version, the backend, the run state (phase, current task, agent state), the last 10 run-log events (type, task, `detail`), the doctor summary and the instruction to read `.igris/runs.jsonl` and `.igris/state.json` without changing the plan; never config values or secrets. The prefill is an editable first prompt, cleaned of escape sequences and control characters (§16) and at most 8 KiB.
+- **Model and mode.** The rank comes from `[models]`, preselected from `[side] model`; the mode is `default`, `accept`, `auto` or `plan` (approved in the pane), preselected from `[side] mode` (§12). `yolo` and the `plan:<mode>` values are never offered. During a run in the shared tree the mode preselects `default` whatever `[side] mode` says.
+- **Sharing the tree.** A side session works in the project root by default, the tree a run's sessions work in, and the dialog warns while a run is active: `<ID> is working in this tree; a plan edit holds the run`. During a run it also offers **Own worktree**: `git worktree add -b igris/side-<id> .igris/worktrees/side-<id> HEAD`, with `Read` of the plan in the settings file as in §6.8. Closing the session removes that worktree when `git status --porcelain` is empty (the branch stays) and otherwise keeps it and names it. In worktree mode (§6.8) the run's sessions work in the run's worktree, so a side session in the project root shares no files with them and only the plan warning is shown. Side sessions are not exempt from §5.4 or the config snapshot (§13): a plan edit from one holds the run and an `igris.toml` edit raises `config_changed`, like any other edit.
+- **Record and restart.** Each open side session has `.igris/side/<id>.json` (§13). When home or the run view opens (and on home's refresh) igris reads the records and reattaches each with `AttachSide`, which binds it to its own pane like a task's (§13 Resume): on tmux the start command must be `claude` with the recorded `--session-id` and `.igris/side/<id>.rules.md`, on herdr the agent must be `igside-<id>`. A ref naming another pane counts as gone, with a warning. A gone session has its usage logged, its record removed and `side <id> ended` shown in the feed; a worktree it had is kept and named. When two igris processes share the project (a run and a read-only home), the one that claims the record with an atomic rename logs it. Quitting igris never closes a side session; closing one is an explicit action (§15.7).
+- **Usage.** Read from the transcript as for a task (§6.9), logged as `side_usage` when the session is closed or found gone (§13), never counted as an attempt and never audited; `igris usage` shows side sessions in a table of their own (§14).
 
 ---
 
@@ -417,6 +430,7 @@ type Backend interface {
     Available(ctx context.Context) error                 // e.g. herdr server reachable, inside a herdr pane
     OpenSession(ctx context.Context, spec SessionSpec) (Session, error)
     Attach(ctx context.Context, ref SessionRef, taskID string) (Session, error) // reattach after igris restart; refuses a pane not started for taskID
+    AttachSide(ctx context.Context, ref SessionRef, sideID string) (Session, error) // since 1.2: reattach a side session (§6.10); refuses a pane not started for sideID
     Notify(ctx context.Context, n Notification) error
 }
 
@@ -439,7 +453,7 @@ type Submitter interface {
 }
 ```
 
-`SessionSpec` holds: task ID (backends derive session names from it, e.g. herdr's `igris-<id>`), working directory, label, Claude Code argv (model, mode flags, extra args), environment additions.
+`SessionSpec` holds: task ID (backends derive session names from it, e.g. herdr's `igris-<id>`) or, for a side session (§6.10, since 1.2), the side ID instead (herdr's `igside-<id>`), working directory, label, Claude Code argv (model, mode flags, extra args), environment additions.
 
 `Tailer` feeds the live tail (§15.3): the last non-blank lines the session shows, raw (the TUI cleans them), without Claude Code's input box; a gone session yields a "session gone" error. Claude Code draws its prompt between two full-width rules (a line of at least 10 `─` and nothing else) with its status footer below, and leaves dozens of blank rows above it, so a backend reads the last N lines, cuts them at the second-to-last such rule when there are two or more and something non-blank comes before it (`backend.TailLines`), drops blank lines and keeps the last N. This is a heuristic: output of the session's own that ends in two rules loses what follows the first of them. herdr and tmux implement it, and so does the fake; a backend without it simply has no tail. Its output is never logged, notified or stored.
 
@@ -573,6 +587,10 @@ approve_timeout = "30m"           # how long the plan hook waits for igris (1m�
 enabled = true                    # read the sessions' transcripts: run-card counter, run-log usage, rank audit
 statusline = false                # true: igris's status line in task panes (replaces yours) to record the subscription quota (§6.3)
 
+[side]                            # since 1.2: side sessions (§6.10)
+model = "sonnet"                  # the rank the dialog preselects, a [models] key
+mode = "default"                  # the mode it preselects: default | accept | auto | plan (never yolo)
+
 [tui]
 tail = true                       # live tail of the current session in the task card (§15.3)
 mouse = true                      # click/tap, wheel and hover in the TUI (§15.5); false keeps the terminal's own text selection
@@ -621,6 +639,7 @@ token = ""                        # application token, or "env:GOTIFY_TOKEN"
 - Durations must be greater than zero. `env:VAR` references are accepted for `notify.ntfy.token`, `notify.discord.webhook_url`, `notify.webhook.url`, `notify.webhook.secret`, `notify.slack.webhook_url` and `notify.gotify.token`; an unset or empty variable is an error.
 - `[notify.webhook]`, `[notify.slack]` and `[notify.gotify]` take `events` like the other channels (default list when left out) and are on once set up: the webhook with a `url` (a `secret` without one is an error; the resolved URL must be `http`/`https` with a host), Slack with a `webhook_url`, Gotify with both `server` and `token` (only one of them is an error). A `template` that doesn't parse, uses an unknown variable or is longer than 1000 characters is an error naming the channel (§10).
 - `[notify] quiet` is `HH:MM-HH:MM` with different start and end, or empty; `break_through` names events like `events` (`[]` holds everything) and is left out of a written file while it is the default; `task_done_digest` is an integer (`0` or `1`: off; N ≥ 2, at most 1000000) or `"phase"`, anything else is an error (reported with the file's other problems, not as a parse error). Several problems are reported together, each saying what to fix.
+- `[side] model` must be a `[models]` key; `[side] mode` must be `default`, `accept`, `auto` or `plan`, and `yolo` or a `plan:<mode>` value is an error (`side sessions never skip permissions`).
 - `igris init` writes the defaults, but leaves a channel's `events` out while it is the default list (any file igris writes does), so events a later version adds to the default reach that file; a file that lists `events` keeps exactly that list.
 - The config hash recorded in the run snapshot (§13) is a SHA-256 of the parsed config as written (defaults applied, `env:` references unresolved), so secret values never enter it. Keys added after v0.4 are left out of it while unset or at their default (`[tui] tail` while `true`, the `[notify]` hold settings, templates, channels not set up), so a v0.4 config keeps its hash. A channel's `events` at the default hash as 1.0's default list, so a default event added later (`rank_mismatch`, 1.1) doesn't change the hash of a config that doesn't set `events`.
 - `igris.toml` holds no secrets by default and is safe to commit; `.igris/` is local state and is added to `.gitignore` by `igris init`.
@@ -643,6 +662,7 @@ token = ""                        # application token, or "env:GOTIFY_TOKEN"
 | `plan-approval/` | `<session uuid>.json` (a plan waiting for approval, `{"n","at","plan","pid"}`, written by `igris hook plan-approve`) and `<session uuid>.decision.json` (igris's answer, `{"n","behavior","message"}`), §6.3. 0600, directory 0700; removed by the hook when it ends. Untrusted; read bounded and shape-checked, never through a symlink. |
 | `quota.json` | Since 1.1, with `[usage] statusline = true`: the last subscription quota the status line reported, `{"at", "five_hour": {"used", "resets_at"}, "seven_day": {…}}` (§6.3), written by `igris hook statusline`. Untrusted; read bounded and shape-checked. |
 | `plans/` | `<ID>-a<attempt>-<n>.md`: every plan a session presented for approval, rejected ones too (§6.3). 0600, directory 0700. |
+| `side/` | Since 1.2: `<id>.json`, one open side session (§6.10), `{"v":1, "id", "at", "backend", "ref", "claude_session", "model", "rank", "mode", "preset", "task", "dir", "worktree"}`, written atomically; `<id>.rules.md` and `<id>.settings.json`, its rules and hooks files. 0600, directory 0700. Untrusted; read bounded and shape-checked, never through a symlink. `state.json` holds nothing about side sessions. |
 | `runs.jsonl` | Append-only log: one JSON line per event (task started/done/skipped, verify result, commits, needs-you waits, notifications, errors) with timestamps, run ID, task ID, rank and model; schema v1 below. |
 | `adapt/` | Adapt proposals and backups (§9). |
 | `config/` | `igris.<timestamp>.bak.toml`: the `igris.toml` `igris config migrate` replaced (§14). Not frozen (§19). |
@@ -653,8 +673,9 @@ token = ""                        # application token, or "env:GOTIFY_TOKEN"
 |---|---|
 | `v` | schema version, `1` |
 | `at` | RFC 3339 UTC timestamp |
-| `type` | `run_started`, `run_stopped`, `task_started`, `task_resumed`, `task_retried`, `task_done`, `task_skipped`, `task_overdue`, `task_reset`, `verify_passed`, `verify_failed`, `committed`, `needs_you`, `needs_you_clear`, `notification`, `error`, and since 1.1 `usage` and `rank_mismatch` (§6.9), `plan_presented`, `plan_approved` and `plan_rejected` (§6.3) |
+| `type` | `run_started`, `run_stopped`, `task_started`, `task_resumed`, `task_retried`, `task_done`, `task_skipped`, `task_overdue`, `task_reset`, `verify_passed`, `verify_failed`, `committed`, `needs_you`, `needs_you_clear`, `notification`, `error`, and since 1.1 `usage` and `rank_mismatch` (§6.9), `plan_presented`, `plan_approved` and `plan_rejected` (§6.3), and since 1.2 `side_opened`, `side_closed` and `side_usage` (§6.10) |
 | `run` | the run ID, `YYYYMMDD-HHMMSS-xxxx` (start in UTC + 4 random hex characters), on every line a run writes; absent on lines written outside a run (`igris reset` with no igris running) |
+| `side` | since 1.2, on `side_opened`, `side_closed` and `side_usage`: the side ID (§6.10); these lines have no `task`, and carry `run` only when the igris writing them has a run |
 | `task` | task ID; omitted for events outside a task (`run_started`, `run_stopped`, most `error`s) |
 | `rank`, `model` | the task's rank and resolved model; omitted with `task` |
 | `attempt` | the agent task's attempt within this run: 1 for the session of `task_started` or the one `task_resumed` reattaches, +1 per `task_retried` (§6.3: every session opened or reattached is an attempt); a task reset and started again in the same run goes on from its last number |
@@ -675,6 +696,8 @@ token = ""                        # application token, or "env:GOTIFY_TOKEN"
 `needs_you` is logged whenever igris starts waiting on the owner: it marks Needs you (§6.3, §6.4, §6.7, the commit question under `commit = "ask"`, a reset request), loses a session, or holds the run for a changed plan (§5.4, once the current task has ended); `needs_you_clear` when that wait ends while the task goes on (the agent works again, the owner answers, a retry). Needs-you time is the time igris waited on the owner: an `idle` or `blocked` wait also ends at the session's done signal (a verify failing after it starts a new one), and `task_overdue`, `rank_mismatch`, `verify_limit` and `verify_not_sent` end when the agent is seen working again. A wait already open for the task and reason is not logged again (a second skip request, the verify limit hit again, another plan edit while the run holds); a `needs_you_clear` ends every open wait of its task and reason.
 
 `usage` is logged once per attempt of an agent task when the attempt ends (`task_done`, `task_skipped`, `task_retried`, a lost session, or `run_stopped` while the task runs), with `task`, `rank`, `model`, `attempt` and `session`, also when the usage is `unavailable` (then without `usage`). It never carries message content or the transcript path. `rank_mismatch` is logged when the audit finds one (§6.9), at most once per attempt. Neither is written with `[usage] enabled = false`.
+
+`side_opened` and `side_closed` are logged when a side session is opened and when it is closed or found gone (§6.10). `side_usage` is logged once per side session, when it is closed or found gone, with `side`, `rank`, `model`, `usage`, `sub`, `models` and `sub_models` as on `usage`, never with `attempt` or `audit`; it is not written with `[usage] enabled = false`.
 
 **Compatibility.** A line without `v` is v0 (igris v0.2–v0.4: `at`, `type`, `task`, `rank`, `model`, `detail` only). Readers accept v0 and v1 lines mixed in one file, ignore unknown types and fields, and read lines with a larger `v` best effort (a field whose type changed is left out, the line kept), with a note that some details may be missing. A line that can't be read (not JSON, not an event, a v0/v1 field of the wrong type, longer than 1 MiB) is skipped and the rest read, with the note `N unreadable lines in runs.jsonl skipped`; one bad line never hides the history. Readers read the log only if it is a regular file (a FIFO or device in its place is an error and never blocks), and only its last 16 MiB, from the first whole line in them, with the note `runs.jsonl is over 16 MiB; only its newest runs are read`; this is a reader limit, not part of the format. Appending to a log whose last line was cut off starts a new line first. Within v1 fields and types are only ever added, never removed, renamed or given a new meaning; anything else is a new version. `run`, `session` and IDs are shape-checked when read (a bad value counts as absent). A run is the lines with one `run` ID; for v0 lines it is the events from a `run_started` to its `run_stopped`, or to the next `run_started` when there is none (the run was interrupted). `igris history` and `igris report` are the readers of this format.
 
@@ -746,11 +769,11 @@ No other code is used. Per command:
 - **`doctor`**: 1 when some check is `fail`; warnings exit 0.
 - **`history`**: 1 when the run log can't be read; no project or no runs is 0. `-n` below 1 and a malformed TASK-ID are usage errors (2).
 - **`report`**: 1 when there are no runs or no such run; a RUN that is neither a positive number nor a run ID is a usage error (2).
-- **`usage`**: 1 when the run log can't be read, there are no runs, no such run or no run since D; a malformed RUN or D, or RUN together with `--since`, is a usage error (2).
+- **`usage`**: since 1.2 it shows side sessions (`side_usage`, §6.10) in a table of their own and as an additive `side` array in `--json`, for the runs covered (a side line with that `run`) or, with `--since`, by time. Exit 1 when the run log can't be read, there are no runs, no such run or no run since D; a malformed RUN or D, or RUN together with `--since`, is a usage error (2).
 - **`arise`**: 0 when the run completes or the owner stops it (`stop`, quitting the TUI, Ctrl-C). 1 when a phase is stuck, the run ends with an error, a start-up confirmation is declined or stdin ends before it is answered, the lock is held by a live igris (or is stale without `--force-unlock`), igris is not inside herdr or tmux, there is no project, or the selection names tasks that aren't in the plan or are out of order. `--dry-run` exits 1 when it can't walk the run (an unknown phase, nothing to resume, an invalid plan, a selection that doesn't fit); a phase it shows as stuck is a result, not a failure, so that exits 0. A bad `--mode`, `--only` with `--from`/`--until`, an empty `--only` and a malformed ID are usage errors (2).
 - **Bare `igris`** (home): 0; 1 when the TUI fails or a run it held ended stuck or with an error; 2 when it isn't on a terminal.
-- **`done`, `skip`**: 0 when the signal is written; 1 outside a project, for a task that isn't in the plan, an unreadable plan or config, or a failed write. A missing or malformed ID and an empty `--reason` are usage errors (2).
-- **`reset`**: 0 also when there is nothing to reset (the task is `ready` or `blocked`); 1 for a `done` or `skipped` task without `--force`, a task that isn't in the plan, an invalid plan, a run on another host holding the lock, or a failed write. A malformed ID is a usage error (2).
+- **`done`, `skip`**: 0 when the signal is written; 1 inside a side session (`IGRIS_SIDE` set, §6.10, since 1.2), outside a project, for a task that isn't in the plan, an unreadable plan or config, or a failed write. A missing or malformed ID and an empty `--reason` are usage errors (2).
+- **`reset`**: 0 also when there is nothing to reset (the task is `ready` or `blocked`); 1 inside a side session (§6.10, since 1.2), for a `done` or `skipped` task without `--force`, a task that isn't in the plan, an invalid plan, a run on another host holding the lock, or a failed write. A malformed ID is a usage error (2).
 - **`notify test`**: 1 when a delivery fails or no channel is set up to send the event; an unknown `--event` is a usage error (2).
 - **`config migrate`**: 0 when it migrated, there was nothing to migrate (or no `igris.toml`), or the owner declined; 1 outside a project, for an `igris.toml` that can't be read or holds a deprecated key it can't remove by itself, when stdin ends without an answer, when the file changed while it asked, or on a failed write. A missing or unknown subcommand is a usage error (2).
 - **`adapt`**: 0 when the plan is already valid, the proposal is accepted or rejected, or the owner stops waiting with Ctrl-C (the session stays open); 1 when the session is lost or skipped, the backend or project can't be used, or the review fails. A `--model` other than `sonnet` or `opus` is a usage error (2).
@@ -872,6 +895,8 @@ Built with Bubble Tea / Lip Gloss. Runs in the igris pane; the Claude sessions l
 
 **Usage** (since 1.1, §6.9). The current task's card shows `tokens 2.3M in · 41k out · claude-sonnet-5-5` (`in` is input + cache read + cache write, subagents included), refreshed with each read; the model id is red on a rank mismatch, and the line reads `usage unavailable` when igris can't read the transcript. With `[usage] statusline = true` and a recorded quota, the header shows `5h 4% · 7d 52%` (amber from 80%, red from 95%; the age, e.g. `· 25m ago`, once it is over 10 minutes old). It is hidden without one, and dropped before the progress bar when the width runs out.
 
+**Side sessions** (since 1.2, §6.10). While any are open the header shows `side N`, dropped before the quota when the width runs out.
+
 ### 15.2 Narrow layout (< 100 columns, e.g. Termius on a phone)
 Single column: header, current task card, compact task list (ID + status glyph + rank), last 3 log lines, action bar. The status bar shows the progress as `M1 · 7/12 · 58%` with a 6-cell bar, under the same rules. The card shows usage as `2.3M/41k`. Must stay usable at 50×20. The action bar wraps to a second row or folds its less common actions into a `More…` button; an open dialog (§15.5) takes the whole screen.
 
@@ -886,6 +911,7 @@ Every action is reachable three ways: **clicking** its button (or tapping it, e.
 | Button | Key | Action |
 |---|---|---|
 | Open session | `o` | Focus the current session's pane (herdr tab, tmux window) |
+| Side session | `S` | Since 1.2: open the Side sessions page, or the side-session dialog when none are open (§15.7) |
 | Details | `t` | The selected task's details (full text, deps, extra columns): the current task unless another is selected. Also the card's `[t] Details` and its title |
 | Mode | `m` | Change run mode for upcoming sessions (choice list; `yolo` and `plan:yolo` need the typed confirmation, §15.5) |
 | Task mode | `M` | Override mode for the selected agent task (same choice list); hidden for user tasks |
@@ -981,6 +1007,7 @@ Bare `igris` on a terminal (§14) opens home: the project at a glance and the wa
 | `I` | Init | there is no `igris.toml` |
 | `E` | Example plan | `igris.toml` is valid and the plan file is missing |
 | `o` | Open session | another igris runs here and `state.json` has a session ref |
+| `S` | Side sessions (§15.7); home shows `SIDE N open` in its right column while any are, which opens the page | the backend is reachable, or a side session is open; also while another igris runs here |
 | `?` `q` `esc` `ctrl+c` | help, back or quit, back, quit the app | always |
 
 Focus regions in tab order: PHASES → action bar → HEALTH/RECENT (each line opens its page). The selected phase is the wizard's default. Mouse as in §15.5: a click selects a phase and a second click opens it; a click on a HEALTH or RECENT line opens its page.
@@ -1002,6 +1029,14 @@ Every answer belongs to that one launch and is thrown away afterwards; nothing �
 **Refresh.** Every 2 s home compares size and modification time of `igris.toml`, the plan, `.igris/state.json`, `.igris/igris.lock` and `.igris/runs.jsonl`, and reloads only what changed (the plan is parsed and validated only when its file changed). It also refreshes on returning from the editor, when a run, review, init or adapt ends, and when the terminal regains focus. Slow checks (backend availability, doctor's process calls) run asynchronously when home opens and on demand, never on the poll. Lists draw only their visible rows.
 
 **`NO_COLOR` and mouse off** change only the look and the input method (§15.4, §15.5): states are glyph plus word everywhere, bars are `█░` with the numbers beside them.
+
+### 15.7 Side sessions
+
+Since 1.2 (§6.10). `S` on home and in the run view, not in `--no-tui`.
+
+- **Side sessions page.** One row per open side session: its ID, the state from its hooks (`working`, `idle`, `blocked`, `waiting`, `unknown`), age, subject, rank, mode and `worktree` when it has one. **New…** opens the dialog, **Focus** (`enter`, `o`) brings its pane to the front, **Close…** asks **Keep it** · Close session and closes it (§6.10). With none open, `S` opens the dialog directly.
+- **Dialog**, a sequence like the start-run wizard: **Preset** (**Blank** · About this task · igris problem; *about this task* only with a task selected or current), **First prompt** (a text field holding the prefill; `enter` on an empty field types nothing), **Model** (the `[models]` ranks, `[side] model` first), **Mode** (`default` · `accept` · `auto` · `plan`, `[side] mode` first, `default` first during a run in the shared tree; no `yolo`), and during a run **Where** (**Shared tree** · Own worktree) with the shared-tree warning; then **Open** · Cancel. Needs a reachable backend. A read-only home (a run in another igris, §13) may open, focus and close side sessions too.
+- Quitting igris leaves side sessions open; the next home or run view lists them again.
 
 ---
 
@@ -1072,7 +1107,7 @@ What igris 1.x promises not to break (V07-P1). Until v2.0, every surface below k
 - **The generic webhook** (§10): the payload (`"v": 1`), the `X-Igris-Event` and `X-Igris-Signature` headers and the signature.
 - **The task-hook environment** (§6.7): `IGRIS_TASK_ID`, `IGRIS_PHASE`, `IGRIS_RANK`, `IGRIS_MODEL`, `IGRIS_RESULT`.
 
-**Not frozen:** the TUI (§15); the default task prompt's wording; text output; the hidden `hook` and `__complete` commands; the contents of `.igris/agent-state/`, `.igris/hooks/`, `.igris/plan-approval/`, `.igris/prompts/`, `.igris/quota.json` and `igris.lock`; the status line igris shows in task panes; the messages sent to ntfy, Discord, Slack, Gotify and the backend; the Go packages under `internal/`.
+**Not frozen:** the TUI (§15); the default task prompt's wording; text output; the hidden `hook` and `__complete` commands; the contents of `.igris/agent-state/`, `.igris/hooks/`, `.igris/plan-approval/`, `.igris/prompts/`, `.igris/quota.json`, `.igris/side/` (since 1.2) and `igris.lock`; the status line igris shows in task panes; the messages sent to ntfy, Discord, Slack, Gotify and the backend; the Go packages under `internal/`.
 
 **Allowed in 1.x:** new optional plan columns (an older igris treats them as extra columns), new Mode values (an older igris reports them as an unknown Mode, like a config key it doesn't know), new config keys with defaults, new commands and flags, new JSON fields, new run-log event types, new template variables. Readers of `--json`, the run log and the webhook must ignore fields and event types they don't know. A config using a key added in a later 1.x fails on an older igris as an unknown key; the fix is to upgrade. A feature deprecated in 1.x warns until 2.0 and is removed only then.
 
