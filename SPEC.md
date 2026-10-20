@@ -592,6 +592,7 @@ token = ""                        # application token, or "env:GOTIFY_TOKEN"
 ```
 
 - Unknown keys are errors (catches typos). Durations use Go syntax.
+- [`docs/config.md`](docs/config.md) lists every key with its type and default, generated from the config struct (`make config-ref`); a test fails while it is stale.
 - Verify profile names match `[a-z0-9_-]+` and their commands must not be empty. `none` is reserved, and setting both `run.verify` and `[verify] default` is an error (they are the same profile). `verify_timeout` and `verify_max_attempts` under `[verify]` are an error too: they are `[run]` settings (`verify.verify_timeout is a [run] setting, not a verify profile; move it under [run]`). `run.verify` stays supported. An error naming an unknown profile lists only the usable ones (valid names with a command) and `none`.
 - `[phases.<id>]` matches phase IDs case-insensitively; `verify` is its only key, naming a profile or `none`. An unknown profile there is an error. A `[phases.<id>]` that names no phase of the plan is a warning in `check` and `arise` (the config is validated without the plan).
 - `[hooks]`: an empty or missing list means no hook. A non-empty list needs a non-empty first element, and no element may contain a control character.
