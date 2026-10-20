@@ -47,6 +47,7 @@ var keyDocs = map[string]keyDoc{
 	"hooks.timeout":              {desc: "Time limit for each hook. Greater than zero.", def: "`\"2m\"`"},
 	"plan_mode.then":             {desc: "The mode a plain `plan` task switches to when you approve its plan in igris (SPEC §6.3, §7.1). Never `yolo`.", values: "`default`, `accept`, `auto`", def: "`\"auto\"`"},
 	"plan_mode.approve_timeout":  {desc: "How long a plan presented for approval waits for your answer in igris before the pane decides (SPEC §6.3). 1m to 24h; `\"0\"` approves plans in the pane only.", def: "`\"30m\"`"},
+	"usage.enabled":              {desc: "Read the task sessions' transcripts for token usage in the run log (SPEC §6.9). `false` reads none.", def: "`true`"},
 	"adapt.model":                {desc: "Model rank `igris adapt` uses (SPEC §9).", values: "`sonnet`, `opus`"},
 	"tui.mouse":                  {desc: "Click/tap, wheel and hover in the TUI (SPEC §15.5). `false` keeps the terminal's own text selection."},
 	"tui.theme":                  {desc: "Which colors to use (SPEC §15.4). `auto` goes by the terminal's background.", values: "`auto`, `dark`, `light`"},

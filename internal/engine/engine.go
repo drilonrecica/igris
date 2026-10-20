@@ -353,6 +353,11 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 		e.emit(Event{Kind: RunFailed, Detail: err.Error()})
 		e.toast(ctx, notifyRunError, "the run stopped with an error")
 	}
+	if e.task != nil {
+		// The task stays in progress; its attempt's usage so far is logged
+		// (SPEC §13), and the next run counts from when it reattaches.
+		e.endUsage(e.task)
+	}
 	e.leaveWorktree(context.WithoutCancel(ctx), &res)
 	// igris can't hold messages once it exits: what is left goes out now,
 	// even when the owner's stop cancelled ctx.

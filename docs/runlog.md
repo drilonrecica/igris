@@ -38,6 +38,11 @@ Every line igris v0.5 or later writes has `"v":1`. `v`, `at` and `type` are alwa
 | `plan_file` | string | where the plan is kept, `.igris/plans/<ID>-a<attempt>-<n>.md` (left out if it couldn't be saved; since 1.1) | `plan_presented`, `plan_approved`, `plan_rejected` |
 | `plan_sha256` | string | the sha256 of the plan's text, in hex; the text itself and any feedback are never logged (since 1.1) | `plan_presented`, `plan_approved`, `plan_rejected` |
 | `mode` | string | the mode the session switches to: `default`, `accept` or `auto` (since 1.1) | `plan_approved` |
+| `usage` | object | the tokens the attempt's main thread recorded in its transcript: `{"input", "output", "cache_read", "cache_write", "messages"}`, integers, `messages` being the responses counted (since 1.1). Left out when the usage is unavailable | `usage` |
+| `sub` | object | the same for the attempt's subagents; left out when they recorded nothing (since 1.1) | `usage` |
+| `models` | array of strings | the model ids the attempt's main thread ran on, in the order first seen, e.g. `["claude-sonnet-5-5"]` (since 1.1) | `usage` |
+| `sub_models` | array of strings | the model ids its subagents ran on (since 1.1) | `usage` |
+| `audit` | string | the rank audit's result (SPEC §6.9): `unavailable` when igris could not read the attempt's transcript (since 1.1) | `usage` |
 | `detail` | string | free text, see each type | most events |
 
 ## Event types
@@ -63,6 +68,7 @@ Every line igris v0.5 or later writes has `"v":1`. `v`, `at` and `type` are alwa
 | `plan_presented` | a plan-mode session presented a plan for approval in igris (SPEC §6.3; since 1.1) | empty |
 | `plan_approved` | you approved it in igris | empty |
 | `plan_rejected` | you rejected it with feedback in igris; the session revises it and presents it again | empty |
+| `usage` | an attempt of an agent task ended: after its `task_done` or `task_skipped`, before its `task_retried`, when its session is lost, or before `run_stopped` while it runs. Once per attempt that had a session; not with `[usage] enabled = false` (SPEC §6.9; since 1.1) | empty, or why the usage is `unavailable`: `no transcript reported by the session's hooks` or `the transcript could not be read` |
 | `error` | a task hook failed, or the run stopped with an error | the hook's reason (`before_task hook failed: exit status 1`) or the error |
 
 ### Needs-you reasons
@@ -125,8 +131,10 @@ One line per type, as igris writes them:
 {"v":1,"at":"2026-10-08T09:29:01Z","type":"verify_passed","run":"20261008-091500-3fa2","task":"M1-03","rank":"sonnet","model":"sonnet","attempt":2,"profile":"fast","duration_ms":11020,"detail":"profile fast"}
 {"v":1,"at":"2026-10-08T09:29:03Z","type":"committed","run":"20261008-091500-3fa2","task":"M1-03","rank":"sonnet","model":"sonnet","attempt":2,"commit":"3fa29c1e0b6d4a8f9c2e7b1d5a0f6e3c8b9d2a4f","detail":"M1-03: Config loader"}
 {"v":1,"at":"2026-10-08T09:29:03Z","type":"task_done","run":"20261008-091500-3fa2","task":"M1-03","rank":"sonnet","model":"sonnet","attempt":2,"duration_ms":842000,"detail":"tests added"}
+{"v":1,"at":"2026-10-08T09:29:04Z","type":"usage","run":"20261008-091500-3fa2","task":"M1-03","rank":"sonnet","model":"sonnet","attempt":2,"session":"7d1e9b20-3c4a-4f5e-8b6d-0a1b2c3d4e5f","usage":{"input":412,"output":41210,"cache_read":2104577,"cache_write":187340,"messages":96},"sub":{"input":20,"output":3100,"cache_read":0,"cache_write":8000,"messages":4},"models":["claude-sonnet-5-5"],"sub_models":["claude-haiku-5-5"]}
 {"v":1,"at":"2026-10-08T09:30:00Z","type":"task_resumed","run":"20261008-093000-c01d","task":"M1-05","rank":"opus","model":"opus","attempt":1,"session":"9aa07c5e-d5cc-43b5-812b-1a20c5336f67","phase":"M1","title":"Docs","owner":"agent"}
 {"v":1,"at":"2026-10-08T09:33:40Z","type":"task_skipped","run":"20261008-093000-c01d","task":"M1-05","rank":"opus","model":"opus","attempt":1,"duration_ms":220000,"detail":"covered by M1-03"}
+{"v":1,"at":"2026-10-08T09:33:41Z","type":"usage","run":"20261008-093000-c01d","task":"M1-05","rank":"opus","model":"opus","attempt":1,"session":"9aa07c5e-d5cc-43b5-812b-1a20c5336f67","audit":"unavailable","detail":"the transcript could not be read"}
 {"v":1,"at":"2026-10-08T09:34:00Z","type":"error","run":"20261008-093000-c01d","task":"M1-06","rank":"sonnet","model":"sonnet","attempt":1,"detail":"before_task hook failed: exit status 1"}
 {"v":1,"at":"2026-10-08T09:40:00Z","type":"run_stopped","run":"20261008-093000-c01d","duration_ms":600000,"detail":"stopped"}
 {"v":1,"at":"2026-10-08T18:00:00Z","type":"task_reset","task":"M1-03","rank":"sonnet","detail":"done"}

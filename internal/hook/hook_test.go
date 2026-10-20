@@ -18,6 +18,9 @@ import (
 // The UUID in the recorded payloads (testdata/*.json).
 const fixtureUUID = "2b7f3c1e-8d4a-4f6b-9c2e-5a1d0e9f8b7c"
 
+// The transcript path in the recorded payloads (SPEC §6.9).
+const fixtureTranscript = "/home/user/.claude/projects/-work-proj/" + fixtureUUID + ".jsonl"
+
 var fixedNow = func() time.Time { return time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC) }
 
 func project(t *testing.T) string {
@@ -69,6 +72,15 @@ func TestRecordedEvents(t *testing.T) {
 			}
 			if got.State != tt.want || !got.At.Equal(fixedNow()) {
 				t.Errorf("state = %+v, want %s at %s", got, tt.want, fixedNow())
+			}
+			// The WAIT-01 recordings name a placeholder path, not one
+			// named after the session: left out.
+			want := fixtureTranscript
+			if strings.HasPrefix(tt.file, "stop_") {
+				want = ""
+			}
+			if got.Transcript != want {
+				t.Errorf("transcript = %q, want %q", got.Transcript, want)
 			}
 		})
 	}
@@ -276,5 +288,30 @@ func TestRunStoresOnlyTheState(t *testing.T) {
 	}
 	if strings.Contains(string(data), "SECRET") || !strings.Contains(string(data), `"waiting"`) {
 		t.Errorf("stored agent state = %s", data)
+	}
+}
+
+// The transcript path is kept only when it is absolute, clean and named
+// after the session (SPEC §6.9); any other is left out, never the state.
+func TestRunTranscript(t *testing.T) {
+	tests := []struct{ path, want string }{
+		{fixtureTranscript, fixtureTranscript},
+		{"relative/" + fixtureUUID + ".jsonl", ""},
+		{"/home/user/../etc/" + fixtureUUID + ".jsonl", ""},
+		{"/home/user/.claude/projects/p/0f6c2a3e-5b1d-4c7e-9a8f-1d2e3f4a5b6c.jsonl", ""},
+		{"/home/user/.claude/projects/p/" + fixtureUUID + ".json", ""},
+		{"/etc/passwd", ""},
+		{"", ""},
+	}
+	for _, tt := range tests {
+		root := project(t)
+		in, _ := json.Marshal(map[string]string{"session_id": fixtureUUID, "hook_event_name": "Stop", "transcript_path": tt.path})
+		if err := Run(context.Background(), root, strings.NewReader(string(in)), fixedNow); err != nil {
+			t.Fatal(err)
+		}
+		got, ok, err := state.ReadAgentState(root, fixtureUUID)
+		if err != nil || !ok || got.State != backend.Idle || got.Transcript != tt.want {
+			t.Errorf("%q: %+v, %v, %v; want transcript %q", tt.path, got, ok, err, tt.want)
+		}
 	}
 }

@@ -187,6 +187,8 @@ func dryRunProject(tmp, root string, orig *config.Config) (*config.Config, error
 	cfg.Run.Worktree = nil // DryRun reports where the run would work; the walk makes no worktree
 	cfg.Notify.Backend.Enabled = false
 	cfg.Notify.Ntfy.Topic = "" // no other remote channel either: dry runs resolve no secrets
+	off := false
+	cfg.Usage.Enabled = &off // the walk's sessions have no transcripts
 	copyIn := func(rel string) (string, error) {
 		name := rel
 		if filepath.IsAbs(rel) || !filepath.IsLocal(rel) {

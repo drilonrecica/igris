@@ -1072,6 +1072,32 @@ func TestPlanMode(t *testing.T) {
 	}
 }
 
+// [usage] (V11-P2): on when unset, out of the hash while unset, kept by
+// Write when set.
+func TestUsage(t *testing.T) {
+	d := Default()
+	if !d.Usage.On() || d.Hash() != v04DefaultHash {
+		t.Errorf("default: on %v, hash changed %v", d.Usage.On(), d.Hash() != v04DefaultHash)
+	}
+	c, err := Parse([]byte("[usage]\nenabled = false\n"), "igris.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Usage.On() || c.Hash() == v04DefaultHash {
+		t.Errorf("enabled = false: on %v, hash unchanged %v", c.Usage.On(), c.Hash() == v04DefaultHash)
+	}
+	path := filepath.Join(t.TempDir(), "igris.toml")
+	if err := Write(path, c); err != nil {
+		t.Fatal(err)
+	}
+	if back, err := Load(path); err != nil || back.Usage.On() {
+		t.Errorf("Write and Load lost [usage]: %v", err)
+	}
+	if _, err := Parse([]byte("[usage]\nenabled = \"yes\"\n"), "igris.toml"); err == nil {
+		t.Error("accepted a string for usage.enabled")
+	}
+}
+
 func TestWorktree(t *testing.T) {
 	d := Default()
 	if d.Run.WorktreeOn() || d.Hash() != v04DefaultHash {

@@ -59,6 +59,12 @@
 | `then` | string | `"auto"` | The mode a plain `plan` task switches to when you approve its plan in igris (SPEC §6.3, §7.1). Never `yolo`. Allowed: `default`, `accept`, `auto`. |
 | `approve_timeout` | duration | `"30m"` | How long a plan presented for approval waits for your answer in igris before the pane decides (SPEC §6.3). 1m to 24h; `"0"` approves plans in the pane only. |
 
+## `[usage]`
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | boolean | `true` | Read the task sessions' transcripts for token usage in the run log (SPEC §6.9). `false` reads none. |
+
 ## `[adapt]`
 
 | Key | Type | Default | Description |

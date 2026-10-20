@@ -43,6 +43,9 @@ type Payload struct {
 	Source           string `json:"source"`            // SessionStart
 	ToolName         string `json:"tool_name"`         // PreToolUse, PostToolUse, PermissionRequest
 	NotificationType string `json:"notification_type"` // Notification
+	// TranscriptPath is the session's transcript, in every event (SPEC
+	// §6.9); kept only when state.ValidTranscript accepts it.
+	TranscriptPath string `json:"transcript_path"`
 	// Stop: work Claude Code resumes the session for by itself (SPEC §6.3).
 	// Kept raw and read leniently, so an unexpected shape never loses the
 	// Stop itself; only the statuses and the count are looked at.
@@ -151,7 +154,11 @@ func record(root string, in io.Reader, now func() time.Time) error {
 			return nil
 		}
 	}
-	return state.WriteAgentState(root, p.SessionID, state.AgentState{State: st, Event: p.Event, At: now().UTC()})
+	rec := state.AgentState{State: st, Event: p.Event, At: now().UTC()}
+	if state.ValidTranscript(p.TranscriptPath, p.SessionID) {
+		rec.Transcript = p.TranscriptPath
+	}
+	return state.WriteAgentState(root, p.SessionID, rec)
 }
 
 // Settings returns the Claude Code settings file igris passes a session

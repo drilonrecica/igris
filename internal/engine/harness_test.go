@@ -63,7 +63,8 @@ type harness struct {
 // newHarness writes planText to tasks.md and tomlText to igris.toml in a
 // temp project and loads the config from it, like `igris arise` does. The
 // nudge (SPEC §6.3) is off unless tomlText sets it: most tests time Needs
-// you from the first idle poll; nudge_test.go covers the reminder.
+// you from the first idle poll; nudge_test.go covers the reminder. Usage
+// (SPEC §6.9) is off unless tomlText has [usage] (see write).
 func newHarness(t *testing.T, planText, tomlText string) *harness {
 	t.Helper()
 	h := &harness{t: t, root: t.TempDir(), be: fake.New(), cmds: &runner.Fake{}, clock: NewFakeClock(t0)}
@@ -133,11 +134,16 @@ func (h *harness) run(mutate ...func(*Options)) (Result, error) {
 func (h *harness) path(name string) string { return filepath.Join(h.root, name) }
 
 // write writes content to the project file name. igris.toml gets
-// nudge = false unless content sets nudge (see newHarness).
+// nudge = false unless content sets nudge (see newHarness), and
+// [usage] enabled = false unless content has [usage]: the fake sessions
+// write no transcripts, and usage_test.go covers usage.
 func (h *harness) write(name, content string) {
 	h.t.Helper()
 	if name == state.ConfigFile && !strings.Contains(content, "nudge") {
 		content = "nudge = false\n" + content
+	}
+	if name == state.ConfigFile && !strings.Contains(content, "[usage]") {
+		content += "\n[usage]\nenabled = false\n"
 	}
 	if err := os.MkdirAll(filepath.Dir(h.path(name)), 0o750); err != nil {
 		h.t.Fatal(err)

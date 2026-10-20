@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/drilonrecica/igris/internal/backend"
+	"github.com/drilonrecica/igris/internal/usage"
 )
 
 // LogVersion is the run log schema igris writes (SPEC §13, docs/runlog.md).
@@ -49,7 +50,10 @@ const (
 	EventPlanPresented EventType = "plan_presented"
 	EventPlanApproved  EventType = "plan_approved"
 	EventPlanRejected  EventType = "plan_rejected"
-	EventError         EventType = "error"
+	// EventUsage: an attempt of an agent task ended; what its transcripts
+	// recorded (SPEC §6.9). Since 1.1.
+	EventUsage EventType = "usage"
+	EventError EventType = "error"
 )
 
 // Why a needs_you event says igris waits on the owner (SPEC §13). Readers
@@ -70,6 +74,10 @@ const (
 	ReasonPlanApproval  = "plan_approval"   // a plan awaits approval in igris (SPEC §6.3); since 1.1
 	ReasonOther         = "other"
 )
+
+// AuditUnavailable is a usage event's audit when the attempt's transcript
+// could not be read (SPEC §6.9).
+const AuditUnavailable = "unavailable"
 
 var reasons = map[string]bool{
 	ReasonIdle: true, ReasonBlocked: true, ReasonSkipRequest: true, ReasonSessionLost: true,
@@ -115,7 +123,17 @@ type Event struct {
 	PlanFile   string `json:"plan_file,omitempty"`
 	PlanSHA256 string `json:"plan_sha256,omitempty"`
 	Mode       string `json:"mode,omitempty"`
-	Detail     string `json:"detail,omitempty"` // never secrets (AGENTS §6)
+	// Usage and Sub are the tokens an attempt's main thread and its
+	// subagents recorded, Models and SubModels their model ids, on usage
+	// (SPEC §6.9). Audit is the rank audit's result; AuditUnavailable when
+	// nothing could be read, with the reason in Detail. Never message
+	// content or the transcript path. Since 1.1.
+	Usage     *usage.Counts `json:"usage,omitempty"`
+	Sub       *usage.Counts `json:"sub,omitempty"`
+	Models    []string      `json:"models,omitempty"`
+	SubModels []string      `json:"sub_models,omitempty"`
+	Audit     string        `json:"audit,omitempty"`
+	Detail    string        `json:"detail,omitempty"` // never secrets (AGENTS §6)
 }
 
 var runIDPattern = regexp.MustCompile(`^[0-9]{8}-[0-9]{6}-[0-9a-f]{4}$`)
@@ -349,7 +367,32 @@ func (e Event) checked() Event {
 	if e.DurationMS < 0 || e.DurationMS > maxDurationMS {
 		e.DurationMS = 0
 	}
+	// Usage lines are shown and summed: no negative count, and only model
+	// ids of the shape the transcript reader keeps (SPEC §6.9).
+	e.Usage, e.Sub = checkedCounts(e.Usage), checkedCounts(e.Sub)
+	e.Models, e.SubModels = checkedModels(e.Models), checkedModels(e.SubModels)
 	return e
+}
+
+func checkedCounts(c *usage.Counts) *usage.Counts {
+	if c == nil {
+		return nil
+	}
+	n := *c
+	for _, v := range []*int64{&n.Input, &n.Output, &n.CacheRead, &n.CacheWrite, &n.Messages} {
+		*v = max(*v, 0)
+	}
+	return &n
+}
+
+func checkedModels(ids []string) []string {
+	var ok []string
+	for _, id := range ids {
+		if usage.ValidModel(id) {
+			ok = append(ok, id)
+		}
+	}
+	return ok
 }
 
 // maxDurationMS is the longest duration_ms read: 30 days.

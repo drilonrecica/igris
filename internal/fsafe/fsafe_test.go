@@ -50,3 +50,24 @@ func TestReadFile(t *testing.T) {
 		})
 	}
 }
+
+func TestOpen(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "f")
+	if err := os.WriteFile(p, []byte("data"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := syscall.Mkfifo(filepath.Join(dir, "fifo"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f, err := Open(p, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = f.Close()
+	for _, bad := range []string{filepath.Join(dir, "fifo"), dir} {
+		if _, err := Open(bad, true); !errors.Is(err, ErrNotRegular) {
+			t.Errorf("Open(%s) = %v, want ErrNotRegular", bad, err)
+		}
+	}
+}

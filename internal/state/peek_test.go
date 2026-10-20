@@ -4,10 +4,13 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/drilonrecica/igris/internal/usage"
 )
 
 // writeState writes .igris/<name> under a fresh root and returns the root.
@@ -245,8 +248,12 @@ func TestEventChecked(t *testing.T) {
 		{Event{DurationMS: maxDurationMS}, Event{DurationMS: maxDurationMS}},
 		{Event{DurationMS: maxDurationMS + 1}, Event{}},
 		{Event{Attempt: -1, Reason: "nope", Run: "x", Session: "y"}, Event{Reason: ReasonOther}},
+		{
+			Event{Usage: &usage.Counts{Input: -1, Output: 2}, Models: []string{"claude-opus-5-5", "\x1b[31mred", ""}, SubModels: []string{"<synthetic>"}},
+			Event{Usage: &usage.Counts{Output: 2}, Models: []string{"claude-opus-5-5"}},
+		},
 	} {
-		if got := tc.in.checked(); got != tc.want {
+		if got := tc.in.checked(); !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("%+v checked = %+v, want %+v", tc.in, got, tc.want)
 		}
 	}

@@ -29,6 +29,18 @@ type AgentState struct {
 	State backend.AgentState `json:"state"`
 	Event string             `json:"event"`
 	At    time.Time          `json:"at"`
+	// Transcript is the session's transcript path the hook payload named,
+	// when ValidTranscript accepts it (SPEC §6.9); since 1.1.
+	Transcript string `json:"transcript,omitempty"`
+}
+
+// ValidTranscript reports whether path may be the transcript of the
+// session uuid: absolute, clean, and named <uuid>.jsonl (SPEC §6.3, §6.9).
+// Pointing igris at another file of that name gains a session nothing:
+// only token counts and model ids are read from it.
+func ValidTranscript(path, uuid string) bool {
+	return ValidSessionUUID(uuid) && filepath.IsAbs(path) && filepath.Clean(path) == path &&
+		filepath.Base(path) == uuid+".jsonl"
 }
 
 // AgentStateDir returns root/.igris/agent-state.
@@ -120,6 +132,9 @@ func ReadAgentState(root, uuid string) (AgentState, bool, error) {
 	s, err := ParseAgentState(data)
 	if err != nil {
 		return AgentState{}, false, fmt.Errorf("read agent state %s: %w", path, err)
+	}
+	if !ValidTranscript(s.Transcript, uuid) {
+		s.Transcript = ""
 	}
 	return s, true, nil
 }

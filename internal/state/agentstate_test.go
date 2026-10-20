@@ -127,3 +127,29 @@ func TestPeekAgentState(t *testing.T) {
 		t.Fatalf("bad state: got %+v ok", got)
 	}
 }
+
+// A session can write its record: a transcript path that isn't named after
+// the session is dropped when read, the state kept (SPEC §6.9).
+func TestReadAgentStateTranscript(t *testing.T) {
+	good := "/home/u/.claude/projects/p/" + testUUID + ".jsonl"
+	for path, want := range map[string]string{
+		good:          good,
+		"/etc/passwd": "",
+		"/home/u/.claude/projects/p/../q/" + testUUID + ".jsonl": "",
+		"rel/" + testUUID + ".jsonl":                             "",
+	} {
+		root := t.TempDir()
+		dir := AgentStateDir(root)
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		data := `{"state":"idle","event":"Stop","at":"2026-10-20T14:00:00Z","transcript":"` + path + `"}`
+		if err := os.WriteFile(filepath.Join(dir, testUUID+".json"), []byte(data), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		s, ok, err := ReadAgentState(root, testUUID)
+		if err != nil || !ok || s.State != "idle" || s.Transcript != want {
+			t.Errorf("%q: %+v, %v, %v; want transcript %q", path, s, ok, err, want)
+		}
+	}
+}

@@ -52,6 +52,9 @@ type launch struct {
 	// plan is the plan the session presents for approval in igris, if any
 	// (SPEC §6.3).
 	plan planShown
+	// usage counts the tokens of the attempt's session (SPEC §6.9); nil
+	// without a session, with [usage] off, or once logged.
+	usage *attemptUsage
 }
 
 // nextAttempt counts a new attempt of l's task in this run.
@@ -248,6 +251,7 @@ func (e *Engine) openSession(ctx context.Context, l *launch, st sessionStart) er
 	if err := state.ClearAgentState(e.dir.Root(), st.sessionID); err != nil {
 		return err
 	}
+	from := e.clock.Now() // a continued session's transcript holds the earlier attempts too
 	sess, err := e.be.OpenSession(ctx, backend.SessionSpec{
 		TaskID: t.ID,
 		Dir:    e.work,
@@ -260,6 +264,7 @@ func (e *Engine) openSession(ctx context.Context, l *launch, st sessionStart) er
 		return fmt.Errorf("start the session for %s: %w; check that `claude` starts in %s (installed, on PATH, logged in), then run `igris arise` again", t.ID, err, e.be.Name())
 	}
 	l.sess = sess
+	e.startUsage(l, from)
 	ref := sess.Ref()
 	l.cur.Session = &ref
 	if err := e.dir.SaveRun(e.run); err != nil {
@@ -368,6 +373,7 @@ func (e *Engine) retry(ctx context.Context, l *launch, cont bool) error {
 			e.warn(fmt.Sprintf("close the session of %s: %v; close its pane by hand", l.t.ID, err))
 		}
 	}
+	e.endUsage(l) // the old attempt's, before the retry counts a new one
 	st, err := e.prepareSession(l, how)
 	if err != nil {
 		return err
@@ -419,6 +425,8 @@ func (e *Engine) finish(ctx context.Context, l *launch, to plan.Status, note str
 			e.warn(fmt.Sprintf("close the session of %s: %v; close its pane by hand", t.ID, err))
 		}
 	}
+	// After the close, so the agent's final message counts.
+	e.endUsage(l)
 	if to == plan.Done && t.Owner.IsAgent() {
 		// After the session is closed, so a slow channel doesn't keep it open.
 		e.toast(ctx, notifyTaskDone, "done")

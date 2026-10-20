@@ -94,9 +94,12 @@ type Config struct {
 	// PlanMode configures plan approval from igris (SPEC §6.3, §7.1); left
 	// out of the hash and the written file while unset (since 1.1).
 	PlanMode PlanMode `toml:"plan_mode,omitempty" json:",omitzero"`
-	Adapt    Adapt    `toml:"adapt"`
-	TUI      TUI      `toml:"tui"`
-	Notify   Notify   `toml:"notify"`
+	// Usage configures token usage and the rank audit (SPEC §6.9); left
+	// out of the hash and the written file while unset (since 1.1).
+	Usage  Usage  `toml:"usage,omitempty" json:",omitzero"`
+	Adapt  Adapt  `toml:"adapt"`
+	TUI    TUI    `toml:"tui"`
+	Notify Notify `toml:"notify"`
 }
 
 // Claude configures how Claude Code is launched. The backends start claude
@@ -230,6 +233,17 @@ func (p PlanMode) ApproveTimeoutOrDefault() time.Duration {
 	}
 	return p.ApproveTimeout.Std()
 }
+
+// Usage is the [usage] table (SPEC §12): token usage and the rank audit
+// read from the sessions' transcripts (SPEC §6.9).
+type Usage struct {
+	// Enabled is nil when not set: see On.
+	Enabled *bool `toml:"enabled,omitempty" json:",omitempty"`
+}
+
+// On reports whether igris reads its sessions' transcripts for usage and
+// the rank audit; on unless usage.enabled = false.
+func (u Usage) On() bool { return u.Enabled == nil || *u.Enabled }
 
 // VerifyDefault is the profile run.verify defines.
 const VerifyDefault = "default"

@@ -68,6 +68,8 @@ func (e *Engine) resume(ctx context.Context) (stopped bool, err error) {
 		default:
 			if st, err := sess.State(ctx); err != nil || st != backend.Exited {
 				l.sess = sess
+				// The last run logged the usage up to its stop.
+				e.startUsage(l, e.clock.Now())
 				detail := "reattached to its session"
 				held := false
 				if cur.PendingPrompt != "" {

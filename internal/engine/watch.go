@@ -136,6 +136,7 @@ func (e *Engine) watch(ctx context.Context, l *launch) (verdict, error) {
 				e.checkSubmitted(ctx, l, st, delivered)
 				e.checkPlanRequest(ctx, l)
 				e.observe(ctx, l, st, &ep)
+				e.readUsage(l, false)
 			}
 			e.checkOverdue(ctx, l)
 		}
@@ -339,6 +340,7 @@ func (e *Engine) needsYou(ctx context.Context, event notify.Event, reason, why, 
 // lose marks l's session lost and asks the owner how to go on (SPEC §6.3).
 func (e *Engine) lose(ctx context.Context, l *launch) {
 	l.lost = true
+	e.endUsage(l)
 	e.dropPlan(l, "the session is gone")
 	e.emit(Event{Kind: SessionLost, Detail: "the session is gone without `igris done`"})
 	e.waitOn(state.ReasonSessionLost, "session lost")
