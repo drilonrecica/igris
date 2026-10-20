@@ -23,6 +23,11 @@ import (
 // mode without the owner's confirmation for this run (SPEC §7.3).
 var ErrYoloUnconfirmed = errors.New("skip-permissions mode needs the owner's confirmation for this run; confirm it when starting `igris arise`")
 
+// ErrConfigUnconfirmed is returned when igris.toml was edited during the
+// last run (a session can do that, SPEC §13) and this run would be the
+// first to use the edited file; the owner reviews it and confirms.
+var ErrConfigUnconfirmed = errors.New("igris.toml changed during the last run, which kept the configuration it started with; a session may have edited it. Review the file (git diff igris.toml), then confirm it when starting `igris arise`")
+
 // DriftError is returned when the plan's ready/blocked cells don't match its
 // dependencies and the owner hasn't confirmed the fix (SPEC §5.2). Igris's
 // first write would rewrite those cells.
@@ -75,6 +80,9 @@ type Options struct {
 	// ConfirmedYolo says the owner confirmed skip-permissions mode for this
 	// run (SPEC §7.3). Set it only from that explicit, per-run confirmation.
 	ConfirmedYolo bool
+	// ConfirmedConfig says the owner reviewed an igris.toml edited during
+	// the last run and lets this run use it (ErrConfigUnconfirmed).
+	ConfirmedConfig bool
 
 	// IgrisPath is the igris binary the session hooks run (SPEC §6.3); ""
 	// means the running one.
@@ -326,7 +334,7 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 	e.announceWorktree(reused)
 
 	if e.configMoved {
-		e.warn("igris.toml changed since the interrupted run; this run uses the file as it is now")
+		e.warn("igris.toml changed during the last run (a session may have edited it); this run uses the file as it is now")
 	}
 	res, err := e.resumeAndRun(ctx, phases)
 	if err != nil && ctx.Err() != nil {
@@ -392,6 +400,12 @@ func (e *Engine) prepare() ([]string, error) {
 	phases := rng.Phases
 	if drift := p.Readiness(); len(drift) > 0 && !e.opts.ConfirmedDrift {
 		return nil, &DriftError{Changes: drift}
+	}
+	if prev != nil && prev.ConfigChanged && prev.ConfigHash != e.cfg.Hash() {
+		if !e.opts.ConfirmedConfig {
+			return nil, ErrConfigUnconfirmed
+		}
+		e.configMoved = true
 	}
 	e.plans.reset(p)
 	var cur *state.Current

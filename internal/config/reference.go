@@ -31,7 +31,7 @@ var keyDocs = map[string]keyDoc{
 	"poll_interval":              {desc: "How often igris checks the session and refreshes the TUI tail. Greater than zero."},
 	"models":                     {desc: "Rank alias to the `claude --model` value. Ranks used in the plan's Model column must be listed here."},
 	"columns":                    {desc: "Header aliases for the plan table: your header text to the canonical column name (for example `\"Depends on\" = \"Deps\"`)."},
-	"claude.extra_args":          {desc: "Arguments appended to every session launch. Model, mode and session flags are rejected (SPEC §7.4)."},
+	"claude.extra_args":          {desc: "Arguments appended to every session launch. Model, mode, session, settings, tool, directory, prompt, plugin and MCP flags are rejected, and so are control characters (SPEC §7.4)."},
 	"run.verify":                 {desc: "Shell command run after a task signals done; the verify profile `default` (SPEC §6.4). Empty means no verification. Cannot be combined with `[verify] default`."},
 	"run.verify_timeout":         {desc: "Time limit for every verify profile. Greater than zero."},
 	"run.verify_max_attempts":    {desc: "How many times a failing verify is fed back to the agent before the run stops."},

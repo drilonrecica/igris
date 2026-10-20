@@ -179,7 +179,13 @@ func (b *builder) resolve(src, href string) string {
 		return href
 	}
 	if u, err := url.Parse(href); err != nil || u.Scheme != "" {
-		return href
+		// A web address or a mail link stays; any other scheme (javascript:,
+		// data:, file:) would run or load something from the page.
+		if err == nil && (u.Scheme == "http" || u.Scheme == "https" || u.Scheme == "mailto") {
+			return href
+		}
+		b.problems = append(b.problems, fmt.Sprintf("%s: link to %s: scheme not allowed (http, https, mailto or a repository path)", src, href))
+		return "#"
 	}
 	target, frag, _ := strings.Cut(href, "#")
 	rel := path.Clean(path.Join(path.Dir(src), target))

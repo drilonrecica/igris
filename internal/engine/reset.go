@@ -300,7 +300,7 @@ func (e *Engine) closeForReset(ctx context.Context) {
 			sess = e.task.sess
 		}
 	case e.run.Current.Session != nil && e.run.Current.Session.Backend == e.be.Name():
-		s, err := e.be.Attach(ctx, *e.run.Current.Session)
+		s, err := e.be.Attach(ctx, *e.run.Current.Session, id)
 		switch {
 		case errors.Is(err, backend.ErrSessionGone):
 		case err != nil:

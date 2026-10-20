@@ -1,11 +1,13 @@
 package plan
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -344,5 +346,28 @@ func TestTimeoutValidation(t *testing.T) {
 				t.Errorf("Timeout = %s, want %s", d, tt.want)
 			}
 		})
+	}
+}
+
+// The plan is read every poll and a session can replace it: a FIFO must
+// not hang igris, and a huge file is refused (SPEC §16, V10-05).
+func TestLoadRefusesNonRegularFiles(t *testing.T) {
+	dir := t.TempDir()
+	fifo := filepath.Join(dir, "fifo.md")
+	if err := syscall.Mkfifo(fifo, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(fifo, Options{}); err == nil || !strings.Contains(err.Error(), "not a regular file") {
+		t.Errorf("Load(fifo) = %v, want not a regular file", err)
+	}
+	if _, err := NewWriter(fifo, Options{}, testRules).Update(context.Background(), func(*Plan) ([]Change, error) { return nil, nil }); err == nil {
+		t.Errorf("Writer on a fifo = nil, want an error")
+	}
+	huge := filepath.Join(dir, "huge.md")
+	if err := os.WriteFile(huge, make([]byte, MaxSize+1), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(huge, Options{}); err == nil || !strings.Contains(err.Error(), "too large") {
+		t.Errorf("Load(huge) = %v, want too large", err)
 	}
 }

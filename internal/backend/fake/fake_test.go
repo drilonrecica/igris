@@ -168,7 +168,7 @@ func TestGoneSessions(t *testing.T) {
 			b := New()
 			b.Script("T-1", backend.Working, backend.Exited, backend.Working)
 			s := open(t, b, "T-1")
-			if _, err := b.Attach(ctx, s.Ref()); err != nil {
+			if _, err := b.Attach(ctx, s.Ref(), "T-1"); err != nil {
 				t.Fatalf("Attach live session: %v", err)
 			}
 			tt.kill(b, s)
@@ -185,7 +185,7 @@ func TestGoneSessions(t *testing.T) {
 			if err := s.Close(ctx); err != nil {
 				t.Errorf("Close on gone session = %v, want nil", err)
 			}
-			if _, err := b.Attach(ctx, s.Ref()); !errors.Is(err, backend.ErrSessionGone) {
+			if _, err := b.Attach(ctx, s.Ref(), "T-1"); !errors.Is(err, backend.ErrSessionGone) {
 				t.Errorf("Attach error = %v, want ErrSessionGone", err)
 			}
 		})
@@ -199,17 +199,17 @@ func TestAttach(t *testing.T) {
 	s := open(t, b, "T-1")
 	_ = states(t, s, 1)
 
-	got, err := b.Attach(ctx, s.Ref())
+	got, err := b.Attach(ctx, s.Ref(), "T-1")
 	if err != nil {
 		t.Fatalf("Attach: %v", err)
 	}
 	if st := states(t, got, 1)[0]; st != backend.Idle {
 		t.Errorf("attached session continues script: state = %v, want idle", st)
 	}
-	if _, err := b.Attach(ctx, backend.SessionRef{Backend: Name, PaneID: "fake-99"}); !errors.Is(err, backend.ErrSessionGone) {
+	if _, err := b.Attach(ctx, backend.SessionRef{Backend: Name, PaneID: "fake-99"}, "T-1"); !errors.Is(err, backend.ErrSessionGone) {
 		t.Errorf("Attach unknown ref error = %v, want ErrSessionGone", err)
 	}
-	if _, err := b.Attach(ctx, backend.SessionRef{Backend: "herdr", PaneID: s.Ref().PaneID}); err == nil || errors.Is(err, backend.ErrSessionGone) {
+	if _, err := b.Attach(ctx, backend.SessionRef{Backend: "herdr", PaneID: s.Ref().PaneID}, "T-1"); err == nil || errors.Is(err, backend.ErrSessionGone) {
 		t.Errorf("Attach foreign ref error = %v, want a non-gone error", err)
 	}
 }
@@ -312,5 +312,20 @@ func TestSubmit(t *testing.T) {
 	}
 	if got := b.Submits("T-1"); got != 2 {
 		t.Errorf("Submits after gone = %d, want 2", got)
+	}
+}
+
+// state.json is a session's to write: a ref that names a live pane of
+// another task is refused as foreign (V10-05).
+func TestAttachRefusesAnotherTask(t *testing.T) {
+	ctx := context.Background()
+	b := New()
+	s := open(t, b, "T-1")
+	_, err := b.Attach(ctx, s.Ref(), "T-2")
+	if !errors.Is(err, backend.ErrSessionGone) || !errors.Is(err, backend.ErrSessionForeign) {
+		t.Errorf("Attach for T-2 = %v, want ErrSessionGone and ErrSessionForeign", err)
+	}
+	if _, err := b.Attach(ctx, s.Ref(), "T-1"); err != nil {
+		t.Errorf("Attach for T-1 = %v", err)
 	}
 }

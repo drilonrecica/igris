@@ -53,6 +53,10 @@ On a failure, the last 60 lines of output go back to the same session. After `ve
 
 Quitting igris, a closed terminal or a lost connection leaves the session running. Run `igris arise` with no phase: it reattaches to the running session, or lets you continue its conversation, or start a fresh session that is told to check the work already in the tree. Under the other backend (herdr instead of tmux) igris can't reattach and offers the same choices.
 
+## igris says igris.toml changed during the last run
+
+A session can edit `igris.toml`. The run it happened in kept the configuration it started with, and igris won't let a later run use the edited file until you have looked at it. Review the change (`git diff igris.toml`, or the file itself if the run committed it), fix or keep it, then answer **y** to `Use the changed igris.toml?` (or **Use it** in the home screen). `igris check` and `igris doctor` show the same warning until a run has used the file.
+
 ## state.json was written by a newer igris
 
 You downgraded. The message says to upgrade igris, or delete `.igris/state.json` to start a new run. A file reported as *damaged* (bad JSON) is a different message; delete it the same way.

@@ -57,7 +57,7 @@ func newHarness(t *testing.T, w, h int) *harness {
 		Feed:    NewFeed(),
 		Sender:  hs.s,
 		Now:     func() time.Time { return hs.now },
-		Focus: func(_ context.Context, ref backend.SessionRef) error {
+		Focus: func(_ context.Context, ref backend.SessionRef, _ string) error {
 			hs.focus = append(hs.focus, ref)
 			return nil
 		},

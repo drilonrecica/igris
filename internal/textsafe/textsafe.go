@@ -67,15 +67,21 @@ func HasControl(s string) bool {
 // hidden reports whether r is a bidi control (U+202A–U+202E embeddings
 // and overrides, U+2066–U+2069 isolates, the U+200E, U+200F and U+061C
 // marks), which can make text read in another order than it is, or an
-// invisible space (U+200B, U+2060, U+FEFF). The joiners U+200C and U+200D
-// stay: emoji sequences and some scripts need them.
+// invisible character a terminal never draws but a model reads: the
+// zero-width U+200B, U+2060 and U+FEFF, the soft hyphen U+00AD, the
+// invisible operators U+2061–U+2064, the deprecated formats U+206A–U+206F,
+// the interlinear annotations U+FFF9–U+FFFB and the tag characters
+// U+E0000–U+E007F (which spell whole words). The joiners U+200C and
+// U+200D stay: emoji sequences and some scripts need them.
 func hidden(r rune) bool {
 	switch {
-	case r >= 0x202a && r <= 0x202e, r >= 0x2066 && r <= 0x2069:
+	case r >= 0x202a && r <= 0x202e, r >= 0x2066 && r <= 0x2069,
+		r >= 0x2061 && r <= 0x2064, r >= 0x206a && r <= 0x206f,
+		r >= 0xfff9 && r <= 0xfffb, r >= 0xe0000 && r <= 0xe007f:
 		return true
 	}
 	switch r {
-	case 0x200e, 0x200f, 0x061c, 0x200b, 0x2060, 0xfeff:
+	case 0x200e, 0x200f, 0x061c, 0x200b, 0x2060, 0xfeff, 0x00ad:
 		return true
 	}
 	return false

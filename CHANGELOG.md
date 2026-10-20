@@ -4,6 +4,18 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+### Security
+
+The final security review before 1.0 (V10-05, [`docs/threat-model.md`](docs/threat-model.md)). Nothing in the 1.0 contract changes; `state.json` gains an optional `config_changed` field within version 3 and the run log a `config_changed` event.
+
+- A session could rewrite `state.json` so that the next `igris arise` reattached to any pane of the tmux server (your shell, say) and typed the recorded prompt there. Backends now reattach only to the pane they started for the task (tmux: the pane's start command; herdr: the task's agent name), and the held task prompt is built again from the plan instead of being read back.
+- An `igris.toml` edited during a run (which the run itself ignores) was used by the next run without a word. It is now recorded, and the next run asks before using it; `check` and `doctor` warn meanwhile.
+- `claude.extra_args` also rejects flags that change the session's permissions, tools, directory or system prompt (`--allowedTools`, `--add-dir`, `--bare`, `--setting-sources`, …), and control characters in any argument or `[models]` value.
+- `doctor` reads `.claude/settings.json` too, and warns about a rule that allows every shell command or a `defaultMode` that bypasses prompts.
+- The plan, `igris.toml`, `state.json` and the lock are read as bounded regular files, so a FIFO in their place can't hang igris. Stray signals are reported once per task, not once per rewrite.
+- Text cleaning also strips tag characters, invisible operators and other format characters that a terminal doesn't show but a model reads; `[models]` values are cleaned before they are drawn; the standalone adapt review cleans like the rest.
+- `notify.ntfy.server` and `notify.gotify.server` reject a `user:password@` part (it would be shown); the site generator escapes link targets; webhook receivers are told how to handle a replayed payload.
+
 ## [1.0.0-rc.1] - 2026-10-14
 
 The first release candidate for igris 1.0. It adds no features: it decides, writes down and tests what 1.0 promises not to break, and makes the few breaking changes that had to come before that promise. Plans need no changes. Configs written by `igris init` need one command, `igris config migrate`, and scripts that read `--json` need small updates (Migration, below).

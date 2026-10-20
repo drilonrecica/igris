@@ -187,10 +187,11 @@ func (p *Project) Backend() (backend.Backend, error) { return p.env.backend(p.Cf
 // Name is the root's base name, shown in headers and notifications.
 func (p *Project) Name() string { return filepath.Base(p.Root) }
 
-// Focus brings a session's pane to the front through the backend.
-func Focus(be backend.Backend) func(context.Context, backend.SessionRef) error {
-	return func(ctx context.Context, ref backend.SessionRef) error {
-		s, err := be.Attach(ctx, ref)
+// Focus brings a session's pane to the front through the backend; taskID
+// is the task the ref was recorded for (backend.Backend.Attach).
+func Focus(be backend.Backend) func(context.Context, backend.SessionRef, string) error {
+	return func(ctx context.Context, ref backend.SessionRef, taskID string) error {
+		s, err := be.Attach(ctx, ref, taskID)
 		if err != nil {
 			return err
 		}

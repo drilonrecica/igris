@@ -5,13 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"time"
 
 	"github.com/drilonrecica/igris/internal/backend"
+	"github.com/drilonrecica/igris/internal/fsafe"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/textsafe"
 )
@@ -57,6 +57,11 @@ type Run struct {
 	// Worktree is where the run's sessions, verify and commits happen in
 	// worktree mode (SPEC §6.8); nil runs them in the project root.
 	Worktree *Worktree `json:"worktree,omitempty"`
+	// ConfigChanged says igris.toml was edited during the run and differs
+	// from the snapshot the run uses; the next run asks the owner before
+	// using the file (SPEC §13, V10-05). Cleared when the file is
+	// restored.
+	ConfigChanged bool `json:"config_changed,omitempty"`
 }
 
 // Worktree is a run's git worktree (SPEC §6.8).
@@ -128,16 +133,21 @@ func PeekRun(root string) (*Run, error) {
 	return loadRun(filepath.Join(root, DirName, "state.json"))
 }
 
+// maxRunSize bounds state.json: a session can write it (SPEC §16).
+const maxRunSize = 1 << 20
+
 func loadRun(path string) (*Run, error) {
-	data, err := os.ReadFile(path) //nolint:gosec // igris's own state file
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, ErrNoRun
-	}
-	if err != nil {
-		return nil, fmt.Errorf("read run state: %w", err)
-	}
 	damaged := func(why string) error {
 		return fmt.Errorf("read run state %s: %w: %s; delete the file to start a new run", path, ErrRunDamaged, why)
+	}
+	data, err := fsafe.ReadFile(path, maxRunSize, false)
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		return nil, ErrNoRun
+	case errors.Is(err, fsafe.ErrNotRegular), errors.Is(err, fsafe.ErrTooLarge):
+		return nil, damaged(err.Error())
+	case err != nil:
+		return nil, fmt.Errorf("read run state: %w", err)
 	}
 	// The version first, alone: a newer igris may have changed the shape
 	// of the rest, which is not damage.

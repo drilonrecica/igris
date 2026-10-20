@@ -37,6 +37,9 @@ func TestAllowsSkip(t *testing.T) {
 		"Bash(igris *)":       true,
 		"Bash(igris*)":        true,
 		"Bash(*)":             true,
+		"Bash":                true,
+		"Bash(:*)":            true,
+		"Bash(*:*)":           true,
 		"Bash(igris done:*)":  false,
 		"Bash(igris done *)":  false,
 		"Bash(igris skipper)": false,
@@ -63,25 +66,58 @@ func TestDoctorOutsideProject(t *testing.T) {
 	}
 }
 
+func TestAllowsAllBash(t *testing.T) {
+	for rule, want := range map[string]bool{
+		"Bash":               true,
+		"Bash(*)":            true,
+		"Bash(:*)":           true,
+		"Bash(*:*)":          true,
+		"Bash( * )":          true,
+		"Bash(igris:*)":      false,
+		"Bash(igris done *)": false,
+		"Read(./x)":          false,
+		"Bashful":            false,
+	} {
+		if got := allowsAllBash(rule); got != want {
+			t.Errorf("allowsAllBash(%q) = %v, want %v", rule, got, want)
+		}
+	}
+}
+
+const doneRules = `"Bash(igris done:*)","Bash(igris done *)"`
+
 func TestDoctorAllowRules(t *testing.T) {
 	tests := []struct {
-		name, file string
-		level      Level
-		in         string
+		name, file, shared string // .claude/settings.local.json and .claude/settings.json; "" for none
+		level              Level
+		in                 string
 	}{
-		{"missing file", "", Warn, "not found"},
-		{"invalid json", "{", Warn, "not valid JSON"},
-		{"no rules", `{}`, Warn, "lacks"},
-		{"one rule", `{"permissions":{"allow":["Bash(igris done:*)"]}}`, Warn, "Bash(igris done *)"},
-		{"both", `{"permissions":{"allow":["Bash(igris done:*)","Bash(igris done *)"]}}`, OK, "allowed"},
-		{"skip allowed", `{"permissions":{"allow":["Bash(igris done:*)","Bash(igris done *)","Bash(igris skip:*)"]}}`, Warn, "igris skip"},
-		{"wildcard allows skip", `{"permissions":{"allow":["Bash(igris done:*)","Bash(igris done *)","Bash(igris:*)"]}}`, Warn, "igris skip"},
+		{"missing file", "", "", Warn, "not found"},
+		{"invalid json", "{", "", Warn, "not valid JSON"},
+		{"no rules", `{}`, "", Warn, "lacks"},
+		{"one rule", `{"permissions":{"allow":["Bash(igris done:*)"]}}`, "", Warn, "Bash(igris done *)"},
+		{"both", `{"permissions":{"allow":[` + doneRules + `]}}`, "", OK, "allowed"},
+		{"skip allowed", `{"permissions":{"allow":[` + doneRules + `,"Bash(igris skip:*)"]}}`, "", Warn, "igris skip"},
+		{"wildcard allows skip", `{"permissions":{"allow":[` + doneRules + `,"Bash(igris:*)"]}}`, "", Warn, "igris skip"},
+		// Claude Code merges the shared project file too (a session can
+		// write both): the done rules count from either, and so do the
+		// rules that widen what every later session may do.
+		{"done rules in the shared file", "", `{"permissions":{"allow":[` + doneRules + `]}}`, OK, "allowed"},
+		{"skip allowed in the shared file", `{"permissions":{"allow":[` + doneRules + `]}}`, `{"permissions":{"allow":["Bash(igris skip *)"]}}`, Warn, ".claude/settings.json allows `igris skip`"},
+		{"bare Bash allows every command", `{"permissions":{"allow":[` + doneRules + `,"Bash"]}}`, "", Warn, "every shell command"},
+		{"Bash(*) in the shared file", `{"permissions":{"allow":[` + doneRules + `]}}`, `{"permissions":{"allow":["Bash(*)"]}}`, Warn, ".claude/settings.json allows every shell command"},
+		{"bypassPermissions", `{"permissions":{"allow":[` + doneRules + `],"defaultMode":"bypassPermissions"}}`, "", Warn, "defaultMode"},
+		{"auto in the shared file", `{"permissions":{"allow":[` + doneRules + `]}}`, `{"permissions":{"defaultMode":"auto"}}`, Warn, ".claude/settings.json sets permissions.defaultMode"},
+		{"invalid shared json", `{"permissions":{"allow":[` + doneRules + `]}}`, "{", Warn, ".claude/settings.json is not valid JSON"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := t.TempDir()
 			if tt.file != "" {
 				write(t, filepath.Join(dir, claudeSettingsFile), tt.file, 0o600)
+			}
+			if tt.shared != "" {
+				write(t, filepath.Join(dir, claudeSharedSettingsFile), tt.shared, 0o600)
 			}
 			got := allowRules(dir)
 			if got.Level != tt.level || !strings.Contains(got.Message, tt.in) {

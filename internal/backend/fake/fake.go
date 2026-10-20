@@ -235,8 +235,8 @@ func (b *Backend) OpenSession(ctx context.Context, spec backend.SessionSpec) (ba
 }
 
 // Attach returns the live session with ref, or an error wrapping
-// backend.ErrSessionGone.
-func (b *Backend) Attach(ctx context.Context, ref backend.SessionRef) (backend.Session, error) {
+// backend.ErrSessionGone; a session of another task is foreign.
+func (b *Backend) Attach(ctx context.Context, ref backend.SessionRef, taskID string) (backend.Session, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -248,6 +248,9 @@ func (b *Backend) Attach(ctx context.Context, ref backend.SessionRef) (backend.S
 	s := b.sessions[ref.PaneID]
 	if s == nil || s.gone {
 		return nil, fmt.Errorf("attach session %s: %w", ref.PaneID, backend.ErrSessionGone)
+	}
+	if s.ref.Agent != taskID {
+		return nil, fmt.Errorf("attach session %s for %s: %w: %w (it runs %s)", ref.PaneID, taskID, backend.ErrSessionGone, backend.ErrSessionForeign, s.ref.Agent)
 	}
 	s.pending, s.hasPending = "", false // a restarted igris doesn't know it
 	return s, nil

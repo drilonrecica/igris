@@ -29,7 +29,7 @@
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `extra_args` | list of strings | `[]` | Arguments appended to every session launch. Model, mode and session flags are rejected (SPEC §7.4). |
+| `extra_args` | list of strings | `[]` | Arguments appended to every session launch. Model, mode, session, settings, tool, directory, prompt, plugin and MCP flags are rejected, and so are control characters (SPEC §7.4). |
 
 ## `[run]`
 

@@ -56,8 +56,12 @@ func (e *Engine) resume(ctx context.Context) (stopped bool, err error) {
 		// tmux): it can't be reattached from here (SPEC §11.3).
 		movedFrom = cur.Session.Backend
 	} else if cur.Session != nil {
-		sess, err := e.be.Attach(ctx, *cur.Session)
+		sess, err := e.be.Attach(ctx, *cur.Session, t.ID)
 		switch {
+		case errors.Is(err, backend.ErrSessionForeign):
+			// state.json named a pane igris did not start for the task:
+			// a session can write the file (SPEC §13). Never typed into.
+			e.warn(fmt.Sprintf("the recorded session of %s was not started for it (%v); igris treats the session as gone", t.ID, err))
 		case errors.Is(err, backend.ErrSessionGone):
 		case err != nil:
 			return false, fmt.Errorf("reattach the session of %s: %w; check that %s is running, then run `igris arise` again", t.ID, err, e.be.Name())
@@ -68,12 +72,20 @@ func (e *Engine) resume(ctx context.Context) (stopped bool, err error) {
 				held := false
 				if cur.PendingPrompt != "" {
 					// The session never got its task: it was held at a
-					// startup prompt when the last run stopped.
+					// startup prompt when the last run stopped. The
+					// recorded text is only a marker: the prompt is built
+					// again from the plan, since state.json is a
+					// session's to write (SPEC §13).
+					text, err := e.firstPrompt(l)
+					if err != nil {
+						return false, err
+					}
+					cur.PendingPrompt = text
 					detail = "reattached to its session; its task prompt goes out once Claude Code is ready"
 					if h, ok := sess.(backend.PromptHolder); ok {
-						h.HoldPrompt(cur.PendingPrompt)
+						h.HoldPrompt(text)
 						held = true // the clock starts at its delivery
-					} else if err := sess.Prompt(ctx, cur.PendingPrompt); err != nil && !errors.Is(err, backend.ErrSessionGone) {
+					} else if err := sess.Prompt(ctx, text); err != nil && !errors.Is(err, backend.ErrSessionGone) {
 						return false, fmt.Errorf("send the task prompt to %s: %w; its session is still open in %s: run `igris arise` to retry", t.ID, err, e.be.Name())
 					}
 				}

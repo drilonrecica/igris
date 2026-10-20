@@ -252,7 +252,7 @@ func (s *adaptScreen) act(a action) tea.Cmd {
 			return nil
 		}
 		ctx, svc, ref := s.home.ctx, s.home.svc, *s.ref
-		return async(s, "focus", func() tea.Msg { return adaptFocusMsg{svc.Focus(ctx, ref)} })
+		return async(s, "focus", func() tea.Msg { return adaptFocusMsg{svc.Focus(ctx, ref, adapt.ID)} })
 	case actClose:
 		if !s.running() {
 			return pop(nil)

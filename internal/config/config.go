@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/drilonrecica/igris/internal/fsafe"
+	"github.com/drilonrecica/igris/internal/textsafe"
 	"net/url"
 	"os"
 	"regexp"
@@ -400,6 +402,14 @@ var (
 		"--session-id", "--resume", "--continue",
 		"--append-system-prompt", "--append-system-prompt-file",
 		"--settings",
+		// V10-05: what a task may use and where it runs are igris's to
+		// set too: tools and their prompts, directories, system prompts,
+		// plugins, MCP servers, agents, the IDE, and the session's shape.
+		"--allowedTools", "--allowed-tools", "--disallowedTools", "--disallowed-tools", "--tools",
+		"--add-dir", "--permission-prompt-tool", "--bare", "--setting-sources",
+		"--plugin-dir", "--plugin-url", "--mcp-config", "--strict-mcp-config",
+		"--agent", "--agents", "--system-prompt", "--system-prompt-snapshot", "--ide",
+		"--worktree", "--fork-session", "--no-session-persistence",
 	}
 )
 
@@ -411,10 +421,10 @@ func ForbiddenExtraArg(arg string) bool {
 	if contains(forbiddenArg, name) {
 		return true
 	}
-	// Short flags, alone or clustered ("-c", "-rd"): -c is --continue and -r
-	// is --resume.
+	// Short flags, alone or clustered ("-c", "-rd"): -c is --continue, -r
+	// is --resume and -w is --worktree.
 	if len(name) > 1 && name[0] == '-' && name[1] != '-' {
-		return strings.ContainsAny(name[1:], "cr")
+		return strings.ContainsAny(name[1:], "crw")
 	}
 	return false
 }
@@ -471,15 +481,22 @@ func Load(path string) (*Config, error) {
 // LoadKeys is Load that also returns the keys the file sets (see Keys), so
 // the effective config can tell the owner's values from the defaults.
 func LoadKeys(path string) (*Config, Keys, error) {
-	data, err := os.ReadFile(path) //nolint:gosec // path is the owner's own config file
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, nil, fmt.Errorf("%s: %w (run `igris init` to create it)", path, ErrNotFound)
-		}
+	// Read as a regular file of bounded size: the file is read every poll
+	// and a session can replace it (SPEC §16).
+	data, err := fsafe.ReadFile(path, MaxSize, true)
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+		return nil, nil, fmt.Errorf("%s: %w (run `igris init` to create it)", path, ErrNotFound)
+	case errors.Is(err, fsafe.ErrNotRegular), errors.Is(err, fsafe.ErrTooLarge):
+		return nil, nil, fmt.Errorf("read %w; put the config file back", err)
+	case err != nil:
 		return nil, nil, fmt.Errorf("read %s: %w", path, err)
 	}
 	return parse(data, path)
 }
+
+// MaxSize is the largest igris.toml igris reads (SPEC §16).
+const MaxSize = 1 << 20
 
 // Parse decodes data over the defaults, rejects unknown keys and validates.
 // name is only used in error messages.
@@ -614,7 +631,15 @@ func (c *Config) Validate() error {
 		}
 	}
 	for _, alias := range sortedKeys(c.Models) {
-		if strings.TrimSpace(c.Models[alias]) == "" {
+		// A rank and its model become a claude argument and text on the
+		// terminal; TOML accepts "\u001b" (V10-05). The error names the
+		// key cleaned, never the sequence.
+		switch {
+		case strings.ContainsFunc(alias, unicode.IsControl):
+			add("models.%s is a rank with a control character; fix the key in igris.toml", textsafe.Line(alias))
+		case strings.ContainsFunc(c.Models[alias], unicode.IsControl):
+			add("models.%s contains a control character; fix the value in igris.toml", alias)
+		case strings.TrimSpace(c.Models[alias]) == "":
 			add("models.%s must not be empty; give the claude --model value for this rank", alias)
 		}
 	}
@@ -622,9 +647,12 @@ func (c *Config) Validate() error {
 	c.validateVerify(add)
 	c.validateHooks(add)
 
-	for _, arg := range c.Claude.ExtraArgs {
-		if ForbiddenExtraArg(arg) {
+	for i, arg := range c.Claude.ExtraArgs {
+		switch {
+		case ForbiddenExtraArg(arg):
 			add("claude.extra_args contains %q, which igris sets itself or which could change the model or permission mode (SPEC §7.4); remove it", arg)
+		case strings.ContainsFunc(arg, unicode.IsControl):
+			add("claude.extra_args[%d] contains a control character; remove it (SPEC §7.4)", i)
 		}
 	}
 
@@ -671,6 +699,13 @@ func (c *Config) validateChannels(add func(string, ...any)) {
 	if g.Server != "" && !httpURL(g.Server) {
 		add("notify.gotify.server is not an http or https URL with a host; use e.g. \"https://gotify.example.org\"")
 	}
+	// A server is shown on Settings and in doctor and is part of the
+	// config hash: a password in it would be too (V10-05).
+	for _, srv := range []struct{ key, val string }{{"notify.ntfy.server", c.Notify.Ntfy.Server}, {"notify.gotify.server", g.Server}} {
+		if hasUserinfo(srv.val) {
+			add("%s has a user or password in it; use token, not user:pass@ in the URL", srv.key)
+		}
+	}
 	for _, h := range c.chatHooks() {
 		if h.val != "" && !isEnvRef(h.val) && !httpsURL(h.val) {
 			add("%s", badHTTPS(h.key))
@@ -708,6 +743,12 @@ func plainHTTP(s string) bool {
 // badURL is the error text for a secret URL that isn't http(s) with a host.
 func badURL(key string) string {
 	return key + " is not an http or https URL with a host (the value is a secret, so it isn't shown); fix it in igris.toml or in the environment variable"
+}
+
+// hasUserinfo reports whether s is a URL with a user or password part.
+func hasUserinfo(s string) bool {
+	u, err := url.Parse(s)
+	return err == nil && u.User != nil
 }
 
 // httpURL reports whether s is an absolute http or https URL with a host.

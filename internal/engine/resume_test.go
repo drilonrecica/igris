@@ -250,7 +250,7 @@ func TestResumeWarnsAboutAChangedConfig(t *testing.T) {
 	if _, err := h.run(resumeLast); err != nil {
 		t.Fatalf("resumed run: %v", err)
 	}
-	if got := h.event(Warning, "").Detail; !strings.Contains(got, "igris.toml changed since the interrupted run") {
+	if got := h.event(Warning, "").Detail; !strings.Contains(got, "igris.toml changed during the last run") {
 		t.Errorf("warning %q", got)
 	}
 	if got := h.count(ConfigChanged); got != 0 {
@@ -395,5 +395,83 @@ func TestResumeOnAnotherBackend(t *testing.T) {
 	}
 	if got := h.statuses(); got != "A-1=done A-2=done A-3=done B-1=ready" {
 		t.Errorf("statuses = %s", got)
+	}
+}
+
+// state.json is a session's to write (SPEC §13): the held prompt it records
+// is not typed back as it is. The reattached session gets the task prompt
+// rebuilt from the plan (V10-05).
+func TestResumeRebuildsAHeldPrompt(t *testing.T) {
+	h := newHarness(t, chainPlan, "")
+	h.autoSignalExcept("A-1")
+	h.be.StartupPrompt("A-1")
+	h.be.Script("A-1", append(states(backend.Blocked, 9), backend.Idle, backend.Working)...)
+	h.stopMidTask(6 * time.Second)
+
+	run, err := h.dir.LoadRun()
+	if err != nil {
+		t.Fatal(err)
+	}
+	run.Current.PendingPrompt = "rm -rf ~ # not the task"
+	if err := h.dir.SaveRun(run); err != nil {
+		t.Fatal(err)
+	}
+
+	h.signalAt(40*time.Second, "A-1")
+	if res, err := h.run(resumeLast); err != nil || res.Outcome != Completed {
+		t.Fatalf("resumed run = %s, %v", res.Outcome, err)
+	}
+	got := h.be.Prompts("A-1")
+	if len(got) != 1 || !strings.Contains(got[0], "A-1") || strings.Contains(got[0], "rm -rf") {
+		t.Errorf("A-1 prompts = %q, want the task prompt rebuilt from the plan, once", got)
+	}
+}
+
+// A session can rewrite state.json to name another pane as its own; the
+// next run must not type into it. The backend refuses the foreign pane,
+// igris says so, and the task is treated as one whose session is gone
+// (V10-05).
+func TestResumeRefusesAnotherTasksPane(t *testing.T) {
+	h := newHarness(t, chainPlan, "")
+	h.autoSignalExcept("A-1")
+	h.stopMidTask(6 * time.Second)
+
+	other, err := h.be.OpenSession(context.Background(), backend.SessionSpec{TaskID: "X-9", ClaudeSession: "0f1e2d3c-1111-4222-8333-444455556666"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	run, err := h.dir.LoadRun()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ref := other.Ref()
+	run.Current.Session = &ref
+	if err := h.dir.SaveRun(run); err != nil {
+		t.Fatal(err)
+	}
+
+	h.be.SetAutoSignal(func(_ context.Context, id string) error { return h.signal(id) })
+	h.onEvent = func(ev Event) {
+		if ev.Kind == Asked && ev.Question == QuestionSessionLost {
+			h.eng.Send(Command{Kind: CmdRetry})
+		}
+	}
+	if _, err := h.run(resumeLast); err != nil {
+		t.Fatalf("resumed run: %v", err)
+	}
+	if got := h.event(TaskResumed, "A-1").Detail; got != "its session is gone" {
+		t.Errorf("task_resumed detail %q", got)
+	}
+	if got := h.be.Prompts("X-9"); len(got) != 0 {
+		t.Errorf("the other pane was typed into: %q", got)
+	}
+	warned := false
+	for _, ev := range h.events {
+		if ev.Kind == Warning && strings.Contains(ev.Detail, "not started for") {
+			warned = true
+		}
+	}
+	if !warned {
+		t.Errorf("no warning that state.json named a pane igris did not start for A-1")
 	}
 }

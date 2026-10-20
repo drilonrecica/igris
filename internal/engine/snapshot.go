@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"errors"
+	"github.com/drilonrecica/igris/internal/state"
 
 	"github.com/drilonrecica/igris/internal/config"
 )
@@ -63,9 +64,25 @@ func (e *Engine) checkConfig(ctx context.Context) {
 	switch e.conf.check() {
 	case configChanged:
 		const what = "igris.toml changed during the run; igris keeps the configuration it started with"
-		e.emit(Event{Kind: ConfigChanged, Detail: what + " — restart `igris arise` to apply the new one"})
+		e.emit(Event{Kind: ConfigChanged, Detail: what + " — the next `igris arise` asks before using the new one"})
+		e.log(state.Event{Type: state.EventConfigChanged, Detail: what})
 		e.toast(ctx, notifyNeedsInput, what)
+		e.rememberConfigChange(true)
 	case configRestored:
 		e.emit(Event{Kind: ConfigRestored, Detail: "igris.toml matches the run's configuration again"})
+		e.rememberConfigChange(false)
+	}
+}
+
+// rememberConfigChange records in state.json whether igris.toml differs
+// from the run's snapshot, so the next run can ask before using it (SPEC
+// §13, V10-05).
+func (e *Engine) rememberConfigChange(changed bool) {
+	if e.run.ConfigChanged == changed {
+		return
+	}
+	e.run.ConfigChanged = changed
+	if err := e.dir.SaveRun(e.run); err != nil {
+		e.warn(err.Error())
 	}
 }

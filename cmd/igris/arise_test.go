@@ -415,6 +415,18 @@ const noTUIPlan = `## A
 // noTUIRun is one `igris arise --no-tui` with a fake backend whose sessions
 // signal done at once, git answered by gitFn, and stdin replies triggered
 // by the output.
+// staleConfigRun records a last run during which igris.toml changed, with
+// a config hash the file no longer has (SPEC §13, V10-05).
+func staleConfigRun(root string) {
+	d, err := state.Open(root, state.Options{})
+	if err != nil {
+		panic(err)
+	}
+	if err := d.SaveRun(&state.Run{StartedAt: time.Now(), Phases: []string{"A"}, ConfigHash: "stale", ConfigChanged: true}); err != nil {
+		panic(err)
+	}
+}
+
 type noTUIRun struct {
 	plan, toml string
 	args       []string
@@ -576,6 +588,20 @@ func TestAriseStartUpConfirmations(t *testing.T) {
 		{
 			name:       "api key declined",
 			r:          noTUIRun{apiKey: "sk-x", replies: [][2]string{{"Start the run anyway?", "n"}}},
+			wantCode:   exitFail,
+			wantOut:    []string{"not confirmed; nothing was started"},
+			wantStatus: "A-1=ready A-2=blocked",
+		},
+		{
+			name:       "config changed during the last run, confirmed",
+			r:          noTUIRun{before: staleConfigRun, replies: [][2]string{{"Use the changed igris.toml?", "y"}, {"A-2 YOUR TURN", "done"}}},
+			wantCode:   exitOK,
+			wantOut:    []string{"warning: igris.toml changed during the last run", "a session may have edited it"},
+			wantStatus: "A-1=done A-2=done",
+		},
+		{
+			name:       "config changed during the last run, declined",
+			r:          noTUIRun{before: staleConfigRun, replies: [][2]string{{"Use the changed igris.toml?", "n"}}},
 			wantCode:   exitFail,
 			wantOut:    []string{"not confirmed; nothing was started"},
 			wantStatus: "A-1=ready A-2=blocked",

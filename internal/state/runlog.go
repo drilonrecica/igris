@@ -41,6 +41,9 @@ const (
 	EventNeedsYou      EventType = "needs_you"
 	EventNeedsYouClear EventType = "needs_you_clear"
 	EventNotification  EventType = "notification"
+	// EventConfigChanged: igris.toml was edited during the run; the run
+	// keeps its snapshot (SPEC §13). Since 1.0.
+	EventConfigChanged EventType = "config_changed"
 	EventError         EventType = "error"
 )
 

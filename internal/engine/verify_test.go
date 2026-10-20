@@ -71,8 +71,8 @@ func TestVerifyPasses(t *testing.T) {
 			t.Errorf("verify command = %+v", c)
 		}
 	}
-	// The notification after the first start is the config-change toast.
-	if got, want := h.logged(), "run_started task_started notification verify_passed task_done"+strings.Repeat(" task_started verify_passed task_done", 2)+" notification run_stopped"; got != want {
+	// The config-change line and its toast follow the first start.
+	if got, want := h.logged(), "run_started task_started config_changed notification verify_passed task_done"+strings.Repeat(" task_started verify_passed task_done", 2)+" notification run_stopped"; got != want {
 		t.Errorf("run log = %s\nwant      %s", got, want)
 	}
 	if got := h.count(VerifyPassed); got != 3 {

@@ -244,7 +244,7 @@ It keeps every task, ID, description, dependency, status and model; it only rest
 - **Without the TUI:** `igris arise M0 --no-tui` prints plain log lines and reads your answers from stdin: `y`/`n`, `reset yes|no` for a reset request, `done [note]`, `skip <reason>`, `retry [continue|fresh]`, `pause`, `stop`, `mode [task] <m>`, `help`.
 - **Resume:** quitting igris leaves the session running. `igris arise` with no phase picks up exactly where it left off: it reattaches to the running session, or, if that's gone, lets you continue its conversation or start a fresh session that is told to check the work already in the tree. `igris status` keeps showing that resume state (`Lock none`, the task it was on).
 - **A stale lock:** if a crashed run left its lock behind, igris says so; `igris arise --force-unlock` clears it.
-- **Before a run starts,** igris warns if `ANTHROPIC_API_KEY` is set (it asks you to confirm), if the project isn't a git repository, or if the tree has uncommitted changes.
+- **Before a run starts,** igris warns if `ANTHROPIC_API_KEY` is set (it asks you to confirm), if the project isn't a git repository, or if the tree has uncommitted changes. If `igris.toml` changed during the last run (a session can edit it; that run kept the configuration it started with), igris asks you to review and confirm the file before a run uses it.
 
 ### Part of a phase
 
@@ -373,7 +373,7 @@ A task's mode is, in order: your override, its `Mode` column, the run mode (`--m
 | Plan | Claude plans first; you approve the plan, then it implements. |
 | Skip permissions | `--dangerously-skip-permissions`. Never a single click or key: you type `skip permissions` to confirm, every run, and a red badge shows while it's active. Use it in a container you trust, or with [worktree mode](#worktree-mode). |
 
-`claude.extra_args` can't carry model, mode, session or settings flags (`--model`, `--permission-mode`, `--settings`, `-c`/`-r`, …): igris sets those itself and rejects a config that has them. igris always starts `claude` from your `PATH`. The old `claude.command` key was removed in 0.7; every `igris.toml` that `igris init` wrote before then has it, and `igris config migrate` deletes it.
+`claude.extra_args` can't carry flags that change the session's model, mode, permissions, tools, directory or system prompt (`--model`, `--permission-mode`, `--settings`, `--allowedTools`, `--add-dir`, `--bare`, `-c`/`-r`/`-w`, …; the full list is in SPEC §7.4): igris sets what it needs itself and rejects a config that has them. igris always starts `claude` from your `PATH`. The old `claude.command` key was removed in 0.7; every `igris.toml` that `igris init` wrote before then has it, and `igris config migrate` deletes it.
 
 ## Notifications
 
@@ -421,7 +421,7 @@ Check your setup with `igris notify test`: it sends a sample of each event to ev
 <details>
 <summary>The webhook payload and its signature</summary>
 
-The webhook POSTs JSON with every key present (`""` when unknown): `{"v":1,"event","project","phase","task","title","what","run","at","urgent","text"}`, where `run` is the run ID, `at` an RFC 3339 UTC time and `text` the message as other channels show it. The event is also in the `X-Igris-Event` header. With a `secret`, `X-Igris-Signature: sha256=<hex>` is the HMAC-SHA256 of the raw body with the secret; check it before trusting the payload.
+The webhook POSTs JSON with every key present (`""` when unknown): `{"v":1,"event","project","phase","task","title","what","run","at","urgent","text"}`, where `run` is the run ID, `at` an RFC 3339 UTC time and `text` the message as other channels show it. The event is also in the `X-Igris-Event` header. With a `secret`, `X-Igris-Signature: sha256=<hex>` is the HMAC-SHA256 of the raw body with the secret; check it before trusting the payload. A valid signature can still be an old payload sent again by anyone who saw it (a plain `http://` hop, a proxy's or your own logs): treat `run` + `at` (or the whole body) as a dedupe key, and reject an `at` older than a few minutes.
 
 </details>
 
@@ -507,7 +507,7 @@ They read your plan without changing it.
 
 - Claude Code, the backend (herdr or tmux: version, whether igris runs inside it) and `ANTHROPIC_API_KEY`;
 - git, `igris.toml` and the plan (every problem);
-- the `igris done` allow rules in `.claude/settings.local.json`, and a warning if `igris skip` is allowed there;
+- the `igris done` allow rules in `.claude/settings.local.json` (or `.claude/settings.json`), with a warning if a rule there allows `igris skip` or every shell command, or `permissions.defaultMode` bypasses prompts;
 - the modes of `.igris/`, a stale or foreign lock, a project under `/mnt/` (WSL);
 - whether a notification channel is set up (nothing is sent; `igris notify test` sends).
 
@@ -573,7 +573,7 @@ What's on it:
 <details>
 <summary>More about home: the wizard, the editor, Adapt and the Notify test</summary>
 
-- **The wizard's questions** are the ones `arise` asks before a run (an API key in the environment, plan drift, skip permissions with the typed `skip permissions` on every launch, and clearing a stale or remote lock as `--force-unlock` does), each a dialog with **Cancel** as the default. An error that leaves nothing to answer (another igris runs here, the backend is unreachable) shows what to do next. Nothing you answer is kept for the next run.
+- **The wizard's questions** are the ones `arise` asks before a run (an API key in the environment, plan drift, an `igris.toml` that changed during the last run, skip permissions with the typed `skip permissions` on every launch, and clearing a stale or remote lock as `--force-unlock` does), each a dialog with **Cancel** as the default. An error that leaves nothing to answer (another igris runs here, the backend is unreachable) shows what to do next. Nothing you answer is kept for the next run.
 - **Once a run starts,** its run view has **Home** in place of Quit: Home (or `q`) stops igris and leaves the session running, Stop returns home once igris has stopped, and a run that ends on its own keeps its view open until you go home. Home's status line then says how the run ended. `ctrl+c` quits from anywhere; a running run is stopped and its lock released before igris exits. While it stops, igris says `stopping… (Ctrl-C again to quit now)`: another Ctrl-C exits at once.
 - **The editor:** the TUI comes back when the editor closes, reads the file again and says on the status line whether it is valid (`✓ igris.toml valid`, `⨯ igris.toml: 2 problems — Settings`). The variable is split on spaces, so `code --wait` works but quoted arguments don't, and no shell is involved. With neither variable set, igris shows the file's path and offers vi (if it is installed) or copying the path; it never opens vi on its own. igris itself never rewrites `igris.toml`. Editing the plan while another igris runs on it asks first.
 - **Adapt in the app:** a dialog asks first (**Cancel**, **Adapt with sonnet** or **Adapt with opus**, with the `ANTHROPIC_API_KEY` warning when it is set), then a page streams adapt's progress with **Open session** and **Cancel** (Cancel stops waiting; the session stays open and nothing changes), and the review replaces it once the proposal is there. The status line then names the backup and how many problems are left, or where a rejected proposal is kept. A plan that already passes `check` has nothing to adapt.
@@ -610,7 +610,7 @@ Every action is a button you can click or tap, reach with `tab` and the arrow ke
 
 `tab` moves between the task list, the action bar and the log; the arrow keys (or `j`/`k`) move within them; `enter` or `space` activates; `1`…`9` pick a dialog option; `esc` closes a dialog or page with its safe choice. Dialogs open on the safe choice. Click a task, the card's title or **[t] Details** to see a task in full; `enter` on the log opens the whole log, scrollable with the wheel or the keys.
 
-With `igris arise PHASE`, the start-up questions (an API key in the environment, plan drift, skip-permissions confirmation) are plain prompts before the TUI opens.
+With `igris arise PHASE`, the start-up questions (an API key in the environment, plan drift, an `igris.toml` that changed during the last run, skip-permissions confirmation) are plain prompts before the TUI opens.
 
 ### Mouse, clipboard and colors
 
@@ -626,7 +626,7 @@ From 1.0, igris keeps the plan format, `igris.toml`, the CLI and its exit codes,
 
 ## Security
 
-- **igris treats every session as untrusted.** It snapshots `igris.toml` per run, pauses when the plan changes in a way it didn't write, checks what it reads back from `.igris/`, asks you before applying a session's skip or reset, and cleans everything a session wrote (notes, verify output, plan text) of escape sequences before it reaches your terminal, a notification or a session's pane.
+- **igris treats every session as untrusted.** It snapshots `igris.toml` per run and asks you before a later run uses a file that changed during one, pauses when the plan changes in a way it didn't write, checks what it reads back from `.igris/` (and reattaches only to the pane it started for the task, so a rewritten `state.json` can't point it at your shell), asks you before applying a session's skip or reset, reads every file a session can replace as a bounded regular file, and cleans everything a session wrote (notes, verify output, plan text) of escape sequences and invisible characters before it reaches your terminal, a notification or a session's pane.
 - **Your secrets stay out of the project's commands:** verify, task hooks and git never get the variables your notification tokens come from ([details](#what-verify-and-hooks-see)).
 - **What igris can't prevent:** a session edits files, and verify and git hooks run your project's code as you. The permission mode is the real boundary; [worktree mode](#worktree-mode) keeps a run's changes on a branch of its own.
 - **Releases are signed** from 0.6.0 ([Verifying a download](#verifying-a-download)).

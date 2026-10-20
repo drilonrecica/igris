@@ -42,8 +42,9 @@ type Options struct {
 
 	Feed   *Feed  // the run's events
 	Sender Sender // where the owner's commands go
-	// Focus brings a session's pane to the front (Open session).
-	Focus func(context.Context, backend.SessionRef) error
+	// Focus brings a session's pane to the front (Open session); the task
+	// ID is the one the ref was recorded for (backend.Backend.Attach).
+	Focus func(context.Context, backend.SessionRef, string) error
 	// Out is where the clipboard sequence goes (OSC 52); nil means
 	// os.Stdout, the terminal the program draws on.
 	Out io.Writer

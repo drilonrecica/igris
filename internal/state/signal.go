@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/drilonrecica/igris/internal/fsafe"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -169,24 +170,13 @@ func (d *Dir) ReadReset(id string) (*Signal, error) {
 // a regular file of a sane size (a FIFO would block igris forever), and its
 // note is cleaned for display.
 func readSignalFile(path, id string, reset bool) (*Signal, error) {
-	info, err := os.Lstat(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("read signal %s: %w", path, err)
-	}
+	data, err := fsafe.ReadFile(path, maxSignalSize, false)
 	switch {
-	case !info.Mode().IsRegular():
-		return nil, fmt.Errorf("read signal %s: not a regular file (%s); delete it and run the command again", path, info.Mode().Type())
-	case info.Size() > maxSignalSize:
-		return nil, fmt.Errorf("read signal %s: %d bytes is too large for a signal; delete it and run the command again", path, info.Size())
-	}
-	data, err := os.ReadFile(path) //nolint:gosec // igris's own state directory; id validated
-	if errors.Is(err, fs.ErrNotExist) {
+	case errors.Is(err, fs.ErrNotExist):
 		return nil, nil
-	}
-	if err != nil {
+	case errors.Is(err, fsafe.ErrNotRegular), errors.Is(err, fsafe.ErrTooLarge):
+		return nil, fmt.Errorf("read signal: %w; delete it and run the command again", err)
+	case err != nil:
 		return nil, fmt.Errorf("read signal %s: %w", path, err)
 	}
 	s, err := parseSignal(data, id, reset)

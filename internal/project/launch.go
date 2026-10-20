@@ -100,20 +100,21 @@ func (p *Project) Prelaunch(ctx context.Context, be backend.Backend, req report.
 // events receives the run's events.
 func (l *Launch) Options(c report.Confirmations, events func(engine.Event)) engine.Options {
 	return engine.Options{
-		Config:         l.p.Cfg,
-		Backend:        l.Backend,
-		State:          l.State,
-		Runner:         l.p.env.Runner,
-		Secrets:        l.secrets,
-		Phase:          l.req.Phase,
-		Through:        l.req.Through,
-		Mode:           l.req.Mode,
-		Selection:      l.req.Selection,
-		Worktree:       l.req.Worktree,
-		ForceUnlock:    c.ForceUnlock,
-		ConfirmedDrift: c.Drift,
-		ConfirmedYolo:  c.Yolo,
-		Events:         events,
+		Config:          l.p.Cfg,
+		Backend:         l.Backend,
+		State:           l.State,
+		Runner:          l.p.env.Runner,
+		Secrets:         l.secrets,
+		Phase:           l.req.Phase,
+		Through:         l.req.Through,
+		Mode:            l.req.Mode,
+		Selection:       l.req.Selection,
+		Worktree:        l.req.Worktree,
+		ForceUnlock:     c.ForceUnlock,
+		ConfirmedDrift:  c.Drift,
+		ConfirmedYolo:   c.Yolo,
+		ConfirmedConfig: c.Config,
+		Events:          events,
 	}
 }
 

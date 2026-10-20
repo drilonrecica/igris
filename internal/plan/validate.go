@@ -1,8 +1,9 @@
 package plan
 
 import (
+	"errors"
 	"fmt"
-	"os"
+	"github.com/drilonrecica/igris/internal/fsafe"
 	"regexp"
 	"slices"
 	"sort"
@@ -36,14 +37,34 @@ func (e *Invalid) Error() string {
 	return b.String()
 }
 
+// MaxSize is the largest plan file igris reads (SPEC §16): the plan is
+// read every poll, and a session can replace it.
+const MaxSize = 16 << 20
+
 // Load reads and parses the plan at path. It fails only if the file can't
-// be read; call Validate for the plan's problems.
+// be read (also when it is not a regular file, or over MaxSize); call
+// Validate for the plan's problems.
 func Load(path string, opts Options) (*Plan, error) {
-	data, err := os.ReadFile(path) //nolint:gosec // path is the owner's plan file
+	data, err := readPlanFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("read plan %s: %w", path, err)
+		return nil, err
 	}
 	return Parse(path, data, opts), nil
+}
+
+// readPlanFile reads the plan file as a regular file of at most MaxSize,
+// following a symlink (the owner may keep the plan elsewhere).
+func readPlanFile(path string) ([]byte, error) {
+	data, err := fsafe.ReadFile(path, MaxSize, true)
+	switch {
+	case errors.Is(err, fsafe.ErrNotRegular):
+		return nil, fmt.Errorf("read plan: %w; put the plan file back", err)
+	case errors.Is(err, fsafe.ErrTooLarge):
+		return nil, fmt.Errorf("read plan: %w; split the plan or remove what is not a plan", err)
+	case err != nil:
+		return nil, fmt.Errorf("read plan %s: %w", path, err)
+	}
+	return data, nil
 }
 
 // Rules are the config values the plan is validated against.

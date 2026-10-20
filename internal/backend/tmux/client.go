@@ -166,6 +166,18 @@ func (c *Client) Pane(ctx context.Context, pane string) (PaneInfo, error) {
 	return PaneInfo{}, &Error{Op: "list-panes", Message: "can't find pane: " + pane, Exit: 1}
 }
 
+// StartCommand returns the command pane was created with
+// (pane_start_command): tmux sets it when the pane is created and nothing
+// changes it afterwards, so it says what igris started there. Only the one
+// pane is asked, so another pane's command can't forge a line of it.
+func (c *Client) StartCommand(ctx context.Context, pane string) (string, error) {
+	out, err := c.exec(ctx, nil, "display-message", "-p", "-t", pane, "#{pane_start_command}")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSuffix(string(out), "\n"), nil
+}
+
 // CapturePane returns pane's last lines as plain text: the last lines of
 // its history and the visible screen, wrapped lines joined (-J), without
 // escape sequences (no -e). The visible screen's empty rows come at the

@@ -158,8 +158,12 @@ func (b *Backend) OpenSession(ctx context.Context, spec backend.SessionSpec) (ba
 
 // Attach reattaches to a session from its stored ref (after an igris
 // restart). The IDs are shape-checked first: state.json is writable by
-// sessions. A missing or dead pane wraps backend.ErrSessionGone.
-func (b *Backend) Attach(ctx context.Context, ref backend.SessionRef) (backend.Session, error) {
+// sessions. A missing or dead pane wraps backend.ErrSessionGone. So does,
+// with backend.ErrSessionForeign, a pane whose start command is not igris's
+// claude for taskID and the ref's Claude session (StartedFor): a session
+// could otherwise name the owner's shell as its pane and have igris type
+// there (V10-05).
+func (b *Backend) Attach(ctx context.Context, ref backend.SessionRef, taskID string) (backend.Session, error) {
 	if ref.Backend != Name {
 		return nil, fmt.Errorf("attach: session ref is for backend %q, not %s", ref.Backend, Name)
 	}
@@ -177,7 +181,39 @@ func (b *Backend) Attach(ctx context.Context, ref backend.SessionRef) (backend.S
 	case p.Dead:
 		return nil, s.goneErr("attach", errors.New("claude code is no longer running in the pane"))
 	}
+	if ref.ClaudeSession == "" {
+		return nil, s.goneErr("attach", errors.New("the session ref has no Claude session to check the pane against"))
+	}
+	start, err := b.c.StartCommand(ctx, ref.PaneID)
+	switch {
+	case IsGone(err):
+		return nil, s.goneErr("attach", err)
+	case err != nil:
+		return nil, fmt.Errorf("attach tmux pane %s: %w", ref.PaneID, err)
+	case !StartedFor(start, ref.ClaudeSession, taskID):
+		return nil, fmt.Errorf("attach tmux pane %s for %s: %w: %w; state.json names a pane igris did not start for it, delete the file to start a new run", ref.PaneID, taskID, backend.ErrSessionGone, backend.ErrSessionForeign)
+	}
 	return s, nil
+}
+
+// StartedFor reports whether start, a pane's start command as tmux shows
+// it, is claude started by igris for taskID with the Claude session uuid:
+// `claude … --session-id <uuid> … --append-system-prompt-file <…/.igris/
+// prompts/<task>.rules.md>`. tmux joins the arguments with spaces and
+// quotes one that holds a space.
+func StartedFor(start, uuid, taskID string) bool {
+	f := strings.Fields(start)
+	if len(f) == 0 || f[0] != "claude" {
+		return false
+	}
+	session := false
+	for i := 1; i+1 < len(f); i++ {
+		if f[i] == "--session-id" && f[i+1] == uuid {
+			session = true
+		}
+	}
+	rules := backend.RulesFile(taskID)
+	return session && (strings.Contains(start, "/"+rules+" ") || strings.HasSuffix(start, "/"+rules) || strings.Contains(start, "/"+rules+"\""))
 }
 
 // Notify shows a message on igris's tmux client (SPEC §10). tmux has no

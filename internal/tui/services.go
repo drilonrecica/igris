@@ -61,8 +61,9 @@ type Services interface {
 	// ViCommand is vi on path, offered when no editor is set; nil when vi
 	// isn't on PATH.
 	ViCommand(path string) tea.ExecCommand
-	// Focus brings a session's pane to the front.
-	Focus(ctx context.Context, ref backend.SessionRef) error
+	// Focus brings a session's pane to the front; taskID is the task the
+	// ref was recorded for (backend.Backend.Attach).
+	Focus(ctx context.Context, ref backend.SessionRef, taskID string) error
 }
 
 // ErrNoEditor says neither $VISUAL nor $EDITOR is set: home then asks,

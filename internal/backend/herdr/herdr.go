@@ -168,15 +168,21 @@ func (b *Backend) startAgent(ctx context.Context, name, paneID string, args []st
 
 // Attach rebuilds a session from a stored ref after igris restarted. It
 // fails with an error wrapping backend.ErrSessionGone when the pane is gone
-// or Claude Code no longer runs in it. A startup prompt the session may have
-// been blocked at is not remembered: State reports what `pane get` says.
-func (b *Backend) Attach(ctx context.Context, ref backend.SessionRef) (backend.Session, error) {
+// or Claude Code no longer runs in it, and with backend.ErrSessionForeign
+// too when the ref's agent is not the one igris names for taskID: prompts
+// go to the agent by name, and state.json is a session's to write
+// (V10-05). A startup prompt the session may have been blocked at is not
+// remembered: State reports what `pane get` says.
+func (b *Backend) Attach(ctx context.Context, ref backend.SessionRef, taskID string) (backend.Session, error) {
 	if ref.Backend != Name {
 		return nil, fmt.Errorf("attach: session ref is for backend %q, not %s", ref.Backend, Name)
 	}
 	if !refIDPattern.MatchString(ref.TabID) || !refIDPattern.MatchString(ref.PaneID) || !refAgentPattern.MatchString(ref.Agent) ||
 		(ref.ClaudeSession != "" && !backend.ValidClaudeSession(ref.ClaudeSession)) {
 		return nil, fmt.Errorf("attach: session ref (tab %q, pane %q, agent %q) is incomplete or malformed; state.json looks damaged, delete it to start a new run", ref.TabID, ref.PaneID, ref.Agent)
+	}
+	if want := AgentName(taskID); ref.Agent != want {
+		return nil, fmt.Errorf("attach %s for %s: %w: %w (the task's agent is %s); state.json names another agent, delete it to start a new run", ref.Agent, taskID, backend.ErrSessionGone, backend.ErrSessionForeign, want)
 	}
 	s := &Session{c: b.c, id: ref.Agent, ref: ref, sleep: b.sleep, hooks: b.hooks}
 	p, err := b.c.PaneGet(ctx, ref.PaneID)

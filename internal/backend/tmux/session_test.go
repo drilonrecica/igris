@@ -18,7 +18,7 @@ var spec = backend.SessionSpec{
 	TaskID:        "P1-01",
 	Dir:           "/work/proj",
 	Label:         "P1-01 · opus",
-	Args:          []string{"--model", "opus", "--session-id", uuid},
+	Args:          []string{"--model", "opus", "--session-id", uuid, "--append-system-prompt-file", "/work/proj/.igris/prompts/P1-01.rules.md"},
 	ClaudeSession: uuid,
 }
 
@@ -161,7 +161,7 @@ func TestAttach(t *testing.T) {
 	s := newSim()
 	ref := openSim(t, s).Ref()
 	b := s.backend()
-	sess, err := b.Attach(ctx, ref)
+	sess, err := b.Attach(ctx, ref, spec.TaskID)
 	if err != nil || sess.Ref() != ref {
 		t.Fatalf("Attach = %v, %v", sess, err)
 	}
@@ -178,16 +178,16 @@ func TestAttach(t *testing.T) {
 		"uuid shape":    {Backend: Name, TabID: "@1", PaneID: "%1", ClaudeSession: "--model"},
 	} {
 		f := &runner.Fake{}
-		if _, err := New(f, true).Attach(ctx, bad); err == nil || len(f.Calls()) != 0 {
+		if _, err := New(f, true).Attach(ctx, bad, spec.TaskID); err == nil || len(f.Calls()) != 0 {
 			t.Errorf("%s: Attach = %v after %d calls", name, err, len(f.Calls()))
 		}
 	}
 	s.die("%1")
-	if _, err := b.Attach(ctx, ref); !errors.Is(err, backend.ErrSessionGone) {
+	if _, err := b.Attach(ctx, ref, spec.TaskID); !errors.Is(err, backend.ErrSessionGone) {
 		t.Errorf("dead pane: Attach = %v", err)
 	}
 	s.kill("%1")
-	if _, err := b.Attach(ctx, ref); !errors.Is(err, backend.ErrSessionGone) {
+	if _, err := b.Attach(ctx, ref, spec.TaskID); !errors.Is(err, backend.ErrSessionGone) {
 		t.Errorf("gone pane: Attach = %v", err)
 	}
 }
@@ -295,5 +295,53 @@ func TestSubmit(t *testing.T) {
 	s.kill("%1")
 	if err := sess.Submit(ctx); !errors.Is(err, backend.ErrSessionGone) {
 		t.Errorf("Submit on a gone pane = %v", err)
+	}
+}
+
+// state.json names the pane igris reattaches to and is a session's to
+// write: Attach only takes a pane whose start command is igris's own claude
+// for this task and Claude session, never a shell or another task's pane
+// (V10-05). pane_start_command is set when the pane is created and can't be
+// changed afterwards.
+func TestAttachBindsThePaneToTheTask(t *testing.T) {
+	ctx := context.Background()
+	s := newSim()
+	ref := openSim(t, s).Ref()
+	b := s.backend()
+	foreign := func(t *testing.T, ref backend.SessionRef, taskID string) {
+		t.Helper()
+		_, err := b.Attach(ctx, ref, taskID)
+		if !errors.Is(err, backend.ErrSessionGone) || !errors.Is(err, backend.ErrSessionForeign) {
+			t.Errorf("Attach(%+v, %s) = %v, want ErrSessionGone and ErrSessionForeign", ref, taskID, err)
+		}
+	}
+	// Another task: the pane's rules file is P1-01's.
+	foreign(t, ref, "P1-02")
+	// Another Claude session: the pane was started with a different UUID.
+	other := ref
+	other.ClaudeSession = "0f1e2d3c-1111-4222-8333-444455556666"
+	foreign(t, other, spec.TaskID)
+	// No UUID to bind to (a ref from before v0.3).
+	none := ref
+	none.ClaudeSession = ""
+	if _, err := b.Attach(ctx, none, spec.TaskID); !errors.Is(err, backend.ErrSessionGone) {
+		t.Errorf("Attach without a Claude session = %v, want ErrSessionGone", err)
+	}
+	// The owner's shell, and a pane of another program that happens to
+	// mention the UUID.
+	shell := s.addPane([]string{"zsh"})
+	foreign(t, backend.SessionRef{Backend: Name, TabID: shell.window, PaneID: shell.pane, ClaudeSession: uuid}, spec.TaskID)
+	editor := s.addPane([]string{"vim", "--session-id", uuid, "/work/proj/.igris/prompts/P1-01.rules.md"})
+	foreign(t, backend.SessionRef{Backend: Name, TabID: editor.window, PaneID: editor.pane, ClaudeSession: uuid}, spec.TaskID)
+	// The real pane, bound: fine. A path with spaces is quoted by tmux.
+	if _, err := b.Attach(ctx, ref, spec.TaskID); err != nil {
+		t.Errorf("Attach of the task's own pane = %v", err)
+	}
+	spaced := s.addPane([]string{"claude", "--model", "opus", "--session-id", uuid, "--append-system-prompt-file", "/work/my proj/.igris/prompts/P1-01.rules.md"})
+	if _, err := b.Attach(ctx, backend.SessionRef{Backend: Name, TabID: spaced.window, PaneID: spaced.pane, ClaudeSession: uuid}, spec.TaskID); err != nil {
+		t.Errorf("Attach of a pane with a quoted rules path = %v", err)
+	}
+	if !strings.Contains(s.startCommand(spaced.pane), `"/work/my proj/.igris/prompts/P1-01.rules.md"`) {
+		t.Fatalf("the simulation doesn't quote like tmux: %q", s.startCommand(spaced.pane))
 	}
 }

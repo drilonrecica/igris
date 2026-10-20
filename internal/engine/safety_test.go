@@ -91,3 +91,29 @@ func TestUntrustedTextIsCleaned(t *testing.T) {
 		}
 	}
 }
+
+// Model, rank, mode and phase come from igris.toml and the plan, which a
+// session can edit: emit cleans them like Detail and Title (V10-05).
+func TestEmitCleansModelRankModePhase(t *testing.T) {
+	h := newHarness(t, chainPlan, "")
+	var got []Event
+	eng, err := New(Options{Config: h.cfg, Backend: h.be, State: h.dir, Clock: h.clock, Runner: h.cmds, Phase: "A",
+		Events: func(ev Event) { got = append(got, ev) }})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	esc := "\x1b]52;c;eHg=\x07"
+	eng.emit(Event{Kind: SessionOpened, Task: "A-1", Model: "opus" + esc, Rank: "r" + esc, Mode: "auto" + esc, Phase: "A" + esc})
+	if len(got) != 1 {
+		t.Fatalf("%d events, want 1", len(got))
+	}
+	ev := got[0]
+	for name, s := range map[string]string{"Model": ev.Model, "Rank": ev.Rank, "Mode": ev.Mode, "Phase": ev.Phase} {
+		if strings.ContainsAny(s, "\x1b\x07") {
+			t.Errorf("%s = %q carries an escape", name, s)
+		}
+	}
+	if ev.Model != "opus" || ev.Phase != "A" {
+		t.Errorf("model %q phase %q, want the escape gone", ev.Model, ev.Phase)
+	}
+}

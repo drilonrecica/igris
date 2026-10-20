@@ -77,6 +77,37 @@ func (s *sim) pane(id string) *simPane {
 	return s.panes[id]
 }
 
+// addPane adds a pane started with argv, as the owner or another program
+// would (a shell, an editor, another igris's claude).
+func (s *sim) addPane(argv []string) *simPane {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.next++
+	p := &simPane{window: fmt.Sprintf("@%d", s.next), pane: fmt.Sprintf("%%%d", s.next), argv: argv}
+	s.windows[p.window], s.panes[p.pane] = p, p
+	return p
+}
+
+// startCommand is pane_start_command as tmux would show it.
+func (s *sim) startCommand(paneID string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return tmuxJoin(s.panes[paneID].argv)
+}
+
+// tmuxJoin joins argv as tmux's pane_start_command does: spaces between,
+// an argument with a space in double quotes.
+func tmuxJoin(argv []string) string {
+	out := make([]string, len(argv))
+	for i, a := range argv {
+		if strings.ContainsAny(a, " \t") {
+			a = `"` + a + `"`
+		}
+		out[i] = a
+	}
+	return strings.Join(out, " ")
+}
+
 func (s *sim) kill(paneID string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -180,6 +211,13 @@ func (s *sim) run(c runner.Cmd) (runner.Result, error) {
 	case "display-message":
 		if flag(a, "-p") == "#{version}" {
 			return runner.Result{Stdout: []byte("3.7c\n")}, nil
+		}
+		if pane := flag(a, "-t"); pane != "" {
+			p := s.panes[pane]
+			if p == nil {
+				return errResult("can't find pane: " + pane)
+			}
+			return runner.Result{Stdout: []byte(tmuxJoin(p.argv) + "\n")}, nil
 		}
 		s.toasts = append(s.toasts, a[len(a)-1])
 		return runner.Result{}, nil

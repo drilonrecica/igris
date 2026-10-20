@@ -56,6 +56,7 @@ Every line igris v0.5 or later writes has `"v":1`. `v`, `at` and `type` are alwa
 | `needs_you` | igris starts waiting on you (marks Needs you, loses a session, holds the run) | the few words the notification says, e.g. `needs you (idle 5m0s without igris done)` |
 | `needs_you_clear` | that wait ended while the task goes on: the agent works again, the session ran `igris done`, you answered, a retry | empty |
 | `notification` | a notification was delivered, held for quiet hours, or sent as a digest | `<event> via <channel>` (`task_done via ntfy`); `<event> held for <channel> (quiet hours)`; `digest of N via <channel>` (no `task`). Failed deliveries are not logged here |
+| `config_changed` | `igris.toml` was edited during the run; the run keeps the configuration it started with and the next `igris arise` asks before using the file (since 1.0) | `igris.toml changed during the run; igris keeps the configuration it started with` (no `task`) |
 | `error` | a task hook failed, or the run stopped with an error | the hook's reason (`before_task hook failed: exit status 1`) or the error |
 
 ### Needs-you reasons

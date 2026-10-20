@@ -188,13 +188,7 @@ func (e *Engine) prepareSession(l *launch, how startKind) (sessionStart, error) 
 		if st.sessionID, err = NewSessionID(); err != nil {
 			return st, err
 		}
-		st.text, err = prompt.Render(prompt.VarsFor(t, prompt.Env{
-			Model:        l.model,
-			PlanFile:     e.planFile(),
-			CommitPolicy: e.cfg.Run.Commit,
-			Resumed:      how == startFresh,
-		}), e.templatePath())
-		if err != nil {
+		if st.text, err = e.taskPrompt(l, how == startFresh); err != nil {
 			return st, err
 		}
 	}
@@ -221,6 +215,22 @@ func (e *Engine) prepareSession(l *launch, how startKind) (sessionStart, error) 
 	})
 	return st, err
 }
+
+// taskPrompt renders the task prompt for l's task from the plan and the
+// config snapshot; resumed marks a fresh session after a lost one.
+func (e *Engine) taskPrompt(l *launch, resumed bool) (string, error) {
+	return prompt.Render(prompt.VarsFor(l.t, prompt.Env{
+		Model:        l.model,
+		PlanFile:     e.planFile(),
+		CommitPolicy: e.cfg.Run.Commit,
+		Resumed:      resumed,
+	}), e.templatePath())
+}
+
+// firstPrompt is the prompt a reattached session that never got its task
+// receives: the task prompt, built again rather than read back from
+// state.json (SPEC §13, V10-05).
+func (e *Engine) firstPrompt(l *launch) (string, error) { return e.taskPrompt(l, false) }
 
 // openSession opens a session for l as prepared in st, records it in
 // state.json and submits the first prompt. A session that is gone before

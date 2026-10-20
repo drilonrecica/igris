@@ -195,6 +195,13 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 				return fail("not confirmed; nothing was started")
 			}
 			conf.Drift = true
+		case errors.Is(err, engine.ErrConfigUnconfirmed) && !conf.Config:
+			// SPEC §13: a session can edit igris.toml; the owner looks first.
+			fmt.Fprintf(out, "warning: igris.toml changed during the last run, which kept the configuration it started with; a session may have edited it.\nReview it (git diff igris.toml) before this run uses it.\n")
+			if !confirm(out, ask, "Use the changed igris.toml?") {
+				return fail("not confirmed; nothing was started")
+			}
+			conf.Config = true
 		case errors.Is(err, engine.ErrYoloUnconfirmed) && !conf.Yolo:
 			// SPEC §7.3: typed confirmation, every run.
 			fmt.Fprintf(out, "%v\nSessions in this mode run with --dangerously-skip-permissions: Claude Code acts without asking.\n", err)

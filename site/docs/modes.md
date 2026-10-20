@@ -31,4 +31,4 @@ Use it only where you would trust an unattended agent: in a container you trust,
 
 ## What you cannot set
 
-`claude.extra_args` in `igris.toml` can't carry model, mode, session or settings flags (`--model`, `--permission-mode`, `--settings`, `-c`/`-r`, …): igris sets those itself and rejects a config that has them.
+`claude.extra_args` in `igris.toml` can't carry flags that change the session's model, mode, permissions, tools, directory or system prompt (`--model`, `--permission-mode`, `--settings`, `--allowedTools`, `--add-dir`, `--bare`, `-c`/`-r`/`-w`, …): igris sets what it needs itself and rejects a config that has them.

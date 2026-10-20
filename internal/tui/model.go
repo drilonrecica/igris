@@ -617,11 +617,11 @@ func (m *model) focusSession() tea.Cmd {
 	if m.cur == nil || m.cur.session == nil || m.opts.Focus == nil {
 		return nil
 	}
-	ref, focus, ctx := *m.cur.session, m.opts.Focus, m.ctx
+	ref, id, focus, ctx := *m.cur.session, m.cur.id, m.opts.Focus, m.ctx
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
-		if err := focus(ctx, ref); err != nil {
+		if err := focus(ctx, ref, id); err != nil {
 			return focusErrMsg{err}
 		}
 		return nil

@@ -11,6 +11,7 @@ import (
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/runner"
+	"github.com/drilonrecica/igris/internal/state"
 )
 
 // driftPlan has a hint (a "Depends" column next to Deps-less table B) and
@@ -220,5 +221,36 @@ func TestStrict(t *testing.T) {
 		if got := Strict(id); got != want {
 			t.Errorf("Strict(%s) = %v, want %v", id, got, want)
 		}
+	}
+}
+
+// igris.toml edited during the last run is a warning until a run uses it
+// (SPEC §13, V10-05): `check` says so, `arise` asks.
+func TestConfigChangedDuringLastRun(t *testing.T) {
+	root := t.TempDir()
+	d, err := state.Open(root, state.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := config.Default()
+	if err := d.SaveRun(&state.Run{Phases: []string{"A"}, ConfigHash: "stale", ConfigChanged: true}); err != nil {
+		t.Fatal(err)
+	}
+	got := Run(context.Background(), Options{IDs: []string{IDConfig}, Root: root, Config: cfg})
+	if len(got) != 1 || got[0].Level != Warn || !strings.Contains(got[0].Message, "changed during the last run") || got[0].File != state.ConfigFile || got[0].Next == "" {
+		t.Errorf("edited during the last run = %+v", got)
+	}
+	// A run that used it, or a file edited between runs, is nothing.
+	if err := d.SaveRun(&state.Run{Phases: []string{"A"}, ConfigHash: cfg.Hash(), ConfigChanged: true}); err != nil {
+		t.Fatal(err)
+	}
+	if got := Run(context.Background(), Options{IDs: []string{IDConfig}, Root: root, Config: cfg}); len(got) != 1 || got[0].Level != OK {
+		t.Errorf("same hash = %+v", got)
+	}
+	if err := d.SaveRun(&state.Run{Phases: []string{"A"}, ConfigHash: "stale"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := Run(context.Background(), Options{IDs: []string{IDConfig}, Root: root, Config: cfg}); len(got) != 1 || got[0].Level != OK {
+		t.Errorf("edited between runs = %+v", got)
 	}
 }

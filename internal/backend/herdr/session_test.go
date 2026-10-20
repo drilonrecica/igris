@@ -453,7 +453,7 @@ func ptr[T any](v T) *T { return &v }
 func TestAttach(t *testing.T) {
 	ref := backend.SessionRef{Backend: Name, TabID: "w2B:t3", PaneID: "w2B:p3", Agent: "igris-t-01"}
 	attach := func(f *runner.Fake, ref backend.SessionRef) (backend.Session, error) {
-		return New(f, "w2B").Attach(context.Background(), ref)
+		return New(f, "w2B").Attach(context.Background(), ref, spec.TaskID)
 	}
 
 	t.Run("live pane", func(t *testing.T) {
@@ -543,7 +543,7 @@ func TestHoldPromptAfterAttach(t *testing.T) {
 	ctx := context.Background()
 	f := &runner.Fake{}
 	f.On(cmd("pane", "get", "w2B:p3"), ok(t, "pane_get_blocked.json"), nil) // Attach
-	s, err := New(f, "w2B").Attach(ctx, backend.SessionRef{Backend: Name, TabID: "w2B:t3", PaneID: "w2B:p3", Agent: "igris-t-01"})
+	s, err := New(f, "w2B").Attach(ctx, backend.SessionRef{Backend: Name, TabID: "w2B:t3", PaneID: "w2B:p3", Agent: "igris-t-01"}, spec.TaskID)
 	if err != nil {
 		t.Fatalf("Attach: %v", err)
 	}
@@ -667,8 +667,24 @@ func TestStateHookFillIn(t *testing.T) {
 func TestAttachChecksClaudeSession(t *testing.T) {
 	f := &runner.Fake{}
 	ref := backend.SessionRef{Backend: Name, TabID: "w2B:t3", PaneID: "w2B:p3", Agent: "igris-t-01", ClaudeSession: "--model"}
-	if _, err := New(f, "w2B").Attach(context.Background(), ref); err == nil || len(f.Calls()) != 0 {
+	if _, err := New(f, "w2B").Attach(context.Background(), ref, spec.TaskID); err == nil || len(f.Calls()) != 0 {
 		t.Errorf("Attach = %v after %d calls, want refusal", err, len(f.Calls()))
+	}
+}
+
+// state.json is a session's to write: a ref whose agent is not the one
+// igris names for the task is refused before herdr is asked, so prompts
+// can only ever go to this task's agent (V10-05).
+func TestAttachBindsTheAgentToTheTask(t *testing.T) {
+	f := &runner.Fake{}
+	ref := backend.SessionRef{Backend: Name, TabID: "w2B:t3", PaneID: "w2B:p3", Agent: "igris-t-01"}
+	_, err := New(f, "w2B").Attach(context.Background(), ref, "T-02")
+	if !errors.Is(err, backend.ErrSessionGone) || !errors.Is(err, backend.ErrSessionForeign) || len(f.Calls()) != 0 {
+		t.Errorf("Attach for T-02 = %v after %d calls, want ErrSessionGone and ErrSessionForeign before any call", err, len(f.Calls()))
+	}
+	ref.Agent = "reviewer"
+	if _, err := New(f, "w2B").Attach(context.Background(), ref, "T-01"); !errors.Is(err, backend.ErrSessionForeign) || len(f.Calls()) != 0 {
+		t.Errorf("Attach to agent %q = %v after %d calls, want ErrSessionForeign", ref.Agent, err, len(f.Calls()))
 	}
 }
 

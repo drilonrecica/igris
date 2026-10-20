@@ -7,13 +7,12 @@ import (
 	"io"
 	"os"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/drilonrecica/igris/internal/adapt"
+	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
 // ReviewOptions configure the review of an `igris adapt` proposal.
@@ -367,16 +366,11 @@ func (r *review) lineDiff(d []adapt.Line, w int) []string {
 	return out
 }
 
-// clean makes plan text safe to draw: tabs become spaces and other control
-// characters (escape sequences in a proposal) a visible "?".
+// clean makes a session-written line safe to draw: escape sequences, bidi
+// and zero-width characters go (textsafe.Line, SPEC §16), a tab becomes
+// four spaces so columns still line up.
 func clean(s string) string {
-	s = strings.ReplaceAll(s, "\t", "    ")
-	return strings.Map(func(c rune) rune {
-		if unicode.IsControl(c) || c == utf8.RuneError {
-			return '?'
-		}
-		return c
-	}, s)
+	return textsafe.Line(strings.ReplaceAll(s, "\t", "    "))
 }
 
 // chop cuts s into pieces of at most w cells, keeping every space, so

@@ -24,6 +24,9 @@ func TestRender(t *testing.T) {
 		{"comment dropped", "<!-- hidden -->\n\ntext\n", []string{"<p>text</p>"}},
 		{"quote", "> note\n> more\n", []string{"<blockquote>", "<p>note\nmore</p>"}},
 		{"html escaped", "a <script> b\n", []string{"a &lt;script&gt; b"}},
+		{"href escaped", "[t](u.md\"onclick=x)\n", []string{`<a href="L(u.md&#34;onclick=x)">t</a>`}},
+		{"bare details pass", "<details>\n<summary>More</summary>\n\ntext\n\n</details>\n", []string{"<details>\n", "<summary>More</summary>\n", "</details>\n"}},
+		{"details with attributes escaped", "<details onclick=\"x\">\n<summary onclick=\"x\">More</summary>\n</details>\n", []string{"&lt;details onclick=&#34;x&#34;&gt;", "&lt;summary onclick=&#34;x&#34;&gt;More&lt;/summary&gt;"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -66,6 +69,8 @@ func TestResolve(t *testing.T) {
 		{"site/docs/a.md", "../../docs/plan-format.md#status", "plan-format.html#status"},
 		{"docs/config.md", "../SPEC.md#12-config", repoURL + "/blob/master/SPEC.md#12-config"},
 		{"docs/compatibility.md", "json/", repoURL + "/tree/master/docs/json"},
+		{"site/docs/a.md", "http://x.dev/y", "http://x.dev/y"},
+		{"site/docs/a.md", "mailto:a@x.dev", "mailto:a@x.dev"},
 	}
 	for _, tt := range tests {
 		got := b.resolve(tt.src, tt.href)
@@ -79,6 +84,17 @@ func TestResolve(t *testing.T) {
 	b.resolve("docs/config.md", "../missing.md")
 	if len(b.problems) != 1 || !strings.Contains(b.problems[0], "no such file") {
 		t.Errorf("problems = %v", b.problems)
+	}
+	// Only web, mail and repository links: any other scheme is a
+	// problem, and the link loses its target.
+	for _, href := range []string{"javascript:alert(1)", "JavaScript:alert(1)", "data:text/html,x", "file:///etc/passwd", "vbscript:x"} {
+		b.problems = nil
+		if got := b.resolve("docs/config.md", href); got != "#" {
+			t.Errorf("resolve(%q) = %q, want %q", href, got, "#")
+		}
+		if len(b.problems) != 1 || !strings.Contains(b.problems[0], "scheme") {
+			t.Errorf("resolve(%q): problems = %v", href, b.problems)
+		}
 	}
 }
 

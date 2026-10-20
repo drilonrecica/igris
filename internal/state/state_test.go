@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -614,4 +615,61 @@ func readFile(t *testing.T, path string) string {
 		t.Fatal(err)
 	}
 	return string(data)
+}
+
+// config_changed marks a run during which igris.toml was edited (SPEC
+// §13, V10-05); it stays within version 3.
+func TestRunConfigChangedRoundTrip(t *testing.T) {
+	d := testDir(t)
+	if err := d.SaveRun(&Run{StartedAt: t0, Phases: []string{"M1"}, ConfigHash: "abc", ConfigChanged: true}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := d.LoadRun()
+	if err != nil || !got.ConfigChanged || got.Version != runVersion {
+		t.Fatalf("LoadRun = %+v, %v; want config_changed kept at version %d", got, err, runVersion)
+	}
+	if err := d.SaveRun(&Run{StartedAt: t0, Phases: []string{"M1"}, ConfigHash: "abc"}); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(d.runPath())
+	if strings.Contains(string(data), "config_changed") {
+		t.Errorf("an unchanged run writes the field: %s", data)
+	}
+}
+
+// state.json and the lock are read only as regular files of bounded size
+// (SPEC §16): a FIFO or a huge file in their place is an error, never a
+// hang (V10-05).
+func TestReadBackRefusesNonRegularFiles(t *testing.T) {
+	d := testDir(t)
+	if err := syscall.Mkfifo(d.runPath(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.LoadRun(); err == nil || !errors.Is(err, ErrRunDamaged) {
+		t.Errorf("LoadRun on a FIFO = %v, want ErrRunDamaged", err)
+	}
+	must(t, os.Remove(d.runPath()))
+	must(t, os.WriteFile(d.runPath(), make([]byte, maxRunSize+1), 0o600))
+	if _, err := d.LoadRun(); err == nil || !errors.Is(err, ErrRunDamaged) {
+		t.Errorf("LoadRun on a huge file = %v, want ErrRunDamaged", err)
+	}
+	if err := syscall.Mkfifo(d.lockPath(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readLock(d.lockPath()); err == nil {
+		t.Errorf("readLock on a FIFO = nil, want an error")
+	}
+}
+
+// The rules file a session is started with is what a tmux pane's start
+// command is bound to (backend.RulesFile); both must name the same path.
+func TestRulesPathMatchesBackendMarker(t *testing.T) {
+	d := testDir(t)
+	path, err := d.WriteRules("M0-01", "rules")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(d.Root(), backend.RulesFile("M0-01")); path != want {
+		t.Errorf("WriteRules path = %s, want %s", path, want)
+	}
 }

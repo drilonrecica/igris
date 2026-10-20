@@ -288,6 +288,13 @@ func TestStraySignalsAreReportedOnce(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(h.dir.SignalsDir(), "Z-9.json"), []byte("not json"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	for i := 1; i <= 4; i++ {
+		h.clock.At(time.Duration(i)*2*time.Second, func() {
+			if err := h.signal("B-1"); err != nil {
+				t.Error(err)
+			}
+		})
+	}
 	h.signalAt(10*time.Second, "A-1")
 	if _, err := h.run(); err != nil {
 		t.Fatalf("Run: %v", err)
@@ -297,6 +304,11 @@ func TestStraySignalsAreReportedOnce(t *testing.T) {
 	}
 	if ev := h.event(StraySignal, ""); !strings.Contains(ev.Detail, "B-1") {
 		t.Errorf("stray_signal detail = %q", ev.Detail)
+	}
+	// Rewriting the stray signal (a new timestamp each time) reports it
+	// once per task and action, not once per write (V10-05).
+	if got := len(h.eng.reported); got > 2 {
+		t.Errorf("%d once-keys for a rewritten stray signal and a bad file, want at most 2", got)
 	}
 	bad := 0
 	for _, ev := range h.events {

@@ -31,6 +31,10 @@ func TestClean(t *testing.T) {
 		{"bidi embeddings and isolates", "\u202a\u202b\u202d\u2066\u2067\u2068\u2069x", "x"},
 		{"bidi marks", "a\u200e\u200f\u061cb", "ab"},
 		{"zero width and bom", "a\u200bb\u2060c\ufeffd", "abcd"},
+		// Tag characters spell text a terminal never draws but a model
+		// reads; the other invisible formatting characters hide the same way.
+		{"tag characters", "a\U000e0001\U000e0069\U000e0067\U000e007fb", "ab"},
+		{"invisible operators and deprecated formats", "a\u2061\u2062\u2063\u2064\u206a\u206b\u206f\ufff9\ufffa\ufffb\u00adb", "ab"},
 		// Joiners build emoji and scripts: kept.
 		{"zwj emoji kept", "👩\u200d💻 and a\u200cb", "👩\u200d💻 and a\u200cb"},
 		{"empty", "", ""},

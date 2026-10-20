@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -951,5 +952,66 @@ func TestTaskModeCommand(t *testing.T) {
 	}
 	if got := h.count(Warning); got != 3 {
 		t.Errorf("%d warnings, want the unconfirmed yolo, the unknown mode and the missing task rejected", got)
+	}
+}
+
+// A session can edit igris.toml; the run keeps its snapshot (above), but
+// the next run would start from the edited file. So an edit during a run is
+// remembered in state.json, and the next run asks the owner before using
+// the file (SPEC §13, V10-05): a restored file needs no confirmation.
+func TestConfigChangedDuringRunNeedsConfirmationNextRun(t *testing.T) {
+	const original = "poll_interval = \"2s\"\n"
+	const edited = "poll_interval = \"2s\"\n\n[models]\nopus = \"haiku\"\n"
+	for _, restored := range []bool{false, true} {
+		t.Run(fmt.Sprintf("restored=%v", restored), func(t *testing.T) {
+			h := newHarness(t, chainPlan, original)
+			h.autoSignalExcept("A-1")
+			h.clock.At(4*time.Second, func() { h.write(state.ConfigFile, edited) })
+			if restored {
+				h.clock.At(8*time.Second, func() { h.write(state.ConfigFile, original) })
+			}
+			h.signalAt(12*time.Second, "A-1")
+			if res, err := h.run(); err != nil || res.Outcome != Completed {
+				t.Fatalf("first run = %s, %v", res.Outcome, err)
+			}
+			run, err := h.dir.LoadRun()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if run.ConfigChanged == restored {
+				t.Errorf("state.json config_changed = %v after restored=%v", run.ConfigChanged, restored)
+			}
+
+			// The next run reads the file as it is now.
+			if h.cfg, err = config.Load(filepath.Join(h.root, state.ConfigFile)); err != nil {
+				t.Fatal(err)
+			}
+			h.events = nil
+			_, err = h.run(resumeLast)
+			if restored {
+				if err != nil {
+					t.Fatalf("second run after a restored config: %v", err)
+				}
+				return
+			}
+			if !errors.Is(err, ErrConfigUnconfirmed) {
+				t.Fatalf("second run = %v, want ErrConfigUnconfirmed", err)
+			}
+			if _, err := h.run(resumeLast, func(o *Options) { o.ConfirmedConfig = true }); err != nil {
+				t.Fatalf("confirmed second run: %v", err)
+			}
+			warned := false
+			for _, ev := range h.events {
+				if ev.Kind == Warning && strings.Contains(ev.Detail, "igris.toml changed during the last run") {
+					warned = true
+				}
+			}
+			if !warned {
+				t.Errorf("the confirmed run did not say the config changed: %s", h.kinds())
+			}
+			if run, err := h.dir.LoadRun(); err != nil || run.ConfigChanged {
+				t.Errorf("state.json after the confirmed run: config_changed=%v, %v; want cleared", run != nil && run.ConfigChanged, err)
+			}
+		})
 	}
 }

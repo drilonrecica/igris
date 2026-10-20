@@ -86,6 +86,33 @@ func TestConfigMigrate(t *testing.T) {
 	}
 }
 
+// A symlinked igris.toml: the target is rewritten and the link stays.
+func TestConfigMigrateFollowsSymlink(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, "real.toml")
+	if err := os.WriteFile(target, []byte(oldConfig), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(root, ".igris"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("real.toml", filepath.Join(root, "igris.toml")); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+	var o, e bytes.Buffer
+	if code := run([]string{"config", "migrate", "--yes"}, &o, &e); code != exitOK {
+		t.Fatalf("exit %d: %s%s", code, o.String(), e.String())
+	}
+	migrated := strings.Replace(oldConfig, "command = \"claude\"  # from igris init\n", "", 1)
+	if data, err := os.ReadFile(target); err != nil || string(data) != migrated { //nolint:gosec // test temp dir
+		t.Errorf("real.toml = %q, %v; want the migrated config", data, err)
+	}
+	if fi, err := os.Lstat(filepath.Join(root, "igris.toml")); err != nil || fi.Mode()&os.ModeSymlink == 0 {
+		t.Errorf("igris.toml is no longer a symlink: %v, %v", fi, err)
+	}
+}
+
 // Nothing to do, a declined or missing answer, and what migrate can't
 // handle leave igris.toml as it is.
 func TestConfigMigrateLeavesTheFile(t *testing.T) {

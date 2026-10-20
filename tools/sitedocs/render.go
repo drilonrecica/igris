@@ -31,6 +31,9 @@ type heading struct {
 }
 
 var (
+	// reDetails is a bare <details>, </details>, <summary>…</summary> or
+	// <summary> line, the only raw HTML the docs use.
+	reDetails  = regexp.MustCompile(`^(<details>|</details>|<summary>[^<>]*</summary>|<summary>|</summary>)$`)
 	reHeading  = regexp.MustCompile(`^(#{1,6})\s+(.+?)\s*#*\s*$`)
 	reFence    = regexp.MustCompile("^(`{3,}|~{3,})\\s*([A-Za-z0-9_-]*)")
 	reListItem = regexp.MustCompile(`^(\s*)([-*]|\d+\.)\s+(.*)$`)
@@ -66,7 +69,8 @@ func (r *renderer) blocks(lines []string) {
 				i++
 			}
 			i++
-		case strings.HasPrefix(trim, "<details") || strings.HasPrefix(trim, "</details") || strings.HasPrefix(trim, "<summary"):
+		case reDetails.MatchString(trim):
+			// Only the bare tags: anything with attributes is text.
 			r.out.WriteString(trim + "\n")
 			i++
 		case reFence.MatchString(trim):
@@ -258,7 +262,7 @@ func (r *renderer) paragraph(lines []string, i int) int {
 	var para []string
 	for ; i < len(lines); i++ {
 		t := strings.TrimSpace(lines[i])
-		if t == "" || (len(para) > 0 && (reFence.MatchString(t) || reHeading.MatchString(lines[i]) || reListItem.MatchString(lines[i]) || strings.HasPrefix(t, "|") || strings.HasPrefix(t, ">") || strings.HasPrefix(t, "<details") || strings.HasPrefix(t, "<!--"))) {
+		if t == "" || (len(para) > 0 && (reFence.MatchString(t) || reHeading.MatchString(lines[i]) || reListItem.MatchString(lines[i]) || strings.HasPrefix(t, "|") || strings.HasPrefix(t, ">") || reDetails.MatchString(t) || strings.HasPrefix(t, "<!--"))) {
 			break
 		}
 		para = append(para, t)
@@ -275,7 +279,7 @@ func (r *renderer) inline(s string) string {
 	s = html.EscapeString(s)
 	s = reLink.ReplaceAllStringFunc(s, func(m string) string {
 		sub := reLink.FindStringSubmatch(m)
-		return fmt.Sprintf("<a href=\"%s\">%s</a>", r.link(html.UnescapeString(sub[2])), sub[1])
+		return fmt.Sprintf("<a href=\"%s\">%s</a>", html.EscapeString(r.link(html.UnescapeString(sub[2]))), sub[1])
 	})
 	s = reBold.ReplaceAllString(s, "<strong>$1</strong>")
 	s = reItalic.ReplaceAllString(s, "$1<em>$2</em>")

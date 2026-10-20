@@ -15,6 +15,12 @@ import (
 // "session lost" (SPEC §6.3).
 var ErrSessionGone = errors.New("session is gone")
 
+// ErrSessionForeign is wrapped, together with ErrSessionGone, by Attach
+// when the ref's pane exists but was not started for the task: state.json,
+// which a session can write, named another pane. The engine treats it as a
+// lost session and says why (SPEC §13, V10-05).
+var ErrSessionForeign = errors.New("the pane was not started for this task")
+
 // Backend opens and reattaches sessions and shows notifications.
 type Backend interface {
 	Name() string
@@ -24,9 +30,12 @@ type Backend interface {
 	// OpenSession opens a pane and starts Claude Code in it. It returns once
 	// the session is ready for input (or blocked at a startup prompt).
 	OpenSession(ctx context.Context, spec SessionSpec) (Session, error)
-	// Attach reattaches to a session after an igris restart. A session that
-	// no longer exists yields an error wrapping ErrSessionGone.
-	Attach(ctx context.Context, ref SessionRef) (Session, error)
+	// Attach reattaches to a session after an igris restart. taskID is the
+	// task the ref was recorded for: a pane that exists but was not started
+	// for it yields an error wrapping ErrSessionGone and ErrSessionForeign,
+	// since the ref comes from state.json, which a session can write. A
+	// session that no longer exists yields an error wrapping ErrSessionGone.
+	Attach(ctx context.Context, ref SessionRef, taskID string) (Session, error)
 	Notify(ctx context.Context, n Notification) error
 }
 
@@ -202,6 +211,12 @@ type SessionRef struct {
 type HookStates func(claudeSession string) (AgentState, bool)
 
 var sessionUUIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
+// RulesFile is the path, relative to the project root, of the rules file a
+// session for taskID is started with (`--append-system-prompt-file`, SPEC
+// §6.3; state.Dir.WriteRules writes it). A backend that can read a pane's
+// start command binds the pane to its task through it (V10-05).
+func RulesFile(taskID string) string { return ".igris/prompts/" + taskID + ".rules.md" }
 
 // ValidClaudeSession reports whether s has the shape of a Claude session
 // UUID as igris generates it. Refs read back from state.json are checked

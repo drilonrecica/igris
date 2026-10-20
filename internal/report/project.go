@@ -28,6 +28,7 @@ type Confirmations struct {
 	Drift       bool // let igris fix readiness drift (§5.2)
 	Yolo        bool // the typed `skip permissions` (§7.3)
 	ForceUnlock bool // clear a stale or remote lock (--force-unlock)
+	Config      bool // use an igris.toml edited during the last run (§13)
 }
 
 // Prelaunch is what `igris arise` says before a run starts.

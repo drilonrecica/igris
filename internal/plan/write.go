@@ -60,9 +60,9 @@ func (w *Writer) Update(ctx context.Context, fn UpdateFunc) ([]Change, error) {
 // attempt makes one read-validate-write pass. retry reports that the file
 // changed before the rename and nothing was written.
 func (w *Writer) attempt(fn UpdateFunc) (changes []Change, retry bool, err error) {
-	data, err := os.ReadFile(w.path)
+	data, err := readPlanFile(w.path)
 	if err != nil {
-		return nil, false, fmt.Errorf("read plan %s: %w", w.path, err)
+		return nil, false, err
 	}
 	sum := sha256.Sum256(data)
 
@@ -105,9 +105,9 @@ func (w *Writer) attempt(fn UpdateFunc) (changes []Change, retry bool, err error
 	if w.beforeRename != nil {
 		w.beforeRename()
 	}
-	now, err := os.ReadFile(w.path)
+	now, err := readPlanFile(w.path)
 	if err != nil {
-		return nil, false, fmt.Errorf("re-read plan %s: %w", w.path, err)
+		return nil, false, fmt.Errorf("re-read: %w", err)
 	}
 	if sha256.Sum256(now) != sum {
 		return nil, true, nil

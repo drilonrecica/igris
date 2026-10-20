@@ -139,6 +139,9 @@ func (e *Engine) emit(ev Event) {
 	// Details quote notes, plan text and command output: nothing in them may
 	// reach the owner's terminal as an escape sequence (SPEC §16).
 	ev.Detail, ev.Title, ev.Verify = textsafe.Clean(ev.Detail), textsafe.Line(ev.Title), textsafe.Line(ev.Verify)
+	// So do the rank, model, mode and phase: igris.toml and the plan name
+	// them, and a session can edit both (V10-05).
+	ev.Rank, ev.Model, ev.Mode, ev.Phase = textsafe.Line(ev.Rank), textsafe.Line(ev.Model), textsafe.Line(ev.Mode), textsafe.Line(ev.Phase)
 	if e.opts.Events != nil {
 		e.opts.Events(ev)
 	}

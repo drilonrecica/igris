@@ -360,7 +360,9 @@ func (e *Engine) scanSignals(t *plan.Task, started time.Time) *state.Signal {
 	var own *state.Signal
 	for i := range sigs {
 		s := sigs[i]
-		key := s.ID + "|" + s.Action + "|" + s.At.String()
+		// Once per task and action: a rewritten signal (a new timestamp
+		// each time) must not grow the once-map or repeat the report.
+		key := s.ID + "|" + s.Action
 		switch {
 		case s.Action == state.ActionReset:
 			// Asked about and applied by resets, for any task.

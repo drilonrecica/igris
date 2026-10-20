@@ -345,6 +345,8 @@ func TestWizardParity(t *testing.T) {
 			meaning: func(c report.Confirmations) bool { return c == report.Confirmations{} }},
 		{name: "drift", err: drift, question: "Let igris fix them?", confirm: "Let igris fix them",
 			meaning: func(c report.Confirmations) bool { return c.Drift && !c.Yolo && !c.ForceUnlock }},
+		{name: "config changed during the last run", err: engine.ErrConfigUnconfirmed, question: "Use the changed igris.toml?", confirm: "Use it",
+			meaning: func(c report.Confirmations) bool { return c.Config && !c.Drift && !c.Yolo && !c.ForceUnlock }},
 		{name: "yolo", err: engine.ErrYoloUnconfirmed, question: "Skip permissions?", input: true, confirm: "Skip permissions",
 			meaning: func(c report.Confirmations) bool { return c.Yolo && !c.Drift && !c.ForceUnlock }},
 		{name: "stale lock", err: stale, question: "Clear the lock and start?", confirm: "Clear the lock and start",

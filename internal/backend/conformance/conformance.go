@@ -38,7 +38,7 @@ var Spec = backend.SessionSpec{
 	TaskID:        "T-01",
 	Dir:           "/work/demo",
 	Label:         "T-01 · sonnet",
-	Args:          []string{"--model", "sonnet", "--session-id", UUID},
+	Args:          []string{"--model", "sonnet", "--session-id", UUID, "--append-system-prompt-file", "/work/demo/" + backend.RulesFile("T-01")},
 	ClaudeSession: UUID,
 }
 
@@ -116,7 +116,7 @@ func Run(t *testing.T, newWorld func(t *testing.T) World) {
 		if err := s.Close(ctx); err != nil {
 			t.Errorf("Close of a gone session = %v, want nil", err)
 		}
-		if _, err := w.Backend().Attach(ctx, ref); !errors.Is(err, backend.ErrSessionGone) {
+		if _, err := w.Backend().Attach(ctx, ref, Spec.TaskID); !errors.Is(err, backend.ErrSessionGone) {
 			t.Errorf("Attach = %v, want ErrSessionGone", err)
 		}
 	})
@@ -124,7 +124,7 @@ func Run(t *testing.T, newWorld func(t *testing.T) World) {
 	t.Run("attach after restart", func(t *testing.T) {
 		w := newWorld(t)
 		ref := open(t, w).Ref()
-		s, err := w.Backend().Attach(ctx, ref)
+		s, err := w.Backend().Attach(ctx, ref, Spec.TaskID)
 		if err != nil {
 			t.Fatalf("Attach: %v", err)
 		}
@@ -166,6 +166,17 @@ func Run(t *testing.T, newWorld func(t *testing.T) World) {
 		}
 	})
 
+	// state.json is a session's to write: a ref naming a live pane of
+	// another task is refused as foreign, never driven (V10-05).
+	t.Run("attach refuses another task's pane", func(t *testing.T) {
+		w := newWorld(t)
+		ref := open(t, w).Ref()
+		_, err := w.Backend().Attach(ctx, ref, "T-02")
+		if !errors.Is(err, backend.ErrSessionGone) || !errors.Is(err, backend.ErrSessionForeign) {
+			t.Errorf("Attach for T-02 = %v, want ErrSessionGone and ErrSessionForeign", err)
+		}
+	})
+
 	// A ref of another backend, or one state.json mangled, is refused.
 	t.Run("attach refuses foreign refs", func(t *testing.T) {
 		w := newWorld(t)
@@ -175,7 +186,7 @@ func Run(t *testing.T, newWorld func(t *testing.T) World) {
 			{Backend: be.Name(), PaneID: "--help", TabID: "-t", Agent: "-x"},
 			{Backend: be.Name(), PaneID: "fake-1", TabID: "@1", Agent: "t-01", ClaudeSession: "--model"},
 		} {
-			if _, err := be.Attach(ctx, ref); err == nil {
+			if _, err := be.Attach(ctx, ref, Spec.TaskID); err == nil {
 				t.Errorf("Attach(%+v) succeeded", ref)
 			}
 		}

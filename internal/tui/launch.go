@@ -41,6 +41,7 @@ const (
 	wizConfirm                   // a start-up warning that needs a yes
 	wizStarting                  // the engine runs its start-up checks
 	wizDrift                     // readiness drift: let igris fix it?
+	wizConfig                    // igris.toml changed during the last run: use it?
 	wizYoloLaunch                // a task needs yolo: the typed phrase
 	wizUnlock                    // a stale or remote lock: clear it?
 	wizFailed                    // the run can't start; no retry
@@ -497,6 +498,15 @@ func (m *homeScreen) launchFailed(msg launchFailedMsg) tea.Cmd {
 			options: []option{{"Cancel", actClose}, {"Let igris fix them", actWizConfirm}},
 			cancel:  actClose,
 		}
+	case errors.Is(err, engine.ErrConfigUnconfirmed) && !l.conf.Config:
+		// SPEC §13: a session can edit igris.toml; the owner looks first.
+		l.step = wizConfig
+		m.dialog = &dialog{
+			title:   "Use the changed igris.toml?",
+			detail:  "igris.toml changed during the last run, which kept the configuration it started with; a session may have edited it. Review it (git diff igris.toml) before this run uses it.",
+			options: []option{{"Cancel", actClose}, {"Use it", actWizConfirm}},
+			cancel:  actClose,
+		}
 	case errors.Is(err, engine.ErrYoloUnconfirmed) && !l.conf.Yolo:
 		// SPEC §7.3: typed confirmation, every run.
 		l.step = wizYoloLaunch
@@ -609,6 +619,11 @@ func (m *homeScreen) wizardPick(a action) tea.Cmd {
 			l.conf.Drift = true
 			return m.start()
 		}
+	case wizConfig:
+		if a == actWizConfirm {
+			l.conf.Config = true
+			return m.start()
+		}
 	case wizUnlock:
 		if a == actWizConfirm {
 			l.conf.ForceUnlock = true
@@ -638,7 +653,7 @@ func (m *homeScreen) cancelWizard() tea.Cmd {
 		return nil
 	case wizYolo:
 		return m.modeStep() // back to the mode, which stays unchanged
-	case wizConfirm, wizDrift, wizYoloLaunch, wizUnlock:
+	case wizConfirm, wizDrift, wizConfig, wizYoloLaunch, wizUnlock:
 		m.closeWizard()
 		m.setStatus(notStarted)
 		return nil

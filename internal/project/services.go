@@ -245,7 +245,7 @@ func (s *Services) ViCommand(path string) tea.ExecCommand {
 }
 
 // Focus implements tui.Services.
-func (s *Services) Focus(ctx context.Context, ref backend.SessionRef) error {
+func (s *Services) Focus(ctx context.Context, ref backend.SessionRef, taskID string) error {
 	p, err := s.open()
 	if err != nil {
 		return err
@@ -254,5 +254,5 @@ func (s *Services) Focus(ctx context.Context, ref backend.SessionRef) error {
 	if err != nil {
 		return err
 	}
-	return Focus(be)(ctx, ref)
+	return Focus(be)(ctx, ref, taskID)
 }

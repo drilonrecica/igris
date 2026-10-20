@@ -179,7 +179,14 @@ func Run(ctx context.Context, o Options) []Result {
 			}
 		case IDConfig:
 			if o.Config != nil {
-				add(configWarnings(o.Config, o.Getenv)...)
+				rs := configWarnings(o.Config, o.Getenv)
+				if o.Root != "" {
+					rs = append(rs, configChangedLastRun(o.Root, o.Config)...)
+				}
+				if len(rs) == 0 {
+					rs = []Result{{ID: IDConfig, Level: OK, Message: "no ignored settings", File: state.ConfigFile}}
+				}
+				add(rs...)
 			}
 		case IDProject:
 			add(project(o))
@@ -234,7 +241,7 @@ func Problems(rs []Result) []Result {
 func configWarnings(cfg *config.Config, getenv func(string) string) []Result {
 	ws := cfg.WarningsEnv(getenv)
 	if len(ws) == 0 {
-		return []Result{{ID: IDConfig, Level: OK, Message: "no ignored settings", File: state.ConfigFile}}
+		return nil
 	}
 	deprecated := cfg.Deprecated()
 	out := make([]Result, len(ws))
@@ -245,6 +252,20 @@ func configWarnings(cfg *config.Config, getenv func(string) string) []Result {
 		}
 	}
 	return out
+}
+
+// configChangedLastRun warns when igris.toml was edited during the last
+// run and no run has used the edited file yet (SPEC §13, V10-05): `igris
+// arise` asks before it does. An unreadable state.json is no concern of
+// this check.
+func configChangedLastRun(root string, cfg *config.Config) []Result {
+	prev, err := state.PeekRun(root)
+	if err != nil || !prev.ConfigChanged || prev.ConfigHash == cfg.Hash() {
+		return nil
+	}
+	return []Result{{ID: IDConfig, Level: Warn, File: state.ConfigFile,
+		Message: "igris.toml changed during the last run, which kept the configuration it started with; a session may have edited it",
+		Next:    "review it (git diff igris.toml); `igris arise` asks before using it"}}
 }
 
 // project notes a directory without igris.toml. With one in a parent

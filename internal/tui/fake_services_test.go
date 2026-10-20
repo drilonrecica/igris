@@ -175,7 +175,7 @@ func (f *fakeServices) ViCommand(path string) tea.ExecCommand {
 	return f.vi(path)
 }
 
-func (f *fakeServices) Focus(context.Context, backend.SessionRef) error {
+func (f *fakeServices) Focus(context.Context, backend.SessionRef, string) error {
 	f.count("Focus")
 	return f.focusErr
 }

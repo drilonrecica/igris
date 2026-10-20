@@ -65,8 +65,8 @@ func TestClaudeArgs(t *testing.T) {
 			p.ExtraArgs = []string{"--verbose"}
 		},
 			[]string{"--model", "opus", "--session-id", id, "--append-system-prompt-file", "/p/M0-01.rules.md", "--settings", "/p/hooks/M0-01.settings.json", "--verbose"}},
-		{"extra args last, order kept", func(p *ClaudeParams) { p.ExtraArgs = []string{"--verbose", "--add-dir", "../x"} },
-			[]string{"--model", "opus", "--session-id", id, "--append-system-prompt-file", "/p/M0-01.rules.md", "--verbose", "--add-dir", "../x"}},
+		{"extra args last, order kept", func(p *ClaudeParams) { p.ExtraArgs = []string{"--verbose", "--effort", "high"} },
+			[]string{"--model", "opus", "--session-id", id, "--append-system-prompt-file", "/p/M0-01.rules.md", "--verbose", "--effort", "high"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -134,8 +134,14 @@ func applyMigration(root, path string, was, out []byte) (string, error) {
 }
 
 // writeReplacing replaces path with data atomically, keeping its mode: a
-// temporary file in the same directory, synced, then renamed over it.
+// temporary file in the same directory, synced, then renamed over it. A
+// symlinked path is resolved first, so the link stays and its target
+// changes (as the plan writer does).
 func writeReplacing(path string, data []byte) error {
+	path, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return err
+	}
 	fi, err := os.Stat(path)
 	if err != nil {
 		return err

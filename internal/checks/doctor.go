@@ -31,6 +31,9 @@ const (
 
 const (
 	claudeSettingsFile = ".claude/settings.local.json"
+	// claudeSharedSettingsFile is the project's shared Claude Code settings
+	// file, merged with the local one; a session can write both.
+	claudeSharedSettingsFile = ".claude/settings.json"
 	// skipSample is a command line `igris skip` allow rules are matched against.
 	skipSample = "igris skip x"
 )
@@ -217,47 +220,74 @@ func ProjectDoneRules(root string) []string {
 	return out
 }
 
-// allowRules checks .claude/settings.local.json: the `igris done` rules
-// `igris init` writes must be there, and no rule may allow `igris skip`,
-// which would bypass the skip confirmation (SPEC §6.2, §7.1).
+// claudeSettings is what doctor reads from a Claude Code settings file.
+type claudeSettings struct {
+	Permissions struct {
+		Allow       []any  `json:"allow"`
+		DefaultMode string `json:"defaultMode"`
+	} `json:"permissions"`
+}
+
+// rules are the string allow rules in s.
+func (s claudeSettings) rules() []string {
+	var out []string
+	for _, v := range s.Permissions.Allow {
+		if r, ok := v.(string); ok {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// allowRules checks the project's Claude Code settings, which Claude Code
+// merges from .claude/settings.json and .claude/settings.local.json: the
+// `igris done` rules `igris init` writes must be in one of them, and no
+// rule may allow `igris skip`, which would bypass the skip confirmation
+// (SPEC §6.2, §7.1). A session in accept or auto mode can write both files
+// (Claude Code asks first), so doctor also warns about what would widen
+// every later session: a rule that allows every shell command, and a
+// defaultMode that skips or auto-approves prompts.
 func allowRules(root string) Result {
 	r := func(l Level, msg, next string) Result {
 		return Result{ID: IDAllowRules, Level: l, Message: msg, Next: next}
 	}
-	data, err := os.ReadFile(filepath.Join(root, claudeSettingsFile)) //nolint:gosec // the owner's own Claude settings
-	switch {
-	case errors.Is(err, fs.ErrNotExist):
-		return r(Warn, claudeSettingsFile+" not found: every session's `igris done` would ask for permission", "igris init")
-	case err != nil:
-		return r(Warn, fmt.Sprintf("can't read %s: %v", claudeSettingsFile, err), "igris init")
-	}
-	var settings struct {
-		Permissions struct {
-			Allow []any `json:"allow"`
-		} `json:"permissions"`
-	}
-	if err := json.Unmarshal(data, &settings); err != nil {
-		return r(Warn, fmt.Sprintf("%s is not valid JSON of the expected shape (%v)", claudeSettingsFile, err), "igris init")
-	}
 	var allowed []string
-	for _, v := range settings.Permissions.Allow {
-		if s, ok := v.(string); ok {
-			allowed = append(allowed, s)
+	for _, file := range []string{claudeSharedSettingsFile, claudeSettingsFile} {
+		data, err := os.ReadFile(filepath.Join(root, file)) //nolint:gosec // the owner's own Claude settings
+		switch {
+		case errors.Is(err, fs.ErrNotExist) && file == claudeSettingsFile && allowed == nil:
+			return r(Warn, claudeSettingsFile+" not found: every session's `igris done` would ask for permission", "igris init")
+		case errors.Is(err, fs.ErrNotExist):
+			continue
+		case err != nil:
+			return r(Warn, fmt.Sprintf("can't read %s: %v", file, err), "igris init")
 		}
-	}
-	for _, rule := range allowed {
-		if allowsSkip(rule) {
-			return r(Warn, fmt.Sprintf("%s allows `igris skip` (rule %s): a session could skip tasks without your confirmation", claudeSettingsFile, rule),
-				fmt.Sprintf("remove %q from permissions.allow in %s", rule, claudeSettingsFile))
+		var settings claudeSettings
+		if err := json.Unmarshal(data, &settings); err != nil {
+			return r(Warn, fmt.Sprintf("%s is not valid JSON of the expected shape (%v)", file, err), "igris init")
+		}
+		if mode := settings.Permissions.DefaultMode; mode == "bypassPermissions" || mode == "auto" || mode == "dontAsk" {
+			return r(Warn, fmt.Sprintf("%s sets permissions.defaultMode = %q: every session in default mode would run with it, without the skip-permissions confirmation", file, mode),
+				fmt.Sprintf("remove permissions.defaultMode from %s (set the mode per task in the plan or with default_mode in igris.toml)", file))
+		}
+		for _, rule := range settings.rules() {
+			if allowsAllBash(rule) {
+				return r(Warn, fmt.Sprintf("%s allows every shell command (rule %s): every session could run anything, `igris skip` included, without a prompt", file, rule),
+					fmt.Sprintf("remove %q from permissions.allow in %s", rule, file))
+			}
+			if allowsSkip(rule) {
+				return r(Warn, fmt.Sprintf("%s allows `igris skip` (rule %s): a session could skip tasks without your confirmation", file, rule),
+					fmt.Sprintf("remove %q from permissions.allow in %s", rule, file))
+			}
+		}
+		allowed = append(allowed, settings.rules()...)
+		if allowed == nil {
+			allowed = []string{}
 		}
 	}
 	var missing []string
 	for _, rule := range DoneAllowRules {
-		found := false
-		for _, a := range allowed {
-			found = found || a == rule
-		}
-		if !found {
+		if !slices.Contains(allowed, rule) {
 			missing = append(missing, rule)
 		}
 	}
@@ -267,10 +297,34 @@ func allowRules(root string) Result {
 	return r(OK, "`igris done` is allowed and `igris skip` is not", "")
 }
 
+// allowsAllBash says whether a Claude Code allow rule matches every Bash
+// command: a bare `Bash`, or `Bash(…)` whose pattern is only a wildcard.
+func allowsAllBash(rule string) bool {
+	if rule == "Bash" {
+		return true
+	}
+	inner, ok := strings.CutPrefix(rule, "Bash(")
+	if !ok {
+		return false
+	}
+	inner, ok = strings.CutSuffix(inner, ")")
+	if !ok {
+		return false
+	}
+	switch strings.TrimSpace(inner) {
+	case "*", ":*", "*:*":
+		return true
+	}
+	return false
+}
+
 // allowsSkip says whether a Claude Code Bash allow rule matches
-// `igris skip`: an exact rule, or a prefix rule (`:*` or a trailing `*`)
-// whose prefix `igris skip x` starts with.
+// `igris skip`: every command, an exact rule, or a prefix rule (`:*` or a
+// trailing `*`) whose prefix `igris skip x` starts with.
 func allowsSkip(rule string) bool {
+	if allowsAllBash(rule) {
+		return true
+	}
 	inner, ok := strings.CutPrefix(rule, "Bash(")
 	if !ok {
 		return false

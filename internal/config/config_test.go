@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -248,7 +249,14 @@ func TestForbiddenExtraArgs(t *testing.T) {
 	forbidden := []string{
 		"--model", "--fallback-model", "--permission-mode", "--dangerously-skip-permissions",
 		"--allow-dangerously-skip-permissions", "--session-id", "--resume", "--continue",
-		"--append-system-prompt", "--append-system-prompt-file",
+		"--append-system-prompt", "--append-system-prompt-file", "--settings",
+		// V10-05: tools, directories, prompts, plugins, MCP and the session's
+		// shape change what a task may do or where it runs (SPEC §7.4).
+		"--allowedTools", "--allowed-tools", "--disallowedTools", "--disallowed-tools", "--tools",
+		"--add-dir", "--permission-prompt-tool", "--bare", "--setting-sources",
+		"--plugin-dir", "--plugin-url", "--mcp-config", "--strict-mcp-config",
+		"--agent", "--agents", "--system-prompt", "--system-prompt-snapshot", "--ide",
+		"--worktree", "--fork-session", "--no-session-persistence",
 	}
 	for _, f := range forbidden {
 		for _, arg := range []string{f, f + "=value"} {
@@ -260,7 +268,7 @@ func TestForbiddenExtraArgs(t *testing.T) {
 			})
 		}
 	}
-	for _, ok := range []string{"--verbose", "--add-dir", "--model-x", "--debug=api"} {
+	for _, ok := range []string{"--verbose", "--effort", "--model-x", "--debug=api", "--add-dir-x"} {
 		if _, err := Parse([]byte(`[claude]`+"\n"+`extra_args = ["`+ok+`"]`), "igris.toml"); err != nil {
 			t.Errorf("%s rejected: %v", ok, err)
 		}
@@ -619,7 +627,8 @@ func TestForbiddenExtraArg(t *testing.T) {
 		"--model": true, "--model=haiku": true, "--resume": true, "--append-system-prompt-file=x": true,
 		"--settings": true, "--settings=/tmp/s.json": true,
 		"-c": true, "-r": true, "-rc": true, "-dc": true, "-c=x": true, // short forms of --continue and --resume
-		"--verbose": false, "--add-dir": false, "-d": false, "-n": false, "-": false, "--": false, "": false,
+		"--add-dir": true, "--add-dir=/": true, "--tools=": true, "-w": true, "-dw": true, "-w=x": true, // V10-05
+		"--verbose": false, "--add-dir-x": false, "-d": false, "-n": false, "-": false, "--": false, "": false,
 	} {
 		if got := ForbiddenExtraArg(arg); got != want {
 			t.Errorf("ForbiddenExtraArg(%q) = %v, want %v", arg, got, want)
@@ -1114,5 +1123,78 @@ func TestWarningsEnv(t *testing.T) {
 	}
 	if got := c.WarningsEnv(nil); len(got) != 0 {
 		t.Errorf("without the environment: %q", got)
+	}
+}
+
+// SPEC §7.4: an extra argument may not contain control characters; check
+// refuses it, not only herdr at launch (V10-05).
+func TestExtraArgsRejectControlCharacters(t *testing.T) {
+	for _, arg := range []string{`--verbose\u001b[31m`, `--debug\u0000api`, `--x\n`} {
+		_, err := Parse([]byte("[claude]\nextra_args = [\""+arg+"\"]\n"), "igris.toml")
+		if err == nil || !strings.Contains(err.Error(), "claude.extra_args") || !strings.Contains(err.Error(), "control character") {
+			t.Errorf("%q: err = %v, want a control-character error naming claude.extra_args", arg, err)
+		}
+	}
+	if _, err := Parse([]byte("[claude]\nextra_args = [\"--verbose\", \"--debug=api\"]\n"), "igris.toml"); err != nil {
+		t.Errorf("plain arguments rejected: %v", err)
+	}
+}
+
+// A [models] value or rank is shown on the terminal and becomes a claude
+// argument: TOML accepts \u001b, so Validate must refuse it (V10-05).
+func TestModelsRejectControlCharacters(t *testing.T) {
+	for _, tt := range []struct{ toml, key string }{
+		{"[models]\nopus = \"\\u001b]52;c;eHg=\\u0007opus\"\n", "models.opus"},
+		{"[models]\nsonnet = \"son\\nnet\"\n", "models.sonnet"},
+		{"[models]\n\"fa\\u001bble\" = \"fable\"\n", "models."},
+	} {
+		_, err := Parse([]byte(tt.toml), "igris.toml")
+		if err == nil || !strings.Contains(err.Error(), tt.key) || !strings.Contains(err.Error(), "control character") {
+			t.Errorf("%q: err = %v, want a control-character error naming %s", tt.toml, err, tt.key)
+		}
+		if err != nil && strings.Contains(err.Error(), "\x1b") {
+			t.Errorf("%q: the error carries the escape: %q", tt.toml, err)
+		}
+	}
+	if _, err := Parse([]byte("[models]\nopus = \"claude-opus-5-5\"\n"), "igris.toml"); err != nil {
+		t.Errorf("plain model rejected: %v", err)
+	}
+}
+
+// A server URL is not a secret: it is shown on Settings and in doctor and
+// is part of the config hash, so a password in it would be too (V10-05).
+func TestServerURLRejectsUserinfo(t *testing.T) {
+	for _, tt := range []struct{ toml, key string }{
+		{"[notify.ntfy]\nserver = \"https://me:pw@ntfy.example\"\ntopic = \"t\"\n", "notify.ntfy.server"},
+		{"[notify.ntfy]\nserver = \"https://me@ntfy.example\"\ntopic = \"t\"\n", "notify.ntfy.server"},
+		{"[notify.gotify]\nserver = \"https://me:pw@gotify.example\"\ntoken = \"env:T\"\n", "notify.gotify.server"},
+	} {
+		_, err := Parse([]byte(tt.toml), "igris.toml")
+		if err == nil || !strings.Contains(err.Error(), tt.key) || !strings.Contains(err.Error(), "use token, not user:pass@ in the URL") {
+			t.Errorf("%q: err = %v, want a userinfo error naming %s", tt.toml, err, tt.key)
+		}
+		if err != nil && strings.Contains(err.Error(), "pw") {
+			t.Errorf("%q: the error shows the password: %q", tt.toml, err)
+		}
+	}
+}
+
+// igris.toml is read every poll and a session can replace it: a FIFO must
+// not hang igris, and a huge file is refused (SPEC §16, V10-05).
+func TestLoadRefusesNonRegularFiles(t *testing.T) {
+	dir := t.TempDir()
+	fifo := filepath.Join(dir, "igris.toml")
+	if err := syscall.Mkfifo(fifo, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(fifo); err == nil || !strings.Contains(err.Error(), "not a regular file") {
+		t.Errorf("Load(fifo) = %v, want not a regular file", err)
+	}
+	huge := filepath.Join(dir, "huge.toml")
+	if err := os.WriteFile(huge, make([]byte, MaxSize+1), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(huge); err == nil || !strings.Contains(err.Error(), "too large") {
+		t.Errorf("Load(huge) = %v, want too large", err)
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/drilonrecica/igris/internal/fsafe"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -171,7 +172,9 @@ func peekLock(root string, hostname func() (string, error), alive func(int) bool
 	st.Held = true
 	if err != nil {
 		var pe *fs.PathError
-		if errors.As(err, &pe) {
+		if errors.As(err, &pe) || errors.Is(err, fsafe.ErrNotRegular) || errors.Is(err, fsafe.ErrTooLarge) {
+			// Can't be read at all, or isn't a lock file igris wrote: not
+			// a stale lock to clear, something to look at.
 			return st, fmt.Errorf("read lock %s: %w", path, err)
 		}
 		st.Unreadable = true
@@ -223,9 +226,13 @@ func (l *Lock) Release() error {
 	return nil
 }
 
+// maxLockSize bounds the lock file (SPEC §16).
+const maxLockSize = 4 << 10
+
 func readLock(path string) (LockInfo, error) {
 	var info LockInfo
-	data, err := os.ReadFile(path) //nolint:gosec // igris's own lock file
+	// A regular file of a sane size only: .igris/ is a session's to write.
+	data, err := fsafe.ReadFile(path, maxLockSize, false)
 	if err != nil {
 		return info, err
 	}

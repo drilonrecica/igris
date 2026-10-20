@@ -212,8 +212,24 @@ func TestReviewScrollAndWrap(t *testing.T) {
 func TestReviewCleansControlCharacters(t *testing.T) {
 	rh := newReviewHarness(t, 80, 10, ReviewOptions{PlanPath: "p.md", Review: adapt.Review{Prose: adapt.Diff(nil, []string{"a\x1b[2Jb\tc"})}})
 	out := rh.r.View()
-	if strings.Contains(out, "\x1b") || !strings.Contains(out, "+ a?[2Jb    c") {
+	if strings.Contains(out, "\x1b") || !strings.Contains(out, "+ ab    c") {
 		t.Errorf("control characters reach the terminal: %q", out)
+	}
+}
+
+// The proposal's lines are a session-written file's: bidi and zero-width
+// characters go too, as everywhere else (SPEC §16).
+func TestReviewCleansHiddenCharacters(t *testing.T) {
+	rh := newReviewHarness(t, 80, 10, ReviewOptions{PlanPath: "p.md", Issues: []string{"x\u2066y\x1b[2J"},
+		Review: adapt.Review{Prose: adapt.Diff(nil, []string{"a\u202ecba\u202c b\u200bc"})}})
+	out := rh.r.View()
+	for _, bad := range []string{"\u202e", "\u202c", "\u200b", "\u2066", "\x1b"} {
+		if strings.Contains(out, bad) {
+			t.Errorf("%q reaches the terminal: %q", bad, out)
+		}
+	}
+	if !strings.Contains(out, "+ acba bc") || !strings.Contains(out, "xy") {
+		t.Errorf("the cleaned lines are missing: %q", out)
 	}
 }
 
