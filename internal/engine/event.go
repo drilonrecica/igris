@@ -49,6 +49,7 @@ const (
 	SessionLost      EventKind = "session_lost"       // the pane is gone or Claude Code exited without a signal
 	TaskOverdue      EventKind = "task_overdue"       // the attempt runs longer than the task's Timeout; Detail says how long
 	Asked            EventKind = "asked"              // Question waits for the owner's answer; Detail is the question
+	PlanClosed       EventKind = "plan_closed"        // the plan shown for approval is answered or gone; Detail says how
 	Retrying         EventKind = "retrying"           // the session is replaced; Detail is "continue" or "fresh"
 	TaskSkipped      EventKind = "task_skipped"       // Detail is the reason; Changes holds the cells written
 	TaskReset        EventKind = "task_reset"         // Task was put back to ready/blocked by `igris reset`; Detail is its change, Changes the cells written
@@ -96,6 +97,11 @@ type Event struct {
 	// Output is the last lines of a failed task hook's output, cleaned for
 	// the terminal; set on HookFailed. It is shown, never logged or sent.
 	Output []string
+	// Plan is the plan text, cleaned for the terminal, and Then the mode
+	// an approval switches the session to; set on Asked with
+	// QuestionPlanApproval. The plan is shown, never logged or sent.
+	Plan string
+	Then string
 }
 
 // Question identifies what an Asked event waits for. The owner answers with
@@ -122,6 +128,11 @@ const (
 	// yes applies the reset, no drops it. It can be asked while another
 	// question waits.
 	QuestionConfirmReset Question = "confirm_reset"
+	// QuestionPlanApproval: the session presents a plan for approval
+	// (SPEC §6.3); Plan is its text, Then the mode an approval switches
+	// to. CmdPlan answers it; PlanClosed says it is over, also when the
+	// owner answered in the pane.
+	QuestionPlanApproval Question = "plan_approval"
 )
 
 // emit stamps ev with the time and the current phase and task and hands it
@@ -139,6 +150,7 @@ func (e *Engine) emit(ev Event) {
 	// Details quote notes, plan text and command output: nothing in them may
 	// reach the owner's terminal as an escape sequence (SPEC §16).
 	ev.Detail, ev.Title, ev.Verify = textsafe.Clean(ev.Detail), textsafe.Line(ev.Title), textsafe.Line(ev.Verify)
+	ev.Plan, ev.Then = textsafe.Clean(ev.Plan), textsafe.Line(ev.Then)
 	// So do the rank, model, mode and phase: igris.toml and the plan name
 	// them, and a session can edit both (V10-05).
 	ev.Rank, ev.Model, ev.Mode, ev.Phase = textsafe.Line(ev.Rank), textsafe.Line(ev.Model), textsafe.Line(ev.Mode), textsafe.Line(ev.Phase)

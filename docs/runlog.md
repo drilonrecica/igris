@@ -35,6 +35,9 @@ Every line igris v0.5 or later writes has `"v":1`. `v`, `at` and `type` are alwa
 | `branch` | string | the run's worktree branch, `igris/<run-id>`, in worktree mode (since 0.6) | `run_started` |
 | `duration_ms` | integer | milliseconds. `task_done`/`task_skipped`: since this run's `task_started` or `task_resumed` of the task (wall time: watching, verify, questions, everything). `verify_*`: the verify command's run time. `run_stopped`: the run's length. Readers take a negative value or one over 30 days as unknown | those events |
 | `reason` | string | why igris waits on you (below) | `needs_you`, `needs_you_clear` |
+| `plan_file` | string | where the plan is kept, `.igris/plans/<ID>-a<attempt>-<n>.md` (left out if it couldn't be saved; since 1.1) | `plan_presented`, `plan_approved`, `plan_rejected` |
+| `plan_sha256` | string | the sha256 of the plan's text, in hex; the text itself and any feedback are never logged (since 1.1) | `plan_presented`, `plan_approved`, `plan_rejected` |
+| `mode` | string | the mode the session switches to: `default`, `accept` or `auto` (since 1.1) | `plan_approved` |
 | `detail` | string | free text, see each type | most events |
 
 ## Event types
@@ -57,6 +60,9 @@ Every line igris v0.5 or later writes has `"v":1`. `v`, `at` and `type` are alwa
 | `needs_you_clear` | that wait ended while the task goes on: the agent works again, the session ran `igris done`, you answered, a retry | empty |
 | `notification` | a notification was delivered, held for quiet hours, or sent as a digest | `<event> via <channel>` (`task_done via ntfy`); `<event> held for <channel> (quiet hours)`; `digest of N via <channel>` (no `task`). Failed deliveries are not logged here |
 | `config_changed` | `igris.toml` was edited during the run; the run keeps the configuration it started with and the next `igris arise` asks before using the file (since 1.0) | `igris.toml changed during the run; igris keeps the configuration it started with` (no `task`) |
+| `plan_presented` | a plan-mode session presented a plan for approval in igris (SPEC §6.3; since 1.1) | empty |
+| `plan_approved` | you approved it in igris | empty |
+| `plan_rejected` | you rejected it with feedback in igris; the session revises it and presents it again | empty |
 | `error` | a task hook failed, or the run stopped with an error | the hook's reason (`before_task hook failed: exit status 1`) or the error |
 
 ### Needs-you reasons
@@ -75,6 +81,7 @@ Every line igris v0.5 or later writes has `"v":1`. `v`, `at` and `type` are alwa
 | `commit` | the commit question under `commit = "ask"` |
 | `reset_request` | a reset request waits for your confirmation (`task` is the task to reset, which may not be the current one) |
 | `plan_changed` | the plan changed outside igris and the run holds (SPEC §5.4); run-wide, no `task` |
+| `plan_approval` | a plan waits for your approval in igris (SPEC §6.3; since 1.1) |
 
 A reader treats any other reason as `other`. The config-changed notice is not a wait (the run goes on with its snapshot) and is not logged as `needs_you`.
 
@@ -82,6 +89,7 @@ Needs-you time is the time igris waited on you. So:
 
 - `idle` and `blocked` end when the agent works again or the session runs `igris done` (also when its verify then fails: a new idle stretch is a new wait).
 - `task_overdue`, `verify_limit` and `verify_not_sent` end when the agent is seen working again: an overdue task that keeps working waits on nobody.
+- `plan_approval` ends when you approve or reject the plan, or when it is answered in the session's pane (then the session's own `blocked` wait may follow, as when you pick *Answer in the pane*).
 - `plan_changed` starts when the run holds: the change is noticed between tasks, after the current task ended. It ends when you resume.
 - A wait that is already open is not logged again: a second skip request from the session, the verify limit hit again, another plan edit while the run holds.
 
@@ -108,6 +116,8 @@ One line per type, as igris writes them:
 {"v":1,"at":"2026-10-08T09:15:01Z","type":"task_started","run":"20261008-091500-3fa2","task":"M1-03","rank":"sonnet","model":"sonnet","attempt":1,"session":"0f6c2a3e-5b1d-4c7e-9a8f-1d2e3f4a5b6c","phase":"M1","title":"Config loader","owner":"agent","detail":"mode auto"}
 {"v":1,"at":"2026-10-08T09:25:00Z","type":"needs_you","run":"20261008-091500-3fa2","task":"M1-03","rank":"sonnet","model":"sonnet","attempt":1,"reason":"idle","detail":"needs you (idle 5m0s without igris done)"}
 {"v":1,"at":"2026-10-08T09:27:10Z","type":"needs_you_clear","run":"20261008-091500-3fa2","task":"M1-03","rank":"sonnet","model":"sonnet","attempt":1,"reason":"idle"}
+{"v":1,"at":"2026-10-08T09:27:20Z","type":"plan_presented","run":"20261008-091500-3fa2","task":"M1-03","rank":"sonnet","model":"sonnet","attempt":1,"plan_file":".igris/plans/M1-03-a1-1.md","plan_sha256":"9f2c1d0b8e7a6f5e4d3c2b1a09f8e7d6c5b4a3928170f6e5d4c3b2a1908f7e6d"}
+{"v":1,"at":"2026-10-08T09:27:40Z","type":"plan_approved","run":"20261008-091500-3fa2","task":"M1-03","rank":"sonnet","model":"sonnet","attempt":1,"plan_file":".igris/plans/M1-03-a1-1.md","plan_sha256":"9f2c1d0b8e7a6f5e4d3c2b1a09f8e7d6c5b4a3928170f6e5d4c3b2a1908f7e6d","mode":"auto"}
 {"v":1,"at":"2026-10-08T09:28:00Z","type":"verify_failed","run":"20261008-091500-3fa2","task":"M1-03","rank":"sonnet","model":"sonnet","attempt":1,"profile":"fast","duration_ms":12450,"detail":"profile fast: attempt 1 of 3: exit status 2"}
 {"v":1,"at":"2026-10-08T09:28:30Z","type":"task_retried","run":"20261008-091500-3fa2","task":"M1-03","rank":"sonnet","model":"sonnet","attempt":2,"session":"7d1e9b20-3c4a-4f5e-8b6d-0a1b2c3d4e5f","detail":"fresh"}
 {"v":1,"at":"2026-10-08T09:29:00Z","type":"task_overdue","run":"20261008-091500-3fa2","task":"M1-03","rank":"sonnet","model":"sonnet","attempt":2,"detail":"running longer than its Timeout 10m"}

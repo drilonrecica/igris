@@ -94,16 +94,17 @@ func sameFile(a, b string) bool {
 
 // WriteHooks writes the Claude Code settings file for task id (SPEC §6.3)
 // and returns its path. exe is the igris binary the hooks run; "" means the
-// running one. allow are permission allow rules to add (hook.Settings).
-// Without a usable binary path the session runs without hooks ("" and no
-// error): hook state is an aid, never required.
-func WriteHooks(dir *state.Dir, id, exe string, allow []string) (string, error) {
+// running one. allow are permission allow rules to add, plan the plan
+// approval entry or nil (hook.Settings). Without a usable binary path the
+// session runs without hooks ("" and no error): hook state is an aid,
+// never required.
+func WriteHooks(dir *state.Dir, id, exe string, allow []string, plan *hook.PlanApproval) (string, error) {
 	if exe == "" {
 		if exe = igrisPath(); exe == "" {
 			return "", nil
 		}
 	}
-	data, err := hook.Settings(exe, dir.Root(), allow)
+	data, err := hook.Settings(exe, dir.Root(), allow, plan)
 	if err != nil {
 		return "", err
 	}

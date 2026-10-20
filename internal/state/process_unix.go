@@ -16,3 +16,7 @@ func processAlive(pid int) bool {
 	err := syscall.Kill(pid, 0)
 	return err == nil || errors.Is(err, syscall.EPERM)
 }
+
+// ProcessAlive reports whether a process with pid exists on this host,
+// like processAlive.
+func ProcessAlive(pid int) bool { return processAlive(pid) }

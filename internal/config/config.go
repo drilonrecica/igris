@@ -90,10 +90,13 @@ type Config struct {
 	Phases map[string]PhaseConfig `toml:"phases,omitempty" json:",omitempty"`
 	// Hooks are the task hooks (SPEC §6.7). Left out when empty (IsZero),
 	// so a config without them hashes as it did before they existed.
-	Hooks  Hooks  `toml:"hooks,omitempty" json:",omitzero"`
-	Adapt  Adapt  `toml:"adapt"`
-	TUI    TUI    `toml:"tui"`
-	Notify Notify `toml:"notify"`
+	Hooks Hooks `toml:"hooks,omitempty" json:",omitzero"`
+	// PlanMode configures plan approval from igris (SPEC §6.3, §7.1); left
+	// out of the hash and the written file while unset (since 1.1).
+	PlanMode PlanMode `toml:"plan_mode,omitempty" json:",omitzero"`
+	Adapt    Adapt    `toml:"adapt"`
+	TUI      TUI      `toml:"tui"`
+	Notify   Notify   `toml:"notify"`
 }
 
 // Claude configures how Claude Code is launched. The backends start claude
@@ -184,6 +187,48 @@ func (h Hooks) TimeoutOrDefault() time.Duration {
 		return DefaultHookTimeout
 	}
 	return h.Timeout.Std()
+}
+
+// Plan approval defaults (SPEC §12, V11-P1).
+const (
+	DefaultPlanThen       = "auto"
+	DefaultApproveTimeout = 30 * time.Minute
+	// minApproveTimeout and maxApproveTimeout bound approve_timeout when
+	// it isn't "0".
+	minApproveTimeout = time.Minute
+	maxApproveTimeout = 24 * time.Hour
+)
+
+// validPlanThen are the modes a plain plan task may switch to once igris
+// approves its plan; never yolo (V11-P1).
+var validPlanThen = []string{"default", "accept", "auto"}
+
+// PlanMode is the [plan_mode] table (SPEC §12): plan approval from igris.
+// Both keys are nil or empty when not set.
+type PlanMode struct {
+	// Then is the mode a plain `plan` task switches to when igris approves
+	// its plan; "" is DefaultPlanThen.
+	Then string `toml:"then,omitempty" json:",omitempty"`
+	// ApproveTimeout is how long the plan hook waits for igris; 0 turns
+	// approval from igris off. nil is DefaultApproveTimeout.
+	ApproveTimeout *Duration `toml:"approve_timeout,omitempty" json:",omitempty"`
+}
+
+// ThenOrDefault is plan_mode.then, lower-case, or DefaultPlanThen.
+func (p PlanMode) ThenOrDefault() string {
+	if t := strings.ToLower(strings.TrimSpace(p.Then)); t != "" {
+		return t
+	}
+	return DefaultPlanThen
+}
+
+// ApproveTimeoutOrDefault is plan_mode.approve_timeout, or
+// DefaultApproveTimeout when unset; 0 means no approval from igris.
+func (p PlanMode) ApproveTimeoutOrDefault() time.Duration {
+	if p.ApproveTimeout == nil {
+		return DefaultApproveTimeout
+	}
+	return p.ApproveTimeout.Std()
 }
 
 // VerifyDefault is the profile run.verify defines.
@@ -646,6 +691,12 @@ func (c *Config) Validate() error {
 
 	c.validateVerify(add)
 	c.validateHooks(add)
+	if c.PlanMode.Then != "" {
+		oneOf("plan_mode.then", strings.ToLower(strings.TrimSpace(c.PlanMode.Then)), validPlanThen)
+	}
+	if t := c.PlanMode.ApproveTimeout; t != nil && *t != 0 && (t.Std() < minApproveTimeout || t.Std() > maxApproveTimeout) {
+		add("plan_mode.approve_timeout = %q is out of range; use 1m to 24h, or \"0\" to approve plans in the pane only", t.Short())
+	}
 
 	for i, arg := range c.Claude.ExtraArgs {
 		switch {

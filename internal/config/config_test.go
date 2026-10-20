@@ -1027,6 +1027,51 @@ func TestWaitingLimitAndNudge(t *testing.T) {
 	}
 }
 
+// [plan_mode] (V11-P1): defaults when unset, out of the hash while unset,
+// validated and kept by Write when set.
+func TestPlanMode(t *testing.T) {
+	d := Default()
+	if d.PlanMode.ThenOrDefault() != "auto" || d.PlanMode.ApproveTimeoutOrDefault() != 30*time.Minute {
+		t.Errorf("defaults: then %s, approve_timeout %s", d.PlanMode.ThenOrDefault(), d.PlanMode.ApproveTimeoutOrDefault())
+	}
+	if d.Hash() != v04DefaultHash {
+		t.Error("[plan_mode] changed the default hash")
+	}
+	c, err := Parse([]byte("[plan_mode]\nthen = \"Accept\"\napprove_timeout = \"0\"\n"), "igris.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.PlanMode.ThenOrDefault() != "accept" || c.PlanMode.ApproveTimeoutOrDefault() != 0 {
+		t.Errorf("set: then %s, approve_timeout %s", c.PlanMode.ThenOrDefault(), c.PlanMode.ApproveTimeoutOrDefault())
+	}
+	if c.Hash() == v04DefaultHash {
+		t.Error("setting them left the hash unchanged")
+	}
+	path := filepath.Join(t.TempDir(), "igris.toml")
+	if err := Write(path, c); err != nil {
+		t.Fatal(err)
+	}
+	if back, err := Load(path); err != nil || back.Hash() != c.Hash() {
+		t.Errorf("Write and Load lost [plan_mode]: %v", err)
+	}
+	for _, tc := range []struct{ toml, want string }{
+		{"then = \"yolo\"", "plan_mode.then"},
+		{"then = \"plan\"", "plan_mode.then"},
+		{"approve_timeout = \"30s\"", "plan_mode.approve_timeout"},
+		{"approve_timeout = \"25h\"", "plan_mode.approve_timeout"},
+		{"approve_timeout = \"-1m\"", "plan_mode.approve_timeout"},
+	} {
+		if _, err := Parse([]byte("[plan_mode]\n"+tc.toml+"\n"), "igris.toml"); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: err = %v", tc.toml, err)
+		}
+	}
+	for _, ok := range []string{"approve_timeout = \"1m\"", "approve_timeout = \"24h\"", "then = \"default\""} {
+		if _, err := Parse([]byte("[plan_mode]\n"+ok+"\n"), "igris.toml"); err != nil {
+			t.Errorf("%s: %v", ok, err)
+		}
+	}
+}
+
 func TestWorktree(t *testing.T) {
 	d := Default()
 	if d.Run.WorktreeOn() || d.Hash() != v04DefaultHash {

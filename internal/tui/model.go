@@ -10,6 +10,7 @@ import (
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/plan"
+	"github.com/drilonrecica/igris/internal/state"
 )
 
 // maxLog caps the log kept in memory; the full record is .igris/runs.jsonl.
@@ -461,6 +462,16 @@ func (m *model) pick(a action) tea.Cmd {
 		m.opts.Sender.Send(engine.Command{Kind: engine.CmdSkip, Text: reason})
 		return nil
 	}
+	if a == actPlanRejectConfirm && d != nil && d.input != nil {
+		feedback := strings.TrimSpace(d.input.value)
+		if feedback == "" {
+			d.inField, d.input.hint = true, "Type what the session should change."
+			return nil
+		}
+		m.dialog, m.asked = nil, nil
+		m.opts.Sender.Send(engine.Command{Kind: engine.CmdPlan, Plan: state.PlanDeny, Text: feedback})
+		return nil
+	}
 	if a == actDoneConfirm && d != nil && d.input != nil {
 		m.dialog = nil
 		m.opts.Sender.Send(engine.Command{Kind: engine.CmdDone, Text: strings.TrimSpace(d.input.value)})
@@ -574,6 +585,11 @@ func (m *model) activate(a action) tea.Cmd {
 			m.dialog = d
 		}
 		return nil
+	case actPlanReject:
+		if m.dialog != nil && m.dialog.question == engine.QuestionPlanApproval {
+			m.dialog = planRejectDialog(m.dialog.task)
+		}
+		return nil
 	case actRetry:
 		if m.cur != nil && !m.cur.user && !m.ended {
 			m.dialog = retryDialog(m.cur.id)
@@ -608,6 +624,9 @@ func (m *model) activate(a action) tea.Cmd {
 	case m.dialog != nil && m.dialog.question != "":
 		// The engine has its answer; the events that follow say what it did.
 		m.dialog, m.asked = nil, nil
+	}
+	if a == actPlanPane {
+		return m.focusSession() // Claude Code's own plan dialog waits there
 	}
 	return nil
 }
@@ -710,6 +729,16 @@ func (m *model) event(ev engine.Event) {
 		}
 		m.asked = &e
 		m.setState(stateQuestion, ev)
+	case engine.PlanClosed:
+		if m.asked != nil && m.asked.Question == engine.QuestionPlanApproval {
+			m.asked = nil
+		}
+		if d := m.dialog; d != nil && (d.question == engine.QuestionPlanApproval || d.answers == engine.QuestionPlanApproval) {
+			m.dialog = nil
+		}
+		if m.cur != nil && m.cur.state == stateQuestion {
+			m.setState(stateNeedsYou, ev) // until the agent works again
+		}
 	case engine.ResetDropped:
 		m.dropResetAsk(ev.Task)
 	case engine.Retrying:

@@ -45,6 +45,8 @@ func logLines(ev engine.Event) []string {
 		return []string{id + " session lost: " + ev.Detail}
 	case engine.Asked:
 		return []string{"? " + ev.Detail}
+	case engine.PlanClosed:
+		return []string{id + " " + ev.Detail}
 	case engine.Retrying:
 		return []string{id + " new session (" + ev.Detail + ")"}
 	case engine.VerifyStarted:

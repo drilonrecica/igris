@@ -93,6 +93,8 @@ func (e *Engine) watch(ctx context.Context, l *launch) (verdict, error) {
 				}
 				skip = nil
 				e.waitOver(state.ReasonSkipRequest)
+			case CmdPlan:
+				e.decidePlan(l, c)
 			}
 		}
 
@@ -132,6 +134,7 @@ func (e *Engine) watch(ctx context.Context, l *launch) (verdict, error) {
 				stateErr = ""
 				delivered := e.promptDelivered(l)
 				e.checkSubmitted(ctx, l, st, delivered)
+				e.checkPlanRequest(ctx, l)
 				e.observe(ctx, l, st, &ep)
 			}
 			e.checkOverdue(ctx, l)
@@ -173,7 +176,8 @@ func (e *Engine) observe(ctx context.Context, l *launch, st backend.AgentState, 
 			ep.since = now
 		}
 		after := e.cfg.NeedsInputAfter.Std()
-		if ep.needsYou || now.Sub(ep.since) < after {
+		if ep.needsYou || now.Sub(ep.since) < after || l.plan.n != "" {
+			// A plan shown for approval has its own Needs you (SPEC §6.3).
 			return
 		}
 		if st != backend.Blocked && e.nudge(ctx, l) {
@@ -335,6 +339,7 @@ func (e *Engine) needsYou(ctx context.Context, event notify.Event, reason, why, 
 // lose marks l's session lost and asks the owner how to go on (SPEC §6.3).
 func (e *Engine) lose(ctx context.Context, l *launch) {
 	l.lost = true
+	e.dropPlan(l, "the session is gone")
 	e.emit(Event{Kind: SessionLost, Detail: "the session is gone without `igris done`"})
 	e.waitOn(state.ReasonSessionLost, "session lost")
 	e.toast(ctx, notifySessionLost, "session lost")

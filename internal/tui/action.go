@@ -1,6 +1,9 @@
 package tui
 
-import "github.com/drilonrecica/igris/internal/engine"
+import (
+	"github.com/drilonrecica/igris/internal/engine"
+	"github.com/drilonrecica/igris/internal/state"
+)
 
 // action is something the owner can do in the TUI: a button, a shortcut
 // key or a dialog option all end up as one.
@@ -74,6 +77,11 @@ const (
 	actWizConfirm  // the confirming choice of a start-up question
 	actDetails     // the selected task's details page (t, the card)
 	actDoneConfirm // done with the note typed into a user task's done dialog
+	// A plan presented for approval (SPEC §6.3, planDialog).
+	actPlanApprove       // approve the plan
+	actPlanReject        // ask for the feedback that rejects it
+	actPlanRejectConfirm // reject it with the feedback typed
+	actPlanPane          // answer it in the session's pane, which opens
 )
 
 // modeActs maps the mode picker's actions to their modes, in the order
@@ -116,6 +124,10 @@ func (a action) command() (engine.Command, bool) {
 		return engine.Command{Kind: engine.CmdRetry, Continue: true}, true
 	case actStop:
 		return engine.Command{Kind: engine.CmdStop}, true
+	case actPlanApprove:
+		return engine.Command{Kind: engine.CmdPlan, Plan: state.PlanAllow}, true
+	case actPlanPane:
+		return engine.Command{Kind: engine.CmdPlan, Plan: state.PlanPane}, true
 	}
 	return engine.Command{}, false
 }

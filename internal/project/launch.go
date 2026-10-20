@@ -118,10 +118,13 @@ func (l *Launch) Options(c report.Confirmations, events func(engine.Event)) engi
 	}
 }
 
-// Engine builds the run's engine with the owner's answers c. Nothing
-// happens until its Run is called.
+// Engine builds the run's engine with the owner's answers c, for a run
+// the TUI shows: plans can be approved in it (SPEC §6.3). Nothing happens
+// until its Run is called.
 func (l *Launch) Engine(c report.Confirmations, events func(engine.Event)) (*engine.Engine, error) {
-	return engine.New(l.Options(c, events))
+	o := l.Options(c, events)
+	o.PlanApproval = true
+	return engine.New(o)
 }
 
 // TUIOptions are the run view's options for this run, fed by feed and

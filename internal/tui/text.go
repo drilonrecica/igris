@@ -102,3 +102,20 @@ func wrap(s string, w int) []string {
 	}
 	return out
 }
+
+// wrapPre wraps s like wrap but keeps each line's indentation (tabs count
+// as two spaces), so a markdown plan's nested lists stay readable.
+func wrapPre(s string, w int) []string {
+	w = max(w, 2)
+	var out []string
+	for _, line := range strings.Split(s, "\n") {
+		line = strings.ReplaceAll(line, "\t", "  ")
+		rest := strings.TrimLeft(line, " ")
+		indent := min(len(line)-len(rest), w/2)
+		pre := strings.Repeat(" ", indent)
+		for _, l := range wrap(rest, w-indent) {
+			out = append(out, pre+l)
+		}
+	}
+	return out
+}

@@ -52,6 +52,13 @@
 | `after_task` | list of strings | `[]` | Argv list run after every agent session, never through a shell (SPEC §6.7). |
 | `timeout` | duration | `"2m"` | Time limit for each hook. Greater than zero. |
 
+## `[plan_mode]`
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `then` | string | `"auto"` | The mode a plain `plan` task switches to when you approve its plan in igris (SPEC §6.3, §7.1). Never `yolo`. Allowed: `default`, `accept`, `auto`. |
+| `approve_timeout` | duration | `"30m"` | How long a plan presented for approval waits for your answer in igris before the pane decides (SPEC §6.3). 1m to 24h; `"0"` approves plans in the pane only. |
+
 ## `[adapt]`
 
 | Key | Type | Default | Description |

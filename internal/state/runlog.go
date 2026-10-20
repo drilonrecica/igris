@@ -44,6 +44,11 @@ const (
 	// EventConfigChanged: igris.toml was edited during the run; the run
 	// keeps its snapshot (SPEC §13). Since 1.0.
 	EventConfigChanged EventType = "config_changed"
+	// Plan approval from igris (SPEC §6.3), since 1.1: a session presented
+	// a plan, and the owner approved or rejected it in igris.
+	EventPlanPresented EventType = "plan_presented"
+	EventPlanApproved  EventType = "plan_approved"
+	EventPlanRejected  EventType = "plan_rejected"
 	EventError         EventType = "error"
 )
 
@@ -62,6 +67,7 @@ const (
 	ReasonCommit        = "commit"          // the commit question under commit = "ask"
 	ReasonResetRequest  = "reset_request"   // a reset request waits for confirmation
 	ReasonPlanChanged   = "plan_changed"    // the plan changed outside igris (SPEC §5.4)
+	ReasonPlanApproval  = "plan_approval"   // a plan awaits approval in igris (SPEC §6.3); since 1.1
 	ReasonOther         = "other"
 )
 
@@ -69,6 +75,7 @@ var reasons = map[string]bool{
 	ReasonIdle: true, ReasonBlocked: true, ReasonSkipRequest: true, ReasonSessionLost: true,
 	ReasonTaskOverdue: true, ReasonVerifyLimit: true, ReasonVerifyNotSent: true, ReasonHookFailed: true,
 	ReasonCommit: true, ReasonResetRequest: true, ReasonPlanChanged: true, ReasonWaiting: true,
+	ReasonPlanApproval: true,
 }
 
 // Event is one line of .igris/runs.jsonl (SPEC §13, docs/runlog.md). Fields
@@ -101,6 +108,13 @@ type Event struct {
 	// the verify command's on verify_*, and the run's on run_stopped.
 	DurationMS int64  `json:"duration_ms,omitempty"`
 	Reason     string `json:"reason,omitempty"` // on needs_you and needs_you_clear
+	// PlanFile and PlanSHA256 name the plan on plan_* events: its file
+	// under .igris/plans/ and the sha256 of its text, never the text
+	// (SPEC §6.3). Mode is the mode an approved session switches to, on
+	// plan_approved. Since 1.1.
+	PlanFile   string `json:"plan_file,omitempty"`
+	PlanSHA256 string `json:"plan_sha256,omitempty"`
+	Mode       string `json:"mode,omitempty"`
 	Detail     string `json:"detail,omitempty"` // never secrets (AGENTS §6)
 }
 

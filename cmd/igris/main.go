@@ -177,7 +177,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return execComplete(args[1:], stdout)
 	}
 	if args[0] == "hook" { // hidden: run by Claude Code hooks, SPEC §6.3
-		return execHook(args[1:], os.Stdin)
+		return execHook(args[1:], os.Stdin, os.Stdout)
 	}
 	for _, c := range commands() {
 		if c.name == args[0] {

@@ -38,6 +38,9 @@ type dialog struct {
 	// scroll is how many detail lines are scrolled away (pgup/pgdown, the
 	// wheel), for a detail longer than the box.
 	scroll int
+	// pre keeps the detail's line breaks and indentation (a plan in
+	// markdown); wide lets the box grow past the usual width.
+	pre, wide bool
 }
 
 type option struct {
@@ -80,6 +83,8 @@ func questionDialog(ev engine.Event) *dialog {
 		d.options = []option{{"Keep it as it is", actAnswerNo}, {"Reset " + ev.Task, actAnswerYes}}
 		d.cancel = actClose
 		d.task = ev.Task
+	case engine.QuestionPlanApproval:
+		return planDialog(ev)
 	case engine.QuestionHookFailed:
 		d.title = ev.Task + ": before_task hook failed"
 		d.options = []option{
@@ -94,6 +99,48 @@ func questionDialog(ev engine.Event) *dialog {
 		d.options = []option{{"Yes", actAnswerYes}, {"No", actAnswerNo}}
 	}
 	return d
+}
+
+// planDialog shows the plan a session presents for approval (SPEC §6.3):
+// approve, switching the session to the mode after approval, reject with
+// feedback, or answer in the pane, where Claude Code's own dialog waits
+// too. Esc leaves the question pending.
+func planDialog(ev engine.Event) *dialog {
+	then := ev.Then
+	if then == "" {
+		then = "the mode after approval"
+	}
+	return &dialog{
+		title:  ev.Task + " presents a plan",
+		detail: ev.Plan,
+		pre:    true,
+		wide:   true,
+		options: []option{
+			{"Approve: the session switches to " + then, actPlanApprove},
+			{"Reject with feedback…", actPlanReject},
+			{"Answer in the pane", actPlanPane},
+		},
+		cancel:   actClose,
+		question: engine.QuestionPlanApproval,
+		task:     ev.Task,
+	}
+}
+
+// planRejectDialog asks for the feedback that rejects task id's plan. The
+// session revises the plan with it and presents it again. Back and esc
+// return to the plan.
+func planRejectDialog(id string) *dialog {
+	return &dialog{
+		title:   "Reject the plan of " + id + "?",
+		detail:  "Your feedback goes to the session, which revises the plan and presents it again.",
+		input:   &field{label: "Feedback: "},
+		inField: true,
+		submit:  actPlanRejectConfirm,
+		options: []option{{"Send feedback", actPlanRejectConfirm}, {"Back to the plan", actAnswer}},
+		cancel:  actAnswer,
+		task:    id,
+		answers: engine.QuestionPlanApproval,
+	}
 }
 
 // stopDialog confirms the Stop action.
@@ -305,6 +352,9 @@ func (d *dialog) render(th *theme, w, h int) ([]string, zones) {
 	var detail []string
 	if d.detail != "" {
 		detail = wrap(d.detail, inner)
+		if d.pre {
+			detail = wrapPre(d.detail, inner)
+		}
 		// Borders, the title, a blank line before the detail and before the
 		// options, the field and the blank line after it.
 		room := h - 2 - len(title) - 2 - optLines

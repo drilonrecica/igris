@@ -110,8 +110,12 @@ type Current struct {
 	VerifyAttempts int                 `json:"verify_attempts"` // consecutive verify failures
 	// PendingPrompt is the first prompt while the session holds it back at a
 	// startup prompt, so a reattached session still gets it (SPEC §13).
-	PendingPrompt string    `json:"pending_prompt,omitempty"`
-	StartedAt     time.Time `json:"started_at"`
+	PendingPrompt string `json:"pending_prompt,omitempty"`
+	// ApprovedPlan is the plan the owner last approved in igris for the
+	// task, .igris/plans/<ID>-a<attempt>-<n>.md (SPEC §6.3), for the
+	// commit body. Since 1.1; no version change.
+	ApprovedPlan string    `json:"approved_plan,omitempty"`
+	StartedAt    time.Time `json:"started_at"`
 }
 
 // SaveRun writes r to state.json atomically.
@@ -221,6 +225,8 @@ func checkReadBack(r *Run) string {
 			return "the current task's mode is not a run mode"
 		case c.VerifyAttempts < 0:
 			return "the current task's verify attempts are negative"
+		case c.ApprovedPlan != "" && !ValidPlanFile(c.ApprovedPlan, c.TaskID):
+			return "the current task's approved plan is not a file igris kept"
 		}
 	}
 	if wt := r.Worktree; wt != nil {

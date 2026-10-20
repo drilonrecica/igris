@@ -27,6 +27,9 @@ const gitTimeout = 2 * time.Minute
 type CommitVars struct {
 	ID, Title, Phase, Rank, Model string
 	Note                          string // the done note; also the message body
+	// Plan is the plan igris approved for the task, capped at 8 KiB, ""
+	// without one (SPEC §6.5); also the body, after the note. Since 1.1.
+	Plan string
 }
 
 // parseCommitMessage parses the commit_message template once, so a broken
@@ -59,7 +62,8 @@ func (e *Engine) commit(ctx context.Context, l *launch, note string) (stopped, r
 		return false, false, nil
 	}
 	var subject bytes.Buffer
-	vars := CommitVars{ID: t.ID, Title: t.Title, Phase: e.phase, Rank: t.Rank, Model: l.model, Note: note}
+	approved := e.approvedPlan(l)
+	vars := CommitVars{ID: t.ID, Title: t.Title, Phase: e.phase, Rank: t.Rank, Model: l.model, Note: note, Plan: approved}
 	if err := e.commitMsg.Execute(&subject, vars); err != nil {
 		return false, false, fmt.Errorf("render run.commit_message for %s: %w; fix the template in igris.toml", t.ID, err)
 	}
@@ -91,6 +95,9 @@ func (e *Engine) commit(ctx context.Context, l *launch, note string) (stopped, r
 	args := []string{"commit", "-m", msg}
 	if note = strings.TrimSpace(note); note != "" {
 		args = append(args, "-m", note)
+	}
+	if approved != "" {
+		args = append(args, "-m", "Approved plan:\n\n"+approved)
 	}
 	if _, err := e.git(ctx, args...); err != nil {
 		return false, false, fmt.Errorf("%w; fix what git reports (e.g. a failing hook), commit the changes of %s by hand or set commit = \"never\" in [run], then run `igris arise` again", err, t.ID)

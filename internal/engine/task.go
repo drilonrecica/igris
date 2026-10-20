@@ -49,6 +49,9 @@ type launch struct {
 	attempt int
 	since   time.Time
 	waits   []string
+	// plan is the plan the session presents for approval in igris, if any
+	// (SPEC §6.3).
+	plan planShown
 }
 
 // nextAttempt counts a new attempt of l's task in this run.
@@ -200,7 +203,7 @@ func (e *Engine) prepareSession(l *launch, how startKind) (sessionStart, error) 
 	if e.run.Worktree != nil {
 		allow = e.worktreeAllow()
 	}
-	hooks, err := WriteHooks(e.dir, t.ID, e.opts.IgrisPath, allow)
+	hooks, err := WriteHooks(e.dir, t.ID, e.opts.IgrisPath, allow, e.planApproval(st.mode))
 	if err != nil {
 		return st, err
 	}
@@ -357,6 +360,7 @@ func (e *Engine) retry(ctx context.Context, l *launch, cont bool) error {
 		how, detail = startContinue, "continue"
 	}
 	e.emit(Event{Kind: Retrying, Detail: detail})
+	e.dropPlan(l, "the session is replaced")
 	e.waitsOver()            // the owner acted; whatever the old session waited on is over
 	l.cur.VerifyAttempts = 0 // a new session gets the full verify budget
 	if l.sess != nil {
@@ -397,6 +401,7 @@ func (e *Engine) finish(ctx context.Context, l *launch, to plan.Status, note str
 		return err
 	}
 	e.plans.wrote(changes)
+	e.dropPlan(l, "the task ended")
 	logType, kind := state.EventTaskDone, TaskDone
 	if to == plan.Skipped {
 		logType, kind = state.EventTaskSkipped, TaskSkipped

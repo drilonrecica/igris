@@ -84,6 +84,11 @@ type Options struct {
 	// the last run and lets this run use it (ErrConfigUnconfirmed).
 	ConfirmedConfig bool
 
+	// PlanApproval says a UI can show plans for approval (SPEC §6.3): plan
+	// sessions get the plan-approve hook, and the plans they present come
+	// as QuestionPlanApproval. Off for --no-tui.
+	PlanApproval bool
+
 	// IgrisPath is the igris binary the session hooks run (SPEC §6.3); ""
 	// means the running one.
 	IgrisPath string

@@ -44,6 +44,10 @@ const (
 	// the task, Text the mode. It applies to the task's next session, like
 	// CmdMode; skip-permissions mode needs Yes the same way.
 	CmdTaskMode
+	// CmdPlan answers the plan the current session presents for approval
+	// (SPEC §6.3): Plan is state.PlanAllow, PlanDeny (Text is the
+	// feedback, required) or PlanPane.
+	CmdPlan
 )
 
 func (k CommandKind) String() string {
@@ -64,6 +68,8 @@ func (k CommandKind) String() string {
 		return "mode"
 	case CmdTaskMode:
 		return "task mode"
+	case CmdPlan:
+		return "plan answer"
 	}
 	return "unknown"
 }
@@ -71,13 +77,15 @@ func (k CommandKind) String() string {
 // Command is an owner action sent to a running engine.
 type Command struct {
 	Kind     CommandKind
-	Text     string // CmdDone: the note; CmdSkip: the reason; CmdMode, CmdTaskMode: the mode
+	Text     string // CmdDone: the note; CmdSkip: the reason; CmdMode, CmdTaskMode: the mode; CmdPlan: the feedback
 	Continue bool   // CmdRetry: continue the conversation instead of starting fresh
 	Yes      bool   // CmdAnswer: the answer; CmdMode, CmdTaskMode: skip permissions confirmed
 	Task     string // CmdTaskMode: the task whose mode is overridden; CmdAnswer: the reset request answered
 	// Question is the question a CmdAnswer answers: "" for the one the
 	// current task waits on, or QuestionConfirmReset.
 	Question Question
+	// Plan is CmdPlan's decision: state.PlanAllow, PlanDeny or PlanPane.
+	Plan string
 }
 
 // Send queues c for the run. It may be called from any goroutine, including

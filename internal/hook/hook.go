@@ -161,8 +161,11 @@ func record(root string, in io.Reader, now func() time.Time) error {
 // Code runs hook commands with. allow, when not empty, adds permission
 // allow rules: a session in a run's worktree gets the `igris done` rules
 // there, since the worktree lacks the project's untracked
-// .claude/settings.local.json (SPEC §6.8).
-func Settings(exe, root string, allow []string) ([]byte, error) {
+// .claude/settings.local.json (SPEC §6.8). plan, when not nil, adds the
+// plan approval entry: a second PermissionRequest matcher for ExitPlanMode
+// that runs plan-approve with the mode and the wait as arguments, so a
+// session can't change either once it runs (SPEC §6.3).
+func Settings(exe, root string, allow []string, plan *PlanApproval) ([]byte, error) {
 	type command struct {
 		Type    string `json:"type"`
 		Command string `json:"command"`
@@ -184,6 +187,18 @@ func Settings(exe, root string, allow []string) ([]byte, error) {
 			m.Matcher = "*"
 		}
 		hooks[ev] = []matcher{m}
+	}
+	if plan != nil {
+		if !SetModes[plan.Mode] || plan.Wait <= 0 {
+			return nil, fmt.Errorf("hooks settings: plan approval needs a mode and a wait, not %q and %s", plan.Mode, plan.Wait)
+		}
+		wait := plan.Wait.Round(time.Second)
+		hooks["PermissionRequest"] = append(hooks["PermissionRequest"], matcher{Matcher: "ExitPlanMode", Hooks: []command{{
+			Type: "command",
+			Command: shellQuote(exe) + " hook --root " + shellQuote(root) + " " + PlanCommand +
+				" --mode " + shellQuote(plan.Mode) + " --wait " + shellQuote(wait.String()),
+			Timeout: int((wait + planGrace) / time.Second),
+		}}})
 	}
 	settings := map[string]any{"hooks": hooks}
 	if len(allow) > 0 {

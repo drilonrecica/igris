@@ -389,7 +389,11 @@ func (m *model) pageBody(y, w, rows int) []string {
 // dialogBody fills rows lines below row y with the open dialog, centered,
 // and records its options.
 func (m *model) dialogBody(y, w, rows int) []string {
-	box, z := m.dialog.render(m.th, min(w-4, 72), rows)
+	width := 72
+	if m.dialog.wide {
+		width = 100
+	}
+	box, z := m.dialog.render(m.th, min(w-4, width), rows)
 	top := max((rows-len(box))/2, 0)
 	left := max((w-textWidth(box[0]))/2, 1)
 	m.zones.merge(z, left, y+top)
