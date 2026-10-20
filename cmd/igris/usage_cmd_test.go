@@ -72,7 +72,7 @@ func TestUsageReadOnlyAndArgs(t *testing.T) {
 	// A run without usage lines still reports, with nothing counted.
 	errb.Reset()
 	out.Reset()
-	if code := run([]string{"usage"}, &out, &errb); code != exitOK || !strings.Contains(out.String(), "0 attempts") {
+	if code := run([]string{"usage"}, &out, &errb); code != exitOK || !strings.Contains(out.String(), "No usage was recorded") {
 		t.Errorf("run without usage: code %d, out %q, err %q", code, out.String(), errb.String())
 	}
 }

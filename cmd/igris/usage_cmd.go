@@ -138,6 +138,12 @@ func printUsage(w io.Writer, u report.Usage, color bool) {
 		fmt.Fprintf(w, "  %s · %s · %s\n", dash(r.Run), r.StartedAt, r.End)
 	}
 
+	if u.NoUsage != "" {
+		fmt.Fprintf(w, "\nNo usage was recorded: %s.\n", u.NoUsage)
+		fmt.Fprintf(w, "\nQuota: %s\n", quotaText(u.Quota))
+		return
+	}
+
 	t := u.Totals
 	fmt.Fprintf(w, "\nTotals · %d %s · in %s · out %s\n", t.Attempts, plural(t.Attempts, "attempt", "attempts"), usage.Short(t.In), usage.Short(t.Output))
 	fmt.Fprintf(w, "  input %s · cache read %s · cache write %s · output %s · %d %s\n",
@@ -170,6 +176,13 @@ func printUsage(w io.Writer, u report.Usage, color bool) {
 			fmt.Fprintf(tw, "  %s\t%d\t%s\t%s\t%s\n", r.Model, r.Attempts, usage.Short(r.In), usage.Short(r.Output), subCell(r.Sub))
 		}
 		_ = tw.Flush() // a failed write to stdout has nowhere to be reported
+		attempts := 0
+		for _, r := range u.Models {
+			attempts += r.Attempts
+		}
+		if attempts > t.Attempts {
+			fmt.Fprint(w, "  an attempt that ran on several models is counted under each, so rows can add up to more than the totals\n")
+		}
 	}
 	if len(u.Ranks) > 0 {
 		fmt.Fprint(w, "\nBy rank\n")

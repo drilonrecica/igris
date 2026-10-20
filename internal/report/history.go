@@ -34,6 +34,9 @@ type HistoryInput struct {
 	// Live says the lock is held by a live igris on this host, so a last run
 	// without a stop event is still running rather than interrupted.
 	Live bool
+	// UsageOff says the project's config turns usage off ([usage] enabled
+	// = false); only `igris usage` reads it.
+	UsageOff bool
 }
 
 // TaskRun is one task within a run: its attempts merged.

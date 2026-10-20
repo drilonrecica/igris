@@ -17,9 +17,10 @@ By task
   M2-01  0         —     —    —          —                                   unavailable
 
 By model
-  Model                               Attempts  In   Out  Subagents
-  claude-sonnet-5-5, claude-opus-5-5  1         98k  2k   —
-  claude-sonnet-5-5                   1         54k  1k   —
+  Model              Attempts  In    Out  Subagents
+  claude-sonnet-5-5  2         152k  3k   —
+  claude-opus-5-5    1         98k   2k   —
+  an attempt that ran on several models is counted under each, so rows can add up to more than the totals
 
 By rank
   Rank    Attempts  In    Out  Subagents

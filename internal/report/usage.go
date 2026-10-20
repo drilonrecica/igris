@@ -7,7 +7,6 @@ import (
 	"slices"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/drilonrecica/igris/internal/state"
@@ -96,7 +95,8 @@ type UsageTask struct {
 }
 
 // UsageModel is a model's usage: the tokens of the attempts whose main
-// thread (or subagents) ran on that set of model ids.
+// thread (or subagents) ran on that model. An attempt that ran on several
+// is counted under each.
 type UsageModel struct {
 	Model string `json:"model"`
 	UsageRow
@@ -148,6 +148,9 @@ type Usage struct {
 	// (SPEC §6.3), nil when none is: the caller fills it in.
 	Quota *state.Quota `json:"quota"`
 	Note  string       `json:"note,omitempty"` // as History.Note
+	// NoUsage says why (as a clause after "No usage was recorded:") the runs covered have no usage lines at all, so the
+	// zeros are not a measurement; empty when any attempt logged usage.
+	NoUsage string `json:"no_usage,omitempty"`
 }
 
 // NewUsage reports the usage of the run sel names (as for NewReport), or
@@ -189,7 +192,18 @@ func NewUsage(in HistoryInput, project, sel string, since time.Time) (Usage, err
 		}
 	}
 	b.finish()
+	if u.Totals.Attempts == 0 && u.Unavailable == 0 {
+		u.NoUsage = noUsageReason(in.UsageOff)
+	}
 	return u, nil
+}
+
+// noUsageReason says why a run has no usage lines.
+func noUsageReason(off bool) string {
+	if off {
+		return "[usage] enabled = false turns it off in this project"
+	}
+	return "the runs were made before igris 1.1, or with [usage] enabled = false"
 }
 
 // pickRun finds the run sel names among recs, oldest first: "" or "1" the
@@ -285,15 +299,23 @@ func (b *usageBuilder) attempt(e state.Event) {
 	b.u.Totals.Attempts++
 	b.u.Totals.add(main, sub)
 
-	m := b.model(e.Models)
-	m.Attempts++
-	m.Tokens.add(main)
+	// An attempt that ran on several models is counted under each of them:
+	// the transcript doesn't split its tokens, so every row gets all of
+	// the main thread's, and rows can add up to more than the totals.
+	counted := map[*UsageModel]bool{}
+	for _, m := range b.modelRows(e.Models) {
+		m.Attempts++
+		m.Tokens.add(main)
+		counted[m] = true
+	}
 	if !sub.IsZero() {
-		s := b.model(e.SubModels)
-		if s != m {
-			s.Attempts++
+		for _, s := range b.modelRows(e.SubModels) {
+			if !counted[s] {
+				s.Attempts++
+				counted[s] = true
+			}
+			s.addSub(sub)
 		}
-		s.addSub(sub)
 	}
 	rank := textsafe.Line(e.Rank)
 	if rank == "" {
@@ -308,18 +330,23 @@ func (b *usageBuilder) attempt(e state.Event) {
 	r.add(main, sub)
 }
 
-// model returns the row of the model ids ids, creating it.
-func (b *usageBuilder) model(ids []string) *UsageModel {
-	key := unknownModel
-	if ids = cleanModels(ids); len(ids) > 0 {
-		key = strings.Join(ids, ", ")
+// modelRows returns the row of each model id in ids, creating them; the
+// row of "unknown" when ids names none.
+func (b *usageBuilder) modelRows(ids []string) []*UsageModel {
+	ids = cleanModels(ids)
+	if len(ids) == 0 {
+		ids = []string{unknownModel}
 	}
-	m := b.models[key]
-	if m == nil {
-		m = &UsageModel{Model: key}
-		b.models[key] = m
+	var rows []*UsageModel
+	for _, id := range ids {
+		m := b.models[id]
+		if m == nil {
+			m = &UsageModel{Model: id}
+			b.models[id] = m
+		}
+		rows = append(rows, m)
 	}
-	return m
+	return rows
 }
 
 // finish orders the rows and picks the top consumers.

@@ -45,6 +45,9 @@ func HistoryInput(root string, n int) (report.HistoryInput, error) {
 		return in, err
 	}
 	in.Events, in.Unreadable, in.Truncated = log.Events, log.Unreadable, log.Truncated
+	if c, err := config.Load(filepath.Join(root, state.ConfigFile)); err == nil { // an unreadable config is the default
+		in.UsageOff = !c.Usage.On()
+	}
 	if l, err := state.PeekLock(root); err == nil {
 		in.Live = l.Alive && !l.Stale && !l.Unreadable
 	}

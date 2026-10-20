@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -92,6 +93,12 @@ func TestNewUsage(t *testing.T) {
 	if m := models["claude-sonnet-5-5"]; m.In != 1060 || m.Output != 100 || m.Sub.Messages != 0 {
 		t.Errorf("sonnet row = %+v", m)
 	}
+	// An attempt on two models is counted under each, not as one row.
+	for _, id := range []string{"claude-sonnet-5-5", "claude-opus-5-5"} {
+		if _, ok := models[id]; !ok {
+			t.Errorf("no row for %s", id)
+		}
+	}
 	if len(u.Top) == 0 || u.Top[0].ID != "A-1" {
 		t.Errorf("top = %+v", u.Top)
 	}
@@ -130,5 +137,28 @@ func TestUsageTopFive(t *testing.T) {
 	}
 	if want := []string{"A-7", "A-6", "A-5", "A-4", "A-3"}; !reflect.DeepEqual(ids, want) {
 		t.Errorf("top = %v, want %v", ids, want)
+	}
+}
+
+func TestUsageManyModelsAndNoUsage(t *testing.T) {
+	at := time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC)
+	events := []state.Event{runStart("r1", at),
+		usageLine("r1", "A-1", "sonnet", &usage.Counts{Input: 10, Output: 1, Messages: 1}, nil,
+			[]string{"claude-sonnet-5-5", "claude-opus-5-5"}, nil, state.AuditMismatch)}
+	u, err := NewUsage(HistoryInput{Events: events}, "demo", "", time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(u.Models) != 2 || u.Models[0].Attempts != 1 || u.Models[1].Attempts != 1 || u.Models[0].In != 10 || u.NoUsage != "" {
+		t.Errorf("models = %+v, no_usage %q", u.Models, u.NoUsage)
+	}
+	for _, off := range []bool{false, true} {
+		u, err := NewUsage(HistoryInput{Events: events[:1], UsageOff: off}, "demo", "", time.Time{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if u.NoUsage == "" || (off != strings.Contains(u.NoUsage, "turns it off")) {
+			t.Errorf("off=%v: no_usage %q", off, u.NoUsage)
+		}
 	}
 }

@@ -130,6 +130,10 @@
       "type": "string",
       "description": "Lines of runs.jsonl that could not be used, or come from a newer igris."
     },
+    "no_usage": {
+      "type": "string",
+      "description": "Present only when no attempt of the runs covered logged usage: why (made before 1.1, or [usage] enabled = false). The zeros are then not a measurement."
+    },
     "quota": {
       "type": [
         "object",
