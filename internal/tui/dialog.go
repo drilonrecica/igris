@@ -32,6 +32,8 @@ type dialog struct {
 	// task is the task a dialog the TUI opened is about; it closes when
 	// that task ends.
 	task string
+	// mode is the mode a skip-permissions dialog switches to.
+	mode string
 	// answers is the question a TUI dialog was opened from (the session
 	// lost question's Skip); sending its command answers that question.
 	answers engine.Question
@@ -106,8 +108,8 @@ func questionDialog(ev engine.Event) *dialog {
 // feedback, or answer in the pane, where Claude Code's own dialog waits
 // too. Esc leaves the question pending.
 func planDialog(ev engine.Event) *dialog {
-	then := ev.Then
-	if then == "" {
+	then := ev.Then + badge(ev.Then) // yolo: no permission prompts from then on
+	if ev.Then == "" {
 		then = "the mode after approval"
 	}
 	return &dialog{
@@ -221,21 +223,26 @@ func modeDialog(task, current string) *dialog {
 	return d
 }
 
-// yoloDialog asks for the typed phrase before switching to skip
-// permissions (SPEC §7.3); task is as for modeDialog.
-func yoloDialog(task string) *dialog {
+// yoloDialog asks for the typed phrase before switching to mode, yolo or
+// plan:yolo (SPEC §7.3); task is as for modeDialog.
+func yoloDialog(task, mode string) *dialog {
 	what := "the next sessions"
 	if task != "" {
 		what = task + "'s next session"
 	}
+	detail := "Claude Code runs " + what + " with --dangerously-skip-permissions: no permission prompts at all."
+	if mode == engine.ModePlanYolo {
+		detail = "Claude Code starts " + what + " in plan mode with --allow-dangerously-skip-permissions; once you approve the plan in igris, it runs with no permission prompts at all."
+	}
 	return &dialog{
 		title:   "Skip permissions?",
-		detail:  "Claude Code runs " + what + " with --dangerously-skip-permissions: no permission prompts at all. Type \"" + engine.YoloPhrase + "\" to confirm.",
+		detail:  detail + " Type \"" + engine.YoloPhrase + "\" to confirm.",
 		input:   &field{label: "Phrase: "},
 		inField: true,
 		options: []option{{"Cancel", actClose}, {"Skip permissions", actYoloConfirm}},
 		cancel:  actClose,
 		task:    task,
+		mode:    mode,
 	}
 }
 
@@ -334,10 +341,11 @@ func (d *dialog) render(th *theme, w, h int) ([]string, zones) {
 		if i == d.selected && !d.inField {
 			mark = "› "
 		}
-		lines := wrap(o.label, inner-5) // "› 1. "
-		lines[0] = mark + strconv.Itoa(i+1) + ". " + lines[0]
+		num := strconv.Itoa(i+1) + ". "
+		lines := wrap(o.label, inner-2-len(num)) // "› 1. "
+		lines[0] = mark + num + lines[0]
 		for j := 1; j < len(lines); j++ {
-			lines[j] = "     " + lines[j]
+			lines[j] = strings.Repeat(" ", 2+len(num)) + lines[j]
 		}
 		opts = append(opts, lines)
 		optLines += len(lines)

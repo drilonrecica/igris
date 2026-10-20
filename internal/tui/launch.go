@@ -510,8 +510,8 @@ func (m *homeScreen) launchFailed(msg launchFailedMsg) tea.Cmd {
 	case errors.Is(err, engine.ErrYoloUnconfirmed) && !l.conf.Yolo:
 		// SPEC §7.3: typed confirmation, every run.
 		l.step = wizYoloLaunch
-		d := yoloDialog("")
-		d.detail = textsafe.Line(err.Error()) + ". Sessions in this mode run with --dangerously-skip-permissions: Claude Code acts without asking. Type \"" + engine.YoloPhrase + "\" to confirm."
+		d := yoloDialog("", "")
+		d.detail = textsafe.Line(err.Error()) + ". " + engine.SkipNote + " Type \"" + engine.YoloPhrase + "\" to confirm."
 		m.dialog = d
 	case errors.As(err, &stale) && !l.conf.ForceUnlock:
 		l.step = wizUnlock
@@ -576,11 +576,11 @@ func (m *homeScreen) wizardPick(a action) tea.Cmd {
 		if !ok {
 			return nil
 		}
-		if mode == engine.ModeYolo {
+		if engine.SkipsPermissions(mode) {
 			// Never a single click or key (SPEC §7.3).
 			l.step = wizYolo
-			m.dialog = yoloDialog("")
-			m.dialog.detail = "Claude Code runs this run's sessions with --dangerously-skip-permissions: no permission prompts at all. Type \"" + engine.YoloPhrase + "\" to confirm."
+			m.dialog = yoloDialog("", mode)
+			m.dialog.detail = strings.Replace(m.dialog.detail, "the next sessions", "this run's sessions", 1)
 			return nil
 		}
 		l.req.Mode = mode
@@ -595,7 +595,7 @@ func (m *homeScreen) wizardPick(a action) tea.Cmd {
 		}
 		l.conf.Yolo = true
 		if l.step == wizYolo {
-			l.req.Mode = engine.ModeYolo
+			l.req.Mode = d.mode
 			return m.checkStep()
 		}
 		return m.start()

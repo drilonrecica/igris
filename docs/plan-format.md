@@ -68,7 +68,7 @@ A task table is a GitHub-flavored markdown table whose header has at least **ID*
 | `Status` | yes | Below. |
 | `Model` | yes | A rank from `[models]` in `igris.toml` (`sonnet`, `opus`, `fable`, `haiku` by default), or `—` for none. |
 | `Owner` | no | `agent`, `user` or `agent + user`. Without the column, or empty: `agent`. |
-| `Mode` | no | `default`, `accept`, `auto`, `plan`, `yolo`, or `—`: the run mode for this task's session. |
+| `Mode` | no | `default`, `accept`, `auto`, `plan`, `plan:default`, `plan:accept`, `plan:auto`, `plan:yolo`, `yolo`, or `—`: the run mode for this task's session. A `plan:<mode>` session plans first and continues in `<mode>` once you approve the plan in igris; plain `plan` continues in `[plan_mode] then`. `yolo` and `plan:yolo` need the typed confirmation every run. |
 | `Verify` | no | A verify profile from `igris.toml`, `none` to skip verification, or `—`/empty for the default. Never a command. |
 | `Timeout` | no | A Go duration of at least `1s` (`45m`, `1h30m`) after which the task is reported overdue. |
 | `Context` | no | Up to 20 comma-separated paths inside the project that the session is told to read first. |

@@ -119,7 +119,7 @@ func (m *model) facts(narrow bool, level int) string {
 	if m.mode != "" {
 		parts = append(parts, m.th.marks("mode: "+m.mode+badge(m.mode)))
 	}
-	if m.mode != engine.ModeYolo && m.cur != nil && m.cur.mode == engine.ModeYolo {
+	if !engine.SkipsPermissions(m.mode) && m.cur != nil && engine.SkipsPermissions(m.cur.mode) {
 		// The run mode isn't yolo but this session is (SPEC §7.3).
 		parts = append(parts, m.th.paint(lookAlert, "SKIP PERMISSIONS"))
 	}

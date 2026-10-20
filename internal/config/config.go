@@ -436,7 +436,7 @@ func (Secrets) String() string { return "config.Secrets{redacted}" }
 func (Secrets) GoString() string { return "config.Secrets{redacted}" }
 
 var (
-	validModes   = []string{"default", "accept", "auto", "plan", "yolo"}
+	validModes   = []string{"default", "accept", "auto", "plan", "plan:default", "plan:accept", "plan:auto", "plan:yolo", "yolo"}
 	validCommit  = []string{"ask", "auto", "never"}
 	validAdapt   = []string{"sonnet", "opus"}
 	validThemes  = []string{"auto", "dark", "light"}

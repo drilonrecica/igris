@@ -108,7 +108,7 @@ A task table is a GitHub-flavored markdown table whose header row contains at le
 | `Status` | yes | §3.3. |
 | `Model` | yes | Rank alias or `—` for no model. |
 | `Owner` | no | `agent`, `user`, or `agent + user`. Missing column = `agent`. |
-| `Mode` | no | Per-task run-mode override (§7.2): `default`, `accept`, `auto`, `plan`, `yolo`, or `—`. |
+| `Mode` | no | Per-task run-mode override (§7.2): `default`, `accept`, `auto`, `plan`, `plan:default`, `plan:accept`, `plan:auto`, `plan:yolo`, `yolo`, or `—`. |
 | `Verify` | no | Verify profile from config (§6.4), or `none` to skip verification for this task. Never a command. |
 | `Timeout` | no | Go duration (`45m`, `1h30m`) after which a running task is reported overdue (§6.3). Never stops a session. |
 | `Context` | no | Comma-separated repo-relative paths (files or directories) the task prompt names as required reading (§6.1). |

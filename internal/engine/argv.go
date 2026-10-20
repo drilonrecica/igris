@@ -49,7 +49,7 @@ func ClaudeArgs(p ClaudeParams) ([]string, error) {
 	}
 	flags, ok := modeFlags[p.Mode]
 	if !ok {
-		return nil, fmt.Errorf("build claude arguments: unknown run mode %q (want default|accept|auto|plan|yolo)", p.Mode)
+		return nil, fmt.Errorf("build claude arguments: unknown run mode %q (want %s)", p.Mode, ModeList)
 	}
 	for _, a := range p.ExtraArgs {
 		if config.ForbiddenExtraArg(a) {

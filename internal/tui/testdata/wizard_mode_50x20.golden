@@ -13,7 +13,8 @@
 │      implements                               │
 │   6. yolo [SKIP PERMISSIONS] — no permission  │
 │      prompts                                  │
+│   7. plan:default — plan, then default        │
+│   8. plan:accept — plan, then accept          │
+│   9. plan:auto — plan, then auto              │
+│   10. plan:yolo — then [SKIP PERMISSIONS]     │
 ╰───────────────────────────────────────────────╯
-
-
-

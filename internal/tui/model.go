@@ -479,8 +479,8 @@ func (m *model) pick(a action) tea.Cmd {
 	}
 	if mode, ok := modeOf(a); ok && d != nil {
 		m.dialog = nil
-		if mode == engine.ModeYolo {
-			m.dialog = yoloDialog(d.task) // never a single click or key
+		if engine.SkipsPermissions(mode) {
+			m.dialog = yoloDialog(d.task, mode) // never a single click or key
 			return nil
 		}
 		m.opts.Sender.Send(modeCommand(d.task, mode, false))
@@ -492,7 +492,7 @@ func (m *model) pick(a action) tea.Cmd {
 			return nil
 		}
 		m.dialog = nil
-		m.opts.Sender.Send(modeCommand(d.task, engine.ModeYolo, true))
+		m.opts.Sender.Send(modeCommand(d.task, d.mode, true))
 		return nil
 	}
 	if a != actNone && d != nil && d.question == "" {

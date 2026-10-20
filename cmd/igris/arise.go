@@ -204,7 +204,7 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 			conf.Config = true
 		case errors.Is(err, engine.ErrYoloUnconfirmed) && !conf.Yolo:
 			// SPEC §7.3: typed confirmation, every run.
-			fmt.Fprintf(out, "%v\nSessions in this mode run with --dangerously-skip-permissions: Claude Code acts without asking.\n", err)
+			fmt.Fprintf(out, "%v\n%s\n", err, engine.SkipNote)
 			if !f.worktree && !proj.Cfg.Run.WorktreeOn() {
 				fmt.Fprintln(out, "Tip: --worktree keeps the run's changes on a branch of their own, away from your checkout.")
 			}
@@ -504,7 +504,7 @@ const commandHelp = `commands:
   retry [continue|fresh]     replace the session: continue its conversation, or start fresh (default)
   pause                      pause after the current task (again to resume)
   stop                       stop igris now; the session stays open
-  mode <m>                   run mode for the next sessions: default|accept|auto|plan|yolo
+  mode <m>                   run mode for the next sessions: default|accept|auto|plan[:m]|yolo
   mode <task> <m>            mode for that task's next session, over its Mode column
   help                       this list
 `
@@ -576,10 +576,10 @@ func parseCommand(line string) (engine.Command, commandAction, error) {
 			c.Kind, c.Task, c.Text = engine.CmdTaskMode, args[0], strings.ToLower(args[1])
 		}
 		if !engine.ValidMode(c.Text) {
-			return engine.Command{}, actNone, fmt.Errorf("mode takes [task] and one of default|accept|auto|plan|yolo")
+			return engine.Command{}, actNone, fmt.Errorf("mode takes [task] and one of %s", engine.ModeList)
 		}
 		m := c.Text
-		if m == engine.ModeYolo {
+		if engine.SkipsPermissions(m) {
 			return c, actConfirmYolo, nil
 		}
 		return c, actSend, nil
@@ -724,7 +724,7 @@ func withNote(s, note string) string {
 }
 
 func yoloBadge(mode string) string {
-	if mode == engine.ModeYolo {
+	if engine.SkipsPermissions(mode) {
 		return " [SKIP PERMISSIONS]"
 	}
 	return ""
@@ -790,7 +790,7 @@ func printDryRun(out io.Writer, r report.DryRun) {
 			if verifies {
 				verify = fmt.Sprintf("verify %-7s ", cmp.Or(s.Verify, "—"))
 			}
-			fmt.Fprintf(out, "%3d. %-10s %-7s → model %-7s mode %-7s %s%s%s%s\n", s.N, s.Task, s.Rank, s.Model, s.Mode, verify, s.Title, yoloBadge(s.Mode), how)
+			fmt.Fprintf(out, "%3d. %-10s %-7s → model %-7s mode %-12s %s%s%s%s\n", s.N, s.Task, s.Rank, s.Model, s.ModeText(), verify, s.Title, yoloBadge(s.Mode), how)
 		case report.StepUser:
 			fmt.Fprintf(out, "%3d. %-10s user task: waits for you  %s\n", s.N, s.Task, s.Title)
 		case report.StepPhaseDone:

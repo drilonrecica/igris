@@ -120,8 +120,8 @@ func TestDryRunWalksTheSlice(t *testing.T) {
 	got := out.String()
 	want := []string{
 		"dry run of phase A through B; only A-0, A-1, B-1: nothing is written and no session starts",
-		"  1. A-0        opus    → model opus    mode auto    Half done  (resumed: fresh session)",
-		"  2. A-1        sonnet  → model sonnet  mode plan    One",
+		"  1. A-0        opus    → model opus    mode auto         Half done  (resumed: fresh session)",
+		"  2. A-1        sonnet  → model sonnet  mode plan → auto  One",
 		"     not run: B-1 waits on A-3 (blocked, phase A)",
 		"dry run: 2 session(s), 0 user task(s)",
 	}

@@ -47,7 +47,7 @@ complete -c igris -n '__fish_seen_subcommand_from report' -k -a '(__igris_ids ru
 complete -c igris -n '__fish_seen_subcommand_from arise' -l dry-run
 complete -c igris -n '__fish_seen_subcommand_from arise' -l force-unlock
 complete -c igris -n '__fish_seen_subcommand_from arise' -l from -x -a '(__igris_ids tasks)'
-complete -c igris -n '__fish_seen_subcommand_from arise' -l mode -x -a 'default accept auto plan yolo'
+complete -c igris -n '__fish_seen_subcommand_from arise' -l mode -x -a 'default accept auto plan yolo plan:default plan:accept plan:auto plan:yolo'
 complete -c igris -n '__fish_seen_subcommand_from arise' -l no-tui
 complete -c igris -n '__fish_seen_subcommand_from arise' -l only -x -a '(__igris_id_list)'
 complete -c igris -n '__fish_seen_subcommand_from arise' -l through -x -a '(__igris_ids phases)'

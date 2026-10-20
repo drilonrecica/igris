@@ -22,8 +22,10 @@ import (
 const maxCommitPlan = 8 << 10
 
 // setModeOf maps the mode after approval to the Claude Code permission
-// mode setMode takes (SPEC §7.1).
-var setModeOf = map[string]string{ModeDefault: "default", ModeAccept: "acceptEdits", ModeAuto: "auto"}
+// mode setMode takes (SPEC §7.1). bypassPermissions takes effect only in a
+// session started with --allow-dangerously-skip-permissions, which
+// plan:yolo, and only it, gets (modeFlags).
+var setModeOf = map[string]string{ModeDefault: "default", ModeAccept: "acceptEdits", ModeAuto: "auto", ModeYolo: "bypassPermissions"}
 
 // planShown is the plan request the owner is shown for l's session.
 type planShown struct {
@@ -35,21 +37,22 @@ type planShown struct {
 	answered string
 }
 
-// planThen is the mode a plan task switches to once igris approves its
-// plan (SPEC §7.1, [plan_mode] then).
-func (e *Engine) planThen() string { return e.cfg.PlanMode.ThenOrDefault() }
+// planThen is the mode a session in plan mode switches to once igris
+// approves its plan (SPEC §7.1): the one its mode names, or [plan_mode]
+// then for plain plan.
+func (e *Engine) planThen(mode string) string { return After(mode, e.cfg.PlanMode.ThenOrDefault()) }
 
 // planApproval is the plan approval entry for a session in mode, or nil:
 // only a plan session gets it, only with a TUI to approve from, and not
 // with approve_timeout = "0" (SPEC §6.3).
 func (e *Engine) planApproval(mode string) *hook.PlanApproval {
 	wait := e.cfg.PlanMode.ApproveTimeoutOrDefault()
-	if mode != ModePlan || !e.opts.PlanApproval || wait <= 0 {
+	if !IsPlan(mode) || !e.opts.PlanApproval || wait <= 0 {
 		return nil
 	}
-	sm, ok := setModeOf[e.planThen()]
+	sm, ok := setModeOf[e.planThen(mode)]
 	if !ok {
-		return nil // validation keeps then to the modes above
+		return nil // validation keeps the modes to the ones above
 	}
 	return &hook.PlanApproval{Mode: sm, Wait: wait}
 }
@@ -101,9 +104,9 @@ func (e *Engine) presentPlan(ctx context.Context, l *launch, r state.PlanRequest
 	e.emit(Event{
 		Kind:     Asked,
 		Question: QuestionPlanApproval,
-		Detail:   fmt.Sprintf("approve the plan of %s? approving switches its session to mode %s", t.ID, e.planThen()),
+		Detail:   fmt.Sprintf("approve the plan of %s? approving switches its session to mode %s", t.ID, e.planThen(l.mode)),
 		Plan:     text,
-		Then:     e.planThen(),
+		Then:     e.planThen(l.mode),
 	})
 }
 
@@ -131,8 +134,8 @@ func (e *Engine) decidePlan(l *launch, c Command) {
 	why := "you answer the plan in the session's pane"
 	switch d.Behavior {
 	case state.PlanAllow:
-		ev.Type, ev.Mode = state.EventPlanApproved, e.planThen()
-		why = "plan approved; the session switches to mode " + e.planThen()
+		ev.Type, ev.Mode = state.EventPlanApproved, e.planThen(l.mode)
+		why = "plan approved; the session switches to mode " + e.planThen(l.mode)
 		l.cur.ApprovedPlan = p.file
 		if err := e.dir.SaveRun(e.run); err != nil {
 			e.warn(err.Error())

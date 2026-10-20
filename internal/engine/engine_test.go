@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -577,7 +578,8 @@ const modePlan = `## A
 `
 
 func TestSkipPermissionsNeedsConfirmation(t *testing.T) {
-	const flag = "--dangerously-skip-permissions"
+	// yolo starts with the first, plan:yolo with the second (SPEC §7.1).
+	flags := []string{"--dangerously-skip-permissions", "--allow-dangerously-skip-permissions"}
 	tests := []struct {
 		name, toml, taskMode, runMode string
 		wantYolo                      string // tasks launched with the flag once confirmed
@@ -586,6 +588,10 @@ func TestSkipPermissionsNeedsConfirmation(t *testing.T) {
 		{"default_mode in config", "default_mode = \"yolo\"\n", "—", "", "A-1 A-2"},
 		{"Mode column of a later task", "", "yolo", "", "A-2"},
 		{"Mode column overrides a yolo run", "", "plan", "yolo", "A-1"},
+		{"--mode plan:yolo", "", "—", "plan:yolo", "A-1 A-2"},
+		{"default_mode plan:yolo", "default_mode = \"plan:yolo\"\n", "—", "", "A-1 A-2"},
+		{"Mode column plan:yolo", "", "plan:yolo", "", "A-2"},
+		{"Mode column plan:auto overrides a plan:yolo run", "", "plan:auto", "plan:yolo", "A-1"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -608,14 +614,12 @@ func TestSkipPermissionsNeedsConfirmation(t *testing.T) {
 			}
 			var yolo []string
 			for _, s := range h.be.Opened() {
-				for _, a := range s.Args {
-					if a == flag {
-						yolo = append(yolo, s.TaskID)
-					}
+				if slices.ContainsFunc(s.Args, func(a string) bool { return slices.Contains(flags, a) }) {
+					yolo = append(yolo, s.TaskID)
 				}
 			}
 			if got := strings.Join(yolo, " "); got != tt.wantYolo {
-				t.Errorf("%s passed to %q, want %q", flag, got, tt.wantYolo)
+				t.Errorf("skip-permissions flags passed to %q, want %q", got, tt.wantYolo)
 			}
 		})
 	}

@@ -242,7 +242,7 @@ func New(opts Options) (*Engine, error) {
 	case opts.State == nil:
 		return nil, errors.New("engine: no state directory")
 	case opts.Mode != "" && !ValidMode(opts.Mode):
-		return nil, fmt.Errorf("engine: unknown run mode %q (want default|accept|auto|plan|yolo)", opts.Mode)
+		return nil, fmt.Errorf("engine: unknown run mode %q (want %s)", opts.Mode, ModeList)
 	}
 	if err := opts.Config.Validate(); err != nil {
 		return nil, fmt.Errorf("engine: invalid config: %w", err)
@@ -424,9 +424,9 @@ func (e *Engine) prepare() ([]string, error) {
 	// A session left running in skip-permissions mode is only reattached
 	// with this run's confirmation too (SPEC §7.3); new sessions are gated
 	// by modeFor.
-	if cur != nil && cur.Mode == ModeYolo && !e.yoloConfirmed() {
+	if cur != nil && SkipsPermissions(cur.Mode) && !e.yoloConfirmed() {
 		if !resetting {
-			return nil, yoloInterrupted(cur.TaskID)
+			return nil, yoloInterrupted(cur.TaskID, cur.Mode)
 		}
 		e.yoloDeferred = true
 	}
@@ -463,8 +463,8 @@ func (e *Engine) prepare() ([]string, error) {
 	return ids, e.dir.SaveRun(e.run)
 }
 
-func yoloInterrupted(id string) error {
-	return fmt.Errorf("the interrupted task %s runs in yolo mode: %w", id, ErrYoloUnconfirmed)
+func yoloInterrupted(id, mode string) error {
+	return fmt.Errorf("the interrupted task %s runs in %s mode: %w", id, mode, ErrYoloUnconfirmed)
 }
 
 func hasTask(ph *plan.Phase, id string) bool {
@@ -523,8 +523,8 @@ func (e *Engine) modeFor(t *plan.Task) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("task %s: %w", t.ID, err)
 	}
-	if mode == ModeYolo && !e.yoloConfirmed() {
-		return "", fmt.Errorf("task %s would run in yolo mode: %w", t.ID, ErrYoloUnconfirmed)
+	if SkipsPermissions(mode) && !e.yoloConfirmed() {
+		return "", fmt.Errorf("task %s would run in %s mode: %w", t.ID, mode, ErrYoloUnconfirmed)
 	}
 	return mode, nil
 }
@@ -540,7 +540,7 @@ func (e *Engine) resumeAndRun(ctx context.Context, phases []string) (Result, err
 	if e.yoloDeferred && e.run.Current != nil {
 		// The owner kept the interrupted yolo task: it needs this run's
 		// confirmation after all.
-		return Result{Phase: e.phase}, yoloInterrupted(e.run.Current.TaskID)
+		return Result{Phase: e.phase}, yoloInterrupted(e.run.Current.TaskID, e.run.Current.Mode)
 	}
 	if e.run.Current != nil {
 		stopped, err := e.resume(ctx)

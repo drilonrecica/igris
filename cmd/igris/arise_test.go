@@ -162,6 +162,32 @@ func writeProject(t *testing.T, files map[string]string) string {
 	return root
 }
 
+// The dry run names the mode after approval: plain plan with [plan_mode]
+// then, the others as written; plan:yolo carries the badge (SPEC §7.1).
+func TestDryRunPlanModes(t *testing.T) {
+	withVersions(t, "2.1.304 (Claude Code)\n", "herdr 0.9.1\n")
+	writeProject(t, map[string]string{
+		"tasks.md": "## A — First\n\n| ID | Task | Deps | Status | Model | Mode |\n|---|---|---|---|---|---|\n" +
+			"| A-1 | **One** | — | ready | sonnet | plan |\n" +
+			"| A-2 | **Two** | A-1 | blocked | sonnet | plan:default |\n" +
+			"| A-3 | **Three** | A-2 | blocked | sonnet | plan:yolo |\n",
+		"igris.toml": "[run]\nverify = \"false\"\ncommit = \"never\"\n[plan_mode]\nthen = \"accept\"\n",
+	})
+	var out, errb bytes.Buffer
+	if code := run([]string{"arise", "A", "--dry-run"}, &out, &errb); code != exitOK {
+		t.Fatalf("exit %d, stderr: %s", code, errb.String())
+	}
+	for _, w := range []string{
+		"  1. A-1        sonnet  → model sonnet  mode plan → accept verify default One",
+		"  2. A-2        sonnet  → model sonnet  mode plan:default verify default Two",
+		"  3. A-3        sonnet  → model sonnet  mode plan:yolo    verify default Three [SKIP PERMISSIONS]",
+	} {
+		if !strings.Contains(out.String(), w) {
+			t.Errorf("output lacks %q:\n%s", w, out.String())
+		}
+	}
+}
+
 func TestDryRun(t *testing.T) {
 	withVersions(t, "2.0.5 (Claude Code)\n", "herdr 0.9.1\n")
 	root := writeProject(t, map[string]string{
@@ -181,12 +207,12 @@ func TestDryRun(t *testing.T) {
 		"warning: igris.toml: notify.webhook.url uses http://",
 		"warning: drift: A-3: ready → blocked",
 		"dry run of phase A through B",
-		"  1. A-0        opus    → model opus    mode auto    verify default Half done  (resumed: fresh session)",
-		"  2. A-1        sonnet  → model sonnet  mode plan    verify default One",
+		"  1. A-0        opus    → model opus    mode auto         verify default Half done  (resumed: fresh session)",
+		"  2. A-1        sonnet  → model sonnet  mode plan → auto  verify default One",
 		"  3. A-2        user task: waits for you  Buy a domain",
-		"  4. A-3        fable   → model fable   mode yolo    verify default Gate [SKIP PERMISSIONS]",
+		"  4. A-3        fable   → model fable   mode yolo         verify default Gate [SKIP PERMISSIONS]",
 		"     phase A complete",
-		"  5. B-1        sonnet  → model sonnet  mode auto    verify default Later",
+		"  5. B-1        sonnet  → model sonnet  mode auto         verify default Later",
 		"     phase B complete",
 		"dry run: 4 session(s), 1 user task(s)",
 	}
@@ -952,8 +978,8 @@ func TestDryRunShowsVerifyNone(t *testing.T) {
 		t.Fatalf("exit %d, stderr: %s", code, errb.String())
 	}
 	for _, w := range []string{
-		"  1. A-1        sonnet  → model sonnet  mode auto    verify none    One",
-		"  2. A-2        sonnet  → model sonnet  mode auto    verify —       Two",
+		"  1. A-1        sonnet  → model sonnet  mode auto         verify none    One",
+		"  2. A-2        sonnet  → model sonnet  mode auto         verify —       Two",
 	} {
 		if !strings.Contains(out.String(), w) {
 			t.Errorf("output lacks %q:\n%s", w, out.String())
@@ -973,9 +999,9 @@ func TestDryRunShowsVerifyProfiles(t *testing.T) {
 		t.Fatalf("exit %d, stderr: %s", code, errb.String())
 	}
 	for _, w := range []string{
-		"  1. A-1        sonnet  → model sonnet  mode auto    verify fast    One",
-		"  2. A-2        opus    → model opus    mode auto    verify none    Two",
-		"  3. A-3        sonnet  → model sonnet  mode auto    verify slow    Three",
+		"  1. A-1        sonnet  → model sonnet  mode auto         verify fast    One",
+		"  2. A-2        opus    → model opus    mode auto         verify none    Two",
+		"  3. A-3        sonnet  → model sonnet  mode auto         verify slow    Three",
 	} {
 		if !strings.Contains(out.String(), w) {
 			t.Errorf("output lacks %q:\n%s", w, out.String())

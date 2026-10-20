@@ -40,6 +40,10 @@ const (
 	actModeAuto
 	actModePlan
 	actModeYolo
+	actModePlanDefault
+	actModePlanAccept
+	actModePlanAuto
+	actModePlanYolo
 	// igris adapt's review (review.go).
 	actAccept       // replace the plan with the proposal
 	actAcceptAnyway // replace it although the proposal doesn't pass check
@@ -95,6 +99,12 @@ var modeActs = []struct {
 	{actModeAuto, engine.ModeAuto, "auto — Claude Code asks only about risky actions"},
 	{actModePlan, engine.ModePlan, "plan — plan first, you approve, then it implements"},
 	{actModeYolo, engine.ModeYolo, "yolo [SKIP PERMISSIONS] — no permission prompts"},
+	// The plan modes that name the mode after approval (SPEC §7.1);
+	// listed after the first five, which keep their number keys.
+	{actModePlanDefault, engine.ModePlanDefault, "plan:default — plan, then default"},
+	{actModePlanAccept, engine.ModePlanAccept, "plan:accept — plan, then accept"},
+	{actModePlanAuto, engine.ModePlanAuto, "plan:auto — plan, then auto"},
+	{actModePlanYolo, engine.ModePlanYolo, "plan:yolo — then [SKIP PERMISSIONS]"},
 }
 
 // modeOf is the mode a mode picker action picks, if it is one.

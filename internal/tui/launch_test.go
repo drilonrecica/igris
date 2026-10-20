@@ -195,11 +195,14 @@ func TestWizardSteps(t *testing.T) {
 
 	press(a, "down", "enter")
 	d = home.dialog
-	if d.title != "Mode" || d.selected != 0 || d.options[0].label != "As planned (Mode column, then default_mode: auto)" || len(d.options) != 6 {
+	if d.title != "Mode" || d.selected != 0 || d.options[0].label != "As planned (Mode column, then default_mode: auto)" || len(d.options) != 10 {
 		t.Fatalf("mode dialog %q %q (selected %d)", d.title, labels(d), d.selected)
 	}
-	if last := d.options[5].label; !strings.Contains(last, "yolo [SKIP PERMISSIONS]") {
-		t.Errorf("last mode %q, want yolo with its badge", last)
+	if yolo := d.options[5].label; !strings.HasPrefix(yolo, "yolo [SKIP PERMISSIONS]") {
+		t.Errorf("mode 5 %q, want yolo with its badge", yolo)
+	}
+	if last := d.options[9].label; !strings.HasPrefix(last, "plan:yolo") || !strings.Contains(last, "[SKIP PERMISSIONS]") {
+		t.Errorf("last mode %q, want plan:yolo with its badge", last)
 	}
 
 	press(a, "enter") // As planned; the checks are back at once here

@@ -21,6 +21,7 @@ func TestLintFixtures(t *testing.T) {
 		{"gate.md", []string{`10 gate: M1-G: the gate does not depend on M1-04, M1-05 of phase M1; add them to Deps (e.g. M1-01…M1-05)`}},
 		{"gate-after.md", []string{`7 gate: M1-G: the gate does not depend on M1-02 of phase M1; add them to Deps (e.g. M1-01…M1-02)`}},
 		{"yolo.md", []string{`6 yolo: M1-03: Mode yolo runs this task with --dangerously-skip-permissions; prefer auto unless it must run unattended`}},
+		{"plan-yolo.md", []string{`6 yolo: M1-03: Mode plan:yolo runs this task without permission prompts once its plan is approved; prefer plan:auto unless it must run unattended`}},
 		{"fable.md", []string{`6 fable: M1-03: the only heavy-rank task of phase M1 is fable; check that this task needs fable`}},
 	}
 	for _, tt := range tests {

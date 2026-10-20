@@ -7,7 +7,9 @@ A mode is the permission mode of a task's Claude Code session: how much it may d
 | `default` | Your normal Claude Code permission prompts. |
 | `accept` | Edits are accepted automatically. Bash commands still ask, even read-only ones (that is Claude Code's behavior), so igris shows "needs you" when one comes up. |
 | `auto` | Claude Code approves routine actions itself and asks you about risky ones. |
-| `plan` | Claude plans first; you approve the plan, then it implements. |
+| `plan` | Claude plans first; you approve the plan, then it implements. When you approve in igris, it continues in the mode `[plan_mode] then` names (`auto` by default). |
+| `plan:default`, `plan:accept`, `plan:auto` | Plan first, then continue in `default`, `accept` or `auto` once you approve the plan in igris. |
+| `plan:yolo` | Plan first, then skip permissions once you approve the plan in igris. Needs the same typed confirmation as `yolo`. See below. |
 | `yolo` | Skip permissions: `--dangerously-skip-permissions`. See below. |
 
 ## Which mode a task gets
@@ -25,7 +27,7 @@ Use the plan's `Mode` column for tasks that always want one, such as `plan` for 
 
 ## Skip permissions
 
-Skip permissions is never a single click or key. You type `skip permissions` to confirm, **every run**, and a red badge shows while it is active. There is no setting that remembers it.
+Skip permissions is never a single click or key. You type `skip permissions` to confirm, **every run**, and a red badge shows while it is active. There is no setting that remembers it. The same goes for `plan:yolo`: its session starts in plan mode with `--allow-dangerously-skip-permissions`, because Claude Code ignores a switch to skip permissions without it, and Claude Code warns that plan mode then won't ask before most edits or commands. So the badge shows from the start, not only after you approve.
 
 Use it only where you would trust an unattended agent: in a container you trust, or with **worktree mode**. `igris arise P1 --worktree` (or `worktree = true` under `[run]`) runs the whole run in a git worktree on a branch of its own, `igris/<run-id>`, so your checkout and current branch stay as they are. Whatever the sessions do lands on a branch you can review, merge or throw away. igris never merges: when the run completes, it removes the worktree, keeps the branch and tells you the `git merge` command.
 

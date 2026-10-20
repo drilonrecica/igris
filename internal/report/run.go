@@ -22,7 +22,7 @@ const (
 
 // runModes are the run modes state.json may hold. engine.ValidMode is the
 // source, but engine imports this package, so the list is repeated here.
-var runModes = map[string]bool{"default": true, "accept": true, "auto": true, "plan": true, "yolo": true}
+var runModes = map[string]bool{"default": true, "accept": true, "auto": true, "plan": true, "plan:default": true, "plan:accept": true, "plan:auto": true, "plan:yolo": true, "yolo": true}
 
 // RunInfo is the current run as `igris status` shows it (SPEC §13, §14).
 type RunInfo struct {

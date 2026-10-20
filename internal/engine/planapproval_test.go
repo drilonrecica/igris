@@ -2,8 +2,10 @@ package engine
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -321,6 +323,71 @@ func TestPlanApprovalOnlyForLivePlanSessions(t *testing.T) {
 	}
 	if h.count(Asked) != 0 {
 		t.Errorf("events %s", h.kinds())
+	}
+}
+
+// The Mode cell names the mode after approval and beats [plan_mode] then;
+// plain plan takes then. The mode travels in the settings file, is named
+// when the owner is asked and logged with the approval (SPEC §7.1).
+func TestPlanModeAfterApproval(t *testing.T) {
+	for _, tc := range []struct {
+		cell, then, setMode string
+		yolo                bool // the run's typed confirmation
+	}{
+		{"plan", "accept", "acceptEdits", false},
+		{"plan:default", "default", "default", false},
+		{"plan:accept", "accept", "acceptEdits", false},
+		{"plan:auto", "auto", "auto", false},
+		{"Plan:Yolo", "yolo", "bypassPermissions", true},
+	} {
+		t.Run(tc.cell, func(t *testing.T) {
+			h, hook := planHarness(t, "[plan_mode]\nthen = \"accept\"\n")
+			h.write("tasks.md", strings.Replace(onePlanTask, "| plan |", "| "+tc.cell+" |", 1))
+			h.onEvent = func(ev Event) {
+				switch {
+				case ev.Kind == SessionOpened:
+					h.clock.At(ev.At.Sub(t0)+5*time.Second, func() { hook.present(planText) })
+				case ev.Kind == Asked && ev.Question == QuestionPlanApproval:
+					if ev.Then != tc.then || !strings.HasSuffix(ev.Detail, "mode "+tc.then) {
+						t.Errorf("asked with then %q: %s", ev.Then, ev.Detail)
+					}
+					h.eng.Send(Command{Kind: CmdPlan, Plan: state.PlanAllow})
+				case ev.Kind == PlanClosed:
+					hook.done()
+					_ = h.signal("A-1")
+				}
+			}
+			if _, err := h.run(withPlanApproval, func(o *Options) { o.ConfirmedYolo = tc.yolo }); err != nil {
+				t.Fatal(err)
+			}
+			if s := h.read(".igris/hooks/A-1.settings.json"); !strings.Contains(s, "plan-approve --mode '"+tc.setMode+"'") {
+				t.Errorf("settings file:\n%s", s)
+			}
+			args := h.be.Opened()[0].Args
+			if !slices.Contains(args, "plan") || slices.Contains(args, "--dangerously-skip-permissions") {
+				t.Errorf("args %q", args)
+			}
+			if got := slices.Contains(args, "--allow-dangerously-skip-permissions"); got != tc.yolo {
+				t.Errorf("--allow-dangerously-skip-permissions passed: %v, want %v", got, tc.yolo)
+			}
+			if !strings.Contains(h.read(".igris/runs.jsonl"), `"mode":"`+tc.then+`"`) {
+				t.Errorf("run log lacks the mode: %s", h.read(".igris/runs.jsonl"))
+			}
+		})
+	}
+}
+
+// plan:yolo is refused without the run's typed confirmation, like yolo
+// (SPEC §7.3): no session, no settings file.
+func TestPlanYoloNeedsConfirmation(t *testing.T) {
+	h, _ := planHarness(t, "")
+	h.write("tasks.md", strings.Replace(onePlanTask, "| plan |", "| plan:yolo |", 1))
+	_, err := h.run(withPlanApproval)
+	if !errors.Is(err, ErrYoloUnconfirmed) || !strings.Contains(err.Error(), "plan:yolo mode") {
+		t.Fatalf("err = %v, want ErrYoloUnconfirmed", err)
+	}
+	if got := h.opened(); got != "" {
+		t.Errorf("sessions opened for %q", got)
 	}
 }
 

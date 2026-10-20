@@ -210,7 +210,7 @@ func migrateRun(r *Run) {
 
 // sessionModes are the run modes a recorded session can have (SPEC §7.1);
 // "" is a task with no session yet.
-var sessionModes = []string{"", "default", "accept", "auto", "plan", "yolo"}
+var sessionModes = []string{"", "default", "accept", "auto", "plan", "plan:default", "plan:accept", "plan:auto", "plan:yolo", "yolo"}
 
 // checkReadBack checks what igris uses from state.json besides the
 // selection: a session can write the file, and these become paths, git

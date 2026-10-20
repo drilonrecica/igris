@@ -10,6 +10,7 @@ import (
 	"runtime/debug"
 	"strings"
 
+	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/textsafe"
 	"github.com/drilonrecica/igris/internal/tui"
 )
@@ -53,8 +54,8 @@ Commands:
   history [TASK-ID] [-n N] [--json]     past runs from .igris/runs.jsonl; with a task ID, its attempts
   report [RUN] [--json]                 one run as markdown (or JSON): RUN is 1 (the newest, default), 2, … or a run ID
   arise [PHASE] [--through PHASE]       run (or resume) with the TUI
-        [--mode default|accept|auto|plan|yolo] [--no-tui] [--dry-run]
-        [--force-unlock] [--worktree]
+        [--mode default|accept|auto|plan[:MODE]|yolo] [--no-tui]
+        [--dry-run] [--force-unlock] [--worktree]
         [--only ID[,ID...] | [--from ID] [--until ID]]
                                         run only part of the phases
   done ID [--note TEXT]                 signal that a task is finished
@@ -81,7 +82,7 @@ type command struct {
 	exec func(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int
 }
 
-var runModes = []string{"default", "accept", "auto", "plan", "yolo"}
+var runModes = engine.Modes
 
 func commands() []command {
 	return []command{

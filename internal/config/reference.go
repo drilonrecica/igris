@@ -24,7 +24,7 @@ type keyDoc struct {
 var keyDocs = map[string]keyDoc{
 	"plan":                       {desc: "Path to the plan file, relative to the project root."},
 	"backend":                    {desc: "Where agent sessions run (SPEC §11.3). `auto` picks herdr inside a herdr pane, else tmux inside tmux.", values: "`auto`, `herdr`, `tmux`"},
-	"default_mode":               {desc: "Permission mode of a run when `--mode` is not given (SPEC §7). `yolo` always asks for confirmation.", values: "`default`, `accept`, `auto`, `plan`, `yolo`"},
+	"default_mode":               {desc: "Permission mode of a run when `--mode` is not given (SPEC §7). `yolo` and `plan:yolo` always ask for confirmation.", values: "`default`, `accept`, `auto`, `plan`, `plan:default`, `plan:accept`, `plan:auto`, `plan:yolo`, `yolo`"},
 	"needs_input_after":          {desc: "How long a session may sit idle at a prompt before it counts as needing you (SPEC §6.3). Greater than zero."},
 	"waiting_limit":              {desc: "How long a session may wait on background work before it needs you (SPEC §6.3). Greater than zero.", def: "`\"30m\"`"},
 	"nudge":                      {desc: "Remind an idle agent of `igris done` once before it needs you (SPEC §6.3).", def: "`true`"},

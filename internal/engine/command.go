@@ -152,12 +152,12 @@ func (e *Engine) setMode(c Command) {
 		e.reject(c, "no task given")
 		return
 	case !ValidMode(m):
-		e.reject(c, fmt.Sprintf("unknown run mode %q (want default|accept|auto|plan|yolo)", c.Text))
+		e.reject(c, fmt.Sprintf("unknown run mode %q (want %s)", c.Text, ModeList))
 		return
-	case m == ModeYolo && !c.Yes && !e.yoloConfirmed():
+	case SkipsPermissions(m) && !c.Yes && !e.yoloConfirmed():
 		e.reject(c, "skip-permissions mode needs the owner's typed confirmation")
 		return
-	case m == ModeYolo:
+	case SkipsPermissions(m):
 		e.yoloOK = true
 	}
 	if c.Kind == CmdTaskMode {

@@ -151,3 +151,14 @@ func TestWrapPre(t *testing.T) {
 		t.Errorf("wrapPre = %q, want %q", got, want)
 	}
 }
+
+// Approving a plan:yolo session's plan says it skips permissions from then on.
+func TestPlanViewYoloBadge(t *testing.T) {
+	hs := newHarness(t, 120, 30)
+	ev := planAsked()
+	ev.Then = "yolo"
+	hs.events(started("M0-03"), opened("M0-03"), ev)
+	if v := hs.m.View(); !strings.Contains(v, "Approve: the session switches to yolo [SKIP PERMISSIONS]") {
+		t.Errorf("view lacks the badge:\n%s", v)
+	}
+}

@@ -37,6 +37,10 @@ func TestValidateValid(t *testing.T) {
 		// Finished agent tasks never get a session, so they need no model.
 		"| e | | done | — | agent | |",
 		"| f | | skipped (not needed) | | agent + user | |",
+		"| g | | ready | sonnet | agent | plan:default |",
+		"| h | | ready | sonnet | agent | `Plan:Accept` |",
+		"| i | | ready | sonnet | agent | plan:auto |",
+		"| j | | ready | sonnet | agent | plan:yolo |",
 	)
 	if issues := Parse("tasks.md", []byte(in), Options{}).Validate(testRules); len(issues) > 0 {
 		t.Fatalf("unexpected issues: %v", issueMsgs(issues))
@@ -111,7 +115,11 @@ func TestValidateErrors(t *testing.T) {
 		{"unknown owner", table("| a | | ready | sonnet | robot | |"),
 			[]string{`tasks.md:5: a: unknown owner "robot"; use agent, user or agent + user`}},
 		{"unknown mode", table("| a | | ready | sonnet | agent | turbo |"),
-			[]string{`tasks.md:5: a: unknown mode "turbo"; use default, accept, auto, plan, yolo or —`}},
+			[]string{`tasks.md:5: a: unknown mode "turbo"; use default, accept, auto, plan, plan:default, plan:accept, plan:auto, plan:yolo, yolo or —`}},
+		{"unknown mode after plan", table("| a | | ready | sonnet | agent | plan:wild |"),
+			[]string{`tasks.md:5: a: unknown mode "plan:wild"; use default, accept, auto, plan, plan:default, plan:accept, plan:auto, plan:yolo, yolo or —`}},
+		{"plan mode needs a mode after the colon", table("| a | | ready | sonnet | agent | plan: |"),
+			[]string{`tasks.md:5: a: unknown mode "plan:"; use default, accept, auto, plan, plan:default, plan:accept, plan:auto, plan:yolo, yolo or —`}},
 		{"unknown dep", table("| a | zz | blocked | sonnet | agent | |"),
 			[]string{"tasks.md:5: a depends on unknown task zz; check the ID or remove it from Deps"}},
 		{"invalid dep token", table("| a | b c | blocked | sonnet | agent | |"),

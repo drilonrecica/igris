@@ -6,7 +6,7 @@ What igris protects, from whom, where the boundaries are, and which test enforce
 
 - **Trusted:** the owner, and `igris.toml` as the owner wrote it when the run started (the config snapshot, SPEC §13).
 - **Not trusted:**
-  - a Claude Code session. In `accept`, `auto` and `yolo` mode it can write any file in the project without a prompt, including the plan, `igris.toml` and `.igris/`. It controls its done note, what `verify` prints, and the hook payloads Claude Code sends.
+  - a Claude Code session. In `accept`, `auto`, `yolo` and `plan:yolo` mode, and in a plan mode that continues in `accept` or `auto` once its plan is approved, it can write any file in the project without a prompt, including the plan, `igris.toml` and `.igris/`. It controls its done note, what `verify` prints, and the hook payloads Claude Code sends.
   - the plan's text (a plan someone else wrote, or one `igris adapt` produced);
   - the output of any command;
   - the network;
@@ -146,7 +146,7 @@ What igris protects, from whom, where the boundaries are, and which test enforce
 13. **`prompt_template` is read at every launch, not snapshotted** (V10-05): a session can rewrite it mid-run, as it can rewrite `CLAUDE.md`; both reach the next session's prompt, not igris's behaviour.
 14. **The signed webhook has no replay protection** (V10-05): the signature covers the body, which has no nonce. Receivers are told to key on `run` + `at` and to ignore stale payloads (SPEC §10); a timestamp header may come in 1.x.
 15. **The release trust root is the repository** (V10-05, B7): the signature defeats a replaced release asset, which is what it claims; a party able to rewrite the repository controls the source anyway.
-16. **A session can forge a plan approval** (V11-P1, V11-01): it can write `.igris/plan-approval/` too, so it could answer its own `ExitPlanMode` request with an allow and implement a plan the owner never saw. Approval from igris is a convenience, not a guard: plan mode never was one, since an approved session runs with the owner's rights. What a forged decision can't do is pick the mode: the mode an approval switches to and the wait are arguments in the session's settings file, which Claude Code read at start. The exchange files are read bounded and shape-checked, never through a symlink, and a request whose hook is gone is ignored.
+16. **A session can forge a plan approval** (V11-P1, V11-01): it can write `.igris/plan-approval/` too, so it could answer its own `ExitPlanMode` request with an allow and implement a plan the owner never saw. Approval from igris is a convenience, not a guard: plan mode never was one, since an approved session runs with the owner's rights. What a forged decision can't do is pick the mode: the mode an approval switches to and the wait are arguments in the session's settings file, which Claude Code read at start: only a `plan:yolo` session, which the owner confirmed for this run (SPEC §7.3), has `bypassPermissions` there, and only it starts with `--allow-dangerously-skip-permissions`, without which Claude Code ignores that switch (V11-02). Such a session is not held by plan mode's prompts before approval either (Claude Code says so in the pane), so forging its approval gains it little. The exchange files are read bounded and shape-checked, never through a symlink, and a request whose hook is gone is ignored.
 
 ## Reviews
 

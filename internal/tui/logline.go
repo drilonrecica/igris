@@ -127,9 +127,10 @@ func note(s, n string) string {
 // skipBadge marks skip-permissions mode in words, never by color alone.
 const skipBadge = "[SKIP PERMISSIONS]"
 
-// badge is the skip-permissions badge after a mode, if the mode is yolo.
+// badge is the skip-permissions badge after a mode, if the mode is yolo
+// or plan:yolo.
 func badge(mode string) string {
-	if mode == engine.ModeYolo {
+	if engine.SkipsPermissions(mode) {
 		return " " + skipBadge
 	}
 	return ""

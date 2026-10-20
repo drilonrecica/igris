@@ -261,26 +261,30 @@ func TestResumeWarnsAboutAChangedConfig(t *testing.T) {
 // Reattaching to a session that runs in skip-permissions mode needs this
 // run's confirmation as well (SPEC §7.3).
 func TestResumeYoloSessionNeedsConfirmation(t *testing.T) {
-	h := newHarness(t, chainPlan, "")
-	h.autoSignalExcept("A-1")
-	h.stopMidTask(6*time.Second, func(o *Options) { o.Mode, o.ConfirmedYolo = ModeYolo, true })
-	before := h.read("tasks.md")
-	_, err := h.run(resumeLast)
-	if !errors.Is(err, ErrYoloUnconfirmed) {
-		t.Fatalf("err = %v, want ErrYoloUnconfirmed", err)
-	}
-	if got := h.read("tasks.md"); got != before {
-		t.Error("plan written without confirmation")
-	}
-	if run, err := h.dir.LoadRun(); err != nil || run.Current == nil || run.Current.TaskID != "A-1" {
-		t.Errorf("interrupted task lost from state.json: %+v, %v", run, err)
-	}
-	h.signalAt(h.clock.Now().Sub(t0)+10*time.Second, "A-1")
-	if _, err := h.run(resumeLast, func(o *Options) { o.Mode, o.ConfirmedYolo = ModeYolo, true }); err != nil {
-		t.Fatalf("confirmed resume: %v", err)
-	}
-	if got := h.event(TaskResumed, "A-1").Detail; got != "reattached to its session" {
-		t.Errorf("task_resumed %q", got)
+	for _, mode := range []string{ModeYolo, ModePlanYolo} {
+		t.Run(mode, func(t *testing.T) {
+			h := newHarness(t, chainPlan, "")
+			h.autoSignalExcept("A-1")
+			h.stopMidTask(6*time.Second, func(o *Options) { o.Mode, o.ConfirmedYolo = mode, true })
+			before := h.read("tasks.md")
+			_, err := h.run(resumeLast)
+			if !errors.Is(err, ErrYoloUnconfirmed) || !strings.Contains(err.Error(), mode+" mode") {
+				t.Fatalf("err = %v, want ErrYoloUnconfirmed", err)
+			}
+			if got := h.read("tasks.md"); got != before {
+				t.Error("plan written without confirmation")
+			}
+			if run, err := h.dir.LoadRun(); err != nil || run.Current == nil || run.Current.TaskID != "A-1" || run.Current.Mode != mode {
+				t.Errorf("interrupted task lost from state.json: %+v, %v", run, err)
+			}
+			h.signalAt(h.clock.Now().Sub(t0)+10*time.Second, "A-1")
+			if _, err := h.run(resumeLast, func(o *Options) { o.Mode, o.ConfirmedYolo = mode, true }); err != nil {
+				t.Fatalf("confirmed resume: %v", err)
+			}
+			if got := h.event(TaskResumed, "A-1").Detail; got != "reattached to its session" {
+				t.Errorf("task_resumed %q", got)
+			}
+		})
 	}
 }
 

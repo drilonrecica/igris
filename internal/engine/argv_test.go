@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -25,6 +26,10 @@ func TestResolveMode(t *testing.T) {
 		{"unknown task mode", "", "wild", "", "", "", true},
 		{"unknown config mode", "", "", "", "wild", "", true},
 		{"unknown lower precedence is not reached", "accept", "wild", "", "", "accept", false},
+		{"plan with the mode after approval", "", "Plan:Yolo", "", "", "plan:yolo", false},
+		{"run mode plan:default", "", "", "plan:default", "auto", "plan:default", false},
+		{"unknown mode after plan", "", "plan:wild", "", "", "", true},
+		{"plan:plan", "", "plan:plan", "", "", "", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -36,6 +41,38 @@ func TestResolveMode(t *testing.T) {
 				t.Errorf("mode = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestModeKinds(t *testing.T) {
+	for _, tc := range []struct {
+		mode, after string
+		plan, skip  bool
+	}{
+		{ModeDefault, "", false, false},
+		{ModeAuto, "", false, false},
+		{ModeYolo, "", false, true},
+		{ModePlan, "then", true, false},
+		{ModePlanDefault, ModeDefault, true, false},
+		{ModePlanAccept, ModeAccept, true, false},
+		{ModePlanAuto, ModeAuto, true, false},
+		{ModePlanYolo, ModeYolo, true, true},
+	} {
+		if got := After(tc.mode, "then"); got != tc.after {
+			t.Errorf("After(%s) = %q, want %q", tc.mode, got, tc.after)
+		}
+		if IsPlan(tc.mode) != tc.plan || SkipsPermissions(tc.mode) != tc.skip {
+			t.Errorf("%s: IsPlan %v, SkipsPermissions %v", tc.mode, IsPlan(tc.mode), SkipsPermissions(tc.mode))
+		}
+		if !ValidMode(tc.mode) || !slices.Contains(Modes, tc.mode) {
+			t.Errorf("%s is not a valid mode", tc.mode)
+		}
+	}
+	// Every mode after approval has a setMode value (SPEC §7.1).
+	for _, m := range Modes {
+		if a := After(m, ModeAuto); IsPlan(m) && setModeOf[a] == "" {
+			t.Errorf("%s: no setMode for %q", m, a)
+		}
 	}
 }
 
@@ -56,6 +93,10 @@ func TestClaudeArgs(t *testing.T) {
 			[]string{"--model", "opus", "--session-id", id, "--permission-mode", "auto", "--append-system-prompt-file", "/p/M0-01.rules.md"}},
 		{"plan", func(p *ClaudeParams) { p.Mode = ModePlan },
 			[]string{"--model", "opus", "--session-id", id, "--permission-mode", "plan", "--append-system-prompt-file", "/p/M0-01.rules.md"}},
+		{"plan:auto", func(p *ClaudeParams) { p.Mode = ModePlanAuto },
+			[]string{"--model", "opus", "--session-id", id, "--permission-mode", "plan", "--append-system-prompt-file", "/p/M0-01.rules.md"}},
+		{"plan:yolo may skip permissions once approved", func(p *ClaudeParams) { p.Mode = ModePlanYolo },
+			[]string{"--model", "opus", "--session-id", id, "--permission-mode", "plan", "--allow-dangerously-skip-permissions", "--append-system-prompt-file", "/p/M0-01.rules.md"}},
 		{"yolo", func(p *ClaudeParams) { p.Mode = ModeYolo },
 			[]string{"--model", "opus", "--session-id", id, "--dangerously-skip-permissions", "--append-system-prompt-file", "/p/M0-01.rules.md"}},
 		{"resume keeps model and mode", func(p *ClaudeParams) { p.Resume = true; p.Mode = ModeAccept },

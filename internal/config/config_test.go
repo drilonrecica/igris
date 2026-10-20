@@ -164,7 +164,7 @@ func TestParseErrors(t *testing.T) {
 		{"duration not string", `poll_interval = 5`, []string{"parse igris.toml"}},
 		{"zero duration", `needs_input_after = "0s"`, []string{"needs_input_after must be greater than zero"}},
 		{"negative duration", "[run]\nverify_timeout = \"-1m\"", []string{"run.verify_timeout must be greater than zero"}},
-		{"bad mode", `default_mode = "bypass"`, []string{`default_mode = "bypass"`, "default, accept, auto, plan, yolo"}},
+		{"bad mode", `default_mode = "bypass"`, []string{`default_mode = "bypass"`, "default, accept, auto, plan, plan:default, plan:accept, plan:auto, plan:yolo, yolo"}},
 		{"bad commit", "[run]\ncommit = \"sometimes\"", []string{"run.commit"}},
 		{"bad adapt model", "[adapt]\nmodel = \"haiku\"", []string{"adapt.model", "sonnet, opus"}},
 		{"zero attempts", "[run]\nverify_max_attempts = 0", []string{"verify_max_attempts"}},

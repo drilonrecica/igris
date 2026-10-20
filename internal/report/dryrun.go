@@ -13,17 +13,29 @@ const (
 
 // DryStep is one line of the walk. Sessions and user tasks are numbered.
 type DryStep struct {
-	Kind    StepKind
-	N       int // 1-based position among sessions and user tasks; 0 for the others
-	Task    string
-	Rank    string
-	Model   string
-	Mode    string
+	Kind  StepKind
+	N     int // 1-based position among sessions and user tasks; 0 for the others
+	Task  string
+	Rank  string
+	Model string
+	Mode  string
+	// Then is the mode a plan mode switches to once igris approves the
+	// plan (SPEC §7.1); "" for the other modes.
+	Then    string
 	Verify  string // the task's verify profile; "none" when its cell or phase turns it off, "" when nothing applies (SPEC §6.4)
 	Title   string
 	Resumed bool   // the task was in progress: it gets a fresh session
 	Phase   string // StepPhaseDone
 	Lines   []string
+}
+
+// ModeText is the step's mode as the dry run shows it: plain plan with
+// the mode it switches to after approval ("plan → auto").
+func (s DryStep) ModeText() string {
+	if s.Mode == "plan" && s.Then != "" {
+		return s.Mode + " → " + s.Then
+	}
+	return s.Mode
 }
 
 // PhaseParallelism is the parallelism of one phase the dry run walks, over

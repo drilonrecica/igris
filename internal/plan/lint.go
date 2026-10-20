@@ -56,8 +56,11 @@ func (p *Plan) Lint() []Lint {
 				add(t, LintGate, "%s: the gate does not depend on %s of phase %s; add them to Deps (e.g. %s…%s)", t.ID, strings.Join(missing, ", "), t.Phase.ID, first, last)
 			}
 		}
-		if t.Mode == "yolo" {
+		switch t.Mode {
+		case "yolo":
 			add(t, LintYolo, "%s: Mode yolo runs this task with --dangerously-skip-permissions; prefer auto unless it must run unattended", t.ID)
+		case "plan:yolo":
+			add(t, LintYolo, "%s: Mode plan:yolo runs this task without permission prompts once its plan is approved; prefer plan:auto unless it must run unattended", t.ID)
 		}
 		if strings.EqualFold(t.Rank, "fable") && t.Phase != nil && onlyHeavy(t) {
 			add(t, LintFable, "%s: the only heavy-rank task of phase %s is fable; check that this task needs fable", t.ID, t.Phase.ID)

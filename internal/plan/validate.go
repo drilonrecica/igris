@@ -13,7 +13,7 @@ import (
 
 var (
 	idPattern  = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
-	validModes = []string{"default", "accept", "auto", "plan", "yolo"}
+	validModes = []string{"default", "accept", "auto", "plan", "plan:default", "plan:accept", "plan:auto", "plan:yolo", "yolo"}
 )
 
 // Invalid is the error for a plan that fails validation.
@@ -176,7 +176,7 @@ func (v *validator) checkTask(t *Task) {
 		v.add(at, "%s: unknown owner %q; use agent, user or agent + user", name, t.OwnerText)
 	}
 	if t.Mode != "" && !contains(validModes, t.Mode) {
-		v.add(at, "%s: unknown mode %q; use default, accept, auto, plan, yolo or —", name, t.Mode)
+		v.add(at, "%s: unknown mode %q; use default, accept, auto, plan, plan:default, plan:accept, plan:auto, plan:yolo, yolo or —", name, t.Mode)
 	}
 
 	switch {

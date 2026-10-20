@@ -33,7 +33,10 @@ const (
 
 // SetModes are the Claude Code permission modes plan-approve may switch an
 // approved session to (SPEC §7.1), by the value Claude Code takes.
-var SetModes = map[string]bool{"default": true, "acceptEdits": true, "auto": true}
+// bypassPermissions is only written for plan:yolo, whose session starts
+// with --allow-dangerously-skip-permissions; without it Claude Code
+// ignores the switch (verified with 2.1.304, V11-02).
+var SetModes = map[string]bool{"default": true, "acceptEdits": true, "auto": true, "bypassPermissions": true}
 
 // PlanApproval adds the plan approval entry to a session's settings file:
 // Mode is the Claude Code permission mode an approval switches to (a

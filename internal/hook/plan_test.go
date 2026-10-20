@@ -226,7 +226,7 @@ func TestApprovePlanRefuses(t *testing.T) {
 		{"other event", strings.Replace(rec, `"PermissionRequest"`, `"PreToolUse"`, 1), PlanOptions{}},
 		{"input not an object", `{"session_id":"` + fixtureUUID + `","hook_event_name":"PermissionRequest","tool_name":"ExitPlanMode","tool_input":"x"}`, PlanOptions{}},
 		{"too large", rec[:len(rec)-2] + `,"x":"` + strings.Repeat("a", maxPlanInput) + `"}`, PlanOptions{}},
-		{"unknown mode", rec, PlanOptions{Mode: "bypassPermissions"}},
+		{"unknown mode", rec, PlanOptions{Mode: "dontAsk"}},
 		{"no wait", rec, PlanOptions{Wait: -1}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -261,10 +261,25 @@ func TestSettingsPlanApproval(t *testing.T) {
 	if !strings.Contains(string(data), `"command": "'/bin/igris' hook --root '/p' plan-approve --mode 'auto' --wait '30m0s'"`) || !strings.Contains(string(data), `"timeout": 1830`) {
 		t.Errorf("settings:\n%s", data)
 	}
-	for _, bad := range []PlanApproval{{Mode: "bypassPermissions", Wait: time.Minute}, {Mode: "auto"}} {
+	for _, bad := range []PlanApproval{{Mode: "dontAsk", Wait: time.Minute}, {Mode: "plan", Wait: time.Minute}, {Mode: "auto"}} {
 		if _, err := Settings("/bin/igris", "/p", nil, &bad); err == nil {
 			t.Errorf("%+v accepted", bad)
 		}
+	}
+}
+
+// plan:yolo's approval switches to bypassPermissions (V11-02).
+func TestApprovePlanAllowBypass(t *testing.T) {
+	root := project(t)
+	out := answerWith(t, root, PlanOptions{Mode: "bypassPermissions"}, func(r state.PlanRequest) *state.PlanDecision {
+		return &state.PlanDecision{N: r.N, Behavior: state.PlanAllow}
+	})
+	if !strings.Contains(out, `{"type":"setMode","mode":"bypassPermissions","destination":"session"}`) {
+		t.Errorf("output %s", out)
+	}
+	data, err := Settings("/bin/igris", "/p", nil, &PlanApproval{Mode: "bypassPermissions", Wait: time.Minute})
+	if err != nil || !strings.Contains(string(data), "plan-approve --mode 'bypassPermissions'") {
+		t.Errorf("settings %s, %v", data, err)
 	}
 }
 

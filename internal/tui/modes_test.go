@@ -163,3 +163,27 @@ func typing(s string) []string {
 	}
 	return out
 }
+
+// plan:yolo needs the typed phrase like yolo (SPEC §7.3); the other plan
+// modes are one pick.
+func TestPlanModesInThePicker(t *testing.T) {
+	hs := newHarness(t, 80, 24)
+	hs.keys("m", "8")
+	if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdMode, Text: "plan:auto"}) {
+		t.Fatalf("sent %+v, want plan:auto", got)
+	}
+	hs.keys("m", "9")
+	d := hs.m.dialog
+	if len(hs.s.take()) != 0 || d == nil || d.input == nil || !strings.Contains(d.detail, "once you approve the plan in igris") {
+		t.Fatalf("picking plan:yolo didn't ask for the phrase: %+v", d)
+	}
+	hs.keys(typing("skip permissions")...)
+	hs.keys("enter", "2")
+	if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdMode, Text: "plan:yolo", Yes: true}) {
+		t.Errorf("sent %+v, want confirmed plan:yolo", got)
+	}
+	hs.events(engine.Event{Kind: engine.ModeChanged, Detail: "plan:yolo"})
+	if top := strings.Split(hs.m.View(), "\n")[0]; !strings.Contains(top, "plan:yolo [SKIP PERMISSIONS]") {
+		t.Errorf("header %q lacks the badge", top)
+	}
+}

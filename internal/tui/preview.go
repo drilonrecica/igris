@@ -222,7 +222,7 @@ func (s *previewScreen) step(st report.DryStep, w int) []string {
 	const indent = 6
 	switch st.Kind {
 	case report.StepSession:
-		text := fmt.Sprintf("%s  %s → %s · mode %s", st.Task, st.Rank, st.Model, st.Mode)
+		text := fmt.Sprintf("%s  %s → %s · mode %s", st.Task, st.Rank, st.Model, st.ModeText())
 		if st.Verify != "" {
 			text += " · verify " + st.Verify
 		}
