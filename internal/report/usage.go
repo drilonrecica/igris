@@ -127,6 +127,24 @@ type UsageAudit struct {
 	Mismatches  []UsageMismatch `json:"mismatches"`
 }
 
+// UsageSide is the usage of one side session that ended. Tokens include
+// the subagents', Sub is their part of them; both are zero when the usage
+// could not be read.
+type UsageSide struct {
+	Side string `json:"side"`
+	At   string `json:"at"` // when it ended
+	Run  string `json:"run,omitempty"`
+	Rank string `json:"rank,omitempty"`
+	// Model is the model the rank resolved to when it was opened.
+	Model string `json:"model,omitempty"`
+	// Unavailable says its transcript could not be read.
+	Unavailable bool `json:"unavailable,omitempty"`
+	Tokens
+	Sub       Tokens   `json:"sub"`
+	Models    []string `json:"models"`
+	SubModels []string `json:"sub_models,omitempty"`
+}
+
 // Usage is the result of `igris usage`: the token usage and the rank audit
 // of one run, or of every run since a time (SPEC §14). The figures are the
 // tokens recorded in the session transcripts, never a cost.
@@ -144,6 +162,10 @@ type Usage struct {
 	Ranks       []UsageRank  `json:"ranks"`  // most tokens first
 	Top         []UsageTask  `json:"top"`    // TopTasks tasks by in + out
 	Audit       UsageAudit   `json:"audit"`
+	// Side is the side sessions that ended (side_usage lines, SPEC §6.10):
+	// those of the run, or with a time those since it, oldest first. They
+	// are in none of the figures above, being no attempt. Since 1.2.
+	Side []UsageSide `json:"side"`
 	// Quota is the subscription quota last recorded by igris's status line
 	// (SPEC §6.3), nil when none is: the caller fills it in.
 	Quota *state.Quota `json:"quota"`
@@ -181,7 +203,7 @@ func NewUsage(in HistoryInput, project, sel string, since time.Time) (Usage, err
 	u := Usage{
 		V: JSONVersion, Project: textsafe.Line(project), Runs: []UsageRun{},
 		Tasks: []UsageTask{}, Models: []UsageModel{}, Ranks: []UsageRank{}, Top: []UsageTask{},
-		Audit: UsageAudit{Mismatches: []UsageMismatch{}}, Note: logNote(in),
+		Audit: UsageAudit{Mismatches: []UsageMismatch{}}, Side: []UsageSide{}, Note: logNote(in),
 	}
 	b := usageBuilder{u: &u, tasks: map[string]*UsageTask{}, models: map[string]*UsageModel{}, ranks: map[string]*UsageRank{}}
 	for _, r := range picked {
@@ -192,6 +214,7 @@ func NewUsage(in HistoryInput, project, sel string, since time.Time) (Usage, err
 		}
 	}
 	b.finish()
+	u.Side = sideUsage(in.Events, picked, since)
 	if u.Totals.Attempts == 0 && u.Unavailable == 0 {
 		u.NoUsage = noUsageReason(in.UsageOff)
 	}
@@ -404,4 +427,45 @@ func mergeModels(list, add []string) []string {
 		}
 	}
 	return list
+}
+
+// sideUsage lists the side sessions that ended (SPEC §6.10): for a run
+// the side_usage lines with its ID, with a time those at or after it,
+// whatever run they were written in.
+func sideUsage(events []state.Event, picked []*runRec, since time.Time) []UsageSide {
+	out := []UsageSide{}
+	ids := map[string]bool{}
+	for _, r := range picked {
+		if r.id != "" {
+			ids[r.id] = true
+		}
+	}
+	for _, e := range events {
+		if e.Type != state.EventSideUsage || e.Side == "" {
+			continue
+		}
+		covered := !e.At.Before(since)
+		if since.IsZero() {
+			covered = ids[e.Run]
+		}
+		if !covered {
+			continue
+		}
+		s := UsageSide{
+			Side: e.Side, At: stamp(e.At), Run: e.Run,
+			Rank: textsafe.Line(e.Rank), Model: textsafe.Line(e.Model),
+			Models: cleanModels(e.Models), SubModels: cleanModels(e.SubModels),
+		}
+		if e.Usage == nil {
+			s.Unavailable = true
+		} else {
+			s.add(*e.Usage)
+			if e.Sub != nil {
+				s.add(*e.Sub)
+				s.Sub.add(*e.Sub)
+			}
+		}
+		out = append(out, s)
+	}
+	return out
 }

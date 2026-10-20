@@ -26,6 +26,7 @@ import (
 	"github.com/drilonrecica/igris/internal/runner"
 	"github.com/drilonrecica/igris/internal/state"
 	"github.com/drilonrecica/igris/internal/textsafe"
+	"github.com/drilonrecica/igris/internal/usage"
 )
 
 // MaxOpen is how many side sessions may be open at a time.
@@ -69,6 +70,13 @@ type Options struct {
 	Now       func() time.Time       // nil: time.Now
 	NewID     func() (string, error) // nil: state.NewSideID
 	NewUUID   func() (string, error) // nil: engine.NewSessionID
+	// Log appends a line to the run log (side_opened, side_closed and
+	// side_usage, SPEC §6.10, §13); nil logs nothing. It sets no run: the
+	// caller's Log adds the run the writing igris has, if any.
+	Log func(state.Event)
+	// Usage reads an ended session's transcript and logs its side_usage
+	// line ([usage] enabled, SPEC §6.9).
+	Usage bool
 }
 
 // Manager keeps the side sessions of one project. It holds the sessions it
@@ -272,6 +280,7 @@ func (m *Manager) Open(ctx context.Context, s Spec) (Entry, error) {
 	m.sessions[id] = sess
 	m.mu.Unlock()
 
+	m.log(state.Event{Type: state.EventSideOpened, Side: id, Rank: rec.Rank, Model: rec.Model})
 	e := Entry{Record: rec, Session: sess}
 	if text := CleanPrompt(s.Prompt); strings.TrimSpace(text) != "" {
 		if err := sess.Prompt(ctx, text); err != nil {
@@ -426,10 +435,61 @@ func (m *Manager) end(id string, foreign bool) (Ended, bool) {
 		return Ended{}, false
 	}
 	e := Ended{Record: r, Foreign: foreign}
+	m.logEnded(r)
 	if r.Worktree != nil && isDir(filepath.Join(m.o.Root, r.Worktree.Path)) {
 		e.Worktree = r.Worktree
 	}
 	return e, true
+}
+
+// log appends ev to the run log, if the Manager has one.
+func (m *Manager) log(ev state.Event) {
+	if m.o.Log != nil {
+		m.o.Log(ev)
+	}
+}
+
+// logEnded logs that r ended and, with [usage] on, what its transcript
+// recorded (SPEC §6.10): once, by the igris that claimed the record. The
+// transcript is read as a task's is (SPEC §6.9); a side session is never
+// an attempt and never audited.
+func (m *Manager) logEnded(r state.SideRecord) {
+	if m.o.Log == nil {
+		return
+	}
+	m.log(state.Event{Type: state.EventSideClosed, Side: r.ID, Rank: r.Rank, Model: r.Model})
+	if !m.o.Usage {
+		return
+	}
+	ev := state.Event{Type: state.EventSideUsage, Side: r.ID, Rank: r.Rank, Model: r.Model}
+	rd := m.readUsage(r)
+	if rd == nil || !rd.Available() {
+		ev.Detail = "the transcript could not be read"
+		if rd == nil {
+			ev.Detail = "no transcript reported by the session's hooks"
+		}
+		m.log(ev)
+		return
+	}
+	got := rd.Usage()
+	ev.Usage, ev.Models, ev.SubModels = &got.Main, got.Models, got.SubModels
+	if !got.Sub.IsZero() {
+		ev.Sub = &got.Sub
+	}
+	m.log(ev)
+}
+
+// readUsage reads everything r's transcript recorded since it opened; nil
+// when its hooks reported none. Only the path they reported is read, as for
+// a task (SPEC §6.9).
+func (m *Manager) readUsage(r state.SideRecord) *usage.Reader {
+	rec, ok := state.PeekAgentState(m.o.Root, r.ClaudeSession)
+	if !ok || rec.Transcript == "" {
+		return nil
+	}
+	rd := usage.NewReader(rec.Transcript, r.At)
+	_ = rd.Finish(m.o.Now()) // a failure leaves it unavailable
+	return rd
 }
 
 func (m *Manager) forget(id string) {

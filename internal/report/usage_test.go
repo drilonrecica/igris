@@ -162,3 +162,50 @@ func TestUsageManyModelsAndNoUsage(t *testing.T) {
 		}
 	}
 }
+
+func sideLine(run, side string, at time.Time, main *usage.Counts) state.Event {
+	return state.Event{V: 1, At: at, Type: state.EventSideUsage, Run: run, Side: side, Rank: "sonnet", Model: "sonnet",
+		Usage: main, Models: []string{"claude-sonnet-5-5"}}
+}
+
+// Side sessions are listed apart: by run for a run, by time for --since,
+// and they are in none of the figures nor a task's attempts (SPEC §6.10).
+func TestUsageSide(t *testing.T) {
+	day1 := time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC)
+	day2 := day1.Add(48 * time.Hour)
+	events := []state.Event{
+		runStart("r1", day1),
+		usageLine("r1", "A-1", "sonnet", &usage.Counts{Input: 10, Output: 100, Messages: 1}, nil, []string{"claude-sonnet-5-5"}, nil, state.AuditOK),
+		sideLine("r1", "aaaaaa", day1.Add(time.Hour), &usage.Counts{Input: 1, Output: 2, CacheRead: 30, Messages: 1}),
+		sideLine("", "bbbbbb", day1.Add(3*time.Hour), nil), // no run, unreadable
+		{V: 1, At: day1.Add(time.Hour), Type: state.EventSideClosed, Run: "r1", Side: "aaaaaa"},
+		runStart("r2", day2),
+		sideLine("r2", "cccccc", day2.Add(time.Hour), &usage.Counts{Output: 9, Messages: 1}),
+	}
+	in := HistoryInput{Events: events}
+
+	u, err := NewUsage(in, "demo", "2", time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(u.Side) != 1 || u.Side[0].Side != "aaaaaa" || u.Side[0].In != 31 || u.Side[0].Output != 2 || u.Side[0].Run != "r1" {
+		t.Errorf("run 1 side = %+v", u.Side)
+	}
+	if u.Totals.Attempts != 1 || u.Totals.In != 10 || len(u.Tasks) != 1 {
+		t.Errorf("side sessions changed the figures: %+v tasks %d", u.Totals, len(u.Tasks))
+	}
+	if u, _ = NewUsage(in, "demo", "", time.Time{}); len(u.Side) != 1 || u.Side[0].Side != "cccccc" {
+		t.Errorf("newest run side = %+v", u.Side)
+	}
+	u, err = NewUsage(in, "demo", "", day1.Add(2*time.Hour))
+	if err != nil || len(u.Side) != 2 || u.Side[0].Side != "bbbbbb" || !u.Side[0].Unavailable || u.Side[1].Side != "cccccc" {
+		t.Errorf("since side = %+v, %v", u.Side, err)
+	}
+	if u, _ = NewUsage(HistoryInput{Events: events[:2]}, "demo", "", time.Time{}); u.Side == nil || len(u.Side) != 0 {
+		t.Errorf("no side sessions: %#v, want an empty array", u.Side)
+	}
+	// Side lines are no part of a run's history.
+	if h := readRuns(events); len(h) != 2 || len(h[0].events) != 2 {
+		t.Errorf("runs hold side lines: %d runs", len(h))
+	}
+}

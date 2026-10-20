@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"os"
 	"slices"
 	"sync"
 
@@ -66,7 +67,10 @@ func (s *SideSessions) manager() (*Project, backend.Backend, *side.Manager, erro
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if key := p.Root + "\x00" + be.Name(); s.mgr == nil || s.key != key {
-		s.mgr, s.key = side.New(side.Options{Root: p.Root, Backend: be, Runner: s.env.runner()}), key
+		s.mgr, s.key = side.New(side.Options{
+			Root: p.Root, Backend: be, Runner: s.env.runner(),
+			Log: sideLog(p.Root), Usage: p.CfgErr == nil && p.Cfg.Usage.On(),
+		}), key
 	}
 	return p, be, s.mgr, nil
 }
@@ -250,4 +254,43 @@ func (s *SideSessions) Close(ctx context.Context, id string) (string, error) {
 		return "side " + id + " had ended already", nil
 	}
 	return endedLine(e), nil
+}
+
+// sideLog appends a side session's run-log line (SPEC §13), with the run
+// this igris is running, if it is. A log that can't be written is passed
+// over: the session's own work matters more.
+func sideLog(root string) func(state.Event) {
+	return func(ev state.Event) {
+		d, err := state.Open(root, state.Options{})
+		if err != nil {
+			return
+		}
+		ev.Run = ownRun(root)
+		_ = d.Append(ev)
+	}
+}
+
+// ownRun is the ID of the run this process is running in root, "" when it
+// runs none: a read-only home beside another igris's run has none (SPEC
+// §6.10). It is the newest run_started of the log without a run_stopped,
+// while this process holds the run lock.
+func ownRun(root string) string {
+	lock, err := state.PeekLock(root)
+	if err != nil || !lock.Alive || lock.Info.PID != os.Getpid() {
+		return ""
+	}
+	events, err := state.PeekEvents(root)
+	if err != nil {
+		return ""
+	}
+	for i := len(events) - 1; i >= 0; i-- {
+		switch e := events[i]; {
+		case e.Run == "":
+		case e.Type == state.EventRunStopped:
+			return ""
+		case e.Type == state.EventRunStarted:
+			return e.Run
+		}
+	}
+	return ""
 }

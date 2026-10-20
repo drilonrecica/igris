@@ -119,3 +119,39 @@ func TestUsageQuotaLine(t *testing.T) {
 		t.Errorf("json quota = %+v err %v\n%s", got, err, out.String())
 	}
 }
+
+// Side sessions get a table of their own, also when no attempt has usage,
+// and a `side` array in --json (SPEC §14).
+func TestUsageSideTable(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	if _, err := state.Open(root, state.Options{}); err != nil {
+		t.Fatal(err)
+	}
+	writeLog(t, root, []byte(`{"v":1,"at":"2026-10-01T09:00:00Z","type":"run_started","run":"20261001-090000-3fa2","detail":"phase A"}`+"\n"+
+		`{"v":1,"at":"2026-10-01T09:30:00Z","type":"side_usage","run":"20261001-090000-3fa2","side":"a1b2c3","rank":"sonnet","model":"sonnet",`+
+		`"usage":{"input":5,"output":40,"cache_read":1000,"cache_write":0,"messages":2},"models":["claude-sonnet-5-5"]}`+"\n"))
+	var out, errb bytes.Buffer
+	if code := run([]string{"usage"}, &out, &errb); code != exitOK {
+		t.Fatalf("code %d, err %q", code, errb.String())
+	}
+	for _, want := range []string{"Side sessions", "a1b2c3", "claude-sonnet-5-5", "not attempts"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("out lacks %q:\n%s", want, out.String())
+		}
+	}
+	out.Reset()
+	if code := run([]string{"usage", "--json"}, &out, &errb); code != exitOK {
+		t.Fatalf("json: code %d", code)
+	}
+	var got struct {
+		Side []struct {
+			Side   string `json:"side"`
+			In     int64  `json:"in"`
+			Output int64  `json:"output"`
+		} `json:"side"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil || len(got.Side) != 1 || got.Side[0].Side != "a1b2c3" || got.Side[0].In != 1005 || got.Side[0].Output != 40 {
+		t.Errorf("json side = %+v err %v\n%s", got, err, out.String())
+	}
+}

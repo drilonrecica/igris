@@ -30,6 +30,7 @@ Every line igris v0.5 or later writes has `"v":1`. `v`, `at` and `type` are alwa
 | `phase` | string | the task's phase ID | `task_started`, `task_resumed` |
 | `title` | string | the task's title, markdown stripped (as notifications show it), cleaned of control characters, at most 80 characters | `task_started`, `task_resumed` |
 | `owner` | string | `agent`, `user` or `agent + user` | `task_started`, `task_resumed` |
+| `side` | string | the side session's ID, 6 lowercase hex characters (since 1.2). These lines have no `task`, and carry `run` only when the igris writing them has a run | `side_opened`, `side_closed`, `side_usage` |
 | `profile` | string | the verify profile | `verify_passed`, `verify_failed` |
 | `commit` | string | the full commit SHA (`git rev-parse HEAD` after the commit; left out, with a warning, if that fails) | `committed` |
 | `branch` | string | the run's worktree branch, `igris/<run-id>`, in worktree mode (since 0.6) | `run_started` |
@@ -38,10 +39,10 @@ Every line igris v0.5 or later writes has `"v":1`. `v`, `at` and `type` are alwa
 | `plan_file` | string | where the plan is kept, `.igris/plans/<ID>-a<attempt>-<n>.md` (left out if it couldn't be saved; since 1.1) | `plan_presented`, `plan_approved`, `plan_rejected` |
 | `plan_sha256` | string | the sha256 of the plan's text, in hex; the text itself and any feedback are never logged (since 1.1) | `plan_presented`, `plan_approved`, `plan_rejected` |
 | `mode` | string | the mode the session switches to: `default`, `accept` or `auto` (since 1.1) | `plan_approved` |
-| `usage` | object | the tokens the attempt's main thread recorded in its transcript: `{"input", "output", "cache_read", "cache_write", "messages"}`, integers, `messages` being the responses counted (since 1.1). Left out when the usage is unavailable | `usage` |
-| `sub` | object | the same for the attempt's subagents; left out when they recorded nothing (since 1.1) | `usage` |
-| `models` | array of strings | the model ids the attempt's main thread ran on, in the order first seen, e.g. `["claude-sonnet-5-5"]`; on `rank_mismatch`, those seen so far (since 1.1) | `usage`, `rank_mismatch` |
-| `sub_models` | array of strings | the model ids its subagents ran on (since 1.1) | `usage` |
+| `usage` | object | the tokens the attempt's main thread recorded in its transcript: `{"input", "output", "cache_read", "cache_write", "messages"}`, integers, `messages` being the responses counted (since 1.1). Left out when the usage is unavailable | `usage`, `side_usage` |
+| `sub` | object | the same for the attempt's subagents; left out when they recorded nothing (since 1.1) | `usage`, `side_usage` |
+| `models` | array of strings | the model ids the attempt's main thread ran on, in the order first seen, e.g. `["claude-sonnet-5-5"]`; on `rank_mismatch`, those seen so far (since 1.1) | `usage`, `rank_mismatch`, `side_usage` |
+| `sub_models` | array of strings | the model ids its subagents ran on (since 1.1) | `usage`, `side_usage` |
 | `audit` | string | the rank audit's result (SPEC §6.9): `ok` (the main thread ran only on models its rank resolves to), `mismatch` (on another one), `unchecked` (the resolved `[models]` value is one igris can't check, such as `default` or `opusplan`) or `unavailable` (igris could not read the attempt's transcript) (since 1.1). A reader shows any other value as absent | `usage` |
 | `detail` | string | free text, see each type | most events |
 
@@ -70,6 +71,9 @@ Every line igris v0.5 or later writes has `"v":1`. `v`, `at` and `type` are alwa
 | `plan_rejected` | you rejected it with feedback in igris; the session revises it and presents it again | empty |
 | `usage` | an attempt of an agent task ended: after its `task_done` or `task_skipped`, before its `task_retried`, when its session is lost, or before `run_stopped` while it runs. Once per attempt that had a session; not with `[usage] enabled = false` (SPEC §6.9; since 1.1) | empty, or why the usage is `unavailable`: `no transcript reported by the session's hooks` or `the transcript could not be read` |
 | `rank_mismatch` | the attempt's main thread ran on a model its rank doesn't resolve to; at most once per attempt, when the read that first sees it happens, so possibly right before the attempt's `usage` line. The session is left running. Not with `[usage] enabled = false` (SPEC §6.9; since 1.1) | `on <model id>, not its rank <rank>` (`<rank> → <model>` when they differ) |
+| `side_opened` | a side session was opened (SPEC §6.10; since 1.2). No `task`; `side`, `rank` and `model` name it | empty |
+| `side_closed` | a side session was closed or found gone; once, by the igris that claimed its record (since 1.2) | empty |
+| `side_usage` | the ended side session's usage, read from its transcript as an attempt's is (SPEC §6.9), with `side`, `rank`, `model`, `usage`, `sub`, `models` and `sub_models`; never `attempt` or `audit`. Never an attempt, never audited. Not with `[usage] enabled = false` (since 1.2) | empty, or why the usage is unavailable (as for `usage`) |
 | `error` | a task hook failed, or the run stopped with an error | the hook's reason (`before_task hook failed: exit status 1`) or the error |
 
 ### Needs-you reasons

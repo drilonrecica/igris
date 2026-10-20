@@ -126,6 +126,13 @@
         "mismatches"
       ]
     },
+    "side": {
+      "type": "array",
+      "description": "Side sessions (SPEC §6.10) that ended in the runs covered (a side_usage line with that run), or with --since by time. Their own list: they are no attempt and in none of the figures above. Since 1.2.",
+      "items": {
+        "$ref": "#/$defs/side"
+      }
+    },
     "note": {
       "type": "string",
       "description": "Lines of runs.jsonl that could not be used, or come from a newer igris."
@@ -479,6 +486,90 @@
         "cache_write",
         "messages",
         "sub"
+      ]
+    },
+    "side": {
+      "type": "object",
+      "description": "One side session's usage as read from its transcript when it ended.",
+      "properties": {
+        "side": {
+          "type": "string",
+          "description": "The side session's ID."
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When it ended."
+        },
+        "run": {
+          "type": "string",
+          "description": "The run the igris that logged it was running, absent when it had none."
+        },
+        "rank": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string",
+          "description": "The model the rank resolved to when it was opened."
+        },
+        "unavailable": {
+          "const": true,
+          "description": "Its transcript could not be read; the counts are then zero."
+        },
+        "in": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Input + cache read + cache write."
+        },
+        "output": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "input": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cache_read": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cache_write": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "messages": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sub": {
+          "$ref": "#/$defs/tokens"
+        },
+        "models": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Model ids its main thread ran on."
+        },
+        "sub_models": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Model ids its subagents ran on."
+        }
+      },
+      "required": [
+        "side",
+        "at",
+        "in",
+        "output",
+        "input",
+        "cache_read",
+        "cache_write",
+        "messages",
+        "sub",
+        "models"
       ]
     }
   }

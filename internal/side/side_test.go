@@ -17,6 +17,7 @@ import (
 	"github.com/drilonrecica/igris/internal/prompt"
 	"github.com/drilonrecica/igris/internal/runner"
 	"github.com/drilonrecica/igris/internal/state"
+	"github.com/drilonrecica/igris/internal/usage"
 )
 
 var at = time.Date(2026, 10, 21, 9, 0, 0, 0, time.UTC)
@@ -485,5 +486,71 @@ func TestLabel(t *testing.T) {
 		if got := Label(tt.preset, tt.task, "opus"); got != tt.want {
 			t.Errorf("Label(%s) = %q, want %q", tt.preset, got, tt.want)
 		}
+	}
+}
+
+// A side session logs side_opened when it opens and side_closed and
+// side_usage when it is closed or found gone, once, by the igris that
+// claimed its record; its usage is read from the transcript as a task's is
+// and carries no attempt or audit (SPEC §6.10, §13).
+func TestSideRunLog(t *testing.T) {
+	ctx := context.Background()
+	w := newWorld(t)
+	var logged []state.Event
+	m := w.manager()
+	m.o.Log = func(e state.Event) { logged = append(logged, e) }
+	m.o.Usage = true
+
+	e := w.open(m, blank())
+	id, uuid := e.Record.ID, e.Record.ClaudeSession
+	if len(logged) != 1 || logged[0].Type != state.EventSideOpened || logged[0].Side != id || logged[0].Task != "" {
+		t.Fatalf("after Open: %+v", logged)
+	}
+
+	transcript := filepath.Join(t.TempDir(), uuid+".jsonl")
+	line := `{"type":"assistant","timestamp":"` + at.Format(time.RFC3339) + `","message":{"id":"m1","model":"claude-sonnet-5-5",` +
+		`"usage":{"input_tokens":3,"output_tokens":40,"cache_read_input_tokens":500,"cache_creation_input_tokens":7}}}` + "\n"
+	if err := os.WriteFile(transcript, []byte(line+line), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := state.WriteAgentState(w.root, uuid, state.AgentState{State: backend.Idle, Event: "Stop", At: at, Transcript: transcript}); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, err := m.Close(ctx, id); err != nil || !ok {
+		t.Fatalf("Close: %v, %v", ok, err)
+	}
+	if len(logged) != 3 || logged[1].Type != state.EventSideClosed || logged[2].Type != state.EventSideUsage {
+		t.Fatalf("after Close: %+v", logged)
+	}
+	got := logged[2]
+	if got.Side != id || got.Rank != "sonnet" || got.Task != "" || got.Attempt != 0 || got.Audit != "" || got.Sub != nil ||
+		got.Usage == nil || *got.Usage != (usage.Counts{Input: 3, Output: 40, CacheRead: 500, CacheWrite: 7, Messages: 1}) ||
+		!slices.Equal(got.Models, []string{"claude-sonnet-5-5"}) {
+		t.Errorf("side_usage = %+v", got)
+	}
+
+	// Found gone with no transcript reported: logged unavailable, once.
+	logged = nil
+	gone := w.open(m, blank())
+	logged = nil
+	w.be.Kill(gone.Session.Ref())
+	for range 2 {
+		if _, err := m.Refresh(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(logged) != 2 || logged[1].Type != state.EventSideUsage || logged[1].Usage != nil || logged[1].Detail == "" {
+		t.Errorf("found gone: %+v", logged)
+	}
+
+	// [usage] off: no side_usage line.
+	logged = nil
+	m.o.Usage = false
+	off := w.open(m, blank())
+	if _, _, err := m.Close(ctx, off.Record.ID); err != nil {
+		t.Fatal(err)
+	}
+	if len(logged) != 2 || logged[1].Type != state.EventSideClosed {
+		t.Errorf("usage off: %+v", logged)
 	}
 }

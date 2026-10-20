@@ -188,6 +188,9 @@ func readRuns(events []state.Event) []*runRec {
 	byID := map[string]*runRec{}
 	var cur *runRec // the open v0 run
 	for _, e := range events {
+		if isSideEvent(e.Type) {
+			continue // not a run's task events (SPEC §6.10); `igris usage` reads them
+		}
 		var r *runRec
 		switch {
 		case e.Run != "":
@@ -216,6 +219,11 @@ func readRuns(events []state.Event) []*runRec {
 		}
 	}
 	return runs
+}
+
+// isSideEvent reports a side session's line (SPEC §6.10, since 1.2).
+func isSideEvent(t state.EventType) bool {
+	return t == state.EventSideOpened || t == state.EventSideClosed || t == state.EventSideUsage
 }
 
 // add folds one event into the run.

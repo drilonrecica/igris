@@ -38,6 +38,7 @@ exit: 0
     "mismatch": 0,
     "mismatches": []
   },
+  "side": [],
   "quota": null,
   "no_usage": "the runs were made before igris 1.1, or with [usage] enabled = false"
 }

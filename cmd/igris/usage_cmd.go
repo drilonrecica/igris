@@ -140,6 +140,7 @@ func printUsage(w io.Writer, u report.Usage, color bool) {
 
 	if u.NoUsage != "" {
 		fmt.Fprintf(w, "\nNo usage was recorded: %s.\n", u.NoUsage)
+		printSideUsage(w, u.Side)
 		fmt.Fprintf(w, "\nQuota: %s\n", quotaText(u.Quota))
 		return
 	}
@@ -200,6 +201,8 @@ func printUsage(w io.Writer, u report.Usage, color bool) {
 		}
 	}
 
+	printSideUsage(w, u.Side)
+
 	a := u.Audit
 	fmt.Fprintf(w, "\nRank audit · %d ok · %d unchecked · %d unavailable · %d mismatch\n", a.OK, a.Unchecked, a.Unavailable, a.Mismatch)
 	for _, m := range a.Mismatches {
@@ -215,6 +218,27 @@ func printUsage(w io.Writer, u report.Usage, color bool) {
 	}
 	fmt.Fprintf(w, "\nQuota: %s\n", quotaText(u.Quota))
 	fmt.Fprint(w, "\nTokens recorded in the session transcripts, not a bill.\n")
+}
+
+// printSideUsage writes the side sessions' table (SPEC §6.10, §14): their
+// own, since they are no attempt and in none of the figures above.
+func printSideUsage(w io.Writer, side []report.UsageSide) {
+	if len(side) == 0 {
+		return
+	}
+	fmt.Fprint(w, "\nSide sessions\n")
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(tw, "  Side\tRank\tEnded\tIn\tOut\tSubagents\tModels")
+	for _, r := range side {
+		in, out, sub := dash(""), dash(""), subCell(r.Sub)
+		if !r.Unavailable {
+			in, out = usage.Short(r.In), usage.Short(r.Output)
+		}
+		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s\t%s\n", r.Side, dash(r.Rank), r.At, in, out, sub,
+			dash(strings.Join(allModels(r.Models, r.SubModels), ", ")))
+	}
+	_ = tw.Flush() // a failed write to stdout has nowhere to be reported
+	fmt.Fprint(w, "  not attempts, and not in the figures above\n")
 }
 
 // tokenCell is a count, or "—" for a task none of whose attempts could be

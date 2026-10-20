@@ -56,7 +56,13 @@ const (
 	// EventRankMismatch: the attempt's main thread ran on a model its rank
 	// doesn't resolve to (SPEC §6.9); at most once per attempt. Since 1.1.
 	EventRankMismatch EventType = "rank_mismatch"
-	EventError        EventType = "error"
+	// Side sessions (SPEC §6.10), since 1.2: opened, closed or found gone,
+	// and the usage of one that ended. They carry Side and no task, and
+	// are never an attempt.
+	EventSideOpened EventType = "side_opened"
+	EventSideClosed EventType = "side_closed"
+	EventSideUsage  EventType = "side_usage"
+	EventError      EventType = "error"
 )
 
 // Why a needs_you event says igris waits on the owner (SPEC §13). Readers
@@ -144,7 +150,10 @@ type Event struct {
 	Models    []string      `json:"models,omitempty"`
 	SubModels []string      `json:"sub_models,omitempty"`
 	Audit     string        `json:"audit,omitempty"`
-	Detail    string        `json:"detail,omitempty"` // never secrets (AGENTS §6)
+	// Side is the side session's ID on side_opened, side_closed and
+	// side_usage (SPEC §6.10). Since 1.2.
+	Side   string `json:"side,omitempty"`
+	Detail string `json:"detail,omitempty"` // never secrets (AGENTS §6)
 }
 
 var runIDPattern = regexp.MustCompile(`^[0-9]{8}-[0-9]{6}-[0-9a-f]{4}$`)
@@ -366,6 +375,9 @@ func (e Event) checked() Event {
 	}
 	if e.Session != "" && !backend.ValidClaudeSession(e.Session) {
 		e.Session = ""
+	}
+	if e.Side != "" && !backend.ValidSideID(e.Side) {
+		e.Side = ""
 	}
 	if e.Reason != "" && !reasons[e.Reason] {
 		e.Reason = ReasonOther
