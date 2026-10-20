@@ -1,6 +1,7 @@
 #!/bin/sh
 # Assembles the project page (decisions.md P0-09) into a static directory:
-# site/ plus the brand files and demo GIF it uses, which stay in docs/.
+# site/ plus the brand files and demo GIF it uses, which stay in docs/, and the
+# docs pages that tools/sitedocs renders from markdown (site/docs/ and docs/).
 # Usage: sh site/build.sh [OUT_DIR]   (default: _site)
 set -eu
 
@@ -17,5 +18,7 @@ for f in igris-logo-dark.svg igris-mark-dark.svg igris-mark-dark-512.png igris-i
 done
 cp "$root/docs/demo/igris-demo.gif" "$root/docs/demo/igris-home.png" "$root/docs/demo/igris-home-narrow.png" "$out/"
 : > "$out/.nojekyll"
+
+(cd "$root" && go run ./tools/sitedocs -root . -out "$out/docs")
 
 echo "site built in $out"

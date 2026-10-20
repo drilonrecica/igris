@@ -14,7 +14,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/github/license/drilonrecica/igris" alt="MIT license"></a>
 </p>
 
-<p align="center"><strong><a href="https://drilonrecica.github.io/igris/">drilonrecica.github.io/igris</a></strong></p>
+<p align="center"><strong><a href="https://drilonrecica.github.io/igris/">drilonrecica.github.io/igris</a></strong> · <a href="https://drilonrecica.github.io/igris/docs/">docs</a></p>
 
 <p align="center"><img src="docs/demo/igris-demo.gif" alt="igris running a two-task phase in herdr: each task gets a fresh Claude Code session on the model the plan assigns, sonnet then opus, and the phase completes" width="900"></p>
 
@@ -669,7 +669,7 @@ Through WSL2, with herdr or tmux and Claude Code installed inside WSL too; see [
 
 **Building releases.** `make release-local` needs [GoReleaser](https://goreleaser.com/install/) and [syft](https://github.com/anchore/syft#installation). It builds the four release targets (linux and darwin, amd64 and arm64) as static binaries with the Go toolchain pinned in `go.mod`, packs each with `LICENSE` and `README.md`, and writes the archives, an SPDX JSON SBOM per archive and `checksums.txt` (covering both) to `dist/`. It never publishes anything; it also renders the Homebrew formula to `dist/igris.rb` ([`docs/homebrew-tap.md`](docs/homebrew-tap.md)). A release is signed by the maintainer with `make sign` and uploaded to GitHub by hand. What changed in each release is in [`CHANGELOG.md`](CHANGELOG.md); the GitHub release text lives in [`docs/release-notes/`](docs/release-notes/).
 
-**The project page** ([drilonrecica.github.io/igris](https://drilonrecica.github.io/igris/)) is a static page in [`site/`](site/). `make site` builds it into `_site/` (preview with `python3 -m http.server -d _site`), and `.github/workflows/pages.yml` deploys it to GitHub Pages when it changes on `master`.
+**The project page and docs** ([drilonrecica.github.io/igris](https://drilonrecica.github.io/igris/)) are a static page in [`site/`](site/) plus the docs pages under `/docs/`, which `tools/sitedocs` (standard library only) renders from markdown: the pages written for the site in `site/docs/` and the reference pages kept in `docs/` ([plan format](docs/plan-format.md), the generated [config reference](docs/config.md), [compatibility](docs/compatibility.md)), so those are published from their one copy. The build fails on a link to a missing file or heading. `make site` builds everything into `_site/` (preview with `python3 -m http.server -d _site`), and `.github/workflows/pages.yml` deploys it to GitHub Pages when it changes on `master`.
 
 **The demo GIF** at the top is recorded with [VHS](https://github.com/charmbracelet/vhs): `make demo`; see [`docs/demo/`](docs/demo/README.md).
 

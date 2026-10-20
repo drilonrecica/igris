@@ -1,0 +1,74 @@
+# Troubleshooting
+
+Start with `igris doctor`. It checks the machine and the project without changing anything, prints one line per check (`ok`, `warn` or `fail`), and follows each problem with the command that fixes it. `igris check` validates the plan.
+
+## igris says it isn't in herdr or tmux
+
+`igris arise` and `igris adapt` run inside **herdr** or **tmux**, because sessions have to outlive igris and your connection. Start one (`herdr`, or `tmux new -s work`), `cd` to the project inside it, and run igris again. `backend = "auto"` picks herdr inside a herdr pane and tmux inside tmux; pin one with `backend = "herdr"` or `"tmux"`. See [where igris runs](install.md#where-igris-runs).
+
+## The task says "needs you: the agent is blocked"
+
+The session is waiting for something igris can't answer. Press `o` (or click **Open session**) to jump to it. Common causes:
+
+- **The trust prompt.** The first time, Claude Code asks "Is this a project you trust?". Answer once; later sessions in that folder don't ask.
+- **A permission prompt or a question.** Answer it in the session, or pick a [mode](modes.md) that asks less.
+- **A plan awaiting approval** in `plan` mode.
+- **A usage limit.** igris doesn't tell limits from other stalls. See [several projects](several-projects.md#subscription-limits-are-shared).
+- **Accept-edits mode and a Bash command.** Claude Code asks even for read-only commands in that mode.
+
+A session that only waits on background work (a long build, a scheduled wakeup) is not "needs you" until `waiting_limit` passes.
+
+## igris.toml: unknown key
+
+Unknown keys are errors, which catches typos. The message names the key. Check its spelling against the [configuration reference](../../docs/config.md).
+
+## igris.toml: claude.command was removed
+
+`claude.command` was deprecated in 0.1.2 and removed in 0.7. Every `igris.toml` that `igris init` wrote before 0.7 has it. Run `igris config migrate`: it shows the lines it removes, asks, and keeps a backup in `.igris/config/`. See the [upgrade guide](upgrade.md).
+
+## Another igris is running in this project
+
+A second `igris arise` refuses to start while the first is alive, and `adapt` can't run during an `arise`. Find the running igris (another pane, tmux window or SSH session) and use it, or stop it there. `igris status` shows the run, and the home screen shows it read-only.
+
+## A stale lock
+
+If a crashed run left `.igris/igris.lock` behind, igris says the lock is stale and `igris arise` exits 1. Run `igris arise --force-unlock`. A lock held by a live process on this host is always refused. If the process ID was reused by another program (after a reboot, say), the error says to delete the file. A lock from another host can't be checked; clear it only when you know that run is gone.
+
+## The plan is invalid, or igris says it changed
+
+`igris check` prints every problem as `file:line: message`. Common ones:
+
+- a **Model** that isn't in `[models]` (ranks are case-sensitive: `Sonnet` is not `sonnet`);
+- a **Deps** column named something else: alias it under `[columns]`, e.g. `"Depends on" = "Deps"`;
+- a **Verify** cell holding a command: it names a profile defined under `[verify]`, never a command;
+- `plan format N needs a newer igris`: the plan declares a format this igris doesn't know. Upgrade igris.
+
+If you edit the plan during a run, igris pauses and asks you to resume when the change is one it didn't write (a later task's Mode, Model or Verify, a Status, task text). Your own edits cost one resume. A plan in another shape entirely: [adapt it](adapt.md).
+
+## Verify keeps failing
+
+On a failure, the last 60 lines of output go back to the same session. After `verify_max_attempts` failures in a row (3 by default) igris calls you instead. Check the command by hand in the project, and that `verify_timeout` (15 minutes) is enough. In worktree mode the first verify may take longer: a fresh worktree has no build caches or `node_modules`. If you finish a task yourself with `d` or `igris done`, igris takes your word and skips verify.
+
+## An interrupted run
+
+Quitting igris, a closed terminal or a lost connection leaves the session running. Run `igris arise` with no phase: it reattaches to the running session, or lets you continue its conversation, or start a fresh session that is told to check the work already in the tree. Under the other backend (herdr instead of tmux) igris can't reattach and offers the same choices.
+
+## state.json was written by a newer igris
+
+You downgraded. The message says to upgrade igris, or delete `.igris/state.json` to start a new run. A file reported as *damaged* (bad JSON) is a different message; delete it the same way.
+
+## A notification doesn't arrive
+
+Run `igris notify test`. It sends a sample of each event to every channel and prints `ok` or the reason per channel: `connection refused`, `TLS failed`, `server answered 403 Forbidden`. igris doesn't follow redirects, so a `3xx` means the URL should be the final one. During quiet hours only the `break_through` events reach ntfy, Discord, Slack, Gotify and the webhook; the rest arrive as one digest afterwards. See [notifications](notifications.md).
+
+## The ANTHROPIC_API_KEY warning
+
+If `ANTHROPIC_API_KEY` is set, Claude Code bills the API instead of your subscription. igris asks you to confirm at start. Unset the variable in the shell you run igris from to use your subscription.
+
+## The project is under /mnt (WSL)
+
+`doctor` warns about a project on the Windows drive. It is much slower from WSL and shared with Windows tools. Move it to the Linux filesystem (`~/code/…`). See [Windows (WSL2)](install.md#windows-wsl2).
+
+## Still stuck
+
+`igris doctor --json` and `igris check --json` give output you can paste into an [issue](https://github.com/drilonrecica/igris/issues); igris sends nothing itself. Report security problems privately, as [SECURITY.md](../../SECURITY.md) describes.

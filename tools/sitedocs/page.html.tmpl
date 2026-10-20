@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{if .Index}}igris docs{{else}}{{.Current.Title}} · igris docs{{end}}</title>
+  <meta name="description" content="{{if .Index}}Documentation for igris: install, quick start, the plan format, configuration, modes, notifications, upgrading to 1.0 and the compatibility promise.{{else}}{{.Current.Summary}}{{end}}">
+  <link rel="canonical" href="https://drilonrecica.github.io/igris/docs/{{if not .Index}}{{.Current.Slug}}.html{{end}}">
+  <meta name="theme-color" content="#05070F">
+  <meta name="color-scheme" content="dark">
+  <link rel="icon" href="../brand/favicon.ico" sizes="16x16 32x32 48x48">
+  <link rel="apple-touch-icon" href="../brand/igris-icon-180.png">
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="../" aria-label="igris home"><img src="../brand/igris-logo-dark.svg" alt="igris" width="82" height="32"></a>
+      <nav aria-label="Main">
+        <a href="../#install">Install</a>
+        <a href="./" aria-current="page">Docs</a>
+        <a href="https://github.com/drilonrecica/igris">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="wrap docs">
+    <nav class="docs-nav" aria-label="Documentation">
+      <p class="docs-nav-title"><a href="./">Docs</a></p>
+      <ul>
+        {{- range .Pages}}
+        <li>{{if and $.Current (eq $.Current.Slug .Slug)}}<a href="{{.Slug}}.html" aria-current="page">{{.Nav}}</a>{{else}}<a href="{{.Slug}}.html">{{.Nav}}</a>{{end}}</li>
+        {{- end}}
+      </ul>
+    </nav>
+
+    <main id="main" class="docs-main">
+      {{if .Index}}
+      <h1>Documentation</h1>
+      <p class="section-lead">How to install igris, write a plan and run it. These pages describe igris 1.x; <a href="https://github.com/drilonrecica/igris/blob/master/SPEC.md">SPEC.md</a> is the normative text.</p>
+      <ul class="docs-index">
+        {{- range .Pages}}
+        <li><a href="{{.Slug}}.html">{{.Nav}}</a><span>{{.Summary}}</span></li>
+        {{- end}}
+      </ul>
+      {{else}}
+      <article class="prose">
+        {{.Current.Body}}
+      </article>
+      <nav class="pager" aria-label="Previous and next page">
+        {{if .Prev}}<a class="pager-prev" href="{{.Prev.Slug}}.html"><span>Previous</span>{{.Prev.Nav}}</a>{{else}}<span></span>{{end}}
+        {{if .Next}}<a class="pager-next" href="{{.Next.Slug}}.html"><span>Next</span>{{.Next.Nav}}</a>{{end}}
+      </nav>
+      {{end}}
+    </main>
+  </div>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <span class="footer-brand"><img src="../brand/igris-mark-dark.svg" alt="" width="48" height="48"> igris · MIT license</span>
+      <nav aria-label="Project">
+        <a href="https://github.com/drilonrecica/igris#readme">README</a>
+        <a href="https://github.com/drilonrecica/igris/blob/master/SPEC.md">SPEC</a>
+        <a href="https://github.com/drilonrecica/igris/blob/master/CHANGELOG.md">Changelog</a>
+        <a href="https://github.com/drilonrecica/igris/releases">Releases</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>
