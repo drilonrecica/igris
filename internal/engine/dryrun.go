@@ -169,6 +169,9 @@ func DryRun(ctx context.Context, o DryRunOptions) (report.DryRun, error) {
 		r.Scope += " through " + textsafe.Line(rng.Through)
 	}
 	r.Slice = textsafe.Line(rng.Selection.String())
+	for _, ph := range rng.Phases {
+		r.Parallelism = append(r.Parallelism, report.PhaseParallelism{Phase: textsafe.Line(ph.ID), Parallelism: report.ParallelismOf(ph, rng.In)})
+	}
 	_, err = eng.Run(ctx)
 	return r, err
 }

@@ -73,6 +73,9 @@
         },
         "counts": {
           "$ref": "#/$defs/counts"
+        },
+        "parallelism": {
+          "$ref": "#/$defs/parallelism"
         }
       },
       "required": [
@@ -80,6 +83,39 @@
         "title",
         "total",
         "counts"
+      ]
+    },
+    "parallelism": {
+      "description": "How much of the phase's remaining work could run at once, over its unfinished tasks and the dependencies between them. Read-only: igris runs one task at a time. Added in 1.1; absent from older output.",
+      "type": "object",
+      "properties": {
+        "critical_path": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The longest chain of unfinished tasks, each depending on the one before it, in order. Empty when nothing is left."
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The most tasks that could run together (the widest level of the dependency graph); 0 when nothing is left."
+        },
+        "together": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": "Per level with two or more tasks, the IDs that would run together once the level before it is done, in file order."
+        }
+      },
+      "required": [
+        "critical_path",
+        "width",
+        "together"
       ]
     }
   }

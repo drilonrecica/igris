@@ -154,9 +154,13 @@ func TestPhases(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("code = %d", code)
 	}
-	lines := strings.Split(strings.TrimSpace(out), "\n")
+	table, par, _ := strings.Cut(strings.TrimSpace(out), "\n\n")
+	lines := strings.Split(table, "\n")
 	if len(lines) != 13 || !strings.HasPrefix(lines[0], "PHASE") {
 		t.Fatalf("want header + 12 phases, got:\n%s", out)
+	}
+	if !strings.Contains(par, "F3: critical path F3-07 → F3-08 → F3-09 → F3-11 → F3-12 → F3-G (6), width 4\n    together: F3-06, F3-07, F3-10, F3-13") {
+		t.Errorf("parallelism block = %q", par)
 	}
 	if f := strings.Fields(lines[3]); strings.Join(f, " ") != "F3 Ingest 2 6 1 4 1 14" {
 		t.Errorf("F3 row = %q", lines[3])
@@ -165,9 +169,14 @@ func TestPhases(t *testing.T) {
 	_, out, _ = runCmd("phases", "--json", "--plan", largePlan)
 	var got struct {
 		Phases []struct {
-			ID     string
-			Total  int
-			Counts map[string]int
+			ID          string
+			Total       int
+			Counts      map[string]int
+			Parallelism struct {
+				CriticalPath []string `json:"critical_path"`
+				Width        int
+				Together     [][]string
+			}
 		}
 	}
 	if err := json.Unmarshal([]byte(out), &got); err != nil {
@@ -175,6 +184,9 @@ func TestPhases(t *testing.T) {
 	}
 	if len(got.Phases) != 12 || got.Phases[2].Counts["in_progress"] != 1 || got.Phases[2].Total != 14 {
 		t.Errorf("unexpected phases: %+v", got.Phases[:3])
+	}
+	if p := got.Phases[2].Parallelism; p.Width != 4 || len(p.CriticalPath) != 6 || len(p.Together) == 0 {
+		t.Errorf("F3 parallelism = %+v", p)
 	}
 
 	if code, _, errs := runCmd("phases", "--plan", invalidPlan); code != exitFail || !strings.Contains(errs, "dependency cycle") {

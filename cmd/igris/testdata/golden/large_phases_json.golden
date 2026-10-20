@@ -13,6 +13,14 @@ exit: 0
         "in_progress": 0,
         "ready": 0,
         "skipped": 0
+      },
+      "parallelism": {
+        "critical_path": [
+          "F1-13",
+          "F1-G"
+        ],
+        "width": 1,
+        "together": []
       }
     },
     {
@@ -25,6 +33,14 @@ exit: 0
         "in_progress": 0,
         "ready": 0,
         "skipped": 0
+      },
+      "parallelism": {
+        "critical_path": [
+          "F2-13",
+          "F2-G"
+        ],
+        "width": 1,
+        "together": []
       }
     },
     {
@@ -37,6 +53,25 @@ exit: 0
         "in_progress": 1,
         "ready": 2,
         "skipped": 1
+      },
+      "parallelism": {
+        "critical_path": [
+          "F3-07",
+          "F3-08",
+          "F3-09",
+          "F3-11",
+          "F3-12",
+          "F3-G"
+        ],
+        "width": 4,
+        "together": [
+          [
+            "F3-06",
+            "F3-07",
+            "F3-10",
+            "F3-13"
+          ]
+        ]
       }
     },
     {
@@ -49,6 +84,36 @@ exit: 0
         "in_progress": 0,
         "ready": 1,
         "skipped": 0
+      },
+      "parallelism": {
+        "critical_path": [
+          "Phase-4-01",
+          "Phase-4-02",
+          "Phase-4-03",
+          "Phase-4-07",
+          "Phase-4-08",
+          "Phase-4-09",
+          "Phase-4-11",
+          "Phase-4-12",
+          "Phase-4-G"
+        ],
+        "width": 4,
+        "together": [
+          [
+            "Phase-4-04",
+            "Phase-4-07",
+            "Phase-4-10",
+            "Phase-4-13"
+          ],
+          [
+            "Phase-4-05",
+            "Phase-4-08"
+          ],
+          [
+            "Phase-4-06",
+            "Phase-4-09"
+          ]
+        ]
       }
     },
     {
@@ -61,6 +126,36 @@ exit: 0
         "in_progress": 0,
         "ready": 1,
         "skipped": 0
+      },
+      "parallelism": {
+        "critical_path": [
+          "F5-01",
+          "F5-02",
+          "F5-03",
+          "F5-07",
+          "F5-08",
+          "F5-09",
+          "F5-11",
+          "F5-12",
+          "F5-G"
+        ],
+        "width": 4,
+        "together": [
+          [
+            "F5-04",
+            "F5-07",
+            "F5-10",
+            "F5-13"
+          ],
+          [
+            "F5-05",
+            "F5-08"
+          ],
+          [
+            "F5-06",
+            "F5-09"
+          ]
+        ]
       }
     },
     {
@@ -73,6 +168,36 @@ exit: 0
         "in_progress": 0,
         "ready": 1,
         "skipped": 0
+      },
+      "parallelism": {
+        "critical_path": [
+          "F6-01",
+          "F6-02",
+          "F6-03",
+          "F6-07",
+          "F6-08",
+          "F6-09",
+          "F6-11",
+          "F6-12",
+          "F6-G"
+        ],
+        "width": 4,
+        "together": [
+          [
+            "F6-04",
+            "F6-07",
+            "F6-10",
+            "F6-13"
+          ],
+          [
+            "F6-05",
+            "F6-08"
+          ],
+          [
+            "F6-06",
+            "F6-09"
+          ]
+        ]
       }
     },
     {
@@ -85,6 +210,36 @@ exit: 0
         "in_progress": 0,
         "ready": 1,
         "skipped": 0
+      },
+      "parallelism": {
+        "critical_path": [
+          "F7-01",
+          "F7-02",
+          "F7-03",
+          "F7-07",
+          "F7-08",
+          "F7-09",
+          "F7-11",
+          "F7-12",
+          "F7-G"
+        ],
+        "width": 4,
+        "together": [
+          [
+            "F7-04",
+            "F7-07",
+            "F7-10",
+            "F7-13"
+          ],
+          [
+            "F7-05",
+            "F7-08"
+          ],
+          [
+            "F7-06",
+            "F7-09"
+          ]
+        ]
       }
     },
     {
@@ -97,6 +252,36 @@ exit: 0
         "in_progress": 0,
         "ready": 1,
         "skipped": 0
+      },
+      "parallelism": {
+        "critical_path": [
+          "Phase-8-01",
+          "Phase-8-02",
+          "Phase-8-03",
+          "Phase-8-07",
+          "Phase-8-08",
+          "Phase-8-09",
+          "Phase-8-11",
+          "Phase-8-12",
+          "Phase-8-G"
+        ],
+        "width": 4,
+        "together": [
+          [
+            "Phase-8-04",
+            "Phase-8-07",
+            "Phase-8-10",
+            "Phase-8-13"
+          ],
+          [
+            "Phase-8-05",
+            "Phase-8-08"
+          ],
+          [
+            "Phase-8-06",
+            "Phase-8-09"
+          ]
+        ]
       }
     },
     {
@@ -109,6 +294,36 @@ exit: 0
         "in_progress": 0,
         "ready": 1,
         "skipped": 0
+      },
+      "parallelism": {
+        "critical_path": [
+          "F9-01",
+          "F9-02",
+          "F9-03",
+          "F9-07",
+          "F9-08",
+          "F9-09",
+          "F9-11",
+          "F9-12",
+          "F9-G"
+        ],
+        "width": 4,
+        "together": [
+          [
+            "F9-04",
+            "F9-07",
+            "F9-10",
+            "F9-13"
+          ],
+          [
+            "F9-05",
+            "F9-08"
+          ],
+          [
+            "F9-06",
+            "F9-09"
+          ]
+        ]
       }
     },
     {
@@ -121,6 +336,36 @@ exit: 0
         "in_progress": 0,
         "ready": 1,
         "skipped": 0
+      },
+      "parallelism": {
+        "critical_path": [
+          "F10-01",
+          "F10-02",
+          "F10-03",
+          "F10-07",
+          "F10-08",
+          "F10-09",
+          "F10-11",
+          "F10-12",
+          "F10-G"
+        ],
+        "width": 4,
+        "together": [
+          [
+            "F10-04",
+            "F10-07",
+            "F10-10",
+            "F10-13"
+          ],
+          [
+            "F10-05",
+            "F10-08"
+          ],
+          [
+            "F10-06",
+            "F10-09"
+          ]
+        ]
       }
     },
     {
@@ -133,6 +378,36 @@ exit: 0
         "in_progress": 0,
         "ready": 1,
         "skipped": 0
+      },
+      "parallelism": {
+        "critical_path": [
+          "F11-01",
+          "F11-02",
+          "F11-03",
+          "F11-07",
+          "F11-08",
+          "F11-09",
+          "F11-11",
+          "F11-12",
+          "F11-G"
+        ],
+        "width": 4,
+        "together": [
+          [
+            "F11-04",
+            "F11-07",
+            "F11-10",
+            "F11-13"
+          ],
+          [
+            "F11-05",
+            "F11-08"
+          ],
+          [
+            "F11-06",
+            "F11-09"
+          ]
+        ]
       }
     },
     {
@@ -145,6 +420,36 @@ exit: 0
         "in_progress": 0,
         "ready": 1,
         "skipped": 0
+      },
+      "parallelism": {
+        "critical_path": [
+          "Phase-12-01",
+          "Phase-12-02",
+          "Phase-12-03",
+          "Phase-12-07",
+          "Phase-12-08",
+          "Phase-12-09",
+          "Phase-12-11",
+          "Phase-12-12",
+          "Phase-12-G"
+        ],
+        "width": 4,
+        "together": [
+          [
+            "Phase-12-04",
+            "Phase-12-07",
+            "Phase-12-10",
+            "Phase-12-13"
+          ],
+          [
+            "Phase-12-05",
+            "Phase-12-08"
+          ],
+          [
+            "Phase-12-06",
+            "Phase-12-09"
+          ]
+        ]
       }
     }
   ],

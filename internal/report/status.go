@@ -18,18 +18,53 @@ type Phase struct {
 	Counts map[string]int `json:"counts"`
 }
 
+// Parallelism is how much of a phase's remaining work could run at once
+// (SPEC §14 `phases`): read-only, since igris runs one task at a time.
+type Parallelism struct {
+	// CriticalPath is the longest chain of unfinished tasks, in order.
+	CriticalPath []string `json:"critical_path"`
+	// Width is the most tasks that could run together; 0 when none is left.
+	Width int `json:"width"`
+	// Together lists the sets of tasks that would run together, per level
+	// of the dependency graph with two or more.
+	Together [][]string `json:"together"`
+}
+
+// ParallelismOf reports ph's unfinished tasks that in accepts (nil: all).
+func ParallelismOf(ph *plan.Phase, in func(*plan.Task) bool) Parallelism {
+	a := ph.ParallelismOf(in)
+	r := Parallelism{CriticalPath: []string{}, Width: a.Width, Together: [][]string{}}
+	for _, id := range a.CriticalPath {
+		r.CriticalPath = append(r.CriticalPath, textsafe.Line(id))
+	}
+	for _, set := range a.Together {
+		clean := make([]string, len(set))
+		for i, id := range set {
+			clean[i] = textsafe.Line(id)
+		}
+		r.Together = append(r.Together, clean)
+	}
+	return r
+}
+
+// PhaseRow is a phase of `igris phases`: its counts and its parallelism.
+type PhaseRow struct {
+	Phase
+	Parallelism Parallelism `json:"parallelism"`
+}
+
 // PhasesReport is the result of `igris phases`.
 type PhasesReport struct {
-	V      int     `json:"v"`
-	Phases []Phase `json:"phases"`
-	Plan   string  `json:"plan"`
+	V      int        `json:"v"`
+	Phases []PhaseRow `json:"phases"`
+	Plan   string     `json:"plan"`
 }
 
 // Phases lists the phases of a valid plan.
 func Phases(p *plan.Plan) PhasesReport {
-	r := PhasesReport{V: JSONVersion, Phases: make([]Phase, len(p.Phases)), Plan: textsafe.Line(p.Path)}
+	r := PhasesReport{V: JSONVersion, Phases: make([]PhaseRow, len(p.Phases)), Plan: textsafe.Line(p.Path)}
 	for i, ph := range p.Phases {
-		r.Phases[i] = phaseOf(ph)
+		r.Phases[i] = PhaseRow{Phase: phaseOf(ph), Parallelism: ParallelismOf(ph, nil)}
 	}
 	return r
 }

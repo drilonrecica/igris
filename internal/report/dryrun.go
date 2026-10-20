@@ -26,6 +26,13 @@ type DryStep struct {
 	Lines   []string
 }
 
+// PhaseParallelism is the parallelism of one phase the dry run walks, over
+// the tasks the run would cover.
+type PhaseParallelism struct {
+	Phase string
+	Parallelism
+}
+
 // DryRun is the result of `igris arise --dry-run` (SPEC §14): what a run
 // would launch, with which model and mode, and what it would warn about.
 type DryRun struct {
@@ -46,6 +53,9 @@ type DryRun struct {
 	// project root.
 	Worktree string
 	Steps    []DryStep
-	Sessions int
-	Users    int
+	// Parallelism holds, per phase walked, the critical path, the widest
+	// level and the sets of tasks that could run together (SPEC §14).
+	Parallelism []PhaseParallelism
+	Sessions    int
+	Users       int
 }

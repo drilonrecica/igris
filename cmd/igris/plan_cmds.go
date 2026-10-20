@@ -176,7 +176,35 @@ func execPhases(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 			c[report.CountKey(plan.Done)], c[report.CountKey(plan.Skipped)], ph.Total)
 	}
 	_ = tw.Flush()
+	if lines := parallelLines(r.Phases); len(lines) > 0 {
+		fmt.Fprintln(stdout)
+		for _, line := range lines {
+			fmt.Fprintln(stdout, line)
+		}
+	}
 	return exitOK
+}
+
+// parallelLines renders the parallelism of every phase with work left: its
+// critical path and width, and the sets of tasks that could run together.
+func parallelLines(rows []report.PhaseRow) []string {
+	var out []string
+	for _, ph := range rows {
+		par := ph.Parallelism
+		if par.Width == 0 {
+			continue
+		}
+		out = append(out, fmt.Sprintf("%s: %s", ph.ID, parallelSummary(par)))
+		for _, set := range par.Together {
+			out = append(out, "    together: "+strings.Join(set, ", "))
+		}
+	}
+	return out
+}
+
+// parallelSummary is "critical path A → B (2), width 3".
+func parallelSummary(par report.Parallelism) string {
+	return fmt.Sprintf("critical path %s (%d), width %d", strings.Join(par.CriticalPath, " → "), len(par.CriticalPath), par.Width)
 }
 
 func execStatus(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {

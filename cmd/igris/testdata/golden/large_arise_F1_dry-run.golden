@@ -16,6 +16,7 @@ warning: drift: F10-01: ready → blocked (a real run asks you before fixing it)
 warning: drift: F11-01: ready → blocked (a real run asks you before fixing it)
 warning: drift: Phase-12-01: ready → blocked (a real run asks you before fixing it)
 dry run of phase F1: nothing is written and no session starts
+     phase F1: critical path F1-13 → F1-G (2), width 1
   1. F1-13      haiku   → model haiku   mode auto    Task F1-13
   2. F1-G       sonnet  → model sonnet  mode auto    Task F1-G
      phase F1 complete

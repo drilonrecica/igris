@@ -461,7 +461,7 @@ template = "{{.At.Format \"15:04\"}} {{.TaskID}} {{.What}}"
 | `igris init [--example]` | Creates `igris.toml` and `.igris/`, ignores `.igris/` in git, allows `igris done` for Claude. `--example` also writes the example plan. |
 | `igris doctor [--json]` | Read-only health check of the machine and the project. |
 | `igris check [--strict]` | Validates the plan; `--strict` also lints it, for CI. |
-| `igris phases` / `igris status [PHASE]` | Task counts per phase / tasks with rank, owner and what each waits on, plus the current run. |
+| `igris phases` / `igris status [PHASE]` | Task counts per phase, with each phase's critical path, width and the tasks that could run together (also shown by `arise --dry-run`; igris itself still runs one task at a time) / tasks with rank, owner and what each waits on, plus the current run. |
 | `igris arise [PHASE]` | Runs (or resumes) a phase; see [Running a phase](#running-a-phase). |
 | `igris done` / `skip` / `reset` | Signal a task done or skipped, or put it back; see [Done, skip and reset](#done-skip-and-reset). |
 | `igris history [TASK-ID]` | Past runs, or every attempt of one task. |

@@ -765,6 +765,15 @@ func printDryRun(out io.Writer, r report.DryRun) {
 	if len(r.Hooks) > 0 {
 		fmt.Fprintf(out, "task hooks %s would run around each agent session; the dry run runs none\n", strings.Join(r.Hooks, " and "))
 	}
+	for _, ph := range r.Parallelism {
+		if ph.Width == 0 {
+			continue
+		}
+		fmt.Fprintf(out, "     phase %s: %s\n", ph.Phase, parallelSummary(ph.Parallelism))
+		for _, set := range ph.Together {
+			fmt.Fprintf(out, "       could run together: %s\n", strings.Join(set, ", "))
+		}
+	}
 	// The verify column is shown only when some task has a profile or none.
 	verifies := false
 	for _, s := range r.Steps {

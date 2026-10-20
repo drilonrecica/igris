@@ -13,6 +13,19 @@ exit: 0
         "in_progress": 0,
         "ready": 2,
         "skipped": 0
+      },
+      "parallelism": {
+        "critical_path": [
+          "A-2",
+          "A-3"
+        ],
+        "width": 2,
+        "together": [
+          [
+            "A-2",
+            "A-4"
+          ]
+        ]
       }
     },
     {
@@ -25,6 +38,14 @@ exit: 0
         "in_progress": 1,
         "ready": 1,
         "skipped": 0
+      },
+      "parallelism": {
+        "critical_path": [
+          "B-1",
+          "B-2"
+        ],
+        "width": 1,
+        "together": []
       }
     }
   ],
