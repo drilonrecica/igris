@@ -31,7 +31,7 @@
         <a href="#install">Install</a>
         <a href="docs/">Docs</a>
         <a href="https://github.com/drilonrecica/igris">GitHub</a>
-        <a class="pill pill-version" href="https://github.com/drilonrecica/igris/releases/latest">v0.5.1</a>
+        <a class="pill pill-version" href="https://github.com/drilonrecica/igris/releases/latest">v1.0.0</a>
       </nav>
     </div>
   </header>
@@ -43,6 +43,7 @@
           <p class="tagline"><em>Arise.</em> One task, one fresh session, the right rank.</p>
           <h1>Run your task plan one fresh Claude Code session at a time.</h1>
           <p class="lead">Each task on exactly the model your plan assigns. Never a more expensive one.</p>
+          <p class="note"><strong>igris 1.0 is stable:</strong> the plan format, config, CLI and <code>--json</code> keep working until 2.0. <a href="docs/compatibility.html">What 1.0 promises</a></p>
           <div class="cmd" data-copy>
             <code>go install github.com/drilonrecica/<wbr>igris/cmd/igris@latest</code>
             <button type="button" class="copy" hidden>Copy</button>
@@ -122,6 +123,7 @@
           <div class="feature"><h3>Watch it work, from your phone</h3><p>A live tail of the current session, the phase's progress and an estimate from your past runs. Mouse and keyboard, choice dialogs, and a single-column layout for small terminals over SSH.</p></div>
           <div class="feature"><h3>On a branch of its own</h3><p>Worktree mode runs a whole run in a git worktree on its own branch, so your checkout stays as it is. Review the branch, merge it or drop it: igris never merges.</p></div>
           <div class="feature"><h3>Signed and checked</h3><p>Signed releases with an SBOM, your notification secrets kept out of the commands it runs, and a threat model that ties every safety rule to a test.</p></div>
+          <div class="feature"><h3>Stable until 2.0</h3><p>Plans, configs, scripts reading <code>--json</code> and webhook receivers you build on 1.0 keep working across 1.x. A compatibility suite checks what every release wrote, on every change.</p></div>
           <div class="feature"><h3>Resumable, and reported</h3><p>Quit any time. <code>igris arise</code> reattaches to the running session or continues where it left off. <code>igris report</code> turns a run into markdown for your PR.</p></div>
         </div>
       </div>
@@ -142,6 +144,18 @@
           </figure>
         </div>
         <p class="note">Everything works from the keyboard or by clicking: preview a run, check the plan, open the doctor, edit the plan or settings, adapt a plan, send a test notification, then start. <a href="https://github.com/drilonrecica/igris#the-tui">The home screen in the README</a></p>
+      </div>
+    </section>
+
+    <section id="next" class="section">
+      <div class="wrap">
+        <h2>What's next</h2>
+        <p class="section-lead">Plans, not promises. 1.x only adds to what 1.0 keeps stable; the bigger changes wait for 2.0.</p>
+        <div class="features">
+          <div class="feature"><h3>Approve plans from igris</h3><p>Planned for 1.x: read and approve a plan-mode session's plan in igris, and let your plan say which mode the session continues in.</p></div>
+          <div class="feature"><h3>Usage you can see</h3><p>Planned for 1.x: tokens per run, task and model, and a check that every task really ran on its rank's model.</p></div>
+          <div class="feature"><h3>Parallel, safely</h3><p>Planned for 2.0: independent tasks at the same time, each in its own worktree, merged back in plan order with your checks after every merge.</p></div>
+        </div>
       </div>
     </section>
 
