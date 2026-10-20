@@ -31,7 +31,7 @@
         <a href="#install">Install</a>
         <a href="docs/">Docs</a>
         <a href="https://github.com/drilonrecica/igris">GitHub</a>
-        <a class="pill pill-version" href="https://github.com/drilonrecica/igris/releases/latest">v1.0.0</a>
+        <a class="pill pill-version" href="https://github.com/drilonrecica/igris/releases/latest">v1.1.0</a>
       </nav>
     </div>
   </header>
@@ -122,6 +122,8 @@
           <div class="feature"><h3>Verify and commit</h3><p>Your checks run on every done, with a verify profile per task or phase: a fast check here, the full suite there. Failures go back to the same session. Commits are <code>ask</code>, <code>auto</code> or <code>never</code>.</p></div>
           <div class="feature"><h3>Watch it work, from your phone</h3><p>A live tail of the current session, the phase's progress and an estimate from your past runs. Mouse and keyboard, choice dialogs, and a single-column layout for small terminals over SSH.</p></div>
           <div class="feature"><h3>On a branch of its own</h3><p>Worktree mode runs a whole run in a git worktree on its own branch, so your checkout stays as it is. Review the branch, merge it or drop it: igris never merges.</p></div>
+          <div class="feature"><h3>Approve plans from igris</h3><p>A plan-mode session's plan opens in igris: approve it, send it back with feedback, or answer in the pane. Your plan can say which mode the session continues in after you approve.</p></div>
+          <div class="feature"><h3>Usage you can see</h3><p><code>igris usage</code> shows the tokens per run, task, model and rank, and igris tells you when a task ran on a model its rank doesn't name.</p></div>
           <div class="feature"><h3>Signed and checked</h3><p>Signed releases with an SBOM, your notification secrets kept out of the commands it runs, and a threat model that ties every safety rule to a test.</p></div>
           <div class="feature"><h3>Stable until 2.0</h3><p>Plans, configs, scripts reading <code>--json</code> and webhook receivers you build on 1.0 keep working across 1.x. A compatibility suite checks what every release wrote, on every change.</p></div>
           <div class="feature"><h3>Resumable, and reported</h3><p>Quit any time. <code>igris arise</code> reattaches to the running session or continues where it left off. <code>igris report</code> turns a run into markdown for your PR.</p></div>
@@ -152,9 +154,9 @@
         <h2>What's next</h2>
         <p class="section-lead">Plans, not promises. 1.x only adds to what 1.0 keeps stable; the bigger changes wait for 2.0.</p>
         <div class="features">
-          <div class="feature"><h3>Approve plans from igris</h3><p>Planned for 1.x: read and approve a plan-mode session's plan in igris, and let your plan say which mode the session continues in.</p></div>
-          <div class="feature"><h3>Usage you can see</h3><p>Planned for 1.x: tokens per run, task and model, and a check that every task really ran on its rank's model.</p></div>
-          <div class="feature"><h3>Parallel, safely</h3><p>Planned for 2.0: independent tasks at the same time, each in its own worktree, merged back in plan order with your checks after every merge.</p></div>
+          <div class="feature"><h3>Side sessions</h3><p>Planned for 1.x: open your own Claude Code session next to the run, from inside igris.</p></div>
+          <div class="feature"><h3>Plan includes</h3><p>Planned for 1.x: split a long plan into one file per phase, still read and written as one plan.</p></div>
+          <div class="feature"><h3>Parallel, safely</h3><p>Planned for 2.0: independent tasks at the same time, each in its own worktree, merged back in plan order with your checks after every merge. <code>igris phases</code> already shows which tasks could run together.</p></div>
         </div>
       </div>
     </section>
