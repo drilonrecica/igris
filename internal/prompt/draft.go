@@ -31,6 +31,10 @@ type DraftVars struct {
 	ProposalFile string       // where the session writes the proposal
 	Goal         string       // goal: the owner's goal; "" makes the session ask for it
 	SpecFile     string       // spec: the spec's path, relative to the project root
+	ImportFile   string       // import: the parsed export igris wrote, relative to the project root
+	ImportSource string       // import: "github", "linear" or "jira"
+	ImportCount  int          // import: items in ImportFile
+	ImportDone   int          // import: of them already done
 	Models       []ModelAlias // the config's [models], sorted
 	Verify       []string     // the config's verify profile names, sorted; never their commands
 	DoneCommand  string       // default: "igris done DRAFT"

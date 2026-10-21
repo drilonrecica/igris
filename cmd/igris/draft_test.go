@@ -325,7 +325,12 @@ func TestDraftCommandRefusals(t *testing.T) {
 			}
 		}, "draft.model"},
 		{"spec missing", []string{"draft", "spec", "spec.md"}, func(*testing.T, string) {}, "igris draft: spec file spec.md doesn't exist"},
-		{"import not built yet", []string{"draft", "import", "x.csv", "--format", "jira"}, func(*testing.T, string) {}, "`igris draft import` is not available in this build yet"},
+		{"import missing", []string{"draft", "import", "x.csv", "--format", "jira"}, func(*testing.T, string) {}, "igris draft: export file x.csv doesn't exist"},
+		{"import wrong format", []string{"draft", "import", "x.csv", "--format", "github"}, func(t *testing.T, _ string) {
+			if err := os.WriteFile("x.csv", []byte("ID,Title\nA,b\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}, "igris draft: export file x.csv: not the JSON array"},
 		{"extend without a project", []string{"draft", "extend"}, func(*testing.T, string) {}, "no igris project"},
 		{"extend not built yet", []string{"draft", "extend", "a phase for docs"}, func(t *testing.T, root string) {
 			if err := os.WriteFile(filepath.Join(root, "tasks.md"), []byte(draftedPlan), 0o600); err != nil {
@@ -464,6 +469,75 @@ func TestDraftCommandSpecRefusals(t *testing.T) {
 			tt.setup(t, root)
 			var out, errb bytes.Buffer
 			if got := run([]string{"draft", "spec", "spec.md"}, &out, &errb); got != exitFail {
+				t.Fatalf("exit = %d, want 1; stderr %q", got, errb.String())
+			}
+			if !strings.Contains(errb.String(), tt.want) {
+				t.Errorf("stderr = %q, want %q", errb.String(), tt.want)
+			}
+			if len(be.Opened()) != 0 {
+				t.Error("a session was opened")
+			}
+			if _, err := os.Stat(filepath.Join(root, ".igris")); !errors.Is(err, os.ErrNotExist) {
+				t.Error(".igris/ was created")
+			}
+		})
+	}
+}
+
+// draft import: igris parses the export, the session reads the parsed
+// file, and the review and Accept are the goal's.
+func TestDraftCommandImport(t *testing.T) {
+	// Read before draftTestProject changes the working directory.
+	data, err := os.ReadFile(filepath.Join("..", "..", "internal", "draft", "testdata", "import", "jira.csv"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, be := draftTestProject(t, "tasks.md", draftedPlan)
+	// An export outside the project is fine: igris only reads it.
+	export := filepath.Join(t.TempDir(), "jira.csv")
+	if err := os.WriteFile(export, data, 0o600); err != nil { //nolint:gosec // test temp dir
+		t.Fatal(err)
+	}
+	var shown tui.ReviewOptions
+	decideDraft(true, &shown)
+
+	var out, errb bytes.Buffer
+	if got := run([]string{"draft", "import", export}, &out, &errb); got != exitOK {
+		t.Fatalf("exit = %d, stderr: %s\nstdout: %s", got, errb.String(), out.String())
+	}
+	p := be.Prompts(draft.ID)
+	if len(p) != 1 || !strings.Contains(p[0], ".igris/draft/import.json") || !strings.Contains(p[0], "3 issue(s) from Jira") || strings.Contains(p[0], "Build the API") {
+		t.Fatalf("prompt = %q, want the parsed file and not the export", p)
+	}
+	parsed, err := os.ReadFile(filepath.Join(root, ".igris", "draft", "import.json")) //nolint:gosec // test temp dir
+	if err != nil || !strings.Contains(string(parsed), `"key": "PROJ-2"`) || !strings.Contains(string(parsed), `"state": "done"`) {
+		t.Errorf("import.json = %s, %v", parsed, err)
+	}
+	if !strings.Contains(out.String(), "importing 3 item(s) from a jira export (1 already done)") || !strings.Contains(out.String(), "accepted:") {
+		t.Errorf("stdout: %s", out.String())
+	}
+	if got := run([]string{"check"}, &out, &errb); got != exitOK {
+		t.Errorf("igris check on the drafted plan: exit %d\n%s", got, errb.String())
+	}
+}
+
+// A bad export creates nothing: no session, no .igris/.
+func TestDraftCommandImportRefusals(t *testing.T) {
+	tests := []struct {
+		name, content, want string
+	}{
+		{"empty", "", "igris draft: export file issues.csv: the export is empty"},
+		{"unknown", "a,b\n1,2\n", "igris draft: export file issues.csv: can't tell the export's format"},
+		{"too large", string(make([]byte, draft.MaxImportSize+1)), "igris draft: export file issues.csv is over 16 MiB"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root, be := draftTestProject(t, "tasks.md", draftedPlan)
+			if err := os.WriteFile("issues.csv", []byte(tt.content), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			var out, errb bytes.Buffer
+			if got := run([]string{"draft", "import", "issues.csv"}, &out, &errb); got != exitFail {
 				t.Fatalf("exit = %d, want 1; stderr %q", got, errb.String())
 			}
 			if !strings.Contains(errb.String(), tt.want) {

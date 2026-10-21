@@ -95,6 +95,16 @@ func (d *Dir) WriteAdaptFile(name string, data []byte) (string, error) {
 // parsed import and extend's backups (SPEC §9.1).
 func (d *Dir) DraftDir() string { return filepath.Join(d.path, "draft") }
 
+// WriteDraftFile atomically writes data to .igris/draft/<name> (0600) and
+// returns its path. name must be a plain file name.
+func (d *Dir) WriteDraftFile(name string, data []byte) (string, error) {
+	if name == "" || name != filepath.Base(name) || name == "." || name == ".." {
+		return "", fmt.Errorf("write draft file: invalid name %q", name)
+	}
+	path := filepath.Join(d.DraftDir(), name)
+	return path, writeFileAtomic(path, data)
+}
+
 func (d *Dir) lockPath() string   { return filepath.Join(d.path, "igris.lock") }
 func (d *Dir) runPath() string    { return filepath.Join(d.path, "state.json") }
 func (d *Dir) eventsPath() string { return filepath.Join(d.path, "runs.jsonl") }

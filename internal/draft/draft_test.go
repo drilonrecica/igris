@@ -241,7 +241,7 @@ func TestRunRefusesBeforeSession(t *testing.T) {
 		{"plan exists, spec", Spec, func(h *harness) { write(h.t, h.plan, "x") }, "tasks.md already exists"},
 		{"plan exists, import", Import, func(h *harness) { write(h.t, h.plan, "x") }, "tasks.md already exists"},
 		{"spec missing", Spec, func(*harness) {}, "no spec file"},
-		{"import not built", Import, func(*harness) {}, "`igris draft import` is not available in this build yet"},
+		{"import missing", Import, func(*harness) {}, "no export file"},
 		{"extend not built", Extend, func(h *harness) { write(h.t, h.plan, goodProposal) }, "`igris draft extend` is not available in this build yet"},
 	}
 	for _, tt := range tests {
@@ -456,7 +456,7 @@ func TestCountRanks(t *testing.T) {
 
 func write(t *testing.T, path, text string) {
 	t.Helper()
-	if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte(text), 0o600); err != nil { //nolint:gosec // test temp dir
 		t.Fatal(err)
 	}
 }
@@ -588,5 +588,98 @@ func TestRunSpecRefusedBeforeSession(t *testing.T) {
 	}
 	if len(h.be.Opened()) != 0 {
 		t.Error("a session was opened")
+	}
+}
+
+func TestRunImport(t *testing.T) {
+	h := newHarness(t)
+	// The export may be anywhere: igris only reads it.
+	export := filepath.Join(t.TempDir(), "issues.json")
+	data, err := os.ReadFile(filepath.Join("testdata", "import", "github.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	write(t, export, string(data))
+	h.finishOnPrompt(goodProposal)
+
+	res, err := h.runFile(context.Background(), Import, "", export)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Issues) != 0 || res.Source != Import {
+		t.Errorf("result = %+v", res)
+	}
+
+	// igris wrote what the session reads, cleaned, readable by the owner only.
+	path := filepath.Join(h.root, ".igris", "draft", ImportFile)
+	got, err := os.ReadFile(path) //nolint:gosec // test temp dir
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info, _ := os.Stat(path); info.Mode().Perm() != 0o600 {
+		t.Errorf("import.json mode = %v, want 0600", info.Mode().Perm())
+	}
+	want, _ := ParseImport(data, "github")
+	wantJSON, _ := want.JSON()
+	if string(got) != string(wantJSON) || strings.ContainsAny(string(got), "\x1b\x07") {
+		t.Errorf("import.json = %s", got)
+	}
+
+	p := h.be.Prompts(ID)
+	if len(p) != 1 {
+		t.Fatalf("prompts = %d, want 1", len(p))
+	}
+	for _, want := range []string{"## Source: an issue export", "exported 3 issue(s) from GitHub (1 already done)", "```\n.igris/draft/import.json\n```", "### Imported", "igris done DRAFT"} {
+		if !strings.Contains(p[0], want) {
+			t.Errorf("prompt missing %q", want)
+		}
+	}
+	// The export's text never reaches the pane; nor does its path.
+	if strings.Contains(p[0], "Add login page") || strings.Contains(p[0], "rm -rf") || strings.Contains(p[0], export) {
+		t.Error("the export reached the prompt")
+	}
+	if !strings.Contains(h.out.String(), "importing 3 item(s) from a github export (1 already done)") {
+		t.Errorf("out = %q", h.out.String())
+	}
+}
+
+// A bad export stops draft before any session opens, the lock is taken or
+// import.json is written.
+func TestRunImportRefusedBeforeSession(t *testing.T) {
+	h := newHarness(t)
+	bad := filepath.Join(h.root, "bad.csv")
+	write(t, bad, "a,b\n1,2\n")
+	h.finishOnPrompt(goodProposal)
+	l, err := h.dir.Lock(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = l.Release() }()
+	_, err = h.runFile(context.Background(), Import, "", bad)
+	if err == nil || !strings.Contains(err.Error(), "can't tell the export's format") {
+		t.Fatalf("err = %v", err)
+	}
+	if len(h.be.Opened()) != 0 {
+		t.Error("a session was opened")
+	}
+	if _, err := os.Stat(filepath.Join(h.root, ".igris", "draft", ImportFile)); !errors.Is(err, os.ErrNotExist) {
+		t.Error("import.json was written")
+	}
+}
+
+// --format overrides detection.
+func TestRunImportFormat(t *testing.T) {
+	h := newHarness(t)
+	f := filepath.Join(h.root, "e.csv")
+	write(t, f, "ID,Title,Status\nA-1,x,Done\n")
+	h.finishOnPrompt(goodProposal)
+	cfg := config.Default()
+	cfg.Models["opus"] = "claude-opus-5-5"
+	_, err := Run(context.Background(), Options{
+		SessionOptions: adapt.SessionOptions{Config: cfg, Backend: h.be, State: h.dir, Notifier: h.notes, Clock: h.clock, Out: &h.out},
+		Source:         Import, PlanPath: h.plan, Model: "opus", File: f, Format: "jira",
+	})
+	if err == nil || !strings.Contains(err.Error(), `no "issue key" column`) {
+		t.Fatalf("err = %v, want the jira column error", err)
 	}
 }

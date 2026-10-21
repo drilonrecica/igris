@@ -27,6 +27,17 @@ func TestRenderDraftGolden(t *testing.T) {
 			Models:       models,
 			Verify:       []string{"default", "fast"},
 		}},
+		{"draft-import", DraftVars{
+			Source:       "import",
+			PlanFile:     "tasks.md",
+			ProposalFile: ".igris/draft/tasks.proposed.md",
+			ImportFile:   ".igris/draft/import.json",
+			ImportSource: "github",
+			ImportCount:  12,
+			ImportDone:   4,
+			Models:       models,
+			Verify:       []string{"default", "fast"},
+		}},
 		{"draft-goal-ask", DraftVars{
 			Source:       "goal",
 			PlanFile:     "plans/v2.md",

@@ -1,0 +1,6 @@
+ID,Team,Title,Description,Status,Priority,Labels,Blocked by,Blocks
+ENG-1,Eng,Project skeleton,"Create the repo,
+with a Makefile",Done,High,"infra, setup",,ENG-2
+ENG-2,Eng,Parser,Parse the file,In Progress,High,core,ENG-1,
+ENG-3,Eng,Old idea,,Canceled,Low,,,
+ENG-4,Eng,Release,Ship it,Todo,Medium,release,"ENG-2, ENG-9",

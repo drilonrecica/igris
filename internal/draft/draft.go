@@ -213,23 +213,31 @@ func CheckSpec(root, file string) (string, error) {
 // (SPEC §9.1): a plan in the way of a new one, a spec file that can't be
 // used, and a source this build doesn't have yet. Callers may run it
 // first, before they create anything. file is the spec or export as the
-// owner named it.
-func Check(root string, src Source, planPath, file string) error {
+// owner named it; format is import's --format, "" to detect it.
+func Check(root string, src Source, planPath, file, format string) error {
+	_, err := check(root, src, planPath, file, format)
+	return err
+}
+
+// check is Check that also returns the parsed export of an import.
+func check(root string, src Source, planPath, file, format string) (*Export, error) {
 	if src.NewPlan() {
 		if err := CheckSlot(root, planPath); err != nil {
-			return err
+			return nil, err
 		}
 	}
 	switch src {
 	case Goal:
 	case Spec:
 		if _, err := CheckSpec(root, file); err != nil {
-			return err
+			return nil, err
 		}
+	case Import:
+		return LoadImport(file, format)
 	default:
-		return errNotYet(src)
+		return nil, errNotYet(src)
 	}
-	return nil
+	return nil, nil
 }
 
 // Run checks where the plan goes, runs the draft session until it signals
@@ -240,11 +248,12 @@ func Run(ctx context.Context, o Options) (*Result, error) {
 		o.Clock = engine.SystemClock()
 	}
 	d := o.State
-	if err := Check(d.Root(), o.Source, o.PlanPath, o.File); err != nil {
+	exp, err := check(d.Root(), o.Source, o.PlanPath, o.File, o.Format)
+	if err != nil {
 		return nil, err
 	}
 	proposal := ProposalPath(d, o.PlanPath)
-	text, err := o.prompt(proposal)
+	text, err := o.prompt(proposal, exp)
 	if err != nil {
 		return nil, err
 	}
@@ -260,6 +269,20 @@ func Run(ctx context.Context, o Options) (*Result, error) {
 	}
 	if err := d.RemoveSignal(ID); err != nil {
 		return nil, err
+	}
+	if exp != nil {
+		// igris parsed the export; the session reads this, never the raw
+		// file (SPEC §9.1).
+		data, err := exp.JSON()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := d.WriteDraftFile(ImportFile, data); err != nil {
+			return nil, err
+		}
+		if o.Out != nil {
+			fmt.Fprintf(o.Out, "importing %d item(s) from a %s export (%d already done)\n", len(exp.Items), exp.Source, exp.Done())
+		}
 	}
 	sig, err := adapt.RunSession(ctx, o.SessionOptions, adapt.SessionSpec{
 		ID:      ID,
@@ -300,7 +323,7 @@ func Run(ctx context.Context, o Options) (*Result, error) {
 }
 
 // prompt renders the draft prompt for o's source.
-func (o Options) prompt(proposal string) (string, error) {
+func (o Options) prompt(proposal string, exp *Export) (string, error) {
 	cfg, root := o.Config, o.State.Root()
 	vars := prompt.DraftVars{
 		Source:       string(o.Source),
@@ -320,6 +343,11 @@ func (o Options) prompt(proposal string) (string, error) {
 		}
 		// The name is the owner's, but a file name can hold anything.
 		vars.SpecFile = textsafe.Clean(rel)
+	case Import:
+		vars.ImportFile = relTo(root, filepath.Join(o.State.DraftDir(), ImportFile))
+		vars.ImportSource = exp.Source
+		vars.ImportCount = len(exp.Items)
+		vars.ImportDone = exp.Done()
 	default:
 		return "", errNotYet(o.Source)
 	}

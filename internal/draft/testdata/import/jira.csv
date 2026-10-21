@@ -1,0 +1,5 @@
+﻿Issue key,Issue id,Summary,Issue Type,Status,Description,Labels,Labels,Inward issue link (Blocks),Outward issue link (Blocks)
+PROJ-1,10001,Set up the board,Task,Done,"A board.",ops,,,PROJ-2
+PROJ-2,10002,Build the API,Story,To Do,"REST API, v1",backend,api,PROJ-1,PROJ-3
+PROJ-3,10003,Client,Story,In Review,Uses the API,,,PROJ-2,
+,,,,,,,,,
