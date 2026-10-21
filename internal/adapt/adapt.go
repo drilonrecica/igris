@@ -11,12 +11,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/engine"
-	"github.com/drilonrecica/igris/internal/notify"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/prompt"
 	"github.com/drilonrecica/igris/internal/state"
@@ -24,10 +22,6 @@ import (
 
 // ID is the session and signal ID of the adapt session.
 const ID = prompt.AdaptID
-
-// settleMax bounds the wait for the agent's last message before the
-// session is closed.
-const settleMax = 30 * time.Second
 
 // ErrAlreadyValid means the plan passes `igris check`: there is nothing to
 // adapt.
@@ -112,18 +106,13 @@ func Run(ctx context.Context, o Options) (*Result, error) {
 		return nil, err
 	}
 
-	r := &runner{o: o, started: o.Clock.Now()}
-	sess, err := r.open(ctx, issues, proposal)
+	spec, err := sessionSpec(o, issues, proposal)
 	if err != nil {
 		return nil, err
 	}
-	sig, err := r.wait(ctx, sess)
+	sig, err := RunSession(ctx, o.sessionOptions(), spec)
 	if err != nil {
 		return nil, err
-	}
-	r.settle(ctx, sess)
-	if err := sess.Close(ctx); err != nil {
-		r.say("warning: close the adapt session: %v", err)
 	}
 
 	proposed, err := os.ReadFile(proposal) //nolint:gosec // igris's own state directory
@@ -169,27 +158,17 @@ func relTo(root, p string) string {
 	return p
 }
 
-// runner is one adapt session.
-type runner struct {
-	o       Options
-	started time.Time
+// sessionOptions are the session parts of o.
+func (o Options) sessionOptions() SessionOptions {
+	return SessionOptions{Config: o.Config, Backend: o.Backend, State: o.State, Notifier: o.Notifier, Clock: o.Clock, Out: o.Out, Opened: o.Opened}
 }
 
-func (r *runner) say(format string, a ...any) {
-	if r.o.Out != nil {
-		fmt.Fprintf(r.o.Out, "%s %s\n", r.o.Clock.Now().Format("15:04:05"), fmt.Sprintf(format, a...))
-	}
-}
-
-// open starts the adapt session and sends it the adapt prompt.
-func (r *runner) open(ctx context.Context, issues []plan.Issue, proposal string) (backend.Session, error) {
-	cfg, d := r.o.Config, r.o.State
-	model := cfg.Models[r.o.Model]
-	if model == "" {
-		model = r.o.Model // sonnet and opus are Claude Code aliases themselves
-	}
+// sessionSpec is the adapt session: the adapt prompt and rules, mode
+// default (SPEC §9).
+func sessionSpec(o Options, issues []plan.Issue, proposal string) (SessionSpec, error) {
+	cfg, d := o.Config, o.State
 	vars := prompt.AdaptVars{
-		PlanFile:     relTo(d.Root(), r.o.PlanPath),
+		PlanFile:     relTo(d.Root(), o.PlanPath),
 		ProposalFile: relTo(d.Root(), proposal),
 		Models:       prompt.Aliases(cfg.Models),
 		Verify:       cfg.Rules("").Verify,
@@ -199,151 +178,14 @@ func (r *runner) open(ctx context.Context, issues []plan.Issue, proposal string)
 	}
 	text, err := prompt.RenderAdapt(vars)
 	if err != nil {
-		return nil, err
+		return SessionSpec{}, err
 	}
-	rules, err := d.WriteRules(ID, prompt.AdaptRules())
-	if err != nil {
-		return nil, err
-	}
-	sid, err := engine.NewSessionID()
-	if err != nil {
-		return nil, err
-	}
-	hooks, err := engine.WriteHooks(d, ID, "", nil, nil, false)
-	if err != nil {
-		return nil, err
-	}
-	args, err := engine.ClaudeArgs(engine.ClaudeParams{Model: model, SessionID: sid, Mode: engine.ModeDefault, RulesFile: rules, SettingsFile: hooks})
-	if err != nil {
-		return nil, err
-	}
-	if err := r.o.Backend.Available(ctx); err != nil {
-		return nil, err
-	}
-	if err := state.ClearAgentState(d.Root(), sid); err != nil {
-		return nil, err
-	}
-	sess, err := r.o.Backend.OpenSession(ctx, backend.SessionSpec{
-		TaskID: ID,
-		Dir:    d.Root(),
-		Label:  ID + " · " + r.o.Model,
-		Args:   args,
-		// Keys the session's hook state (SPEC §6.3).
-		ClaudeSession: sid,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("open the adapt session: %w", err)
-	}
-	if r.o.Opened != nil {
-		r.o.Opened(sess.Ref())
-	}
-	if err := sess.Prompt(ctx, text); err != nil {
-		return nil, fmt.Errorf("send the adapt prompt: %w", err)
-	}
-	which := r.o.Model
-	if model != r.o.Model {
-		which += " → " + model
-	}
-	r.say("adapt session started (%s); answer its questions in the %s pane", which, ID)
-	return sess, nil
-}
-
-// wait polls for `igris done ADAPT` and the session's state until the
-// session signals done, ends, or ctx ends.
-func (r *runner) wait(ctx context.Context, sess backend.Session) (*state.Signal, error) {
-	var idleSince, waitSince time.Time // idle, or waiting on background work (SPEC §6.3)
-	asked := false
-	for {
-		sig, err := r.o.State.ReadSignal(ID)
-		if err != nil {
-			return nil, err
-		}
-		if sig != nil && !sig.At.Before(r.started) {
-			if err := r.o.State.RemoveSignal(ID); err != nil {
-				return nil, err
-			}
-			if sig.Action != state.ActionDone {
-				return nil, fmt.Errorf("the adapt session was skipped (%s); nothing changed", sig.Note)
-			}
-			r.say("adapt session done: %s", sig.Note)
-			return sig, nil
-		}
-
-		st, err := sess.State(ctx)
-		switch {
-		case ctx.Err() != nil:
-			return nil, fmt.Errorf("adapt stopped; the %s session stays open: %w", ID, ctx.Err())
-		case errors.Is(err, backend.ErrSessionGone) || (err == nil && st == backend.Exited):
-			r.notify(ctx, notify.SessionLost, "adapt session lost")
-			return nil, fmt.Errorf("the adapt session ended without `igris done %s`; run `igris adapt` again", ID)
-		case err != nil:
-			r.say("warning: read the session state: %v", err)
-		case st == backend.Working:
-			if asked {
-				r.say("working again")
-			}
-			idleSince, waitSince, asked = time.Time{}, time.Time{}, false
-		case st == backend.Waiting:
-			// Claude Code resumes the session by itself: not idle, until
-			// waiting_limit (no reminder here; that is for task sessions).
-			now := r.o.Clock.Now()
-			if waitSince.IsZero() {
-				waitSince, idleSince, asked = now, time.Time{}, false
-			}
-			if limit := r.o.Config.WaitingLimitOrDefault(); !asked && now.Sub(waitSince) >= limit {
-				asked = true
-				r.say("needs you: the agent has waited on background work longer than waiting_limit; look at the %s pane", ID)
-				r.notify(ctx, notify.NeedsInput, "needs you")
-			}
-		case st.Settled():
-			now := r.o.Clock.Now()
-			if !waitSince.IsZero() {
-				waitSince, asked = time.Time{}, false
-			}
-			if idleSince.IsZero() {
-				idleSince = now
-			}
-			if after := r.o.Config.NeedsInputAfter.Std(); !asked && now.Sub(idleSince) >= after {
-				asked = true
-				r.say("needs you: the agent is %s and has not run `igris done %s`; answer in the %s pane", st, ID, ID)
-				r.notify(ctx, notify.NeedsInput, "needs you")
-			}
-		}
-
-		select {
-		case <-ctx.Done():
-			return nil, fmt.Errorf("adapt stopped; the %s session stays open: %w", ID, ctx.Err())
-		case <-r.o.Clock.After(r.o.Config.PollInterval.Std()):
-		}
-	}
-}
-
-// settle gives the agent a moment to finish its last message after
-// `igris done`, as the engine does before closing a task's session.
-func (r *runner) settle(ctx context.Context, sess backend.Session) {
-	deadline := r.o.Clock.Now().Add(settleMax)
-	for r.o.Clock.Now().Before(deadline) {
-		st, err := sess.State(ctx)
-		if ctx.Err() != nil || (err == nil && (st.Settled() || st == backend.Waiting || st == backend.Exited)) {
-			return
-		}
-		select {
-		case <-ctx.Done():
-			return
-		case <-r.o.Clock.After(r.o.Config.PollInterval.Std()):
-		}
-	}
-}
-
-// notify sends a SPEC §10 notification; delivery problems are only shown.
-func (r *runner) notify(ctx context.Context, ev notify.Event, what string) {
-	if r.o.Notifier == nil {
-		return
-	}
-	m := notify.Message{Event: ev, Project: filepath.Base(r.o.State.Root()), TaskID: ID, Title: "igris adapt", What: what}
-	for _, res := range r.o.Notifier.Notify(ctx, m) {
-		if res.Err != nil {
-			r.say("warning: notification %s not delivered to %s: %v", ev, res.Channel, res.Err)
-		}
-	}
+	return SessionSpec{
+		ID:      ID,
+		Command: "adapt",
+		Model:   o.Model,
+		Mode:    engine.ModeDefault,
+		Rules:   prompt.AdaptRules(),
+		Prompt:  text,
+	}, nil
 }

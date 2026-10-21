@@ -79,6 +79,12 @@
 |---|---|---|---|
 | `model` | string | `"sonnet"` | Model rank `igris adapt` uses (SPEC §9). Allowed: `sonnet`, `opus`. |
 
+## `[draft]`
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `model` | string | `"opus"` | Model rank `igris draft` uses (SPEC §9.1). Allowed: `sonnet`, `opus`. |
+
 ## `[tui]`
 
 | Key | Type | Default | Description |

@@ -38,7 +38,7 @@ type Dir struct {
 	pid      int
 }
 
-// Open creates root/.igris/ and its signals/, prompts/ and adapt/ subdirectories if
+// Open creates root/.igris/ and its signals/, prompts/, adapt/ and draft/ subdirectories if
 // needed and makes sure all of them are 0700.
 func Open(root string, opts Options) (*Dir, error) {
 	d := &Dir{
@@ -52,7 +52,7 @@ func Open(root string, opts Options) (*Dir, error) {
 	if d.now == nil {
 		d.now = time.Now
 	}
-	for _, dir := range []string{d.path, d.SignalsDir(), d.PromptsDir(), d.AdaptDir()} {
+	for _, dir := range []string{d.path, d.SignalsDir(), d.PromptsDir(), d.AdaptDir(), d.DraftDir()} {
 		if err := os.MkdirAll(dir, dirPerm); err != nil {
 			return nil, fmt.Errorf("create state directory %s: %w", dir, err)
 		}
@@ -90,6 +90,10 @@ func (d *Dir) WriteAdaptFile(name string, data []byte) (string, error) {
 	path := filepath.Join(d.AdaptDir(), name)
 	return path, writeFileAtomic(path, data)
 }
+
+// DraftDir returns the directory holding `igris draft` proposals, the
+// parsed import and extend's backups (SPEC §9.1).
+func (d *Dir) DraftDir() string { return filepath.Join(d.path, "draft") }
 
 func (d *Dir) lockPath() string   { return filepath.Join(d.path, "igris.lock") }
 func (d *Dir) runPath() string    { return filepath.Join(d.path, "state.json") }

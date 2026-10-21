@@ -3,7 +3,7 @@
 _igris() {
     local cmd prev
     if (( CURRENT == 2 )); then
-        compadd -- init doctor check phases status history report usage arise done skip reset notify config adapt update completion help version
+        compadd -- init doctor check phases status history report usage arise done skip reset notify config adapt draft update completion help version
         return
     fi
     cmd=$words[2]
@@ -25,6 +25,9 @@ _igris() {
         notify:--event) compadd -- needs_input session_lost task_overdue rank_mismatch verify_failed_limit task_done phase_done phase_stuck run_error ; return ;;
         adapt:--model) compadd -- sonnet opus ; return ;;
         adapt:--plan) _files ; return ;;
+        draft:--format) compadd -- github linear jira ; return ;;
+        draft:--model) compadd -- sonnet opus ; return ;;
+        draft:--plan) _files ; return ;;
     esac
     if [[ $PREFIX == -* ]]; then
         case "$cmd" in
@@ -43,6 +46,7 @@ _igris() {
             notify) compadd -- --event ;;
             config) compadd -- --yes ;;
             adapt) compadd -- --model --plan ;;
+            draft) compadd -- --format --model --plan ;;
             update) compadd -- --check --yes ;;
         esac
         return
@@ -58,6 +62,7 @@ _igris() {
         reset) compadd -- ${(f)"$(igris __complete tasks 2>/dev/null)"} ;;
         notify) compadd -- test ;;
         config) compadd -- migrate ;;
+        draft) compadd -- goal spec import extend ;;
         completion) compadd -- bash zsh fish ;;
     esac
 }

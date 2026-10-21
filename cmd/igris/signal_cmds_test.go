@@ -132,6 +132,33 @@ func TestDoneAdaptNeedsNoPlan(t *testing.T) {
 	}
 }
 
+// The draft session's plan doesn't exist yet (SPEC §9.1): done DRAFT needs
+// no plan, also outside a configured project.
+func TestDoneDraftNeedsNoPlan(t *testing.T) {
+	root := t.TempDir()
+	if _, err := state.Open(root, state.Options{}); err != nil { // what draft creates
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+	var out, errb bytes.Buffer
+	if got := run([]string{"done", "DRAFT", "--note", "drafted"}, &out, &errb); got != exitOK {
+		t.Fatalf("done DRAFT exit = %d, stderr: %s", got, errb.String())
+	}
+	if out.String() != "igris: done signal recorded for DRAFT\n" {
+		t.Errorf("stdout = %q", out.String())
+	}
+	d, err := state.Open(root, state.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s, err := d.ReadSignal("DRAFT"); err != nil || s == nil || s.Action != state.ActionDone || s.Note != "drafted" {
+		t.Fatalf("signal = %+v, %v", s, err)
+	}
+	if got := run([]string{"skip", "DRAFT", "--reason", "x"}, &out, &errb); got != exitFail {
+		t.Errorf("skip DRAFT exit = %d, want %d", got, exitFail)
+	}
+}
+
 // While a run holds the lock, done says nothing about applying it later.
 func TestDoneDuringARun(t *testing.T) {
 	root := signalProject(t)

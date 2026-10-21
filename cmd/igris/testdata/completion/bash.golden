@@ -12,7 +12,7 @@ _igris() {
         esac
     done
     if [[ -z $cmd ]]; then
-        COMPREPLY=($(compgen -W "init doctor check phases status history report usage arise done skip reset notify config adapt update completion help version" -- "$cur"))
+        COMPREPLY=($(compgen -W "init doctor check phases status history report usage arise done skip reset notify config adapt draft update completion help version" -- "$cur"))
         return
     fi
     case "$cmd:$prev" in
@@ -32,6 +32,9 @@ _igris() {
         notify:--event) COMPREPLY=($(compgen -W "needs_input session_lost task_overdue rank_mismatch verify_failed_limit task_done phase_done phase_stuck run_error" -- "$cur")) ; return ;;
         adapt:--model) COMPREPLY=($(compgen -W "sonnet opus" -- "$cur")) ; return ;;
         adapt:--plan) COMPREPLY=($(compgen -f -- "$cur")) ; return ;;
+        draft:--format) COMPREPLY=($(compgen -W "github linear jira" -- "$cur")) ; return ;;
+        draft:--model) COMPREPLY=($(compgen -W "sonnet opus" -- "$cur")) ; return ;;
+        draft:--plan) COMPREPLY=($(compgen -f -- "$cur")) ; return ;;
     esac
     if [[ $cur == -* ]]; then
         case "$cmd" in
@@ -50,6 +53,7 @@ _igris() {
             notify) COMPREPLY=($(compgen -W "--event" -- "$cur")) ;;
             config) COMPREPLY=($(compgen -W "--yes" -- "$cur")) ;;
             adapt) COMPREPLY=($(compgen -W "--model --plan" -- "$cur")) ;;
+            draft) COMPREPLY=($(compgen -W "--format --model --plan" -- "$cur")) ;;
             update) COMPREPLY=($(compgen -W "--check --yes" -- "$cur")) ;;
         esac
         return
@@ -65,6 +69,7 @@ _igris() {
         reset) COMPREPLY=($(compgen -W "$(igris __complete tasks 2>/dev/null)" -- "$cur")) ;;
         notify) COMPREPLY=($(compgen -W "test" -- "$cur")) ;;
         config) COMPREPLY=($(compgen -W "migrate" -- "$cur")) ;;
+        draft) COMPREPLY=($(compgen -W "goal spec import extend" -- "$cur")) ;;
         completion) COMPREPLY=($(compgen -W "bash zsh fish" -- "$cur")) ;;
     esac
 }

@@ -27,6 +27,7 @@ These rules apply to every coding agent working in this repository (Claude Code 
   - `internal/config/` — `igris.toml`
   - `internal/tui/` — Bubble Tea UI
   - `internal/adapt/` — `igris adapt`
+  - `internal/draft/` — `igris draft`: the empty-slot check, the draft session, accepting a new plan
   - `internal/prompt/` — embedded templates
   - `internal/checks/` — the ordered check list shared by `check`, `arise`, `doctor` and home; results only, no printing
   - `internal/report/` — pure data the CLI and home render (check, phases, status, run info, history, dry run); no printing

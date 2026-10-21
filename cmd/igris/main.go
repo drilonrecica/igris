@@ -76,6 +76,11 @@ Commands:
   config migrate [--yes]                remove deprecated settings from igris.toml (asks first, keeps a backup)
   adapt [--model sonnet|opus]           AI-assisted conversion with diff review
         [--plan PATH]
+  draft goal [TEXT]                     draft a plan with a session and the review:
+  draft spec FILE                       from a goal (interview), a spec file, an issue export,
+  draft import FILE [--format github|linear|jira]
+  draft extend [TEXT]                   or new phases and tasks for the current plan
+        [--model sonnet|opus] [--plan PATH]
   update [--check] [--yes]              update igris with the package manager that installed it (asks first);
                                         --check only prints the current and latest versions and the method
   completion bash|zsh|fish              print a shell completion script
@@ -172,6 +177,7 @@ func commands() []command {
 		{name: "notify", setup: notifyArgs, exec: execNotify},
 		{name: "config", setup: configArgs, exec: execConfig},
 		{name: "adapt", setup: adaptArgs, exec: execAdapt},
+		{name: "draft", setup: draftArgs, exec: execDraft},
 		{name: "update", setup: updateArgs, exec: execUpdate},
 		{name: "completion", setup: completionArgs, exec: execCompletion},
 	}

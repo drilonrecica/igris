@@ -52,6 +52,7 @@ var keyDocs = map[string]keyDoc{
 	"side.model":                 {desc: "The rank the side-session dialog preselects (SPEC §6.10), a `[models]` key. Unset, `sonnet`, or the first rank when there is none of that name.", def: "`\"sonnet\"`"},
 	"side.mode":                  {desc: "The mode the side-session dialog preselects (SPEC §6.10); during a run in the shared tree it preselects `manual` whatever this says. Never `yolo` nor a `plan:<mode>` value: side sessions never skip permissions.", values: "`default`, `manual`, `accept`, `auto`, `plan`", def: "`\"default\"`"},
 	"adapt.model":                {desc: "Model rank `igris adapt` uses (SPEC §9).", values: "`sonnet`, `opus`"},
+	"draft.model":                {desc: "Model rank `igris draft` uses (SPEC §9.1).", values: "`sonnet`, `opus`", def: "`\"opus\"`"},
 	"tui.mouse":                  {desc: "Click/tap, wheel and hover in the TUI (SPEC §15.5). `false` keeps the terminal's own text selection."},
 	"tui.theme":                  {desc: "Which colors to use (SPEC §15.4). `auto` goes by the terminal's background.", values: "`auto`, `dark`, `light`"},
 	"tui.rank_colors":            {desc: "Rank to color: `\"#rrggbb\"` or an ANSI color number `\"0\"`–`\"255\"` (SPEC §15.4). Ranks not listed keep the built-in colors."},

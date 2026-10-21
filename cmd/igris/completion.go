@@ -15,6 +15,7 @@ import (
 
 	"github.com/drilonrecica/igris/examples"
 	"github.com/drilonrecica/igris/internal/config"
+	"github.com/drilonrecica/igris/internal/draft"
 	"github.com/drilonrecica/igris/internal/notify"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/project"
@@ -129,6 +130,7 @@ var (
 		"notify":     "send a sample of each notification",
 		"config":     "remove deprecated settings from igris.toml",
 		"adapt":      "AI-assisted conversion of a plan with diff review",
+		"draft":      "draft a plan with a session and the review",
 		"update":     "update igris with the package manager that installed it",
 		"completion": "print a shell completion script",
 		"help":       "show the help",
@@ -148,6 +150,8 @@ var (
 		"notify:event":  {Kind: argValues, Values: eventNames()},
 		"init:template": {Kind: argValues, Values: examples.TemplateNames()},
 		"adapt:plan":    {Kind: argFile},
+		"draft:model":   {Kind: argValues, Values: []string{"sonnet", "opus"}},
+		"draft:format":  {Kind: argValues, Values: draft.Formats},
 	}
 	compPositional = map[string]compArg{
 		"arise":      {Kind: argPhases},
@@ -160,6 +164,7 @@ var (
 		"reset":      {Kind: argTasks},
 		"notify":     {Kind: argValues, Values: []string{"test"}},
 		"config":     {Kind: argValues, Values: []string{"migrate"}},
+		"draft":      {Kind: argValues, Values: draftSources()},
 		"completion": {Kind: argValues, Values: completionShells},
 	}
 )

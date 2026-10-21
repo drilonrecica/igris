@@ -65,11 +65,13 @@ func sendSignal(action, id, note string, stdout, stderr io.Writer) int {
 	case err != nil:
 		return fail("%v", err)
 	}
-	// The adapt session finishes with `igris done ADAPT` (SPEC §9). Its
-	// plan doesn't validate and may not be the configured one, so ADAPT is
+	// The adapt and draft sessions finish with `igris done ADAPT` and
+	// `igris done DRAFT` (SPEC §9, §9.1). Their plan doesn't validate, may
+	// not exist yet and may not be the configured one, so these IDs are
 	// accepted without the plan, unless the plan has a task of that ID.
 	p, err := plan.Load(rootPath(root, cfg.Plan), cfg.PlanOptions(root))
-	adapting := action == state.ActionDone && id == prompt.AdaptID && (err != nil || p.Task(id) == nil)
+	session := id == prompt.AdaptID || id == prompt.DraftID
+	adapting := action == state.ActionDone && session && (err != nil || p.Task(id) == nil)
 	switch {
 	case adapting:
 	case err != nil:

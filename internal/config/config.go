@@ -99,8 +99,11 @@ type Config struct {
 	Usage Usage `toml:"usage,omitempty" json:",omitzero"`
 	// Side configures the side-session dialog's defaults (SPEC §6.10); left
 	// out of the hash and the written file while unset (since 1.2).
-	Side   Side   `toml:"side,omitempty" json:",omitzero"`
-	Adapt  Adapt  `toml:"adapt"`
+	Side  Side  `toml:"side,omitempty" json:",omitzero"`
+	Adapt Adapt `toml:"adapt"`
+	// Draft configures `igris draft` (SPEC §9.1); left out of the hash
+	// and the written file while unset (since 1.3).
+	Draft  Draft  `toml:"draft,omitempty" json:",omitzero"`
 	TUI    TUI    `toml:"tui"`
 	Notify Notify `toml:"notify"`
 }
@@ -366,6 +369,23 @@ func (c *Config) VerifyFor(cell, phase string) (profile, command string) {
 // Adapt configures `igris adapt`.
 type Adapt struct {
 	Model string `toml:"model"`
+}
+
+// DefaultDraftModel is the rank `igris draft` uses when draft.model is not
+// set (SPEC §9.1).
+const DefaultDraftModel = "opus"
+
+// Draft configures `igris draft` (SPEC §9.1). Model is empty when not set.
+type Draft struct {
+	Model string `toml:"model,omitempty" json:",omitempty"`
+}
+
+// ModelOrDefault is draft.model, or DefaultDraftModel.
+func (d Draft) ModelOrDefault() string {
+	if d.Model != "" {
+		return d.Model
+	}
+	return DefaultDraftModel
 }
 
 // TUI configures the terminal UI (SPEC §15).
@@ -741,6 +761,9 @@ func (c *Config) Validate() error {
 	}
 	oneOf("run.commit", c.Run.Commit, validCommit)
 	oneOf("adapt.model", c.Adapt.Model, validAdapt)
+	if c.Draft.Model != "" {
+		oneOf("draft.model", c.Draft.Model, validAdapt) // the same models as adapt (V13-P1)
+	}
 	oneOf("tui.theme", c.TUI.Theme, validThemes)
 	for _, rank := range sortedKeys(c.TUI.RankColors) {
 		if v := c.TUI.RankColors[rank]; !validColor(v) {

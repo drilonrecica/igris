@@ -165,7 +165,7 @@ igris completion fish > ~/.config/fish/completions/igris.fish
 
 `igris arise` runs inside **herdr** or **tmux**: sessions have to outlive igris and your connection. `igris init` writes `backend = "auto"`, which uses herdr inside a herdr pane and tmux inside tmux; set `backend = "herdr"` or `"tmux"` in `igris.toml` to pin one. Outside both, `igris arise` exits and says where to run it.
 
-Only `arise` and `adapt` need a backend. `init`, `doctor`, `check`, `phases`, `status`, `history`, `report`, `done`, `skip`, `reset` and `notify test` run in any shell.
+Only `arise`, `adapt` and `draft` need a backend. `init`, `doctor`, `check`, `phases`, `status`, `history`, `report`, `done`, `skip`, `reset` and `notify test` run in any shell.
 
 ### herdr setup
 
@@ -501,6 +501,7 @@ template = "{{.At.Format \"15:04\"}} {{.TaskID}} {{.What}}"
 | `igris notify test [--event NAME]` | Sends a sample of each notification to your channels. |
 | `igris config migrate [--yes]` | Removes deprecated settings from `igris.toml`: shows the lines, asks, keeps a backup in `.igris/config/`. Run it after upgrading. |
 | `igris adapt` | Converts a plan in another format; see [`igris adapt`](#different-format-igris-adapt). |
+| `igris draft goal\|spec\|import\|extend` | Since 1.3: a session drafts a plan from a goal (it interviews you in its pane), a spec file or an issue export, or new phases for your plan, and you accept or reject it in the review, as for adapt. Goal, spec and import only write a plan where none is yet: pass `--plan PATH` for a new file next to an existing plan. The session runs in `manual` mode with `--model` or `[draft] model` (`opus` by default) and finishes with `igris done DRAFT`; its ranks are suggestions, unsure ones left at `?`. |
 | `igris update [--check] [--yes]` | Since 1.2: checks GitHub for a newer release and, after asking, updates igris with Homebrew or `go install`; see [Updating igris](#updating-igris). |
 | `igris completion bash\|zsh\|fish` | Prints a shell completion script. |
 | `igris help [COMMAND]` | The help, or one command's (`igris COMMAND -h` is the same). |
@@ -512,7 +513,7 @@ template = "{{.At.Format \"15:04\"}} {{.TaskID}} {{.What}}"
 
 `igris init` is safe to re-run: it never overwrites an existing `igris.toml`, appends to `.gitignore` only if `.igris/` isn't ignored yet, and merges its two `igris done` allow rules (`Bash(igris done:*)`, `Bash(igris done *)`) into `.claude/settings.local.json` without touching your other settings. `--example` writes the example plan only when there is none (it prints `kept tasks.md` and leaves an existing plan alone).
 
-`arise`, `adapt` and `notify test` find the nearest `igris.toml` or `.igris/` upward; a folder with neither works only if it has your plan (`tasks.md`, or `adapt --plan`), otherwise igris asks you to run `igris init` and creates nothing.
+`arise`, `adapt`, `draft extend` and `notify test` find the nearest `igris.toml` or `.igris/` upward; a folder with neither works only if it has your plan (`tasks.md`, or `adapt --plan`), otherwise igris asks you to run `igris init` and creates nothing. `draft goal`, `spec` and `import` need no project: outside one they draft into the current folder (creating `.igris/` for the proposal) and never write `igris.toml`.
 
 <details>
 <summary><code>igris check</code>, <code>phases</code> and <code>status</code></summary>

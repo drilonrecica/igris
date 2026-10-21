@@ -1,0 +1,163 @@
+# Draft the plan `plans/v2.md`
+
+Your job: write a task plan igris can run to
+
+```
+.igris/draft/v2.proposed.md
+```
+
+in the canonical igris format (reference at the end of this message). Write only that file. The owner reviews your proposal, and igris writes it to `plans/v2.md` only when the owner accepts it.
+
+## Source: a goal
+
+The owner hasn't said what to build yet. Ask for the goal first, then interview the owner in this chat: who it is for, the constraints and the stack, and what done means. Keep it to a few rounds of questions.
+
+You write only the proposal, so what you learned goes into `## Draft notes` as a short spec summary, and `M0-01` is a `user` task **Write the spec** that asks the owner to write `SPEC.md` from that summary. Every other task depends on it, directly or through its phase.
+
+## Shape
+
+- Start the file with the format marker `<!-- igris:format 1 -->` on a line of its own, then a `#` title and a short introduction.
+- Phases `M0`, `M1`, …, one `##` heading and one task table each, with the columns ID, Task, Deps, Status, Model, Owner and Mode. Task IDs are `M0-01`, `M0-02`, …
+- Each phase ends in a gate, `M0-G` · **M0 gate** · Owner `agent + user` · Model `sonnet`, that depends on the phase's tasks: the owner checks the phase there before the next one starts.
+- A decision (the layout, a library, a protocol) is its own task: Owner `agent + user`, Model `opus`, Mode `plan`.
+- Anything only the owner can do (credentials, accounts, a purchase, a decision only they can make) is a `user` task with Model `—`.
+- Tasks without dependencies are `ready`; every other task is `blocked`.
+- No include lines: the plan is one file.
+
+## Model ranks
+
+The project's `[models]` config (rank → Claude model):
+
+- `opus` → claude-opus-5-5
+- `sonnet` → sonnet
+- `—` for tasks without a session (Owner `user`)
+
+**Ranks are suggestions.** Use `sonnet` for well-specified work and `opus` for decisions, the core design and reviews; never `haiku` or `fable`. When you are unsure, write Model `?`: `igris check` rejects it, so the owner decides.
+
+## Verify profiles
+
+The project's config defines no verify profiles: leave the Verify column out.
+
+Never put a command in a Verify cell: commands live in the owner's `igris.toml`.
+
+## Draft notes
+
+End the proposal with a `## Draft notes` section: one line per task giving its rank and why, and for each `?` what the owner should decide.
+
+```markdown
+## Draft notes
+
+- M1-03 opus: designs the sync protocol
+- M2-01 ?: either a quick script or a service; ask whether it must run unattended
+```
+
+## Finish
+
+Ask the owner in this chat when anything is unclear and wait for the answer. Before finishing, check the proposal with
+
+```
+igris check --plan .igris/draft/v2.proposed.md
+```
+
+and fix every problem it reports except the `?` models. When `.igris/draft/v2.proposed.md` is complete, run this as your very last action:
+
+```
+igris done DRAFT --note "<one-line summary of the plan>"
+```
+
+---
+
+# Reference: the canonical igris plan format
+
+## 3. Canonical plan format
+
+Igris's parser is deterministic and strict. Plans that don't match this format are rejected by `igris check` and can be converted with `igris adapt` (§9).
+
+This is **format 1**, frozen for 1.x (§19), and **format 2** (since 1.2): format 1 plus includes (§3.7), frozen for 1.x too. [`docs/plan-format.md`](docs/plan-format.md) describes it on its own, with examples, for people and tools writing plans; this section and §4 are normative.
+
+**Format marker.** A plan may declare its format with `<!-- igris:format 1 -->` (or `2`) on a line of its own (spaces inside the comment don't matter) before the first `##` heading. Without one it is format 1, forever. A plan with an include line must declare format 2 (§3.7). A marker inside a fenced code block is not one. A marker that isn't a whole number (digits only, at least 1), a second marker, or a marker after the first `##` heading is a validation error. A plan declaring another format is refused with `plan format N needs a newer igris (this igris reads formats 1 and 2)` as its only validation issue (its tables may follow rules this igris doesn't know); `check`, `arise`, `doctor` and the home screen say to upgrade igris rather than suggest `igris adapt`, and the plan writer refuses it. igris 1.0 and 1.1 read format 1 only, so they refuse a format-2 plan the same way.
+
+### 3.1 Phases
+- A phase is a level-2 heading (`## `) whose section contains a task table.
+- **Phase ID** = the first whitespace-delimited token of the heading text (`## M0 — Repository foundation` → `M0`). Matching on the command line is case-insensitive.
+- If the first token is alphabetic and the second is a number (`## Phase 2 — API`), the phase ID is the two tokens joined with a hyphen: `Phase-2`. The second token must be digits only (`## Phase 2: API` has phase ID `Phase`).
+- Only level-2 headings start a phase; `###` and deeper headings stay inside the current phase. Headings and tables inside fenced code blocks (```` ``` ```` / `~~~`) are ignored.
+- Phase IDs must be unique within a plan, compared case-insensitively (`## m0` and `## M0` clash); `[phases.<id>]` in config (§12) matches a phase case-insensitively too.
+- `##` sections without a task table (Legend, Working rules, traceability tables) are ignored. A plan needs at least one task table; a plan without any is a validation error (it is most likely in another format, §9).
+- **Phase order** is file order.
+
+### 3.2 Task tables
+A task table is a GitHub-flavored markdown table whose header row contains at least the columns **ID**, **Status** and **Model** (case-insensitive, with surrounding spaces, tabs, `*` and backticks ignored). Recognized columns:
+
+| Column | Required | Purpose |
+|---|---|---|
+| `ID` | yes | Unique task ID across the whole plan. Pattern: `[A-Za-z0-9][A-Za-z0-9._-]*`. |
+| `Task` | recommended | Description. The first `**bold**` span is used as the task title; otherwise the first 80 characters. |
+| `Deps` | no | Dependencies (§3.4). Missing column = no deps. |
+| `Status` | yes | §3.3. |
+| `Model` | yes | Rank alias or `—` for no model. |
+| `Owner` | no | `agent`, `user`, or `agent + user`. Missing column = `agent`. |
+| `Mode` | no | Per-task run-mode override (§7.2): `default`, `accept`, `auto`, `plan`, `plan:default`, `plan:accept`, `plan:auto`, `plan:yolo`, `yolo`, `manual` (since 1.2), or `—`. |
+| `Verify` | no | Verify profile from config (§6.4), or `none` to skip verification for this task. Never a command. |
+| `Timeout` | no | Go duration (`45m`, `1h30m`) after which a running task is reported overdue (§6.3). Never stops a session. |
+| `Context` | no | Comma-separated repo-relative paths (files or directories) the task prompt names as required reading (§6.1). |
+
+- In `Model` and `Mode`, `—`, `-`, `none` (case-insensitive) and an empty cell all mean "no model" / "no override", as in `Deps`. `Owner` is case-insensitive (`Agent + User` = `agent+user` = `agent + user`); an empty cell means `agent`. `Mode` and `Verify` values are case-insensitive too (`YOLO` = `yolo`); the `Model` rank is case-sensitive (`check` suggests the rank a near miss like `Sonnet` meant).
+- `Verify` and `Timeout` cells are trimmed with surrounding backticks stripped (`` ` none ` `` is `none`). In `Verify`, `Timeout` and `Context`, an empty cell, `—` or `-` means "not set". In `Verify` only, `none` is not "not set": it turns verification off for the task, while an unset cell falls back to the phase's and the project's default (§6.4).
+- `Verify`, `Timeout` and `Context` are checked only on tasks that are not `done` or `skipped`, since igris never runs those; a violation is a validation error:
+  - a Verify profile must be defined in config (§12): `[verify]`, or `default` for `run.verify`; a cell that looks like a command (a space, a `/` or a shell character) is rejected with `Verify "make test" names a profile from [verify], never a command`;
+  - a Timeout must parse as a Go duration of at least `1s` (`0s` and `500ms` fail with "must be at least 1s", a duration too large for Go with "is too large");
+  - each Context entry is trimmed, with surrounding backticks stripped and empty entries and duplicates dropped (entries naming the same path once cleaned, like `docs` and `./docs/`, are one), at most 20 entries. An entry must not be absolute, must have no `..` element, must not name the whole project (`.`; list the files or directories to read), must exist, must not end in `/` when it is a file, and must stay inside the project root once symlinks are resolved (the root's own symlinks included, so a working directory reached through a symlink is fine). The root is the project root for `arise` and the working directory for `check`, `phases` and `status`.
+- On a `user` task these three cells are ignored (there is no session); `check` and `arise` warn about each one that is set.
+- Column names can be aliased in config (`[columns]`, §12), e.g. `Depends on` → `Deps`. A table without a `Deps` column whose header has a column that looks like dependencies (`Depends`, `Depends on`, `Dependencies`, `Requires`, `Blocked by`, …) is still valid, but `check` and `arise` warn that igris reads no dependencies from it.
+- Extra columns (e.g. `Spec`) are preserved untouched and passed to the session prompt as context.
+- Cells are split on **unescaped** pipes only; `\|` inside a cell is literal text (read as `|`; the file keeps `\|`).
+- A table belongs to the phase whose heading most recently preceded it. A phase may contain only one task table; a second one is a validation error, as is a task table before the first `##` heading or a header that names the same column twice. Other tables (e.g. a legend) next to the task table are ignored.
+
+### 3.3 Status values
+`ready`, `blocked`, `in progress`, `done`, `skipped` — case-insensitive, optional surrounding backticks. Anything after the keyword (e.g. `skipped (not needed)`) is kept and ignored for logic.
+
+- **Satisfied** (counts as a met dependency): `done`, `skipped`.
+- **Owned by igris**: igris writes `in progress`, `done`, `skipped`, and recomputes `ready`/`blocked` (§5.2). Sessions are told not to edit Status (§6).
+- An unknown status is a validation error.
+
+### 3.4 Dependencies
+- Empty, `—`, `-` or `none` = no dependencies.
+- Otherwise a comma-separated list of task IDs.
+- **Ranges:** `A…B`, `A...B` or `A..B` expands to every task ID from `A` to `B` inclusive, **in file order**. Both endpoints must exist and `A` must precede `B`. An entry that is itself a task ID is never read as a range (IDs may contain dots). Duplicate entries are ignored.
+- Dependencies may point to tasks in other phases.
+- **External blockers.** A task blocked on something outside the plan (an owner input, a date, a deploy, an answer from a client) depends on a `user` task that names the blocker, e.g. `X-00 · **Wait for API keys from client** · user · —`. Igris notifies when it is the user's turn (§8, §10) and continues once that task is done. The plan format has no other way to say "waiting on the outside", and none is added.
+- Validation errors: unknown ID, self-dependency, dependency cycle, malformed range.
+
+### 3.5 Owners and models
+- `user` tasks must have Model `—`. `agent` and `agent + user` tasks must have a Model that resolves through `[models]` config, except finished ones (`done`, `skipped`): igris never starts a session for them, so their Model may be `—`. Violations are validation errors (igris never guesses a model).
+- An unknown Owner or Mode value is a validation error.
+- A control character (other than tab) in a task row or a phase heading — an escape sequence, say — is a validation error. Parsed cell text never carries one: the TUI, the prompts and the notifications only ever see cleaned text.
+
+Validation reports **every** problem at once, each as `file:line: message` saying what to fix, sorted by line (in a split plan, the file the line is in, sorted in plan order, §3.7); a dependency cycle is reported once with its path (`a → b → a`).
+
+### 3.6 Example
+
+```markdown
+## M0 — Repository foundation
+
+| ID | Task | Deps | Status | Model | Owner |
+|---|---|---|---|---|---|
+| M0-01 | **Go module** — init module, pin Go version | — | ready | sonnet | agent |
+| M0-02 | **Entrypoint** — main.go with subcommands | M0-01 | blocked | sonnet | agent |
+| M0-03 | **Crypto envelope** — `v1 \| nonce \| ciphertext` | M0-01 | blocked | opus | agent |
+| M0-G | **M0 gate** — owner smoke test | M0-02…M0-03 | blocked | sonnet | agent + user |
+```
+
+### 3.7 Includes (format 2)
+Since 1.2 a plan may be split across files (decisions.md V12-P2). The **main plan** is the file igris is pointed at (`--plan`, `plan` in config); the files it includes are part of the plan.
+
+- **Syntax.** `<!-- igris:include PATH -->` on a line of its own (spaces inside the comment don't matter). A line inside a fenced code block is not one. PATH is the text between `igris:include` and `-->`, trimmed, without quoting, and must end in `.md`.
+- **Format 2.** A plan with an include line must declare `<!-- igris:format 2 -->`; without that marker (or with `1`) each include line is a validation error saying to add it. Only the main plan's marker counts; an included file may declare format 1 or 2 (so it can be checked on its own), and any other value is an error at its line.
+- **Where.** Anywhere in the main plan outside a fenced code block. The included file's phases take the line's place: **plan order** (what "file order" means in §3.1, §3.4, §5 and §5.5) is the order of the plan with each include line replaced by its file. An include line ends the current section, so a task table after it and before the next `##` heading is an error. Text in an included file before its first `##` heading is prose.
+- **One level.** Only the main plan includes; an include line in an included file is an error. Each file is included at most once: a second include of a file, or of the main plan, is an error naming the first.
+- **Paths.** Relative to the main plan's directory. Not absolute, not starting with `~`, no `..` element. Once symlinks are resolved (the root's own included), the file must be inside the root Context paths are checked against (§3.2), must not be the main plan and must not be under `.igris/`. It is read as a regular file, following symlinks as the plan is, never blocking (§16).
+- **Limits.** Each file, and all files of the plan together, at most 16 MiB; at most 32 files, the main plan included.
+- **IDs.** Phase and task IDs are unique across all files; a clash names both places (`phases/v2.md:12: task V2-01 is also in tasks.md:40`). Dependencies may point into any file; a range follows plan order.
+- **Errors** name the file the line is in, its path being the main plan's directory joined with the include's path. A problem with an include (missing, outside the root, not `.md`, too large, too many files, included twice, nested, no format 2) is reported at the include line. Context paths (§3.2) stay relative to the root wherever the row is.
+- The `--json` output of `check`, `phases` and `status` adds `file` to each phase and a `files` list (the main plan first).

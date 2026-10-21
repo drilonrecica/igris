@@ -57,7 +57,7 @@ func TestOpenCreatesPrivateDirs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, dir := range []string{d.Path(), d.SignalsDir(), d.PromptsDir(), d.AdaptDir()} {
+	for _, dir := range []string{d.Path(), d.SignalsDir(), d.PromptsDir(), d.AdaptDir(), d.DraftDir()} {
 		if got := perm(t, dir); got != 0o700 {
 			t.Errorf("%s perm = %o, want 700", dir, got)
 		}
@@ -87,6 +87,7 @@ func TestLayout(t *testing.T) {
 		d.SignalsDir():                    in("signals"),
 		d.PromptsDir():                    in("prompts"),
 		d.AdaptDir():                      in("adapt"),
+		d.DraftDir():                      in("draft"),
 		HooksDir(root):                    in("hooks"),
 		AgentStateDir(root):               in("agent-state"),
 		filepath.Join(root, WorktreesDir): in("worktrees"),

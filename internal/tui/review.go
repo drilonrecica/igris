@@ -15,10 +15,20 @@ import (
 	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
-// ReviewOptions configure the review of an `igris adapt` proposal.
+// ReviewOptions configure the review of an `igris adapt` or `igris draft`
+// proposal.
 type ReviewOptions struct {
 	Mouse bool
 	Theme string // "auto", "dark" or "light", as [tui] theme
+	// Command names the review in its title: "igris draft"; "" is
+	// "igris adapt".
+	Command string
+	// Note is a line under the validation result, e.g. draft's
+	// "ranks are suggestions: 12 set, 2 left at ?" (SPEC §9.1).
+	Note string
+	// NewPlan says Accept creates the plan rather than replacing it, for
+	// the second confirmation's wording.
+	NewPlan bool
 	// PlanPath is the plan the proposal would replace, as shown.
 	PlanPath string
 	// ProposalPath is where the proposal was written; `y` copies it.
@@ -159,11 +169,15 @@ func (r *review) activate(a action) tea.Cmd {
 		return r.finish(false)
 	case actAccept:
 		if len(r.o.Issues) > 0 {
+			verb := "Replace"
+			if r.o.NewPlan {
+				verb = "Write"
+			}
 			r.dialog = &dialog{
-				title: "Replace the plan anyway?",
+				title: verb + " the plan anyway?",
 				detail: fmt.Sprintf("The proposal has %d problem(s) igris check rejects, e.g. models left at ?. "+
 					"igris arise refuses the plan until you fix them.", len(r.o.Issues)),
-				options: []option{{"Keep reviewing", actClose}, {"Replace anyway", actAcceptAnyway}},
+				options: []option{{"Keep reviewing", actClose}, {verb + " anyway", actAcceptAnyway}},
 				cancel:  actClose,
 			}
 			return nil
@@ -199,11 +213,18 @@ func (r *review) View() string {
 		return strings.Join(box[:min(len(box), h)], "\n")
 	}
 
-	out := []string{
-		fit(r.th.paint(lookTitle, "igris adapt · review "+r.o.PlanPath)+r.th.paint(lookDim, " · "+r.o.Review.Summary()), w),
-		fit(r.status(), w),
-		r.th.paint(lookFrame, strings.Repeat("─", w)),
+	command := r.o.Command
+	if command == "" {
+		command = "igris adapt"
 	}
+	out := []string{
+		fit(r.th.paint(lookTitle, command+" · review "+r.o.PlanPath)+r.th.paint(lookDim, " · "+r.o.Review.Summary()), w),
+		fit(r.status(), w),
+	}
+	if r.o.Note != "" {
+		out = append(out, fit(r.th.paint(lookDim, clean(r.o.Note)), w))
+	}
+	out = append(out, r.th.paint(lookFrame, strings.Repeat("─", w)))
 	if r.bodyW != w {
 		r.body, r.bodyW = r.layout(w), w
 	}

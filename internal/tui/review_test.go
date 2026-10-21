@@ -167,6 +167,39 @@ func TestReviewView(t *testing.T) {
 	}
 }
 
+// A draft review names draft, counts the ranks under the validation result
+// and asks to write, not replace, an invalid new plan (SPEC §9.1).
+func TestReviewDraft(t *testing.T) {
+	o := ReviewOptions{
+		Command:  "igris draft",
+		Note:     "ranks are suggestions: 3 set, 1 left at ?\x1b[2J",
+		NewPlan:  true,
+		PlanPath: "tasks.md",
+		Review:   adapt.LineReview(nil, []byte(reviewNew)),
+		Issues:   []string{`p.md:5: W-1: model not set yet ("?")`},
+	}
+	rh := newReviewHarness(t, 80, 20, o)
+	out := rh.r.View()
+	lines := strings.Split(out, "\n")
+	if len(lines) != 20 {
+		t.Errorf("%d lines, want exactly the 20 of the terminal", len(lines))
+	}
+	if !strings.HasPrefix(lines[0], "igris draft · review tasks.md · +5 −0 lines") || !strings.HasPrefix(lines[2], "ranks are suggestions: 3 set, 1 left at ?") {
+		t.Errorf("header:\n%s", strings.Join(lines[:4], "\n"))
+	}
+	if strings.Contains(out, "\x1b[2J") {
+		t.Error("the note's escape sequence reached the terminal")
+	}
+	rh.keys("a")
+	if rh.r.dialog == nil || rh.r.dialog.title != "Write the plan anyway?" || rh.r.dialog.options[1].label != "Write anyway" {
+		t.Fatalf("dialog = %+v", rh.r.dialog)
+	}
+	rh.keys("2")
+	if !rh.quit || !rh.r.accepted {
+		t.Error("Write anyway did not accept")
+	}
+}
+
 func TestReviewFoldsUnchangedLines(t *testing.T) {
 	var old, proposed []string
 	for i := range 40 {

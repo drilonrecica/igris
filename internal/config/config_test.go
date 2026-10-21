@@ -167,6 +167,7 @@ func TestParseErrors(t *testing.T) {
 		{"bad mode", `default_mode = "bypass"`, []string{`default_mode = "bypass"`, "default, accept, auto, plan, plan:default, plan:accept, plan:auto, plan:yolo, yolo, manual"}},
 		{"bad commit", "[run]\ncommit = \"sometimes\"", []string{"run.commit"}},
 		{"bad adapt model", "[adapt]\nmodel = \"haiku\"", []string{"adapt.model", "sonnet, opus"}},
+		{"bad draft model", "[draft]\nmodel = \"fable\"", []string{"draft.model", "sonnet, opus"}},
 		{"zero attempts", "[run]\nverify_max_attempts = 0", []string{"verify_max_attempts"}},
 		{"empty plan", `plan = ""`, []string{"plan must not be empty"}},
 		{"empty model value", "[models]\nopus = \"\"", []string{"models.opus"}},
@@ -1152,6 +1153,33 @@ func TestSide(t *testing.T) {
 	// The unset default needn't be a rank: the dialog picks another.
 	if _, err := Parse([]byte("[models]\nsmall = \"haiku\"\n"), "igris.toml"); err != nil {
 		t.Errorf("no sonnet rank: %v", err)
+	}
+}
+
+func TestDraft(t *testing.T) {
+	d := Default()
+	if d.Draft.ModelOrDefault() != "opus" || d.Hash() != v04DefaultHash {
+		t.Errorf("default: model %s, hash changed %v", d.Draft.ModelOrDefault(), d.Hash() != v04DefaultHash)
+	}
+	c, err := Parse([]byte("[draft]\nmodel = \"sonnet\"\n"), "igris.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Draft.ModelOrDefault() != "sonnet" || c.Hash() == v04DefaultHash {
+		t.Errorf("set: model %s, hash unchanged %v", c.Draft.ModelOrDefault(), c.Hash() == v04DefaultHash)
+	}
+	path := filepath.Join(t.TempDir(), "igris.toml")
+	if err := Write(path, c); err != nil {
+		t.Fatal(err)
+	}
+	if back, err := Load(path); err != nil || back.Draft.ModelOrDefault() != "sonnet" {
+		t.Errorf("Write and Load lost [draft]: %v", err)
+	}
+	if err := Write(path, Default()); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(path); strings.Contains(string(data), "[draft]") { //nolint:gosec // test temp dir
+		t.Error("an unset [draft] was written")
 	}
 }
 

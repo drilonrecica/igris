@@ -1,0 +1,91 @@
+{{- /* igris draft prompt (SPEC §9.1). Sent as the first user message of the draft session. */ -}}
+# Draft the plan `{{.PlanFile}}`
+
+Your job: write a task plan igris can run to
+
+```
+{{.ProposalFile}}
+```
+
+in the canonical igris format (reference at the end of this message). Write only that file. The owner reviews your proposal, and igris writes it to `{{.PlanFile}}` only when the owner accepts it.
+{{- if eq .Source "goal"}}
+
+## Source: a goal
+{{if .Goal}}
+The owner's goal:
+
+```
+{{.Goal}}
+```
+
+Interview the owner in this chat before you write anything: who it is for, the constraints and the stack, and what done means. Keep it to a few rounds of questions.
+{{- else}}
+The owner hasn't said what to build yet. Ask for the goal first, then interview the owner in this chat: who it is for, the constraints and the stack, and what done means. Keep it to a few rounds of questions.
+{{- end}}
+
+You write only the proposal, so what you learned goes into `## Draft notes` as a short spec summary, and `M0-01` is a `user` task **Write the spec** that asks the owner to write `SPEC.md` from that summary. Every other task depends on it, directly or through its phase.
+{{- end}}
+
+## Shape
+
+- Start the file with the format marker `<!-- igris:format 1 -->` on a line of its own, then a `#` title and a short introduction.
+- Phases `M0`, `M1`, …, one `##` heading and one task table each, with the columns ID, Task, Deps, Status, Model, Owner and Mode. Task IDs are `M0-01`, `M0-02`, …
+- Each phase ends in a gate, `M0-G` · **M0 gate** · Owner `agent + user` · Model `sonnet`, that depends on the phase's tasks: the owner checks the phase there before the next one starts.
+- A decision (the layout, a library, a protocol) is its own task: Owner `agent + user`, Model `opus`, Mode `plan`.
+- Anything only the owner can do (credentials, accounts, a purchase, a decision only they can make) is a `user` task with Model `—`.
+- Tasks without dependencies are `ready`; every other task is `blocked`.
+- No include lines: the plan is one file.
+
+## Model ranks
+
+The project's `[models]` config (rank → Claude model):
+
+{{range .Models}}- `{{.Rank}}` → {{.Model}}
+{{end -}}
+- `—` for tasks without a session (Owner `user`)
+
+**Ranks are suggestions.** Use `sonnet` for well-specified work and `opus` for decisions, the core design and reviews; never `haiku` or `fable`. When you are unsure, write Model `?`: `igris check` rejects it, so the owner decides.
+
+## Verify profiles
+
+{{if .Verify -}}
+A Verify column is optional. Its cells may name one of these profiles from the project's `[verify]` config, or `none`:
+{{range .Verify}}
+- `{{.}}`
+{{- end}}
+{{- else -}}
+The project's config defines no verify profiles: leave the Verify column out.
+{{- end}}
+
+Never put a command in a Verify cell: commands live in the owner's `igris.toml`.
+
+## Draft notes
+
+End the proposal with a `## Draft notes` section: one line per task giving its rank and why, and for each `?` what the owner should decide.
+
+```markdown
+## Draft notes
+
+- M1-03 opus: designs the sync protocol
+- M2-01 ?: either a quick script or a service; ask whether it must run unattended
+```
+
+## Finish
+
+Ask the owner in this chat when anything is unclear and wait for the answer. Before finishing, check the proposal with
+
+```
+igris check --plan {{.ProposalFile}}
+```
+
+and fix every problem it reports except the `?` models. When `{{.ProposalFile}}` is complete, run this as your very last action:
+
+```
+{{.DoneCommand}} --note "<one-line summary of the plan>"
+```
+
+---
+
+# Reference: the canonical igris plan format
+
+{{.Format}}
