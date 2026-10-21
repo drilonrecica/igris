@@ -119,6 +119,12 @@ func (m *homeScreen) updatePick(a action) tea.Cmd {
 	case actQuit:
 		m.updating, m.dialog = nil, nil
 		return quitApp
+	case actCopy:
+		if !hasOption(m.dialog, actCopy) {
+			return nil
+		}
+		m.setStatus(copyNotice(m.out, strings.Join(t.check.Install.Steps, "\n")) + ": the steps to update igris")
+		return nil
 	}
 	// Close, Not now, Cancel.
 	m.dialog = nil
@@ -239,6 +245,9 @@ func (m *homeScreen) checkedDialog(d *dialog) {
 		}
 		b.WriteString("The ssh-keygen line must print Good \"file\" signature for igris.")
 		d.detail = b.String()
+		// The steps wrap at the dialog's width, so copying them from the
+		// terminal would break them; y copies them whole (OSC 52).
+		d.options = []option{{"Copy steps (y)", actCopy}, {"Close", actClose}}
 		return
 	}
 	b.WriteString(" · installed with " + in.Method.String() + "\n")

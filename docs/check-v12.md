@@ -32,3 +32,24 @@ Status was written in the file each row lives in: `S0-01` `done` in `tasks.md`, 
 - An older `igris` on `PATH` (1.1.0 here) is what a task session runs for `igris done`, so a split plan run needs igris 1.2 everywhere: 1.1 skipped the included phase, `igris done S1-01` failed with it and the session reported it to the owner. This is the documented behavior (README, plan format), not a bug; the first herdr attempt hit it before the gate build was put on `PATH`.
 - An appended blank line is not a plan edit: igris compares rows, not bytes, so only a changed cell holds the run.
 - A side session in `default` mode on this machine showed `auto mode on` in its footer: `default` leaves the choice to Claude Code's own settings, which here default to auto. The recorded mode in `.igris/side/<id>.json` is `default`.
+
+## Updater (V12-G2)
+
+The update check added after the gate (V12-P4, V12-09), run on 2026-10-21 against the real GitHub releases API (latest release v1.1.0) with builds of `master` at `a164804` that claim other versions: `-X main.version=1.1.0`, a plain `go build` (development), and `-X main.version=1.0.0` at a plain path and at a `…/Cellar/igris/1.0.0/bin/igris` path. Home ran in a herdr tab the owner watched.
+
+| Case | Result |
+|---|---|
+| Up to date (1.1.0) | `u` on home: **igris is up to date** · `igris 1.1.0 is the latest release.` · Close |
+| Development build | **Development build**: names the pseudo-version, says igris doesn't update it, links v1.1.0; no Update |
+| Archive (1.0.0, plain path) | **igris 1.1.0 is out**: `1.0.0 → 1.1.0`, "can't tell how it was installed, so it runs nothing", the release link and the download, verify and install steps; Close only. The same steps run by hand from `igris update --check` downloaded 1.1.0, printed `Good "file" signature for igris`, passed the checksum and installed `igris 1.1.0` |
+| Homebrew (1.0.0, Cellar path) | `installed with Homebrew`, `Update runs: brew upgrade igris`, the note on runs in other projects, **Update** · Not now. With no `brew` on the host, Update showed **Update failed** naming the missing `brew`, also in the feed |
+| During a run | A real `arise P1 --only P1-04` (a user task) held the lock in a second pane; home showed `RUNNING ELSEWHERE` and the Homebrew dialog said `Update after the run ends: a run holds this project.` with Close only |
+| Real Homebrew upgrade | In the `homebrew/brew` container: the tap's previous formula installed igris 1.0.0, its binary was swapped for the 1.0.0-claiming build (1.0.0 itself has no `update`), the current formula restored; `igris update --yes` ran `brew upgrade igris`, which upgraded to 1.1.0, and printed `Updated: igris in PATH is now 1.1.0.` (exit 0); `igris` then resolved to `Cellar/igris/1.1.0` |
+| CLI edges | No terminal and no `--yes` on a Homebrew install: exit 1, `pass --yes to update without asking`; an unknown flag: usage, exit 2 |
+
+Not run: a real `go install` update. It needs a pushed tag newer than the running build, so it is first possible from 1.2.0 to the next release; the command, its `GOBIN` and the checksum-lag hint are covered by tests.
+
+Findings:
+- In the TUI dialog the archive steps wrap at the dialog's width (the archive URL, a long install path), so steps copied from the terminal break; `igris update --check` prints them unwrapped. **Fixed:** the dialog has **Copy steps (y)**, which copies them whole (OSC 52, as the other Copy actions).
+- A missing `brew` read `"brew" not found in PATH; install it or fix PATH: exec: "brew": executable file not found in $PATH`: the runner's wrapped error repeated itself. **Fixed** in the runner for every command: the text says it once and the error is still `exec.ErrNotFound` (`TestExecNotFound`); re-run: `run brew upgrade igris: "brew" not found in PATH; install it or fix PATH`, exit 1.
+- The `igris-path` warning (V12-F2) showed at `arise` start in the scratch project, as intended (the `igris` in PATH is 1.1.0).

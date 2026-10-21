@@ -372,7 +372,7 @@ func (m *homeScreen) key(msg tea.KeyMsg) tea.Cmd {
 				return cmd
 			}
 		}
-		if k == "y" && m.editing != nil {
+		if k == "y" && (m.editing != nil || (m.updating != nil && m.updating.open && hasOption(m.dialog, actCopy))) {
 			return m.pick(actCopy)
 		}
 		a, _ := m.dialog.key(msg)

@@ -17,8 +17,8 @@
 │   https://raw.githubusercontent.com/drilonrecica/igris/v1.2.0/allowed_signe │
 │   rs                                                                        │
 │   ssh-keygen -Y verify -f allowed_signers -I igris -n file -s               │
-│   checksums.txt.sig < checksums.txt                                         │
-│   sha256sum --ignore-missing -c checksums.txt …                             │
+│   checksums.txt.sig < checksums.txt …                                       │
 │                                                                             │
-│ › 1. Close                                                                  │
+│ › 1. Copy steps (y)                                                         │
+│   2. Close                                                                  │
 ╰─────────────────────────────────────────────────────────────────────────────╯

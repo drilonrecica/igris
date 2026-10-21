@@ -217,9 +217,20 @@ func (Exec) Run(ctx context.Context, c Cmd) (Result, error) {
 	case errors.As(err, &exitErr) && exitErr.Exited():
 		res.ExitCode = exitErr.ExitCode()
 	case errors.Is(err, exec.ErrNotFound):
-		return res, fmt.Errorf("run %s: %q not found in PATH; install it or fix PATH: %w", c, c.Name, err)
+		return res, notFoundError{fmt.Sprintf("run %s: %q not found in PATH; install it or fix PATH", c, c.Name), err}
 	default:
 		return res, fmt.Errorf("run %s: %w", c, err)
 	}
 	return res, nil
 }
+
+// notFoundError is a command that isn't in PATH. Its text says so once:
+// exec's own error, which would repeat it, is only kept for errors.Is
+// (exec.ErrNotFound).
+type notFoundError struct {
+	msg string
+	err error
+}
+
+func (e notFoundError) Error() string { return e.msg }
+func (e notFoundError) Unwrap() error { return e.err }

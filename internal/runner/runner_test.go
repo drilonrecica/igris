@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -327,5 +328,21 @@ func TestExecOutputIsBounded(t *testing.T) {
 	}
 	if len(res.Stdout) != maxOutput || !bytes.HasSuffix(res.Stdout, []byte("aEND\n")) {
 		t.Errorf("kept %d bytes ending %q, want %d ending in END", len(res.Stdout), res.Stdout[max(0, len(res.Stdout)-8):], maxOutput)
+	}
+}
+
+// A command that isn't in PATH says so once, with what to do, and is still
+// exec.ErrNotFound for callers that check.
+func TestExecNotFound(t *testing.T) {
+	_, err := Exec{}.Run(context.Background(), Cmd{Name: "igris-no-such-command", Args: []string{"x"}, Timeout: time.Second})
+	if err == nil {
+		t.Fatal("want an error")
+	}
+	if !errors.Is(err, exec.ErrNotFound) {
+		t.Errorf("errors.Is(err, exec.ErrNotFound) = false for %v", err)
+	}
+	msg := err.Error()
+	if n := strings.Count(msg, "not found"); n != 1 || !strings.Contains(msg, `"igris-no-such-command" not found in PATH; install it or fix PATH`) {
+		t.Errorf("error = %q, want the not-found reason once", msg)
 	}
 }

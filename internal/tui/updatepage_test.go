@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -208,5 +209,36 @@ func TestUpdateNotInTheRunView(t *testing.T) {
 	}
 	if homeShortcuts["u"] != actUpdate {
 		t.Error("home doesn't map u to Check for updates")
+	}
+}
+
+// y in the archive dialog copies the steps whole (they wrap on screen);
+// dialogs without Copy steps copy nothing.
+func TestUpdateCopySteps(t *testing.T) {
+	y := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")}
+	cases := []struct {
+		name  string
+		check update.Check
+		want  string
+	}{
+		{"archive", archiveCheck, osc52Of(strings.Join(archiveCheck.Install.Steps, "\n"))},
+		{"brew", brewCheck, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			m := updateHome(120, 40, "ready", updateTarget{step: updChecked, check: c.check})
+			var out bytes.Buffer
+			m.out = &out
+			m.key(y)
+			if got := out.String(); got != c.want {
+				t.Fatalf("copied %q, want %q", got, c.want)
+			}
+			if c.want != "" && !strings.Contains(m.View(), "copied: the steps to update igris") {
+				t.Errorf("no copied notice in the view:\n%s", m.View())
+			}
+			if m.dialog == nil {
+				t.Error("copying closed the dialog")
+			}
+		})
 	}
 }
