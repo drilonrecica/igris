@@ -337,7 +337,7 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 		started.Branch = e.run.Worktree.Branch
 	}
 	e.log(started)
-	e.emit(Event{Kind: RunStarted, Detail: scope, Slice: e.rng.sliceIDs()})
+	e.emit(Event{Kind: RunStarted, Run: e.runID, Detail: scope, Slice: e.rng.sliceIDs()})
 	e.announceWorktree(reused)
 
 	if e.configMoved {

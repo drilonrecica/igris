@@ -141,6 +141,16 @@ What igris protects, from whom, where the boundaries are, and which test enforce
 | A vulnerable dependency or toolchain | Pinned Go toolchain, govulncheck on push and weekly, an SBOM per archive (SPEC §18). |
 | A build that isn't what the source says | The reproducible-build check builds the same commit on Linux and macOS and compares (SPEC §18). |
 
+### B8 — `igris serve` ↔ attached clients (since 1.4)
+
+| Threat | Mitigation |
+|---|---|
+| Another user drives the run through its socket | The socket is 0600 in the 0700 `.igris/`, or in a 0700 directory of the user's own (not a symlink) when the path is too long; on Linux serve checks each peer's uid (`SO_PEERCRED`) and closes any other user's connection (SPEC §13, §16). |
+| A client sends huge, malformed or unexpected messages | Lines over 1 MiB, non-JSON, another protocol version, anything before `hello` and a bad command id end the connection; command text is bounded to 16 KiB and cleaned, task IDs and choices are shape-checked, and a command passes the engine's own checks, as the TUI's do (SPEC §13, §16). |
+| A client that stops reading stalls the run | Each client has a bounded queue (4 MiB, 4096 messages) written by its own goroutine; a full queue drops the client, never blocks the engine (SPEC §13). |
+| A session points clients at a socket of its own through `.igris/igris.sock.path` | The file is read bounded, never through a symlink, and used only when it names this root's fallback path (SPEC §13). |
+| A client switches the run to skip-permissions mode | Only with the phrase typed in that client (the `mode` command's `yes`), checked by the engine as for the TUI (SPEC §7.3). |
+
 ## Accepted risks
 
 1. **Verify and git hooks run session-written code as the owner.** That is what verifying means. The permission mode the owner chooses limits what a session may write; worktree mode keeps it on a branch; the env rules keep the notification secrets out.
@@ -164,6 +174,8 @@ What igris protects, from whom, where the boundaries are, and which test enforce
 19. **A split plan needs igris 1.2 everywhere** (V12-P2): an include line is an HTML comment to igris 1.0 and 1.1, which would run the main file's phases only. The format-2 marker a plan with includes must declare makes them refuse it (`plan format 2 needs a newer igris`), so a machine with an older igris stops instead of running part of the plan. A session can still write an include into a plan that declares format 2; that is a plan edit and holds the run (B2).
 20. **A session can rewrite an included file as it can rewrite the plan**: the Status writer only ever changes Status cells, but a session in `accept`, `auto` or `plan`-continued mode can edit any file of the plan, included or not. The planwatch compares every row of every file and holds the run (R48), so a change is reported, not applied; the owner decides.
 21. **The update trusts the package manager that installed igris** (V12-P4): `igris update` runs `brew upgrade igris` or `go install …@vX.Y.Z` as the owner, with igris's environment minus the notification secrets' variables, and the new binary is as good as the tap's formula or the Go module proxy and checksum database. A forged answer to the check can only name a version: a higher one that doesn't exist makes `go install` fail (or Homebrew upgrade to what its tap has), and it never makes igris download anything. A machine that reaches GitHub through a proxy it doesn't trust should not use `igris update`.
+
+22. **Any process of the owner's user can drive a run over the socket** (V14-P1): it can attach, answer questions, skip, stop and switch modes, skip-permissions included with the `yes` a client sends after its owner typed the phrase. Such a process can already edit the plan, `igris.toml` and `.igris/`, and run `claude` itself; the socket is guarded against other users, not against the owner's own programs.
 
 ## Reviews
 
@@ -270,5 +282,10 @@ One row per safety rule. The tests are named `package.TestName`; `tools/threatmo
 | R51 | The update check runs only when the owner asks; GitHub's answer is read with a timeout and at most 1 MiB, and only a `vX.Y.Z` tag is used, none of its text shown | §1, §14, §16 | `internal/update.TestLatest`, `internal/update.TestLatestNetworkErrors`, `cmd/igris.TestUpdateCheck`, `internal/tui.TestUpdateNotInTheRunView` |
 | R52 | The update command is built from the version only, runs as argv with a timeout after the owner confirms, never during a run on home, and without the notification secrets' variables; igris never replaces its own binary | §14, §15.6, §16 | `internal/update.TestDetectAndFor`, `internal/update.TestRun`, `cmd/igris.TestUpdateAsks`, `cmd/igris.TestUpdateYes`, `internal/project.TestServicesUpdate`, `internal/tui.TestUpdateNotDuringARun` |
 | R53 | The update trusts the package manager that installed igris | §14 | accepted (see Accepted risks 21) |
+| R54 | Only the owner's user reaches the run's socket: 0600 in a 0700 directory of the user's own, never a symlink; on Linux the peer's uid is checked | §13, §16 | `internal/serve.TestRealSocket`, `internal/serve.TestServeRefusesAnotherUser`, `internal/serve.TestPeerUID`, `internal/serve.TestListenFallback`, `internal/serve.TestListenFallbackDirSymlink`, `internal/serve.TestListenStaleLiveAndInTheWay` |
+| R55 | Every socket message is bounded and shape-checked before it reaches the engine; malformed input ends the connection | §13, §16 | `internal/serve.TestMalformedEndsConnection`, `internal/serve.TestCommandsRefused`, `internal/serve.TestCommandsMirrorEngine`, `internal/serve.TestEventLinesAreBounded` |
+| R56 | A slow client is dropped, never waited for; the engine is never blocked by a client | §13 | `internal/serve.TestSlowClientDropped`, `internal/serve.TestSlowClientDroppedByBytes` |
+| R57 | `.igris/igris.sock.path` is used only when it names this root's fallback socket | §13 | `internal/serve.TestSocketPathIgnoresForeignPathFile` |
+| R58 | Any process of the owner's user can drive a run over the socket | §16 | accepted (see Accepted risks 22) |
 | R29 | Verify and git hooks run session-written code as the owner | §16 | accepted (see Accepted risks 1) |
 | R30 | A session can forge hook state, moving Needs you within `waiting_limit` | §6.3 | accepted (see Accepted risks 3) |

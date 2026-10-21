@@ -6,7 +6,7 @@ What igris 1.x promises not to break, how versions are marked, and how to upgrad
 
 From 1.0 until 2.0, everything listed in the map below keeps working unchanged. 1.x may **add**: new optional plan columns, config keys with defaults, commands and flags, JSON fields, run-log event types, template variables. It never removes anything listed or changes what it means. Something deprecated in 1.x keeps working, with a warning, until 2.0.
 
-Not promised: the TUI (layout, keys, colors), the default task prompt's wording, text output (use `--json`), the hidden `hook` and `__complete` commands, the contents of `.igris/agent-state/`, `hooks/`, `prompts/`, `config/` and `igris.lock`, the text of ntfy, Discord, Slack, Gotify and backend notifications, and igris's Go packages.
+Not promised: the TUI (layout, keys, colors), the default task prompt's wording, text output (use `--json`), the hidden `hook` and `__complete` commands, the contents of `.igris/agent-state/`, `hooks/`, `prompts/`, `config/`, `serve.log` and `igris.lock`, snapshot fields beyond the documented ones, the text of ntfy, Discord, Slack, Gotify and backend notifications, and igris's Go packages.
 
 ## Versions in files
 
@@ -17,6 +17,7 @@ Not promised: the TUI (layout, keys, colors), the default task prompt's wording,
 | `.igris/runs.jsonl` | `"v": 1` per line; none on lines from igris ≤ 0.4 | Ignore event types and fields you don't know. ([run log](runlog.md)) |
 | `.igris/state.json` | `"version"`: 3 from 0.7; 1 and 2 before | igris reads and upgrades older versions; a newer one says to upgrade igris. |
 | The generic webhook | `"v": 1` in the payload | Ignore fields you don't know. |
+| The run's socket (since 1.4) | `"v": 1` on every message | Stays 1 in 1.x: any 1.x client attaches to any 1.x `igris serve`. Ignore fields and message types you don't know. |
 
 ## Upgrading
 
@@ -41,3 +42,4 @@ One row per frozen surface. `tools/contract` fails when a named test no longer e
 | C11 | The generic webhook: payload, `X-Igris-Event`, `X-Igris-Signature` | §10 | `internal/notify.TestWebhookSend` |
 | C12 | The task-hook environment: `IGRIS_TASK_ID`, `IGRIS_PHASE`, `IGRIS_RANK`, `IGRIS_MODEL`, `IGRIS_RESULT` | §6.7 | `internal/engine.TestHooksRunAroundEachSession` |
 | C13 | What every release wrote still loads: configs, plans, signals, state, run logs | §17, §19 | `cmd/igris.TestCompatConfigsAndPlans`, `cmd/igris.TestCompatSignals`, `cmd/igris.TestCompatState`, `cmd/igris.TestCompatRunLogs`, `cmd/igris.TestCompatEveryRelease` |
+| C14 | Socket protocol 1 (since 1.4): `.igris/igris.sock` and `.igris/igris.sock.path`, the framing, `hello`, `snapshot` and its documented fields, events with the run log's v1 envelope, the commands, `ack`, `error`, `tail` | §13, §19 | `internal/serve.TestEventEnvelope`, `internal/serve.TestHelloSnapshotThenEvents`, `internal/serve.TestCommandsMirrorEngine`, `internal/serve.TestMalformedEndsConnection`, `internal/serve.TestSnapshotTracksTheRun`, `internal/serve.TestRealSocket`, `internal/serve.TestListenFallback` |

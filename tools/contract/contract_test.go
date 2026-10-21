@@ -24,6 +24,7 @@ var frozen = map[string]string{
 	"Template variables":        "C10",
 	"The generic webhook":       "C11",
 	"The task-hook environment": "C12",
+	"Socket protocol 1":         "C14",
 }
 
 // Every row names tests that exist, and every surface SPEC §19 freezes has

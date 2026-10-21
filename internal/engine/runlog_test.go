@@ -54,6 +54,10 @@ func TestRunLogV1Fields(t *testing.T) {
 			t.Errorf("%s line: v %d, run %q; want v1 and the run ID on every line", e.Type, e.V, e.Run)
 		}
 	}
+	// The run_started event carries the same ID, for the socket (SPEC §13).
+	if got := h.event(RunStarted, "").Run; got != runID {
+		t.Errorf("RunStarted event run %q, want %q", got, runID)
+	}
 
 	started := logged1(t, events, state.EventTaskStarted, "A-1")
 	sessionID := arg(h.be.Opened()[0], "--session-id")
