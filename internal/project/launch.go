@@ -62,7 +62,7 @@ func (p *Project) Prelaunch(ctx context.Context, be backend.Backend, req report.
 	o := checks.Options{
 		IDs:  []string{checks.IDIgrisPath, checks.IDHerdrIntegration, checks.IDClaude, checks.IDHerdr, checks.IDTmux, checks.IDConfig, checks.IDPlanHints, checks.IDAPIKey, checks.IDGit},
 		Root: p.Root, Runner: p.env.runner(), Getenv: p.env.getenv(), Versions: p.env.versions(),
-		Config: p.Cfg, BackendName: BackendName(p.Cfg, p.env.getenv()), Self: p.env.self(), Version: p.env.Version,
+		Config: p.Cfg, BackendName: backendName(p.Cfg, p.env.getenv(), p.env.Serve), Self: p.env.self(), Version: p.env.Version,
 	}
 	if integration, ok := be.(checks.Integration); ok {
 		o.Integration = integration

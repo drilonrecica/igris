@@ -299,3 +299,12 @@ eval "$SCRIPT"; words=(igris report 2026); CURRENT=3; PREFIX=2026; _igris`},
 		})
 	}
 }
+
+// The fish script quotes each description in single quotes, unescaped.
+func TestCompletionDescsHaveNoQuote(t *testing.T) {
+	for name, d := range compDescs {
+		if strings.ContainsRune(d, '\'') {
+			t.Errorf("%s: description %q has a single quote", name, d)
+		}
+	}
+}

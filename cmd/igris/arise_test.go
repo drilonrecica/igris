@@ -409,6 +409,9 @@ type triggerWriter struct {
 	buf     bytes.Buffer
 	stdin   io.Writer
 	replies [][2]string
+	// actions run once, in a goroutine of their own, the first time the
+	// output contains their pattern.
+	actions map[string]func()
 }
 
 func (w *triggerWriter) Write(p []byte) (int, error) {
@@ -419,6 +422,12 @@ func (w *triggerWriter) Write(p []byte) (int, error) {
 		if r[0] != "" && strings.Contains(w.buf.String(), r[0]) {
 			w.replies[i][0] = ""
 			go func(line string) { _, _ = io.WriteString(w.stdin, line+"\n") }(r[1])
+		}
+	}
+	for pattern, fn := range w.actions {
+		if strings.Contains(w.buf.String(), pattern) {
+			delete(w.actions, pattern)
+			go fn()
 		}
 	}
 	return n, nil
@@ -454,6 +463,8 @@ func staleConfigRun(root string) {
 }
 
 type noTUIRun struct {
+	// cmd is the command run, arise when empty.
+	cmd        string
 	plan, toml string
 	args       []string
 	apiKey     string
@@ -465,6 +476,8 @@ type noTUIRun struct {
 	noSignal bool
 	// before runs on the project before igris starts.
 	before func(root string)
+	// actions run when the output first contains their pattern.
+	actions map[string]func()
 }
 
 func (r noTUIRun) run(t *testing.T) (code int, output, root string) {
@@ -501,9 +514,9 @@ func (r noTUIRun) run(t *testing.T) (code int, output, root string) {
 	git.Func(r.gitFn)
 	stdinR, stdinW := io.Pipe()
 	t.Cleanup(func() { _ = stdinW.Close() })
-	savedStdin, savedBackend, savedRunner, savedGetenv, savedUI := ariseStdin, ariseBackend, ariseRunner, ariseGetenv, ariseUI
+	savedStdin, savedBackend, savedRunner, savedGetenv, savedUI, savedServeStdin := ariseStdin, ariseBackend, ariseRunner, ariseGetenv, ariseUI, serveStdin
 	t.Cleanup(func() {
-		ariseStdin, ariseBackend, ariseRunner, ariseGetenv, ariseUI = savedStdin, savedBackend, savedRunner, savedGetenv, savedUI
+		ariseStdin, ariseBackend, ariseRunner, ariseGetenv, ariseUI, serveStdin = savedStdin, savedBackend, savedRunner, savedGetenv, savedUI, savedServeStdin
 	})
 	ariseUI = func(context.Context, tui.Options) error {
 		t.Error("the TUI was started")
@@ -512,7 +525,7 @@ func (r noTUIRun) run(t *testing.T) (code int, output, root string) {
 	if r.ui != nil {
 		ariseUI = r.ui
 	}
-	ariseStdin, ariseRunner = stdinR, git
+	ariseStdin, serveStdin, ariseRunner = stdinR, stdinR, git
 	ariseBackend = func(*config.Config) (backend.Backend, error) { return be, nil }
 	ariseGetenv = func(k string) string {
 		if k == checks.APIKeyVar {
@@ -521,14 +534,17 @@ func (r noTUIRun) run(t *testing.T) (code int, output, root string) {
 		return ""
 	}
 
-	out := &triggerWriter{stdin: stdinW, replies: r.replies}
+	if r.cmd == "" {
+		r.cmd = "arise"
+	}
+	out := &triggerWriter{stdin: stdinW, replies: r.replies, actions: r.actions}
 	var errb bytes.Buffer
 	done := make(chan int)
-	go func() { done <- run(append([]string{"arise"}, r.args...), out, &errb) }()
+	go func() { done <- run(append([]string{r.cmd}, r.args...), out, &errb) }()
 	select {
 	case code = <-done:
 	case <-time.After(10 * time.Second):
-		t.Fatalf("igris arise did not finish; output:\n%s", out.String())
+		t.Fatalf("igris %s did not finish; output:\n%s", r.cmd, out.String())
 	}
 	return code, out.String() + errb.String(), root
 }

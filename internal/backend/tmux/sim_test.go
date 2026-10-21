@@ -23,6 +23,9 @@ type sim struct {
 	buffers map[string]string
 	hooks   map[string]backend.AgentState // by Claude session UUID
 	toasts  []string
+	// sessions are the tmux sessions by name, each with how often it was
+	// created (headless, SPEC §11.5).
+	sessions map[string]int
 	// startHook is the state the hooks report as soon as a window opens
 	// with that session's UUID; "" leaves the session without a hook
 	// (a startup question).
@@ -31,6 +34,7 @@ type sim struct {
 
 type simPane struct {
 	window, pane, name string
+	target             string // new-window's -t ("" for the current session)
 	argv               []string
 	env                []string // -e entries
 	dead               bool
@@ -42,7 +46,7 @@ func newSim() *sim {
 	return &sim{
 		windows: map[string]*simPane{}, panes: map[string]*simPane{},
 		buffers: map[string]string{}, hooks: map[string]backend.AgentState{},
-		startHook: backend.Idle,
+		sessions: map[string]int{}, startHook: backend.Idle,
 	}
 }
 
@@ -55,6 +59,14 @@ func (s *sim) runner() *runner.Fake {
 // backend returns a tmux backend inside this server that never sleeps.
 func (s *sim) backend() *Backend {
 	b := New(s.runner(), true).WithHookStates(s.hookState)
+	b.sleep = func(ctx context.Context, d time.Duration) error { return ctx.Err() }
+	return b
+}
+
+// headless returns a headless tmux backend for the project at root on
+// this server that never sleeps.
+func (s *sim) headless(root string) *Backend {
+	b := NewHeadless(s.runner(), root).WithHookStates(s.hookState)
 	b.sleep = func(ctx context.Context, d time.Duration) error { return ctx.Err() }
 	return b
 }
@@ -146,7 +158,10 @@ func (s *sim) run(c runner.Cmd) (runner.Result, error) {
 	switch a[0] {
 	case "new-window":
 		s.next++
-		p := &simPane{window: fmt.Sprintf("@%d", s.next), pane: fmt.Sprintf("%%%d", s.next), name: flag(a, "-n")}
+		p := &simPane{window: fmt.Sprintf("@%d", s.next), pane: fmt.Sprintf("%%%d", s.next), name: flag(a, "-n"), target: flag(a, "-t")}
+		if t := p.target; t != "" && s.sessions[strings.TrimSuffix(strings.TrimPrefix(t, "="), ":")] == 0 {
+			return errResult("can't find session: " + t)
+		}
 		for i, x := range a {
 			if x == "--" {
 				p.argv = a[i+1:]
@@ -162,6 +177,20 @@ func (s *sim) run(c runner.Cmd) (runner.Result, error) {
 		}
 		return runner.Result{Stdout: []byte(p.window + " " + p.pane + "\n")}, nil
 	case "set-option":
+		return runner.Result{}, nil
+	case "-V":
+		return runner.Result{Stdout: []byte("tmux 3.7c\n")}, nil
+	case "has-session":
+		if s.sessions[strings.TrimPrefix(flag(a, "-t"), "=")] == 0 {
+			return errResult("can't find session: " + flag(a, "-t"))
+		}
+		return runner.Result{}, nil
+	case "new-session":
+		name := flag(a, "-s")
+		if s.sessions[name] > 0 {
+			return errResult("duplicate session: " + name)
+		}
+		s.sessions[name]++
 		return runner.Result{}, nil
 	case "list-panes":
 		p := s.panes[flag(a, "-t")]

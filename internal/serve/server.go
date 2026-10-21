@@ -206,6 +206,39 @@ func (s *Server) Close() error {
 	return first
 }
 
+// Shutdown stops accepting clients and ends every connection once what is
+// queued for it is written, so the run's last events reach the clients.
+// When ctx ends first, it closes what is left as Close does.
+func (s *Server) Shutdown(ctx context.Context) error {
+	s.mu.Lock()
+	s.closed = true
+	ls := s.listeners
+	s.listeners = nil
+	for c := range s.clients {
+		c.end()
+	}
+	s.mu.Unlock()
+	var first error
+	for _, l := range ls {
+		if err := l.Close(); err != nil && !errors.Is(err, net.ErrClosed) && first == nil {
+			first = err
+		}
+	}
+	done := make(chan struct{})
+	go func() {
+		s.wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-ctx.Done():
+		if err := s.Close(); err != nil && first == nil {
+			first = err
+		}
+	}
+	return first
+}
+
 // client is one attached connection. Everything sent to it goes through
 // its queue, written by its own goroutine, so a slow reader never holds
 // up the engine or the other clients.
@@ -245,6 +278,17 @@ func (c *client) enqueue(b []byte) bool {
 func (c *client) drop() {
 	c.srv.opts.Logf("client dropped: it read too slowly; it gets a fresh snapshot when it attaches again")
 	c.close()
+}
+
+// end closes the connection once the queue before it is written; a full
+// queue closes it at once.
+func (c *client) end() {
+	c.ending.Store(true)
+	select {
+	case c.out <- nil:
+	default:
+		c.close()
+	}
 }
 
 func (c *client) close() {

@@ -124,6 +124,8 @@ var (
 		"report":     "one run as markdown or JSON",
 		"usage":      "token usage and the rank audit of a run or of the runs since a date",
 		"arise":      "run (or resume) with the TUI",
+		"serve":      "run (or resume) headless, hosting the run on its socket",
+		"stop":       "stop the live run of this project",
 		"done":       "signal that a task is finished",
 		"skip":       "signal that a task is skipped",
 		"reset":      "put a task back to ready or blocked",
@@ -146,6 +148,11 @@ var (
 		"arise:only":    {Kind: argTaskList},
 		"arise:from":    {Kind: argTasks},
 		"arise:until":   {Kind: argTasks},
+		"serve:through": {Kind: argPhases},
+		"serve:mode":    {Kind: argValues, Values: runModes},
+		"serve:only":    {Kind: argTaskList},
+		"serve:from":    {Kind: argTasks},
+		"serve:until":   {Kind: argTasks},
 		"adapt:model":   {Kind: argValues, Values: []string{"sonnet", "opus"}},
 		"notify:event":  {Kind: argValues, Values: eventNames()},
 		"init:template": {Kind: argValues, Values: examples.TemplateNames()},
@@ -155,6 +162,7 @@ var (
 	}
 	compPositional = map[string]compArg{
 		"arise":      {Kind: argPhases},
+		"serve":      {Kind: argPhases},
 		"status":     {Kind: argPhases},
 		"history":    {Kind: argTasks},
 		"report":     {Kind: argRuns},

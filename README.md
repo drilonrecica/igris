@@ -165,7 +165,9 @@ igris completion fish > ~/.config/fish/completions/igris.fish
 
 `igris arise` runs inside **herdr** or **tmux**: sessions have to outlive igris and your connection. `igris init` writes `backend = "auto"`, which uses herdr inside a herdr pane and tmux inside tmux; set `backend = "herdr"` or `"tmux"` in `igris.toml` to pin one. Outside both, `igris arise` exits and says where to run it.
 
-Only `arise`, `adapt` and `draft` need a backend. `init`, `doctor`, `check`, `phases`, `status`, `history`, `report`, `done`, `skip`, `reset` and `notify test` run in any shell.
+Since 1.4, `igris serve` (see [Commands](#commands)) also runs outside both: its sessions then open in a detached tmux session of their own, `igris-<project>`, which `tmux attach -t igris-<project>` shows.
+
+Only `arise`, `serve`, `adapt` and `draft` need a backend. `init`, `doctor`, `check`, `phases`, `status`, `history`, `report`, `done`, `skip`, `reset`, `stop` and `notify test` run in any shell.
 
 ### herdr setup
 
@@ -494,6 +496,8 @@ template = "{{.At.Format \"15:04\"}} {{.TaskID}} {{.What}}"
 | `igris check [--strict]` | Validates the plan; `--strict` also lints it, for CI. |
 | `igris phases` / `igris status [PHASE]` | Task counts per phase, with each phase's critical path, width and the tasks that could run together (also shown by `arise --dry-run`; igris itself still runs one task at a time) / tasks with rank, owner and what each waits on, plus the current run. |
 | `igris arise [PHASE]` | Runs (or resumes) a phase; see [Running a phase](#running-a-phase). |
+| `igris serve [PHASE]` | Since 1.4: runs (or resumes) a phase headless, with `arise`'s run flags and plain log lines on stdout, hosting the run on `.igris/igris.sock`. It asks the start-up questions on stdin (`y`; a closed stdin declines); `--mode yolo` asks for the typed phrase on a terminal and refuses without one. SIGHUP, SIGINT and SIGTERM stop the run (sessions stay open; a second one exits at once). Outside herdr and tmux its sessions open in a detached tmux session `igris-<project>` (`tmux attach -t igris-<project>` shows them). |
+| `igris stop` | Since 1.4: stops this project's live run over its socket, as Stop run does (sessions stay open), and waits until it has; exit 1 when no run is live. For scripts and cron. |
 | `igris done` / `skip` / `reset` | Signal a task done or skipped, or put it back; see [Done, skip and reset](#done-skip-and-reset). |
 | `igris history [TASK-ID]` | Past runs, or every attempt of one task. |
 | `igris report [RUN]` | One run as markdown, for a PR description. |

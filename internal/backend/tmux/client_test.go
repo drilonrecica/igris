@@ -41,16 +41,29 @@ func TestClientCommands(t *testing.T) {
 		args []string
 	}{
 		{"new window: argv after --, name escaped", ok(t, "new_window.txt"), func(c *Client) error {
-			w, p, err := c.NewWindow(ctx, "/x y/proj", "P1-01 · #(touch pwn) #{pane_id}", nil, []string{"claude", "--model", "opus", "--settings", "/a;b"})
+			w, p, err := c.NewWindow(ctx, "", "/x y/proj", "P1-01 · #(touch pwn) #{pane_id}", nil, []string{"claude", "--model", "opus", "--settings", "/a;b"})
 			if err == nil && (w != "@1" || p != "%1") {
 				t.Errorf("window %q pane %q", w, p)
 			}
 			return err
 		}, []string{"new-window", "-d", "-P", "-F", "#{window_id} #{pane_id}", "-c", "/x y/proj", "-n", "P1-01 · ##(touch pwn) ##{pane_id}", "--", "claude", "--model", "opus", "--settings", "/a;b"}},
 		{"new window: environment additions as -e", ok(t, "new_window.txt"), func(c *Client) error {
-			_, _, err := c.NewWindow(ctx, "/p", "side · opus", []string{"IGRIS_SIDE=a3f2c1"}, []string{"claude"})
+			_, _, err := c.NewWindow(ctx, "", "/p", "side · opus", []string{"IGRIS_SIDE=a3f2c1"}, []string{"claude"})
 			return err
 		}, []string{"new-window", "-d", "-P", "-F", "#{window_id} #{pane_id}", "-c", "/p", "-n", "side · opus", "-e", "IGRIS_SIDE=a3f2c1", "--", "claude"}},
+		{"new window: in a headless session, matched exactly", ok(t, "new_window.txt"), func(c *Client) error {
+			_, _, err := c.NewWindow(ctx, "igris-proj", "/p", "x", nil, []string{"claude"})
+			return err
+		}, []string{"new-window", "-d", "-P", "-F", "#{window_id} #{pane_id}", "-t", "=igris-proj:", "-c", "/p", "-n", "x", "--", "claude"}},
+		{"program version", runner.Result{Stdout: []byte("tmux 3.7c\n")}, func(c *Client) error {
+			v, err := c.ProgramVersion(ctx)
+			if err == nil && v != "tmux 3.7c" {
+				t.Errorf("version %q", v)
+			}
+			return err
+		}, []string{"-V"}},
+		{"session exists", runner.Result{}, func(c *Client) error { return c.EnsureSession(ctx, "igris-proj", "/p") },
+			[]string{"has-session", "-t", "=igris-proj"}},
 		{"remain on exit", runner.Result{}, func(c *Client) error { return c.RemainOnExit(ctx, "@1") },
 			[]string{"set-option", "-w", "-t", "@1", "remain-on-exit", "on"}},
 		{"paste", runner.Result{}, func(c *Client) error { return c.PasteBuffer(ctx, "igris-b", "%1") },
@@ -155,11 +168,11 @@ func TestErrors(t *testing.T) {
 	if !errors.As(err, &e) || IsGone(err) || !strings.Contains(e.Message, "error connecting") {
 		t.Errorf("version: %v", err)
 	}
-	if _, _, err := c.NewWindow(ctx, "/p", "x", nil, []string{"claude"}); err == nil {
+	if _, _, err := c.NewWindow(ctx, "", "/p", "x", nil, []string{"claude"}); err == nil {
 		t.Error("accepted garbage window IDs")
 	}
 	for _, kv := range []string{"NOVALUE", "=x", "-t=x", "A=b\nc", "A=\x1b[31m"} {
-		if _, _, err := c.NewWindow(ctx, "/p", "x", []string{kv}, []string{"claude"}); err == nil || !strings.Contains(err.Error(), "KEY=VALUE") {
+		if _, _, err := c.NewWindow(ctx, "", "/p", "x", []string{kv}, []string{"claude"}); err == nil || !strings.Contains(err.Error(), "KEY=VALUE") {
 			t.Errorf("environment entry %q: %v, want refused", kv, err)
 		}
 	}
@@ -176,5 +189,38 @@ func TestLiteral(t *testing.T) {
 		if got := Literal(in); got != want {
 			t.Errorf("Literal(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// EnsureSession creates a missing session, and takes one created in
+// between as there.
+func TestEnsureSession(t *testing.T) {
+	ctx := context.Background()
+	for _, tt := range []struct {
+		name    string
+		created runner.Result
+		wantErr bool
+	}{
+		{"created", runner.Result{}, false},
+		{"created in between", runner.Result{Stderr: []byte("duplicate session: igris-p\n"), ExitCode: 1}, false},
+		{"no server can start", runner.Result{Stderr: []byte("error creating /tmp/tmux-1000 (Permission denied)\n"), ExitCode: 1}, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			f := &runner.Fake{}
+			f.Func(func(c runner.Cmd) (runner.Result, error) {
+				if c.Args[0] == "has-session" {
+					return runner.Result{Stderr: []byte("can't find session: =igris-p\n"), ExitCode: 1}, nil
+				}
+				return tt.created, nil
+			})
+			err := NewClient(f).EnsureSession(ctx, "igris-p", "/w/p")
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("EnsureSession = %v", err)
+			}
+			calls := f.Calls()
+			if len(calls) != 2 || !slices.Equal(calls[1].Args, []string{"new-session", "-d", "-s", "igris-p", "-c", "/w/p"}) {
+				t.Errorf("calls %v", calls)
+			}
+		})
 	}
 }

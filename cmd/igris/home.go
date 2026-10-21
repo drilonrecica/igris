@@ -23,7 +23,13 @@ var (
 // character device, with stdin not /dev/null) and term is not "dumb"
 // (SPEC §15.6). It needs no isatty dependency.
 func interactive(stdin, stdout *os.File, term string) bool {
-	if term == "dumb" || !isCharDevice(stdin) || !isCharDevice(stdout) {
+	return term != "dumb" && typable(stdin) && isCharDevice(stdout)
+}
+
+// typable reports whether stdin is a terminal someone can type into: a
+// character device that is not /dev/null.
+func typable(stdin *os.File) bool {
+	if !isCharDevice(stdin) {
 		return false
 	}
 	// /dev/null is a character device too, but nobody types into it.

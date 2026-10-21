@@ -386,3 +386,65 @@ func TestSideSessionBinding(t *testing.T) {
 		t.Errorf("AttachSide of b4e3d2's pane = %v, want ErrSessionForeign", err)
 	}
 }
+
+func TestSessionName(t *testing.T) {
+	for root, want := range map[string]string{
+		"/w/igris":                      "igris-igris",
+		"/w/my.app v2":                  "igris-my-app-v2",
+		"/w/a:b#c$(x)":                  "igris-a-b-c--x-",
+		"/w/ünï":                        "igris--n-",
+		"/w/" + strings.Repeat("x", 40): "igris-" + strings.Repeat("x", 32),
+	} {
+		if got := SessionName(root); got != want {
+			t.Errorf("SessionName(%q) = %q, want %q", root, got, want)
+		}
+	}
+}
+
+// Outside tmux, serve's windows open in a detached session of their own,
+// created once and again when the owner closed it (SPEC §11.5).
+func TestHeadless(t *testing.T) {
+	ctx := context.Background()
+	s := newSim()
+	b := s.headless("/work/proj")
+	if b.Headless() != "igris-proj" {
+		t.Fatalf("Headless() = %q", b.Headless())
+	}
+	if err := b.Available(ctx); err != nil {
+		t.Fatalf("Available outside tmux: %v", err)
+	}
+	sess, err := b.OpenSession(ctx, spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p := s.pane(sess.Ref().PaneID); p.target != "=igris-proj:" {
+		t.Errorf("window opened in %q", p.target)
+	}
+	if _, err := b.OpenSession(ctx, spec); err != nil {
+		t.Fatal(err)
+	}
+	if n := s.sessions["igris-proj"]; n != 1 {
+		t.Errorf("session created %d times, want once", n)
+	}
+	s.mu.Lock()
+	delete(s.sessions, "igris-proj") // the owner closed it
+	s.mu.Unlock()
+	if _, err := b.OpenSession(ctx, spec); err != nil || s.sessions["igris-proj"] != 1 {
+		t.Errorf("not recreated: %v", err)
+	}
+	if err := b.Notify(ctx, backend.Notification{Title: "igris", Body: "needs you"}); err != nil || len(s.toasts) != 0 {
+		t.Errorf("Notify = %v, toasts %q: no client to show on", err, s.toasts)
+	}
+	if err := sess.Focus(ctx); err != nil {
+		t.Errorf("Focus: %v", err)
+	}
+}
+
+// Without tmux installed, a headless backend says so.
+func TestHeadlessWithoutTmux(t *testing.T) {
+	f := &runner.Fake{}
+	f.Func(func(runner.Cmd) (runner.Result, error) { return runner.Result{}, exec.ErrNotFound })
+	if err := NewHeadless(f, "/w/p").Available(context.Background()); err == nil || !strings.Contains(err.Error(), "not installed") {
+		t.Errorf("Available = %v", err)
+	}
+}

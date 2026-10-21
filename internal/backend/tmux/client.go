@@ -97,16 +97,46 @@ func (c *Client) Version(ctx context.Context) (string, error) {
 	return v, nil
 }
 
+// ProgramVersion returns what `tmux -V` prints, e.g. "tmux 3.7c". It
+// needs no server.
+func (c *Client) ProgramVersion(ctx context.Context) (string, error) {
+	out, err := c.exec(ctx, nil, "-V")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// EnsureSession creates the detached session name in dir unless it exists.
+// The name is matched exactly (=name), never as a prefix of another
+// session's.
+func (c *Client) EnsureSession(ctx context.Context, name, dir string) error {
+	if _, err := c.exec(ctx, nil, "has-session", "-t", "="+name); err == nil {
+		return nil
+	}
+	_, err := c.exec(ctx, nil, "new-session", "-d", "-s", name, "-c", dir)
+	var e *Error
+	if errors.As(err, &e) && strings.HasPrefix(e.Message, "duplicate session") {
+		return nil // created in between
+	}
+	return err
+}
+
 // NewWindow opens a detached window named name in dir running argv
 // directly (tmux execs a multi-argument command without a shell, V03-P2)
 // with the KEY=VALUE entries of env added to its environment (-e, not a
 // format), and returns its window and pane IDs. name is escaped: -n is a
-// tmux format, where #(…) would run a command.
-func (c *Client) NewWindow(ctx context.Context, dir, name string, env, argv []string) (window, pane string, err error) {
+// tmux format, where #(…) would run a command. With a session, the window
+// opens there (matched exactly); without one in the current session.
+func (c *Client) NewWindow(ctx context.Context, session, dir, name string, env, argv []string) (window, pane string, err error) {
 	if len(argv) == 0 {
 		return "", "", fmt.Errorf("tmux new-window: no command")
 	}
-	args := []string{"new-window", "-d", "-P", "-F", "#{window_id} #{pane_id}", "-c", dir, "-n", Literal(name)}
+	args := []string{"new-window", "-d", "-P", "-F", "#{window_id} #{pane_id}"}
+	if session != "" {
+		args = append(args, "-t", "="+session+":")
+	}
+	args = append(args, "-c", dir, "-n", Literal(name))
 	for _, kv := range env {
 		if k, _, ok := strings.Cut(kv, "="); !ok || k == "" || strings.HasPrefix(kv, "-") || textsafe.Line(kv) != kv {
 			return "", "", fmt.Errorf("tmux new-window: environment entry %q is not KEY=VALUE text", textsafe.Line(kv))

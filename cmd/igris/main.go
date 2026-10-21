@@ -69,6 +69,11 @@ Commands:
         [--dry-run] [--force-unlock] [--worktree]
         [--only ID[,ID...] | [--from ID] [--until ID]]
                                         run only part of the phases
+  serve [PHASE] [--through PHASE]       run (or resume) headless, hosting the run on .igris/igris.sock;
+        [--mode MODE] [--worktree]      arise's run flags, plain log lines on stdout
+        [--force-unlock]
+        [--only ID[,ID...] | [--from ID] [--until ID]]
+  stop                                  stop this project's live run (sessions stay open)
   done ID [--note TEXT]                 signal that a task is finished
   skip ID --reason TEXT                 signal that a task is skipped
   reset ID [--force]                    put a task back to ready/blocked; --force for done/skipped
@@ -133,25 +138,12 @@ func commands() []command {
 		{name: "report", setup: reportArgs, exec: execReport},
 		{name: "usage", setup: usageArgs, exec: execUsage},
 		{name: "arise", setup: func(fs *flag.FlagSet) func([]string) error {
-			fs.String("through", "", "last phase to run")
-			mode := fs.String("mode", "", "run mode: "+strings.Join(runModes, "|"))
 			fs.Bool("no-tui", false, "plain log output, owner commands from stdin")
 			fs.Bool("dry-run", false, "walk the phase with the fake backend, write nothing")
-			fs.Bool("force-unlock", false, "clear a stale lock left by a run that is no longer alive")
-			fs.Bool("worktree", false, "run in a git worktree on a branch of its own, igris/<run-id>")
-			fs.String("only", "", "run only these tasks, in plan order: ID[,ID...]")
-			fs.String("from", "", "start the run at task ID")
-			fs.String("until", "", "stop the run after task ID")
-			return func(args []string) error {
-				if *mode != "" && !contains(runModes, *mode) {
-					return fmt.Errorf("invalid --mode %q (want %s)", *mode, strings.Join(runModes, "|"))
-				}
-				if _, err := parseSelection(fs); err != nil {
-					return err
-				}
-				return atMost(args, 1)
-			}
+			return runFlags(fs)
 		}, exec: execArise},
+		{name: "serve", setup: runFlags, exec: execServe},
+		{name: "stop", setup: func(fs *flag.FlagSet) func([]string) error { return maxArgs(fs, 0) }, exec: execStop},
 		{name: "done", setup: func(fs *flag.FlagSet) func([]string) error {
 			fs.String("note", "", "short note stored with the signal")
 			return func(args []string) error {

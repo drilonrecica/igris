@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/drilonrecica/igris/internal/backend/tmux"
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/runner"
 )
@@ -57,5 +58,31 @@ func TestResolveBackend(t *testing.T) {
 	}
 	if _, err := NewBackend(cfg, t.TempDir(), Env{Getenv: env(), Runner: &runner.Fake{}}); !errors.Is(err, ErrNoMultiplexer) {
 		t.Errorf("outside both: %v", err)
+	}
+
+	// igris serve outside both runs tmux headless; inside tmux or with herdr
+	// it is as before (SPEC §11.3, §11.5).
+	for _, tt := range []struct {
+		name, backend string
+		getenv        func(string) string
+		want          string
+		headless      bool
+	}{
+		{"serve auto in neither", "auto", env(), "tmux", true},
+		{"serve tmux in neither", "tmux", env(), "tmux", true},
+		{"serve auto in tmux", "auto", env("TMUX", "x"), "tmux", false},
+		{"serve auto in herdr", "auto", env("HERDR_WORKSPACE_ID", "w1"), "herdr", false},
+		{"serve herdr in neither", "herdr", env(), "herdr", false},
+	} {
+		cfg := config.Default()
+		cfg.Backend = tt.backend
+		be, err := NewBackend(cfg, "/w/proj", Env{Getenv: tt.getenv, Runner: &runner.Fake{}, Serve: true})
+		if err != nil || be.Name() != tt.want {
+			t.Errorf("%s: NewBackend = %v, %v; want %s", tt.name, be, err, tt.want)
+			continue
+		}
+		if tb, ok := be.(*tmux.Backend); ok && (tb.Headless() != "") != tt.headless {
+			t.Errorf("%s: headless session %q", tt.name, tb.Headless())
+		}
 	}
 }

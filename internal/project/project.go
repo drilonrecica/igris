@@ -59,6 +59,10 @@ type Env struct {
 	// UpdateAPI is the GitHub API the update check asks; "" means
 	// update.API. Tests point it at a local server.
 	UpdateAPI string
+	// Serve says the project is opened by igris serve, the headless host
+	// of a run: outside herdr and tmux, backend auto picks tmux, which
+	// runs its sessions in a detached session (SPEC §11.3, §11.5).
+	Serve bool
 	// Environ is igris's environment, which the update command gets
 	// without the notification secrets' variables. nil means os.Environ.
 	Environ func() []string

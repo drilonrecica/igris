@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -34,13 +35,18 @@ const (
 	startupPoll = 250 * time.Millisecond
 )
 
-// Backend runs sessions in windows of the tmux server igris runs in. The
-// zero value is not usable; call New.
+// Backend runs sessions in windows of the tmux server igris runs in, or,
+// headless, in a detached session of its own. The zero value is not
+// usable; call New or NewHeadless.
 type Backend struct {
 	c      *Client
-	inside bool                                             // igris runs inside tmux ($TMUX set)
-	sleep  func(ctx context.Context, d time.Duration) error // tests replace it
-	hooks  backend.HookStates                               // nil: agent state unknown
+	inside bool // igris runs inside tmux ($TMUX set)
+	// headless is the detached session the windows open in when igris
+	// runs outside tmux (igris serve, SPEC §11.5), and dir its directory;
+	// "" inside tmux.
+	headless, dir string
+	sleep         func(ctx context.Context, d time.Duration) error // tests replace it
+	hooks         backend.HookStates                               // nil: agent state unknown
 }
 
 // NewFromEnv is New with "inside tmux" taken from $TMUX.
@@ -53,6 +59,38 @@ func NewFromEnv(r runner.Runner, getenv func(string) string) *Backend {
 func New(r runner.Runner, inside bool) *Backend {
 	return &Backend{c: NewClient(r), inside: inside, sleep: sleep}
 }
+
+// NewHeadless returns a tmux backend for an igris serve outside tmux (SPEC
+// §11.5): its windows open in the detached session SessionName(root) on
+// the default server, created in root when it doesn't exist.
+func NewHeadless(r runner.Runner, root string) *Backend {
+	b := New(r, false)
+	b.headless, b.dir = SessionName(root), root
+	return b
+}
+
+// sessionLen is the longest project part of a headless session's name.
+const sessionLen = 32
+
+// SessionName is the headless session of the project at root:
+// igris-<project>, the root's base name with every character outside
+// [A-Za-z0-9_-] replaced by '-', at most 32 characters (SPEC §11.5).
+func SessionName(root string) string {
+	var b []byte
+	for _, c := range filepath.Base(root) {
+		switch {
+		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9', c == '_', c == '-':
+		default:
+			c = '-'
+		}
+		b = append(b, byte(c))
+	}
+	return "igris-" + string(b[:min(len(b), sessionLen)])
+}
+
+// Headless returns the detached session the windows open in, "" when igris
+// runs inside tmux.
+func (b *Backend) Headless() string { return b.headless }
 
 // WithHookStates sets where sessions read their agent state: the hook
 // state Claude Code records (SPEC §6.3). Without it every state is
@@ -79,7 +117,19 @@ func (b *Backend) Name() string { return Name }
 
 // Available reports why tmux can't host sessions: igris doesn't run inside
 // tmux, tmux isn't installed, or its server isn't reachable.
+// Headless, only tmux itself is needed: the session's server starts with
+// the first window.
 func (b *Backend) Available(ctx context.Context) error {
+	if b.headless != "" {
+		_, err := b.c.ProgramVersion(ctx)
+		if errors.Is(err, exec.ErrNotFound) {
+			return errors.New("tmux is not installed or not in PATH; install tmux 3.2 or newer")
+		}
+		if err != nil {
+			return fmt.Errorf("tmux can't be run: %w", err)
+		}
+		return nil
+	}
 	if !b.inside {
 		return fmt.Errorf("igris must run inside tmux (%s is not set); start tmux and run igris in it, or run igris inside a herdr pane", Env)
 	}
@@ -103,7 +153,15 @@ func (b *Backend) OpenSession(ctx context.Context, spec backend.SessionSpec) (ba
 		return nil, fmt.Errorf("open a tmux window: invalid side session ID %q", spec.Side)
 	}
 	argv := append([]string{"claude"}, spec.Args...)
-	window, pane, err := b.c.NewWindow(ctx, spec.Dir, spec.Label, spec.Env, argv)
+	target := ""
+	if b.headless != "" {
+		// Every time: the owner may have closed the session during the run.
+		if err := b.c.EnsureSession(ctx, b.headless, b.dir); err != nil {
+			return nil, fmt.Errorf("open the tmux session %s for %s: %w", b.headless, spec.Subject(), err)
+		}
+		target = b.headless
+	}
+	window, pane, err := b.c.NewWindow(ctx, target, spec.Dir, spec.Label, spec.Env, argv)
 	if err != nil {
 		return nil, fmt.Errorf("open a tmux window for %s: %w", spec.Subject(), err)
 	}
@@ -247,8 +305,12 @@ func startedWith(start, uuid, rules string) bool {
 }
 
 // Notify shows a message on igris's tmux client (SPEC §10). tmux has no
-// sound; the router's other channels carry the rest.
+// sound; the router's other channels carry the rest. Headless there is no
+// client to show it on, so it shows nothing.
 func (b *Backend) Notify(ctx context.Context, n backend.Notification) error {
+	if b.headless != "" {
+		return nil
+	}
 	text := n.Title
 	if body := strings.TrimSpace(n.Body); body != "" {
 		text += ": " + body

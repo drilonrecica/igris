@@ -114,12 +114,32 @@ func parseSelection(fs *flag.FlagSet) (state.Selection, error) {
 	return sel, nil
 }
 
-func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
+// runFlags registers the run flags `arise` and `serve` share and returns
+// their validator.
+func runFlags(fs *flag.FlagSet) func(args []string) error {
+	fs.String("through", "", "last phase to run")
+	mode := fs.String("mode", "", "run mode: "+strings.Join(runModes, "|"))
+	fs.Bool("force-unlock", false, "clear a stale lock left by a run that is no longer alive")
+	fs.Bool("worktree", false, "run in a git worktree on a branch of its own, igris/<run-id>")
+	fs.String("only", "", "run only these tasks, in plan order: ID[,ID...]")
+	fs.String("from", "", "start the run at task ID")
+	fs.String("until", "", "stop the run after task ID")
+	return func(args []string) error {
+		if *mode != "" && !contains(runModes, *mode) {
+			return fmt.Errorf("invalid --mode %q (want %s)", *mode, strings.Join(runModes, "|"))
+		}
+		if _, err := parseSelection(fs); err != nil {
+			return err
+		}
+		return atMost(args, 1)
+	}
+}
+
+// runFlagValues reads runFlags' flags and the phase argument.
+func runFlagValues(fs *flag.FlagSet, args []string) ariseFlags {
 	f := ariseFlags{
 		through:     fs.Lookup("through").Value.String(),
 		mode:        fs.Lookup("mode").Value.String(),
-		noTUI:       fs.Lookup("no-tui").Value.String() == "true",
-		dryRun:      fs.Lookup("dry-run").Value.String() == "true",
 		forceUnlock: fs.Lookup("force-unlock").Value.String() == "true",
 		worktree:    fs.Lookup("worktree").Value.String() == "true",
 	}
@@ -127,6 +147,13 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		f.phase = args[0]
 	}
 	f.sel, _ = parseSelection(fs) // checked when the flags were parsed
+	return f
+}
+
+func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
+	f := runFlagValues(fs, args)
+	f.noTUI = fs.Lookup("no-tui").Value.String() == "true"
+	f.dryRun = fs.Lookup("dry-run").Value.String() == "true"
 	fail := func(format string, a ...any) int {
 		fmt.Fprintf(stderr, "igris arise: %s\n", fmt.Sprintf(format, a...))
 		return exitFail
@@ -187,35 +214,13 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 				return tuiExit(res, err, out, stderr)
 			}
 		}
-		var drift *engine.DriftError
+		if asked, refusal := askStartUp(err, &conf, out, ask, !f.worktree && !proj.Cfg.Run.WorktreeOn()); asked {
+			if refusal != "" {
+				return fail("%s", refusal)
+			}
+			continue
+		}
 		switch {
-		case errors.As(err, &drift) && !conf.Drift:
-			// SPEC §5.2: list the drift, ask before the first write fixes it.
-			fmt.Fprintf(out, "The plan's ready/blocked cells don't match its dependencies; igris's first write would change:\n")
-			for _, c := range drift.Changes {
-				fmt.Fprintf(out, "  %s\n", c)
-			}
-			if !confirm(out, ask, "Let igris fix them?") {
-				return fail("not confirmed; nothing was started")
-			}
-			conf.Drift = true
-		case errors.Is(err, engine.ErrConfigUnconfirmed) && !conf.Config:
-			// SPEC §13: a session can edit igris.toml; the owner looks first.
-			fmt.Fprintf(out, "warning: igris.toml changed during the last run, which kept the configuration it started with; a session may have edited it.\nReview it (git diff igris.toml) before this run uses it.\n")
-			if !confirm(out, ask, "Use the changed igris.toml?") {
-				return fail("not confirmed; nothing was started")
-			}
-			conf.Config = true
-		case errors.Is(err, engine.ErrYoloUnconfirmed) && !conf.Yolo:
-			// SPEC §7.3: typed confirmation, every run.
-			fmt.Fprintf(out, "%v\n%s\n", err, engine.SkipNote)
-			if !f.worktree && !proj.Cfg.Run.WorktreeOn() {
-				fmt.Fprintln(out, "Tip: --worktree keeps the run's changes on a branch of their own, away from your checkout.")
-			}
-			if !typed(out, ask, engine.YoloPhrase) {
-				return fail("skip-permissions mode not confirmed; nothing was started")
-			}
-			conf.Yolo = true
 		case err != nil:
 			return fail("%v", err)
 		case res.Outcome == engine.Stuck:
@@ -227,6 +232,48 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 	}
 }
 
+// askStartUp asks the owner the question a run that refused to start with
+// err needs answered (SPEC §5.2 drift, §13 a changed igris.toml, §7.3
+// skip-permissions) and records a yes in conf. asked is false when err is
+// no such question, or was already answered; refusal says why nothing was
+// started when the owner declined. tip adds the --worktree tip to the
+// skip-permissions question.
+func askStartUp(err error, conf *report.Confirmations, out io.Writer, ask func() (string, bool), tip bool) (asked bool, refusal string) {
+	const declined = "not confirmed; nothing was started"
+	var drift *engine.DriftError
+	switch {
+	case errors.As(err, &drift) && !conf.Drift:
+		fmt.Fprintf(out, "The plan's ready/blocked cells don't match its dependencies; igris's first write would change:\n")
+		for _, c := range drift.Changes {
+			fmt.Fprintf(out, "  %s\n", c)
+		}
+		if !confirm(out, ask, "Let igris fix them?") {
+			return true, declined
+		}
+		conf.Drift = true
+	case errors.Is(err, engine.ErrConfigUnconfirmed) && !conf.Config:
+		// A session can edit igris.toml; the owner looks first.
+		fmt.Fprintf(out, "warning: igris.toml changed during the last run, which kept the configuration it started with; a session may have edited it.\nReview it (git diff igris.toml) before this run uses it.\n")
+		if !confirm(out, ask, "Use the changed igris.toml?") {
+			return true, declined
+		}
+		conf.Config = true
+	case errors.Is(err, engine.ErrYoloUnconfirmed) && !conf.Yolo:
+		// Typed confirmation, every run.
+		fmt.Fprintf(out, "%v\n%s\n", err, engine.SkipNote)
+		if tip {
+			fmt.Fprintln(out, "Tip: --worktree keeps the run's changes on a branch of their own, away from your checkout.")
+		}
+		if !typed(out, ask, engine.YoloPhrase) {
+			return true, "skip-permissions mode not confirmed; nothing was started"
+		}
+		conf.Yolo = true
+	default:
+		return false, ""
+	}
+	return true, ""
+}
+
 // interruptContext is cancelled by the first SIGINT or SIGTERM, which
 // stops the run. It then stops catching them, so a second one exits igris
 // at once, as the default handling does, also while the run is still
@@ -234,9 +281,14 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 // them without ending ctx: once the owner has quit the TUI, the first
 // Ctrl-C on the plain terminal exits while the run winds down.
 func interruptContext() (ctx context.Context, cancel context.CancelFunc, release func()) {
+	return signalContext(os.Interrupt, syscall.SIGTERM)
+}
+
+// signalContext is interruptContext for the signals in which.
+func signalContext(which ...os.Signal) (ctx context.Context, cancel context.CancelFunc, release func()) {
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(sigs, which...)
 	release = func() { signal.Stop(sigs) } // a no-op once stopped
 	go func() {
 		select {

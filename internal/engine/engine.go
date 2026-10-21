@@ -74,6 +74,10 @@ type Options struct {
 	Worktree bool
 
 	ForceUnlock bool // clear a stale run lock (--force-unlock)
+	// LockHeld says the caller holds the project's run lock (igris serve
+	// takes it before it opens the run's socket, SPEC §14); Run then
+	// neither takes nor releases it.
+	LockHeld bool
 	// ConfirmedDrift says the owner accepted that the first write also fixes
 	// the plan's drifted ready/blocked cells (SPEC §5.2).
 	ConfirmedDrift bool
@@ -309,16 +313,19 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 	if err := e.be.Available(ctx); err != nil {
 		return Result{}, fmt.Errorf("backend %s is not available: %w", e.be.Name(), err)
 	}
-	lock, err := e.dir.Lock(e.opts.ForceUnlock)
-	if err != nil {
-		return Result{}, err
-	}
-	defer func() {
-		if err := lock.Release(); err != nil {
-			e.warn(err.Error())
+	if !e.opts.LockHeld {
+		lock, err := e.dir.Lock(e.opts.ForceUnlock)
+		if err != nil {
+			return Result{}, err
 		}
-	}()
+		defer func() {
+			if err := lock.Release(); err != nil {
+				e.warn(err.Error())
+			}
+		}()
+	}
 
+	var err error
 	e.runStart = e.clock.Now()
 	if e.runID, err = state.NewRunID(e.runStart); err != nil {
 		return Result{}, err

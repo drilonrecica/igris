@@ -20,10 +20,16 @@ import (
 // for the first interrupt, says so, and then blocks as a run winding down
 // would.
 func TestHelperInterrupt(t *testing.T) {
-	if os.Getenv("IGRIS_TEST_INTERRUPT") != "1" {
+	var ctx context.Context
+	var cancel context.CancelFunc
+	switch os.Getenv("IGRIS_TEST_INTERRUPT") {
+	case "1":
+		ctx, cancel, _ = interruptContext()
+	case "serve":
+		ctx, cancel, _ = signalContext(serveSignals...)
+	default:
 		t.Skip("helper process")
 	}
-	ctx, cancel, _ := interruptContext()
 	defer cancel()
 	fmt.Println("ready")
 	<-ctx.Done()
@@ -34,10 +40,20 @@ func TestHelperInterrupt(t *testing.T) {
 // The first Ctrl-C stops the run; a second one exits at once, even while
 // igris is still sending its last notifications.
 func TestSecondInterruptExits(t *testing.T) {
+	secondSignalExits(t, "1", syscall.SIGINT)
+}
+
+// serve takes SIGHUP (a closed terminal) as a stop too, and a second one
+// exits at once (SPEC §14).
+func TestServeSecondHangupExits(t *testing.T) {
+	secondSignalExits(t, "serve", syscall.SIGHUP)
+}
+
+func secondSignalExits(t *testing.T, helper string, sig syscall.Signal) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestHelperInterrupt$") //nolint:gosec // the test binary itself
-	cmd.Env = append(os.Environ(), "IGRIS_TEST_INTERRUPT=1")
+	cmd.Env = append(os.Environ(), "IGRIS_TEST_INTERRUPT="+helper)
 	out, err := cmd.StdoutPipe()
 	if err != nil {
 		t.Fatal(err)
@@ -53,20 +69,20 @@ func TestSecondInterruptExits(t *testing.T) {
 		}
 	}
 	expect("ready")
-	if err := cmd.Process.Signal(syscall.SIGINT); err != nil {
+	if err := cmd.Process.Signal(sig); err != nil {
 		t.Fatal(err)
 	}
 	expect("stopping")
-	if err := cmd.Process.Signal(syscall.SIGINT); err != nil {
+	if err := cmd.Process.Signal(sig); err != nil {
 		t.Fatal(err)
 	}
 	err = cmd.Wait()
 	var exit *exec.ExitError
 	if !errors.As(err, &exit) || ctx.Err() != nil {
-		t.Fatalf("child: %v (timed out: %v), want it killed by the second SIGINT", err, ctx.Err() != nil)
+		t.Fatalf("child: %v (timed out: %v), want it killed by the second %v", err, ctx.Err() != nil, sig)
 	}
-	if ws, ok := exit.Sys().(syscall.WaitStatus); !ok || !ws.Signaled() || ws.Signal() != syscall.SIGINT {
-		t.Errorf("child ended with %v, want killed by SIGINT", exit)
+	if ws, ok := exit.Sys().(syscall.WaitStatus); !ok || !ws.Signaled() || ws.Signal() != sig {
+		t.Errorf("child ended with %v, want killed by %v", exit, sig)
 	}
 }
 
