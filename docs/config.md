@@ -15,7 +15,7 @@
 |---|---|---|---|
 | `plan` | string | `"tasks.md"` | Path to the plan file, relative to the project root. |
 | `backend` | string | `"auto"` | Where agent sessions run (SPEC §11.3). `auto` picks herdr inside a herdr pane, else tmux inside tmux. Allowed: `auto`, `herdr`, `tmux`. |
-| `default_mode` | string | `"auto"` | Permission mode of a run when `--mode` is not given (SPEC §7). `yolo` and `plan:yolo` always ask for confirmation. Allowed: `default`, `accept`, `auto`, `plan`, `plan:default`, `plan:accept`, `plan:auto`, `plan:yolo`, `yolo`. |
+| `default_mode` | string | `"auto"` | Permission mode of a run when `--mode` is not given (SPEC §7). `yolo` and `plan:yolo` always ask for confirmation. Allowed: `default`, `accept`, `auto`, `plan`, `plan:default`, `plan:accept`, `plan:auto`, `plan:yolo`, `yolo`, `manual`. |
 | `needs_input_after` | duration | `"30s"` | How long a session may sit idle at a prompt before it counts as needing you (SPEC §6.3). Greater than zero. |
 | `waiting_limit` | duration | `"30m"` | How long a session may wait on background work before it needs you (SPEC §6.3). Greater than zero. |
 | `nudge` | boolean | `true` | Remind an idle agent of `igris done` once before it needs you (SPEC §6.3). |
@@ -71,7 +71,7 @@
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `model` | string | `"sonnet"` | The rank the side-session dialog preselects (SPEC §6.10), a `[models]` key. Unset, `sonnet`, or the first rank when there is none of that name. |
-| `mode` | string | `"default"` | The mode the side-session dialog preselects (SPEC §6.10); during a run in the shared tree it preselects `default` whatever this says. Never `yolo` nor a `plan:<mode>` value: side sessions never skip permissions. Allowed: `default`, `accept`, `auto`, `plan`. |
+| `mode` | string | `"default"` | The mode the side-session dialog preselects (SPEC §6.10); during a run in the shared tree it preselects `manual` whatever this says. Never `yolo` nor a `plan:<mode>` value: side sessions never skip permissions. Allowed: `default`, `manual`, `accept`, `auto`, `plan`. |
 
 ## `[adapt]`
 

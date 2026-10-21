@@ -47,8 +47,11 @@ type Env struct {
 	// CLI's plain log format. nil shows the event's kind and detail.
 	Format func(engine.Event) []string
 	// Version is igris's version, for a side session's igris problem
-	// prompt (SPEC §6.10); "" when not known.
+	// prompt (SPEC §6.10) and the igris-path check; "" when not known.
 	Version string
+	// Self finds the running igris and the one in PATH, for the
+	// igris-path check (SPEC §14). nil means runner.Self.
+	Self func() (self, inPath string, same bool)
 }
 
 func (e Env) getenv() func(string) string {
@@ -63,6 +66,13 @@ func (e Env) lookPath() func(string) (string, error) {
 		return e.LookPath
 	}
 	return exec.LookPath
+}
+
+func (e Env) self() func() (string, string, bool) {
+	if e.Self != nil {
+		return e.Self
+	}
+	return runner.Self
 }
 
 // runner is the runner for igris's own checks: never nil.

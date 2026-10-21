@@ -17,6 +17,9 @@ import (
 // runs unless a test asks for one (see withVersions).
 func TestMain(m *testing.M) {
 	compatWarnings = func(context.Context, runner.Runner) []checks.Result { return nil }
+	// Nor on the igris in the developer's PATH: this test binary is the
+	// igris in PATH.
+	igrisSelf = func() (string, string, bool) { return "/usr/local/bin/igris", "/usr/local/bin/igris", true }
 	// Nor on the developer's ANTHROPIC_API_KEY: check would warn about it.
 	ariseGetenv = func(k string) string {
 		if k == checks.APIKeyVar {

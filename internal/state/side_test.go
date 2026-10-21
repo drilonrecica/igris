@@ -35,7 +35,7 @@ func TestSideRecordRoundTrip(t *testing.T) {
 		t.Fatalf("ReadSideRecords created .igris/: %v", err)
 	}
 	later, earlier := sideRecord("b4e3d2", at.Add(time.Minute)), sideRecord("a3f2c1", at)
-	earlier.Preset, earlier.Task = SidePresetBlank, ""
+	earlier.Preset, earlier.Task, earlier.Mode = SidePresetBlank, "", "manual"
 	earlier.Worktree, earlier.Dir = SideWorktree("a3f2c1"), filepath.Join(DirName, "worktrees", "side-a3f2c1")
 	for _, r := range []SideRecord{later, earlier} {
 		if err := WriteSideRecord(root, r); err != nil {

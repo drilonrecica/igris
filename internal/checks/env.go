@@ -2,6 +2,7 @@ package checks
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -76,4 +77,48 @@ func herdrIntegration(ctx context.Context, i Integration) Result {
 		return Result{ID: IDHerdrIntegration, Level: OK, Message: hint}
 	}
 	return Result{ID: IDHerdrIntegration, Level: OK, Message: "no problem found with herdr's Claude Code integration"}
+}
+
+// igrisInPath warns when the igris in PATH is missing or is another binary
+// than this one (V12-F): sessions run `igris done` through PATH, while the
+// hooks name the running binary, so a split plan fails at `igris done`
+// with an older igris, and a development build mixes versions silently.
+// It is a warning only, never a confirmation. version is this igris's.
+func igrisInPath(ctx context.Context, r runner.Runner, self func() (string, string, bool), version string) Result {
+	_, inPath, same := self()
+	switch {
+	case inPath == "":
+		return Result{ID: IDIgrisPath, Level: Warn, Message: "igris is not in PATH; sessions can't run igris done: put this igris in PATH"}
+	case same:
+		return Result{ID: IDIgrisPath, Level: OK, Message: "igris in PATH is this igris"}
+	}
+	other := inPath
+	if v := igrisVersion(ctx, r, inPath); v != "" {
+		other += " (" + v + ")"
+	}
+	this := "this igris"
+	if version != "" {
+		this += " (" + version + ")"
+	}
+	return Result{ID: IDIgrisPath, Level: Warn, Message: fmt.Sprintf("sessions run igris done with %s, not %s; put this igris first in PATH", other, this)}
+}
+
+// maxVersionLen bounds the version igrisVersion reports.
+const maxVersionLen = 40
+
+// igrisVersion is the version `<path> version` prints ("igris 1.1.0"), or
+// "" when it can't be read.
+func igrisVersion(ctx context.Context, r runner.Runner, path string) string {
+	if r == nil {
+		return ""
+	}
+	res, err := r.Run(ctx, runner.Cmd{Name: path, Args: []string{"version"}, Timeout: versionTimeout})
+	if err != nil || res.ExitCode != 0 {
+		return ""
+	}
+	f := strings.Fields(strings.TrimPrefix(strings.TrimSpace(string(res.Stdout)), "igris "))
+	if len(f) == 0 || len(f[0]) > maxVersionLen {
+		return ""
+	}
+	return f[0]
 }

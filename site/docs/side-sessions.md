@@ -14,7 +14,7 @@ Press `S` on the home screen or in the run view. It needs a reachable backend (h
    - **igris problem**: igris's version, the backend, the run state, the last 10 run-log events and the summary of `igris doctor`, and a pointer to `.igris/runs.jsonl` and `.igris/state.json`. Never config values or secrets.
 2. **The first prompt.** An editable field holding the prefill. It is cleaned of escape sequences, at most 8 KiB, and typed once the session is ready. Empty types nothing.
 3. **The model**, from your `[models]` ranks. `[side] model` is preselected (`sonnet` unless you set another).
-4. **The mode**: `default`, `accept`, `auto` or `plan` (approved in the pane, not by igris). `[side] mode` is preselected. Skip-permissions is never offered, and `[side] mode = "yolo"` is a config error.
+4. **The mode**: `default`, `manual`, `accept`, `auto` or `plan` (approved in the pane, not by igris). `[side] mode` is preselected. Skip-permissions is never offered, and `[side] mode = "yolo"` is a config error.
 5. **During a run, where it works.** The **shared tree** (the default) or **its own worktree**.
 
 ```toml
@@ -25,7 +25,7 @@ mode = "default"
 
 ## During a run
 
-A side session in the shared tree works in the same files as the task. The dialog says so (`M2-04 is working in this tree; a plan edit holds the run`) and preselects `default` mode whatever `[side] mode` says, so every edit asks first. The rules igris gives the session also tell it to ask you before editing files while a task is running.
+A side session in the shared tree works in the same files as the task. The dialog says so (`M2-04 is working in this tree; a plan edit holds the run`) and preselects `manual` mode whatever `[side] mode` says, so every edit asks first, whatever Claude Code's own default is. The rules igris gives the session also tell it to ask you before editing files while a task is running.
 
 Two things to know:
 

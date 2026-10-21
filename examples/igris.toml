@@ -4,7 +4,7 @@
 
 plan = "tasks.md"                 # path to the plan, relative to the project root
 backend = "auto"                  # auto | herdr | tmux
-default_mode = "auto"             # default | accept | auto | plan | yolo
+default_mode = "auto"             # default | accept | auto | plan | yolo | manual
 needs_input_after = "30s"
 waiting_limit = "30m"             # how long Claude may wait on background work before it needs you
 nudge = true                      # remind an agent that stopped without `igris done` once, first

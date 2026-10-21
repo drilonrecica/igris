@@ -163,7 +163,7 @@ func TestDoctorJSON(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &d); err != nil {
 		t.Fatalf("not a doctor JSON object: %v\n%s", err, out)
 	}
-	if d.V != report.JSONVersion || len(d.Checks) == 0 || d.Checks[0].ID != checks.IDClaude {
+	if d.V != report.JSONVersion || len(d.Checks) < 2 || d.Checks[0].ID != checks.IDIgrisPath || d.Checks[1].ID != checks.IDClaude {
 		t.Errorf("doctor = %+v", d)
 	}
 }

@@ -428,6 +428,13 @@ func TestLoadRunAcceptsItsOwn(t *testing.T) {
 	if out, err := d.LoadRun(); err != nil || out.Worktree.Branch != in.Worktree.Branch || out.Current.Mode != "yolo" {
 		t.Errorf("LoadRun = %+v, %v", out, err)
 	}
+	in.Current.Mode = "manual" // since 1.2 (V12-F)
+	if err := d.SaveRun(in); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := d.LoadRun(); err != nil || out.Current.Mode != "manual" {
+		t.Errorf("LoadRun manual = %+v, %v", out, err)
+	}
 }
 
 func TestRunLog(t *testing.T) {

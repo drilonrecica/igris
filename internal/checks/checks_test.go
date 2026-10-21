@@ -53,6 +53,7 @@ func TestRunOrder(t *testing.T) {
 	got := Run(context.Background(), Options{
 		Root: writePlan(t, driftPlan), Runner: r, Getenv: func(string) string { return "" },
 		Versions: versions, BackendName: IDHerdr, Backend: h, Integration: h, Config: config.Default(),
+		Self: func() (string, string, bool) { return "/bin/igris", "/bin/igris", true },
 	})
 	// Only the chosen backend's tool is checked: no tmux row on herdr.
 	want := slices.DeleteFunc(slices.Clone(order), func(id string) bool { return id == IDTmux })

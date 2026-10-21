@@ -259,7 +259,7 @@ const (
 
 // SideModes are the modes a side session may run in: never yolo nor a
 // plan:<mode> value (V12-P1).
-var SideModes = []string{"default", "accept", "auto", "plan"}
+var SideModes = []string{"default", "manual", "accept", "auto", "plan"}
 
 // Side is the [side] table (SPEC §12): what the side-session dialog
 // preselects (SPEC §6.10). Both keys are empty when not set.
@@ -500,7 +500,7 @@ func (Secrets) String() string { return "config.Secrets{redacted}" }
 func (Secrets) GoString() string { return "config.Secrets{redacted}" }
 
 var (
-	validModes   = []string{"default", "accept", "auto", "plan", "plan:default", "plan:accept", "plan:auto", "plan:yolo", "yolo"}
+	validModes   = []string{"default", "accept", "auto", "plan", "plan:default", "plan:accept", "plan:auto", "plan:yolo", "yolo", "manual"}
 	validCommit  = []string{"ask", "auto", "never"}
 	validAdapt   = []string{"sonnet", "opus"}
 	validThemes  = []string{"auto", "dark", "light"}

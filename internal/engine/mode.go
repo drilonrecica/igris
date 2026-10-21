@@ -14,6 +14,7 @@ const (
 	ModeAuto    = "auto"
 	ModePlan    = "plan"
 	ModeYolo    = "yolo"
+	ModeManual  = "manual"
 
 	// A plan mode that names the mode after approval (SPEC §7.1); plain
 	// plan switches to [plan_mode] then.
@@ -24,7 +25,7 @@ const (
 )
 
 // Modes are the run modes in the order igris lists them.
-var Modes = []string{ModeDefault, ModeAccept, ModeAuto, ModePlan, ModeYolo, ModePlanDefault, ModePlanAccept, ModePlanAuto, ModePlanYolo}
+var Modes = []string{ModeDefault, ModeAccept, ModeAuto, ModePlan, ModeYolo, ModeManual, ModePlanDefault, ModePlanAccept, ModePlanAuto, ModePlanYolo}
 
 // ModeList is Modes for messages: "default|accept|…".
 var ModeList = strings.Join(Modes, "|")
@@ -38,7 +39,9 @@ const SkipNote = "Sessions in yolo mode run with --dangerously-skip-permissions,
 
 // modeFlags maps each run mode to its Claude Code flags. Spellings were
 // verified against Claude Code 2.1.291 (P0-02, SPEC §7.1). Default passes no
-// permission flag: `--permission-mode` has no `default` value. Claude Code
+// permission flag, so the session starts in Claude Code's own default mode,
+// which is auto when the owner opted into auto as that default; manual
+// (verified with 2.1.305, V12-F) prompts whatever that default is. Claude Code
 // ignores a setMode to bypassPermissions in a session started without
 // --allow-dangerously-skip-permissions (verified with 2.1.304, V11-02), so
 // plan:yolo, and only it, starts with it.
@@ -46,6 +49,7 @@ var modeFlags = map[string][]string{
 	ModeDefault:     nil,
 	ModeAccept:      {"--permission-mode", "acceptEdits"},
 	ModeAuto:        {"--permission-mode", "auto"},
+	ModeManual:      {"--permission-mode", "manual"},
 	ModePlan:        {"--permission-mode", "plan"},
 	ModePlanDefault: {"--permission-mode", "plan"},
 	ModePlanAccept:  {"--permission-mode", "plan"},

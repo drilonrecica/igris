@@ -7,10 +7,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/drilonrecica/igris/internal/checks"
+	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/runner"
 )
 
@@ -618,5 +620,50 @@ func TestStatusOptionalColumns(t *testing.T) {
 	}
 	if a, b := got.Phases[0].Tasks[0], got.Phases[1].Tasks[0]; a.Verify != "fast" || a.Context != nil || strings.Join(b.Context, "|") != "x.go|y/" || b.Verify != "" {
 		t.Errorf("json tasks = %+v, %+v", a, b)
+	}
+}
+
+// check, arise --dry-run and doctor warn when the igris in PATH, which
+// sessions run igris done with, is another binary or missing (V12-F); a
+// warning never fails check --strict.
+func TestIgrisPathWarning(t *testing.T) {
+	writeProject(t, map[string]string{
+		"tasks.md":   "## A — First\n\n| ID | Task | Deps | Status | Model |\n|---|---|---|---|---|\n| A-1 | **One** | — | ready | sonnet |\n",
+		"igris.toml": "[run]\nverify = \"false\"\ncommit = \"never\"\n",
+	})
+	savedRunner, savedSelf := ariseRunner, igrisSelf
+	t.Cleanup(func() { ariseRunner, igrisSelf = savedRunner, savedSelf })
+	r := &runner.Fake{}
+	r.Func(func(c runner.Cmd) (runner.Result, error) {
+		if c.Name == "/old/bin/igris" && slices.Equal(c.Args, []string{"version"}) {
+			return runner.Result{Stdout: []byte("igris 1.1.0\n")}, nil
+		}
+		return runner.Result{ExitCode: 1}, nil
+	})
+	ariseRunner = r
+	other := "warning: sessions run igris done with /old/bin/igris (1.1.0), not this igris (" + igrisVersion() + "); put this igris first in PATH"
+	missing := "warning: igris is not in PATH; sessions can't run igris done: put this igris in PATH"
+	for _, tc := range []struct {
+		inPath, want string
+	}{
+		{"/old/bin/igris", other},
+		{"", missing},
+	} {
+		igrisSelf = func() (string, string, bool) { return "/new/bin/igris", tc.inPath, false }
+		for _, args := range [][]string{{"check"}, {"check", "--strict"}, {"arise", "A", "--dry-run"}} {
+			code, out, errb := runCmd(args...)
+			if code != exitOK || !strings.Contains(out+errb, strings.TrimPrefix(tc.want, "warning: ")) {
+				t.Errorf("%v with %q in PATH: exit %d, output lacks %q:\n%s%s", args, tc.inPath, code, tc.want, out, errb)
+			}
+		}
+		code, out, _ := runCmd("doctor", "--json")
+		var d report.Doctor
+		if err := json.Unmarshal([]byte(out), &d); err != nil || len(d.Checks) == 0 || d.Checks[0].ID != checks.IDIgrisPath || d.Checks[0].Level != checks.Warn {
+			t.Errorf("doctor with %q in PATH: exit %d, %v:\n%s", tc.inPath, code, err, out)
+		}
+	}
+	code, out, _ := runCmd("check")
+	if !strings.Contains(out, missing) {
+		t.Errorf("check text: exit %d, lacks %q:\n%s", code, missing, out)
 	}
 }

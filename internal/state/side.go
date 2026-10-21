@@ -40,7 +40,7 @@ const (
 
 // SideModes are the modes a side session may run in: never yolo nor a
 // plan:<mode> value (SPEC §6.10).
-var SideModes = []string{"default", "accept", "auto", "plan"}
+var SideModes = []string{"default", "manual", "accept", "auto", "plan"}
 
 // SideRecord is one open side session: .igris/side/<id>.json.
 type SideRecord struct {

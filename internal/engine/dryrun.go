@@ -38,6 +38,10 @@ type DryRunOptions struct {
 	// config chooses ("" when none can be chosen): only its version counts.
 	Versions    func(context.Context, runner.Runner) []checks.Result
 	BackendName string
+	// Self and Version serve the igris-path check (checks.Options); nil
+	// Self leaves it out.
+	Self    func() (self, inPath string, same bool)
+	Version string
 	// Format renders an event as the lines the walk shows for it.
 	Format func(Event) []string
 	// Worktree is --worktree (SPEC §6.8); the walk says where the run
@@ -88,10 +92,11 @@ func DryRun(ctx context.Context, o DryRunOptions) (report.DryRun, error) {
 
 	warn := func(s string) { r.Warnings = append(r.Warnings, textsafe.Line(s)) }
 	cs := checks.Run(ctx, checks.Options{
-		IDs:  []string{checks.IDClaude, checks.IDHerdr, checks.IDTmux, checks.IDConfig, checks.IDPlanHints, checks.IDAPIKey, checks.IDGit, checks.IDDrift},
+		IDs:  []string{checks.IDIgrisPath, checks.IDClaude, checks.IDHerdr, checks.IDTmux, checks.IDConfig, checks.IDPlanHints, checks.IDAPIKey, checks.IDGit, checks.IDDrift},
 		Root: f.Root, Runner: f.Runner, Getenv: f.Getenv, Versions: f.Versions, BackendName: f.BackendName, Config: f.Config,
+		Self: f.Self, Version: f.Version,
 	})
-	for _, c := range checks.Problems(checks.Pick(cs, checks.IDClaude, checks.IDHerdr, checks.IDTmux, checks.IDConfig, checks.IDPlanHints)) {
+	for _, c := range checks.Problems(checks.Pick(cs, checks.IDIgrisPath, checks.IDClaude, checks.IDHerdr, checks.IDTmux, checks.IDConfig, checks.IDPlanHints)) {
 		warn(c.String())
 	}
 	for _, c := range checks.Problems(checks.Pick(cs, checks.IDAPIKey, checks.IDGit)) {

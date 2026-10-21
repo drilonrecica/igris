@@ -9,6 +9,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/side"
 	"github.com/drilonrecica/igris/internal/state"
 	"github.com/drilonrecica/igris/internal/textsafe"
@@ -520,18 +521,21 @@ func (s *sideUI) modelStep() *dialog {
 // session opens in unless it gets its own worktree.
 func (f *sideFlow) sharedRun() bool { return f.run != nil && !f.run.Worktree }
 
-// modeStep asks for the mode: [side] mode first, default first during a
+// modeStep asks for the mode: [side] mode first, manual first during a
 // run in the shared tree; never yolo (SPEC §6.10).
 func (s *sideUI) modeStep() *dialog {
 	f := s.flow
 	first := f.setup.Mode
-	if f.sharedRun() || !slices.Contains(state.SideModes, first) {
-		first = state.SideModes[0]
+	switch {
+	case f.sharedRun():
+		first = engine.ModeManual // every prompt to the owner, whatever Claude Code's default
+	case !slices.Contains(state.SideModes, first):
+		first = engine.ModeDefault
 	}
 	f.modes = append([]string{first}, slices.DeleteFunc(slices.Clone(state.SideModes), func(m string) bool { return m == first })...)
 	d := &dialog{title: "Mode", detail: "The session's permission mode. Side sessions never skip permissions.", cancel: actClose}
 	if f.sharedRun() {
-		d.detail += " A run works in this tree, so default comes first."
+		d.detail += " A run works in this tree, so manual comes first."
 	}
 	for _, md := range f.modes {
 		label := md
@@ -540,7 +544,7 @@ func (s *sideUI) modeStep() *dialog {
 				label = ma.label
 			}
 		}
-		if md == state.SideModes[3] {
+		if md == engine.ModePlan {
 			label += " (approved in the pane)"
 		}
 		d.options = append(d.options, option{label, actSidePick})

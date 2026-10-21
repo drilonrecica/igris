@@ -40,6 +40,7 @@ const (
 	actModeAuto
 	actModePlan
 	actModeYolo
+	actModeManual
 	actModePlanDefault
 	actModePlanAccept
 	actModePlanAuto
@@ -110,8 +111,9 @@ var modeActs = []struct {
 	{actModeAuto, engine.ModeAuto, "auto — Claude Code asks only about risky actions"},
 	{actModePlan, engine.ModePlan, "plan — plan first, you approve, then it implements"},
 	{actModeYolo, engine.ModeYolo, "yolo [SKIP PERMISSIONS] — no permission prompts"},
-	// The plan modes that name the mode after approval (SPEC §7.1);
-	// listed after the first five, which keep their number keys.
+	// Listed after the first five, which keep their number keys (V12-F).
+	{actModeManual, engine.ModeManual, "manual — every action asks, whatever Claude Code's default is"},
+	// The plan modes that name the mode after approval (SPEC §7.1).
 	{actModePlanDefault, engine.ModePlanDefault, "plan:default — plan, then default"},
 	{actModePlanAccept, engine.ModePlanAccept, "plan:accept — plan, then accept"},
 	{actModePlanAuto, engine.ModePlanAuto, "plan:auto — plan, then auto"},

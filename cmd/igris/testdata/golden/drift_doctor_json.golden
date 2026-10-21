@@ -4,6 +4,11 @@ exit: 0
   "v": 1,
   "checks": [
     {
+      "id": "igris-path",
+      "level": "ok",
+      "message": "igris in PATH is this igris"
+    },
+    {
       "id": "claude",
       "level": "ok",
       "message": "Claude Code 2.1.292"

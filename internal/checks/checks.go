@@ -34,6 +34,7 @@ const (
 // results (one per ignored setting, plan hint or drifted task) or none
 // (plan checks on a plan that can't be read or isn't valid).
 const (
+	IDIgrisPath        = "igris-path"        // the igris in PATH, which sessions run igris done with, is this one
 	IDClaude           = "claude"            // Claude Code found, version
 	IDHerdr            = "herdr"             // herdr found, version (when herdr is the backend)
 	IDTmux             = "tmux"              // tmux found, version (when tmux is the backend)
@@ -49,7 +50,7 @@ const (
 
 // order is the one order of the checks.
 var order = []string{
-	IDClaude, IDHerdr, IDTmux, IDAPIKey, IDBackend, IDHerdrIntegration, IDGit,
+	IDIgrisPath, IDClaude, IDHerdr, IDTmux, IDAPIKey, IDBackend, IDHerdrIntegration, IDGit,
 	IDConfig, IDProject, IDPlanHints, IDDrift,
 }
 
@@ -127,6 +128,12 @@ type Options struct {
 	ParentConfig string
 	// Plan is the loaded plan; nil loads it from Root and Config.
 	Plan *plan.Plan
+	// Self finds the running igris and the one in PATH; usually
+	// runner.Self. A seam for tests, which must not depend on the real
+	// PATH. Version is this igris's version ("" when unknown); the other
+	// igris's version is read through Runner.
+	Self    func() (self, inPath string, same bool)
+	Version string
 }
 
 // Run runs the checks of o.IDs whose inputs are set, in the list's order.
@@ -149,6 +156,10 @@ func Run(ctx context.Context, o Options) []Result {
 			continue
 		}
 		switch id {
+		case IDIgrisPath:
+			if o.Self != nil {
+				add(igrisInPath(ctx, o.Runner, o.Self, o.Version))
+			}
 		case IDClaude, IDHerdr, IDTmux:
 			if o.Versions == nil || (id != IDClaude && id != o.BackendName) {
 				continue

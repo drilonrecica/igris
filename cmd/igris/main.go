@@ -65,7 +65,7 @@ Commands:
   usage [RUN | --since D] [--json]      token usage and the rank audit of one run (RUN as for report) or of the runs
                                         started since D (7d, 36h, 2026-10-01); with the last subscription quota
   arise [PHASE] [--through PHASE]       run (or resume) with the TUI
-        [--mode default|accept|auto|plan[:MODE]|yolo] [--no-tui]
+        [--mode default|accept|auto|plan[:MODE]|yolo|manual] [--no-tui]
         [--dry-run] [--force-unlock] [--worktree]
         [--only ID[,ID...] | [--from ID] [--until ID]]
                                         run only part of the phases

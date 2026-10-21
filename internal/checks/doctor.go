@@ -71,7 +71,7 @@ func Doctor(ctx context.Context, o DoctorOptions) []Result {
 	}
 
 	var out []Result
-	out = append(out, pick(IDClaude, IDHerdr, IDTmux, IDAPIKey, IDBackend, IDHerdrIntegration, IDGit)...)
+	out = append(out, pick(IDIgrisPath, IDClaude, IDHerdr, IDTmux, IDAPIKey, IDBackend, IDHerdrIntegration, IDGit)...)
 	out = append(out, cfgResults...)
 	if cfgResults[0].Level != Fail {
 		out = append(out, pick(IDConfig)...)

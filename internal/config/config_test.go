@@ -164,7 +164,7 @@ func TestParseErrors(t *testing.T) {
 		{"duration not string", `poll_interval = 5`, []string{"parse igris.toml"}},
 		{"zero duration", `needs_input_after = "0s"`, []string{"needs_input_after must be greater than zero"}},
 		{"negative duration", "[run]\nverify_timeout = \"-1m\"", []string{"run.verify_timeout must be greater than zero"}},
-		{"bad mode", `default_mode = "bypass"`, []string{`default_mode = "bypass"`, "default, accept, auto, plan, plan:default, plan:accept, plan:auto, plan:yolo, yolo"}},
+		{"bad mode", `default_mode = "bypass"`, []string{`default_mode = "bypass"`, "default, accept, auto, plan, plan:default, plan:accept, plan:auto, plan:yolo, yolo, manual"}},
 		{"bad commit", "[run]\ncommit = \"sometimes\"", []string{"run.commit"}},
 		{"bad adapt model", "[adapt]\nmodel = \"haiku\"", []string{"adapt.model", "sonnet, opus"}},
 		{"zero attempts", "[run]\nverify_max_attempts = 0", []string{"verify_max_attempts"}},
@@ -242,6 +242,19 @@ func TestParseErrors(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// default_mode takes every run mode, manual too (V12-F).
+func TestDefaultModes(t *testing.T) {
+	for _, m := range validModes {
+		c, err := Parse([]byte("default_mode = \""+m+"\"\n"), "igris.toml")
+		if err != nil || c.DefaultMode != m {
+			t.Errorf("default_mode = %q: %v", m, err)
+		}
+	}
+	if !contains(validModes, "manual") || contains(validPlanThen, "manual") {
+		t.Errorf("manual: default_mode %v, plan_mode.then %v", validModes, validPlanThen)
 	}
 }
 
@@ -1057,6 +1070,7 @@ func TestPlanMode(t *testing.T) {
 	for _, tc := range []struct{ toml, want string }{
 		{"then = \"yolo\"", "plan_mode.then"},
 		{"then = \"plan\"", "plan_mode.then"},
+		{"then = \"manual\"", "plan_mode.then"}, // setMode manual isn't verified (V12-F)
 		{"approve_timeout = \"30s\"", "plan_mode.approve_timeout"},
 		{"approve_timeout = \"25h\"", "plan_mode.approve_timeout"},
 		{"approve_timeout = \"-1m\"", "plan_mode.approve_timeout"},
@@ -1130,7 +1144,7 @@ func TestSide(t *testing.T) {
 			t.Errorf("%s: %v, want %q", tc.toml, err, tc.want)
 		}
 	}
-	for _, ok := range []string{"mode = \"default\"", "mode = \"accept\"", "mode = \"auto\"", "mode = \"plan\"", "model = \"haiku\""} {
+	for _, ok := range []string{"mode = \"default\"", "mode = \"manual\"", "mode = \"accept\"", "mode = \"auto\"", "mode = \"plan\"", "model = \"haiku\""} {
 		if _, err := Parse([]byte("[side]\n"+ok+"\n"), "igris.toml"); err != nil {
 			t.Errorf("%s: %v", ok, err)
 		}

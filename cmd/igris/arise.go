@@ -37,6 +37,9 @@ var (
 	ariseGetenv  = os.Getenv
 	// compatWarnings checks the Claude Code and herdr versions (SPEC §11.4).
 	compatWarnings = checks.ToolVersions
+	// igrisSelf finds the running igris and the one in PATH, for the
+	// igris-path check (SPEC §14).
+	igrisSelf = runner.Self
 )
 
 // projectEnv hands this package's seams to the project layer, so the CLI
@@ -44,7 +47,7 @@ var (
 func projectEnv() project.Env {
 	return project.Env{
 		Getenv: ariseGetenv, Runner: ariseRunner, Backend: ariseBackend, Versions: compatWarnings,
-		Clock: adaptClock, Format: formatEvent, Version: igrisVersion(),
+		Clock: adaptClock, Format: formatEvent, Version: igrisVersion(), Self: igrisSelf,
 	}
 }
 
@@ -504,7 +507,7 @@ const commandHelp = `commands:
   retry [continue|fresh]     replace the session: continue its conversation, or start fresh (default)
   pause                      pause after the current task (again to resume)
   stop                       stop igris now; the session stays open
-  mode <m>                   run mode for the next sessions: default|accept|auto|plan[:m]|yolo
+  mode <m>                   run mode for the next sessions: default|accept|auto|plan[:m]|yolo|manual
   mode <task> <m>            mode for that task's next session, over its Mode column
   help                       this list
 `

@@ -168,11 +168,18 @@ func typing(s string) []string {
 // modes are one pick.
 func TestPlanModesInThePicker(t *testing.T) {
 	hs := newHarness(t, 80, 24)
-	hs.keys("m", "8")
+	hs.keys("m", "6")
+	if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdMode, Text: "manual"}) {
+		t.Fatalf("sent %+v, want manual", got)
+	}
+	hs.keys("m", "9")
 	if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdMode, Text: "plan:auto"}) {
 		t.Fatalf("sent %+v, want plan:auto", got)
 	}
-	hs.keys("m", "9")
+	// plan:yolo is the tenth, past the number keys: one down from the
+	// current plan:auto.
+	hs.events(engine.Event{Kind: engine.ModeChanged, Detail: "plan:auto"})
+	hs.keys("m", "down", "enter")
 	d := hs.m.dialog
 	if len(hs.s.take()) != 0 || d == nil || d.input == nil || !strings.Contains(d.detail, "once you approve the plan in igris") {
 		t.Fatalf("picking plan:yolo didn't ask for the phrase: %+v", d)

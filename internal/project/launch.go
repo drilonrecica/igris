@@ -60,9 +60,9 @@ func (l *Launch) Prelaunch(ctx context.Context) report.Prelaunch {
 // what uncommitted changes in the project mean.
 func (p *Project) Prelaunch(ctx context.Context, be backend.Backend, req report.RunRequest) report.Prelaunch {
 	o := checks.Options{
-		IDs:  []string{checks.IDHerdrIntegration, checks.IDClaude, checks.IDHerdr, checks.IDTmux, checks.IDConfig, checks.IDPlanHints, checks.IDAPIKey, checks.IDGit},
+		IDs:  []string{checks.IDIgrisPath, checks.IDHerdrIntegration, checks.IDClaude, checks.IDHerdr, checks.IDTmux, checks.IDConfig, checks.IDPlanHints, checks.IDAPIKey, checks.IDGit},
 		Root: p.Root, Runner: p.env.runner(), Getenv: p.env.getenv(), Versions: p.env.versions(),
-		Config: p.Cfg, BackendName: BackendName(p.Cfg, p.env.getenv()),
+		Config: p.Cfg, BackendName: BackendName(p.Cfg, p.env.getenv()), Self: p.env.self(), Version: p.env.Version,
 	}
 	if integration, ok := be.(checks.Integration); ok {
 		o.Integration = integration
@@ -88,7 +88,7 @@ func (p *Project) Prelaunch(ctx context.Context, be backend.Backend, req report.
 	}
 	var r report.Prelaunch
 	// Information first, then what may need an answer.
-	r.Warnings = append(r.Warnings, checks.Problems(checks.Pick(cs, checks.IDHerdrIntegration, checks.IDClaude, checks.IDHerdr, checks.IDTmux))...)
+	r.Warnings = append(r.Warnings, checks.Problems(checks.Pick(cs, checks.IDIgrisPath, checks.IDHerdrIntegration, checks.IDClaude, checks.IDHerdr, checks.IDTmux))...)
 	r.Warnings = append(r.Warnings, checks.Problems(checks.Pick(cs, checks.IDConfig, checks.IDPlanHints, checks.IDAPIKey, checks.IDGit))...)
 	if prev != nil && prev.Current != nil {
 		r.Interrupted = textsafe.Line(prev.Current.TaskID)
@@ -169,7 +169,7 @@ func (p *Project) DryRun(ctx context.Context, req report.RunRequest) (report.Dry
 	return engine.DryRun(ctx, engine.DryRunOptions{
 		Root: p.Root, Config: p.Cfg, Phase: req.Phase, Through: req.Through, Mode: req.Mode, Selection: req.Selection,
 		Runner: p.env.runner(), Getenv: p.env.getenv(), Versions: p.env.versions(), Format: p.env.format(),
-		BackendName: BackendName(p.Cfg, p.env.getenv()), Worktree: req.Worktree,
+		BackendName: BackendName(p.Cfg, p.env.getenv()), Worktree: req.Worktree, Self: p.env.self(), Version: p.env.Version,
 	})
 }
 

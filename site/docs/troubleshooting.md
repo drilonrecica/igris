@@ -89,6 +89,10 @@ Run `igris notify test`. It sends a sample of each event to every channel and pr
 
 If `ANTHROPIC_API_KEY` is set, Claude Code bills the API instead of your subscription. igris asks you to confirm at start. Unset the variable in the shell you run igris from to use your subscription.
 
+## igris in PATH is another igris, or missing
+
+Sessions run `igris done` with the `igris` in your `PATH`, while igris's hooks name the binary you started. When they differ, `check`, `arise`, `doctor` and home warn: `sessions run igris done with /usr/local/bin/igris (1.1.0), not this igris (1.2.0)`. An older igris there can fail at `igris done`, for example on a split plan it can't read. Put the igris you run first in your `PATH` (`which igris` shows which one wins), or run that one. A development build run from elsewhere gets the same warning.
+
 ## The project is under /mnt (WSL)
 
 `doctor` warns about a project on the Windows drive. It is much slower from WSL and shared with Windows tools. Move it to the Linux filesystem (`~/code/…`). See [Windows (WSL2)](install.md#windows-wsl2).

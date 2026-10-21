@@ -83,7 +83,7 @@ No plan yet? `igris init --example` writes an example one, and `igris init --tem
 - **git** (recommended): igris can commit after each task and warns when the tree is dirty.
 - Linux or macOS (amd64 or arm64). On Windows, use [WSL2](#windows-wsl2).
 
-igris needs Claude Code 2.1.291 or later (tested with 2.1.294), herdr 0.9.1 and tmux 3.2 or later (tested with 3.7). `igris check` and `igris arise` warn when one of them is missing, older, or a newer major version; they never refuse to run because of it.
+igris needs Claude Code 2.1.291 or later (tested with 2.1.294), herdr 0.9.1 and tmux 3.2 or later (tested with 3.7). `igris check` and `igris arise` warn when one of them is missing, older, or a newer major version; they never refuse to run because of it. They also warn when the `igris` in your `PATH` isn't the one you're running (since 1.2): sessions run `igris done` through `PATH`.
 
 **Homebrew** (Linux and macOS):
 
@@ -374,15 +374,16 @@ Hooks run where the sessions do (the project root, or the run's [worktree](#work
 
 Choose the permission mode in the TUI, per run or per task: `m` (or **Mode**) for the run, or select a task and press `M` (**Task mode**) to override it for that task. A change applies to the next session; a running one keeps its mode. User tasks have no session, so they have no mode.
 
-A task's mode is, in order: your override, its `Mode` column, the run mode (`--mode`), then `default_mode` in `igris.toml` (`auto` unless you set it; `default_mode = "default"` gets you every permission prompt).
+A task's mode is, in order: your override, its `Mode` column, the run mode (`--mode`), then `default_mode` in `igris.toml` (`auto` unless you set it; `default_mode = "manual"` gets you every permission prompt).
 
 | Mode | What it does |
 |---|---|
-| Default | Your normal Claude Code permission prompts. |
+| Default | Claude Code's own default mode: no permission flag. That prompts, unless you opted into auto as Claude Code's default, in which case it runs in auto; use Manual for prompts either way. |
 | Accept edits | Edits are accepted automatically. Bash commands still ask, even read-only ones (that is Claude Code's behavior), so igris shows "needs you" when one comes up. |
 | Auto | Claude Code approves routine actions itself and asks you about risky ones. |
 | Plan | Claude plans first; you approve the plan, then it implements. In the TUI the plan opens in igris too (below). `plan:default`, `plan:accept`, `plan:auto` and `plan:yolo` name the mode it continues in once you approve there; plain `plan` uses `[plan_mode] then`. |
 | Skip permissions | `--dangerously-skip-permissions`. Never a single click or key: you type `skip permissions` to confirm, every run, and a red badge shows while it's active. Use it in a container you trust, or with [worktree mode](#worktree-mode). `plan:yolo` needs the same confirmation: its session starts in plan mode with `--allow-dangerously-skip-permissions` (Claude Code ignores the switch to skip permissions without it) and shows the badge from the start. |
+| Manual | `--permission-mode manual` (since 1.2): every permission prompt goes to you, whatever Claude Code's own default is. There is no `plan:manual`. |
 
 **Approving plans in igris** (since 1.1). When a plan-mode session presents its plan, igris shows it in a dialog and marks the task **needs you**: **Approve** (the session switches to the mode its Mode names, `plan:accept` say, or for plain `plan` to the one `[plan_mode] then` names, `auto` unless you set `default` or `accept`), **Reject with feedback** (Claude revises the plan and presents it again) or **Answer in the pane** (opens the session). Claude Code's own plan dialog stays open in the pane meanwhile; whichever you answer first wins. igris keeps every plan presented under `.igris/plans/`, logs each one (the file and a hash, never the text), and adds the approved plan to the commit body. If you don't answer within `[plan_mode] approve_timeout` (30 minutes by default; `"0"` turns this off), or igris stops, the plan waits in the pane. Not with `--no-tui`. A session could forge an approval of its own plan (it can write `.igris/` like everything else in the project), but never pick the mode it switches to; see the [threat model](docs/threat-model.md).
 
@@ -500,7 +501,7 @@ template = "{{.At.Format \"15:04\"}} {{.TaskID}} {{.What}}"
 
 They read your plan without changing it.
 
-- **`check`** exits 0 for a valid plan, 1 for an invalid one (2 on a usage error), and warns when `ready`/`blocked` cells don't match the dependencies, when `ANTHROPIC_API_KEY` is set, and when you run it from a subfolder of a project (it reads `igris.toml` only from the current folder).
+- **`check`** exits 0 for a valid plan, 1 for an invalid one (2 on a usage error), and warns when `ready`/`blocked` cells don't match the dependencies, when the `igris` in your `PATH` is missing or another binary (sessions run `igris done` with it; since 1.2), when `ANTHROPIC_API_KEY` is set, and when you run it from a subfolder of a project (it reads `igris.toml` only from the current folder).
 - **`check --strict`** also lints the plan and exits 1 on any plan or config warning, which suits CI:
   - a Task cell without a `**bold**` title, or longer than 400 characters;
   - an `agent + user` row that never says what the owner does;
@@ -508,7 +509,7 @@ They read your plan without changing it.
   - a `yolo` or `plan:yolo` Mode cell;
   - a `fable` task that is the only heavy-rank (opus or fable) task of its phase.
 
-  Done and skipped tasks aren't linted. Drift, ignored columns and config warnings fail it too; machine warnings (Claude Code or backend versions, `ANTHROPIC_API_KEY`, an `igris.toml` in a parent folder) are printed but never do, so it runs without Claude Code installed. With `--json` the document gets `"strict": true` and each lint warning a `"lint"` name. Plain `check` never shows these hints.
+  Done and skipped tasks aren't linted. Drift, ignored columns and config warnings fail it too; machine warnings (the igris in `PATH`, Claude Code or backend versions, `ANTHROPIC_API_KEY`, an `igris.toml` in a parent folder) are printed but never do, so it runs without Claude Code installed. With `--json` the document gets `"strict": true` and each lint warning a `"lint"` name. Plain `check` never shows these hints.
 - **`phases`** lists task counts per phase.
 - **`status [PHASE]`** lists tasks with rank, owner and what each is waiting on, under a short "Run" block (phases, the slice of an `--only`/`--from`/`--until` run, current task, mode, since, session, lock, pending signals) when a run exists in the project (`--json`: a `run` object, absent when there is none, with `selection` for a sliced run). The run is read from `.igris/` of the project root found upward from the current folder; an unreadable `state.json` is reported there, not as a failure. A task's duration includes the time it waited for you, so it isn't a measure of agent time.
 
@@ -519,6 +520,7 @@ They read your plan without changing it.
 
 `igris doctor` checks the machine and the project without changing anything: it never writes or creates `.igris/`, and has no `--fix`. It checks:
 
+- that the `igris` in your `PATH` is this one (since 1.2): sessions run `igris done` through `PATH`, so a missing or older igris there warns, with that binary's path and version;
 - Claude Code, the backend (herdr or tmux: version, whether igris runs inside it) and `ANTHROPIC_API_KEY`;
 - git, `igris.toml` and the plan (every problem);
 - the `igris done` allow rules in `.claude/settings.local.json` (or `.claude/settings.json`), with a warning if a rule there allows `igris skip` or every shell command, or `permissions.defaultMode` bypasses prompts;
@@ -634,8 +636,8 @@ With `igris arise PHASE`, the start-up questions (an API key in the environment,
 
 Since 1.2: press `S` on home or in the run view for a Claude Code session of your own, for a question or a look into something, in a pane next to the run's. It is not a task: igris doesn't watch it, counts no attempt and writes no Status for it, and inside it `igris done`, `skip` and `reset` refuse.
 
-- **The dialog** asks what it is about: **Blank** (no first prompt), **About this task** (the selected or current task's ID, title, phase, the plan's path and its text, then `Question: `) or **igris problem** (igris's version, the backend, the run state, the last 10 run-log events and doctor's summary, never config values or secrets). The first prompt is a field you can add to (it is cleaned of escape sequences, at most 8 KiB, and typed once the session is ready); then the model (`[side] model` first, `sonnet` unless you set another) and the mode (`[side] mode` first; `default`, `accept`, `auto` or `plan`, never yolo).
-- **During a run** it also asks **Where**: the **Shared tree** (the default, with the warning `M2-04 is working in this tree; a plan edit holds the run`, and `default` mode first) or its **Own worktree** (`.igris/worktrees/side-<id>` on the branch `igris/side-<id>`). A plan edit from a side session holds the run like any other.
+- **The dialog** asks what it is about: **Blank** (no first prompt), **About this task** (the selected or current task's ID, title, phase, the plan's path and its text, then `Question: `) or **igris problem** (igris's version, the backend, the run state, the last 10 run-log events and doctor's summary, never config values or secrets). The first prompt is a field you can add to (it is cleaned of escape sequences, at most 8 KiB, and typed once the session is ready); then the model (`[side] model` first, `sonnet` unless you set another) and the mode (`[side] mode` first; `default`, `manual`, `accept`, `auto` or `plan`, never yolo).
+- **During a run** it also asks **Where**: the **Shared tree** (the default, with the warning `M2-04 is working in this tree; a plan edit holds the run`, and `manual` mode first) or its **Own worktree** (`.igris/worktrees/side-<id>` on the branch `igris/side-<id>`). A plan edit from a side session holds the run like any other.
 - **With some open,** `S` lists them (`side a3f2c1 · working · 12m · M2-04 · sonnet · default`): `enter` or `o` brings one to the front, `x` asks before closing it (a worktree of its own is removed when it has no changes, its branch stays), **New…** opens another. The header shows `side N`. Quitting igris leaves them open, and the next home or run view finds them again.
 
 ### Mouse, clipboard and colors

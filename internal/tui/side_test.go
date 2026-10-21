@@ -182,7 +182,7 @@ func TestSideDialogDuringRun(t *testing.T) {
 	}
 	hs.press("enter")
 	modes := optionLabels(hs.m.dialog)
-	if hs.dialogTitle() != "Mode" || !strings.HasPrefix(modes[0], "default") || len(modes) != 4 {
+	if hs.dialogTitle() != "Mode" || !strings.HasPrefix(modes[0], "manual") || len(modes) != 5 {
 		t.Fatalf("mode step: %q %q", hs.dialogTitle(), modes)
 	}
 	for _, l := range modes {
@@ -202,7 +202,7 @@ func TestSideDialogDuringRun(t *testing.T) {
 	if hs.m.dialog != nil {
 		t.Fatalf("still open: %q", hs.dialogTitle())
 	}
-	want := SideRequest{Preset: state.SidePresetTask, Task: "M0-03", Rank: "sonnet", Mode: "default", Prompt: fs.prefill + "why?", RunTask: "M0-03"}
+	want := SideRequest{Preset: state.SidePresetTask, Task: "M0-03", Rank: "sonnet", Mode: "manual", Prompt: fs.prefill + "why?", RunTask: "M0-03"}
 	if len(fs.opened) != 1 || fs.opened[0] != want {
 		t.Fatalf("opened %+v, want %+v", fs.opened, want)
 	}
@@ -213,13 +213,13 @@ func TestSideDialogDuringRun(t *testing.T) {
 }
 
 // Own worktree tells the session about no task; in a worktree run only the
-// plan warning is given and the mode isn't forced to default.
+// plan warning is given and the mode isn't forced to manual.
 func TestSideDialogWorktrees(t *testing.T) {
 	fs := newFakeSide()
 	hs := sideHarness(t, fs)
 	hs.events(engine.Event{Kind: engine.RunStarted, Phase: "M0"}, started("M0-03"), opened("M0-03"))
 	hs.press("S", "1", "enter", "enter", "enter", "down", "enter", "enter")
-	if len(fs.opened) != 1 || !fs.opened[0].Worktree || fs.opened[0].RunTask != "" || fs.opened[0].Mode != "default" {
+	if len(fs.opened) != 1 || !fs.opened[0].Worktree || fs.opened[0].RunTask != "" || fs.opened[0].Mode != "manual" {
 		t.Fatalf("own worktree: %+v", fs.opened)
 	}
 

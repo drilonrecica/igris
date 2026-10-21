@@ -24,7 +24,9 @@ const maxCommitPlan = 8 << 10
 // setModeOf maps the mode after approval to the Claude Code permission
 // mode setMode takes (SPEC §7.1). bypassPermissions takes effect only in a
 // session started with --allow-dangerously-skip-permissions, which
-// plan:yolo, and only it, gets (modeFlags).
+// plan:yolo, and only it, gets (modeFlags). manual has no entry: no
+// plan:manual, and [plan_mode] then never takes it, since a setMode to
+// manual is not verified (V12-F).
 var setModeOf = map[string]string{ModeDefault: "default", ModeAccept: "acceptEdits", ModeAuto: "auto", ModeYolo: "bypassPermissions"}
 
 // planShown is the plan request the owner is shown for l's session.

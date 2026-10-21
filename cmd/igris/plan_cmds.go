@@ -104,13 +104,14 @@ func execCheck(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	}
 	// check only warns: it lists ANTHROPIC_API_KEY but asks nothing.
 	cs := checks.Run(context.Background(), checks.Options{
-		IDs:    []string{checks.IDClaude, checks.IDHerdr, checks.IDTmux, checks.IDConfig, checks.IDAPIKey, checks.IDProject, checks.IDPlanHints, checks.IDDrift},
+		IDs:    []string{checks.IDIgrisPath, checks.IDClaude, checks.IDHerdr, checks.IDTmux, checks.IDConfig, checks.IDAPIKey, checks.IDProject, checks.IDPlanHints, checks.IDDrift},
 		Runner: commandRunner(), Getenv: ariseGetenv, Versions: compatWarnings, BackendName: project.BackendName(l.cfg, ariseGetenv),
+		Self: igrisSelf, Version: igrisVersion(),
 		Config: l.cfg, NoConfig: l.noConfig, ParentConfig: l.parentConfig, Plan: l.plan,
 	})
 	strict := fs.Lookup("strict").Value.String() == "true"
 	r := report.Check(report.CheckInput{Plan: l.plan, Rules: l.cfg.Rules(""), Strict: strict, Checks: checks.Pick(cs,
-		checks.IDClaude, checks.IDHerdr, checks.IDTmux, checks.IDConfig, checks.IDAPIKey, checks.IDProject, checks.IDPlanHints, checks.IDDrift)})
+		checks.IDIgrisPath, checks.IDClaude, checks.IDHerdr, checks.IDTmux, checks.IDConfig, checks.IDAPIKey, checks.IDProject, checks.IDPlanHints, checks.IDDrift)})
 	// Under --strict a plan or config warning fails the check; a machine
 	// warning never does (SPEC §14).
 	strictFail := strict && r.Failing > 0

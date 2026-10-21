@@ -3,14 +3,12 @@ package engine
 import (
 	"crypto/rand"
 	"fmt"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"regexp"
 	"strings"
 
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/hook"
+	"github.com/drilonrecica/igris/internal/runner"
 	"github.com/drilonrecica/igris/internal/state"
 )
 
@@ -76,12 +74,9 @@ func ClaudeArgs(p ClaudeParams) ([]string, error) {
 // file it points to doesn't), else the running binary's own path; "" if
 // neither is known.
 func igrisPath() string {
-	self, err := os.Executable()
-	if err != nil {
-		return ""
-	}
-	if p, err := exec.LookPath("igris"); err == nil && filepath.IsAbs(p) && sameFile(p, self) {
-		return p
+	self, inPath, same := runner.Self()
+	if same {
+		return inPath
 	}
 	return self
 }
@@ -89,12 +84,6 @@ func igrisPath() string {
 // IgrisPath is igrisPath for the hooks of sessions igris opens outside a
 // run: side sessions (SPEC §6.10).
 func IgrisPath() string { return igrisPath() }
-
-func sameFile(a, b string) bool {
-	ia, err1 := os.Stat(a)
-	ib, err2 := os.Stat(b)
-	return err1 == nil && err2 == nil && os.SameFile(ia, ib)
-}
 
 // WriteHooks writes the Claude Code settings file for task id (SPEC §6.3)
 // and returns its path. exe is the igris binary the hooks run; "" means the

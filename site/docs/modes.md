@@ -4,13 +4,14 @@ A mode is the permission mode of a task's Claude Code session: how much it may d
 
 | Mode | What it does |
 |---|---|
-| `default` | Your normal Claude Code permission prompts. |
+| `default` | Claude Code's own default mode: igris passes no permission flag. That prompts, unless you opted into auto as Claude Code's default; then it runs in auto. Use `manual` for prompts either way. |
 | `accept` | Edits are accepted automatically. Bash commands still ask, even read-only ones (that is Claude Code's behavior), so igris shows "needs you" when one comes up. |
 | `auto` | Claude Code approves routine actions itself and asks you about risky ones. |
 | `plan` | Claude plans first; you approve the plan, then it implements. When you approve in igris, it continues in the mode `[plan_mode] then` names (`auto` by default). |
 | `plan:default`, `plan:accept`, `plan:auto` | Plan first, then continue in `default`, `accept` or `auto` once you approve the plan in igris. |
 | `plan:yolo` | Plan first, then skip permissions once you approve the plan in igris. Needs the same typed confirmation as `yolo`. See below. |
 | `yolo` | Skip permissions: `--dangerously-skip-permissions`. See below. |
+| `manual` | Every permission prompt goes to you, whatever Claude Code's own default is: `--permission-mode manual` (since 1.2). There is no `plan:manual`. |
 
 ## Which mode a task gets
 
@@ -19,7 +20,7 @@ A task's mode is, in order:
 1. your override in the TUI;
 2. its `Mode` column in the plan;
 3. the run mode, `igris arise --mode`;
-4. `default_mode` in `igris.toml`, which is `auto` unless you set it (`default_mode = "default"` gets you every permission prompt).
+4. `default_mode` in `igris.toml`, which is `auto` unless you set it (`default_mode = "manual"` gets you every permission prompt).
 
 Choose a mode in the TUI per run or per task: `m` (or **Mode**) for the run, or select a task and press `M` (**Task mode**) to override it for that task. A change applies to the next session; a running one keeps its mode. User tasks have no session, so they have no mode.
 

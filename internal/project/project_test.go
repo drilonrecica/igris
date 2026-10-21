@@ -41,6 +41,7 @@ func testEnv(vars map[string]string) (Env, *fake.Backend) {
 		Runner:   &runner.Fake{},
 		Backend:  func(*config.Config) (backend.Backend, error) { return be, nil },
 		Versions: func(context.Context, runner.Runner) []checks.Result { return nil },
+		Self:     func() (string, string, bool) { return "/usr/local/bin/igris", "/usr/local/bin/igris", true },
 	}, be
 }
 
@@ -245,6 +246,19 @@ func TestPrelaunch(t *testing.T) {
 	// which is the one arise asks about.
 	if !reflect.DeepEqual(ids, []string{checks.IDAPIKey, checks.IDGit}) || asks != 1 {
 		t.Errorf("warnings = %+v", pre.Warnings)
+	}
+
+	// Another igris in PATH comes first, as information: nothing to answer
+	// (V12-F). The fake runner can't read its version.
+	env.Self = func() (string, string, bool) { return "/new/igris", "/old/igris", false }
+	env.Version = "1.2.0"
+	if p, err = Open(root, env); err != nil {
+		t.Fatal(err)
+	}
+	pre = p.Prelaunch(context.Background(), nil, report.RunRequest{})
+	if w := pre.Warnings; len(w) != 3 || w[0].ID != checks.IDIgrisPath || w[0].Confirm ||
+		w[0].Message != "sessions run igris done with /old/igris, not this igris (1.2.0); put this igris first in PATH" {
+		t.Errorf("warnings with another igris in PATH = %+v", w)
 	}
 }
 

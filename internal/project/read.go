@@ -65,7 +65,7 @@ func Doctor(ctx context.Context, dir string, env Env) []checks.Result {
 			cfg = c
 		}
 	}
-	o := checks.Options{Runner: env.runner(), Getenv: env.getenv(), Versions: env.versions()}
+	o := checks.Options{Runner: env.runner(), Getenv: env.getenv(), Versions: env.versions(), Self: env.self(), Version: env.Version}
 	name, err := ResolveBackend(cfg.Backend, env.getenv())
 	switch {
 	case err != nil:
