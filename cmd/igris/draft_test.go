@@ -324,7 +324,7 @@ func TestDraftCommandRefusals(t *testing.T) {
 				t.Fatal(err)
 			}
 		}, "draft.model"},
-		{"spec not built yet", []string{"draft", "spec", "spec.md"}, func(*testing.T, string) {}, "`igris draft spec` is not available in this build yet"},
+		{"spec missing", []string{"draft", "spec", "spec.md"}, func(*testing.T, string) {}, "igris draft: spec file spec.md doesn't exist"},
 		{"import not built yet", []string{"draft", "import", "x.csv", "--format", "jira"}, func(*testing.T, string) {}, "`igris draft import` is not available in this build yet"},
 		{"extend without a project", []string{"draft", "extend"}, func(*testing.T, string) {}, "no igris project"},
 		{"extend not built yet", []string{"draft", "extend", "a phase for docs"}, func(t *testing.T, root string) {
@@ -405,5 +405,76 @@ func TestDraftCommandReviewFails(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, "tasks.md")); !errors.Is(err, os.ErrNotExist) {
 		t.Error("the plan was written")
+	}
+}
+
+// draft spec: the session is pointed at the file, the review and Accept
+// are the goal's, and the result passes check.
+func TestDraftCommandSpec(t *testing.T) {
+	root, be := draftTestProject(t, "tasks.md", draftedPlan)
+	if err := os.MkdirAll(filepath.Join(root, "docs"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "docs", "prd.md"), []byte("# PRD\n\nRename photos by EXIF date.\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var shown tui.ReviewOptions
+	decideDraft(true, &shown)
+
+	var out, errb bytes.Buffer
+	if got := run([]string{"draft", "spec", "docs/prd.md"}, &out, &errb); got != exitOK {
+		t.Fatalf("exit = %d, stderr: %s\nstdout: %s", got, errb.String(), out.String())
+	}
+	p := be.Prompts(draft.ID)
+	if len(p) != 1 || !strings.Contains(p[0], "docs/prd.md") || strings.Contains(p[0], "Rename photos by EXIF date") {
+		t.Fatalf("prompt = %q, want the path and not the spec", p)
+	}
+	if shown.Note != "ranks are suggestions: 2 set, 0 left at ?" || !strings.Contains(out.String(), "accepted:") {
+		t.Errorf("review = %+v, stdout: %s", shown, out.String())
+	}
+	if got := run([]string{"check"}, &out, &errb); got != exitOK {
+		t.Errorf("igris check on the drafted plan: exit %d\n%s", got, errb.String())
+	}
+}
+
+func TestDraftCommandSpecRefusals(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(t *testing.T, root string)
+		want  string
+	}{
+		{"outside the project", func(t *testing.T, _ string) {
+			f := filepath.Join(t.TempDir(), "spec.md")
+			if err := os.WriteFile(f, []byte("x"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink(f, "spec.md"); err != nil {
+				t.Fatal(err)
+			}
+		}, "igris draft: spec file spec.md is outside the project"},
+		{"too large", func(t *testing.T, _ string) {
+			if err := os.WriteFile("spec.md", make([]byte, draft.MaxSpecSize+1), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}, "igris draft: spec file spec.md is over 1 MiB"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root, be := draftTestProject(t, "tasks.md", draftedPlan)
+			tt.setup(t, root)
+			var out, errb bytes.Buffer
+			if got := run([]string{"draft", "spec", "spec.md"}, &out, &errb); got != exitFail {
+				t.Fatalf("exit = %d, want 1; stderr %q", got, errb.String())
+			}
+			if !strings.Contains(errb.String(), tt.want) {
+				t.Errorf("stderr = %q, want %q", errb.String(), tt.want)
+			}
+			if len(be.Opened()) != 0 {
+				t.Error("a session was opened")
+			}
+			if _, err := os.Stat(filepath.Join(root, ".igris")); !errors.Is(err, os.ErrNotExist) {
+				t.Error(".igris/ was created")
+			}
+		})
 	}
 }

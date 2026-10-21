@@ -30,6 +30,7 @@ type DraftVars struct {
 	PlanFile     string       // the plan the proposal becomes
 	ProposalFile string       // where the session writes the proposal
 	Goal         string       // goal: the owner's goal; "" makes the session ask for it
+	SpecFile     string       // spec: the spec's path, relative to the project root
 	Models       []ModelAlias // the config's [models], sorted
 	Verify       []string     // the config's verify profile names, sorted; never their commands
 	DoneCommand  string       // default: "igris done DRAFT"

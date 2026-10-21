@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/drilonrecica/igris/internal/adapt"
 	"github.com/drilonrecica/igris/internal/engine"
@@ -48,6 +49,9 @@ func (s Source) NewPlan() bool { return s != Extend }
 
 // HasFile reports whether the source takes a FILE argument.
 func (s Source) HasFile() bool { return s == Spec || s == Import }
+
+// MaxSpecSize is the largest spec file `draft spec` takes (SPEC §9.1).
+const MaxSpecSize = 1 << 20
 
 // Options configure Run.
 type Options struct {
@@ -159,16 +163,70 @@ func errNotYet(s Source) error {
 	return fmt.Errorf("`igris draft %s` is not available in this build yet", s)
 }
 
+// CheckSpec checks the spec file named by the owner (SPEC §9.1): inside
+// the project once symlinks are resolved, a regular file of at most
+// MaxSpecSize bytes, valid UTF-8. A relative file is taken from the working
+// directory. It returns the file's path relative to the project root, which
+// is what the session is told to read (igris never pastes the spec).
+func CheckSpec(root, file string) (string, error) {
+	if file == "" {
+		return "", errors.New("no spec file; use `igris draft spec FILE`")
+	}
+	abs, err := filepath.Abs(file)
+	if err != nil {
+		return "", fmt.Errorf("spec file %s: %w", file, err)
+	}
+	real, err := filepath.EvalSymlinks(abs)
+	if errors.Is(err, fs.ErrNotExist) {
+		return "", fmt.Errorf("spec file %s doesn't exist; pass the path of a spec or PRD in the project", file)
+	}
+	if err != nil {
+		return "", fmt.Errorf("resolve spec file %s: %w", file, err)
+	}
+	realRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return "", fmt.Errorf("resolve %s: %w", root, err)
+	}
+	if !inside(realRoot, real) || real == realRoot {
+		return "", fmt.Errorf("spec file %s is outside the project %s; copy it into the project, or pass a file inside it", file, root)
+	}
+	data, err := fsafe.ReadFile(real, MaxSpecSize, false)
+	switch {
+	case errors.Is(err, fsafe.ErrNotRegular):
+		return "", fmt.Errorf("spec file %s is not a regular file; pass a spec or PRD as a plain file", file)
+	case errors.Is(err, fsafe.ErrTooLarge):
+		return "", fmt.Errorf("spec file %s is over %d MiB; split it, or pass the part to plan from", file, MaxSpecSize>>20)
+	case err != nil:
+		return "", fmt.Errorf("read spec file %s: %w", file, err)
+	}
+	if !utf8.Valid(data) {
+		return "", fmt.Errorf("spec file %s is not valid UTF-8 text; pass a Markdown or text spec", file)
+	}
+	rel, err := filepath.Rel(realRoot, real)
+	if err != nil {
+		return "", fmt.Errorf("spec file %s: %w", file, err)
+	}
+	return rel, nil
+}
+
 // Check is what Run refuses before any session opens or the lock is taken
-// (SPEC §9.1): a plan in the way of a new one, and a source this build
-// doesn't have yet. Callers may run it first, before they create anything.
-func Check(root string, src Source, planPath string) error {
+// (SPEC §9.1): a plan in the way of a new one, a spec file that can't be
+// used, and a source this build doesn't have yet. Callers may run it
+// first, before they create anything. file is the spec or export as the
+// owner named it.
+func Check(root string, src Source, planPath, file string) error {
 	if src.NewPlan() {
 		if err := CheckSlot(root, planPath); err != nil {
 			return err
 		}
 	}
-	if src != Goal {
+	switch src {
+	case Goal:
+	case Spec:
+		if _, err := CheckSpec(root, file); err != nil {
+			return err
+		}
+	default:
 		return errNotYet(src)
 	}
 	return nil
@@ -182,7 +240,7 @@ func Run(ctx context.Context, o Options) (*Result, error) {
 		o.Clock = engine.SystemClock()
 	}
 	d := o.State
-	if err := Check(d.Root(), o.Source, o.PlanPath); err != nil {
+	if err := Check(d.Root(), o.Source, o.PlanPath, o.File); err != nil {
 		return nil, err
 	}
 	proposal := ProposalPath(d, o.PlanPath)
@@ -255,6 +313,13 @@ func (o Options) prompt(proposal string) (string, error) {
 	case Goal:
 		// Typed into the pane: no escape sequences.
 		vars.Goal = strings.TrimSpace(textsafe.Clean(o.Text))
+	case Spec:
+		rel, err := CheckSpec(root, o.File)
+		if err != nil {
+			return "", err
+		}
+		// The name is the owner's, but a file name can hold anything.
+		vars.SpecFile = textsafe.Clean(rel)
 	default:
 		return "", errNotYet(o.Source)
 	}

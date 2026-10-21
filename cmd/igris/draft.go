@@ -98,7 +98,7 @@ func execDraft(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		}
 	}
 	// Refused before anything is created, a session least of all.
-	if err := draft.Check(root, src, planPath); err != nil {
+	if err := draft.Check(root, src, planPath, file); err != nil {
 		return fail("%v", err)
 	}
 	model := fs.Lookup("model").Value.String()

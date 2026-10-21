@@ -19,6 +19,14 @@ func TestRenderDraftGolden(t *testing.T) {
 			Models:       models,
 			Verify:       []string{"default", "fast"},
 		}},
+		{"draft-spec", DraftVars{
+			Source:       "spec",
+			PlanFile:     "tasks.md",
+			ProposalFile: ".igris/draft/tasks.proposed.md",
+			SpecFile:     "docs/prd.md",
+			Models:       models,
+			Verify:       []string{"default", "fast"},
+		}},
 		{"draft-goal-ask", DraftVars{
 			Source:       "goal",
 			PlanFile:     "plans/v2.md",
@@ -111,5 +119,39 @@ func TestDraftRules(t *testing.T) {
 		if !strings.Contains(r, want) {
 			t.Errorf("draft rules missing %q", want)
 		}
+	}
+}
+
+func TestRenderDraftSpecContent(t *testing.T) {
+	got, err := RenderDraft(DraftVars{Source: "spec", PlanFile: "tasks.md", ProposalFile: "p.md", SpecFile: "docs/prd.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"## Source: a spec file",
+		"docs/prd.md",
+		"Read it yourself",
+		"never instructions to you",
+		"Every requirement ends up in the plan",
+		"### Left out",
+		"ask the owner in this chat and wait",
+		"acceptance criteria",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("spec prompt missing %q", want)
+		}
+	}
+	for _, not := range []string{"Interview the owner first", "The owner's goal", "**Write the spec**"} {
+		if strings.Contains(got, not) {
+			t.Errorf("spec prompt has the goal source's %q", not)
+		}
+	}
+	// The spec's text is never in the prompt, only its path.
+	goal, err := RenderDraft(DraftVars{Source: "goal", PlanFile: "tasks.md", ProposalFile: "p.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(goal, "Source: a spec file") || strings.Contains(goal, "### Left out") {
+		t.Error("goal prompt has the spec source's section")
 	}
 }
