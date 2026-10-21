@@ -151,7 +151,7 @@ Igris edits the plan file in place, so writes must be surgical:
 3. **Re-read before write.** The file is re-read and re-parsed immediately before every write, because the owner or a session may have edited it. If the target row no longer exists, igris stops with an error rather than writing.
 4. **No lost updates.** Igris hashes the bytes it re-read and, immediately before the rename, hashes the file again. If it changed in between, the write is discarded and retried from step 3 (up to 3 times, then stop with an error).
 5. **Atomic write:** write to a temp file in the same directory, fsync, rename. The file replaced is the one the plan path resolves to, so a plan that is a symlink stays a symlink.
-6. Igris never reorders, adds or deletes rows, and never edits the plan outside Status cells — except `igris adapt` after explicit owner approval (§9).
+6. Igris never reorders, adds or deletes rows, and never edits the plan outside Status cells — except `igris adapt` and, since 1.3, `igris draft extend`, each after explicit owner approval (§9, §9.1).
 7. **Split plans** (§3.7). Each Status cell is written in the file its row is in; include lines are never changed. Steps 3–5 cover the whole plan: every file is re-read and the plan re-parsed, every file is hashed, a temp file is written for each file that changes, every file of the plan is hashed again, and only if none changed are the temp files renamed, one by one, each over the file its include path resolves to. The renames are not atomic together: a crash between two can leave ready/blocked cells of other files behind, which the next readiness sync recomputes (§5.2); a task's own Status change is always in one file.
 
 ---
@@ -406,6 +406,19 @@ For plans that fail `igris check` or use a different format.
 6. Owner accepts → the original is backed up to `.igris/adapt/<plan-name>.<timestamp>.bak.md` (UTC, `20060102-150405`) and replaced atomically, keeping its file mode; if the plan changed on disk since it was read, nothing is replaced. Accepting a proposal that doesn't pass `check` (e.g. models left at `?`) needs a second confirmation, which starts on "Keep reviewing", and igris prints what is left to fix. Owner rejects (or quits the review) → nothing changes; the proposal stays in `.igris/adapt/`.
 7. `igris check` remains the gate: `igris arise` refuses to run on a plan that doesn't validate.
 
+### 9.1 `igris draft` — plans from a goal, a spec or an export (since 1.3)
+
+`draft` writes plans with a session and the adapt review (decisions.md V13-P1). It never writes the plan directly: a session writes a proposal under `.igris/draft/`, igris validates it with the normal parser and shows the review of §9 step 5, and only the owner's **Accept** writes. Four sources:
+
+- `igris draft goal [TEXT]`: the session interviews the owner in the pane (what, who for, constraints, what done means; without TEXT it asks for the goal first), then writes a plan.
+- `igris draft spec FILE`: a plan from a spec or PRD. FILE must be inside the project (symlinks resolved), a regular file of at most 1 MiB and valid UTF-8; the session reads it itself (igris never pastes it into the pane). Requirements it leaves out are listed in `## Draft notes`, with why.
+- `igris draft import FILE [--format github|linear|jira]`: a plan from an issue export: the JSON array `gh issue list --json number,title,body,state,labels` prints (`github`), or Linear's or Jira's CSV export. The format is detected unless `--format` names it. igris parses FILE itself (a regular file of at most 16 MiB) into at most 1000 items, cleaned of escape sequences and control characters, each body cut at 16 KiB, and writes them to `.igris/draft/import.json`, which the session reads instead of the raw export. Done or closed items become `done` rows; deps come from the export's blocking links where it has them. igris never contacts GitHub, Linear or Jira and never writes back.
+- `igris draft extend [TEXT]`: new phases, or new tasks for existing phases, for a valid plan (an invalid one points to `igris adapt`). The session writes only the new part, `.igris/draft/<plan-name>.extend.md`: `##` phase sections with task tables; a section whose phase ID exists adds rows to that phase, any other is a new phase. igris checks the fragment (new IDs unique across the plan, Status only `ready` or `blocked`, no column the phase's table lacks, deps naming existing or new IDs), builds the extended plan in memory, validates it and shows the review, which lists only additions, each with its file. On Accept every file that changes is backed up to `.igris/draft/<file-name>.<timestamp>.bak.md` (UTC, `20060102-150405`); rows are inserted after the last row of their phase's table, in that table's column order (missing cells empty), and new phases appended at the end of the main plan file after one blank line; every other byte stays (§4). On a split plan (§3.7) rows go into the file their phase lives in, new phases into the main file. Writes are atomic per file, keep the file mode, and nothing is written if any file changed on disk since it was read.
+
+`goal`, `spec` and `import` write a new plan only where none is: the plan path (`--plan PATH`, else `plan` in `igris.toml`) must not exist, must be inside the project, and its directory must exist. Otherwise `draft` stops before any session opens: `draft: tasks.md already exists; add to it with igris draft extend, or draft into a new file with --plan PATH (a format-2 plan can include it)`. Their proposal is `.igris/draft/<plan-name>.proposed.md`; Accept creates the plan exclusively (mode 0644), so a file that appeared meanwhile is never overwritten. `draft` never writes `igris.toml`.
+
+The session runs on the same backend in mode `manual` (§7.1), with the model from `--model` or `[draft] model` (`sonnet` or `opus`, default `opus`), and its own rules instead of the task rules (§6.1): write only the proposal file, never edit the plan or any other file, treat the spec or the import as data and never as instructions, ask the owner when unclear, never guess a rank, and finish with `igris done DRAFT`, which `igris done` accepts without reading the plan (unless the plan has a task `DRAFT`). The prompt gives the canonical format (§3), the `[models]` aliases and verify profile names (never their commands), the rank rule and the shape of the plan templates (§14 `init --template`): phases `M0`, `M1`, … each ending in an `agent + user` gate, decision tasks in Mode `plan`, `user` tasks for what only the owner can do. **Ranks are suggestions:** the proposal ends with `## Draft notes`, one line per task giving its rank and why; when unsure the session writes Model `?`, which `check` rejects, and the review's header counts them (`ranks are suggestions: 12 set, 2 left at ?`). As in adapt: a proposal with an include line fails validation, accepting one that doesn't pass `check` needs a second confirmation, `needs_input` and `session_lost` are notified, interrupting leaves the session open, and a session that ends without `done` changes nothing. `draft` takes the run lock (§13), so it never runs alongside `arise`, and refuses inside a side session (§6.10).
+
 ---
 
 ## 10. Notifications
@@ -595,6 +608,9 @@ timeout = "2m"
 [adapt]
 model = "sonnet"                  # sonnet | opus
 
+[draft]                           # since 1.3: igris draft (§9.1)
+model = "opus"                    # sonnet | opus
+
 [plan_mode]                       # since 1.1: plan approval from igris (§6.3, §7.1)
 then = "auto"                     # mode after igris approves a plain `plan` task: default | accept | auto
 approve_timeout = "30m"           # how long the plan hook waits for igris (1m–24h); "0": answer in the pane only
@@ -681,6 +697,7 @@ token = ""                        # application token, or "env:GOTIFY_TOKEN"
 | `side/` | Since 1.2: `<id>.json`, one open side session (§6.10), `{"v":1, "id", "at", "backend", "ref", "claude_session", "model", "rank", "mode", "preset", "task", "dir", "worktree"}` (`preset` is `blank`, `task` or `igris`; `dir` is where it works relative to the project root, `.` or its worktree's path; `worktree` is `{"path", "branch"}` as in `state.json`), written atomically; `<id>.rules.md` and `<id>.settings.json`, its rules and hooks files. 0600, directory 0700. Untrusted; read bounded and shape-checked, never through a symlink. `state.json` holds nothing about side sessions. |
 | `runs.jsonl` | Append-only log: one JSON line per event (task started/done/skipped, verify result, commits, needs-you waits, notifications, errors) with timestamps, run ID, task ID, rank and model; schema v1 below. |
 | `adapt/` | Adapt proposals and backups (§9). |
+| `draft/` | Since 1.3: draft proposals (`<plan-name>.proposed.md`, `<plan-name>.extend.md`), `import.json` (the parsed export) and the backups `draft extend` makes (§9.1). Contents not frozen (§19). |
 | `config/` | `igris.<timestamp>.bak.toml`: the `igris.toml` `igris config migrate` replaced (§14). Not frozen (§19). |
 
 **`runs.jsonl` schema v1** (since v0.5; the full reference with an example line per type is [`docs/runlog.md`](docs/runlog.md)). One JSON object per line; every line igris writes has `"v":1`. Fields other than `v`, `at` and `type` are omitted when empty:
@@ -765,6 +782,11 @@ igris notify test [--event NAME]            send a sample of each notification t
 igris config migrate [--yes]                remove deprecated settings from igris.toml (asks first, keeps a backup)
 igris adapt [--model sonnet|opus]           AI-assisted conversion with diff review
            [--plan PATH]
+igris draft goal [TEXT]                     since 1.3: draft a plan with a session and the review (§9.1):
+igris draft spec FILE                       from a goal (interview), a spec file, an issue export,
+igris draft import FILE [--format github|linear|jira]
+igris draft extend [TEXT]                   or new phases and tasks for the current plan
+           [--model sonnet|opus] [--plan PATH]
 igris update [--check] [--yes]              update igris with the package manager that installed it (asks first);
                                             --check only prints the current and latest versions and the method
 igris completion bash|zsh|fish              print a shell completion script
@@ -796,6 +818,7 @@ No other code is used. Per command:
 - **`notify test`**: 1 when a delivery fails or no channel is set up to send the event; an unknown `--event` is a usage error (2).
 - **`config migrate`**: 0 when it migrated, there was nothing to migrate (or no `igris.toml`), or the owner declined; 1 outside a project, for an `igris.toml` that can't be read or holds a deprecated key it can't remove by itself, when stdin ends without an answer, when the file changed while it asked, or on a failed write. A missing or unknown subcommand is a usage error (2).
 - **`adapt`**: 0 when the plan is already valid, the proposal is accepted or rejected, or the owner stops waiting with Ctrl-C (the session stays open); 1 when the session is lost or skipped, the backend or project can't be used, or the review fails. A `--model` other than `sonnet` or `opus` is a usage error (2).
+- **`draft`** (since 1.3): 0 when the proposal is accepted or rejected, or the owner stops waiting with Ctrl-C (the session stays open); 1 when a plan file is in the way (`goal`, `spec`, `import`), the plan is invalid (`extend`), FILE can't be read or parsed, the session is lost or skipped, the backend or project can't be used, inside a side session, or the review fails. A missing or unknown subcommand, a missing FILE, an extra argument, or a `--model` or `--format` value not listed is a usage error (2).
 - **`init`**: 1 when it can't write its files (an unreadable `.claude/settings.local.json`, say). `--template` with `--example`, or an unknown or empty template name, is a usage error (2).
 - **`update`** (since 1.2): 0 when igris updated, is up to date, is a development build, was installed from an archive (the steps are printed), or the owner declined; 1 when GitHub can't be reached or answers anything but a release, when the install command fails, or without a terminal and without `--yes`, or when stdin ends before an answer. An argument or an unknown flag is a usage error (2).
 - **`completion`**: a missing or unknown shell is a usage error (2).
@@ -982,7 +1005,7 @@ Modelled on Claude Code's choice prompts and herdr's clickable UI.
 
 ### 15.6 Home screen
 
-Bare `igris` on a terminal (§14) opens home: the project at a glance and the way into everything else. Home itself never writes the plan or `igris.toml`; it starts runs, `init` and `adapt`, opens files in the owner's editor, and runs the package manager's update when the owner asks for it (Check for updates, below).
+Bare `igris` on a terminal (§14) opens home: the project at a glance and the way into everything else. Home itself never writes the plan or `igris.toml`; it starts runs, `init`, `adapt` and `draft`, opens files in the owner's editor, and runs the package manager's update when the owner asks for it (Check for updates, below).
 
 **Layout.** A header (project, plan file, the backend's name — `herdr`, `tmux`, or `herdr/tmux` when `auto` finds neither — with `…` / `✓` / `⨯`, default mode, and the run state on the right), then **PHASES** (glyph, ID, title, progress bar, `done/total` counting done and skipped tasks, and the §5.1 outcome as a word: `done`, `next`, `wait` when the phase would complete once the tasks of other phases are done, else `stuck`), **NOW** (the card below), **HEALTH** (the check result and the doctor summary) and **RECENT** (the last 2–3 runs from `runs.jsonl`), a status line with the last action's result, and the action bar. Wide (≥ 100×13) puts PHASES left and NOW/HEALTH/RECENT right; narrow is one column (NOW, PHASES, HEALTH, RECENT) and must stay usable at 50×20, with the bar folding into `More…`; below 60 columns the bars are dropped and the numbers stay; below 40×12 only `igris — terminal too small (need 50×20, now W×H) · q quits` is shown.
 
@@ -1013,6 +1036,7 @@ Bare `igris` on a terminal (§14) opens home: the project at a glance and the wa
 | Notify test | `n` | after a confirm dialog, one row per event × channel filled in live (`· sending` → `✓ ok` / `⨯ FAILED: reason`), as `notify test` (§14) | Cancel while sending, Send again |
 | Init | `I` | after a confirm dialog listing the files it touches (**Create files** · Cancel; never overwrites), each step's result as `init` prints it, then the backend hint | **Plan from template…** (`E`; a picker of Example and the templates, a confirm dialog, then `init --example` or `--template NAME`, never overwriting a plan), Check, Doctor |
 | Adapt | `A` | after a confirm dialog (**Cancel** · Adapt with sonnet · Adapt with opus; the `ANTHROPIC_API_KEY` warning when it applies), `adapt`'s progress, then the adapt review (§9) | Open session, Cancel; then Accept / Reject as in §9 |
+| Draft… | `D` | since 1.3: a picker of **From a goal**, **From a spec file…**, **Import an export…** and **Extend the plan…** (the last three ask for the path or the request; the model as for Adapt), the draft's progress, then the review (§9.1) | Open session, Cancel; then Accept / Reject as in §9 |
 
 **Keys on home.** The run view's letters (`o m M p d s r x q ?`) never mean something else on home; `y` is copy and `j`/`k` navigate everywhere. Actions appear only when they apply (§15.3):
 
@@ -1027,6 +1051,7 @@ Bare `igris` on a terminal (§14) opens home: the project at a glance and the wa
 | `,` | Settings | always |
 | `n` | Notify test | a channel is set up |
 | `A` | Adapt | the plan exists, is invalid, and the backend is reachable |
+| `D` | Draft… (since 1.3) | the backend is reachable and no run holds the project; goal, spec and import when `igris.toml` is valid or missing and the plan file is missing, Extend when the plan is valid |
 | `I` | Init | there is no `igris.toml` |
 | `E` | Plan from template… (Example, go-cli, web-app, library) | `igris.toml` is valid and the plan file is missing |
 | `o` | Open session | another igris runs here and `state.json` has a session ref |
@@ -1082,6 +1107,7 @@ Since 1.2 (§6.10). `S` on home and in the run view, not in `--no-tui`.
 - Everything igris writes to stderr is cleaned the same way, since errors can carry text igris didn't write (a git hook's output, values read back from `.igris/`).
 - Every user-facing error says what to do next (the command to run, the setting to change, the file to fix or delete).
 - The commands igris runs (verify, task hooks, git, and since 1.2 the update command) never get the environment variables the notification secrets refer to through `env:` (§6.4); `[run] env` limits verify and task hooks further to an allowlist.
+- `igris draft` (§9.1) treats a spec or an issue export as untrusted input to a session: the session runs in `manual`, writes only a proposal, and nothing reaches the plan without the owner's Accept after the review; an export is parsed by igris, bounded and cleaned before the session or the TUI sees it. A spec or an issue can still steer what the session proposes, an accepted risk: the review is the guard.
 - The update check (`igris update`, home's `u`, §14, §15.6) runs only when the owner asks. GitHub's answer is untrusted: it is read with a 10 s timeout and at most 1 MiB, only a `tag_name` of the shape `vX.Y.Z` is used and none of its text is shown. The install command is built from that version only, as argv, never through a shell, and igris never replaces its own binary: the new binary's integrity stays with Homebrew (the formula's sha256) and Go (the checksum database), so a forged answer can at worst name a version the package manager then refuses or resolves. An archive install gets the signed release's verify steps, never a download by igris.
 - Igris reads a session's transcript only through the path its hooks report, named after the session's UUID, and only the fields in §6.9; it never stores, logs or shows message content. A session can forge its own transcript or `quota.json`, and so its usage and audit: accepted, since usage is information and the audit catches configuration slip, not a hostile session (§6.9).
 - Igris never reads or logs Claude Code credentials, and never sets `ANTHROPIC_API_KEY`. Notification secrets never enter the run log or error messages (§10), nor the config hash when they are `env:` references (a secret written in `igris.toml` itself is part of what the hash covers; accepted, docs/threat-model.md), and never appear on home's Settings, Doctor or Notify test pages (§15.6), which say only whether a secret is set and where from. An ntfy `token` is sent as a bearer header and a Gotify `token` as `X-Gotify-Key`, so use an `https://` server for them (a `server` URL with a `user:password@` part is a config error: it is not a secret field and would be shown); plain `http://` works (a server on the LAN), but `check`, `arise` and `doctor` warn about it for ntfy with a token, Gotify, and a webhook `url`, written in `igris.toml` or, once its value is known, from an `env:` reference (the payload and its signature go unencrypted; the warning names the variable, never the value).
@@ -1126,7 +1152,7 @@ What igris 1.x promises not to break (V07-P1). Until v2.0, every surface below k
 **Frozen:**
 - **The plan format, format 1**: §3–4, also written out on its own in `docs/plan-format.md`. A plan may declare `<!-- igris:format 1 -->` on a line of its own before the first phase heading; without the marker it is format 1, forever. A plan declaring a format igris doesn't know is refused with "plan format N needs a newer igris". **Format 2** (since 1.2) is format 1 plus includes (§3.7), declared with `<!-- igris:format 2 -->`, and frozen the same way; igris 1.0 and 1.1 refuse it rather than run the main file's phases only, so a split plan needs igris 1.2 or later wherever it runs. Format 1 includes the leniency the parser has always had: Mode and Verify values and phase IDs are case-insensitive (§3.1–3.2), header cells are trimmed of spaces, tabs, `*` and backticks. Model ranks are case-sensitive.
 - **`igris.toml`**: the keys, defaults and validation in §12. An unknown key is an error.
-- **The CLI**: commands, flags, arguments and exit codes (§14), including `igris update` with `--check` and `--yes` (since 1.2, additive). Exit codes are `0` success, `1` failure, `2` usage error; `3`–`9` are reserved, and a 1.x release may give a case that exits `1` today its own code from that range, so scripts test for non-zero (or for `2`), never for exactly `1`. Text output is for people and may change; `--json` is the machine interface.
+- **The CLI**: commands, flags, arguments and exit codes (§14), including `igris update` with `--check` and `--yes` (since 1.2, additive) and `igris draft` with its subcommands and flags (since 1.3, additive). Exit codes are `0` success, `1` failure, `2` usage error; `3`–`9` are reserved, and a 1.x release may give a case that exits `1` today its own code from that range, so scripts test for non-zero (or for `2`), never for exactly `1`. Text output is for people and may change; `--json` is the machine interface.
 - **`--json` output** of `check`, `phases`, `status`, `history`, `report`, `usage` (since 1.1) and `doctor`: each is an object with `"v": 1`, described by a JSON schema in `docs/json/`.
 - **The session contract**: `igris done`, `skip` and `reset` (§6.2, §14) and the signal files they write (§13).
 - **`.igris/`**: the paths in §13; `state.json` (below); the run log `runs.jsonl` (`"v": 1`, `docs/runlog.md`).
@@ -1134,7 +1160,7 @@ What igris 1.x promises not to break (V07-P1). Until v2.0, every surface below k
 - **The generic webhook** (§10): the payload (`"v": 1`), the `X-Igris-Event` and `X-Igris-Signature` headers and the signature.
 - **The task-hook environment** (§6.7): `IGRIS_TASK_ID`, `IGRIS_PHASE`, `IGRIS_RANK`, `IGRIS_MODEL`, `IGRIS_RESULT`.
 
-**Not frozen:** the TUI (§15); the default task prompt's wording; text output; the hidden `hook` and `__complete` commands; the contents of `.igris/agent-state/`, `.igris/hooks/`, `.igris/plan-approval/`, `.igris/prompts/`, `.igris/quota.json`, `.igris/side/` (since 1.2) and `igris.lock`; the status line igris shows in task panes; the messages sent to ntfy, Discord, Slack, Gotify and the backend; the Go packages under `internal/`.
+**Not frozen:** the TUI (§15); the default task prompt's wording; text output; the hidden `hook` and `__complete` commands; the contents of `.igris/agent-state/`, `.igris/hooks/`, `.igris/plan-approval/`, `.igris/prompts/`, `.igris/quota.json`, `.igris/side/` (since 1.2), `.igris/draft/` (since 1.3) and `igris.lock`; the status line igris shows in task panes; the messages sent to ntfy, Discord, Slack, Gotify and the backend; the Go packages under `internal/`.
 
 **Allowed in 1.x:** new optional plan columns (an older igris treats them as extra columns), new Mode values (an older igris reports them as an unknown Mode, like a config key it doesn't know), new config keys with defaults, new commands and flags, new JSON fields, new run-log event types, new template variables. Readers of `--json`, the run log and the webhook must ignore fields and event types they don't know. A config using a key added in a later 1.x fails on an older igris as an unknown key; the fix is to upgrade. A feature deprecated in 1.x warns until 2.0 and is removed only then.
 
