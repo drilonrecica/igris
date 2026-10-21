@@ -19,7 +19,8 @@ import (
 	"github.com/drilonrecica/igris/internal/tui"
 )
 
-// A synthetic drafted plan that passes `igris check`.
+// A synthetic drafted plan that passes `igris check`, shaped as the goal
+// prompt asks.
 const draftedPlan = `<!-- igris:format 1 -->
 # Photo renamer
 
@@ -32,6 +33,13 @@ const draftedPlan = `<!-- igris:format 1 -->
 | M0-G | **M0 gate** | M0-01, M0-02 | blocked | sonnet | agent + user | — |
 
 ## Draft notes
+
+### Spec summary
+
+- What: rename photos by their EXIF date; no GUI.
+- Done: tests pass on a sample folder.
+
+### Ranks
 
 - M0-02 opus: decides the layout
 - M0-G sonnet: runs the checks
@@ -137,6 +145,84 @@ func TestDraftCommandReject(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, "tasks.md")); !errors.Is(err, os.ErrNotExist) {
 		t.Error("a rejected proposal wrote the plan")
+	}
+}
+
+// The goal interview end to end (SPEC §9.1): without TEXT the session asks
+// for the goal, then interviews the owner, who answers in the DRAFT pane;
+// igris only waits, says when the session needs the owner, and types
+// nothing but the first prompt. The proposal then goes through the review
+// to a plan that passes check.
+func TestDraftCommandGoalInterview(t *testing.T) {
+	root, be := draftTestProject(t, "tasks.md", draftedPlan)
+	be.SetAutoSignal(nil) // the session writes only after the interview
+	clock := adaptClock.(*engine.FakeClock)
+	states := []backend.AgentState{backend.Working}
+	for range 20 { // asks for the goal; the owner answers after 40s
+		states = append(states, backend.Idle)
+	}
+	for range 5 { // reads the answer and the repository
+		states = append(states, backend.Working)
+	}
+	for range 5 { // the next round of questions, answered at once
+		states = append(states, backend.Idle)
+	}
+	be.Script(draft.ID, append(states, backend.Working)...)
+	clock.At(70*time.Second, func() { // the owner confirmed the summary
+		d, err := state.Open(root, state.Options{Now: clock.Now})
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		if err := os.WriteFile(draft.ProposalPath(d, filepath.Join(root, "tasks.md")), []byte(draftedPlan), 0o600); err != nil {
+			t.Error(err)
+		}
+		if err := d.WriteSignal(state.Signal{ID: draft.ID, Action: state.ActionDone, Note: "photo renamer, 3 tasks"}); err != nil {
+			t.Error(err)
+		}
+	})
+	var shown tui.ReviewOptions
+	decideDraft(true, &shown)
+
+	var out, errb bytes.Buffer
+	if got := run([]string{"draft", "goal"}, &out, &errb); got != exitOK {
+		t.Fatalf("exit = %d, stderr: %s\nstdout: %s", got, errb.String(), out.String())
+	}
+	p := be.Prompts(draft.ID)
+	if len(p) != 1 || be.Submits(draft.ID) != 0 {
+		t.Fatalf("igris typed %d prompts and %d Enters into the pane, want only the first prompt", len(p), be.Submits(draft.ID))
+	}
+	for _, want := range []string{"start by asking for the goal", "Interview the owner first", "ask the owner to confirm or correct it", "### Spec summary", "**Write the spec**", "igris done DRAFT"} {
+		if !strings.Contains(p[0], want) {
+			t.Errorf("prompt missing %q", want)
+		}
+	}
+	if strings.Contains(p[0], "The owner's goal:") {
+		t.Error("the prompt shows a goal the owner never gave")
+	}
+	o := out.String()
+	for _, want := range []string{
+		"answer its questions in the DRAFT pane",
+		"needs you: the agent is idle and has not run `igris done DRAFT`; answer in the DRAFT pane",
+		"working again",
+		"draft session done: photo renamer, 3 tasks",
+		"accepted: " + filepath.Join(root, "tasks.md") + " written",
+	} {
+		if !strings.Contains(o, want) {
+			t.Errorf("stdout missing %q:\n%s", want, o)
+		}
+	}
+	if n := strings.Count(o, "needs you:"); n != 1 {
+		t.Errorf("needs you said %d times, want once: the second round was answered in time\n%s", n, o)
+	}
+	if n := be.Notifications(); len(n) != 1 {
+		t.Errorf("backend notifications = %+v, want needs_input once", n)
+	}
+	if shown.Note != "ranks are suggestions: 2 set, 0 left at ?" || len(shown.Issues) != 0 {
+		t.Errorf("review = %+v", shown)
+	}
+	if got := run([]string{"check"}, &out, &errb); got != exitOK {
+		t.Errorf("igris check on the drafted plan: exit %d\n%s", got, errb.String())
 	}
 }
 

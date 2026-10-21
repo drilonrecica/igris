@@ -202,7 +202,7 @@ func TestRunOpenRanks(t *testing.T) {
 	if res.Ranks != (Ranks{Set: 1, Open: 2}) || res.Ranks.String() != "ranks are suggestions: 1 set, 2 left at ?" {
 		t.Errorf("ranks = %+v %q", res.Ranks, res.Ranks)
 	}
-	if p := h.be.Prompts(ID); len(p) != 1 || !strings.Contains(p[0], "Ask for the goal first") {
+	if p := h.be.Prompts(ID); len(p) != 1 || !strings.Contains(p[0], "start by asking for the goal") {
 		t.Error("without a goal the prompt must ask for it")
 	}
 }

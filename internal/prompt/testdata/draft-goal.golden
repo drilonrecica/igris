@@ -16,9 +16,26 @@ The owner's goal:
 A CLI that renames photos by their EXIF date
 ```
 
-Interview the owner in this chat before you write anything: who it is for, the constraints and the stack, and what done means. Keep it to a few rounds of questions.
+### Interview the owner first
 
-You write only the proposal, so what you learned goes into `## Draft notes` as a short spec summary, and `M0-01` is a `user` task **Write the spec** that asks the owner to write `SPEC.md` from that summary. Every other task depends on it, directly or through its phase.
+Write nothing until you have interviewed the owner in this chat. The owner answers here, in this pane, so ask, then wait for the answer.
+
+1. If the project already has files, read what helps (the README, the build files, the layout) so you don't ask what the repository answers. Change nothing.
+2. Ask a few questions per round, numbered, at most three rounds, about what you don't know yet:
+   - **What:** the features that must be there, and what is out of scope.
+   - **Who for:** who uses it, and how.
+   - **Constraints:** the language and stack, platforms, existing code or services it must fit, deadlines.
+   - **Done:** how the owner will know it works: tests, a demo, a release.
+3. Don't ask what you can sensibly decide yourself: write it down as an assumption instead.
+4. Then sum up in a few lines what you will plan, with your assumptions, and ask the owner to confirm or correct it. Write the proposal only after the owner confirms.
+
+### What the proposal holds
+
+You write only the proposal, so what you learned goes into it:
+
+- `## Draft notes` opens with a `### Spec summary`: what, who for, constraints and stack, what done means, out of scope, and your assumptions, a few lines each. The rank lines follow under `### Ranks`.
+- `M0-01` is a `user` task **Write the spec** that asks the owner to write `SPEC.md` from that summary. Every other task depends on it, directly or through its phase, so a run starts only once the spec exists.
+- Size the plan to the goal: a small tool needs two or three phases, not ten. Each phase ends in something the owner can try.
 
 ## Shape
 
@@ -27,6 +44,7 @@ You write only the proposal, so what you learned goes into `## Draft notes` as a
 - Each phase ends in a gate, `M0-G` · **M0 gate** · Owner `agent + user` · Model `sonnet`, that depends on the phase's tasks: the owner checks the phase there before the next one starts.
 - A decision (the layout, a library, a protocol) is its own task: Owner `agent + user`, Model `opus`, Mode `plan`.
 - Anything only the owner can do (credentials, accounts, a purchase, a decision only they can make) is a `user` task with Model `—`.
+- Each task cell is `**Short title** — what to build and how to tell it is done`, sized for one session.
 - Tasks without dependencies are `ready`; every other task is `blocked`.
 - No include lines: the plan is one file.
 
@@ -51,7 +69,7 @@ Never put a command in a Verify cell: commands live in the owner's `igris.toml`.
 
 ## Draft notes
 
-End the proposal with a `## Draft notes` section: one line per task giving its rank and why, and for each `?` what the owner should decide.
+End the proposal with a `## Draft notes` section: one line per agent task giving its rank and why, and for each `?` what the owner should decide.
 
 ```markdown
 ## Draft notes

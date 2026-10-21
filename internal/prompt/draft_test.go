@@ -59,7 +59,12 @@ func TestRenderDraftContent(t *testing.T) {
 		".igris/draft/tasks.proposed.md",
 		"`tasks.md`",
 		"a todo app",
-		"Interview the owner",
+		"Interview the owner first",
+		"wait for the answer",
+		"at most three rounds",
+		"**What:**", "**Who for:**", "**Constraints:**", "**Done:**",
+		"ask the owner to confirm or correct it",
+		"### Spec summary",
 		"**Write the spec**",
 		"<!-- igris:format 1 -->",
 		"`agent + user`",
@@ -86,7 +91,10 @@ func TestRenderDraftContent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"Ask for the goal first", "leave the Verify column out"} {
+	if strings.Contains(got, "The owner's goal:") {
+		t.Error("a prompt without a goal shows an empty goal")
+	}
+	for _, want := range []string{"start by asking for the goal", "Interview the owner first", "leave the Verify column out"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("draft prompt missing %q", want)
 		}
