@@ -6,7 +6,7 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [1.2.0] - 2026-10-21
 
-igris 1.2 adds to what 1.0 promised and breaks nothing: you can open a side session of your own next to a run, split a long plan across files, and start a project from a plan template. Plans, `igris.toml` and scripts written for 1.0 or 1.1 need no changes ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). All of it is additive: a command flag, config keys with defaults, plan format 2, `--json` fields, run-log events and a directory in `.igris/`. One thing needs planning: a split plan needs igris 1.2 on every machine that runs it ([upgrade guide](site/docs/upgrade.md#from-11-to-12)).
+igris 1.2 adds to what 1.0 promised and breaks nothing: you can open a side session of your own next to a run, split a long plan across files, start a project from a plan template, and check for updates from igris when you choose to. Plans, `igris.toml` and scripts written for 1.0 or 1.1 need no changes ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). All of it is additive: a command flag, config keys with defaults, plan format 2, `--json` fields, run-log events and a directory in `.igris/`. One thing needs planning: a split plan needs igris 1.2 on every machine that runs it ([upgrade guide](site/docs/upgrade.md#from-11-to-12)).
 
 ### Added
 
@@ -30,6 +30,10 @@ igris 1.2 adds to what 1.0 promised and breaks nothing: you can open a side sess
 
 - The update check reads at most 1 MiB of GitHub's answer within 10 s and uses only a `vX.Y.Z` tag, showing none of its text; the update command is built from that version only, as argv with a timeout, without the notification secrets' variables, and igris never replaces its own binary (the package manager checks what it installs). SPEC §1 now names GitHub's releases API, when the owner checks for updates, as the one network call besides notifications. ([threat model](docs/threat-model.md) R51–R53)
 - A session can add or change an include like any plan edit, and a side session is not exempt from the plan hold or the config snapshot. Includes are bounded, kept inside the project and read as regular files; the writer re-hashes every file before it renames and gives up rather than overwrite one that changed. `IGRIS_SIDE` stops an honest mistake, not a session that unsets it. Side session records are read bounded and never through a symlink, a side session reattaches only to the pane started for it, and its first prompt is cleaned and bounded. See [`docs/threat-model.md`](docs/threat-model.md) (rules R41–R50, accepted risks 18–20).
+
+### Verification
+
+- The v1.2 gate ([`docs/check-v12.md`](docs/check-v12.md)): a side session on herdr and on tmux during a run, a plan edit from it holding the run and its usage shown apart; a split plan run end to end with Status written in the included file; each template through `init`, `check` and `--dry-run`; the update check against GitHub's real releases API for every install method, blocked during a run, and a real Homebrew upgrade (1.0.0 to 1.1.0) driven by `igris update --yes`. `manual` mode and the `igris done` allow rule were verified with Claude Code 2.1.305.
 
 ## [1.1.0] - 2026-10-20
 
