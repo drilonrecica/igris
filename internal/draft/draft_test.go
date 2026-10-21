@@ -108,12 +108,17 @@ func (h *harness) run(ctx context.Context, src Source, text string) (*Result, er
 	return h.runFile(ctx, src, text, "")
 }
 
-func (h *harness) runFile(ctx context.Context, src Source, text, file string) (*Result, error) {
+// cfg is the project config of the harness.
+func (h *harness) cfg() *config.Config {
 	cfg := config.Default()
 	cfg.Models["opus"] = "claude-opus-5-5"
+	return cfg
+}
+
+func (h *harness) runFile(ctx context.Context, src Source, text, file string) (*Result, error) {
 	return Run(ctx, Options{
 		SessionOptions: adapt.SessionOptions{
-			Config:   cfg,
+			Config:   h.cfg(),
 			Backend:  h.be,
 			State:    h.dir,
 			Notifier: h.notes,
@@ -242,7 +247,9 @@ func TestRunRefusesBeforeSession(t *testing.T) {
 		{"plan exists, import", Import, func(h *harness) { write(h.t, h.plan, "x") }, "tasks.md already exists"},
 		{"spec missing", Spec, func(*harness) {}, "no spec file"},
 		{"import missing", Import, func(*harness) {}, "no export file"},
-		{"extend not built", Extend, func(h *harness) { write(h.t, h.plan, goodProposal) }, "`igris draft extend` is not available in this build yet"},
+		{"extend without a plan", Extend, func(*harness) {}, "tasks.md doesn't exist; draft a new plan with `igris draft goal`, `spec` or `import`"},
+		{"extend an invalid plan", Extend, func(h *harness) { write(h.t, h.plan, openProposal) },
+			"tasks.md can't be extended until it passes `igris check`: plan has 2 problem(s); fix them (or run `igris adapt`)"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -407,8 +414,8 @@ func TestCheckSlot(t *testing.T) {
 func TestAccept(t *testing.T) {
 	dir := t.TempDir()
 	res := &Result{PlanPath: filepath.Join(dir, "tasks.md"), ProposalPath: filepath.Join(dir, "p.md"), Proposed: []byte(goodProposal)}
-	if err := Accept(res); err != nil {
-		t.Fatal(err)
+	if backups, err := Accept(nil, res, t0); err != nil || backups != nil {
+		t.Fatal(backups, err)
 	}
 	info, err := os.Stat(res.PlanPath)
 	if err != nil || info.Mode().Perm() != 0o644 {
@@ -423,7 +430,7 @@ func TestAccept(t *testing.T) {
 
 	// A file that appeared meanwhile is never overwritten.
 	res.Proposed = []byte("new")
-	err = Accept(res)
+	_, err = Accept(nil, res, t0)
 	if err == nil || !strings.Contains(err.Error(), "a file appeared there after the review; the proposal stays in "+res.ProposalPath) {
 		t.Fatalf("err = %v", err)
 	}

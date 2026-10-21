@@ -27,14 +27,16 @@ type DraftVars struct {
 	// Source is what the plan is drafted from: "goal", "spec", "import"
 	// or "extend".
 	Source       string
-	PlanFile     string       // the plan the proposal becomes
-	ProposalFile string       // where the session writes the proposal
+	PlanFile     string       // the plan the proposal becomes, or extend adds to
+	ProposalFile string       // where the session writes the proposal (extend: the new part)
 	Goal         string       // goal: the owner's goal; "" makes the session ask for it
 	SpecFile     string       // spec: the spec's path, relative to the project root
 	ImportFile   string       // import: the parsed export igris wrote, relative to the project root
 	ImportSource string       // import: "github", "linear" or "jira"
 	ImportCount  int          // import: items in ImportFile
 	ImportDone   int          // import: of them already done
+	PlanFiles    []string     // extend: the plan's files, relative to the project root, the main plan first
+	Request      string       // extend: what the owner wants added; "" makes the session ask for it
 	Models       []ModelAlias // the config's [models], sorted
 	Verify       []string     // the config's verify profile names, sorted; never their commands
 	DoneCommand  string       // default: "igris done DRAFT"

@@ -239,6 +239,14 @@ func Parse(name string, data []byte, opts Options) *Plan {
 
 // parse parses the main plan and, with inc, the files it includes.
 func parse(name string, data []byte, opts Options, inc *includer) *Plan {
+	p := parseTables(name, data, opts, inc)
+	p.resolveDeps()
+	return p
+}
+
+// parseTables is parse without resolving the Deps cells: an extend
+// fragment's deps name tasks of the plan it extends (SPEC §9.1).
+func parseTables(name string, data []byte, opts Options, inc *includer) *Plan {
 	p := &Plan{Path: name, Format: 1}
 	aliases := make(map[string]string, len(opts.Columns))
 	for k, v := range opts.Columns {
@@ -276,7 +284,6 @@ func parse(name string, data []byte, opts Options, inc *includer) *Plan {
 	}
 	p.addPhases(phases)
 	p.buildTasks()
-	p.resolveDeps()
 	return p
 }
 

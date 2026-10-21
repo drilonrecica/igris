@@ -132,7 +132,7 @@ func (w *Writer) attempt(fn UpdateFunc) (changes []Change, retry bool, err error
 	if w.beforeRename != nil {
 		w.beforeRename()
 	}
-	switch same, err := w.unchanged(p, sums); {
+	switch same, err := unchanged(w.path, p, sums); {
 	case err != nil:
 		return nil, false, err
 	case !same:
@@ -148,12 +148,12 @@ func (w *Writer) attempt(fn UpdateFunc) (changes []Change, retry bool, err error
 	return changes, false, nil
 }
 
-// unchanged reports whether every file of p still holds what was read: the
-// main plan, and each included file at the path its include resolves to.
-// An included file that can no longer be read counts as changed, so the
-// retry's validation reports it.
-func (w *Writer) unchanged(p *Plan, sums map[*planFile][sha256.Size]byte) (bool, error) {
-	now, err := readPlanFile(w.path)
+// unchanged reports whether every file of p, the plan at path, still holds
+// what was read: the main plan, and each included file at the path its
+// include resolves to. An included file that can no longer be read counts
+// as changed, so the retry's validation reports it.
+func unchanged(path string, p *Plan, sums map[*planFile][sha256.Size]byte) (bool, error) {
+	now, err := readPlanFile(path)
 	if err != nil {
 		return false, fmt.Errorf("re-read: %w", err)
 	}

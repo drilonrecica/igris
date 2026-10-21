@@ -29,6 +29,9 @@ type ReviewOptions struct {
 	// NewPlan says Accept creates the plan rather than replacing it, for
 	// the second confirmation's wording.
 	NewPlan bool
+	// Extend says Accept adds to the plan rather than replacing it
+	// (`igris draft extend`), for the same wording.
+	Extend bool
 	// PlanPath is the plan the proposal would replace, as shown.
 	PlanPath string
 	// ProposalPath is where the proposal was written; `y` copies it.
@@ -170,8 +173,11 @@ func (r *review) activate(a action) tea.Cmd {
 	case actAccept:
 		if len(r.o.Issues) > 0 {
 			verb := "Replace"
-			if r.o.NewPlan {
+			switch {
+			case r.o.NewPlan:
 				verb = "Write"
+			case r.o.Extend:
+				verb = "Extend"
 			}
 			r.dialog = &dialog{
 				title: verb + " the plan anyway?",
@@ -294,10 +300,18 @@ func (r *review) layout(w int) []string {
 	}
 	out = append(out, "")
 	if added, removed := adapt.Counts(rv.Prose); added+removed == 0 {
-		return append(out, r.th.paint(lookDim, fit("The text outside the task tables is unchanged.", w)))
+		out = append(out, r.th.paint(lookDim, fit("The text outside the task tables is unchanged.", w)))
+	} else {
+		out = append(out, r.th.paint(lookDim, fit("Outside the task tables:", w)))
+		out = append(out, r.lineDiff(rv.Prose, w)...)
 	}
-	out = append(out, r.th.paint(lookDim, fit("Outside the task tables:", w)))
-	return append(out, r.lineDiff(rv.Prose, w)...)
+	if len(rv.Notes) > 0 {
+		out = append(out, "", r.th.paint(lookDim, fit("Draft notes (not written to the plan):", w)))
+		for _, n := range rv.Notes {
+			out = append(out, hang("  ", clean(n), w)...)
+		}
+	}
+	return out
 }
 
 // changeIndent sets a phase's changes off from its heading.

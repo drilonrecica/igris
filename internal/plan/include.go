@@ -28,6 +28,10 @@ type includer struct {
 	rootErr  error
 	rootDone bool
 	seen     map[string]include // resolved path -> the include that read it
+	// data, when set, holds the content of included files by resolved
+	// path, used instead of reading them: an extended plan built in
+	// memory (SPEC §9.1).
+	data map[string][]byte
 }
 
 func newIncluder(mainPath string, mainSize int, root string) *includer {
@@ -88,7 +92,10 @@ func (r *includer) read(p *Plan, inc *include) (*planFile, string) {
 
 	// The resolved path holds no symlink, so it is read without following
 	// one: a symlink put in its place since is refused, not followed.
-	data, err := fsafe.ReadFile(real, MaxSize, false)
+	data, ok := r.data[real]
+	if !ok {
+		data, err = fsafe.ReadFile(real, MaxSize, false)
+	}
 	switch {
 	case errors.Is(err, fsafe.ErrTooLarge):
 		return nil, fmt.Sprintf("included file %s is over %d MiB; split it or remove what is not a plan", inc.name, MaxSize>>20)

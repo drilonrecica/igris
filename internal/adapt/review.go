@@ -24,6 +24,9 @@ type Review struct {
 	// of phases with a task table and the tables themselves left out).
 	// Its line numbers count only those lines.
 	Prose []Line
+	// Notes are lines shown after the changes and never written: the
+	// `## Draft notes` of a `draft extend` proposal (SPEC §9.1).
+	Notes []string
 }
 
 // Section is one phase and what changed in its task table.

@@ -98,7 +98,7 @@ func execDraft(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		}
 	}
 	// Refused before anything is created, a session least of all.
-	if err := draft.Check(root, src, planPath, file, fs.Lookup("format").Value.String()); err != nil {
+	if err := draft.Check(cfg, root, src, planPath, file, fs.Lookup("format").Value.String()); err != nil {
 		return fail("%v", err)
 	}
 	model := fs.Lookup("model").Value.String()
@@ -159,7 +159,8 @@ func execDraft(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		Theme:        cfg.TUI.Theme,
 		Command:      "igris draft",
 		Note:         res.Ranks.String(),
-		NewPlan:      true,
+		NewPlan:      src.NewPlan(),
+		Extend:       res.Extension != nil,
 		PlanPath:     rel(root, planPath),
 		ProposalPath: res.ProposalPath,
 		Review:       draft.Review(res),
@@ -172,10 +173,20 @@ func execDraft(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "rejected: nothing was written; the proposal stays in %s\n", res.ProposalPath)
 		return exitOK
 	}
-	if err := draft.Accept(res); err != nil {
+	backups, err := draft.Accept(dir, res, adaptClock.Now())
+	if err != nil {
 		return fail("%v", err)
 	}
-	fmt.Fprintf(stdout, "accepted: %s written; its ranks are suggestions (%d set, %d left at ?), change them as you like\n", planPath, res.Ranks.Set, res.Ranks.Open)
+	if res.Extension != nil {
+		n := 0
+		for _, a := range res.Extension.Additions {
+			n += len(a.Tasks)
+		}
+		fmt.Fprintf(stdout, "accepted: %d task(s) added to %s; the files it changed are backed up to %s\n", n, planPath, strings.Join(backups, ", "))
+		fmt.Fprintf(stdout, "the new ranks are suggestions (%d set, %d left at ?), change them as you like\n", res.Ranks.Set, res.Ranks.Open)
+	} else {
+		fmt.Fprintf(stdout, "accepted: %s written; its ranks are suggestions (%d set, %d left at ?), change them as you like\n", planPath, res.Ranks.Set, res.Ranks.Open)
+	}
 	if len(res.Issues) > 0 {
 		fmt.Fprintf(stdout, "the plan still has %d problem(s); fix them (ranks left at ?), then run `igris check`:\n", len(res.Issues))
 		for _, is := range res.Issues {

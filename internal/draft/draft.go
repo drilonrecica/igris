@@ -12,9 +12,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/drilonrecica/igris/internal/adapt"
+	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/fsafe"
 	"github.com/drilonrecica/igris/internal/plan"
@@ -70,7 +72,8 @@ type Options struct {
 }
 
 // Result is a finished draft session: the proposal and its validation
-// problems (none if it passes `igris check`).
+// problems (none if it passes `igris check`). For extend, the proposal is
+// the new part and the problems are the extended plan's.
 type Result struct {
 	Source       Source
 	PlanPath     string
@@ -79,6 +82,11 @@ type Result struct {
 	Issues       []plan.Issue
 	Ranks        Ranks
 	Note         string // the session's `igris done DRAFT --note`
+	// Extension is extend's proposal spliced into the plan in memory; nil
+	// for the other sources.
+	Extension *plan.Extension
+
+	root string // the project root, for the file names the review shows
 }
 
 // Ranks counts the Model cells of the proposal's agent tasks: every one is
@@ -94,9 +102,12 @@ func (r Ranks) String() string {
 }
 
 // CountRanks counts the ranks of p's agent tasks.
-func CountRanks(p *plan.Plan) Ranks {
+func CountRanks(p *plan.Plan) Ranks { return countRanks(p.Tasks) }
+
+// countRanks counts the ranks of the agent tasks among tasks.
+func countRanks(tasks []*plan.Task) Ranks {
 	var r Ranks
-	for _, t := range p.Tasks {
+	for _, t := range tasks {
 		switch {
 		case !t.Owner.IsAgent() || t.Rank == "":
 		case t.Rank == "?":
@@ -111,6 +122,20 @@ func CountRanks(p *plan.Plan) Ranks {
 // ProposalPath returns .igris/draft/<plan-name>.proposed.md for planPath.
 func ProposalPath(d *state.Dir, planPath string) string {
 	return filepath.Join(d.DraftDir(), planName(planPath)+".proposed.md")
+}
+
+// ExtendPath returns .igris/draft/<plan-name>.extend.md for planPath:
+// where the extend session writes the new part (SPEC §9.1).
+func ExtendPath(d *state.Dir, planPath string) string {
+	return filepath.Join(d.DraftDir(), planName(planPath)+".extend.md")
+}
+
+// proposalPath is where src's session writes its proposal.
+func proposalPath(d *state.Dir, src Source, planPath string) string {
+	if src == Extend {
+		return ExtendPath(d, planPath)
+	}
+	return ProposalPath(d, planPath)
 }
 
 // planName is the plan's file name without .md: "tasks" for tasks.md.
@@ -158,9 +183,26 @@ func CheckSlot(root, planPath string) error {
 	return nil
 }
 
-// errNotYet is what a source this build doesn't have yet answers.
-func errNotYet(s Source) error {
-	return fmt.Errorf("`igris draft %s` is not available in this build yet", s)
+// LoadValid reads the plan extend adds to, with the files it includes,
+// and checks it passes `igris check`: an invalid plan is for `igris
+// adapt` (SPEC §9.1).
+func LoadValid(cfg *config.Config, root, planPath string) (*plan.Plan, error) {
+	name := relTo(root, planPath)
+	if _, err := os.Stat(planPath); errors.Is(err, fs.ErrNotExist) {
+		return nil, fmt.Errorf("%s doesn't exist; draft a new plan with `igris draft goal`, `spec` or `import`, or pass the plan to extend with --plan", name)
+	}
+	p, err := plan.Load(planPath, plan.Options{Columns: cfg.Columns, Root: root})
+	if err != nil {
+		return nil, err
+	}
+	var invalid *plan.Invalid
+	switch err := p.Check(cfg.Rules(root)); {
+	case errors.As(err, &invalid) && invalid.Newer:
+		return nil, fmt.Errorf("%s can't be extended: %w", name, err)
+	case err != nil:
+		return nil, fmt.Errorf("%s can't be extended until it passes `igris check`: %w", name, err)
+	}
+	return p, nil
 }
 
 // CheckSpec checks the spec file named by the owner (SPEC §9.1): inside
@@ -210,34 +252,44 @@ func CheckSpec(root, file string) (string, error) {
 }
 
 // Check is what Run refuses before any session opens or the lock is taken
-// (SPEC §9.1): a plan in the way of a new one, a spec file that can't be
-// used, and a source this build doesn't have yet. Callers may run it
-// first, before they create anything. file is the spec or export as the
-// owner named it; format is import's --format, "" to detect it.
-func Check(root string, src Source, planPath, file, format string) error {
-	_, err := check(root, src, planPath, file, format)
+// (SPEC §9.1): a plan in the way of a new one, a spec file or an export
+// that can't be used, and a plan to extend that is missing or invalid.
+// Callers may run it first, before they create anything. file is the spec
+// or export as the owner named it; format is import's --format, "" to
+// detect it.
+func Check(cfg *config.Config, root string, src Source, planPath, file, format string) error {
+	_, err := check(cfg, root, src, planPath, file, format)
 	return err
 }
 
-// check is Check that also returns the parsed export of an import.
-func check(root string, src Source, planPath, file, format string) (*Export, error) {
+// checked is what check read: the parsed export of an import, the plan
+// extend adds to.
+type checked struct {
+	export *Export
+	plan   *plan.Plan
+}
+
+// check is Check that also returns what it read.
+func check(cfg *config.Config, root string, src Source, planPath, file, format string) (checked, error) {
+	var c checked
 	if src.NewPlan() {
 		if err := CheckSlot(root, planPath); err != nil {
-			return nil, err
+			return c, err
 		}
 	}
+	var err error
 	switch src {
 	case Goal:
 	case Spec:
-		if _, err := CheckSpec(root, file); err != nil {
-			return nil, err
-		}
+		_, err = CheckSpec(root, file)
 	case Import:
-		return LoadImport(file, format)
+		c.export, err = LoadImport(file, format)
+	case Extend:
+		c.plan, err = LoadValid(cfg, root, planPath)
 	default:
-		return nil, errNotYet(src)
+		err = fmt.Errorf("unknown draft source %q", src)
 	}
-	return nil, nil
+	return c, err
 }
 
 // Run checks where the plan goes, runs the draft session until it signals
@@ -248,12 +300,13 @@ func Run(ctx context.Context, o Options) (*Result, error) {
 		o.Clock = engine.SystemClock()
 	}
 	d := o.State
-	exp, err := check(d.Root(), o.Source, o.PlanPath, o.File, o.Format)
+	in, err := check(o.Config, d.Root(), o.Source, o.PlanPath, o.File, o.Format)
 	if err != nil {
 		return nil, err
 	}
-	proposal := ProposalPath(d, o.PlanPath)
-	text, err := o.prompt(proposal, exp)
+	exp := in.export
+	proposal := proposalPath(d, o.Source, o.PlanPath)
+	text, err := o.prompt(proposal, in)
 	if err != nil {
 		return nil, err
 	}
@@ -308,22 +361,57 @@ func Run(ctx context.Context, o Options) (*Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read proposal: %w", err)
 	}
-	// Parsed without the project root, so an include line is a problem:
-	// accepting it would bring in files the owner never reviewed.
-	p := plan.Parse(proposal, proposed, plan.Options{Columns: o.Config.Columns})
-	return &Result{
+	res := &Result{
 		Source:       o.Source,
 		PlanPath:     o.PlanPath,
 		ProposalPath: proposal,
 		Proposed:     proposed,
-		Issues:       p.Validate(o.Config.Rules(d.Root())),
-		Ranks:        CountRanks(p),
 		Note:         sig.Note,
-	}, nil
+		root:         d.Root(),
+	}
+	if o.Source == Extend {
+		return res, o.extend(res)
+	}
+	// Parsed without the project root, so an include line is a problem:
+	// accepting it would bring in files the owner never reviewed.
+	p := plan.Parse(proposal, proposed, plan.Options{Columns: o.Config.Columns})
+	res.Issues = p.Validate(o.Config.Rules(d.Root()))
+	res.Ranks = CountRanks(p)
+	return res, nil
+}
+
+// extend splices res's proposal, the new part, into the plan as it is now
+// and validates the result (SPEC §9.1). A fragment igris can't splice is an
+// error: nothing is offered for review.
+func (o Options) extend(res *Result) error {
+	root := o.State.Root()
+	p, err := LoadValid(o.Config, root, o.PlanPath)
+	if err != nil {
+		return err
+	}
+	name := relTo(root, res.ProposalPath)
+	x, issues := plan.Extend(p, plan.Options{Columns: o.Config.Columns, Root: root}, name, res.Proposed)
+	if len(issues) > 0 {
+		var b strings.Builder
+		fmt.Fprintf(&b, "igris can't add %s to %s: %d problem(s); nothing was written, run `igris draft extend` again:", name, relTo(root, o.PlanPath), len(issues))
+		for _, is := range issues {
+			b.WriteString("\n  ")
+			b.WriteString(textsafe.Line(is.Error()))
+		}
+		return errors.New(b.String())
+	}
+	res.Extension = x
+	res.Issues = x.Plan.Validate(o.Config.Rules(root))
+	var tasks []*plan.Task
+	for _, a := range x.Additions {
+		tasks = append(tasks, a.Tasks...)
+	}
+	res.Ranks = countRanks(tasks)
+	return nil
 }
 
 // prompt renders the draft prompt for o's source.
-func (o Options) prompt(proposal string, exp *Export) (string, error) {
+func (o Options) prompt(proposal string, in checked) (string, error) {
 	cfg, root := o.Config, o.State.Root()
 	vars := prompt.DraftVars{
 		Source:       string(o.Source),
@@ -344,27 +432,101 @@ func (o Options) prompt(proposal string, exp *Export) (string, error) {
 		// The name is the owner's, but a file name can hold anything.
 		vars.SpecFile = textsafe.Clean(rel)
 	case Import:
+		exp := in.export
 		vars.ImportFile = relTo(root, filepath.Join(o.State.DraftDir(), ImportFile))
 		vars.ImportSource = exp.Source
 		vars.ImportCount = len(exp.Items)
 		vars.ImportDone = exp.Done()
-	default:
-		return "", errNotYet(o.Source)
+	case Extend:
+		// Typed into the pane: no escape sequences.
+		vars.Request = strings.TrimSpace(textsafe.Clean(o.Text))
+		for _, f := range in.plan.Files() {
+			vars.PlanFiles = append(vars.PlanFiles, textsafe.Clean(relTo(root, f)))
+		}
 	}
 	return prompt.RenderDraft(vars)
 }
 
-// Review is what the owner reviews: the proposal against no plan, as a
-// line diff.
+// Review is what the owner reviews: a new plan's proposal against no plan,
+// as a line diff; for extend only what it adds, phase by phase, each with
+// its file (SPEC §9.1).
 func Review(res *Result) adapt.Review {
-	return adapt.LineReview(nil, res.Proposed)
+	x := res.Extension
+	if x == nil {
+		return adapt.LineReview(nil, res.Proposed)
+	}
+	rv := adapt.Review{Tables: true, Notes: x.Notes}
+	for _, a := range x.Additions {
+		s := adapt.Section{Op: adapt.Mod, Phase: a.Phase, Heading: a.Heading + " · " + relTo(res.root, a.File)}
+		if a.New {
+			s.Op = adapt.Add
+			for _, l := range a.Prose {
+				rv.Prose = append(rv.Prose, adapt.Line{Op: adapt.Add, Text: l})
+			}
+		}
+		for _, t := range a.Tasks {
+			s.Changes = append(s.Changes, adapt.Change{Op: adapt.Add, What: t.ID, New: taskLine(t)})
+		}
+		rv.Sections = append(rv.Sections, s)
+	}
+	return rv
 }
 
-// Accept writes the reviewed proposal of res as the new plan. The file is
-// created exclusively, so a file that appeared at the plan path since the
-// review is never overwritten: nothing is written then and the proposal
-// stays (SPEC §9.1).
-func Accept(res *Result) error {
+// taskLine is a new task in the review: its title, deps, rank and owner,
+// e.g. "Printer · deps M1-01 · opus · agent".
+func taskLine(t *plan.Task) string {
+	parts := []string{t.Title}
+	if t.DepsText != "" && t.DepsText != "—" && t.DepsText != "-" {
+		parts = append(parts, "deps "+t.DepsText)
+	}
+	if t.Rank != "" {
+		parts = append(parts, t.Rank)
+	}
+	if t.OwnerText != "" {
+		parts = append(parts, t.OwnerText)
+	}
+	return strings.Join(parts, " · ")
+}
+
+// Accept writes the reviewed proposal of res, and returns the backups it
+// took. A new plan is created exclusively, so a file that appeared at the
+// plan path since the review is never overwritten: nothing is written then
+// and the proposal stays (SPEC §9.1). An extension first backs up each file
+// it changes to .igris/draft/<file-name>.<timestamp>.bak.md, then writes
+// them; if any file of the plan changed on disk since it was read, nothing
+// is written.
+func Accept(d *state.Dir, res *Result, now time.Time) ([]string, error) {
+	if res.Extension != nil {
+		return acceptExtension(d, res, now)
+	}
+	return nil, create(res)
+}
+
+// acceptExtension backs up and writes the files res's extension changes.
+func acceptExtension(d *state.Dir, res *Result, now time.Time) ([]string, error) {
+	var backups []string
+	taken := map[string]bool{}
+	for _, f := range res.Extension.Files() {
+		name := adapt.BackupName(f.Name, now)
+		for n := 2; taken[name]; n++ {
+			// Two files of a split plan with one name: keep both.
+			name = fmt.Sprintf("%s-%d.%s.bak.md", planName(f.Name), n, now.UTC().Format("20060102-150405"))
+		}
+		taken[name] = true
+		path, err := d.WriteDraftFile(name, f.Old)
+		if err != nil {
+			return backups, fmt.Errorf("back up %s: %w; the plan is unchanged, the new part stays in %s", relTo(res.root, f.Name), err, res.ProposalPath)
+		}
+		backups = append(backups, path)
+	}
+	if err := res.Extension.Write(); err != nil {
+		return backups, fmt.Errorf("%w; the new part stays in %s", err, res.ProposalPath)
+	}
+	return backups, nil
+}
+
+// create writes res's proposal as the new plan, exclusively.
+func create(res *Result) error {
 	name := res.PlanPath
 	//nolint:gosec // a plan is the owner's project file, readable like the rest of the tree (SPEC §9.1: mode 0644)
 	f, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)

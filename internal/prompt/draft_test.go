@@ -38,6 +38,22 @@ func TestRenderDraftGolden(t *testing.T) {
 			Models:       models,
 			Verify:       []string{"default", "fast"},
 		}},
+		{"draft-extend", DraftVars{
+			Source:       "extend",
+			PlanFile:     "tasks.md",
+			ProposalFile: ".igris/draft/tasks.extend.md",
+			PlanFiles:    []string{"tasks.md"},
+			Request:      "a phase for the docs site",
+			Models:       models,
+			Verify:       []string{"default", "fast"},
+		}},
+		{"draft-extend-split-ask", DraftVars{
+			Source:       "extend",
+			PlanFile:     "tasks.md",
+			ProposalFile: ".igris/draft/tasks.extend.md",
+			PlanFiles:    []string{"tasks.md", "phases/v2.md"},
+			Models:       models,
+		}},
 		{"draft-goal-ask", DraftVars{
 			Source:       "goal",
 			PlanFile:     "plans/v2.md",

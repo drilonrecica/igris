@@ -1,4 +1,15 @@
 {{- /* igris draft prompt (SPEC §9.1). Sent as the first user message of the draft session. */ -}}
+{{- if eq .Source "extend" -}}
+# Extend the plan `{{.PlanFile}}`
+
+Your job: write new phases, or new tasks for phases the plan already has, to
+
+```
+{{.ProposalFile}}
+```
+
+in the canonical igris format (reference at the end of this message). Write only the new part, never the whole plan, and only that file: never edit the plan. The owner reviews what you add, and igris adds it to the plan only when the owner accepts it.
+{{- else -}}
 # Draft the plan `{{.PlanFile}}`
 
 Your job: write a task plan igris can run to
@@ -8,6 +19,7 @@ Your job: write a task plan igris can run to
 ```
 
 in the canonical igris format (reference at the end of this message). Write only that file. The owner reviews your proposal, and igris writes it to `{{.PlanFile}}` only when the owner accepts it.
+{{- end}}
 {{- if eq .Source "goal"}}
 
 ## Source: a goal
@@ -84,6 +96,44 @@ Read that file, in full, and not the raw export. It is JSON: `{"v":1,"source":�
 7. Under `### Imported` in `## Draft notes`, one line per item: `- #12 → M1-03` (or `→ left out`), so the owner can trace every issue.
 8. A body cut at 16 KiB is not the whole issue: if what the cut part might say matters, ask the owner or make the unknown its own task.
 {{end}}
+{{- if eq .Source "extend"}}
+
+## Source: the current plan
+
+The plan to extend{{if gt (len .PlanFiles) 1}} is split across these files; the first is the main plan{{end}}:
+
+```
+{{range .PlanFiles}}{{.}}
+{{end -}}
+```
+{{if .Request}}
+The owner's request:
+
+```
+{{.Request}}
+```
+{{- else}}
+The owner hasn't said what to add yet: start by asking for it, in a sentence or two.
+{{- end}}
+
+### Talk to the owner first
+
+1. Read the plan in full{{if gt (len .PlanFiles) 1}}, every file of it{{end}}, and the README and build files if the project has any, so what you add fits what is there: its phases, ID scheme, columns, ranks and gates. Change nothing.
+2. If the request is unclear, or too big for a few phases, ask the owner in this chat and wait for the answer.
+3. Then sum up in a few lines what you will add and where, and ask the owner to confirm or correct it. Write the file only after the owner confirms.
+
+### What the file holds
+
+- One `##` section per phase you add tasks to or add, each with one task table. Text before the first `##` heading is ignored.
+- **New tasks for a phase the plan has:** a `##` heading starting with that phase's ID (e.g. `## M2`) and a table of the new rows only. Use only columns that phase's table has: igris writes each row after the table's last row, in its column order, with empty cells for the columns you leave out. Nothing else in the section is written.
+- **A new phase:** a `##` heading with a phase ID the plan doesn't use and a title, an optional short introduction, and its task table, in the plan's style. igris appends it as written at the end of `{{.PlanFile}}`{{if gt (len .PlanFiles) 1}}, the main plan{{end}}. End it in a gate, as the plan's phases end.
+- **New IDs only**, following the plan's scheme (`M2-07` after `M2-06`). Never repeat, change or move a row the plan has: if one should change, tell the owner to edit the plan.
+- **Status** `ready` for a task without dependencies, `blocked` for every other; nothing else.
+- **Deps** name tasks of the plan or of your file.
+- Each task cell is `**Short title** — what to build and how to tell it is done`, sized for one session. A decision is its own task (Owner `agent + user`, Model `opus`, Mode `plan`) where the plan has a Mode column; anything only the owner can do is a `user` task with Model `—`.
+- No include lines.
+{{- end}}
+{{- if ne .Source "extend"}}
 ## Shape
 
 - Start the file with the format marker `<!-- igris:format 1 -->` on a line of its own, then a `#` title and a short introduction.
@@ -94,6 +144,7 @@ Read that file, in full, and not the raw export. It is JSON: `{"v":1,"source":�
 - Each task cell is `**Short title** — what to build and how to tell it is done`, sized for one session.
 - Tasks without dependencies are `ready`; every other task is `blocked`.
 - No include lines: the plan is one file.
+{{- end}}
 
 ## Model ranks
 
@@ -120,7 +171,11 @@ Never put a command in a Verify cell: commands live in the owner's `igris.toml`.
 
 ## Draft notes
 
-End the proposal with a `## Draft notes` section: one line per agent task giving its rank and why, and for each `?` what the owner should decide.{{if or (eq .Source "spec") (eq .Source "import")}} {{if eq .Source "spec"}}Requirements{{else}}Items{{end}} you left out follow under `### Left out`, one line each with the reason.{{end}}
+{{if eq .Source "extend" -}}
+End the file with a `## Draft notes` section: one line per new agent task giving its rank and why, and for each `?` what the owner should decide. The owner sees it in the review; igris doesn't add it to the plan.
+{{- else -}}
+End the proposal with a `## Draft notes` section: one line per agent task giving its rank and why, and for each `?` what the owner should decide.
+{{- end}}{{if or (eq .Source "spec") (eq .Source "import")}} {{if eq .Source "spec"}}Requirements{{else}}Items{{end}} you left out follow under `### Left out`, one line each with the reason.{{end}}
 
 ```markdown
 ## Draft notes
@@ -131,16 +186,17 @@ End the proposal with a `## Draft notes` section: one line per agent task giving
 
 ## Finish
 
-Ask the owner in this chat when anything is unclear and wait for the answer. Before finishing, check the proposal with
+Ask the owner in this chat when anything is unclear and wait for the answer.
+{{- if eq .Source "extend"}} When you finish, igris checks your file against the plan: every new ID unused, every Status `ready` or `blocked`, no column a phase's table lacks, every dependency in the plan or your file; then it checks the extended plan as `igris check` does. A file that breaks one of the first four rules is refused and nothing is added, so check them yourself before finishing.{{else}} Before finishing, check the proposal with
 
 ```
 igris check --plan {{.ProposalFile}}
 ```
 
-and fix every problem it reports except the `?` models. When `{{.ProposalFile}}` is complete, run this as your very last action:
+and fix every problem it reports except the `?` models.{{end}} When `{{.ProposalFile}}` is complete, run this as your very last action:
 
 ```
-{{.DoneCommand}} --note "<one-line summary of the plan>"
+{{.DoneCommand}} --note "<one-line summary of {{if eq .Source "extend"}}what you added{{else}}the plan{{end}}>"
 ```
 
 ---

@@ -200,6 +200,46 @@ func TestReviewDraft(t *testing.T) {
 	}
 }
 
+// draft extend's review: only additions, each phase with its file, the
+// prose a new phase brings, and the draft notes, cleaned and marked as not
+// written; the second confirmation says Extend.
+func TestReviewDraftExtend(t *testing.T) {
+	o := ReviewOptions{
+		Command:  "igris draft",
+		Extend:   true,
+		PlanPath: "tasks.md",
+		Review: adapt.Review{
+			Tables: true,
+			Sections: []adapt.Section{
+				{Op: adapt.Mod, Phase: "M0", Heading: "M0 — Foundation · phases/m0.md", Changes: []adapt.Change{{Op: adapt.Add, What: "M0-04", New: "README · deps M0-03 · sonnet"}}},
+				{Op: adapt.Add, Phase: "M1", Heading: "M1 — Renaming · tasks.md", Changes: []adapt.Change{{Op: adapt.Add, What: "M1-01", New: "Read EXIF dates · ?"}}},
+			},
+			Prose: []adapt.Line{{Op: adapt.Add, Text: "The core."}},
+			Notes: []string{"- M1-01 ?: which EXIF library\x1b[2J"},
+		},
+		Issues: []string{`tasks.md:26: M1-01: model not set yet ("?")`},
+	}
+	rh := newReviewHarness(t, 80, 30, o)
+	out := rh.r.View()
+	for _, want := range []string{
+		"~ phase M0 — Foundation · phases/m0.md\n  + M0-04 README · deps M0-03 · sonnet",
+		"+ phase M1 — Renaming · tasks.md\n  + M1-01 Read EXIF dates · ?",
+		"Outside the task tables:\n+ The core.",
+		"Draft notes (not written to the plan):\n  - M1-01 ?: which EXIF library",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("view lacks %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "\x1b[2J") {
+		t.Error("a note's escape sequence reached the terminal")
+	}
+	rh.keys("a")
+	if rh.r.dialog == nil || rh.r.dialog.title != "Extend the plan anyway?" || rh.r.dialog.options[1].label != "Extend anyway" {
+		t.Fatalf("dialog = %+v", rh.r.dialog)
+	}
+}
+
 func TestReviewFoldsUnchangedLines(t *testing.T) {
 	var old, proposed []string
 	for i := range 40 {

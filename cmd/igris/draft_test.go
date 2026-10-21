@@ -332,11 +332,16 @@ func TestDraftCommandRefusals(t *testing.T) {
 			}
 		}, "igris draft: export file x.csv: not the JSON array"},
 		{"extend without a project", []string{"draft", "extend"}, func(*testing.T, string) {}, "no igris project"},
-		{"extend not built yet", []string{"draft", "extend", "a phase for docs"}, func(t *testing.T, root string) {
-			if err := os.WriteFile(filepath.Join(root, "tasks.md"), []byte(draftedPlan), 0o600); err != nil {
+		{"extend an invalid plan", []string{"draft", "extend", "a phase for docs"}, func(t *testing.T, root string) {
+			if err := os.WriteFile(filepath.Join(root, "tasks.md"), []byte(strings.Replace(draftedPlan, "| opus |", "| ? |", 1)), 0o600); err != nil {
 				t.Fatal(err)
 			}
-		}, "`igris draft extend` is not available in this build yet"},
+		}, "igris draft: tasks.md can't be extended until it passes `igris check`: plan has 1 problem(s); fix them (or run `igris adapt`)"},
+		{"extend a missing --plan", []string{"draft", "extend", "--plan", "v2.md"}, func(t *testing.T, root string) {
+			if err := os.WriteFile(filepath.Join(root, "igris.toml"), nil, 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}, "igris draft: v2.md doesn't exist; draft a new plan with `igris draft goal`, `spec` or `import`"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -550,5 +555,61 @@ func TestDraftCommandImportRefusals(t *testing.T) {
 				t.Error(".igris/ was created")
 			}
 		})
+	}
+}
+
+// draft extend through the CLI: the review lists only additions (not a new
+// plan), Accept backs the plan up and adds them, and `igris check` passes
+// on the result (SPEC §9.1).
+func TestDraftCommandExtend(t *testing.T) {
+	root, be := draftTestProject(t, "tasks.md", draftedPlan)
+	plan := filepath.Join(root, "tasks.md")
+	if err := os.WriteFile(plan, []byte(draftedPlan), 0o644); err != nil { //nolint:gosec // test file
+		t.Fatal(err)
+	}
+	fragment := "## M1 — Polish\n\n| ID | Task | Deps | Status | Model | Owner | Mode |\n|---|---|---|---|---|---|---|\n" +
+		"| M1-01 | **Docs** | M0-G | blocked | sonnet | agent | — |\n\n## Draft notes\n\n- M1-01 sonnet: docs\n"
+	be.SetAutoSignal(func(context.Context, string) error {
+		d, err := state.Open(root, state.Options{})
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(draft.ExtendPath(d, plan), []byte(fragment), 0o600); err != nil {
+			return err
+		}
+		return d.WriteSignal(state.Signal{ID: draft.ID, Action: state.ActionDone, Note: "docs phase"})
+	})
+	var shown tui.ReviewOptions
+	decideDraft(true, &shown)
+
+	var out, errb bytes.Buffer
+	if got := run([]string{"draft", "extend", "a docs phase"}, &out, &errb); got != exitOK {
+		t.Fatalf("exit = %d, stderr: %s\nstdout: %s", got, errb.String(), out.String())
+	}
+	if shown.NewPlan || !shown.Extend || shown.PlanPath != "tasks.md" || len(shown.Issues) != 0 || shown.Note != "ranks are suggestions: 1 set, 0 left at ?" ||
+		len(shown.Review.Sections) != 1 || shown.Review.Sections[0].Heading != "M1 — Polish · tasks.md" || len(shown.Review.Notes) != 1 {
+		t.Errorf("review shown %+v", shown)
+	}
+	if p := be.Prompts(draft.ID); len(p) != 1 || !strings.Contains(p[0], "a docs phase") {
+		t.Errorf("prompts = %q", p)
+	}
+	backup := filepath.Join(root, ".igris", "draft", "tasks.20261021-120000.bak.md")
+	for _, want := range []string{"accepted: 1 task(s) added to " + plan + "; the files it changed are backed up to " + backup, "the new ranks are suggestions (1 set, 0 left at ?)"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("stdout missing %q:\n%s", want, out.String())
+		}
+	}
+	if data, _ := os.ReadFile(backup); string(data) != draftedPlan { //nolint:gosec // test temp dir
+		t.Errorf("backup = %q", data)
+	}
+	want := draftedPlan + "\n## M1 — Polish\n\n| ID | Task | Deps | Status | Model | Owner | Mode |\n|---|---|---|---|---|---|---|\n| M1-01 | **Docs** | M0-G | blocked | sonnet | agent | — |\n"
+	if data, _ := os.ReadFile(plan); string(data) != want { //nolint:gosec // test temp dir
+		t.Errorf("plan = %q\nwant %q", data, want)
+	}
+	if info, err := os.Stat(plan); err != nil || info.Mode().Perm() != 0o644 {
+		t.Errorf("plan mode: %v, %v", info, err)
+	}
+	if got := run([]string{"check"}, &out, &errb); got != exitOK {
+		t.Errorf("igris check on the extended plan: exit %d\n%s", got, errb.String())
 	}
 }
