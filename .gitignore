@@ -41,3 +41,6 @@ bin/
 
 # project page build output
 _site/
+
+# the binary `go build ./cmd/igris` leaves at the root
+/igris
