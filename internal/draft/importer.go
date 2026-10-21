@@ -138,6 +138,11 @@ func ParseImport(data []byte, format string) (*Export, error) {
 		return nil, fmt.Errorf("unknown format %q (want github|linear|jira)", format)
 	}
 	if err != nil {
+		// A named format that doesn't parse may be another tool's export:
+		// say which, rather than the parser's view of a file it can't read.
+		if f, derr := DetectFormat(data); derr == nil && f != format {
+			return nil, fmt.Errorf("this looks like a %s export, not %s; pass --format %s, or leave --format out to detect it", f, format, f)
+		}
 		return nil, err
 	}
 	if len(items) == 0 {

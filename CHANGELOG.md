@@ -18,6 +18,10 @@ igris 1.3 adds `igris draft` and breaks nothing: Claude can write your plan from
 
 `goal`, `spec` and `import` write a plan only where none is: pass `--plan PATH` for a new file next to an existing plan, or use `extend`. A spec or an export is text igris didn't write, so the session writes only a proposal and every permission prompt goes to you; see [SPEC §9.1](SPEC.md#91-igris-draft--plans-from-a-goal-a-spec-or-an-export-since-13).
 
+### Verification
+
+- The v1.3 gate ([`docs/check-v13.md`](docs/check-v13.md)), on tmux with Claude Code 2.1.307: a plan drafted from a goal with the interview answered in the pane, and from a spec; imports of GitHub JSON, Linear CSV and Jira CSV exports; an extend of a plan and of a split plan, every other byte kept. Each went through the review: Accept and Reject, the second confirmation for ranks left at `?`, a plan in the way refused, and a file that appeared during the review never overwritten. A `--format` that names another tool than the export's now says which tool the file looks like.
+
 ## [1.2.1] - 2026-10-21
 
 A security patch: igris 1.2.1 is igris 1.2.0 built with Go 1.27.3, which fixes GO-2026-6809 in `crypto/x509`. No code change, and no change to the plan format, config keys, CLI or file formats.

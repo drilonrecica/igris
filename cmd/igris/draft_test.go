@@ -330,7 +330,7 @@ func TestDraftCommandRefusals(t *testing.T) {
 			if err := os.WriteFile("x.csv", []byte("ID,Title\nA,b\n"), 0o600); err != nil {
 				t.Fatal(err)
 			}
-		}, "igris draft: export file x.csv: not the JSON array"},
+		}, "igris draft: export file x.csv: this looks like a linear export, not github; pass --format linear"},
 		{"extend without a project", []string{"draft", "extend"}, func(*testing.T, string) {}, "no igris project"},
 		{"extend an invalid plan", []string{"draft", "extend", "a phase for docs"}, func(t *testing.T, root string) {
 			if err := os.WriteFile(filepath.Join(root, "tasks.md"), []byte(strings.Replace(draftedPlan, "| opus |", "| ? |", 1)), 0o600); err != nil {

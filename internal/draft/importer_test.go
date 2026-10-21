@@ -116,7 +116,7 @@ func TestParseImportErrors(t *testing.T) {
 		name, in, format, want string
 	}{
 		{"github not json", `[{"number": 1,`, "github", "not the JSON array"},
-		{"github csv as json", "ID,Title\nA,b\n", "github", "not the JSON array"},
+		{"github csv as json", "Number,Name\n1,b\n", "github", "not the JSON array"},
 		{"github no number", `[{"title":"x"}]`, "", "no issue number"},
 		{"github duplicate", `[{"number":1,"title":"a"},{"number":1,"title":"b"}]`, "", "#1 appears twice"},
 		{"github element not an object", `[1]`, "", "item 1"},
@@ -139,6 +139,37 @@ func TestParseImportErrors(t *testing.T) {
 				t.Fatalf("err = %v, want %q", err, tt.want)
 			}
 		})
+	}
+}
+
+// A --format that names another tool than the file is from says which one
+// it is (V13-G: a JSON export under --format jira listed JSON fragments as
+// its columns and said to export again with all columns).
+func TestParseImportFormatMismatch(t *testing.T) {
+	tests := []struct {
+		fixture, format, want string
+	}{
+		{"github.json", "jira", "looks like a github export, not jira; pass --format github, or leave --format out to detect it"},
+		{"github.json", "linear", "looks like a github export, not linear"},
+		{"linear.csv", "jira", "looks like a linear export, not jira"},
+		{"linear.csv", "github", "looks like a linear export, not github"},
+		{"jira.csv", "linear", "looks like a jira export, not linear"},
+		{"jira.csv", "github", "looks like a jira export, not github"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.fixture+" as "+tt.format, func(t *testing.T) {
+			_, err := ParseImport(fixture(t, tt.fixture), tt.format)
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("err = %v, want %q", err, tt.want)
+			}
+			if strings.Contains(err.Error(), `"assignees"`) {
+				t.Errorf("err quotes the export: %v", err)
+			}
+		})
+	}
+	// A file no format recognizes keeps the named parser's own error.
+	if _, err := ParseImport([]byte("ID,Name\nA,b\n"), "linear"); err == nil || !strings.Contains(err.Error(), `no "title" column`) {
+		t.Errorf("err = %v, want the linear parser's error", err)
 	}
 }
 
@@ -250,7 +281,7 @@ func TestLoadImport(t *testing.T) {
 		{"missing", filepath.Join(dir, "none.csv"), "", "doesn't exist"},
 		{"directory", dir, "", "not a regular file"},
 		{"too large", big, "", "over 16 MiB"},
-		{"wrong format named", good, "jira", "no \"issue key\" column"},
+		{"wrong format named", good, "jira", "looks like a github export, not jira"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

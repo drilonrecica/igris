@@ -686,7 +686,7 @@ func TestRunImportFormat(t *testing.T) {
 		SessionOptions: adapt.SessionOptions{Config: cfg, Backend: h.be, State: h.dir, Notifier: h.notes, Clock: h.clock, Out: &h.out},
 		Source:         Import, PlanPath: h.plan, Model: "opus", File: f, Format: "jira",
 	})
-	if err == nil || !strings.Contains(err.Error(), `no "issue key" column`) {
-		t.Fatalf("err = %v, want the jira column error", err)
+	if err == nil || !strings.Contains(err.Error(), "looks like a linear export, not jira") {
+		t.Fatalf("err = %v, want the jira parse refused, naming the detected format", err)
 	}
 }
