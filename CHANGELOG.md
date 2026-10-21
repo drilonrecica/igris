@@ -4,6 +4,20 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+igris 1.3 adds `igris draft` and breaks nothing: Claude can write your plan from a goal, a spec file or an issue export, and add phases to the plan you have. Plans, `igris.toml` and scripts written for 1.0 to 1.2 need no changes ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). All of it is additive: a command with four subcommands, a `[draft]` config section and a directory in `.igris/`.
+
+### Added
+
+- **`igris draft goal [TEXT]`.** A session interviews you in its pane (what, who for, constraints, what done means), then writes a proposal. What it learned goes in the plan's `## Draft notes`, and `M0-01` is your task of writing the spec from that summary.
+- **`igris draft spec FILE`.** A plan from a spec or PRD: a regular, UTF-8 file of at most 1 MiB inside the project, which the session reads itself. Requirements it leaves out are listed in `## Draft notes`.
+- **`igris draft import FILE [--format github|linear|jira]`.** A plan from an issue export: the JSON `gh issue list --json number,title,body,state,labels` prints, or Linear's or Jira's CSV export (detected, or named with `--format`). igris parses it itself (at most 16 MiB and 1000 items) and the session reads the cleaned result; closed issues become `done` rows. igris never contacts GitHub, Linear or Jira.
+- **`igris draft extend [TEXT]`.** New phases or tasks for your current plan, also a split one. The session writes only the new part, the review lists only what it adds, and Accept backs up each file it changes to `.igris/draft/` and keeps every other byte. Never during a run.
+- **The review.** Every draft ends in the review `adapt` uses; nothing reaches the plan before Accept. Ranks a draft sets are suggestions, ones the session is unsure of stay `?`, and a proposal that fails `check` needs a second confirmation.
+- **Home: Draft… (`D`).** A picker of the four sources with the model, progress with Open session and Cancel, then the review. GET STARTED offers it next to Plan from template….
+- `[draft] model` (`sonnet` or `opus`, default `opus`), `--model` and `--plan` flags, and a `.igris/draft/` directory. The session runs in `manual` mode and finishes with `igris done DRAFT`.
+
+`goal`, `spec` and `import` write a plan only where none is: pass `--plan PATH` for a new file next to an existing plan, or use `extend`. A spec or an export is text igris didn't write, so the session writes only a proposal and every permission prompt goes to you; see [SPEC §9.1](SPEC.md#91-igris-draft--plans-from-a-goal-a-spec-or-an-export-since-13).
+
 ## [1.2.1] - 2026-10-21
 
 A security patch: igris 1.2.1 is igris 1.2.0 built with Go 1.27.3, which fixes GO-2026-6809 in `crypto/x509`. No code change, and no change to the plan format, config keys, CLI or file formats.

@@ -69,7 +69,7 @@ igris arise M0      # runs phase M0 (inside a herdr pane or tmux)
 
 Or run bare `igris` in a terminal: the [home screen](#home-screen) walks you through the same steps, from a new project to a run.
 
-No plan yet? `igris init --example` writes an example one, and `igris init --template go-cli` (or `web-app`, `library`) a starter plan with phases, gates and suggested ranks to adapt; see [Plan templates](#plan-templates). A plan in another format? [`igris adapt`](#different-format-igris-adapt) converts it.
+No plan yet? `igris init --example` writes an example one, and `igris init --template go-cli` (or `web-app`, `library`) a starter plan with phases, gates and suggested ranks to adapt; see [Plan templates](#plan-templates). A plan in another format? [`igris adapt`](#different-format-igris-adapt) converts it. No plan at all? [`igris draft`](https://drilonrecica.github.io/igris/docs/draft.html) (since 1.3) has Claude write one from a goal, a spec file or an issue export.
 
 **The first time,** Claude Code asks whether you trust the project folder ("Is this a project you trust?"). igris can't answer that for you: the task waits, and after about 30 seconds igris shows **needs you: the agent is blocked**. Open the session (`o` in the TUI), answer once, and the task carries on. Later sessions in that folder don't ask again.
 
@@ -713,7 +713,7 @@ Through WSL2, with herdr or tmux and Claude Code installed inside WSL too; see [
 
 Plans, not promises:
 
-- **1.x, additive:** creating plans from a goal or a spec (1.2 added side sessions, plan includes and templates).
+- **1.x, additive:** more ways to start and grow a plan (1.2 added side sessions, plan includes and templates; 1.3 added `igris draft`).
 - **2.0:** running independent tasks in parallel, each in its own worktree and merged back in plan order; remote control from a browser or a notification; usage limits and budgets.
 - **Later:** other agents next to Claude Code (Codex CLI, Kiro CLI, Gemini CLI, …).
 

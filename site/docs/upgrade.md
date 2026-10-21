@@ -60,3 +60,13 @@ What is new, all additive:
 - New `--json` fields (`file` on each phase and a `files` list in `check`, `phases` and `status`; a `side` array in `usage`), three new run-log events (`side_opened`, `side_closed`, `side_usage`) with a `side` field. Read all of them ignoring what you don't know, as 1.0 already asked.
 
 **One thing to plan for:** a split plan needs igris 1.2 on every machine that runs it. igris 1.0 and 1.1 refuse a format-2 plan with `plan format 2 needs a newer igris` rather than run only the main file's phases. Going back to 1.1 is fine as long as no plan declares format 2.
+
+## From 1.2 to 1.3
+
+Install the new igris (or run `igris update`) and you are done: 1.3 only adds to 1.2, and nothing in your plan, `igris.toml`, scripts or `.igris/` needs to change. A run interrupted under 1.2 resumes. `state.json` stays version 3.
+
+What is new, all additive:
+
+- **[Draft a plan](draft.md).** `igris draft goal|spec|import|extend`, and **Draft…** (`D`) on home: a session writes a proposal, you review it as for `adapt`, and only Accept writes your plan. New `[draft]` setting (`model`, default `opus`) and a `.igris/draft/` directory.
+
+Going back to 1.2 is fine: the plans a draft wrote are ordinary plans.
