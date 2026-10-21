@@ -4,6 +4,14 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-10-21
+
+A security patch: igris 1.2.1 is igris 1.2.0 built with Go 1.27.3, which fixes GO-2026-6809 in `crypto/x509`. No code change, and no change to the plan format, config keys, CLI or file formats.
+
+### Security
+
+- Built with Go 1.27.3 (`toolchain go1.27.3` in `go.mod`). Go 1.27.2's `crypto/x509` didn't reject a set of compromised intermediate certificates on systems whose trust store doesn't already distrust them ([GO-2026-6809](https://pkg.go.dev/vuln/GO-2026-6809)). igris makes HTTPS requests only to your notification endpoints and, when you ask, to GitHub's releases API (`igris update`); both verify certificates with that code. govulncheck finds no vulnerability igris calls.
+
 ## [1.2.0] - 2026-10-21
 
 igris 1.2 adds to what 1.0 promised and breaks nothing: you can open a side session of your own next to a run, split a long plan across files, start a project from a plan template, and check for updates from igris when you choose to. Plans, `igris.toml` and scripts written for 1.0 or 1.1 need no changes ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). All of it is additive: a command flag, config keys with defaults, plan format 2, `--json` fields, run-log events and a directory in `.igris/`. One thing needs planning: a split plan needs igris 1.2 on every machine that runs it ([upgrade guide](site/docs/upgrade.md#from-11-to-12)).
@@ -518,7 +526,8 @@ First release. Linux and macOS, herdr backend only. The full behavior is specifi
 - Release artifacts are not signed (checksums only); signing is planned.
 - No Homebrew tap yet.
 
-[Unreleased]: https://github.com/drilonrecica/igris/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/drilonrecica/igris/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/drilonrecica/igris/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/drilonrecica/igris/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/drilonrecica/igris/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/drilonrecica/igris/compare/v1.0.0-rc.2...v1.0.0
