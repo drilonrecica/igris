@@ -1,0 +1,40 @@
+igris · sinjal · tasks.md · herdr ✓ · mode auto                                                                     idle
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+           ╭───────────────────────────────────────────────────────────────────────────────────────────────╮
+           │ Update failed                                                                                 │
+           │                                                                                               │
+           │ go install github.com/drilonrecica/igris/cmd/igris@v1.2.0 exited with status 1                │
+           │                                                                                               │
+           │   go: github.com/drilonrecica/igris/cmd/igris@v1.2.0: reading                                 │
+           │   github.com/drilonrecica/igris/go.mod at revision v1.2.0: unknown revision v1.2.0            │
+           │                                                                                               │
+           │ The Go checksum database can lag a new tag by about 30 minutes. Try again later, or now with: │
+           │ GOPROXY=direct GONOSUMDB=github.com/drilonrecica/igris GOBIN=/home/u/go/bin go install        │
+           │ github.com/drilonrecica/igris/cmd/igris@v1.2.0                                                │
+           │                                                                                               │
+           │ › 1. Close                                                                                    │
+           ╰───────────────────────────────────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+[Arise…] [Preview] [Check] [Doctor] [History] [Edit plan] [Settings] [Notify] [Updates] [?] [Quit]

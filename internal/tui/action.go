@@ -71,6 +71,9 @@ const (
 	actExample     // Plan from template…: the picker of the example plan and the templates
 	actInitCreate  // the Init dialog's Create files
 	actInitPick    // the picker's selected starter plan
+	actUpdate      // Check for updates (u)
+	actUpdateCheck // the failed check's Try again
+	actUpdateRun   // the check's Update: run the install command
 	actPhaseRow    // a PHASES row; the zone's option is the phase's index
 	actLine        // a HEALTH or RECENT line; the zone's option is its index
 	// The start-run wizard's choices (launch.go); a phase or through

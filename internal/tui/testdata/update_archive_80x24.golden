@@ -1,0 +1,24 @@
+╭─────────────────────────────────────────────────────────────────────────────╮
+│ igris 1.2.0 is out                                                          │
+│                                                                             │
+│ 1.1.0 → 1.2.0 · igris can't tell how it was installed, so it runs nothing.  │
+│ https://github.com/drilonrecica/igris/releases/tag/v1.2.0                   │
+│ Download, verify and install it by hand:                                    │
+│   curl -fsSLO                                                               │
+│   https://github.com/drilonrecica/igris/releases/download/v1.2.0/igris_1.2. │
+│   0_linux_amd64.tar.gz                                                      │
+│   curl -fsSLO                                                               │
+│   https://github.com/drilonrecica/igris/releases/download/v1.2.0/checksums. │
+│   txt                                                                       │
+│   curl -fsSLO                                                               │
+│   https://github.com/drilonrecica/igris/releases/download/v1.2.0/checksums. │
+│   txt.sig                                                                   │
+│   curl -fsSLO                                                               │
+│   https://raw.githubusercontent.com/drilonrecica/igris/v1.2.0/allowed_signe │
+│   rs                                                                        │
+│   ssh-keygen -Y verify -f allowed_signers -I igris -n file -s               │
+│   checksums.txt.sig < checksums.txt                                         │
+│   sha256sum --ignore-missing -c checksums.txt …                             │
+│                                                                             │
+│ › 1. Close                                                                  │
+╰─────────────────────────────────────────────────────────────────────────────╯

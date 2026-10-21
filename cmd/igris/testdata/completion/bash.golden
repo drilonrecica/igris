@@ -12,7 +12,7 @@ _igris() {
         esac
     done
     if [[ -z $cmd ]]; then
-        COMPREPLY=($(compgen -W "init doctor check phases status history report usage arise done skip reset notify config adapt completion help version" -- "$cur"))
+        COMPREPLY=($(compgen -W "init doctor check phases status history report usage arise done skip reset notify config adapt update completion help version" -- "$cur"))
         return
     fi
     case "$cmd:$prev" in
@@ -50,6 +50,7 @@ _igris() {
             notify) COMPREPLY=($(compgen -W "--event" -- "$cur")) ;;
             config) COMPREPLY=($(compgen -W "--yes" -- "$cur")) ;;
             adapt) COMPREPLY=($(compgen -W "--model --plan" -- "$cur")) ;;
+            update) COMPREPLY=($(compgen -W "--check --yes" -- "$cur")) ;;
         esac
         return
     fi

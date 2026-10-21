@@ -55,6 +55,7 @@ What is new, all additive:
 - **[Side sessions](side-sessions.md).** `S` opens a Claude Code session of your own next to a run. New `[side]` settings (`model`, `mode`), a `.igris/side/` directory, and `IGRIS_SIDE` in the session's environment, with which `igris done`, `skip` and `reset` refuse.
 - **[Split plans](split-plans.md).** `<!-- igris:include PATH -->` in a plan that declares `<!-- igris:format 2 -->`. A plan without includes is unchanged and stays format 1.
 - **[Plan templates](templates.md).** `igris init --template go-cli|web-app|library`, and **Plan from template…** on home.
+- **[Updating igris](install.md#updating-igris).** `igris update [--check] [--yes]` and `u` on home check GitHub for a newer release and, after asking, update igris with Homebrew or `go install`. From 1.2 on, that is the easiest way to the next release.
 - **Usage.** A model an attempt used is counted once under each model it ran on, and a run with no `usage` lines says why. Side sessions have a table of their own in `igris usage`.
 - New `--json` fields (`file` on each phase and a `files` list in `check`, `phases` and `status`; a `side` array in `usage`), three new run-log events (`side_opened`, `side_closed`, `side_usage`) with a `side` field. Read all of them ignoring what you don't know, as 1.0 already asked.
 

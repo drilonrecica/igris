@@ -93,7 +93,7 @@ func igrisInPath(ctx context.Context, r runner.Runner, self func() (string, stri
 		return Result{ID: IDIgrisPath, Level: OK, Message: "igris in PATH is this igris"}
 	}
 	other := inPath
-	if v := igrisVersion(ctx, r, inPath); v != "" {
+	if v := IgrisVersion(ctx, r, inPath); v != "" {
 		other += " (" + v + ")"
 	}
 	this := "this igris"
@@ -103,12 +103,12 @@ func igrisInPath(ctx context.Context, r runner.Runner, self func() (string, stri
 	return Result{ID: IDIgrisPath, Level: Warn, Message: fmt.Sprintf("sessions run igris done with %s, not %s; put this igris first in PATH", other, this)}
 }
 
-// maxVersionLen bounds the version igrisVersion reports.
+// maxVersionLen bounds the version IgrisVersion reports.
 const maxVersionLen = 40
 
-// igrisVersion is the version `<path> version` prints ("igris 1.1.0"), or
+// IgrisVersion is the version `<path> version` prints ("igris 1.1.0"), or
 // "" when it can't be read.
-func igrisVersion(ctx context.Context, r runner.Runner, path string) string {
+func IgrisVersion(ctx context.Context, r runner.Runner, path string) string {
 	if r == nil {
 		return ""
 	}

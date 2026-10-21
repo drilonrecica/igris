@@ -129,6 +129,7 @@ var (
 		"notify":     "send a sample of each notification",
 		"config":     "remove deprecated settings from igris.toml",
 		"adapt":      "AI-assisted conversion of a plan with diff review",
+		"update":     "update igris with the package manager that installed it",
 		"completion": "print a shell completion script",
 		"help":       "show the help",
 		"version":    "print the version",

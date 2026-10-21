@@ -17,6 +17,7 @@ import (
 	"github.com/drilonrecica/igris/internal/state"
 	"github.com/drilonrecica/igris/internal/textsafe"
 	"github.com/drilonrecica/igris/internal/tui"
+	"github.com/drilonrecica/igris/internal/update"
 )
 
 // Services is the home screen's view of the project in a working directory
@@ -256,4 +257,14 @@ func (s *Services) Focus(ctx context.Context, ref backend.SessionRef, taskID str
 		return err
 	}
 	return Focus(be)(ctx, ref, taskID)
+}
+
+// CheckUpdate implements tui.Services.
+func (s *Services) CheckUpdate(ctx context.Context) (update.Check, error) {
+	return CheckUpdate(ctx, s.env)
+}
+
+// Update implements tui.Services.
+func (s *Services) Update(ctx context.Context, c update.Check) update.Result {
+	return RunUpdate(ctx, s.cwd, s.env, c)
 }

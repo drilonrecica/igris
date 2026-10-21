@@ -118,7 +118,7 @@ func TestAppQuits(t *testing.T) {
 			case "ctrl+c":
 				tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 			case "click Quit":
-				click(tm, textWidth("[›Doctor‹] [Settings] [?] ")+1, 23)
+				click(tm, textWidth("[›Doctor‹] [Settings] [Updates] [?] ")+1, 23)
 			default:
 				key(tm, k)
 			}
@@ -139,7 +139,7 @@ func TestAppCtrlCQuitsFromAPushedScreen(t *testing.T) {
 }
 
 func TestAppHelp(t *testing.T) {
-	tm := appProgram(t, &fakeServices{}, 80, 31)
+	tm := appProgram(t, &fakeServices{}, 80, 32)
 	seen(t, tm, "igris · sinjal")
 	key(tm, "?")
 	seen(t, tm, "Help · esc closes", "quit igris", "Focus", "quit igris from anywhere")
@@ -151,7 +151,7 @@ func TestAppHelp(t *testing.T) {
 }
 
 func TestAppHelpListsTheTopScreensKeys(t *testing.T) {
-	a := testApp(&fakeServices{}, 80, 31)
+	a := testApp(&fakeServices{}, 80, 32)
 	drive(a, func() tea.Msg { return helpMsg{} })
 	v := a.View()
 	for _, want := range []string{"?  Help — this page", "q  Quit — quit igris", "ctrl+c"} {

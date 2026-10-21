@@ -20,6 +20,7 @@ import (
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/runner"
 	"github.com/drilonrecica/igris/internal/state"
+	"github.com/drilonrecica/igris/internal/update"
 )
 
 // Env is the outside world a project talks to. Every field may be nil for
@@ -52,6 +53,15 @@ type Env struct {
 	// Self finds the running igris and the one in PATH, for the
 	// igris-path check (SPEC §14). nil means runner.Self.
 	Self func() (self, inPath string, same bool)
+	// Build is how this igris was built, for igris update and home's
+	// Check for updates (SPEC §14): its version, the install method.
+	Build update.Build
+	// UpdateAPI is the GitHub API the update check asks; "" means
+	// update.API. Tests point it at a local server.
+	UpdateAPI string
+	// Environ is igris's environment, which the update command gets
+	// without the notification secrets' variables. nil means os.Environ.
+	Environ func() []string
 }
 
 func (e Env) getenv() func(string) string {
@@ -66,6 +76,13 @@ func (e Env) lookPath() func(string) (string, error) {
 		return e.LookPath
 	}
 	return exec.LookPath
+}
+
+func (e Env) environ() []string {
+	if e.Environ != nil {
+		return e.Environ()
+	}
+	return os.Environ()
 }
 
 func (e Env) self() func() (string, string, bool) {

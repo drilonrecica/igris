@@ -27,6 +27,7 @@ complete -c igris -n __fish_use_subcommand -a reset -d 'put a task back to ready
 complete -c igris -n __fish_use_subcommand -a notify -d 'send a sample of each notification'
 complete -c igris -n __fish_use_subcommand -a config -d 'remove deprecated settings from igris.toml'
 complete -c igris -n __fish_use_subcommand -a adapt -d 'AI-assisted conversion of a plan with diff review'
+complete -c igris -n __fish_use_subcommand -a update -d 'update igris with the package manager that installed it'
 complete -c igris -n __fish_use_subcommand -a completion -d 'print a shell completion script'
 complete -c igris -n __fish_use_subcommand -a help -d 'show the help'
 complete -c igris -n __fish_use_subcommand -a version -d 'print the version'
@@ -71,4 +72,6 @@ complete -c igris -n '__fish_seen_subcommand_from config' -l yes
 complete -c igris -n '__fish_seen_subcommand_from config' -a 'migrate'
 complete -c igris -n '__fish_seen_subcommand_from adapt' -l model -x -a 'sonnet opus'
 complete -c igris -n '__fish_seen_subcommand_from adapt' -l plan -r -F
+complete -c igris -n '__fish_seen_subcommand_from update' -l check
+complete -c igris -n '__fish_seen_subcommand_from update' -l yes
 complete -c igris -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'

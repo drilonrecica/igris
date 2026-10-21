@@ -28,6 +28,9 @@ func TestMain(m *testing.M) {
 		return os.Getenv(k)
 	}
 	interactiveTerm = func() bool { return false } // tests are not on a terminal
+	// Nor on GitHub: a test that runs igris update points this at its own
+	// server; anything else is refused.
+	updateAPI = "http://127.0.0.1:1"
 	// Run from a side session, done, skip and reset would refuse.
 	_ = os.Unsetenv(side.Env)
 	os.Exit(m.Run())

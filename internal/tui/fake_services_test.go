@@ -13,6 +13,7 @@ import (
 	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/report"
+	"github.com/drilonrecica/igris/internal/update"
 )
 
 // fakeServices is a Services for tests: each call returns what its field
@@ -44,6 +45,10 @@ type fakeServices struct {
 	vi         func(path string) tea.ExecCommand
 	focusErr   error
 	side       SideSessions // nil: Side returns none
+	check      update.Check
+	checkErr   error
+	updateRes  update.Result
+	updateFn   func(ctx context.Context, c update.Check) update.Result // overrides updateRes
 }
 
 var _ Services = (*fakeServices)(nil)
@@ -182,3 +187,16 @@ func (f *fakeServices) Focus(context.Context, backend.SessionRef, string) error 
 }
 
 func (f *fakeServices) Side() SideSessions { return f.side }
+
+func (f *fakeServices) CheckUpdate(context.Context) (update.Check, error) {
+	f.count("CheckUpdate")
+	return f.check, f.checkErr
+}
+
+func (f *fakeServices) Update(ctx context.Context, c update.Check) update.Result {
+	f.count("Update")
+	if f.updateFn != nil {
+		return f.updateFn(ctx, c)
+	}
+	return f.updateRes
+}

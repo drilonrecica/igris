@@ -1,0 +1,19 @@
+╭───────────────────────────────────────────────╮
+│ igris 1.2.0 is out                            │
+│                                               │
+│ 1.1.0 → 1.2.0 · installed with Homebrew       │
+│ Update runs:                                  │
+│   brew upgrade igris                          │
+│                                               │
+│ Runs in other projects keep going; their      │
+│ sessions then run the new igris for igris     │
+│ done.                                         │
+│ https://github.com/drilonrecica/igris/release │
+│ s/tag/v1.2.0                                  │
+│                                               │
+│ › 1. Update                                   │
+│   2. Not now                                  │
+╰───────────────────────────────────────────────╯
+
+
+

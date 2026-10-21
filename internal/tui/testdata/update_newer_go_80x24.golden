@@ -1,0 +1,23 @@
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ igris 1.2.0 is out                                                           │
+│                                                                              │
+│ 1.1.0 → 1.2.0 · installed with go install                                    │
+│ Update runs:                                                                 │
+│   GOBIN=/home/u/go/bin go install                                            │
+│   github.com/drilonrecica/igris/cmd/igris@v1.2.0                             │
+│                                                                              │
+│ Runs in other projects keep going; their sessions then run the new igris for │
+│ igris done.                                                                  │
+│ https://github.com/drilonrecica/igris/releases/tag/v1.2.0                    │
+│                                                                              │
+│ › 1. Update                                                                  │
+│   2. Not now                                                                 │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+

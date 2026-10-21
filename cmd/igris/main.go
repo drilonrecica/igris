@@ -76,6 +76,8 @@ Commands:
   config migrate [--yes]                remove deprecated settings from igris.toml (asks first, keeps a backup)
   adapt [--model sonnet|opus]           AI-assisted conversion with diff review
         [--plan PATH]
+  update [--check] [--yes]              update igris with the package manager that installed it (asks first);
+                                        --check only prints the current and latest versions and the method
   completion bash|zsh|fish              print a shell completion script
   help [COMMAND]                        this help, or a command's (same as igris COMMAND -h); also -h, --help
   version                               print the version; also -v, --version
@@ -170,6 +172,7 @@ func commands() []command {
 		{name: "notify", setup: notifyArgs, exec: execNotify},
 		{name: "config", setup: configArgs, exec: execConfig},
 		{name: "adapt", setup: adaptArgs, exec: execAdapt},
+		{name: "update", setup: updateArgs, exec: execUpdate},
 		{name: "completion", setup: completionArgs, exec: execCompletion},
 	}
 }

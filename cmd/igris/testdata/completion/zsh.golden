@@ -3,7 +3,7 @@
 _igris() {
     local cmd prev
     if (( CURRENT == 2 )); then
-        compadd -- init doctor check phases status history report usage arise done skip reset notify config adapt completion help version
+        compadd -- init doctor check phases status history report usage arise done skip reset notify config adapt update completion help version
         return
     fi
     cmd=$words[2]
@@ -43,6 +43,7 @@ _igris() {
             notify) compadd -- --event ;;
             config) compadd -- --yes ;;
             adapt) compadd -- --model --plan ;;
+            update) compadd -- --check --yes ;;
         esac
         return
     fi

@@ -36,6 +36,7 @@ What igris protects, from whom, where the boundaries are, and which test enforce
 | Plan author | Put any text in cells | Make igris run it as a command or pass it through a shell |
 | Project code (verify, task hooks, git hooks) | Run as the owner with the project's files | See the variables the notification secrets come from; run without a timeout |
 | Notification endpoint, network | Read what is sent to it; delay or drop it | Make igris block (requests have timeouts); read a secret over plain http without a warning |
+| GitHub's releases API, or whoever answers in its place (since 1.2; only when the owner checks for updates) | Answer with any status, body or tag; delay or drop it | Show the owner text (only a `vX.Y.Z` tag is used), make igris read more than 1 MiB or wait more than 10 s, put anything but a version into the update command, or replace the binary (the package manager installs it) |
 | Another local user | Read world-readable files | Read `.igris/` (`0700`/`0600`) |
 | Supply chain | — | Replace a release unnoticed (signed `checksums.txt` and tags, SBOM, govulncheck, reproducible build) |
 
@@ -120,6 +121,10 @@ What igris protects, from whom, where the boundaries are, and which test enforce
 | A secret leaks through the config hash, run log, errors or home's pages | Never written there; the pages say only whether a secret is set and where from (SPEC §16). |
 | A token or webhook payload over plain http | Works (LAN servers) but `check`, `arise` and `doctor` warn (SPEC §16). |
 | Forged webhooks | With a `secret`, every webhook body is signed (`X-Igris-Signature`, HMAC-SHA256) (SPEC §10). |
+| igris contacts GitHub on its own (a check at start or on a timer tells GitHub when and from where igris runs) | Never: only `igris update` and home's `u`, which the owner starts; not in the run view or a `--no-tui` run, and no setting turns a check on (SPEC §1, §14, §15.6). |
+| A forged, huge or slow answer to the update check (a proxy from the environment, an intercepting middlebox) | Read with a 10 s timeout and at most 1 MiB; only `tag_name` is decoded and used, and only as `vX.Y.Z`; none of the answer's text is shown, the release link is built by igris, and errors name the status code only (SPEC §14, §16). |
+| The answer smuggles a command or flags into the update | The command is fixed (`brew upgrade igris`, or `go install github.com/drilonrecica/igris/cmd/igris@vX.Y.Z` with `GOBIN`), only the shape-checked version goes into it, as argv through the command runner with a timeout, never a shell; it runs after the owner says yes (or passes `--yes`), never while a run holds the project on home, and without the notification secrets' variables (SPEC §14, §16). |
+| A forged answer gets a malicious binary installed | igris never downloads or replaces its own binary: Homebrew checks the formula's sha256 and Go the checksum database, so a forged version is at worst one the package manager refuses or resolves to the real release; an archive install only gets the signed release's verify steps (B7; accepted, below). |
 
 ### B6 — project root ↔ worktree
 
@@ -158,6 +163,7 @@ What igris protects, from whom, where the boundaries are, and which test enforce
 18. **A side session can unset `IGRIS_SIDE`** (V12-P1, V12-02): the refusal of `igris done`, `skip` and `reset` inside a side session stops an honest mistake, not a session set on getting around it. Without the variable its signals are any session's: a done signal counts only for the current task and is verified, a skip or reset is a request the owner confirms (R3, R4). Side sessions are not exempt from the plan hold or the config snapshot either: a plan edit from one holds the run and an `igris.toml` edit raises `config_changed`, since an exemption would let any session claim to be a side session.
 19. **A split plan needs igris 1.2 everywhere** (V12-P2): an include line is an HTML comment to igris 1.0 and 1.1, which would run the main file's phases only. The format-2 marker a plan with includes must declare makes them refuse it (`plan format 2 needs a newer igris`), so a machine with an older igris stops instead of running part of the plan. A session can still write an include into a plan that declares format 2; that is a plan edit and holds the run (B2).
 20. **A session can rewrite an included file as it can rewrite the plan**: the Status writer only ever changes Status cells, but a session in `accept`, `auto` or `plan`-continued mode can edit any file of the plan, included or not. The planwatch compares every row of every file and holds the run (R48), so a change is reported, not applied; the owner decides.
+21. **The update trusts the package manager that installed igris** (V12-P4): `igris update` runs `brew upgrade igris` or `go install …@vX.Y.Z` as the owner, with igris's environment minus the notification secrets' variables, and the new binary is as good as the tap's formula or the Go module proxy and checksum database. A forged answer to the check can only name a version: a higher one that doesn't exist makes `go install` fail (or Homebrew upgrade to what its tap has), and it never makes igris download anything. A machine that reaches GitHub through a proxy it doesn't trust should not use `igris update`.
 
 ## Reviews
 
@@ -261,5 +267,8 @@ One row per safety rule. The tests are named `package.TestName`; `tools/threatmo
 | R48 | An edit to any file of a split plan, or an include added, removed or moved, holds the run | §5.4 | `internal/engine.TestSplitPlanIncludedEditHoldsTheRun`, `internal/engine.TestPlanWatchSplitPlan` |
 | R49 | `adapt` refuses a plan with includes before opening a session | §9 | `internal/adapt.TestRunRefusesSplitPlan` |
 | R50 | `init --template` never overwrites a plan and writes only the plan | §14 | `cmd/igris.TestInitTemplateNeverOverwrites`, `cmd/igris.TestInitTemplateUsageErrors` |
+| R51 | The update check runs only when the owner asks; GitHub's answer is read with a timeout and at most 1 MiB, and only a `vX.Y.Z` tag is used, none of its text shown | §1, §14, §16 | `internal/update.TestLatest`, `internal/update.TestLatestNetworkErrors`, `cmd/igris.TestUpdateCheck`, `internal/tui.TestUpdateNotInTheRunView` |
+| R52 | The update command is built from the version only, runs as argv with a timeout after the owner confirms, never during a run on home, and without the notification secrets' variables; igris never replaces its own binary | §14, §15.6, §16 | `internal/update.TestDetectAndFor`, `internal/update.TestRun`, `cmd/igris.TestUpdateAsks`, `cmd/igris.TestUpdateYes`, `internal/project.TestServicesUpdate`, `internal/tui.TestUpdateNotDuringARun` |
+| R53 | The update trusts the package manager that installed igris | §14 | accepted (see Accepted risks 21) |
 | R29 | Verify and git hooks run session-written code as the owner | §16 | accepted (see Accepted risks 1) |
 | R30 | A session can forge hook state, moving Needs you within `waiting_limit` | §6.3 | accepted (see Accepted risks 3) |

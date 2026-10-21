@@ -46,4 +46,4 @@ Not within 1.x. The plan format, `igris.toml`, the CLI, the `--json` output and 
 
 ## Where does igris keep its data?
 
-In the project: `igris.toml` at the root and `.igris/` (state, run log, signals, hook state, a lock). igris adds `.igris/` to `.gitignore`. It sends nothing anywhere except the notifications you configure, and has no telemetry or accounts.
+In the project: `igris.toml` at the root and `.igris/` (state, run log, signals, hook state, a lock). igris adds `.igris/` to `.gitignore`. It sends nothing anywhere except the notifications you configure, and asks GitHub for the latest release only when you run `igris update` or press `u` on home; it has no telemetry or accounts.

@@ -48,6 +48,7 @@ func projectEnv() project.Env {
 	return project.Env{
 		Getenv: ariseGetenv, Runner: ariseRunner, Backend: ariseBackend, Versions: compatWarnings,
 		Clock: adaptClock, Format: formatEvent, Version: igrisVersion(), Self: igrisSelf,
+		Build: updateBuild(), UpdateAPI: updateAPI, Environ: updateEnviron,
 	}
 }
 

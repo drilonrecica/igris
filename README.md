@@ -129,6 +129,23 @@ The first command must print `Good "file" signature for igris`, and the second `
 - Homebrew checks each archive against the sha256 in its formula; `go install` checks modules against the Go checksum database.
 - If the release key is ever replaced, the new key is announced in the CHANGELOG and here, and the old one stays in `allowed_signers` with a `valid-before` date, so older releases still verify.
 
+### Updating igris
+
+`igris update` (since 1.2) asks GitHub for the latest release and, when it is newer, runs the command of whatever installed igris, after asking `Update? [y/N]`:
+
+- **Homebrew** (the binary is in Homebrew's `Cellar`): `brew upgrade igris`.
+- **`go install`**: `go install github.com/drilonrecica/igris/cmd/igris@vX.Y.Z` with `GOBIN` set to the directory of the igris you run, so that file is replaced. Right after a release the Go checksum database can lag the new tag by about 30 minutes; igris then suggests retrying with `GOPROXY=direct GONOSUMDB=github.com/drilonrecica/igris`.
+- **A release archive** (or anything igris can't tell): nothing runs; igris prints the release link and the download, [verify](#verifying-a-download) and install steps.
+
+```sh
+igris update --check   # the current and latest versions and the method; runs nothing
+igris update           # asks first; --yes skips the question (needed without a terminal)
+```
+
+On the home screen, `u` (**Updates**) does the same in a dialog; it offers no Update while a run holds the project. A development build (`go build`, `make build` between tags) says so and isn't updated. After an update, quit and start igris again: igris never restarts or replaces itself. Runs in other projects keep going, and their sessions run the new igris for `igris done`.
+
+This is the only time igris contacts GitHub, and only when you ask: there is no check at start, on a timer or during a run, and no setting to turn one on. igris reads only the release's tag from the answer (`vX.Y.Z`, at most 1 MiB, 10 s timeout) and leaves the new binary's integrity to Homebrew's sha256 or Go's checksum database. The command runs without the variables your notification secrets come from. Exit codes: 0 updated or up to date, 1 network or command failure (or no terminal without `--yes`), 2 usage error.
+
 ### Shell completion
 
 `igris completion bash|zsh|fish` prints a completion script for subcommands, flags, and phase and task IDs from your plan (the plan of the current directory; nothing is offered while it is invalid). After `igris report` it completes run IDs, newest first.
@@ -484,6 +501,7 @@ template = "{{.At.Format \"15:04\"}} {{.TaskID}} {{.What}}"
 | `igris notify test [--event NAME]` | Sends a sample of each notification to your channels. |
 | `igris config migrate [--yes]` | Removes deprecated settings from `igris.toml`: shows the lines, asks, keeps a backup in `.igris/config/`. Run it after upgrading. |
 | `igris adapt` | Converts a plan in another format; see [`igris adapt`](#different-format-igris-adapt). |
+| `igris update [--check] [--yes]` | Since 1.2: checks GitHub for a newer release and, after asking, updates igris with Homebrew or `go install`; see [Updating igris](#updating-igris). |
 | `igris completion bash\|zsh\|fish` | Prints a shell completion script. |
 | `igris help [COMMAND]` | The help, or one command's (`igris COMMAND -h` is the same). |
 | `igris version` | Prints the version (`-v` and `--version` too). |
@@ -587,6 +605,7 @@ What's on it:
 | `I` / `E` | Init / Plan from template… | As in step 1. |
 | `o` | Open session | Jumps to a running session. |
 | `S` | Side sessions | Since 1.2, a [side session](#side-sessions) of your own; HEALTH shows `SIDE N open` while any are. |
+| `u` | Check for updates | Since 1.2, asks GitHub for the latest release; a newer one shows the method and the exact command with **Update** · Not now (no Update while a run holds the project). See [Updating igris](#updating-igris). |
 | `?` / `q` | Help / Quit | |
 
 <details>
@@ -655,7 +674,8 @@ From 1.0, igris keeps the plan format, `igris.toml`, the CLI and its exit codes,
 ## Security
 
 - **igris treats every session as untrusted.** It snapshots `igris.toml` per run and asks you before a later run uses a file that changed during one, pauses when the plan changes in a way it didn't write, checks what it reads back from `.igris/` (and reattaches only to the pane it started for the task, so a rewritten `state.json` can't point it at your shell), asks you before applying a session's skip or reset, reads every file a session can replace as a bounded regular file, and cleans everything a session wrote (notes, verify output, plan text) of escape sequences and invisible characters before it reaches your terminal, a notification or a session's pane.
-- **Your secrets stay out of the project's commands:** verify, task hooks and git never get the variables your notification tokens come from ([details](#what-verify-and-hooks-see)).
+- **Your secrets stay out of the project's commands:** verify, task hooks and git never get the variables your notification tokens come from ([details](#what-verify-and-hooks-see)), nor does `igris update`'s command.
+- **No network calls but the ones you set up or ask for:** your notification channels, and GitHub's releases API when you run `igris update` or press `u` on home. Only the release's tag is read from GitHub's answer.
 - **What igris can't prevent:** a session edits files, and verify and git hooks run your project's code as you. The permission mode is the real boundary; [worktree mode](#worktree-mode) keeps a run's changes on a branch of its own.
 - **Releases are signed** from 0.6.0 ([Verifying a download](#verifying-a-download)).
 

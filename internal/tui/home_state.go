@@ -227,6 +227,7 @@ func (m *homeScreen) buttons() []option {
 	add(found && m.side != nil && (m.herdr() || m.side.count() > 0), "Side…", actSide)
 	add(found && s.NoConfig && !live, "Init", actInit)
 	add(found && !s.NoConfig && len(s.ConfigProblems) == 0 && s.PlanMissing && !live, "Plan from template…", actExample)
+	add(true, "Updates", actUpdate)
 	out = append(out, option{"?", actHelp}, option{"Quit", actQuit})
 
 	// The state's own action goes first: it is the one enter runs.
@@ -256,7 +257,7 @@ func (m *homeScreen) buttons() []option {
 
 // homeFold lists the actions the bar folds into More… first when it
 // doesn't fit; the first button (the state's own action) is never folded.
-var homeFold = []action{actSide, actNotify, actSettings, actEdit, actHistory, actDoctor, actAdapt, actInit, actExample, actCheck, actPreview, actOpen, actHelp, actArise}
+var homeFold = []action{actUpdate, actSide, actNotify, actSettings, actEdit, actHistory, actDoctor, actAdapt, actInit, actExample, actCheck, actPreview, actOpen, actHelp, actArise}
 
 // phaseRow is one PHASES row, ready to lay out.
 type phaseRow struct {

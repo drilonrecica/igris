@@ -20,7 +20,7 @@ Not promised: the TUI (layout, keys, colors), the default task prompt's wording,
 
 ## Upgrading
 
-From any 0.x release: install the new igris, then run `igris config migrate` once in each project. It removes settings a release removed (today only `claude.command`, which every `igris init` before 0.7 wrote), shows what it removes, asks first, and keeps a backup in `.igris/config/`. Plans need nothing. A run interrupted under the old version resumes: its state is upgraded on read and the config keeps its hash.
+From 1.2 on, `igris update` (or `u` on home) checks for a newer release and updates igris with Homebrew or `go install` after asking. From any 0.x release: install the new igris, then run `igris config migrate` once in each project. It removes settings a release removed (today only `claude.command`, which every `igris init` before 0.7 wrote), shows what it removes, asks first, and keeps a backup in `.igris/config/`. Plans need nothing. A run interrupted under the old version resumes: its state is upgraded on read and the config keeps its hash.
 
 ## Surface → test map
 
@@ -31,8 +31,8 @@ One row per frozen surface. `tools/contract` fails when a named test no longer e
 | C1 | Plan format 1: phases, columns, statuses, dependencies, the format marker, the documented leniency; format 2: includes (since 1.2) | §3, §19 | `internal/plan.TestGoldenLargeSummary`, `internal/plan.TestGoldenInvalid`, `internal/plan.TestResolveDeps`, `internal/plan.TestFormatMarker`, `internal/plan.TestPlanFormatDocExamples`, `internal/plan.TestIncludeSplitPlan`, `internal/plan.TestIncludeProblems`, `cmd/igris.TestReportGoldens` |
 | C2 | What igris writes in a plan: only Status cells, every other byte kept; in a split plan, each in the file its row is in (since 1.2) | §4 | `internal/plan.TestWriterPreservesBytes`, `internal/plan.TestWriterEveryCellIsolated`, `internal/plan.TestWriterKeepsBOM`, `internal/plan.TestWriterKeepsFormatMarker`, `internal/plan.TestSplitWriterPreservesBytes`, `internal/plan.TestSplitWriterEveryCellIsolated` |
 | C3 | `igris.toml`: keys, defaults, validation; the config hash; removed keys | §12, §13 | `internal/config.TestParseFullSample`, `internal/config.TestParseEmptyGivesDefaults`, `internal/config.TestHashOfV04Config`, `internal/config.TestRemovedClaudeCommand`, `internal/config.TestMigrateInitConfig` |
-| C4 | CLI commands, flags and arguments | §14 | `cmd/igris.TestEveryCommandHelp`, `cmd/igris.TestCompletionGoldens`, `cmd/igris.TestCompletionCoversCommands` |
-| C5 | Exit codes | §14 | `cmd/igris.TestRun`, `cmd/igris.TestAriseExitCodes`, `cmd/igris.TestTUIExit`, `cmd/igris.TestConfigUsage` |
+| C4 | CLI commands, flags and arguments (`igris update`, since 1.2) | §14 | `cmd/igris.TestEveryCommandHelp`, `cmd/igris.TestCompletionGoldens`, `cmd/igris.TestCompletionCoversCommands`, `cmd/igris.TestUpdateCheck` |
+| C5 | Exit codes | §14 | `cmd/igris.TestRun`, `cmd/igris.TestAriseExitCodes`, `cmd/igris.TestTUIExit`, `cmd/igris.TestConfigUsage`, `cmd/igris.TestUpdateExitCodes` |
 | C6 | `--json` of check, phases, status, history, report, doctor | §14 | `cmd/igris.TestJSONGoldensMatchSchemas`, `cmd/igris.TestJSONRunGoldens`, `cmd/igris.TestReportGoldens` |
 | C7 | `igris done`, `skip`, `reset` and the signal files | §6.2, §13 | `cmd/igris.TestDoneAndSkipWriteSignals`, `cmd/igris.TestResetDirect`, `internal/state.TestSignalSlots`, `internal/state.TestResetSignal` |
 | C8 | `.igris/` layout and `state.json` versions | §13 | `internal/state.TestLayout`, `internal/state.TestLoadRunVersions`, `internal/state.TestMigratedRunSavesAsVersion3` |

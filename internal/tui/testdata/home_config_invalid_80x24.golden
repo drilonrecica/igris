@@ -20,5 +20,5 @@ igris uses the defaults meanwhile. Edit igris.toml from Settings.
 Oct 06 21:10  M2  3 done · 1 skipped · stopped
 Oct 05 18:02  M1  6 done · completed
 
-[›Settings‹] [Preview] [Check] [Doctor] [History] [Edit plan] [Notify] [?]
-[Quit]
+[›Settings‹] [Preview] [Check] [Doctor] [History] [Edit plan] [Notify] [Updates]
+[?] [Quit]

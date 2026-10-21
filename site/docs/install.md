@@ -47,6 +47,23 @@ sha256sum -c --ignore-missing checksums.txt    # macOS: shasum -a 256 -c --ignor
 
 The first command must print `Good "file" signature for igris`, and the second `OK` for your archive. The signature covers `checksums.txt`, which lists every archive and its SBOM. Homebrew checks each archive against the sha256 in its formula, and `go install` checks modules against the Go checksum database.
 
+## Updating igris
+
+From 1.2, `igris update` asks GitHub for the latest release and, when it is newer, updates igris the way it was installed, after asking:
+
+```sh
+igris update --check   # the current and latest versions and the method; runs nothing
+igris update           # asks Update? [y/N]; --yes skips the question (needed without a terminal)
+```
+
+- **Homebrew:** it runs `brew upgrade igris`.
+- **`go install`:** it runs `go install github.com/drilonrecica/igris/cmd/igris@vX.Y.Z` with `GOBIN` set to the directory of the igris you run. Within about 30 minutes of a release the Go checksum database may not know the tag yet (`unknown revision`); retry later, or with `GOPROXY=direct GONOSUMDB=github.com/drilonrecica/igris` as igris suggests.
+- **A prebuilt binary:** nothing runs. igris prints the release link and the download, [verify](#verifying-a-download) and install steps for your platform.
+
+On the home screen, `u` (**Updates**) does the same in a dialog, and offers no Update while a run holds the project. A development build isn't updated. When it is done, quit and start igris again; igris never replaces or restarts itself. Runs in other projects keep going and their sessions use the new igris for `igris done`.
+
+igris contacts GitHub only then: never at start, on a timer or during a run. It reads only the release's tag from the answer, and leaves the new binary's integrity to Homebrew and Go.
+
 ## Shell completion
 
 `igris completion bash|zsh|fish` prints a completion script for subcommands, flags, and phase and task IDs from your plan.

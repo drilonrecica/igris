@@ -80,6 +80,9 @@ type homeScreen struct {
 	adapting bool
 	// notifying says the Notify dialog is open (notifypage.go).
 	notifying bool
+	// updating is Check for updates while its dialog is open or its
+	// command runs (updatepage.go).
+	updating *updateTarget
 
 	// side is the side sessions (side.go); nil without services.
 	side *sideUI
@@ -208,6 +211,7 @@ func (m *homeScreen) helpKeys() []helpEntry {
 		{"I", "Init", "create igris.toml and .igris/ (when there is no igris.toml)"},
 		{"o", "Open session", "bring the running session's pane to the front"},
 		{"S", "Side session", "a Claude Code session of your own, not a task"},
+		{"u", "Check for updates", "ask GitHub for the latest release; updating asks first"},
 		{"?", "Help", "this page"},
 		{"q", "Quit", "quit igris"},
 	}
@@ -217,7 +221,7 @@ func (m *homeScreen) helpKeys() []helpEntry {
 var homeShortcuts = map[string]action{
 	"a": actArise, "v": actPreview, "c": actCheck, "i": actDoctor, "h": actHistory,
 	"e": actEdit, ",": actSettings, "n": actNotify, "A": actAdapt, "I": actInit, "E": actExample, "o": actOpen, "S": actSide,
-	"?": actHelp, "q": actQuit,
+	"u": actUpdate, "?": actHelp, "q": actQuit,
 }
 
 func (m *homeScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -288,6 +292,10 @@ func (m *homeScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.adaptReviewed(msg)
 	case adaptAcceptedMsg:
 		return m, m.adaptAccepted(msg)
+	case updateCheckedMsg:
+		return m, m.updateChecked(msg)
+	case updateDoneMsg:
+		return m, m.updateDone(msg)
 	case editedMsg:
 		return m, m.edited(msg)
 	case launchedMsg:
@@ -415,6 +423,9 @@ func (m *homeScreen) pick(a action) tea.Cmd {
 		var cmd tea.Cmd
 		m.dialog, cmd = m.side.pick(a)
 		return cmd
+	}
+	if m.updating != nil && m.updating.open {
+		return m.updatePick(a)
 	}
 	if m.launch != nil {
 		return m.wizardPick(a)
@@ -647,6 +658,8 @@ func (m *homeScreen) activate(a action) tea.Cmd {
 		return m.openAdapt()
 	case actNotify:
 		return m.openNotify()
+	case actUpdate:
+		return m.openUpdate()
 	case actSide:
 		if m.dialog == nil {
 			var cmd tea.Cmd

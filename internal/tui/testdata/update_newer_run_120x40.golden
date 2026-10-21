@@ -1,0 +1,40 @@
+igris · sinjal · tasks.md · herdr ✓ · mode auto                                                        RUNNING ELSEWHERE
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+              ╭──────────────────────────────────────────────────────────────────────────────────────────╮
+              │ igris 1.2.0 is out                                                                       │
+              │                                                                                          │
+              │ 1.1.0 → 1.2.0 · installed with Homebrew                                                  │
+              │ Update after the run ends: a run holds this project. The update runs:                    │
+              │   brew upgrade igris                                                                     │
+              │                                                                                          │
+              │ Runs in other projects keep going; their sessions then run the new igris for igris done. │
+              │ https://github.com/drilonrecica/igris/releases/tag/v1.2.0                                │
+              │                                                                                          │
+              │ › 1. Close                                                                               │
+              ╰──────────────────────────────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+[Open session] [Preview] [Check] [Doctor] [History] [Edit plan] [Settings] [Notify] [Updates] [?] [Quit]

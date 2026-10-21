@@ -329,24 +329,24 @@ func TestHomeBarsDropBelow60(t *testing.T) {
 // action first.
 func TestHomeButtonsOnlyWhenTheyApply(t *testing.T) {
 	want := map[string]string{
-		"checking":              "Preview Check Doctor History Edit plan Settings Notify ? Quit",
-		"ready":                 "Arise… Preview Check Doctor History Edit plan Settings Notify ? Quit",
-		"herdr_absent":          "Preview Check Doctor History Edit plan Settings Notify ? Quit",
-		"ready_tmux":            "Arise… Preview Check Doctor History Edit plan Settings Notify ? Quit",
-		"no_multiplexer":        "Preview Check Doctor History Edit plan Settings Notify ? Quit",
-		"get_started":           "Init Doctor Settings ? Quit",
-		"plan_missing":          "Plan from template… Doctor Settings Notify ? Quit",
-		"plan_invalid":          "Check Adapt Doctor Edit plan Settings Notify ? Quit",
-		"plan_newer_format":     "Check Doctor Edit plan Settings Notify ? Quit", // an upgrade, not adapt
-		"plan_invalid_no_herdr": "Check Doctor Edit plan Settings Notify ? Quit",
-		"config_invalid":        "Settings Preview Check Doctor History Edit plan Notify ? Quit",
-		"interrupted":           "Resume… Preview Check Doctor History Edit plan Settings Notify ? Quit",
-		"stopped":               "Resume… Preview Check Doctor History Edit plan Settings Notify ? Quit",
-		"last_run_complete":     "Arise… Preview Check Doctor History Edit plan Settings Notify ? Quit",
-		"running_elsewhere":     "Open session Preview Check Doctor History Edit plan Settings Notify ? Quit",
-		"stale_lock":            "Resume… Preview Check Doctor History Edit plan Settings Notify ? Quit",
-		"remote_lock":           "Arise… Preview Check Doctor History Edit plan Settings Notify ? Quit",
-		"unreadable":            "Doctor Settings ? Quit",
+		"checking":              "Preview Check Doctor History Edit plan Settings Notify Updates ? Quit",
+		"ready":                 "Arise… Preview Check Doctor History Edit plan Settings Notify Updates ? Quit",
+		"herdr_absent":          "Preview Check Doctor History Edit plan Settings Notify Updates ? Quit",
+		"ready_tmux":            "Arise… Preview Check Doctor History Edit plan Settings Notify Updates ? Quit",
+		"no_multiplexer":        "Preview Check Doctor History Edit plan Settings Notify Updates ? Quit",
+		"get_started":           "Init Doctor Settings Updates ? Quit",
+		"plan_missing":          "Plan from template… Doctor Settings Notify Updates ? Quit",
+		"plan_invalid":          "Check Adapt Doctor Edit plan Settings Notify Updates ? Quit",
+		"plan_newer_format":     "Check Doctor Edit plan Settings Notify Updates ? Quit", // an upgrade, not adapt
+		"plan_invalid_no_herdr": "Check Doctor Edit plan Settings Notify Updates ? Quit",
+		"config_invalid":        "Settings Preview Check Doctor History Edit plan Notify Updates ? Quit",
+		"interrupted":           "Resume… Preview Check Doctor History Edit plan Settings Notify Updates ? Quit",
+		"stopped":               "Resume… Preview Check Doctor History Edit plan Settings Notify Updates ? Quit",
+		"last_run_complete":     "Arise… Preview Check Doctor History Edit plan Settings Notify Updates ? Quit",
+		"running_elsewhere":     "Open session Preview Check Doctor History Edit plan Settings Notify Updates ? Quit",
+		"stale_lock":            "Resume… Preview Check Doctor History Edit plan Settings Notify Updates ? Quit",
+		"remote_lock":           "Arise… Preview Check Doctor History Edit plan Settings Notify Updates ? Quit",
+		"unreadable":            "Doctor Settings Updates ? Quit",
 	}
 	for _, st := range homeStates {
 		m := homeAt(&theme{}, 120, 40, st.fix())
@@ -641,6 +641,7 @@ func TestHomeMoreFolds(t *testing.T) {
 		t.Error("esc doesn't close the dialog")
 	}
 	m.Update(keyMsg("enter"))
+	m.Update(keyMsg("down")) // past Updates and Notify, which open dialogs, to Settings
 	m.Update(keyMsg("down"))
 	_, cmd = m.Update(keyMsg("enter"))
 	if m.dialog != nil || (run(cmd) == nil && m.status == "") {
@@ -691,7 +692,7 @@ func TestHomeHelpKeys(t *testing.T) {
 	for _, e := range m.helpKeys() {
 		keys = append(keys, e.key)
 	}
-	want := "a v c i h e , n A I o S ? q"
+	want := "a v c i h e , n A I o S u ? q"
 	if got := strings.Join(keys, " "); got != want {
 		t.Errorf("help keys %q, want %q", got, want)
 	}

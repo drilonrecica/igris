@@ -12,6 +12,7 @@ import (
 	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/report"
+	"github.com/drilonrecica/igris/internal/update"
 )
 
 // Services is everything the home screen asks of the project (SPEC §15.6):
@@ -67,6 +68,13 @@ type Services interface {
 	// Side is the project's side sessions (SPEC §15.7), the same for every
 	// call, so home and a run view it starts share them.
 	Side() SideSessions
+	// CheckUpdate asks GitHub for the latest release and compares it with
+	// this igris (`igris update --check`, SPEC §14). It is igris's only
+	// request to GitHub; home makes it only when the owner asks.
+	CheckUpdate(ctx context.Context) (update.Check, error)
+	// Update runs the install command the check found, through the
+	// command runner (`igris update`); slow: up to 10 minutes.
+	Update(ctx context.Context, c update.Check) update.Result
 }
 
 // ErrNoEditor says neither $VISUAL nor $EDITOR is set: home then asks,
