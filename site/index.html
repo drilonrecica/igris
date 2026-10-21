@@ -31,7 +31,7 @@
         <a href="#install">Install</a>
         <a href="docs/">Docs</a>
         <a href="https://github.com/drilonrecica/igris">GitHub</a>
-        <a class="pill pill-version" href="https://github.com/drilonrecica/igris/releases/latest">v1.1.0</a>
+        <a class="pill pill-version" href="https://github.com/drilonrecica/igris/releases/latest">v1.2.0</a>
       </nav>
     </div>
   </header>
@@ -124,6 +124,8 @@
           <div class="feature"><h3>On a branch of its own</h3><p>Worktree mode runs a whole run in a git worktree on its own branch, so your checkout stays as it is. Review the branch, merge it or drop it: igris never merges.</p></div>
           <div class="feature"><h3>Approve plans from igris</h3><p>A plan-mode session's plan opens in igris: approve it, send it back with feedback, or answer in the pane. Your plan can say which mode the session continues in after you approve.</p></div>
           <div class="feature"><h3>Usage you can see</h3><p><code>igris usage</code> shows the tokens per run, task, model and rank, and igris tells you when a task ran on a model its rank doesn't name.</p></div>
+          <div class="feature"><h3>A session of your own</h3><p>Open a side session next to the run for a question or a look into something, with the model and mode you choose. It never counts as a task, and a plan edit from it holds the run.</p></div>
+          <div class="feature"><h3>Plans that grow</h3><p>Split a long plan across files with includes, or start a new project from a plan template. Updating igris is one keypress, through the package manager that installed it.</p></div>
           <div class="feature"><h3>Signed and checked</h3><p>Signed releases with an SBOM, your notification secrets kept out of the commands it runs, and a threat model that ties every safety rule to a test.</p></div>
           <div class="feature"><h3>Stable until 2.0</h3><p>Plans, configs, scripts reading <code>--json</code> and webhook receivers you build on 1.0 keep working across 1.x. A compatibility suite checks what every release wrote, on every change.</p></div>
           <div class="feature"><h3>Resumable, and reported</h3><p>Quit any time. <code>igris arise</code> reattaches to the running session or continues where it left off. <code>igris report</code> turns a run into markdown for your PR.</p></div>
@@ -154,8 +156,7 @@
         <h2>What's next</h2>
         <p class="section-lead">Plans, not promises. 1.x only adds to what 1.0 keeps stable; the bigger changes wait for 2.0.</p>
         <div class="features">
-          <div class="feature"><h3>Side sessions</h3><p>Planned for 1.x: open your own Claude Code session next to the run, from inside igris.</p></div>
-          <div class="feature"><h3>Plan includes</h3><p>Planned for 1.x: split a long plan into one file per phase, still read and written as one plan.</p></div>
+          <div class="feature"><h3>Plans from a goal</h3><p>Planned for 1.x: <code>igris draft</code> turns a one-line goal, a spec or an issue export into a plan, shown as a diff you approve before anything is written.</p></div>
           <div class="feature"><h3>Parallel, safely</h3><p>Planned for 2.0: independent tasks at the same time, each in its own worktree, merged back in plan order with your checks after every merge. <code>igris phases</code> already shows which tasks could run together.</p></div>
         </div>
       </div>
