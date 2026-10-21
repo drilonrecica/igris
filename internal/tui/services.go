@@ -10,6 +10,7 @@ import (
 	"github.com/drilonrecica/igris/internal/adapt"
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/checks"
+	"github.com/drilonrecica/igris/internal/draft"
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/update"
@@ -56,6 +57,11 @@ type Services interface {
 	// replaces the plan with the proposal and returns the backup's path.
 	Adapt(ctx context.Context, model string, out io.Writer, opened func(backend.SessionRef)) (*adapt.Result, error)
 	AcceptAdapt(res *adapt.Result) (string, error)
+	// Draft runs `igris draft`'s session for req (SPEC §9.1), as Adapt
+	// does; AcceptDraft writes the reviewed proposal and returns the
+	// backups it took.
+	Draft(ctx context.Context, req DraftRequest, out io.Writer, opened func(backend.SessionRef)) (*draft.Result, error)
+	AcceptDraft(res *draft.Result) ([]string, error)
 	// EditCommand is the owner's editor on path ($VISUAL, else $EDITOR);
 	// ErrNoEditor when neither is set.
 	EditCommand(path string) (tea.ExecCommand, error)
@@ -75,6 +81,16 @@ type Services interface {
 	// Update runs the install command the check found, through the
 	// command runner (`igris update`); slow: up to 10 minutes.
 	Update(ctx context.Context, c update.Check) update.Result
+}
+
+// DraftRequest is one draft the owner asked for: what it is drafted from,
+// the file or text that source takes ("" where it takes none, or the
+// session should ask), and the model.
+type DraftRequest struct {
+	Source draft.Source
+	Model  string
+	Text   string // the goal or the request (goal, extend)
+	File   string // the spec or the export (spec, import)
 }
 
 // ErrNoEditor says neither $VISUAL nor $EDITOR is set: home then asks,

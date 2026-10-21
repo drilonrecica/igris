@@ -7,7 +7,8 @@ no plan yet                                                │ GET STARTED
                                                            │ · 4 preview     —                                          
                                                            │ · 5 arise       —                                          
                                                            │ Init creates igris.toml, .igris/, a .gitignore entry and   
-                                                           │ the Claude allow rule for `igris done`.                    
+                                                           │ the Claude allow rule for `igris done`. Draft… has Claude  
+                                                           │ write the plan from a goal, a spec or an issue export.     
                                                            ├─ HEALTH ───────────────────────────────────────────────────
                                                            │ ⨯ plan missing · tasks.md not found                        
                                                            │ ⨯ doctor: 1 failure — igris.toml not found                 
@@ -34,7 +35,6 @@ no plan yet                                                │ GET STARTED
                                                            │
                                                            │
                                                            │
-                                                           │
 ───────────────────────────────────────────────────────────┴────────────────────────────────────────────────────────────
 
-[›Init‹] [Doctor] [Settings] [Updates] [?] [Quit]
+[›Init‹] [Draft…] [Doctor] [Settings] [Updates] [?] [Quit]

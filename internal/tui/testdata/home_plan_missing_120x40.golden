@@ -7,7 +7,9 @@ tasks.md not found                                         │ GET STARTED
                                                            │ · 4 preview     —                                          
                                                            │ · 5 arise       —                                          
                                                            │ Plan from template… writes a starter plan (the example plan
-                                                           │ or a template); or write your own at /src/sinjal/tasks.md. 
+                                                           │ or a template); Draft… has Claude write one from a goal, a 
+                                                           │ spec or an issue export; or write your own at              
+                                                           │ /src/sinjal/tasks.md.                                      
                                                            ├─ HEALTH ───────────────────────────────────────────────────
                                                            │ ⨯ plan missing · tasks.md not found                        
                                                            │ ! doctor: 1 warning — uncommitted changes                  
@@ -33,8 +35,6 @@ tasks.md not found                                         │ GET STARTED
                                                            │
                                                            │
                                                            │
-                                                           │
-                                                           │
 ───────────────────────────────────────────────────────────┴────────────────────────────────────────────────────────────
 
-[›Plan from template…‹] [Doctor] [Settings] [Notify] [Updates] [?] [Quit]
+[›Plan from template…‹] [Draft…] [Doctor] [Settings] [Notify] [Updates] [?] [Quit]

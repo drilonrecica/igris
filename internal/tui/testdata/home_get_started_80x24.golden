@@ -7,10 +7,10 @@ GET STARTED
 · 4 preview     —
 · 5 arise       —
 Init creates igris.toml, .igris/, a .gitignore entry and the Claude allow rule
-for `igris done`.
+for `igris done`. Draft… has Claude write the plan from a goal, a spec or an
+issue export.
 ── PHASES ──────────────────────────────────────────────────────────────────────
 no plan yet
-
 
 
 
@@ -21,4 +21,4 @@ no plan yet
 ── RECENT ──────────────────────────────────────────────────────────────────────
 no runs yet
 
-[›Init‹] [Doctor] [Settings] [Updates] [?] [Quit]
+[›Init‹] [Draft…] [Doctor] [Settings] [Updates] [?] [Quit]

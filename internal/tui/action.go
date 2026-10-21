@@ -67,6 +67,13 @@ const (
 	actAdapt       // igris adapt: the dialog that asks first
 	actAdaptSonnet // the Adapt dialog's Adapt with sonnet
 	actAdaptOpus   // the Adapt dialog's Adapt with opus
+	actDraft       // Draft…: the picker of what to draft from (D)
+	actDraftGoal   // the picker's From a goal
+	actDraftSpec   // the picker's From a spec file…
+	actDraftImport // the picker's Import an export…
+	actDraftExtend // the picker's Extend the plan…
+	actDraftSonnet // the draft dialog's Draft with sonnet
+	actDraftOpus   // the draft dialog's Draft with opus
 	actInit        // igris init
 	actExample     // Plan from template…: the picker of the example plan and the templates
 	actInitCreate  // the Init dialog's Create files

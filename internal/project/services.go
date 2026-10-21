@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"path/filepath"
 	"sync"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -11,6 +12,7 @@ import (
 	"github.com/drilonrecica/igris/internal/adapt"
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/checks"
+	"github.com/drilonrecica/igris/internal/draft"
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/notify"
 	"github.com/drilonrecica/igris/internal/report"
@@ -226,6 +228,74 @@ func (s *Services) AcceptAdapt(res *adapt.Result) (string, error) {
 		return "", err
 	}
 	return adapt.Accept(dir, res, clock.Now())
+}
+
+// Draft implements tui.Services: `igris draft` for req. A new plan needs no
+// project, as on the command line; extend works on the current plan.
+func (s *Services) Draft(ctx context.Context, req tui.DraftRequest, out io.Writer, opened func(backend.SessionRef)) (*draft.Result, error) {
+	var p *Project
+	var err error
+	if req.Source.NewPlan() {
+		if p, err = s.open(); err == nil && p.CfgErr != nil {
+			err = p.CfgErr
+		}
+	} else {
+		p, err = Load(s.cwd, "", s.env)
+	}
+	if err != nil {
+		return nil, err
+	}
+	model := req.Model
+	if model == "" {
+		model = p.Cfg.Draft.ModelOrDefault()
+	}
+	file := req.File
+	if file != "" && !filepath.IsAbs(file) {
+		file = filepath.Join(s.cwd, file) // the owner named it from the project, not from where igris runs
+	}
+	secrets, err := p.Cfg.Resolve(s.env.getenv())
+	if err != nil {
+		return nil, err
+	}
+	be, err := p.Backend()
+	if err != nil {
+		return nil, err
+	}
+	clock := s.env.clock()
+	dir, err := state.Open(p.Root, state.Options{Now: clock.Now})
+	if err != nil {
+		return nil, err
+	}
+	return draft.Run(ctx, draft.Options{
+		SessionOptions: adapt.SessionOptions{
+			Config:   p.Cfg,
+			Backend:  be,
+			State:    dir,
+			Notifier: notify.FromConfig(p.Cfg.Notify, secrets, be, notify.Immediate), // draft never flushes, so nothing may be held
+			Clock:    clock,
+			Out:      out,
+			Opened:   opened,
+		},
+		Source:   req.Source,
+		PlanPath: p.PlanPath,
+		Model:    model,
+		Text:     req.Text,
+		File:     file,
+	})
+}
+
+// AcceptDraft implements tui.Services.
+func (s *Services) AcceptDraft(res *draft.Result) ([]string, error) {
+	p, err := s.open()
+	if err != nil {
+		return nil, err
+	}
+	clock := s.env.clock()
+	dir, err := state.Open(p.Root, state.Options{Now: clock.Now})
+	if err != nil {
+		return nil, err
+	}
+	return draft.Accept(dir, res, clock.Now())
 }
 
 // EditCommand implements tui.Services (see EditorArgv).

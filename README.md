@@ -577,7 +577,7 @@ All three are read-only: they take no lock and never create `.igris/`. A line th
 
 Bare `igris` on a terminal opens the home screen: the project at a glance. From a new project to a run:
 
-1. **No `igris.toml` yet.** The NOW card is a **GET STARTED** stepper (igris.toml, plan, check, preview, arise). `I` (**Init**) lists the files it would touch and creates only the missing ones; `E` (**Plan from template…**) writes the example plan or a template (since 1.2) when you have none. Nothing is overwritten, so a first run reaches Arise without leaving the TUI.
+1. **No `igris.toml` yet.** The NOW card is a **GET STARTED** stepper (igris.toml, plan, check, preview, arise). `I` (**Init**) lists the files it would touch and creates only the missing ones; `E` (**Plan from template…**) writes the example plan or a template (since 1.2) when you have none. Nothing is overwritten, so a first run reaches Arise without leaving the TUI. `D` (**Draft…**, since 1.3) has Claude write the plan instead: from a goal, a spec file or an issue export.
 2. **Look around.** `c` checks the plan, `i` runs the doctor, `h` shows the run history, `,` shows the settings (secrets never in the clear), `e` opens the plan in `$VISUAL`/`$EDITOR`. A plan igris can't read offers `A` (**Adapt**) right there.
 3. **Preview.** `v` shows the dry run: the tasks in order with rank → model and mode, and the warnings.
 4. **Arise.** `a` opens the start-run wizard and then the run view.
@@ -603,6 +603,7 @@ What's on it:
 | `e` | Your editor | The plan (or `igris.toml` from Settings) in `$VISUAL`, else `$EDITOR`. |
 | `A` | Adapt | Runs `igris adapt` in the app (shown when the plan is invalid and the backend is reachable). |
 | `n` | Notify test | Sends a sample of each event to each channel and fills in `✓ ok` or `⨯ FAILED: reason` per row (shown when a channel is set up). |
+| `D` | Draft… | Since 1.3: a picker of **From a goal**, **From a spec file…**, **Import an export…** and **Extend the plan…** (the last three ask for the path or the request; the model as for Adapt), the draft's progress with Open session and Cancel, then the same review as `igris draft`. Shown when the backend is reachable and no run holds the project: the first three where the plan file is missing, Extend where the plan is valid. |
 | `I` / `E` | Init / Plan from template… | As in step 1. |
 | `o` | Open session | Jumps to a running session. |
 | `S` | Side sessions | Since 1.2, a [side session](#side-sessions) of your own; HEALTH shows `SIDE N open` while any are. |

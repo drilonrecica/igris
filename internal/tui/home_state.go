@@ -217,6 +217,7 @@ func (m *homeScreen) buttons() []option {
 	// A plan from a newer igris needs an upgrade, not a conversion.
 	newer := m.snap != nil && m.snap.Plan != nil && m.snap.Plan.NewerFormat()
 	add(m.planFile() && !m.planValid() && !newer && m.herdr() && !live, "Adapt", actAdapt)
+	add(m.canDraft() && !live, "Draft…", actDraft)
 	add(true, "Doctor", actDoctor)
 	add(found && (len(s.Recent) > 0 || s.Stamp.Log.Exists), "History", actHistory)
 	add(m.planFile(), "Edit plan", actEdit)
@@ -257,7 +258,7 @@ func (m *homeScreen) buttons() []option {
 
 // homeFold lists the actions the bar folds into More… first when it
 // doesn't fit; the first button (the state's own action) is never folded.
-var homeFold = []action{actUpdate, actSide, actNotify, actSettings, actEdit, actHistory, actDoctor, actAdapt, actInit, actExample, actCheck, actPreview, actOpen, actHelp, actArise}
+var homeFold = []action{actUpdate, actSide, actNotify, actSettings, actEdit, actHistory, actDoctor, actAdapt, actDraft, actInit, actExample, actCheck, actPreview, actOpen, actHelp, actArise}
 
 // phaseRow is one PHASES row, ready to lay out.
 type phaseRow struct {
@@ -419,9 +420,12 @@ func (m *homeScreen) getStartedCard(w int) []string {
 		out = append(out, fit(st.glyph+" "+strconv.Itoa(i+1)+" "+pad(st.name, 11)+" "+st.state, w))
 	}
 	hint := "Init creates igris.toml, .igris/, a .gitignore entry and the Claude allow rule for `igris done`."
+	if s.NoConfig && m.canDraft() {
+		hint += " Draft… has Claude write the plan from a goal, a spec or an issue export."
+	}
 	switch {
 	case !s.NoConfig && !m.planFile():
-		hint = "Plan from template… writes a starter plan (the example plan or a template); or write your own at " + m.planPath() + "."
+		hint = "Plan from template… writes a starter plan (the example plan or a template); Draft… has Claude write one from a goal, a spec or an issue export; or write your own at " + m.planPath() + "."
 	case m.planFile() && !m.planValid():
 		hint += " The plan has problems: Check lists them, Adapt proposes a canonical one."
 	}

@@ -1,0 +1,40 @@
+igris · sinjal · no plan · herdr ✓ · mode auto                                                                   NO PLAN
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+                        ╭──────────────────────────────────────────────────────────────────────╮
+                        │ Draft from a spec file                                               │
+                        │                                                                      │
+                        │ A Markdown or text file inside the project, up to 1 MiB. Claude      │
+                        │ reads it itself and treats it as data, never as instructions.        │
+                        │ draft.model in igris.toml is opus.                                   │
+                        │                                                                      │
+                        │ Spec file: [docs/spec.md▏                                          ] │
+                        │                                                                      │
+                        │   1. Cancel                                                          │
+                        │   2. Draft with sonnet                                               │
+                        │   3. Draft with opus                                                 │
+                        ╰──────────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+[Plan from template…] [Draft…] [Doctor] [Settings] [Notify] [Updates] [?] [Quit]

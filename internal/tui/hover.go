@@ -241,6 +241,7 @@ func (s *taskScreen) hoverAt(x, y int) (rect, bool)     { return s.zones.hit(x, 
 func (s *checkScreen) hoverAt(x, y int) (rect, bool)    { return s.zones.hit(x, y, clickable) }
 func (s *notifyScreen) hoverAt(x, y int) (rect, bool)   { return s.zones.hit(x, y, clickable) }
 func (s *adaptScreen) hoverAt(x, y int) (rect, bool)    { return s.zones.hit(x, y, clickable) }
+func (s *draftScreen) hoverAt(x, y int) (rect, bool)    { return s.zones.hit(x, y, clickable) }
 func (s *initScreen) hoverAt(x, y int) (rect, bool)     { return s.zones.hit(x, y, clickable) }
 
 func (s *phaseScreen) hoverAt(x, y int) (rect, bool) {

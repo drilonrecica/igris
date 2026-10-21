@@ -11,6 +11,7 @@ import (
 	"github.com/drilonrecica/igris/internal/adapt"
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/checks"
+	"github.com/drilonrecica/igris/internal/draft"
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/update"
@@ -39,6 +40,10 @@ type fakeServices struct {
 	notifyErr  error
 	notifyFn   func(ctx context.Context, emit func(report.NotifyResult)) error // overrides notify
 	adapt      func(ctx context.Context, model string, out io.Writer, opened func(backend.SessionRef)) (*adapt.Result, error)
+	draft      func(ctx context.Context, req DraftRequest, out io.Writer, opened func(backend.SessionRef)) (*draft.Result, error)
+	backups    []string
+	drafted    []DraftRequest // every request Draft got
+	draftErr   error          // what AcceptDraft answers
 	backup     string
 	acceptErr  error
 	edit       func(path string) (tea.ExecCommand, error)
@@ -163,6 +168,23 @@ func (f *fakeServices) Adapt(ctx context.Context, model string, out io.Writer, o
 func (f *fakeServices) AcceptAdapt(*adapt.Result) (string, error) {
 	f.count("AcceptAdapt")
 	return f.backup, f.acceptErr
+}
+
+func (f *fakeServices) Draft(ctx context.Context, req DraftRequest, out io.Writer, opened func(backend.SessionRef)) (*draft.Result, error) {
+	f.count("Draft")
+	f.count("Draft " + string(req.Source) + " " + req.Model)
+	f.mu.Lock()
+	f.drafted = append(f.drafted, req)
+	f.mu.Unlock()
+	if f.draft == nil {
+		return nil, errors.New("fake: no draft")
+	}
+	return f.draft(ctx, req, out, opened)
+}
+
+func (f *fakeServices) AcceptDraft(*draft.Result) ([]string, error) {
+	f.count("AcceptDraft")
+	return f.backups, f.draftErr
 }
 
 func (f *fakeServices) EditCommand(path string) (tea.ExecCommand, error) {

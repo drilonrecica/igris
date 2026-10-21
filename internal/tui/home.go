@@ -78,6 +78,9 @@ type homeScreen struct {
 	initing *initTarget
 	// adapting says the Adapt dialog is open (adaptpage.go).
 	adapting bool
+	// drafting is the Draft… picker or its dialog while one is open
+	// (draftpage.go).
+	drafting *draftTarget
 	// notifying says the Notify dialog is open (notifypage.go).
 	notifying bool
 	// updating is Check for updates while its dialog is open or its
@@ -208,6 +211,7 @@ func (m *homeScreen) helpKeys() []helpEntry {
 		{",", "Settings", "the effective igris.toml; edit it from there"},
 		{"n", "Notify test", "send a test message on every channel"},
 		{"A", "Adapt", "let Claude propose a canonical plan (when the plan is invalid)"},
+		{"D", "Draft…", "Claude drafts a plan from a goal, spec or export, or extends it"},
 		{"I", "Init", "create igris.toml and .igris/ (when there is no igris.toml)"},
 		{"o", "Open session", "bring the running session's pane to the front"},
 		{"S", "Side session", "a Claude Code session of your own, not a task"},
@@ -220,7 +224,7 @@ func (m *homeScreen) helpKeys() []helpEntry {
 // homeShortcuts maps home's keys to their actions (SPEC §15.6).
 var homeShortcuts = map[string]action{
 	"a": actArise, "v": actPreview, "c": actCheck, "i": actDoctor, "h": actHistory,
-	"e": actEdit, ",": actSettings, "n": actNotify, "A": actAdapt, "I": actInit, "E": actExample, "o": actOpen, "S": actSide,
+	"e": actEdit, ",": actSettings, "n": actNotify, "A": actAdapt, "D": actDraft, "I": actInit, "E": actExample, "o": actOpen, "S": actSide,
 	"u": actUpdate, "?": actHelp, "q": actQuit,
 }
 
@@ -290,6 +294,10 @@ func (m *homeScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.initDone(msg)
 	case adaptReviewedMsg:
 		return m, m.adaptReviewed(msg)
+	case draftReviewedMsg:
+		return m, m.draftReviewed(msg)
+	case draftAcceptedMsg:
+		return m, m.draftAccepted(msg)
 	case adaptAcceptedMsg:
 		return m, m.adaptAccepted(msg)
 	case updateCheckedMsg:
@@ -438,6 +446,9 @@ func (m *homeScreen) pick(a action) tea.Cmd {
 	}
 	if m.adapting {
 		return m.adaptPick(a)
+	}
+	if m.drafting != nil {
+		return m.draftPick(a)
 	}
 	if m.notifying {
 		return m.notifyPick(a)
@@ -656,6 +667,8 @@ func (m *homeScreen) activate(a action) tea.Cmd {
 		return m.openStarters()
 	case actAdapt:
 		return m.openAdapt()
+	case actDraft:
+		return m.openDraft()
 	case actNotify:
 		return m.openNotify()
 	case actUpdate:

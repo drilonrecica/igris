@@ -7,7 +7,6 @@ GET STARTED
 · 4 preview     —
 · 5 arise       —
 Init creates igris.toml, .igris/, a .gitignore
-entry and the Claude allow rule for `igris done`.
 ── PHASES ────────────────────────────────────────
 no plan yet
 
@@ -17,4 +16,5 @@ no plan yet
 ── RECENT ────────────────────────────────────────
 no runs yet
 
-[›Init‹] [Doctor] [Settings] [Updates] [?] [Quit]
+[›Init‹] [Draft…] [Doctor] [Settings] [Updates]
+[?] [Quit]
