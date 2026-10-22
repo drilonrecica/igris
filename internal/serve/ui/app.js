@@ -6,6 +6,8 @@
 "use strict";
 
 (function () {
+  var root = document.documentElement;
+  root.classList.add("js"); // the stylesheet collapses fields and draws the sheet only with the script
   var csrfMeta = document.querySelector('meta[name="igris-csrf"]');
   var csrf = csrfMeta ? csrfMeta.content : "";
   var live = document.getElementById("live");
@@ -19,6 +21,13 @@
   var stream = null;
   var flashTimer = 0;
   var over = false; // the run ended: nothing left to read or refresh
+  var liveURL = live.dataset.live || "/live"; // the run's live part, or the plan's
+
+  // sheet marks the page as having a sheet, which the stylesheet dims
+  // the rest for.
+  function sheet() {
+    document.body.classList.toggle("has-sheet", !over && live.querySelector(".question.sheet") !== null);
+  }
 
   function id() {
     seq += 1;
@@ -105,7 +114,7 @@
     }
     stale = false;
     refreshing = true;
-    fetch("/live", { credentials: "same-origin" }).then(function (r) {
+    fetch(liveURL, { credentials: "same-origin" }).then(function (r) {
       if (r.status === 401) {
         throw new Error("this device is not paired any more: open the pairing URL `igris serve token` prints");
       }
@@ -124,6 +133,7 @@
       fillTails();
       localTimes();
       tick();
+      sheet();
     }).catch(function (e) {
       say(e.message, true);
     }).then(function () {
@@ -209,8 +219,8 @@
 
   function follow() {
     stream = new EventSource("/api/v1/events");
-    stream.onopen = function () { conn.hidden = true; };
-    stream.onerror = function () { conn.hidden = false; };
+    stream.onopen = function () { conn.hidden = true; root.classList.remove("down"); };
+    stream.onerror = function () { conn.hidden = false; root.classList.add("down"); };
     stream.onmessage = function (e) {
       var m;
       try {
@@ -219,6 +229,7 @@
         return;
       }
       conn.hidden = true;
+      root.classList.remove("down");
       if (m.type === "tokens" || m.type === "quota") {
         return; // counters the page doesn't show
       }
@@ -234,23 +245,40 @@
     };
   }
 
+  // endWord is the status word for a run's outcome, as the server's.
+  function endWord(outcome) {
+    switch (outcome) {
+      case "completed": return "Done";
+      case "failed": return "Failed";
+      case "stuck": return "Stuck";
+    }
+    return "Stopped";
+  }
+
   // ended shows the run's end as the page of an ended run does: serve
   // ends with the run, so there is no page left to fetch. Nothing can be
-  // sent any more, so the forms and the questions go.
+  // sent any more, so the forms, the sheet and the bar go, and the status
+  // word becomes the outcome.
   function ended(outcome) {
     over = true;
     stream.close();
     clearTimeout(timer);
     conn.hidden = true;
+    root.classList.add("over");
+    root.classList.remove("down");
+    sheet();
     var gone = live.querySelectorAll("form.cmd, section.question, .actions, details, section[aria-label='Run mode'], nav.bar");
     for (var i = 0; i < gone.length; i++) {
       gone[i].remove();
     }
-    var meta = live.querySelector("header .meta");
-    if (meta) {
-      var s = document.createElement("strong");
-      s.textContent = "ended: " + (outcome || "unknown");
-      meta.append(" · ", s);
+    var word = live.querySelector(".glance .word");
+    if (word) {
+      word.textContent = endWord(outcome);
+      word.classList.remove("needs");
+    }
+    var line = live.querySelector(".glance .line");
+    if (line) {
+      line.textContent = "ended: " + (outcome || "unknown");
     }
   }
 
@@ -292,6 +320,7 @@
       }
       say("Sent.", false);
       form.reset();
+      form.classList.remove("open");
       confirming(form, false);
     }).catch(function () {
       say("Not sent: the run can't be reached", true);
@@ -311,6 +340,16 @@
     }
     e.preventDefault();
     var submitter = e.submitter;
+    if (form.classList.contains("has-field") && !form.classList.contains("open")) {
+      // The first tap opens the field (collapsed with the script on);
+      // the next sends, or asks the second confirmation.
+      form.classList.add("open");
+      var field = form.querySelector("input[type=text], textarea");
+      if (field) {
+        field.focus();
+      }
+      return;
+    }
     if (form.dataset.confirm && !(submitter && submitter.name === "confirmed")) {
       confirming(form, true); // the second confirmation (SPEC §15.8)
       return;
@@ -322,6 +361,7 @@
     var b = e.target.closest ? e.target.closest("button.cancel") : null;
     if (b && b.form) {
       confirming(b.form, false);
+      b.form.classList.remove("open");
     }
   });
 
@@ -332,6 +372,7 @@
   });
 
   localTimes();
+  sheet();
   setInterval(tick, 1000);
   follow();
   readTails();
