@@ -17,16 +17,18 @@ lint:
 	go vet ./...
 	golangci-lint run
 
+# -timeout: a test that hangs, or a process it started, fails instead of
+# running on (AGENTS.md §5: tests never start the real igris).
 test:
-	go test ./...
+	go test -timeout 120s ./...
 
 test-race:
-	go test -race ./...
+	go test -race -timeout 120s ./...
 
 # Regenerates docs/config.md from the config struct and its defaults; the
 # drift test in internal/config fails while it is stale.
 config-ref:
-	go test ./internal/config -run TestReferenceUpToDate -update-reference
+	go test -timeout 120s ./internal/config -run TestReferenceUpToDate -update-reference
 
 # Runs every Fuzz* target for FUZZTIME each, one after another (`make test`
 # only replays their seeds). A failing input is saved under the package's

@@ -6,6 +6,10 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 igris 1.3 adds `igris draft` and breaks nothing: Claude can write your plan from a goal, a spec file or an issue export, and add phases to the plan you have. Plans, `igris.toml` and scripts written for 1.0 to 1.2 need no changes ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). All of it is additive: a command with four subcommands, a `[draft]` config section and a directory in `.igris/`.
 
+### Fixed
+
+- **igris never starts a copy of itself that isn't igris.** The `igris serve` that `arise` and home start (since 1.4) is refused from a test binary and from a process igris started itself (`IGRIS_SPAWN_DEPTH`), and a serve never starts another serve. The test suite installs an in-process serve, exits at once if its binary was started as `igris serve`, and fails on a process left running; `make test` runs with a timeout.
+
 ### Added
 
 - **`igris draft goal [TEXT]`.** A session interviews you in its pane (what, who for, constraints, what done means), then writes a proposal. What it learned goes in the plan's `## Draft notes`, and `M0-01` is your task of writing the spec from that summary.

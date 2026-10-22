@@ -2,7 +2,6 @@ package project
 
 import (
 	"github.com/drilonrecica/igris/internal/backend"
-	"github.com/drilonrecica/igris/internal/serve"
 	"github.com/drilonrecica/igris/internal/tui"
 )
 
@@ -12,7 +11,7 @@ import (
 // name another serving igris. The backend, built for this terminal,
 // focuses sessions and opens side sessions; without one (an ssh shell
 // outside herdr and tmux) the view does neither.
-func (p *Project) AttachOptions(feed *tui.Feed, c *serve.Client, version string) tui.Options {
+func (p *Project) AttachOptions(feed *tui.Feed, c tui.Sender, version string) tui.Options {
 	cfg := p.Cfg
 	o := tui.Options{
 		Project:    p.Name(),

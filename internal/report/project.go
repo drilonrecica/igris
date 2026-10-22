@@ -125,9 +125,12 @@ type Snapshot struct {
 	// Status is the plan's phases and tasks; nil unless the plan is valid.
 	Status *StatusReport
 
-	Run    *RunInfo        // nil when there is no run
-	Lock   state.LockState // with its host and reason cleaned
-	Recent []HistoryRun    // the last runs, newest first
+	Run  *RunInfo        // nil when there is no run
+	Lock state.LockState // with its host and reason cleaned
+	// Served says the live lock's igris is an igris serve whose socket
+	// answers (since 1.4): home offers Attach (SPEC §15.6).
+	Served bool
+	Recent []HistoryRun // the last runs, newest first
 	// RankDurations are the run log's finished task durations per rank
 	// (RankDurations), for the ETA of a run started from home.
 	RankDurations map[string][]time.Duration

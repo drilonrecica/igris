@@ -11,6 +11,7 @@ import (
 	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/report"
+	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
 // homeScreen is the bottom of the app's stack (SPEC §15.6): the project at
@@ -213,6 +214,7 @@ func (m *homeScreen) helpKeys() []helpEntry {
 		{"A", "Adapt", "let Claude propose a canonical plan (when the plan is invalid)"},
 		{"D", "Draft…", "Claude drafts a plan from a goal, spec or export, or extends it"},
 		{"I", "Init", "create igris.toml and .igris/ (when there is no igris.toml)"},
+		{"t", "Attach", "the run view of the run igris serve hosts here"},
 		{"o", "Open session", "bring the running session's pane to the front"},
 		{"S", "Side session", "a Claude Code session of your own, not a task"},
 		{"u", "Check for updates", "ask GitHub for the latest release; updating asks first"},
@@ -224,7 +226,7 @@ func (m *homeScreen) helpKeys() []helpEntry {
 // homeShortcuts maps home's keys to their actions (SPEC §15.6).
 var homeShortcuts = map[string]action{
 	"a": actArise, "v": actPreview, "c": actCheck, "i": actDoctor, "h": actHistory,
-	"e": actEdit, ",": actSettings, "n": actNotify, "A": actAdapt, "D": actDraft, "I": actInit, "E": actExample, "o": actOpen, "S": actSide,
+	"e": actEdit, ",": actSettings, "n": actNotify, "A": actAdapt, "D": actDraft, "I": actInit, "E": actExample, "o": actOpen, "t": actAttach, "S": actSide,
 	"u": actUpdate, "?": actHelp, "q": actQuit,
 }
 
@@ -310,6 +312,11 @@ func (m *homeScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.launched(msg)
 	case launchFailedMsg:
 		return m, m.launchFailed(msg)
+	case attachedMsg:
+		return m, m.attached(msg)
+	case attachFailedMsg:
+		m.setStatus("attach: " + textsafe.Line(msg.err.Error()))
+		return m, m.refresh()
 	case leaveRunMsg:
 		return m, m.leaveRun()
 	case runEndedMsg:
@@ -673,6 +680,8 @@ func (m *homeScreen) activate(a action) tea.Cmd {
 		return m.openNotify()
 	case actUpdate:
 		return m.openUpdate()
+	case actAttach:
+		return m.attachRun()
 	case actSide:
 		if m.dialog == nil {
 			var cmd tea.Cmd

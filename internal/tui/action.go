@@ -111,6 +111,9 @@ const (
 	// An attached run view's q (SPEC §15.3, attached.go).
 	actDetach    // leave the view; the run goes on in igris serve
 	actStopLeave // Stop run: stop it as x does, leave once it has stopped
+	// Home's Attach (SPEC §15.6): the run view of the run igris serve
+	// hosts here.
+	actAttach
 )
 
 // modeActs maps the mode picker's actions to their modes, in the order

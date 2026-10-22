@@ -39,10 +39,15 @@ type Services interface {
 	Preview(ctx context.Context, req report.RunRequest) (*report.DryRun, error)
 	// Prelaunch is what arise warns about and asks before a run starts.
 	Prelaunch(ctx context.Context, req report.RunRequest) report.Prelaunch
-	// Start builds the engine for req with the owner's answers, exactly as
-	// `igris arise` does; events receives the run's events. The run starts
-	// when the caller calls Run.
-	Start(ctx context.Context, req report.RunRequest, c report.Confirmations, events func(engine.Event)) (Runner, error)
+	// Start starts the run of req with the owner's answers, exactly as
+	// `igris arise` does, feeding feed: since 1.4 in a background igris
+	// serve this igris attaches to (an AttachedRunner, SPEC §14). An error
+	// is one the run refused to start with, to ask about and start again.
+	// The caller calls Run, which returns when the run is over for it.
+	Start(ctx context.Context, req report.RunRequest, c report.Confirmations, feed *Feed) (Runner, error)
+	// Attach attaches to the run igris serve hosts in this project (since
+	// 1.4, SPEC §15.6), feeding feed from its snapshot on.
+	Attach(ctx context.Context, feed *Feed) (AttachedRunner, error)
 	// Init is `igris init` (--example with "example", --template NAME with a template name). On an error the steps
 	// finished before it are returned with it.
 	Init(ctx context.Context, starter string) ([]report.Step, error)
@@ -103,3 +108,18 @@ type Runner interface {
 	Run(ctx context.Context) (engine.Result, error)
 	Sender
 }
+
+// AttachedRunner is a Runner for a run igris serve hosts, reached through
+// its socket (SPEC §13): the run feeds the feed by itself, and Run returns
+// ErrDetached when its ctx ends first, which only detaches: the run goes
+// on. Its view asks Detach · Stop run · Cancel on q (§15.3).
+type AttachedRunner interface {
+	Runner
+	// ClientVersion is this igris's version, so the view can name a
+	// serving igris of another version.
+	ClientVersion() string
+}
+
+// ErrDetached is how an AttachedRunner's run ends for this igris when it
+// detached: the run goes on in igris serve.
+var ErrDetached = errors.New("detached; the run goes on in igris serve")

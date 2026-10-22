@@ -237,3 +237,20 @@ func Dial(ctx context.Context, root string) (net.Conn, error) {
 	}
 	return c, nil
 }
+
+// Answers says whether a run answers on the socket of the project at root
+// (a live igris serve), within a short wait. It connects and closes at
+// once, which serve takes for a client that left without a word.
+func Answers(ctx context.Context, root string) bool {
+	ctx, cancel := context.WithTimeout(ctx, answersWait)
+	defer cancel()
+	c, err := Dial(ctx, root)
+	if err != nil {
+		return false
+	}
+	_ = c.Close()
+	return true
+}
+
+// answersWait is how long Answers waits for the socket.
+const answersWait = 500 * time.Millisecond

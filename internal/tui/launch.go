@@ -24,8 +24,11 @@ import (
 // the launch is over: nothing carries over to the next run (§7.3).
 //
 // Once the run passed its start-up checks (its first event), the run view
-// is pushed over home. Leaving it, or a Stop, stops the engine; home waits
-// for the end, closes the view and says how the run ended.
+// is pushed over home. Since 1.4 the run is hosted by a background igris
+// serve (an AttachedRunner): leaving its view detaches, and the run goes
+// on; Stop run stops it. An in-process engine (tests) is stopped when its
+// view is left. Home waits for the end, closes the view and says how the
+// run ended (or that it detached).
 
 // wizStep is the wizard's open dialog.
 type wizStep int
@@ -93,6 +96,12 @@ type (
 	}
 	leaveRunMsg struct{}             // the owner left the run view
 	runEndedMsg struct{ r *liveRun } // the run home started ended
+	// attachedMsg: home's Attach reached the run igris serve hosts.
+	attachedMsg struct {
+		h *runHandle
+		r AttachedRunner
+	}
+	attachFailedMsg struct{ err error }
 )
 
 // notStarted is what arise says when a start-up question was declined.
@@ -393,7 +402,7 @@ func (m *homeScreen) start() tea.Cmd {
 	}
 	svc, req, conf, runners := m.svc, l.req, l.conf, l.runner
 	go func() {
-		r, err := svc.Start(runCtx, req, conf, feed.Push)
+		r, err := svc.Start(runCtx, req, conf, feed)
 		if err != nil {
 			feed.End(engine.Result{}, err)
 			return
@@ -423,19 +432,65 @@ func (m *homeScreen) launched(msg launchedMsg) tea.Cmd {
 		return nil
 	}
 	r := &liveRun{h: l.run, sender: msg.r}
+	_, r.h.attached = msg.r.(AttachedRunner)
 	m.run = r
 	m.closeWizard() // the launch is over; its answers go with it
-	wait := func() tea.Msg {
+	if l.cancelled {
+		// Cancel was picked while it started: the run is stopped, not
+		// only left.
+		r.leaving = true
+		msg.r.Send(engine.Command{Kind: engine.CmdStop})
+		r.h.stop()
+		return m.waitRun(r)
+	}
+	r.view = m.runView(l.req, r)
+	return tea.Batch(push(r.view), m.waitRun(r))
+}
+
+// waitRun waits for the end of r, for runEnded.
+func (m *homeScreen) waitRun(r *liveRun) tea.Cmd {
+	return func() tea.Msg {
 		<-r.h.feed.Ended()
 		return ownedMsg{m, runEndedMsg{r}}
 	}
-	if l.cancelled {
-		r.leaving = true
-		r.h.stop()
-		return wait
+}
+
+// attachRun is home's Attach (SPEC §15.6): it attaches to the run igris
+// serve hosts here, off the loop, and pushes its run view.
+func (m *homeScreen) attachRun() tea.Cmd {
+	if m.run != nil || m.launch != nil {
+		return nil
 	}
-	r.view = m.runView(l.req, r)
-	return tea.Batch(push(r.view), wait)
+	feed := NewFeed()
+	ctx, stop := context.WithCancel(m.ctx)
+	h := &runHandle{feed: feed, stop: stop, attached: true}
+	svc := m.svc
+	m.setStatus("attaching…")
+	return func() tea.Msg {
+		r, err := svc.Attach(ctx, feed)
+		if err != nil {
+			stop()
+			return ownedMsg{m, attachFailedMsg{err}}
+		}
+		go func() { feed.End(r.Run(ctx)) }()
+		return ownedMsg{m, attachedMsg{h, r}}
+	}
+}
+
+// attached pushes the view of the run home's Attach reached.
+func (m *homeScreen) attached(msg attachedMsg) tea.Cmd {
+	if m.run != nil || m.launch != nil {
+		msg.h.stop() // a run of home's own came first: detach again
+		return nil
+	}
+	r := &liveRun{h: msg.h, sender: msg.r}
+	m.run = r
+	if m.setRun != nil {
+		m.setRun(msg.h)
+	}
+	m.setStatus("")
+	r.view = m.runView(report.RunRequest{}, r)
+	return tea.Batch(push(r.view), m.waitRun(r))
 }
 
 // runView is the run view of r, as `igris arise` shows it, with Home in
@@ -458,6 +513,11 @@ func (m *homeScreen) runView(req report.RunRequest, r *liveRun) tea.Model {
 	if s.Config != nil {
 		o.Backend = s.Config.Backend
 		o.PlanOptions = s.Config.PlanOptions(s.Root)
+	}
+	if a, ok := r.sender.(AttachedRunner); ok {
+		// Served by igris serve: q asks Home · Stop run · Cancel, and
+		// the view says when the serving igris is another version.
+		o.Attached, o.Version = true, a.ClientVersion()
 	}
 	o.Tail, o.TailEvery = TailOf(s.Config, r.sender)
 	v := newModel(m.ctx, o)
@@ -668,8 +728,9 @@ func (m *homeScreen) closeWizard() {
 	m.launch, m.dialog = nil, nil
 }
 
-// leaveRun is the run view's Home: the engine is stopped (the session
-// keeps running) and the view closes once it is gone.
+// leaveRun is the run view's Home: an attached run is detached from (it
+// goes on in igris serve), an in-process engine is stopped (the session
+// keeps running); the view closes once that is done.
 func (m *homeScreen) leaveRun() tea.Cmd {
 	r := m.run
 	if r == nil {
@@ -717,6 +778,8 @@ func (m *homeScreen) runOver(r *liveRun) tea.Cmd {
 // arise` prints once the terminal is back.
 func ExitText(res engine.Result, err error) string {
 	switch {
+	case errors.Is(err, ErrDetached):
+		return "detached; the run goes on in igris serve: `igris attach` (or Attach on home) shows it again, `igris stop` stops it"
 	case err != nil:
 		return "the run failed: " + textsafe.Line(err.Error())
 	case res.Outcome == engine.Stuck:

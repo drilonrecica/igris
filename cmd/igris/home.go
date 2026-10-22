@@ -91,6 +91,10 @@ func runApp(start tui.Start, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "igris: the TUI failed: %v; `igris arise --no-tui` runs without it\n", err)
 		return exitFail
 	}
+	if res.Detached {
+		fmt.Fprintln(stdout, tui.ExitText(engine.Result{}, tui.ErrDetached))
+		return exitOK
+	}
 	if res.Stopped || res.RunErr != nil || res.Res.Phase != "" {
 		if res.Stopped {
 			res.Res.Outcome = engine.Stopped

@@ -13,7 +13,6 @@ import (
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/draft"
-	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/notify"
 	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/state"
@@ -125,9 +124,10 @@ func (s *Services) Prelaunch(ctx context.Context, req report.RunRequest) report.
 	return p.Prelaunch(ctx, be, req)
 }
 
-// Start implements tui.Services: the engine `igris arise` would build for
-// req with the answers c.
-func (s *Services) Start(_ context.Context, req report.RunRequest, c report.Confirmations, events func(engine.Event)) (tui.Runner, error) {
+// Start implements tui.Services: the run `igris arise` starts for req with
+// the answers c, in a background igris serve this igris attaches to
+// (Launch.Serve).
+func (s *Services) Start(ctx context.Context, req report.RunRequest, c report.Confirmations, feed *tui.Feed) (tui.Runner, error) {
 	p, err := Load(s.cwd, "", s.env)
 	if err != nil {
 		return nil, err
@@ -136,7 +136,25 @@ func (s *Services) Start(_ context.Context, req report.RunRequest, c report.Conf
 	if err != nil {
 		return nil, err
 	}
-	return l.Engine(c, events)
+	r, err := l.Serve(ctx, c, feed)
+	if err != nil {
+		return nil, err // not a typed nil
+	}
+	return r, nil
+}
+
+// Attach implements tui.Services: the run igris serve hosts in this
+// project.
+func (s *Services) Attach(ctx context.Context, feed *tui.Feed) (tui.AttachedRunner, error) {
+	p, err := Load(s.cwd, "", s.env)
+	if err != nil {
+		return nil, err
+	}
+	r, err := p.Attach(ctx, feed)
+	if err != nil {
+		return nil, err
+	}
+	return r, nil
 }
 
 // Init implements tui.Services: `igris init` in the project root (the

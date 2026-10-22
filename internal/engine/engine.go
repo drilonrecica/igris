@@ -330,7 +330,7 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 	if e.runID, err = state.NewRunID(e.runStart); err != nil {
 		return Result{}, err
 	}
-	phases, err := e.prepare()
+	phases, err := e.prepare(false)
 	if err != nil {
 		return Result{}, err
 	}
@@ -376,11 +376,32 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 	return res, err
 }
 
+// Preflight runs Run's start-up checks without starting the run: the
+// backend, the lock (which it doesn't take), the plan and the run's gates.
+// It returns the error Run would refuse to start with (*DriftError,
+// ErrConfigUnconfirmed, ErrYoloUnconfirmed, a lock error, …) and writes
+// nothing. igris arise and home ask the owner's answers with it before
+// they start igris serve (SPEC §14); an engine is used for one of
+// Preflight and Run.
+func (e *Engine) Preflight(ctx context.Context) error {
+	if err := e.be.Available(ctx); err != nil {
+		return fmt.Errorf("backend %s is not available: %w", e.be.Name(), err)
+	}
+	if !e.opts.LockHeld {
+		if err := e.dir.CheckLock(e.opts.ForceUnlock); err != nil {
+			return err
+		}
+	}
+	_, err := e.prepare(true)
+	return err
+}
+
 // prepare validates the plan and the run's gates, then records the new run
 // in state.json. It returns the IDs of the phases to run. A task the
 // previous run was working on is carried over for resume (SPEC §13); with
-// no phase named, the previous run's phases are run again.
-func (e *Engine) prepare() ([]string, error) {
+// no phase named, the previous run's phases are run again. check stops
+// after the gates, before anything is recorded (Preflight).
+func (e *Engine) prepare(check bool) ([]string, error) {
 	prev, err := e.dir.LoadRun()
 	switch {
 	case errors.Is(err, state.ErrNoRun):
@@ -463,6 +484,9 @@ func (e *Engine) prepare() ([]string, error) {
 				return nil, err
 			}
 		}
+	}
+	if check {
+		return ids, nil
 	}
 	e.run = &state.Run{StartedAt: e.clock.Now(), Phases: ids, Through: rng.Through, ConfigHash: e.cfg.Hash(), Current: cur}
 	if !sel.Empty() {

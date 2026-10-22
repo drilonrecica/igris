@@ -211,6 +211,7 @@ func (m *homeScreen) buttons() []option {
 		arise = "Resume…"
 	}
 	add(found && len(s.ConfigProblems) == 0 && !s.NoConfig && m.planValid() && m.herdr() && !live, arise, actArise)
+	add(live && s.Served && m.run == nil, "Attach", actAttach)
 	add(live && s.Run != nil && s.Run.Session != "", "Open session", actOpen)
 	add(m.planValid(), "Preview", actPreview)
 	add(m.planFile(), "Check", actCheck)
@@ -240,6 +241,9 @@ func (m *homeScreen) buttons() []option {
 		first = actExample
 	case nowRunningElsewhere:
 		first = actOpen
+		if s.Served {
+			first = actAttach
+		}
 	case nowConfigInvalid:
 		first = actSettings
 	case nowPlanInvalid:
@@ -258,7 +262,7 @@ func (m *homeScreen) buttons() []option {
 
 // homeFold lists the actions the bar folds into More… first when it
 // doesn't fit; the first button (the state's own action) is never folded.
-var homeFold = []action{actUpdate, actSide, actNotify, actSettings, actEdit, actHistory, actDoctor, actAdapt, actDraft, actInit, actExample, actCheck, actPreview, actOpen, actHelp, actArise}
+var homeFold = []action{actUpdate, actSide, actNotify, actSettings, actEdit, actHistory, actDoctor, actAdapt, actDraft, actInit, actExample, actCheck, actPreview, actOpen, actHelp, actArise, actAttach}
 
 // phaseRow is one PHASES row, ready to lay out.
 type phaseRow struct {
@@ -487,7 +491,11 @@ func (m *homeScreen) taskLine(glyph, id, tail string, w int) string {
 func (m *homeScreen) runningCard(w int) []string {
 	s := m.snap
 	l := s.Lock
-	out := wrap(fmt.Sprintf("RUNNING in another igris · pid %d on this host · since %s", l.Info.PID, l.Info.StartedAt.In(m.loc).Format("15:04")), w)
+	who := "another igris"
+	if s.Served {
+		who = "igris serve"
+	}
+	out := wrap(fmt.Sprintf("RUNNING in %s · pid %d on this host · since %s", who, l.Info.PID, l.Info.StartedAt.In(m.loc).Format("15:04")), w)
 	for i := range out {
 		out[i] = m.th.paint(lookAlert, out[i])
 	}
@@ -512,6 +520,9 @@ func (m *homeScreen) runningCard(w int) []string {
 		if len(parts) > 0 {
 			out = append(out, m.th.paint(lookDim, fit("recent: "+strings.Join(parts, " · "), w)))
 		}
+	}
+	if s.Served {
+		return append(out, wrap("igris serve hosts this run: Attach (t) shows its run view and controls it.", w)...)
 	}
 	return append(out, wrap("This screen only watches. Use that terminal to control the run.", w)...)
 }

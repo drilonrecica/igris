@@ -22,6 +22,7 @@ import (
 	"github.com/drilonrecica/igris/internal/project"
 	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/runner"
+	"github.com/drilonrecica/igris/internal/serve"
 	"github.com/drilonrecica/igris/internal/state"
 	"github.com/drilonrecica/igris/internal/tui"
 )
@@ -40,6 +41,9 @@ var (
 	// igrisSelf finds the running igris and the one in PATH, for the
 	// igris-path check (SPEC §14).
 	igrisSelf = runner.Self
+	// serveSpawn starts the igris serve of a run arise or home starts;
+	// nil is the running igris binary (project.SpawnServe).
+	serveSpawn project.Spawn
 )
 
 // projectEnv hands this package's seams to the project layer, so the CLI
@@ -48,7 +52,7 @@ func projectEnv() project.Env {
 	return project.Env{
 		Getenv: ariseGetenv, Runner: ariseRunner, Backend: ariseBackend, Versions: compatWarnings,
 		Clock: adaptClock, Format: formatEvent, Version: igrisVersion(), Self: igrisSelf,
-		Build: updateBuild(), UpdateAPI: updateAPI, Environ: updateEnviron,
+		Build: updateBuild(), UpdateAPI: updateAPI, Environ: updateEnviron, Spawn: serveSpawn,
 	}
 }
 
@@ -179,8 +183,14 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		return fail("%v", err)
 	}
 
-	ctx, cancel, release := interruptContext()
-	defer cancel() // Ctrl-C stops the run; the session stays open (SPEC §13)
+	// Ctrl-C stops a --no-tui run; the session stays open (SPEC §13). With
+	// the TUI the run is served: a signal, a closed terminal or a dropped
+	// ssh connection included, only detaches from it.
+	ctx, cancel, _ := interruptContext()
+	if !f.noTUI {
+		ctx, cancel, _ = signalContext(attachSignals...)
+	}
+	defer cancel()
 	pre := l.Prelaunch(ctx)
 	// With --no-tui, stdin carries the owner's commands for the whole run.
 	// The TUI owns the terminal once it starts, so until then each answer
@@ -208,11 +218,11 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		if f.noTUI {
 			res, err = runOnce(ctx, l.Options(conf, func(ev engine.Event) { printEvent(out, ev) }), f.lines, out)
 		} else {
-			var started bool
-			res, started, err = runWithTUI(ctx, release, l, conf, out)
+			code, started, serr := runServed(ctx, proj, l, conf, out, stderr)
 			if started {
-				return tuiExit(res, err, out, stderr)
+				return code
 			}
+			err = serr
 		}
 		if asked, refusal := askStartUp(err, &conf, out, ask, !f.worktree && !proj.Cfg.Run.WorktreeOn()); asked {
 			if refusal != "" {
@@ -222,7 +232,7 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		}
 		switch {
 		case err != nil:
-			return fail("%v", err)
+			return fail("%v%s", err, servedHint(err, proj.Root))
 		case res.Outcome == engine.Stuck:
 			return exitFail
 		default:
@@ -324,54 +334,42 @@ func windingDown(release func(), waiting bool, out io.Writer) {
 // ariseUI shows the TUI; a seam for tests.
 var ariseUI = tui.Run
 
-// runWithTUI starts the engine and, once the run passed its start-up checks
-// (the first event arrives), hands the terminal to the TUI. A run that
-// fails before that returns with started false, so its error can be
-// answered on the plain terminal (drift, skip-permissions) and the run
-// tried again. Quitting the TUI stops the run; the session stays open.
-// While the run winds down after that, release has stopped catching
-// Ctrl-C, so one exits at once.
-func runWithTUI(ctx context.Context, release func(), l *project.Launch, conf report.Confirmations, out io.Writer) (engine.Result, bool, error) {
+// runServed starts the run with the owner's answers conf in a background
+// igris serve and shows its run view, attached (SPEC §14). started is
+// false when the run refused to start (err says why, maybe a question to
+// ask and try again): nothing runs then. Leaving the view detaches; the
+// run goes on in serve. code is arise's exit code once started: the run's
+// result when it ended while attached, else 0.
+func runServed(ctx context.Context, proj *project.Project, l *project.Launch, conf report.Confirmations, out, stderr io.Writer) (code int, started bool, err error) {
 	feed := tui.NewFeed()
-	eng, err := l.Engine(conf, feed.Push)
+	s, err := l.Serve(ctx, conf, feed)
 	if err != nil {
-		return engine.Result{}, false, err
+		return 0, false, err
 	}
-	runCtx, stopRun := context.WithCancel(ctx)
-	defer stopRun()
-	go func() { feed.End(eng.Run(runCtx)) }()
-	select {
-	case <-feed.Started():
-	case <-feed.Ended():
-		select {
-		case <-feed.Started(): // it started, then ended at once
-		default:
-			res, err := feed.Result()
-			return res, false, err
-		}
-	}
-	uiErr := ariseUI(ctx, l.TUIOptions(feed, eng))
-	stopRun()
-	windingDown(release, !ended(feed.Ended()), out)
-	<-feed.Ended()
-	res, err := feed.Result()
+	uiErr := ariseUI(ctx, proj.AttachOptions(feed, s, igrisVersion()))
+	s.Close()
 	if uiErr != nil {
-		fmt.Fprintf(out, "the TUI failed: %v; run `igris arise --no-tui` to continue without it\n", uiErr)
-		if err == nil {
-			err = uiErr
-		}
+		fmt.Fprintf(stderr, "igris arise: the TUI failed: %v; the run goes on in igris serve (`igris attach` shows it, `igris stop` stops it)\n", uiErr)
+		return exitFail, true, nil
 	}
-	return res, true, err
+	select {
+	case <-feed.Ended():
+		res, err := feed.Result()
+		return tuiExit(res, err, out, stderr), true, nil
+	default:
+	}
+	fmt.Fprintln(out, tui.ExitText(engine.Result{}, tui.ErrDetached))
+	return exitOK, true, nil
 }
 
-// ended says ch is closed.
-func ended(ch <-chan struct{}) bool {
-	select {
-	case <-ch:
-		return true
-	default:
-		return false
+// servedHint adds to a lock held by a live igris serve here how to reach
+// its run.
+func servedHint(err error, root string) string {
+	var locked *state.LockedError
+	if errors.As(err, &locked) && !locked.Remote && serve.Answers(context.Background(), root) {
+		return "; igris serve hosts that run: `igris attach` shows it"
 	}
+	return ""
 }
 
 // tuiExit reports how a run shown in the TUI ended, once the terminal is

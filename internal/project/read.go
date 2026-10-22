@@ -14,6 +14,7 @@ import (
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/report"
+	"github.com/drilonrecica/igris/internal/serve"
 	"github.com/drilonrecica/igris/internal/state"
 	"github.com/drilonrecica/igris/internal/textsafe"
 )
@@ -127,6 +128,7 @@ func (p *Project) Snapshot() *report.Snapshot {
 	if l, err := state.PeekLock(p.Root); err == nil {
 		l.Info.Host, l.Reason, l.Path = textsafe.Line(l.Info.Host), textsafe.Line(l.Reason), textsafe.Line(l.Path)
 		s.Lock = l
+		s.Served = l.Alive && serve.Answers(context.Background(), p.Root)
 	}
 	if in, err := HistoryInput(p.Root, RecentRuns); err == nil {
 		s.Recent = report.NewHistory(in).Runs

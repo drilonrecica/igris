@@ -42,6 +42,7 @@ func testEnv(vars map[string]string) (Env, *fake.Backend) {
 		Backend:  func(*config.Config) (backend.Backend, error) { return be, nil },
 		Versions: func(context.Context, runner.Runner) []checks.Result { return nil },
 		Self:     func() (string, string, bool) { return "/usr/local/bin/igris", "/usr/local/bin/igris", true },
+		Spawn:    SpawnRefused("the test did not set Env.Spawn; the real igris serve is never started from tests"),
 	}, be
 }
 
@@ -453,10 +454,22 @@ func TestServicesStartAndPreview(t *testing.T) {
 	env, _ := testEnv(nil)
 
 	root := newProject(t, "")
+	// Start spawns igris serve through Env.Spawn (never the real binary
+	// from a test); a serve that ends before the run started is the error.
+	var spawned [][]string
+	env.Spawn = func(dir string, args, _ []string, _ *os.File) (<-chan struct{}, error) {
+		spawned = append(spawned, append([]string{dir}, args...))
+		exited := make(chan struct{})
+		close(exited)
+		return exited, nil
+	}
 	svc := NewServices(root, env)
-	r, err := svc.Start(ctx, report.RunRequest{Phase: "M0"}, report.Confirmations{}, func(engine.Event) {})
-	if err != nil || r == nil {
+	r, err := svc.Start(ctx, report.RunRequest{Phase: "M0"}, report.Confirmations{}, tui.NewFeed())
+	if err == nil || r != nil || !strings.Contains(err.Error(), "igris serve did not start the run") {
 		t.Fatalf("start: %v, %v", r, err)
+	}
+	if len(spawned) != 1 || spawned[0][0] != root || strings.Join(spawned[0][1:], " ") != "-- M0" {
+		t.Errorf("spawned = %v, want [[%s -- M0]]", spawned, root)
 	}
 	dr, err := svc.Preview(ctx, report.RunRequest{Phase: "M0"})
 	if err != nil || dr == nil || dr.Sessions != 2 {
@@ -466,6 +479,9 @@ func TestServicesStartAndPreview(t *testing.T) {
 	bad := newProject(t, "plan = 3\n")
 	if _, err := NewServices(bad, env).Start(ctx, report.RunRequest{Phase: "M0"}, report.Confirmations{}, nil); err == nil {
 		t.Error("Start accepted an invalid config")
+	}
+	if len(spawned) != 1 {
+		t.Errorf("an invalid config spawned serve: %v", spawned)
 	}
 	noStateDir(t, bad)
 }

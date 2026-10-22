@@ -66,6 +66,16 @@ type Env struct {
 	// Environ is igris's environment, which the update command gets
 	// without the notification secrets' variables. nil means os.Environ.
 	Environ func() []string
+	// Spawn starts igris serve in the background for arise and home
+	// (SPEC §14). nil means the running igris binary (SpawnServe).
+	Spawn Spawn
+}
+
+func (e Env) spawn() Spawn {
+	if e.Spawn != nil {
+		return e.Spawn
+	}
+	return SpawnServe
 }
 
 func (e Env) getenv() func(string) string {

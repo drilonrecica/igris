@@ -119,6 +119,20 @@ func classifyLock(info LockInfo, host string, alive func(int) bool) lockClass {
 	}
 }
 
+// CheckLock says whether Lock(force) would get the lock now, without taking
+// it: nil when there is no lock file or it may be cleared, else the error
+// Lock would return (*LockedError, *StaleLockError).
+func (d *Dir) CheckLock(force bool) error {
+	if _, err := os.Lstat(d.lockPath()); errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	host, err := d.hostname()
+	if err != nil {
+		return fmt.Errorf("lock %s: hostname: %w", d.lockPath(), err)
+	}
+	return d.checkHeld(host, force)
+}
+
 // checkHeld inspects an existing lock file. It returns nil only if the lock
 // may be cleared (stale or remote, with force).
 func (d *Dir) checkHeld(host string, force bool) error {

@@ -52,6 +52,7 @@ These rules apply to every coding agent working in this repository (Claude Code 
 - herdr backend tests use recorded JSON fixtures; never require a running herdr in `make test`.
 - `go test -race ./...` must stay clean.
 - No private plans (e.g. from the owner's other projects) in fixtures. Use synthetic ones.
+- **Tests never start the real igris binary.** Under `go test`, `os.Executable()` is the test binary, which never runs `main`: started as `igris serve` it runs the whole suite again, which starts it again (on 2026-10-22 this grew to 1,500 `igris.test` processes and froze the owner's machine). Hence: `project.SpawnServe` refuses from a test binary and from a process it started (`IGRIS_SPAWN_DEPTH`); every `TestMain` exits at once when the binary was started that way (`project.SpawnedButNotIgris`) and fails on a child process left running; `Env.Spawn`/`serveSpawn` default to a refusal under test, and a test that starts a run installs the in-process serve (`inProcessServe` in `cmd/igris`). Never add another `os.Executable()` re-exec path without the same guards, and run tests with `make test` (`-timeout 120s`).
 
 ## 6. Safety rules
 - Igris must never: send plan text through a shell; read, print or store Claude credentials; set `ANTHROPIC_API_KEY`; log notification secrets; write the plan outside Status cells (except an owner-approved `adapt`).

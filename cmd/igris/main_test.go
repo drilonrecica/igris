@@ -3,19 +3,33 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"runtime/debug"
 	"strings"
 	"testing"
 
 	"github.com/drilonrecica/igris/internal/checks"
+	"github.com/drilonrecica/igris/internal/project"
 	"github.com/drilonrecica/igris/internal/runner"
 	"github.com/drilonrecica/igris/internal/side"
 )
 
 // TestMain keeps the tests off the real claude and herdr: no version check
-// runs unless a test asks for one (see withVersions).
+// runs unless a test asks for one (see withVersions). It runs nothing when
+// this binary was started as `igris serve` (project.SpawnedButNotIgris):
+// on 2026-10-22 the real project.SpawnServe, reached from an arise test,
+// started this binary, which ran the suite, which started it again, until
+// the machine was out of memory. After the suite it fails on a child
+// process left running.
 func TestMain(m *testing.M) {
+	if err := project.SpawnedButNotIgris(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+	// Never the real igris serve: a test that starts a run installs the
+	// in-process one (inProcessServe).
+	serveSpawn = project.SpawnRefused("the test did not set serveSpawn; the real igris serve is never started from tests")
 	compatWarnings = func(context.Context, runner.Runner) []checks.Result { return nil }
 	// Nor on the igris in the developer's PATH: this test binary is the
 	// igris in PATH.
@@ -33,7 +47,14 @@ func TestMain(m *testing.M) {
 	updateAPI = "http://127.0.0.1:1"
 	// Run from a side session, done, skip and reset would refuse.
 	_ = os.Unsetenv(side.Env)
-	os.Exit(m.Run())
+	code := m.Run()
+	if left := leftoverChildren(); len(left) > 0 {
+		fmt.Fprintf(os.Stderr, "igris processes left running by the tests: %v\n", left)
+		if code == 0 {
+			code = 1
+		}
+	}
+	os.Exit(code)
 }
 
 // Every command's help is asked for, so it goes to stdout with the

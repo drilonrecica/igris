@@ -46,7 +46,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - run: go test -race ./...
+      - run: go test -race -timeout 120s ./...
 
   # A short run of every fuzz target (decisions.md V06-P1, V06-05). A failing
   # input is printed so it can be committed as a regression seed; nothing is

@@ -514,10 +514,11 @@ func (r noTUIRun) run(t *testing.T) (code int, output, root string) {
 	git.Func(r.gitFn)
 	stdinR, stdinW := io.Pipe()
 	t.Cleanup(func() { _ = stdinW.Close() })
-	savedStdin, savedBackend, savedRunner, savedGetenv, savedUI, savedServeStdin := ariseStdin, ariseBackend, ariseRunner, ariseGetenv, ariseUI, serveStdin
+	savedStdin, savedBackend, savedRunner, savedGetenv, savedUI, savedServeStdin, savedSpawn := ariseStdin, ariseBackend, ariseRunner, ariseGetenv, ariseUI, serveStdin, serveSpawn
 	t.Cleanup(func() {
-		ariseStdin, ariseBackend, ariseRunner, ariseGetenv, ariseUI, serveStdin = savedStdin, savedBackend, savedRunner, savedGetenv, savedUI, savedServeStdin
+		ariseStdin, ariseBackend, ariseRunner, ariseGetenv, ariseUI, serveStdin, serveSpawn = savedStdin, savedBackend, savedRunner, savedGetenv, savedUI, savedServeStdin, savedSpawn
 	})
+	serveSpawn = inProcessServe(t)
 	ariseUI = func(context.Context, tui.Options) error {
 		t.Error("the TUI was started")
 		return nil
@@ -752,27 +753,29 @@ func TestAriseTUIRunsTheEngine(t *testing.T) {
 	}
 }
 
-func TestAriseTUIQuitLeavesTheSessionRunning(t *testing.T) {
+// Leaving the run view detaches (SPEC §14): arise exits 0, the run goes
+// on in igris serve, which keeps the lock until `igris stop` ends it.
+func TestAriseTUIQuitDetaches(t *testing.T) {
 	code, output, root := noTUIRun{
 		plan:     oneTaskPlan,
 		args:     []string{"A"},
 		noSignal: true,
-		// The owner quits at once.
+		// The owner leaves at once.
 		ui: func(context.Context, tui.Options) error { return nil },
 	}.run(t)
-	if code != exitOK || !strings.Contains(output, "igris stopped; a running session keeps running") {
+	if code != exitOK || !strings.Contains(output, "detached; the run goes on in igris serve") {
 		t.Fatalf("exit %d; output:\n%s", code, output)
 	}
-	// The run lock is released: the next arise can resume.
-	dir, err := state.Open(root, state.Options{})
-	if err != nil {
-		t.Fatal(err)
+	if l, err := state.PeekLock(root); err != nil || !l.Held {
+		t.Fatalf("serve does not hold the run lock after arise detached: %+v, %v", l, err)
 	}
-	lock, err := dir.Lock(false)
-	if err != nil {
-		t.Fatalf("lock still held: %v", err)
+	var out, errb bytes.Buffer
+	if code := run([]string{"stop"}, &out, &errb); code != exitOK {
+		t.Fatalf("igris stop: exit %d; %s%s", code, out.String(), errb.String())
 	}
-	_ = lock.Release()
+	if l, err := state.PeekLock(root); err != nil || l.Held {
+		t.Errorf("the lock outlived the stopped serve: %+v, %v", l, err)
+	}
 }
 
 func TestAriseTUIConfirmsBeforeTheTUIStarts(t *testing.T) {

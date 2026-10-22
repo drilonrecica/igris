@@ -165,7 +165,7 @@ func (c *Client) connect() (net.Conn, *bufio.Scanner, error) {
 	c.mu.Unlock()
 	c.opts.Sink.Snapshot(snap)
 	if snap.Ended {
-		c.end(engine.Result{Outcome: outcomeOf(snap.End), Phase: snap.Phase}, nil)
+		c.end(engine.Result{Outcome: outcomeOf(snap.End), Phase: snap.Phase}, endError(snap.End, lastFailure(snap.Feed)))
 	}
 	return conn, sc, nil
 }
@@ -235,6 +235,7 @@ func (c *Client) lost() {
 // read handles the run's messages until the connection ends; an error
 // from serve that ends the connection comes back as a refusedError.
 func (c *Client) read(sc *bufio.Scanner) error {
+	failure := "" // the run's error, told before its run_stopped
 	for sc.Scan() {
 		line := sc.Bytes()
 		var head struct {
@@ -266,8 +267,11 @@ func (c *Client) read(sc *bufio.Scanner) error {
 				continue // a type of a later igris: clients ignore what they don't know
 			}
 			c.opts.Sink.Push(e)
-			if e.Kind == engine.RunStopped {
-				c.end(engine.Result{Outcome: outcomeOf(e.Detail), Phase: e.Phase}, nil)
+			switch e.Kind {
+			case engine.RunFailed:
+				failure = e.Detail
+			case engine.RunStopped:
+				c.end(engine.Result{Outcome: outcomeOf(e.Detail), Phase: e.Phase}, endError(e.Detail, failure))
 			}
 		}
 	}
@@ -305,6 +309,36 @@ func (c *Client) end(res engine.Result, err error) {
 	c.ended = true
 	c.mu.Unlock()
 	c.opts.Sink.End(res, err)
+}
+
+// RunError is how a Client ends when the run ended with an error
+// (run_stopped "error"): Detail is the error the run told, cleaned.
+type RunError struct{ Detail string }
+
+func (e *RunError) Error() string {
+	if e.Detail == "" {
+		return "the run ended with an error; .igris/serve.log may say more"
+	}
+	return e.Detail
+}
+
+// endError is the error a run_stopped with detail ends the client with:
+// a RunError for "error", carrying failure, the run's error.
+func endError(detail, failure string) error {
+	if detail != "error" {
+		return nil
+	}
+	return &RunError{Detail: failure}
+}
+
+// lastFailure is the last run_error in a snapshot's feed.
+func lastFailure(feed []Event) string {
+	for i := len(feed) - 1; i >= 0; i-- {
+		if ev, ok := feed[i].Engine(); ok && ev.Kind == engine.RunFailed {
+			return ev.Detail
+		}
+	}
+	return ""
 }
 
 // outcomeOf reads run_stopped's detail.

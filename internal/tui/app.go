@@ -71,6 +71,9 @@ type AppResult struct {
 	Stopped bool
 	Res     engine.Result // the run's result, when there was a run
 	RunErr  error         // the run's error, when there was a run
+	// Detached says the app left a run igris serve hosts while it went
+	// on (since 1.4): quitting only detaches from it.
+	Detached bool
 }
 
 // App shows the app until the owner quits or ctx ends. A run going at the
@@ -149,6 +152,9 @@ func quitApp() tea.Msg  { return quitMsg{} }
 type runHandle struct {
 	feed *Feed
 	stop context.CancelFunc // cancels the run's context
+	// attached says igris serve hosts the run (an AttachedRunner):
+	// stopping the handle only detaches, at once.
+	attached bool
 }
 
 // stopNow stops the run and reports whether it was still going.
@@ -432,8 +438,8 @@ func (a *appModel) quit() tea.Cmd {
 
 // waiting says the app holds a run that has not ended yet.
 func (a *appModel) waiting() bool {
-	if a.run == nil {
-		return false
+	if a.run == nil || a.run.attached {
+		return false // detaching doesn't wait on the run
 	}
 	select {
 	case <-a.run.feed.Ended():
@@ -461,6 +467,9 @@ func (a *appModel) finish() AppResult {
 		return AppResult{} // it was still starting: nothing ran
 	}
 	r.Res, r.RunErr = a.run.feed.Result()
+	if errors.Is(r.RunErr, ErrDetached) {
+		return AppResult{Detached: true}
+	}
 	return r
 }
 

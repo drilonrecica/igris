@@ -33,6 +33,8 @@ type fakeServices struct {
 	preview    func(req report.RunRequest) (*report.DryRun, error)
 	prelaunch  report.Prelaunch
 	start      func(req report.RunRequest, c report.Confirmations, events func(engine.Event)) (Runner, error)
+	startFeed  func(req report.RunRequest, c report.Confirmations, feed *Feed) (Runner, error) // overrides start
+	attach     func(feed *Feed) (AttachedRunner, error)
 	initSteps  []report.Step
 	initErr    error
 	onInit     func(starter string) // runs inside Init, to change what Snapshot reads next
@@ -120,12 +122,23 @@ func (f *fakeServices) Prelaunch(context.Context, report.RunRequest) report.Prel
 	return f.prelaunch
 }
 
-func (f *fakeServices) Start(_ context.Context, req report.RunRequest, c report.Confirmations, events func(engine.Event)) (Runner, error) {
+func (f *fakeServices) Start(_ context.Context, req report.RunRequest, c report.Confirmations, feed *Feed) (Runner, error) {
 	f.count("Start")
+	if f.startFeed != nil {
+		return f.startFeed(req, c, feed)
+	}
 	if f.start == nil {
 		return nil, errors.New("fake: no run")
 	}
-	return f.start(req, c, events)
+	return f.start(req, c, feed.Push)
+}
+
+func (f *fakeServices) Attach(_ context.Context, feed *Feed) (AttachedRunner, error) {
+	f.count("Attach")
+	if f.attach == nil {
+		return nil, errors.New("fake: no served run")
+	}
+	return f.attach(feed)
 }
 
 func (f *fakeServices) Init(_ context.Context, starter string) ([]report.Step, error) {
