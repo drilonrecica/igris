@@ -2,7 +2,7 @@
 
 All notable changes to igris are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and igris uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Until 1.0, minor versions may change the plan format, config or CLI; such changes are called out here.
 
-## [1.4.0] - Unreleased
+## [1.4.0] - 2026-10-22
 
 igris 1.4 adds two things to 1.2 and breaks nothing: Claude can write your plan (`igris draft`), and a run survives a closed terminal and can be opened again from any terminal (`igris serve`, `attach` and `stop`). There is no 1.3 release; both ship as 1.4. Plans, `igris.toml` and scripts written for 1.0 to 1.2 need no changes ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). All of it is additive: four commands, a `[draft]` config section, a socket and two files in `.igris/`, and a directory for drafts. `state.json` stays version 3. One behavior changes by design: `q` in the run view asks Detach, Stop run or Cancel instead of leaving at once.
 
@@ -563,7 +563,8 @@ First release. Linux and macOS, herdr backend only. The full behavior is specifi
 - Release artifacts are not signed (checksums only); signing is planned.
 - No Homebrew tap yet.
 
-[Unreleased]: https://github.com/drilonrecica/igris/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/drilonrecica/igris/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/drilonrecica/igris/compare/v1.2.1...v1.4.0
 [1.2.1]: https://github.com/drilonrecica/igris/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/drilonrecica/igris/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/drilonrecica/igris/compare/v1.0.0...v1.1.0
