@@ -57,6 +57,7 @@ func execAttach(_ *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	}
 	select {
 	case <-feed.Ended():
+		waitLockFree(ctx, proj.Root) // so arise right after finds the project free
 		res, err := feed.Result()
 		if err != nil {
 			fmt.Fprintln(stdout, err)

@@ -280,7 +280,7 @@ func (m *model) renderCard(w, x, y, rows int, record bool) []string {
 		head = append(head, fit(m.th.marks("mode "+c.mode+badge(c.mode)+" · "+timing), w))
 	}
 	state := "state: " + m.th.paint(m.stateLook(), m.stateText())
-	if c.state == stateNeedsYou && c.session != nil {
+	if c.state == stateNeedsYou && m.canOpen() {
 		// Say how to get there, on the state line when it fits.
 		hint := m.th.paint(m.stateLook(), openHint)
 		if textWidth(state)+textWidth(openHint) <= w {
@@ -333,7 +333,7 @@ func (m *model) renderCard(w, x, y, rows int, record bool) []string {
 	if c.user {
 		btns = append([]option{{"[d] Done…", actDone}, {"[s] Skip…", actSkip}}, btns...)
 	}
-	if c.session != nil {
+	if m.canOpen() {
 		btns = append([]option{{"[o] Open session", actOpen}}, btns...)
 	}
 	if m.question() != nil && m.dialog == nil {

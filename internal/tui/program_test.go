@@ -10,6 +10,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/exp/teatest"
 
+	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/engine"
 )
 
@@ -35,6 +36,8 @@ func program(t *testing.T, w, h int, evs ...engine.Event) (*teatest.TestModel, *
 	m := newModel(context.Background(), Options{
 		Project: "sinjal", Backend: "herdr", Mode: "plan",
 		Feed: feed, Sender: s,
+		// A backend is reachable, so Open session is offered.
+		Focus: func(context.Context, backend.SessionRef, string) error { return nil },
 	})
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(w, h))
 	t.Cleanup(func() { _ = tm.Quit() })

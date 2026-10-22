@@ -138,6 +138,57 @@ func TestNeedsYouPointsAtTheSession(t *testing.T) {
 	}
 }
 
+// An attached client that can't reach the session's backend (igris attach
+// over ssh, outside herdr and tmux) has no Focus: neither the bar, the card
+// nor NEEDS YOU offer a session o can't open (SPEC §15.3, V14-G).
+func TestNoOpenSessionWithoutFocus(t *testing.T) {
+	for _, size := range append([][2]int{{100, 30}}, cardSizes...) {
+		t.Run(fmt.Sprint(size), func(t *testing.T) {
+			hs := cardHarness(t, size[0], size[1], "M0-02")
+			hs.m.opts.Focus = nil
+			hs.events(engine.Event{Kind: engine.NeedsYou, Task: "M0-02", Detail: "the agent is waiting"})
+			v := hs.m.View()
+			checkFits(t, v, size[0], size[1])
+			if !strings.Contains(v, "NEEDS YOU") {
+				t.Fatalf("no NEEDS YOU:\n%s", v)
+			}
+			if strings.Contains(v, "Open session") || strings.Contains(v, "o opens the session") {
+				t.Errorf("Open session offered without a backend to open it:\n%s", v)
+			}
+			for _, b := range hs.m.buttons() {
+				if b.act == actOpen {
+					t.Errorf("the bar offers Open session: %v", hs.m.buttons())
+				}
+			}
+			hs.key("o") // does nothing, and doesn't crash
+		})
+	}
+}
+
+// A resumed task's reattached session can be opened, as a new one can
+// (SPEC §15.3, V14-G).
+func TestResumedSessionCanBeOpened(t *testing.T) {
+	hs := newHarness(t, 120, 40)
+	hs.m.loc = time.UTC
+	hs.withPlan(cardPlan)
+	ref := &backend.SessionRef{Backend: "herdr", PaneID: "p1"}
+	hs.events(engine.Event{Kind: engine.TaskResumed, Phase: "M0", Task: "M0-02", Rank: "opus", Model: "opus", Mode: "plan", Session: ref, Detail: "reattached to its session"})
+	if v := hs.m.View(); !strings.Contains(v, "[o] Open session") || len(hs.m.buttons()) == 0 || hs.m.buttons()[0].act != actOpen {
+		t.Fatalf("no Open session after a resume (bar %v):\n%s", hs.m.buttons(), v)
+	}
+	hs.key("o")
+	if len(hs.focus) != 1 || hs.focus[0] != *ref {
+		t.Errorf("o focused %v, want %v", hs.focus, *ref)
+	}
+	// A resume without a session (it is gone) offers none.
+	hs = newHarness(t, 120, 40)
+	hs.withPlan(cardPlan)
+	hs.events(engine.Event{Kind: engine.TaskResumed, Phase: "M0", Task: "M0-02", Rank: "opus", Model: "opus", Detail: "its session is gone"})
+	if v := hs.m.View(); strings.Contains(v, "Open session") {
+		t.Errorf("Open session offered without a session:\n%s", v)
+	}
+}
+
 func TestUserTaskCardHasNoSession(t *testing.T) {
 	hs := newHarness(t, 120, 40)
 	hs.m.loc = time.UTC

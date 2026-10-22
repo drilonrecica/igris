@@ -122,6 +122,37 @@ func TestListenerCloseRemovesSocket(t *testing.T) {
 	}
 }
 
+// Serve started after Shutdown (a serve that fails right after Listen,
+// before its Serve goroutine runs) still closes the listener it was
+// given, so the socket doesn't outlive serve (V14-G: TestServeYolo was
+// flaky on exactly this).
+func TestServeAfterShutdownClosesTheListener(t *testing.T) {
+	for _, stop := range []string{"Shutdown", "Close"} {
+		t.Run(stop, func(t *testing.T) {
+			root := t.TempDir()
+			l, err := listen(openDir(t, root), shortEnv(t))
+			if err != nil {
+				t.Fatal(err)
+			}
+			s := New(Options{Version: "1.4.0"})
+			if stop == "Shutdown" {
+				err = s.Shutdown(context.Background())
+			} else {
+				err = s.Close()
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := s.Serve(l); err != nil {
+				t.Errorf("Serve after %s = %v, want nil, as when closed while it accepts", stop, err)
+			}
+			if _, err := os.Lstat(l.Path()); !errors.Is(err, os.ErrNotExist) {
+				t.Errorf("socket still there after Serve returned: %v", err)
+			}
+		})
+	}
+}
+
 // A socket nobody listens on is replaced; a live one is refused; a file
 // or a symlink in its place is never removed.
 func TestListenStaleLiveAndInTheWay(t *testing.T) {

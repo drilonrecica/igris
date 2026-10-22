@@ -354,6 +354,7 @@ func runServed(ctx context.Context, proj *project.Project, l *project.Launch, co
 	}
 	select {
 	case <-feed.Ended():
+		waitLockFree(ctx, proj.Root)
 		res, err := feed.Result()
 		return tuiExit(res, err, out, stderr), true, nil
 	default:

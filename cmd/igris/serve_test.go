@@ -2,12 +2,16 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/serve"
 	"github.com/drilonrecica/igris/internal/state"
 )
@@ -74,6 +78,35 @@ func TestServe(t *testing.T) {
 		t.Errorf("statuses = %s", got)
 	}
 	noSocket(t, root)
+}
+
+// serve reads no commands from stdin (SPEC §14), so its lines never say
+// to type one, as --no-tui's do: they point at igris attach (V14-G).
+func TestFormatServed(t *testing.T) {
+	tests := []struct {
+		ev   engine.Event
+		want string
+	}{
+		{engine.Event{Kind: engine.Asked, Question: engine.QuestionCommit, Detail: "commit?"}, "? commit?\n  answer in `igris attach`"},
+		{engine.Event{Kind: engine.Asked, Question: engine.QuestionSessionLost, Detail: "gone"}, "? gone\n  answer in `igris attach`"},
+		{engine.Event{Kind: engine.Asked, Question: engine.QuestionHookFailed, Detail: "failed"}, "? failed\n  answer in `igris attach`"},
+		{engine.Event{Kind: engine.Asked, Question: engine.QuestionConfirmReset, Task: "A-1", Detail: "reset A-1 (done) to ready/blocked?"}, "? reset A-1 (done) to ready/blocked?\n  answer in `igris attach`"},
+		{engine.Event{Kind: engine.YourTurn, Task: "A-2", Detail: "Buy"}, "A-2 YOUR TURN: Buy\n  do it outside igris (no session), then run `igris done A-2` anywhere in the project (or answer in `igris attach`)"},
+		{engine.Event{Kind: engine.PauseOn}, "pause after task: on"},
+		{engine.Event{Kind: engine.Paused, Task: "A-2"}, "paused before A-2; Pause in `igris attach` continues"},
+		// Everything else is --no-tui's line.
+		{engine.Event{Kind: engine.TaskDone, Task: "A-1"}, "A-1 done"},
+		{engine.Event{Kind: engine.PauseOff}, "pause after task: off"},
+	}
+	for _, tt := range tests {
+		got := strings.Join(formatServed(tt.ev), "\n")
+		if got != tt.want {
+			t.Errorf("formatServed(%s) = %q, want %q", tt.ev.Kind, got, tt.want)
+		}
+		if strings.Contains(got, "type `") || strings.Contains(got, "[y/n]") {
+			t.Errorf("formatServed(%s) asks to type into serve: %q", tt.ev.Kind, got)
+		}
+	}
 }
 
 // igris stop stops the run over the socket and waits until it has; the
@@ -176,6 +209,25 @@ func TestStopWithoutRun(t *testing.T) {
 	var out, errb bytes.Buffer
 	if code := run([]string{"stop"}, &out, &errb); code != exitFail || !strings.Contains(errb.String(), serve.ErrNotServed.Error()) {
 		t.Errorf("exit %d, stderr %q", code, errb.String())
+	}
+}
+
+// A lock left by a serve that died is never released: waiting for it
+// returns at once instead of after lockReleaseWait.
+func TestWaitLockFreeSkipsADeadHolder(t *testing.T) {
+	host, err := os.Hostname()
+	if err != nil {
+		t.Fatal(err)
+	}
+	lock := fmt.Sprintf(`{"pid":%d,"host":%q,"started_at":"2026-10-22T09:00:00Z"}`, 1<<22+12345, host)
+	root := writeProject(t, map[string]string{"tasks.md": servePlan, ".igris/igris.lock": lock})
+	if l, err := state.PeekLock(root); err != nil || !l.Held || l.Alive {
+		t.Fatalf("lock = %+v, %v; want held by a dead process", l, err)
+	}
+	start := time.Now()
+	waitLockFree(context.Background(), root)
+	if d := time.Since(start); d > lockReleaseWait/2 {
+		t.Errorf("waited %v for a lock whose process is gone", d)
 	}
 }
 

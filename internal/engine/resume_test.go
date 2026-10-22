@@ -40,8 +40,13 @@ func TestResumeReattaches(t *testing.T) {
 	if got := h.opened(); got != "A-1 A-2 A-3" {
 		t.Errorf("sessions opened for %q, want no second A-1 session", got)
 	}
-	if ev := h.event(TaskResumed, "A-1"); ev.Detail != "reattached to its session" || ev.Rank != "sonnet" || ev.Model != "sonnet" {
+	ev := h.event(TaskResumed, "A-1")
+	if ev.Detail != "reattached to its session" || ev.Rank != "sonnet" || ev.Model != "sonnet" {
 		t.Errorf("task_resumed = %+v", ev)
+	}
+	// The reattached session, so the run view can open it (SPEC §15.3, V14-G).
+	if closed := h.be.Closed(); ev.Session == nil || len(closed) == 0 || *ev.Session != closed[0] {
+		t.Errorf("task_resumed session = %v, want the reattached session %v", ev.Session, closed)
 	}
 	if got := h.statuses(); got != "A-1=done A-2=done A-3=done B-1=ready" {
 		t.Errorf("statuses = %s", got)

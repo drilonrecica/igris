@@ -98,6 +98,17 @@ func TestSnapshotTracksTheRun(t *testing.T) {
 	}
 }
 
+// A resumed task's reattached session is the current session (V14-G).
+func TestSnapshotResumedSession(t *testing.T) {
+	s := New(Options{Version: "1.4.0", Mode: "auto"})
+	ref := &backend.SessionRef{Backend: "fake", PaneID: "p1"}
+	s.Publish(engine.Event{At: t0, Kind: engine.RunStarted, Run: "20261022-090000-abcd", Phase: "M1"})
+	s.Publish(engine.Event{At: t0, Kind: engine.TaskResumed, Phase: "M1", Task: "M1-01", Rank: "sonnet", Model: "sonnet", Session: ref, ClaudeSession: "uuid-1", Detail: "reattached to its session"})
+	if c := snap(t, s).Current; c == nil || c.Session == nil || c.Session.PaneID != "p1" || c.ClaudeSession != "uuid-1" {
+		t.Errorf("current = %+v, want the reattached session", c)
+	}
+}
+
 func TestSnapshotStates(t *testing.T) {
 	start := engine.Event{At: t0, Kind: engine.TaskStarted, Task: "T-1", Model: "m"}
 	tests := []struct {

@@ -37,8 +37,9 @@ type Options struct {
 	Tail func(ctx context.Context, n int) ([]string, error)
 	// Plan loads the plan for a snapshot's phases; nil sends none.
 	Plan func() (*plan.Plan, error)
-	// Hello is called with every client's hello, before its snapshot is
-	// sent; the host takes a launching client's confirmations from it
+	// Hello is called with every client's hello, once its snapshot is
+	// queued, so a run it starts can't end before that client has its
+	// snapshot; the host takes a launching client's confirmations from it
 	// (SPEC §14). It must not block.
 	Hello func(Request)
 	// Logf reports what happened to clients (a dropped slow client, a
@@ -132,13 +133,17 @@ func (s *Server) Clients() int {
 	return len(s.clients)
 }
 
-// Serve accepts clients on l until l is closed or Close is called. On
-// Linux a peer of another user is refused (SPEC §16).
+// Serve accepts clients on l until l is closed or Close is called, and
+// then returns nil. On Linux a peer of another user is refused (SPEC
+// §16). l is closed when Serve returns, also when Shutdown or Close came
+// first: a serve that ends before this goroutine runs must not leave its
+// socket behind.
 func (s *Server) Serve(l net.Listener) error {
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
-		return net.ErrClosed
+		_ = l.Close()
+		return nil
 	}
 	s.listeners = append(s.listeners, l)
 	s.mu.Unlock()
@@ -388,9 +393,14 @@ func (s *Server) read(c *client) {
 // hello answers a client's hello with the snapshot; the events follow it.
 func (s *Server) hello(c *client, r Request) {
 	r.Client = cut(textsafe.Line(r.Client), maxClient)
+	s.snapshot(c)
 	if s.opts.Hello != nil {
 		s.opts.Hello(r)
 	}
+}
+
+// snapshot queues the run's snapshot for c; the events follow it.
+func (s *Server) snapshot(c *client) {
 	var phases []Phase
 	var planErr string
 	if s.opts.Plan != nil {

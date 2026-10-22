@@ -89,7 +89,7 @@ func (m *model) buttons() []option {
 	if m.question() != nil && m.dialog == nil {
 		out = append(out, option{"Answer…", actAnswer})
 	}
-	if m.cur != nil && m.cur.session != nil {
+	if m.canOpen() {
 		out = append(out, option{"Open session", actOpen})
 	}
 	if !m.ended {

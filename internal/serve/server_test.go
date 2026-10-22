@@ -121,9 +121,30 @@ func (p *peer) closedByServer() {
 
 var t0 = time.Date(2026, 10, 22, 9, 0, 0, 0, time.UTC)
 
+// The hello that starts the run (arise's) gets its snapshot even when
+// the run ends and serve shuts down at once: Hello is called only once
+// the snapshot is queued (V14-G: arise failed with "the connection closed
+// before the snapshot" when a fast run beat it).
+func TestHelloStartsTheRunAfterTheSnapshot(t *testing.T) {
+	var s *Server
+	s = New(Options{Version: "1.4.0", Hello: func(Request) {
+		// The whole run, at once: its end, then serve's shutdown.
+		s.Publish(engine.Event{At: t0, Kind: engine.RunStopped, Detail: "completed"})
+		ctx, cancel := context.WithTimeout(context.Background(), patience)
+		defer cancel()
+		_ = s.Shutdown(ctx)
+	}})
+	p := attach(t, s)
+	p.hello()
+	if ev := p.next(); ev["type"] != "run_stopped" || ev["detail"] != "completed" {
+		t.Errorf("after the snapshot = %v, want the run's end", ev)
+	}
+	p.closedByServer()
+}
+
 func TestHelloSnapshotThenEvents(t *testing.T) {
-	var hellos []Request
-	s := New(Options{Version: "1.4.0", Project: "demo", Backend: "tmux", Mode: "auto", Hello: func(r Request) { hellos = append(hellos, r) }})
+	hellos := make(chan Request, 2) // Hello runs after the snapshot is queued
+	s := New(Options{Version: "1.4.0", Project: "demo", Backend: "tmux", Mode: "auto", Hello: func(r Request) { hellos <- r }})
 	s.Publish(engine.Event{At: t0, Kind: engine.RunStarted, Run: "20261022-090000-abcd", Phase: "M1", Detail: "phase M1"})
 	p := attach(t, s)
 	p.send(`{"v":1,"type":"hello","client":"igris 1.4.0\u001b[2J","yolo":true}`)
@@ -132,8 +153,13 @@ func TestHelloSnapshotThenEvents(t *testing.T) {
 		snap["project"] != "demo" || snap["backend"] != "tmux" || snap["run"] != "20261022-090000-abcd" || snap["phase"] != "M1" || snap["mode"] != "auto" {
 		t.Errorf("snapshot = %v", snap)
 	}
-	if len(hellos) != 1 || hellos[0].Client != "igris 1.4.0" || !hellos[0].Yolo {
-		t.Errorf("hello callback got %+v; want the cleaned client and yolo", hellos)
+	select {
+	case h := <-hellos:
+		if h.Client != "igris 1.4.0" || !h.Yolo {
+			t.Errorf("hello callback got %+v; want the cleaned client and yolo", h)
+		}
+	case <-time.After(patience):
+		t.Fatal("the hello callback was not called")
 	}
 	s.Publish(engine.Event{At: t0.Add(time.Second), Kind: engine.TaskStarted, Phase: "M1", Task: "M1-01", Title: "Config", Rank: "sonnet", Model: "sonnet", Mode: "auto"})
 	s.Publish(engine.Event{At: t0.Add(2 * time.Second), Kind: engine.VerifyPassed, Phase: "M1", Task: "M1-01", Verify: "fast", Detail: "go test"})

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -33,7 +34,18 @@ func TestAriseServeAttachStop(t *testing.T) {
 		plan: oneTaskPlan, args: []string{"A"}, noSignal: true,
 		ui: func(_ context.Context, o tui.Options) error {
 			shown = o
-			return nil // the owner leaves at once
+			// The owner leaves once the task runs. The run starts after
+			// this view has its snapshot, so a stop sent sooner ends
+			// serve before the run started, which is another test.
+			root := filepath.Dir(o.PlanPath)
+			for deadline := time.Now().Add(10 * time.Second); planStatuses(t, root) != "A-1=in progress"; {
+				if time.Now().After(deadline) {
+					t.Error("A-1 never started")
+					break
+				}
+				time.Sleep(5 * time.Millisecond)
+			}
+			return nil
 		},
 	}.run(t)
 	if code != exitOK || !strings.Contains(output, "detached; the run goes on in igris serve") {

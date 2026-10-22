@@ -744,9 +744,16 @@ func sessionPlace(backend string) string {
 	return "herdr tab"
 }
 
+// canOpen says whether Open session would do something: a session exists
+// and this igris can reach its backend. An attached client outside herdr
+// and tmux (ssh from a phone) can't, so it isn't offered (SPEC §15.3).
+func (m *model) canOpen() bool {
+	return m.cur != nil && m.cur.session != nil && m.opts.Focus != nil
+}
+
 // focusSession brings the current session's pane to the front.
 func (m *model) focusSession() tea.Cmd {
-	if m.cur == nil || m.cur.session == nil || m.opts.Focus == nil {
+	if !m.canOpen() {
 		return nil
 	}
 	ref, id, focus, ctx := *m.cur.session, m.cur.id, m.opts.Focus, m.ctx
@@ -790,6 +797,9 @@ func (m *model) event(ev engine.Event) {
 		}
 		m.cur.title, m.cur.rank, m.cur.model, m.cur.mode = ev.Title, ev.Rank, ev.Model, ev.Mode
 		m.cur.user = ev.Model == ""
+		if ev.Session != nil { // a resume reattached it
+			m.cur.session, m.cur.claudeSession = ev.Session, ev.ClaudeSession
+		}
 		m.setState(stateWorking, ev)
 		m.holding = false
 		m.taskTop = -1

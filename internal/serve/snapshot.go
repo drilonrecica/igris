@@ -141,6 +141,9 @@ func (t *tracker) apply(raw engine.Event, ev Event) {
 		}
 		t.cur.Title, t.cur.Rank, t.cur.Model, t.cur.Mode = raw.Title, raw.Rank, raw.Model, raw.Mode
 		t.cur.User = raw.Model == ""
+		if raw.Session != nil { // a resume reattached it
+			t.cur.Session, t.cur.ClaudeSession = raw.Session, raw.ClaudeSession
+		}
 		t.setState(StateWorking, ev)
 		t.holding = false
 		t.settle()

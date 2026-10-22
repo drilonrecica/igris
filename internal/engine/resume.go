@@ -94,7 +94,14 @@ func (e *Engine) resume(ctx context.Context) (stopped bool, err error) {
 				if !held {
 					l.startAttempt(e.clock.Now()) // elapsed time is not saved (SPEC §6.3)
 				}
-				e.emit(Event{Kind: TaskResumed, Detail: detail})
+				// The reattached session, as SessionOpened carries a new
+				// one: the run view opens it (SPEC §15.3).
+				ev := Event{Kind: TaskResumed, Detail: detail, Session: new(backend.SessionRef)}
+				*ev.Session = *cur.Session
+				if backend.ValidClaudeSession(cur.ClaudeSession) { // state.json is untrusted
+					ev.ClaudeSession = cur.ClaudeSession
+				}
+				e.emit(ev)
 				return e.drive(ctx, l)
 			}
 		}

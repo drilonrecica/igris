@@ -157,6 +157,9 @@ func execServe(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		sctx, done := context.WithTimeout(context.Background(), shutdownWait)
 		defer done()
 		_ = srv.Shutdown(sctx) // also removes the socket
+		// Serve's goroutine may not have taken ln yet (a refusal right
+		// after Listen); the socket goes now, not when it runs.
+		_ = ln.Close()
 	}()
 	fmt.Fprintf(out, "serving the run on %s; `igris attach` shows it, `igris stop` stops it\n", ln.Path())
 	if tb, ok := l.Backend.(*tmux.Backend); ok && tb.Headless() != "" {
@@ -177,7 +180,9 @@ func execServe(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 	}
 	for {
 		opts := l.Options(conf, func(ev engine.Event) {
-			printEvent(out, ev)
+			for _, line := range formatServed(ev) {
+				fmt.Fprintf(out, "%s %s\n", ev.At.Local().Format("15:04:05"), line)
+			}
 			srv.Publish(ev)
 			host.saw(ev)
 		})
@@ -215,6 +220,27 @@ func execServe(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 			return exitOK
 		}
 	}
+}
+
+// formatServed renders ev for serve's plain log: --no-tui's lines, minus
+// their advice to type a command, which serve doesn't read from stdin
+// (SPEC §14): the owner answers in an attached client instead.
+func formatServed(ev engine.Event) []string {
+	const attach = "answer in `igris attach`"
+	switch ev.Kind {
+	case engine.Asked:
+		return []string{"? " + ev.Detail, "  " + attach}
+	case engine.YourTurn:
+		return []string{
+			ev.Task + " YOUR TURN: " + ev.Detail,
+			"  do it outside igris (no session), then run `igris done " + ev.Task + "` anywhere in the project (or " + attach + ")",
+		}
+	case engine.PauseOn:
+		return []string{"pause after task: on"}
+	case engine.Paused:
+		return []string{"paused before " + ev.Task + "; Pause in `igris attach` continues"}
+	}
+	return formatEvent(ev)
 }
 
 // serveHost passes the clients' commands to the engine of the moment.
@@ -332,12 +358,14 @@ func execStop(_ *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 
 // waitLockFree gives the stopped serve a moment to release the run lock,
 // which it does just after the run's end reaches its clients, so that
-// `igris stop && igris arise` finds the project free.
+// `igris stop && igris arise` finds the project free (and so does arise
+// after a run that ended while a view was attached). A lock whose process
+// is gone won't be released: it returns at once.
 func waitLockFree(ctx context.Context, root string) {
 	ctx, cancel := context.WithTimeout(ctx, lockReleaseWait)
 	defer cancel()
 	for {
-		if l, err := state.PeekLock(root); err != nil || !l.Held {
+		if l, err := state.PeekLock(root); err != nil || !l.Held || !l.Alive {
 			return
 		}
 		select {

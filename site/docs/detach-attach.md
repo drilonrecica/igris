@@ -43,7 +43,7 @@ asks the live run to stop, as **Stop run** does, waits until it has, and exits 0
 
 ## `igris serve` by hand
 
-`igris serve [PHASE]` takes the same run flags as `arise` and prints plain log lines to stdout. Use it on a machine you reach over ssh, or from a service, then attach when you want to look. Start-up questions are asked on stdin; a closed stdin declines them. `--mode yolo` asks for the typed phrase on a terminal and refuses without one.
+`igris serve [PHASE]` takes the same run flags as `arise` and prints plain log lines to stdout; it reads no commands, so its questions are answered in `igris attach`. Use it on a machine you reach over ssh, or from a service, then attach when you want to look. Start-up questions are asked on stdin; a closed stdin declines them. `--mode yolo` asks for the typed phrase on a terminal and refuses without one.
 
 Outside herdr and tmux, serve with the tmux backend runs the sessions in a detached tmux session named `igris-<project>`. `tmux attach -t igris-<project>` shows them. SIGHUP, SIGINT and SIGTERM stop the run, and a second one exits at once.
 
