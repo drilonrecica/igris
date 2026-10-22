@@ -81,6 +81,9 @@ func (m *model) stateLook() look {
 // buttons are the actions the bar offers right now (SPEC §15.3): only
 // those that would do something.
 func (m *model) buttons() []option {
+	if m.lost {
+		return []option{{"Quit", actQuit}} // until the view reconnects
+	}
 	var out []option
 	running := m.cur != nil && !m.ended
 	if m.question() != nil && m.dialog == nil {

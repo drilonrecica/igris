@@ -74,7 +74,7 @@ func (m *model) tailTick() tea.Cmd {
 // task whose session is open.
 func (m *model) tailing() bool {
 	c := m.cur
-	return m.opts.Tail != nil && !m.ended && c != nil && !c.user && c.session != nil && c.state != stateLost
+	return m.opts.Tail != nil && !m.ended && !m.lost && c != nil && !c.user && c.session != nil && c.state != stateLost
 }
 
 // refreshTail starts a refresh and schedules the next tick while the run

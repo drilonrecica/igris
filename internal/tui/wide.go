@@ -142,7 +142,17 @@ func (m *model) facts(narrow bool, level, extras int) string {
 		// The run mode isn't yolo but this session is (SPEC §7.3).
 		parts = append(parts, m.th.paint(lookAlert, "SKIP PERMISSIONS"))
 	}
-	parts = append(parts, m.opts.Backend)
+	if m.backend != "" {
+		parts = append(parts, m.backend)
+	} else {
+		parts = append(parts, m.opts.Backend)
+	}
+	if m.servedBy != "" {
+		parts = append(parts, "served by "+m.servedBy)
+	}
+	if m.lost {
+		parts = append(parts, m.th.paint(lookAlert, "reconnecting…"))
+	}
 	if n := m.side.count(); n > 0 && extras >= factsAll {
 		parts = append(parts, fmt.Sprintf("side %d", n))
 	}

@@ -111,10 +111,20 @@ type Waiting struct {
 	Task  *Task
 	Unmet []string
 	plan  *Plan
+	text  string // the words of a wait told by another igris (WaitingText)
+}
+
+// WaitingText is a wait as another igris told it (a run served on the
+// socket, SPEC §13): task id waits on unmet, and text is its String.
+func WaitingText(id string, unmet []string, text string) Waiting {
+	return Waiting{Task: &Task{ID: id}, Unmet: unmet, text: text}
 }
 
 // String explains the wait, e.g. "M0-13 waits on P0-05 (ready, phase P0)".
 func (w Waiting) String() string {
+	if w.text != "" {
+		return w.text
+	}
 	parts := make([]string, len(w.Unmet))
 	for i, id := range w.Unmet {
 		if d := w.plan.Task(id); d != nil {

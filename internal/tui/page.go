@@ -118,10 +118,14 @@ func (p *page) render(th *theme, w, h int) ([]string, zones) {
 }
 
 // helpPage lists every action, its key and the focus keys (SPEC §15.3).
-func helpPage(th *theme) *page {
+func helpPage(th *theme, attached bool) *page {
+	actions := helpActions
+	if attached {
+		actions = attachedHelp()
+	}
 	return &page{title: "Help · esc closes", body: func(w int) []string {
 		out := wrap("Actions: click a button, focus it and press enter, or press its key.", w)
-		out = append(out, helpTable(th, helpActions, w)...)
+		out = append(out, helpTable(th, actions, w)...)
 		out = append(out, "", th.paint(lookTitle, "Focus"))
 		return append(out, helpTable(th, helpFocus, w)...)
 	}}

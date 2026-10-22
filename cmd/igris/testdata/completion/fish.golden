@@ -22,6 +22,7 @@ complete -c igris -n __fish_use_subcommand -a report -d 'one run as markdown or 
 complete -c igris -n __fish_use_subcommand -a usage -d 'token usage and the rank audit of a run or of the runs since a date'
 complete -c igris -n __fish_use_subcommand -a arise -d 'run (or resume) with the TUI'
 complete -c igris -n __fish_use_subcommand -a serve -d 'run (or resume) headless, hosting the run on its socket'
+complete -c igris -n __fish_use_subcommand -a attach -d 'open the run view of the live run of this project'
 complete -c igris -n __fish_use_subcommand -a stop -d 'stop the live run of this project'
 complete -c igris -n __fish_use_subcommand -a done -d 'signal that a task is finished'
 complete -c igris -n __fish_use_subcommand -a skip -d 'signal that a task is skipped'

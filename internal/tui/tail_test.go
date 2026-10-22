@@ -62,6 +62,9 @@ func (hs *harness) withTail(lines ...string) *tailSource {
 	hs.t.Helper()
 	src := &tailSource{lines: lines}
 	hs.m.opts.Tail = src.tail
+	if hs.wire != nil {
+		hs.wire.setTail(hs, src.tail)
+	}
 	hs.refreshTail()
 	return src
 }

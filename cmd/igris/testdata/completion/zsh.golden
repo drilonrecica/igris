@@ -3,7 +3,7 @@
 _igris() {
     local cmd prev
     if (( CURRENT == 2 )); then
-        compadd -- init doctor check phases status history report usage arise serve stop done skip reset notify config adapt draft update completion help version
+        compadd -- init doctor check phases status history report usage arise serve attach stop done skip reset notify config adapt draft update completion help version
         return
     fi
     cmd=$words[2]

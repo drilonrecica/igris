@@ -73,6 +73,7 @@ Commands:
         [--mode MODE] [--worktree]      arise's run flags, plain log lines on stdout
         [--force-unlock]
         [--only ID[,ID...] | [--from ID] [--until ID]]
+  attach                                open the run view of this project's live run
   stop                                  stop this project's live run (sessions stay open)
   done ID [--note TEXT]                 signal that a task is finished
   skip ID --reason TEXT                 signal that a task is skipped
@@ -143,6 +144,7 @@ func commands() []command {
 			return runFlags(fs)
 		}, exec: execArise},
 		{name: "serve", setup: runFlags, exec: execServe},
+		{name: "attach", setup: func(fs *flag.FlagSet) func([]string) error { return maxArgs(fs, 0) }, exec: execAttach},
 		{name: "stop", setup: func(fs *flag.FlagSet) func([]string) error { return maxArgs(fs, 0) }, exec: execStop},
 		{name: "done", setup: func(fs *flag.FlagSet) func([]string) error {
 			fs.String("note", "", "short note stored with the signal")

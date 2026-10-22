@@ -12,7 +12,7 @@ _igris() {
         esac
     done
     if [[ -z $cmd ]]; then
-        COMPREPLY=($(compgen -W "init doctor check phases status history report usage arise serve stop done skip reset notify config adapt draft update completion help version" -- "$cur"))
+        COMPREPLY=($(compgen -W "init doctor check phases status history report usage arise serve attach stop done skip reset notify config adapt draft update completion help version" -- "$cur"))
         return
     fi
     case "$cmd:$prev" in

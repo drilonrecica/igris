@@ -130,6 +130,17 @@ type model struct {
 	side     *sideUI
 	worktree bool
 
+	// lost says the connection to serve is lost until a fresh snapshot
+	// (an attached view, attached.go); servedBy names the igris serving
+	// the run when it is another version; leaveOnEnd says Stop run was
+	// picked, so the view closes once the run has stopped.
+	lost       bool
+	servedBy   string
+	leaveOnEnd bool
+	// backend is the backend serve's sessions run on, from its snapshot;
+	// "" means Options.Backend.
+	backend string
+
 	zones zones // of the last frame
 	th    *theme
 }
@@ -202,16 +213,25 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 	case batch:
-		reload := false
+		reload := msg.snap != nil
+		if msg.snap != nil {
+			m.restore(*msg.snap)
+		}
 		for _, ev := range msg.events {
 			m.event(ev)
 			reload = reload || changesPlan(ev)
+		}
+		if msg.lost {
+			m.connLost()
 		}
 		if msg.ended {
 			m.ended = true
 			if m.endText == "" {
 				m.endText = "the run ended"
 			}
+		}
+		if m.leaveOnEnd && m.ended {
+			return m, m.leave() // Stop run: it has stopped
 		}
 		if reload {
 			return m, tea.Batch(m.listen(m.ended), m.loadPlan())
@@ -263,7 +283,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *model) key(msg tea.KeyMsg) tea.Cmd {
 	k := msg.String()
 	m.notice = "" // a notice lasts until the next key
-	if k == "ctrl+c" || (k == "q" && (m.dialog == nil || !m.dialog.inField)) {
+	if k == "ctrl+c" {
+		return m.activate(actDetach) // leaves at once: an attached run goes on
+	}
+	if k == "q" && (m.dialog == nil || !m.dialog.inField) {
 		return m.activate(actQuit)
 	}
 	if m.dialog != nil {
@@ -568,14 +591,24 @@ func (m *model) taskModeTarget() *plan.Task {
 // activate runs an action, whether it came from a key, a click or a
 // dialog.
 func (m *model) activate(a action) tea.Cmd {
+	if m.lost && !whileLost(a) {
+		return nil // nothing reaches the run until the view reconnects
+	}
 	switch a {
 	case actNone, actOption:
 		return nil
 	case actQuit:
-		if m.opts.Leave != nil {
-			return m.opts.Leave
+		if m.opts.Attached && !m.ended && !m.lost {
+			m.dialog = detachDialog(m.opts.Leave != nil)
+			return nil
 		}
-		return tea.Quit
+		return m.leave()
+	case actDetach:
+		return m.leave()
+	case actStopLeave:
+		m.leaveOnEnd = true
+		m.opts.Sender.Send(engine.Command{Kind: engine.CmdStop})
+		return nil
 	case actOpen:
 		return m.focusSession()
 	case actClose:
@@ -592,7 +625,7 @@ func (m *model) activate(a action) tea.Cmd {
 		}
 		return nil
 	case actHelp:
-		m.page = helpPage(m.th)
+		m.page = helpPage(m.th, m.opts.Attached)
 		return nil
 	case actSide:
 		if m.side != nil {

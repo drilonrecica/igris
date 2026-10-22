@@ -45,6 +45,9 @@ type harness struct {
 	s     *sender
 	now   time.Time
 	focus []backend.SessionRef
+	// wire, when set, carries the events through igris serve's socket
+	// (attached_test.go).
+	wire *wire
 }
 
 func newHarness(t *testing.T, w, h int) *harness {
@@ -72,6 +75,10 @@ func (hs *harness) events(evs ...engine.Event) {
 		if evs[i].At.IsZero() {
 			evs[i].At = hs.now
 		}
+	}
+	if hs.wire != nil {
+		hs.wire.events(hs, evs)
+		return
 	}
 	hs.m.Update(batch{events: evs})
 }

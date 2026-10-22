@@ -70,6 +70,13 @@ type Options struct {
 	// program holding the view. Nil means quitting ends the program, as
 	// for a standalone run.
 	Leave func() tea.Msg
+	// Attached says the run is served by igris serve and fed through a
+	// serve.Client (SPEC §13, §14): q asks Detach · Stop run · Cancel
+	// (§15.3), and the view says when the connection is lost.
+	Attached bool
+	// Version is this igris's version, e.g. "1.4.0": an attached view
+	// names the igris serving the run when its version is another.
+	Version string
 }
 
 // Run shows the TUI until the owner quits or ctx ends. Quitting never stops

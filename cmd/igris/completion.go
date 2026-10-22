@@ -125,6 +125,7 @@ var (
 		"usage":      "token usage and the rank audit of a run or of the runs since a date",
 		"arise":      "run (or resume) with the TUI",
 		"serve":      "run (or resume) headless, hosting the run on its socket",
+		"attach":     "open the run view of the live run of this project",
 		"stop":       "stop the live run of this project",
 		"done":       "signal that a task is finished",
 		"skip":       "signal that a task is skipped",
