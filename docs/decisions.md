@@ -830,6 +830,16 @@ Decided:
 - **Frozen (§19):** `serve`, `attach`, `stop`, their flags and exit codes; socket protocol 1 (message types, the run-log envelope); the paths `.igris/igris.sock` and `.igris/igris.sock.path`. Not frozen: `serve.log`'s contents; snapshot fields beyond the documented ones.
 - **Who builds what:** V14-01 the SPEC amendments and `internal/serve`; V14-02 `serve` and `stop`; V14-03 the client and `attach`; V14-04 arise and home as serve + attach; V14-05 the docs; V14-G the gate.
 
+## V141-P1 — Open session from a client not on the run's tmux server or session
+
+**Approved by owner** (2026-10-22), all of the agent's recommendation. From docs/check-v14.md "Needs a decision": an attached view focuses through its own backend, built from its own environment, and a `SessionRef`'s `@N`/`%N` mean something only on one tmux server. So `o` from another tmux session on the same server (e.g. the owner's session next to a headless `igris-<project>`) ran `select-window` in a session the client doesn't show, and from another server, or another backend, it found an unrelated pane and reported `session is gone`. SPEC is amended by the implementation task, not here.
+
+- **The snapshot says where the session lives** (additive in protocol 1; not a frozen field): `session_host` with the run's backend and, for tmux, the server's `socket_path` and the session name. serve fills it from its `$TMUX` (the socket path is its first field, the session from `display-message -p '#{session_name}'`), or, headless, from `igris-<project>` and `display-message -p '#{socket_path}'`.
+- **Same backend and same server: switch the client.** tmux Focus becomes `switch-client -t %N`, which moves this client to the session and window (one path for the same and another session; `prefix L` goes back). If tmux 3.2 doesn't select the window that way, `switch-client -t @N` then `select-window -t @N`; checked on a private server when implemented. herdr Focus is unchanged.
+- **Otherwise no Open session, a line instead.** On another tmux server, another backend, or outside any multiplexer, `o` is not offered (§15.3's "can reach its backend" now means this backend and this server) and the card shows where the session is: `Session: tmux session igris-p3 — tmux attach -t igris-p3` (with `-S <socket>` when the server is not the default one), or the herdr tab's name for herdr. `y` on the card copies the command. This also helps `igris attach` from the phone over ssh.
+- **An older serve** (no `session_host`): the view behaves as in 1.4.0, but a pane refused because its start command doesn't match says it is not this run's session, not `session is gone`.
+- **Who builds what:** V141-01 — SPEC §11.5 (Focus row, the Headless note) and §15.3 (action bar rule, the card line), the snapshot field, tmux Focus, the card line and `y`, the refusal message, tests (fake runner, recorded tmux output) and README/site; then a short gate in nested private tmux servers: same session, another session on the same server, another server, outside tmux.
+
 ## V15-P1 — Parallel execution (v1.5)
 
 **Approved by owner** (2026-10-21), for v1.5, the second release of the 1.x train (V2C-P1). Each choice was the agent's recommendation; ROADMAP's v2-par design notes are the background. SPEC is amended when V15 starts (V15-01), after v1.4.0 ships.
