@@ -102,7 +102,7 @@ type Config struct {
 	Side  Side  `toml:"side,omitempty" json:",omitzero"`
 	Adapt Adapt `toml:"adapt"`
 	// Draft configures `igris draft` (SPEC §9.1); left out of the hash
-	// and the written file while unset (since 1.3).
+	// and the written file while unset (since 1.4).
 	Draft  Draft  `toml:"draft,omitempty" json:",omitzero"`
 	TUI    TUI    `toml:"tui"`
 	Notify Notify `toml:"notify"`

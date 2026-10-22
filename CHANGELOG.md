@@ -2,9 +2,9 @@
 
 All notable changes to igris are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and igris uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Until 1.0, minor versions may change the plan format, config or CLI; such changes are called out here.
 
-## [Unreleased]
+## [1.4.0] - Unreleased
 
-igris 1.3 adds `igris draft` and breaks nothing: Claude can write your plan from a goal, a spec file or an issue export, and add phases to the plan you have. Plans, `igris.toml` and scripts written for 1.0 to 1.2 need no changes ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). All of it is additive: a command with four subcommands, a `[draft]` config section and a directory in `.igris/`.
+igris 1.4 adds two things to 1.2 and breaks nothing: Claude can write your plan (`igris draft`), and a run survives a closed terminal and can be opened again from any terminal (`igris serve`, `attach` and `stop`). There is no 1.3 release; both ship as 1.4. Plans, `igris.toml` and scripts written for 1.0 to 1.2 need no changes ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). All of it is additive: four commands, a `[draft]` config section, a socket and two files in `.igris/`, and a directory for drafts. `state.json` stays version 3. One behavior changes by design: `q` in the run view asks Detach, Stop run or Cancel instead of leaving at once.
 
 ### Fixed
 
@@ -12,6 +12,12 @@ igris 1.3 adds `igris draft` and breaks nothing: Claude can write your plan from
 
 ### Added
 
+- **Detach and attach.** `igris arise` (and home's Arise) starts the run in a background `igris serve` and attaches to it, so closing the terminal or losing an ssh connection only detaches: the run goes on. The start-up confirmations, the skip-permissions phrase included, are asked first as before; the phrase travels in the socket handshake, never as a flag. `arise --no-tui` and `--dry-run` stay in one process with no socket.
+- **`igris serve [PHASE]`.** Runs a phase headless with `arise`'s run flags and plain log lines on stdout, hosting the run on `.igris/igris.sock`. It holds the lock, stops on SIGHUP, SIGINT and SIGTERM (sessions stay open; a second signal exits at once), and `--mode yolo` asks for the typed phrase on a terminal and refuses without one. Outside herdr and tmux its sessions open in a detached tmux session `igris-<project>`.
+- **`igris attach`.** The run view of the live run, from any terminal: another pane, or ssh from your phone. Several can be attached at once and the first answer to a question wins. `q` asks Detach (focused) · Stop run · Cancel; Ctrl-C, a closed terminal or a dropped connection detach. A lost connection shows `reconnecting…` and returns with a fresh snapshot. A serve of another igris version works, and the header says `served by igris X.Y.Z`.
+- **`igris stop`.** Stops the live run over the socket as Stop run does (sessions stay open), waits until it has, and exits 1 when no run is live. For scripts and cron.
+- **Home: Attach.** A live run on this host shows **Attach** first (`enter` or `t`); Arise from home starts a serve and attaches.
+- **The socket.** `.igris/igris.sock` (0600, in the 0700 `.igris/`; a long path falls back to a socket under `$XDG_RUNTIME_DIR` or a 0700 directory in the temp directory, named by `.igris/igris.sock.path`), speaking protocol 1: newline-delimited JSON, events with the run log's v1 envelope, commands answered `ack` or `error`. On Linux the server checks each peer's uid. Protocol 1 covers all of 1.x. `.igris/serve.log` holds serve's output, cut to 16 MiB.
 - **`igris draft goal [TEXT]`.** A session interviews you in its pane (what, who for, constraints, what done means), then writes a proposal. What it learned goes in the plan's `## Draft notes`, and `M0-01` is your task of writing the spec from that summary.
 - **`igris draft spec FILE`.** A plan from a spec or PRD: a regular, UTF-8 file of at most 1 MiB inside the project, which the session reads itself. Requirements it leaves out are listed in `## Draft notes`.
 - **`igris draft import FILE [--format github|linear|jira]`.** A plan from an issue export: the JSON `gh issue list --json number,title,body,state,labels` prints, or Linear's or Jira's CSV export (detected, or named with `--format`). igris parses it itself (at most 16 MiB and 1000 items) and the session reads the cleaned result; closed issues become `done` rows. igris never contacts GitHub, Linear or Jira.
@@ -21,6 +27,14 @@ igris 1.3 adds `igris draft` and breaks nothing: Claude can write your plan from
 - `[draft] model` (`sonnet` or `opus`, default `opus`), `--model` and `--plan` flags, and a `.igris/draft/` directory. The session runs in `manual` mode and finishes with `igris done DRAFT`.
 
 `goal`, `spec` and `import` write a plan only where none is: pass `--plan PATH` for a new file next to an existing plan, or use `extend`. A spec or an export is text igris didn't write, so the session writes only a proposal and every permission prompt goes to you; see [SPEC §9.1](SPEC.md#91-igris-draft--plans-from-a-goal-a-spec-or-an-export-since-13).
+
+### Security
+
+- A new boundary, the run's socket ([threat model B8](docs/threat-model.md#b8--igris-serve--attached-clients-since-14), [SPEC §16](SPEC.md#16-errors-and-safety)): only the owner's user reaches it; every message is bounded (1 MiB a line, 16 KiB of command text) and shape-checked before it reaches the engine; a client that stops reading is dropped, never stalls the run; `.igris/igris.sock.path` is read bounded and never through a symlink; skip-permissions mode still needs the typed phrase. Accepted: any process of your user can drive a run over the socket, as it can already edit the plan or `igris.toml`.
+
+### Documentation
+
+- A site page [Detach and attach](site/docs/detach-attach.md), the README, a 1.2 to 1.4 section in the [upgrade guide](site/docs/upgrade.md), SPEC §9.1, §13, §14, §15 and §19, the compatibility map (C4, C14) and the roadmap (1.5 parallel, 1.6 remote) updated.
 
 ### Verification
 

@@ -19,17 +19,19 @@ import (
 	"github.com/drilonrecica/igris/internal/project"
 	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/serve"
+	"github.com/drilonrecica/igris/internal/state"
 )
 
 // Seams for tests: serve's stdin, whether it is a terminal the owner can
 // type the skip-permissions phrase into, how long stop waits, the answers
 // of the igris that started this serve and how long serve waits for it.
 var (
-	serveStdin    io.Reader = os.Stdin
-	serveTerminal           = func() bool { return typable(os.Stdin) }
-	stopTimeout             = 10 * time.Minute
-	serveStarter            = starterAnswers
-	starterWait             = 30 * time.Second
+	serveStdin      io.Reader = os.Stdin
+	serveTerminal             = func() bool { return typable(os.Stdin) }
+	stopTimeout               = 10 * time.Minute
+	lockReleaseWait           = 5 * time.Second
+	serveStarter              = starterAnswers
+	starterWait               = 30 * time.Second
 )
 
 // starterAnswers reads the start-up answers of the igris (arise, home)
@@ -323,6 +325,25 @@ func execStop(_ *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	if err := serve.Stop(ctx, conn, "igris "+igrisVersion()); err != nil {
 		return fail("%v", err)
 	}
+	waitLockFree(ctx, proj.Root)
 	fmt.Fprintln(stdout, "the run stopped; its sessions stay open")
 	return exitOK
+}
+
+// waitLockFree gives the stopped serve a moment to release the run lock,
+// which it does just after the run's end reaches its clients, so that
+// `igris stop && igris arise` finds the project free.
+func waitLockFree(ctx context.Context, root string) {
+	ctx, cancel := context.WithTimeout(ctx, lockReleaseWait)
+	defer cancel()
+	for {
+		if l, err := state.PeekLock(root); err != nil || !l.Held {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
 }

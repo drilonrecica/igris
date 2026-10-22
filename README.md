@@ -69,7 +69,7 @@ igris arise M0      # runs phase M0 (inside a herdr pane or tmux)
 
 Or run bare `igris` in a terminal: the [home screen](#home-screen) walks you through the same steps, from a new project to a run.
 
-No plan yet? `igris init --example` writes an example one, and `igris init --template go-cli` (or `web-app`, `library`) a starter plan with phases, gates and suggested ranks to adapt; see [Plan templates](#plan-templates). A plan in another format? [`igris adapt`](#different-format-igris-adapt) converts it. No plan at all? [`igris draft`](https://drilonrecica.github.io/igris/docs/draft.html) (since 1.3) has Claude write one from a goal, a spec file or an issue export.
+No plan yet? `igris init --example` writes an example one, and `igris init --template go-cli` (or `web-app`, `library`) a starter plan with phases, gates and suggested ranks to adapt; see [Plan templates](#plan-templates). A plan in another format? [`igris adapt`](#different-format-igris-adapt) converts it. No plan at all? [`igris draft`](https://drilonrecica.github.io/igris/docs/draft.html) (since 1.4) has Claude write one from a goal, a spec file or an issue export.
 
 **The first time,** Claude Code asks whether you trust the project folder ("Is this a project you trust?"). igris can't answer that for you: the task waits, and after about 30 seconds igris shows **needs you: the agent is blocked**. Open the session (`o` in the TUI), answer once, and the task carries on. Later sessions in that folder don't ask again.
 
@@ -279,6 +279,16 @@ Name the tasks: `igris arise --only M1-03,M1-05` runs just those, `--from M1-03`
 - A wrong ID, a task outside the range or a `--from` after the `--until` stops `arise` before it asks or writes anything.
 - Tasks still run in plan order and dependencies still count: a task that waits on unfinished work is reported as `not run: M1-05 waits on M1-04 (ready, phase M1)`, never marked, and the run goes on (that is not a stuck phase).
 - An interrupted task from an earlier run is still picked up first, even outside the slice. A bare `igris arise` resumes the same slice, and `--dry-run` walks it.
+
+### Detach and attach
+
+Since 1.4, `igris arise` starts the run in a background `igris serve` and attaches to it (after the same start-up questions, the skip-permissions phrase included), so a closed terminal or a dropped ssh connection only detaches: the run goes on. `igris attach` (or bare `igris`, whose home shows the live run with **Attach** first) opens it again from any terminal on the machine, and several can be attached at once; the first to answer a question wins. [More on the site](https://drilonrecica.github.io/igris/docs/detach-attach.html).
+
+- **`q` in the run view** asks **Detach** (focused) · Stop run · Cancel. Ctrl-C, a closed terminal or a lost connection detach without asking. `igris stop` stops the live run from a script, as Stop run does; the sessions stay open.
+- **The socket** is `.igris/igris.sock` (0600; a long project path uses a socket under `$XDG_RUNTIME_DIR` or a 0700 directory in the temp directory, named by `.igris/igris.sock.path`), and serve's output goes to `.igris/serve.log`. Only your user can open the socket, and what a client sends is bounded and checked ([threat model](docs/threat-model.md)).
+- **`arise --no-tui` and `--dry-run`** stay in one process with no socket; scripts expect `--no-tui` to end with the run.
+- **After `igris update`** during a run, an attached view says `served by igris X.Y.Z`; the run keeps that igris until it ends.
+- **Reconnecting:** if the connection to serve drops, the header says `reconnecting…` and the view returns with a fresh snapshot.
 
 ### Done, skip and reset
 
@@ -506,7 +516,7 @@ template = "{{.At.Format \"15:04\"}} {{.TaskID}} {{.What}}"
 | `igris notify test [--event NAME]` | Sends a sample of each notification to your channels. |
 | `igris config migrate [--yes]` | Removes deprecated settings from `igris.toml`: shows the lines, asks, keeps a backup in `.igris/config/`. Run it after upgrading. |
 | `igris adapt` | Converts a plan in another format; see [`igris adapt`](#different-format-igris-adapt). |
-| `igris draft goal\|spec\|import\|extend` | Since 1.3: a session drafts a plan from a goal (it interviews you in its pane, and the plan starts with your task of writing the spec from its summary), a spec file (a Markdown or text file of at most 1 MiB inside the project, which the session reads itself; requirements it leaves out are listed in the plan's `## Draft notes`) or an issue export (`import FILE`: the JSON `gh issue list --json number,title,body,state,labels` prints, or Linear's or Jira's CSV export, detected or named with `--format`; igris parses it itself, at most 16 MiB and 1000 items, and the session reads the cleaned result; done and closed issues become `done` rows, and igris never contacts GitHub, Linear or Jira), or new phases and tasks for your plan (`extend`: the session writes only the new part, the review lists only what it adds, and Accept backs up each file it changes to `.igris/draft/` and adds the rows and phases, every other byte kept, also on a split plan), and you accept or reject it in the review, as for adapt. Goal, spec and import only write a plan where none is yet: pass `--plan PATH` for a new file next to an existing plan. The session runs in `manual` mode with `--model` or `[draft] model` (`opus` by default) and finishes with `igris done DRAFT`; its ranks are suggestions, unsure ones left at `?`. |
+| `igris draft goal\|spec\|import\|extend` | Since 1.4: a session drafts a plan from a goal (it interviews you in its pane, and the plan starts with your task of writing the spec from its summary), a spec file (a Markdown or text file of at most 1 MiB inside the project, which the session reads itself; requirements it leaves out are listed in the plan's `## Draft notes`) or an issue export (`import FILE`: the JSON `gh issue list --json number,title,body,state,labels` prints, or Linear's or Jira's CSV export, detected or named with `--format`; igris parses it itself, at most 16 MiB and 1000 items, and the session reads the cleaned result; done and closed issues become `done` rows, and igris never contacts GitHub, Linear or Jira), or new phases and tasks for your plan (`extend`: the session writes only the new part, the review lists only what it adds, and Accept backs up each file it changes to `.igris/draft/` and adds the rows and phases, every other byte kept, also on a split plan), and you accept or reject it in the review, as for adapt. Goal, spec and import only write a plan where none is yet: pass `--plan PATH` for a new file next to an existing plan. The session runs in `manual` mode with `--model` or `[draft] model` (`opus` by default) and finishes with `igris done DRAFT`; its ranks are suggestions, unsure ones left at `?`. |
 | `igris update [--check] [--yes]` | Since 1.2: checks GitHub for a newer release and, after asking, updates igris with Homebrew or `go install`; see [Updating igris](#updating-igris). |
 | `igris completion bash\|zsh\|fish` | Prints a shell completion script. |
 | `igris help [COMMAND]` | The help, or one command's (`igris COMMAND -h` is the same). |
@@ -582,7 +592,7 @@ All three are read-only: they take no lock and never create `.igris/`. A line th
 
 Bare `igris` on a terminal opens the home screen: the project at a glance. From a new project to a run:
 
-1. **No `igris.toml` yet.** The NOW card is a **GET STARTED** stepper (igris.toml, plan, check, preview, arise). `I` (**Init**) lists the files it would touch and creates only the missing ones; `E` (**Plan from template…**) writes the example plan or a template (since 1.2) when you have none. Nothing is overwritten, so a first run reaches Arise without leaving the TUI. `D` (**Draft…**, since 1.3) has Claude write the plan instead: from a goal, a spec file or an issue export.
+1. **No `igris.toml` yet.** The NOW card is a **GET STARTED** stepper (igris.toml, plan, check, preview, arise). `I` (**Init**) lists the files it would touch and creates only the missing ones; `E` (**Plan from template…**) writes the example plan or a template (since 1.2) when you have none. Nothing is overwritten, so a first run reaches Arise without leaving the TUI. `D` (**Draft…**, since 1.4) has Claude write the plan instead: from a goal, a spec file or an issue export.
 2. **Look around.** `c` checks the plan, `i` runs the doctor, `h` shows the run history, `,` shows the settings (secrets never in the clear), `e` opens the plan in `$VISUAL`/`$EDITOR`. A plan igris can't read offers `A` (**Adapt**) right there.
 3. **Preview.** `v` shows the dry run: the tasks in order with rank → model and mode, and the warnings.
 4. **Arise.** `a` opens the start-run wizard and then the run view.
@@ -608,7 +618,7 @@ What's on it:
 | `e` | Your editor | The plan (or `igris.toml` from Settings) in `$VISUAL`, else `$EDITOR`. |
 | `A` | Adapt | Runs `igris adapt` in the app (shown when the plan is invalid and the backend is reachable). |
 | `n` | Notify test | Sends a sample of each event to each channel and fills in `✓ ok` or `⨯ FAILED: reason` per row (shown when a channel is set up). |
-| `D` | Draft… | Since 1.3: a picker of **From a goal**, **From a spec file…**, **Import an export…** and **Extend the plan…** (the last three ask for the path or the request; the model as for Adapt), the draft's progress with Open session and Cancel, then the same review as `igris draft`. Shown when the backend is reachable and no run holds the project: the first three where the plan file is missing, Extend where the plan is valid. |
+| `D` | Draft… | Since 1.4: a picker of **From a goal**, **From a spec file…**, **Import an export…** and **Extend the plan…** (the last three ask for the path or the request; the model as for Adapt), the draft's progress with Open session and Cancel, then the same review as `igris draft`. Shown when the backend is reachable and no run holds the project: the first three where the plan file is missing, Extend where the plan is valid. |
 | `I` / `E` | Init / Plan from template… | As in step 1. |
 | `o` | Open session | Jumps to a running session. |
 | `S` | Side sessions | Since 1.2, a [side session](#side-sessions) of your own; HEALTH shows `SIDE N open` while any are. |
@@ -651,7 +661,7 @@ Every action is a button you can click or tap, reach with `tab` and the arrow ke
 | `x` | Stop igris after confirming; the session stays open |
 | `S` | Side sessions: open one of your own, or focus and close the open ones ([below](#side-sessions)) |
 | `y` | Copy `claude --resume <session id>`, or the log line at the bottom when the log has the focus |
-| `q` | Quit the TUI; sessions keep running and `igris arise` resumes |
+| `q` | Since 1.4 asks **Detach** (the run goes on in `igris serve`; `igris attach` shows it again) · Stop run · Cancel. Before 1.4, quit the TUI; sessions keep running and `igris arise` resumes |
 | `?` | Help |
 
 `tab` moves between the task list, the action bar and the log; the arrow keys (or `j`/`k`) move within them; `enter` or `space` activates; `1`…`9` pick a dialog option; `esc` closes a dialog or page with its safe choice. Dialogs open on the safe choice. Click a task, the card's title or **[t] Details** to see a task in full; `enter` on the log opens the whole log, scrollable with the wheel or the keys.
@@ -682,6 +692,7 @@ From 1.0, igris keeps the plan format, `igris.toml`, the CLI and its exit codes,
 
 - **igris treats every session as untrusted.** It snapshots `igris.toml` per run and asks you before a later run uses a file that changed during one, pauses when the plan changes in a way it didn't write, checks what it reads back from `.igris/` (and reattaches only to the pane it started for the task, so a rewritten `state.json` can't point it at your shell), asks you before applying a session's skip or reset, reads every file a session can replace as a bounded regular file, and cleans everything a session wrote (notes, verify output, plan text) of escape sequences and invisible characters before it reaches your terminal, a notification or a session's pane.
 - **Your secrets stay out of the project's commands:** verify, task hooks and git never get the variables your notification tokens come from ([details](#what-verify-and-hooks-see)), nor does `igris update`'s command.
+- **The run's socket is yours alone** (since 1.4): `.igris/igris.sock` is 0600 in the 0700 `.igris/`, on Linux the peer's uid is checked, every message is bounded and shape-checked, and a client can't reach skip-permissions mode without the typed phrase.
 - **No network calls but the ones you set up or ask for:** your notification channels, and GitHub's releases API when you run `igris update` or press `u` on home. Only the release's tag is read from GitHub's answer.
 - **What igris can't prevent:** a session edits files, and verify and git hooks run your project's code as you. The permission mode is the real boundary; [worktree mode](#worktree-mode) keeps a run's changes on a branch of its own.
 - **Releases are signed** from 0.6.0 ([Verifying a download](#verifying-a-download)).
@@ -718,8 +729,9 @@ Through WSL2, with herdr or tmux and Claude Code installed inside WSL too; see [
 
 Plans, not promises:
 
-- **1.x, additive:** more ways to start and grow a plan (1.2 added side sessions, plan includes and templates; 1.3 added `igris draft`).
-- **2.0:** running independent tasks in parallel, each in its own worktree and merged back in plan order; remote control from a browser or a notification; usage limits and budgets.
+- **1.x, additive:** more ways to start and grow a plan (1.2 added side sessions, plan includes and templates; 1.4 added `igris draft` and `igris serve`/`attach`).
+- **1.5:** running independent tasks in parallel, each in its own worktree and merged back in plan order.
+- **1.6:** remote control from a browser or a notification, off by default, never in skip-permissions mode.
 - **Later:** other agents next to Claude Code (Codex CLI, Kiro CLI, Gemini CLI, …).
 
 ## Development

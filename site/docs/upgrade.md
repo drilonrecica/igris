@@ -61,12 +61,16 @@ What is new, all additive:
 
 **One thing to plan for:** a split plan needs igris 1.2 on every machine that runs it. igris 1.0 and 1.1 refuse a format-2 plan with `plan format 2 needs a newer igris` rather than run only the main file's phases. Going back to 1.1 is fine as long as no plan declares format 2.
 
-## From 1.2 to 1.3
+## From 1.2 to 1.4
 
-Install the new igris (or run `igris update`) and you are done: 1.3 only adds to 1.2, and nothing in your plan, `igris.toml`, scripts or `.igris/` needs to change. A run interrupted under 1.2 resumes. `state.json` stays version 3.
+There is no 1.3 release: `igris draft` and serve/attach ship together as 1.4. Install the new igris (or run `igris update`) and you are done: 1.4 only adds to 1.2, and nothing in your plan, `igris.toml`, scripts or `.igris/` needs to change. A run interrupted under 1.2 resumes. `state.json` stays version 3.
 
 What is new, all additive:
 
 - **[Draft a plan](draft.md).** `igris draft goal|spec|import|extend`, and **Draft…** (`D`) on home: a session writes a proposal, you review it as for `adapt`, and only Accept writes your plan. New `[draft]` setting (`model`, default `opus`) and a `.igris/draft/` directory.
 
-Going back to 1.2 is fine: the plans a draft wrote are ordinary plans.
+- **[Detach and attach](detach-attach.md).** `igris arise` now starts the run in a background `igris serve` and attaches to it, so closing the terminal only detaches. New commands `igris serve`, `igris attach` and `igris stop`, a socket `.igris/igris.sock` and a log `.igris/serve.log`. `arise --no-tui` and `--dry-run` work as before, in one process.
+
+**Two things to know:** `q` in the run view now asks **Detach** · Stop run · Cancel (Detach is focused) instead of leaving at once, and a run started by `arise` has a `serve` process that outlives your terminal: `igris stop` ends it. After `igris update` during a run, an attached view says `served by igris X.Y.Z` and the run keeps that igris until it ends.
+
+Going back to 1.2 is fine: the plans a draft wrote are ordinary plans, and 1.4 changes no file format, so 1.2 can resume a run 1.4 left (stop it first with `igris stop`).

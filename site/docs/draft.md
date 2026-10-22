@@ -1,6 +1,6 @@
 # Draft a plan
 
-Since 1.3 `igris draft` has Claude write the plan for you: from a goal, from a spec file, from an issue export, or as new phases for the plan you already have. Nothing is written until you have read the result and accepted it.
+Since 1.4 `igris draft` has Claude write the plan for you: from a goal, from a spec file, from an issue export, or as new phases for the plan you already have. Nothing is written until you have read the result and accepted it.
 
 ```sh
 igris draft goal "a CLI that syncs bookmarks between browsers"
