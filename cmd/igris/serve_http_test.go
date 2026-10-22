@@ -170,6 +170,9 @@ func TestServeToken(t *testing.T) {
 	if !strings.Contains(out, "  http://100.101.102.103:7777/pair?token="+tok+"\n") {
 		t.Errorf("output lacks the pairing URL:\n%s", out)
 	}
+	if !strings.Contains(out, "or scan it:\n\x1b[30;107m") || !strings.Contains(out, "█") {
+		t.Errorf("output lacks the QR code, black on white:\n%s", out)
+	}
 	again, tok2 := token()
 	if tok2 != tok || again != out {
 		t.Errorf("a second serve token changed the token or the URL:\n%s", again)
@@ -177,6 +180,18 @@ func TestServeToken(t *testing.T) {
 	rotated, tok3 := token("--rotate")
 	if tok3 == tok || !strings.Contains(rotated, "every paired device must pair again") || !strings.Contains(rotated, "token="+tok3) {
 		t.Errorf("--rotate kept the token or didn't say so:\n%s", rotated)
+	}
+}
+
+// With no address set the URL needs editing, so no QR code of it is drawn.
+func TestServeTokenNoAddress(t *testing.T) {
+	writeProject(t, map[string]string{"tasks.md": servePlan})
+	var out, errb bytes.Buffer
+	if code := run([]string{"serve", "token"}, &out, &errb); code != exitOK {
+		t.Fatalf("serve token: exit %d: %s", code, errb.String())
+	}
+	if !strings.Contains(out.String(), "ADDR:PORT") || strings.Contains(out.String(), "scan") {
+		t.Errorf("want the placeholder URL and no QR code:\n%s", out.String())
 	}
 }
 

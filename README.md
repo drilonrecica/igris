@@ -299,7 +299,7 @@ Since 1.6, `igris serve` can also listen on HTTP, for a web UI on your phone and
 http = "100.101.102.103:7777"   # this machine's Tailscale address, or "127.0.0.1:7777" for ssh -L
 ```
 
-(or `igris serve --http ADDR:PORT` for one run). Loopback and Tailscale addresses bind as they are; any other needs `igris serve --listen-public` plus `tls_cert` and `tls_key` under `[serve]`, and serve warns. Run `igris serve token` and open the URL it prints on the device to pair it: the token becomes an `HttpOnly` cookie and the URL loses it. `igris serve token --rotate` unpairs every device. Over HTTP you can do what an attached run view does, except skip-permissions mode, which is never set remotely. The API (`/api/v1/events` as server-sent events, `/api/v1/command` for protocol-1 commands) also takes `Authorization: Bearer <token>` for scripts.
+(or `igris serve --http ADDR:PORT` for one run). Loopback and Tailscale addresses bind as they are; any other needs `igris serve --listen-public` plus `tls_cert` and `tls_key` under `[serve]`, and serve warns. Run `igris serve token` and open the URL it prints on the device to pair it, or scan the QR code it draws under it: the token becomes an `HttpOnly` cookie and the URL loses it. `igris serve token --rotate` unpairs every device. Over HTTP you can do what an attached run view does, except skip-permissions mode, which is never set remotely. The API (`/api/v1/events` as server-sent events, `/api/v1/command` for protocol-1 commands) also takes `Authorization: Bearer <token>` for scripts.
 
 ### Done, skip and reset
 

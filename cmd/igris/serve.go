@@ -18,6 +18,7 @@ import (
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/project"
+	"github.com/drilonrecica/igris/internal/qr"
 	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/serve"
 	"github.com/drilonrecica/igris/internal/state"
@@ -503,11 +504,28 @@ func execServeToken(rotate bool, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stdout, "the token was replaced: every paired device must pair again")
 	}
 	fmt.Fprintln(stdout, "Open this URL on the device to pair it; anyone with it controls the run (short of skip-permissions mode):")
-	fmt.Fprintf(stdout, "  %s%s?token=%s\n", base, serve.PathPair, tok)
+	url := fmt.Sprintf("%s%s?token=%s", base, serve.PathPair, tok)
+	fmt.Fprintf(stdout, "  %s\n", url)
 	if note != "" {
 		fmt.Fprintln(stdout, note)
+		return exitOK // the URL needs editing first: a code of it would pair nothing
 	}
+	printQR(stdout, url)
 	return exitOK
+}
+
+// printQR draws url as a QR code in half blocks, black on white whatever
+// the terminal's colours, so a phone camera reads it. A URL too long for
+// version 10 is left as text.
+func printQR(w io.Writer, url string) {
+	c, err := qr.Encode([]byte(url))
+	if err != nil {
+		return
+	}
+	fmt.Fprintln(w, "or scan it:")
+	for _, l := range c.HalfBlocks() {
+		fmt.Fprintf(w, "\x1b[30;107m%s\x1b[0m\n", l)
+	}
 }
 
 // pairingBase is the listener's base URL as [serve] says it, and a note
