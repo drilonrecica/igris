@@ -33,6 +33,35 @@
 </form>
 </div>
 </header>
+<section class="question" aria-label="Question">
+<h2>Your turn: P1-05 · Owner check</h2>
+<p>check it by hand. This task is yours. Do it in the terminal and run `igris done` there, or mark it done here.</p>
+<div class="actions">
+<form method="post" action="/act" class="cmd" data-confirm="1">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="done">
+<input type="hidden" name="task" value="P1-05">
+<label>Note (optional) <input type="text" name="text" maxlength="16384"></label>
+<button type="submit" class="go">Mark done</button>
+<div class="confirm" hidden>
+<p><strong>Mark P1-05 done?</strong> It&#39;s your decision, so igris doesn&#39;t verify it.</p>
+<button type="submit" name="confirmed" value="1">Mark P1-05 done</button>
+<button type="button" class="cancel">Cancel</button>
+</div>
+</form><form method="post" action="/act" class="cmd danger" data-confirm="1">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="skip">
+<input type="hidden" name="task" value="P1-05">
+<label>Reason <input type="text" name="text" maxlength="16384" required></label>
+<button type="submit" class="go">Skip</button>
+<div class="confirm" hidden>
+<p><strong>Skip P1-05?</strong> The reason is recorded with the skip; an open session is closed.</p>
+<button type="submit" name="confirmed" value="1">Skip P1-05</button>
+<button type="button" class="cancel">Cancel</button>
+</div>
+</form>
+</div>
+</section>
 <section aria-label="Active tasks">
 <article class="card" id="card-P1-05">
 <h2>P1-05 · Owner check</h2>

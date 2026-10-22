@@ -34,6 +34,47 @@
 </div>
 </header>
 <section class="question" aria-label="Question">
+<h2>P1-02 presents a plan</h2>
+<pre class="plan"># Plan
+
+1. parse &lt;script&gt;alert(1)&lt;/script&gt;
+2. test it</pre>
+<div class="actions">
+<form method="post" action="/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="plan">
+<input type="hidden" name="task" value="P1-02">
+<input type="hidden" name="plan" value="allow">
+<button type="submit" class="go">Approve: the session switches to accept</button>
+</form><form method="post" action="/act" class="cmd danger">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="plan">
+<input type="hidden" name="task" value="P1-02">
+<input type="hidden" name="plan" value="deny">
+<label>Feedback for the session <textarea name="text" rows="3" maxlength="16384" required></textarea></label>
+<button type="submit" class="go">Reject with feedback</button>
+</form>
+</div>
+</section>
+<section class="question" aria-label="Question">
+<h2>Commit P1-03?</h2>
+<p>commit the changes of P1-03 as &#34;P1-03: Writer&#34;?</p>
+<div class="actions">
+<form method="post" action="/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="answer">
+<input type="hidden" name="task" value="P1-03">
+<input type="hidden" name="yes" value="1">
+<button type="submit" class="go">Commit</button>
+</form><form method="post" action="/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="answer">
+<input type="hidden" name="task" value="P1-03">
+<button type="submit" class="go">Leave uncommitted</button>
+</form>
+</div>
+</section>
+<section class="question" aria-label="Question">
 <h2>Reset P1-04?</h2>
 <p>reset P1-04 to blocked? the session&#39;s reason: wrong deps</p>
 <div class="actions">
@@ -58,29 +99,6 @@
 <h2>P1-02 · &lt;b&gt;Parser&lt;/b&gt;</h2>
 <p class="meta">asks you</p>
 <p class="meta">rank opus → claude-opus-5-5 · mode plan · <span class="ran" data-started="2026-10-22T09:00:01Z">4m11s</span></p>
-<section class="question" aria-label="Question">
-<h2>P1-02 presents a plan</h2>
-<pre class="plan"># Plan
-
-1. parse &lt;script&gt;alert(1)&lt;/script&gt;
-2. test it</pre>
-<div class="actions">
-<form method="post" action="/act" class="cmd">
-<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
-<input type="hidden" name="type" value="plan">
-<input type="hidden" name="task" value="P1-02">
-<input type="hidden" name="plan" value="allow">
-<button type="submit" class="go">Approve: the session switches to accept</button>
-</form><form method="post" action="/act" class="cmd danger">
-<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
-<input type="hidden" name="type" value="plan">
-<input type="hidden" name="task" value="P1-02">
-<input type="hidden" name="plan" value="deny">
-<label>Feedback for the session <textarea name="text" rows="3" maxlength="16384" required></textarea></label>
-<button type="submit" class="go">Reject with feedback</button>
-</form>
-</div>
-</section>
 <pre class="tail" data-task="P1-02" aria-label="The session's last lines"></pre>
 <div class="actions">
 <form method="post" action="/act" class="cmd" data-confirm="1">
@@ -123,24 +141,6 @@
 <h2>P1-03 · Writer</h2>
 <p class="meta">asks you</p>
 <p class="meta">rank sonnet → claude-sonnet-5-5 · mode accept · <span class="ran" data-started="2026-10-22T09:00:02Z">4m10s</span></p>
-<section class="question" aria-label="Question">
-<h2>Commit P1-03?</h2>
-<p>commit the changes of P1-03 as &#34;P1-03: Writer&#34;?</p>
-<div class="actions">
-<form method="post" action="/act" class="cmd">
-<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
-<input type="hidden" name="type" value="answer">
-<input type="hidden" name="task" value="P1-03">
-<input type="hidden" name="yes" value="1">
-<button type="submit" class="go">Commit</button>
-</form><form method="post" action="/act" class="cmd">
-<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
-<input type="hidden" name="type" value="answer">
-<input type="hidden" name="task" value="P1-03">
-<button type="submit" class="go">Leave uncommitted</button>
-</form>
-</div>
-</section>
 <pre class="tail" data-task="P1-03" aria-label="The session's last lines"></pre>
 <div class="actions">
 <form method="post" action="/act" class="cmd" data-confirm="1">
@@ -269,9 +269,6 @@
 <li><time datetime="2026-10-22T09:03:00Z">09:03:00</time> task_mode_changed P1-04: auto</li>
 <li><time datetime="2026-10-22T09:02:00Z">09:02:00</time> asked P1-03: commit the changes of P1-03 as &#34;P1-03: Writer&#34;?</li>
 <li><time datetime="2026-10-22T09:01:00Z">09:01:00</time> asked P1-02</li>
-<li><time datetime="2026-10-22T09:00:02Z">09:00:02</time> task_started P1-03</li>
-<li><time datetime="2026-10-22T09:00:01Z">09:00:01</time> task_started P1-02</li>
-<li><time datetime="2026-10-22T09:00:00Z">09:00:00</time> run_started: phase P1</li>
 </ul>
 </section>
 

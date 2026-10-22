@@ -44,7 +44,7 @@ var staticFiles = []string{"app.js", "app.css", "icon.svg",
 const confirmedField = "confirmed"
 
 // recentLen is how many of the feed's last events the page lists.
-const recentLen = 8
+const recentLen = 5
 
 //go:embed ui/page.html ui/app.js ui/app.css ui/icon.svg ui/fonts/*.woff2
 var uiFiles embed.FS
@@ -233,11 +233,25 @@ type pageView struct {
 	Phase       *Phase
 	Done, Total int
 	Cards       []cardView
-	// Questions are the pending questions of tasks without a card, and
-	// the reset request.
-	Questions []questionView
-	Header    []form // pause or resume, stop
-	Mode      *form  // the mode for the next sessions
+	// Word is the status word the page leads with (Working, Needs you,
+	// Paused, Waiting, or the outcome once ended); Needs says it is Needs
+	// you; Line is the short line beside it; Elapsed how long the run has
+	// run.
+	Word    string
+	Needs   bool
+	Line    string
+	Elapsed string
+	// Segments is the phase bar: one per task of the run's phase.
+	Segments []segment
+	// Sheet is everything that waits on the owner, in plan order: the
+	// pending questions (with or without a card), a user task's turn, a
+	// blocked or lost session, the reset request. The first is drawn as
+	// the sheet; the rest follow it.
+	Sheet []questionView
+	// Next are the next tasks of the run's phase still to do (at most two).
+	Next   []Task
+	Header []form // pause or resume, stop
+	Mode   *form  // the mode for the next sessions
 	// ModeNote says the run's mode can't be chosen here.
 	ModeNote string
 	Recent   []Event
@@ -263,17 +277,31 @@ type cardView struct {
 	Current
 	Ran      string // how long it has run
 	Override string // the owner's mode for its next session
+	// Question is the card's entry of the sheet, for its kind label.
 	Question *questionView
 	Actions  []form
 }
 
-// questionView is a pending question and its answers.
+// questionView is one thing that waits on the owner, with its answers: a
+// pending question (Q), or a card's state with no question event (Q zero,
+// Text says it).
 type questionView struct {
-	Q       Event
+	Q Event
+	// Sheet marks the first entry, drawn as the sheet.
+	Sheet bool
+	// Kind is the small label: commit?, plan, session lost, your turn…
+	Kind    string
 	Title   string
+	Text    string
 	Answers []form
 	// NoPlan says the plan was too long for the snapshot.
 	NoPlan bool
+}
+
+// segment is one task of the phase bar: done, active, needs, todo or
+// skipped.
+type segment struct {
+	ID, State string
 }
 
 // form is one command's form: hidden fields, at most one text or select
@@ -288,6 +316,8 @@ type form struct {
 	Yes      bool
 	Label    string
 	Danger   bool
+	// Primary is a question's first answer, the full-width button.
+	Primary bool
 	// Input is the text field's label; Required makes it so, Multi a text
 	// area.
 	Input    string
@@ -344,17 +374,36 @@ func (u *ui) view(r *http.Request) pageView {
 		}
 	}
 	asks := map[string]Event{}
+	asked := map[string]bool{}
 	for _, q := range snap.Questions {
 		asks[q.Task] = q
+		asked[q.Task] = true
+	}
+	v.Word, v.Line = statusOf(snap, now)
+	v.Needs = v.Word == "Needs you"
+	if !snap.Started.IsZero() {
+		v.Elapsed = ran(now.Sub(snap.Started))
+	}
+	v.Segments = segmentsOf(v.Phase, snap.Active, asked)
+	if v.Phase != nil {
+		for _, t := range v.Phase.Tasks {
+			if st := strings.ToLower(t.Status); (st == "ready" || st == "blocked") && len(v.Next) < 2 {
+				v.Next = append(v.Next, t)
+			}
+		}
 	}
 	for _, c := range snap.Active {
 		cv := cardView{Current: c, Ran: ran(now.Sub(c.Started)), Override: snap.Overrides[c.Task]}
-		if q, ok := asks[c.Task]; ok && live {
-			qv := questionOf(q, csrf)
-			cv.Question = &qv
-			delete(asks, c.Task)
-		}
 		if live {
+			if q, ok := asks[c.Task]; ok {
+				qv := questionOf(q, csrf)
+				cv.Question = &qv
+				v.Sheet = append(v.Sheet, qv)
+				delete(asks, c.Task)
+			} else if qv, ok := sheetOf(c, csrf); ok {
+				cv.Question = &qv
+				v.Sheet = append(v.Sheet, qv)
+			}
 			cv.Actions = cardActions(c, csrf)
 		}
 		v.Cards = append(v.Cards, cv)
@@ -362,11 +411,14 @@ func (u *ui) view(r *http.Request) pageView {
 	if live {
 		for _, q := range snap.Questions {
 			if _, left := asks[q.Task]; left {
-				v.Questions = append(v.Questions, questionOf(q, csrf))
+				v.Sheet = append(v.Sheet, questionOf(q, csrf))
 			}
 		}
 		if snap.Reset != nil {
-			v.Questions = append(v.Questions, questionOf(*snap.Reset, csrf))
+			v.Sheet = append(v.Sheet, questionOf(*snap.Reset, csrf))
+		}
+		if len(v.Sheet) > 0 {
+			v.Sheet[0].Sheet = true
 		}
 		pause := form{CSRF: csrf, Type: CmdPause, Label: "Pause after this task"}
 		if snap.Paused {
@@ -410,46 +462,39 @@ func cardActions(c Current, csrf string) []form {
 // offers (internal/tui), less the pane: opening one stays in the terminal.
 func questionOf(q Event, csrf string) questionView {
 	t := q.Task
-	v := questionView{Q: q, Title: "Question"}
+	v := questionView{Q: q, Kind: "question", Title: "Question"}
 	answer := func(label string, yes bool) form {
 		return form{CSRF: csrf, Type: CmdAnswer, Task: t, Yes: yes, Label: label}
 	}
-	done, _ := confirmOf(CmdDone, t)
-	skip, _ := confirmOf(CmdSkip, t)
-	stop, _ := confirmOf(CmdStop, "")
-	doneF := form{CSRF: csrf, Type: CmdDone, Task: t, Label: "Mark done", Input: "Note (optional)", Confirm: &done}
-	skipF := form{CSRF: csrf, Type: CmdSkip, Task: t, Label: "Skip", Input: "Reason", Required: true, Danger: true, Confirm: &skip}
-	stopF := form{CSRF: csrf, Type: CmdStop, Label: "Stop igris", Danger: true, Confirm: &stop}
-	fresh := form{CSRF: csrf, Type: CmdRetry, Task: t, Label: "Start fresh"}
+	a := answersFor(t, csrf)
 	switch engine.Question(q.Question) {
 	case engine.QuestionCommit:
-		v.Title = "Commit " + t + "?"
+		v.Kind, v.Title = "commit?", "Commit "+t+"?"
 		v.Answers = []form{answer("Commit", true), answer("Leave uncommitted", false)}
 	case engine.QuestionConfirmSkip:
-		v.Title = t + " asks to skip"
+		v.Kind, v.Title = "skip?", t+" asks to skip"
 		v.Answers = []form{answer("Keep working", false), answer("Skip the task", true)}
 		v.Answers[1].Danger = true
 	case engine.QuestionSessionLost:
-		v.Title = t + ": session lost"
-		cont := form{CSRF: csrf, Type: CmdRetry, Task: t, Continue: true, Label: "Continue conversation"}
-		v.Answers = []form{fresh, cont, doneF, skipF, stopF}
+		v.Kind, v.Title = "session lost", t+": session lost"
+		v.Answers = []form{a.fresh, a.cont, a.done, a.skip, a.stop}
 	case engine.QuestionHookFailed:
-		v.Title = t + ": before_task hook failed"
-		fresh.Label = "Retry"
-		v.Answers = []form{fresh, doneF, skipF, stopF}
+		v.Kind, v.Title = "hook failed", t+": before_task hook failed"
+		a.fresh.Label = "Retry"
+		v.Answers = []form{a.fresh, a.done, a.skip, a.stop}
 	case engine.QuestionIntegration:
-		v.Title = t + " didn't integrate"
-		fresh.Label = "Rerun fresh"
-		doneF.Label = "Mark done (integrated by hand)"
-		v.Answers = []form{fresh, doneF, skipF, stopF}
+		v.Kind, v.Title = "didn't integrate", t+" didn't integrate"
+		a.fresh.Label = "Rerun fresh"
+		a.done.Label = "Mark done (integrated by hand)"
+		v.Answers = []form{a.fresh, a.done, a.skip, a.stop}
 	case engine.QuestionConfirmReset:
-		v.Title = "Reset " + t + "?"
+		v.Kind, v.Title = "reset?", "Reset "+t+"?"
 		keep, reset := answer("Keep it as it is", false), answer("Reset "+t, true)
 		keep.Question, reset.Question = string(engine.QuestionConfirmReset), string(engine.QuestionConfirmReset)
 		reset.Danger = true
 		v.Answers = []form{keep, reset}
 	case engine.QuestionPlanApproval:
-		v.Title = t + " presents a plan"
+		v.Kind, v.Title = "plan", t+" presents a plan"
 		v.NoPlan = q.Plan == ""
 		then := q.Then
 		if then == "" {
@@ -462,7 +507,171 @@ func questionOf(q Event, csrf string) questionView {
 	default:
 		v.Answers = []form{answer("Yes", true), answer("No", false)}
 	}
+	v.Answers[0].Primary = true
 	return v
+}
+
+// answers are the forms every sheet may offer for a task.
+type answers struct {
+	done, skip, stop, fresh, cont form
+}
+
+// answersFor builds them for task t.
+func answersFor(t, csrf string) answers {
+	done, _ := confirmOf(CmdDone, t)
+	skip, _ := confirmOf(CmdSkip, t)
+	stop, _ := confirmOf(CmdStop, "")
+	return answers{
+		done:  form{CSRF: csrf, Type: CmdDone, Task: t, Label: "Mark done", Input: "Note (optional)", Confirm: &done},
+		skip:  form{CSRF: csrf, Type: CmdSkip, Task: t, Label: "Skip", Input: "Reason", Required: true, Danger: true, Confirm: &skip},
+		stop:  form{CSRF: csrf, Type: CmdStop, Label: "Stop igris", Danger: true, Confirm: &stop},
+		fresh: form{CSRF: csrf, Type: CmdRetry, Task: t, Label: "Start fresh"},
+		cont:  form{CSRF: csrf, Type: CmdRetry, Task: t, Continue: true, Label: "Continue conversation"},
+	}
+}
+
+// sheetOf is the sheet of a card that waits on the owner without a
+// question event: a user task at its turn, a session blocked at a prompt
+// in its pane, a lost session. So Needs you never shows with nothing to
+// tap (the design, 2026-10-22).
+func sheetOf(c Current, csrf string) (questionView, bool) {
+	a := answersFor(c.Task, csrf)
+	v := questionView{}
+	switch c.State {
+	case StateYourTurn:
+		v.Kind, v.Title = "your turn", "Your turn: "+c.Task
+		if c.Title != "" {
+			v.Title += " · " + c.Title
+		}
+		v.Text = "This task is yours. Do it in the terminal and run `igris done` there, or mark it done here."
+		if c.Detail != "" {
+			v.Text = c.Detail + ". " + v.Text
+		}
+		v.Answers = []form{a.done, a.skip}
+	case StateNeedsYou:
+		v.Kind, v.Title = "blocked", c.Task+" waits for you in its pane"
+		v.Text = c.Detail
+		if v.Text == "" {
+			v.Text = "The session waits for a permission or an answer; open its pane in the terminal."
+		}
+		v.Answers = []form{a.done, a.skip, a.stop}
+	case StateLost:
+		v.Kind, v.Title = "session lost", c.Task+": session lost"
+		v.Text = c.Detail
+		v.Answers = []form{a.fresh, a.cont, a.done, a.skip, a.stop}
+	default:
+		return questionView{}, false
+	}
+	v.Answers[0].Primary = true
+	return v, true
+}
+
+// statusOf is the page's status word and the line beside it: Needs you
+// (a question, a user task's turn, a blocked or lost session) outranks
+// Paused, which outranks Working; Waiting before any task; the outcome
+// word once ended.
+func statusOf(s Snapshot, now time.Time) (word, line string) {
+	if s.Ended {
+		end := s.End
+		if end == "" {
+			end = "unknown"
+		}
+		return endWord(s.End), "ended: " + end
+	}
+	elapsed := ""
+	if !s.Started.IsZero() {
+		elapsed = " · " + ran(now.Sub(s.Started))
+	}
+	asked := map[string]bool{}
+	var oldest time.Time
+	questions := 0
+	note := func(q Event) {
+		questions++
+		if oldest.IsZero() || q.At.Before(oldest) {
+			oldest = q.At
+		}
+	}
+	for _, q := range s.Questions {
+		asked[q.Task] = true
+		note(q)
+	}
+	if s.Reset != nil {
+		note(*s.Reset)
+	}
+	needs := 0 // tasks that need the owner without a question
+	for _, c := range s.Active {
+		switch c.State {
+		case StateYourTurn, StateNeedsYou, StateLost:
+			needs++
+		case StateQuestion:
+			if !asked[c.Task] {
+				needs++
+			}
+		}
+	}
+	switch {
+	case needs > 0:
+		n := needs + questions
+		if n == 1 {
+			return "Needs you", "1 task needs you"
+		}
+		return "Needs you", fmt.Sprintf("%d tasks need you", n)
+	case questions == 1:
+		return "Needs you", "1 question · " + ran(now.Sub(oldest))
+	case questions > 1:
+		return "Needs you", fmt.Sprintf("%d questions · %s", questions, ran(now.Sub(oldest)))
+	case s.Paused && s.Holding:
+		return "Paused", "holding" + elapsed
+	case s.Paused:
+		return "Paused", "after this task" + elapsed
+	case len(s.Active) > 0:
+		return "Working", "nothing needs you" + elapsed
+	case s.Run != "":
+		return "Waiting", "nothing running yet" + elapsed
+	}
+	return "Waiting", "no run yet"
+}
+
+// endWord is the status word for a run's outcome.
+func endWord(end string) string {
+	switch end {
+	case "completed":
+		return "Done"
+	case "failed":
+		return "Failed"
+	case "stuck":
+		return "Stuck"
+	}
+	return "Stopped"
+}
+
+// segmentsOf is the phase bar: one segment per task of ph in plan order,
+// from its status and, for an active task, whether it needs the owner.
+func segmentsOf(ph *Phase, active []Current, asked map[string]bool) []segment {
+	if ph == nil {
+		return nil
+	}
+	states := map[string]string{}
+	for _, c := range active {
+		states[c.Task] = c.State
+	}
+	out := make([]segment, 0, len(ph.Tasks))
+	for _, t := range ph.Tasks {
+		seg := segment{ID: t.ID, State: "todo"}
+		st, isActive := states[t.ID]
+		switch {
+		case strings.EqualFold(t.Status, "done"):
+			seg.State = "done"
+		case strings.EqualFold(t.Status, "skipped"):
+			seg.State = "skipped"
+		case isActive && (asked[t.ID] || st == StateYourTurn || st == StateNeedsYou || st == StateLost || st == StateQuestion):
+			seg.State = "needs"
+		case isActive:
+			seg.State = "active"
+		}
+		out = append(out, seg)
+	}
+	return out
 }
 
 // ran says how long a task has run: 4m12s, 1h05m.

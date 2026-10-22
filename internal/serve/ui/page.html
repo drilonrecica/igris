@@ -38,7 +38,7 @@
 </div>
 {{- end}}
 </header>
-{{- range .Questions}}
+{{- range .Sheet}}
 {{template "question" .}}
 {{- end}}
 {{- if .Cards}}
@@ -53,9 +53,6 @@
 {{- end}}
 {{- with .RankMismatch}}
 <p class="warn">{{.}}</p>
-{{- end}}
-{{- with .Question}}
-{{template "question" .}}
 {{- end}}
 {{- if not .User}}
 <pre class="tail" data-task="{{.Task}}" aria-label="The session's last lines"></pre>
@@ -109,6 +106,9 @@
 <section class="question" aria-label="Question">
 <h2>{{.Title}}</h2>
 {{- with .Q.Detail}}
+<p>{{.}}</p>
+{{- end}}
+{{- with .Text}}
 <p>{{.}}</p>
 {{- end}}
 {{- with .Q.Plan}}
