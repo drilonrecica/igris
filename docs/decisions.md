@@ -855,6 +855,10 @@ Decided:
 - **Unchanged:** a session never sees another task; skip-permissions is still the per-run typed phrase; igris never picks a model; `--no-tui` runs parallel phases too.
 - **Frozen (§19):** plan format 3 (the marker, `Group`), `[parallel]` and `[parallel.ranks]`, `--parallel`, `IGRIS_SLOT`, state v4, the new run-log events (`integrated`, `integration_failed`, `overlap`). Not frozen: the worktree paths' contents, the card layout.
 
+## V15-01 — Parallel execution: decided while implementing
+
+**Owner's delegation** (2026-10-22: "you decide what makes most sense"). V15-P1 named a task's worktree `.igris/worktrees/<run>/<task>` on branch `igris/<run>/<task>`. In worktree mode (§6.8) the run already has `.igris/worktrees/<run-id>` on `igris/<run-id>`: git refuses a branch under an existing branch name (a ref can't be both a branch and a directory of branches), and a task worktree inside the run's worktree shows there as untracked, so the run's clean check at its end never passes. Decided: one naming in every run, `.igris/worktrees/<run-id>-<ID>` on `igris/<run-id>-<ID>`, which clashes with neither. V15-P1 didn't freeze the worktree paths; SPEC §6.2, §6.11 and §13 say this.
+
 ## V16-P1 — Remote control (v1.6)
 
 **Approved by owner** (2026-10-21), for v1.6, the third release of the 1.x train. Each choice was the agent's recommendation; ROADMAP's v2-remote notes and invariants hold (off by default, never yolo remotely, no relay or igris cloud). SPEC is amended when V16 starts (V16-01).

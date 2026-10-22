@@ -47,6 +47,10 @@ type Task struct {
 	// trimmed, backticks stripped, empty entries and duplicates (the same
 	// path once cleaned: docs and ./docs/) dropped.
 	Context []string
+	// Group is the Group cell of a format-3 plan (SPEC §3.8), trimmed and
+	// backticks removed, as written; "" when not set (empty, — or -).
+	// Groups compare case-insensitively.
+	Group string
 
 	Extra map[string]string // extra columns by header name, e.g. "Spec"
 	Cells []string          // every cell as written, in the order of Phase.Columns
@@ -93,6 +97,11 @@ func (p *Plan) newTask(ph *Phase, r row) *Task {
 			c = cell{start: len(r.line.text), end: len(r.line.text)}
 		}
 		t.Cells = append(t.Cells, c.value)
+		if col == ColGroup && p.Format < formatParallel {
+			// An extra column before format 3 (SPEC §3.8).
+			t.Extra[col] = c.value
+			continue
+		}
 		switch col {
 		case ColID:
 			t.ID = c.value
@@ -132,6 +141,10 @@ func (p *Plan) newTask(ph *Phase, r row) *Task {
 				t.ContextText = c.value
 				t.Context = splitContext(c.value)
 			}
+		case ColGroup:
+			if !unset(c.value) {
+				t.Group = bare(c.value)
+			}
 		default:
 			t.Extra[col] = c.value
 		}
@@ -158,7 +171,7 @@ func title(text string) string {
 	return string([]rune(text)[:titleMaxRunes])
 }
 
-// unset reports whether a Verify, Timeout or Context cell is "not set":
+// unset reports whether a Verify, Timeout, Context or Group cell is "not set":
 // empty, — or -. Unlike isNone, "none" is a value there (SPEC §3.2).
 func unset(s string) bool {
 	switch strings.Trim(s, " \t`") {

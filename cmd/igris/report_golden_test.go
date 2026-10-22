@@ -28,7 +28,8 @@ func TestReportGoldens(t *testing.T) {
 		{"invalid", "testdata/plans/invalid.md", []string{"M0"}},
 		{"drift", "testdata/plans/drift.md", []string{"A", "B"}},
 		{"large", "../../internal/plan/testdata/large.md", []string{"F1"}},
-		{"format3", "testdata/plans/format3.md", []string{"A"}},
+		{"format4", "testdata/plans/format4.md", []string{"A"}},
+		{"parallel", "testdata/plans/parallel.md", []string{"B"}},
 		// A directory is a split plan: every file in it is copied.
 		{"split", "testdata/plans/split", []string{"A", "B"}},
 		{"split-invalid", "testdata/plans/split-invalid", []string{"A"}},

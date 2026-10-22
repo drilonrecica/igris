@@ -76,7 +76,7 @@ const draftNotes = "draft notes"
 // phase's table lacks, or a dependency names a task that is neither in p
 // nor in the fragment: igris never offers to write those.
 func Extend(p *Plan, opts Options, name string, fragment []byte) (*Extension, []Issue) {
-	fp := parseTables(name, fragment, opts, nil)
+	fp := parseTables(name, fragment, opts, nil, p.Format)
 	c := &fragmentCheck{p: p, fp: fp, file: fp.files[0]}
 	c.issues = append(c.issues, fp.issues...)
 	if fp.newerFormat != nil {
@@ -189,6 +189,9 @@ func (c *fragmentCheck) tasks() {
 			c.add(ph.Line, "phase %s adds no tasks; give its table rows, or leave the section out", ph.ID)
 		}
 		if target != nil {
+			if ph.Parallel && !target.Parallel {
+				c.add(ph.Line, "phase %s is not parallel in the plan, and the fragment only adds rows to it; leave the parallel marker out", ph.ID)
+			}
 			for _, col := range ph.Columns {
 				if colIndex(target.Columns, col) < 0 {
 					c.add(ph.tableLine, "column %s is not in the table of phase %s (%s:%d); leave it out, since rows are written in that table's columns", col, ph.ID, target.File, target.tableLine)

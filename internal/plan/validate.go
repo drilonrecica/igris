@@ -239,6 +239,9 @@ func (v *validator) checkTask(t *Task) {
 		}
 		v.checkContext(t, name)
 	}
+	if t.Group != "" && !t.Status.Satisfied() && !idPattern.MatchString(t.Group) {
+		v.task(t, "%s: Group %q is not one name; a task is in at most one group, named with letters, digits, '.', '_' and '-'", name, t.Group)
+	}
 
 	for _, d := range t.Deps {
 		switch {

@@ -16,7 +16,8 @@ import (
 
 // fuzzPlanSeeds are the shapes the parser and writer must survive: the
 // fixtures plus inline edge cases (CRLF, a UTF-8 BOM, no trailing newline,
-// escaped pipes, backticks, fenced fake tables, non-ASCII, a very long cell).
+// escaped pipes, backticks, fenced fake tables, non-ASCII, a very long cell,
+// format 3's parallel markers and Group cells, good and misplaced).
 func fuzzPlanSeeds(t testing.TB) [][]byte {
 	t.Helper()
 	seeds := [][]byte{[]byte(specExample)}
@@ -44,6 +45,11 @@ func fuzzPlanSeeds(t testing.TB) [][]byte {
 		"## Phase 2\n\n| ID | Status | Model | Depends on |\n|---|---|---|---|\n| 1 | ready | sonnet | — |\r",
 		"\ufeff" + strings.ReplaceAll(head+"| a | A | — | ready | sonnet | agent |\n", "\n", "\r\n"),
 		"<!-- igris:format 1 -->\n" + head + "| a | A | — | ready | sonnet | agent |\n<!-- igris:format 2 -->\n",
+		"<!-- igris:format 3 -->\n## M0 — One\n\n<!-- igris:parallel -->\n\n| ID | Task | Deps | Status | Model | Owner | Group |\n|---|---|---|---|---|---|---|\n" +
+			"| a | **A** | — | ready | sonnet | agent | `db` |\n| b | **B** after a. | — | ready | opus | agent | db |\n| c | **C** | a, b | blocked | — | user | — |\n",
+		"<!-- igris:format 3 -->\r\n<!-- igris:parallel -->\r\n## M0\r\n<!-- igris:parallel 2 -->\r\n<!--igris:parallel-->\r\n<!-- igris:parallel -->\r\n" +
+			strings.ReplaceAll(strings.TrimPrefix(head, "## M0 — One\n\n"), "\n", "\r\n") + "| a | A, see b | — | ready | sonnet | agent |\r\n## Legend\r\n<!-- igris:parallel -->\r\n",
+		"<!-- igris:format 2 -->\n## M0\n<!-- igris:parallel -->\n\n| ID | Status | Model | Group |\n|---|---|---|---|\n| a | ready | sonnet | x, y |\n",
 	} {
 		seeds = append(seeds, []byte(s))
 	}
@@ -70,12 +76,12 @@ func FuzzSplitRow(f *testing.F) {
 func planSummary(p *Plan, issues []Issue) string {
 	var b strings.Builder
 	for _, ph := range p.Phases {
-		fmt.Fprintf(&b, "phase %q %q %q %d\n", ph.ID, ph.Title, ph.Columns, len(ph.Tasks))
+		fmt.Fprintf(&b, "phase %q %q %q %d %v\n", ph.ID, ph.Title, ph.Columns, len(ph.Tasks), ph.Parallel)
 	}
 	for _, t := range p.Tasks {
-		fmt.Fprintf(&b, "task %q %q %v %q %q %q %q %q %q %q %q %q %s %q %d [%d,%d)\n",
+		fmt.Fprintf(&b, "task %q %q %v %q %q %q %q %q %q %q %q %q %s %q %q %d [%d,%d)\n",
 			t.ID, t.Title, t.Status, t.StatusText, t.Suffix, t.OwnerText, t.Rank, t.Mode, t.DepsText, t.Deps,
-			t.Verify, t.TimeoutText, t.Timeout, t.Context, t.Line, t.statusStart, t.statusEnd)
+			t.Verify, t.TimeoutText, t.Timeout, t.Context, t.Group, t.Line, t.statusStart, t.statusEnd)
 	}
 	for _, is := range issues {
 		fmt.Fprintf(&b, "issue %s\n", is)
@@ -132,6 +138,9 @@ func FuzzLoadIncludes(f *testing.F) {
 	f.Add([]byte(main+"| x | y |\n<!-- igris:include b.md -->\n| z | w |\n"), []byte("| p | q |\n"+b+"```\n"))
 	f.Add([]byte(main+"<!-- igris:include b.md -->\n<!-- igris:include ./b.md -->\n"), []byte("<!-- igris:format 1 -->\r\n"+b+"<!-- igris:include c.md -->\n"))
 	f.Add([]byte("<!-- igris:include tasks.md -->\n"+main), []byte(""))
+	main3 := strings.Replace(main, "format 2", "format 3", 1)
+	f.Add([]byte(main3+"<!-- igris:include b.md -->\n"), []byte("<!-- igris:format 3 -->\n"+strings.Replace(b, "\n\n", "\n\n<!-- igris:parallel -->\n\n", 1)))
+	f.Add([]byte(main+"<!-- igris:include b.md -->\n<!-- igris:parallel -->\n"), []byte("<!-- igris:parallel -->\n"+b+"<!-- igris:parallel -->\n"))
 	for _, s := range fuzzPlanSeeds(f)[:4] {
 		f.Add([]byte(main+"<!-- igris:include b.md -->\n"), s)
 	}
@@ -204,9 +213,9 @@ func checkSplitSplice(t *testing.T, p *Plan, target *Task, s Status) {
 func phaseSummary(p *Plan) string {
 	var b strings.Builder
 	for _, ph := range p.Phases {
-		fmt.Fprintf(&b, "phase %q %q %q\n", ph.ID, ph.Title, ph.Columns)
+		fmt.Fprintf(&b, "phase %q %q %q %v\n", ph.ID, ph.Title, ph.Columns, ph.Parallel)
 		for _, t := range ph.Tasks {
-			fmt.Fprintf(&b, "  task %q %q %v %q %q %q %q %q %q\n", t.ID, t.Title, t.Status, t.OwnerText, t.Rank, t.Mode, t.Deps, t.Verify, t.Context)
+			fmt.Fprintf(&b, "  task %q %q %v %q %q %q %q %q %q %q\n", t.ID, t.Title, t.Status, t.OwnerText, t.Rank, t.Mode, t.Deps, t.Verify, t.Context, t.Group)
 		}
 	}
 	return b.String()

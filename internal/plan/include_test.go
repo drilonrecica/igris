@@ -128,8 +128,8 @@ func TestIncludeProblems(t *testing.T) {
 			"", "b.md:5: task A-1 is also in tasks.md:6; task IDs must be unique across the plan's files"},
 		{"phase ID in two files", map[string]string{"tasks.md": main("<!-- igris:include b.md -->"), "b.md": phaseTable("a", "| B-1 | — | ready | sonnet |")},
 			"", "b.md:1: phase a is also in tasks.md:2; phase IDs must be unique across the plan's files"},
-		{"included marker 3", map[string]string{"tasks.md": main("<!-- igris:include b.md -->"), "b.md": "<!-- igris:format 3 -->\n" + b},
-			"", "b.md:1: an included file may declare format 1 or 2, not 3"},
+		{"included marker 4", map[string]string{"tasks.md": main("<!-- igris:include b.md -->"), "b.md": "<!-- igris:format 4 -->\n" + b},
+			"", "b.md:1: an included file may declare format 1, 2 or 3, not 4"},
 		{"unknown dependency in an included file", map[string]string{"tasks.md": main("<!-- igris:include b.md -->"), "b.md": phaseTable("B", "| B-1 | Z-9 | blocked | sonnet |")},
 			"", "b.md:5: B-1 depends on unknown task Z-9"},
 	}

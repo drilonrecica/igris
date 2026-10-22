@@ -1,6 +1,6 @@
 exit: 1
 --- stdout
-tasks.md:3: plan format 3 needs a newer igris (this igris reads formats 1 and 2)
+tasks.md:3: plan format 4 needs a newer igris (this igris reads formats 1 to 3)
 note: no igris.toml here; using the defaults (`igris init` creates one)
 tasks.md: written for a newer igris; upgrade igris and run `igris check` again
 --- stderr

@@ -25,11 +25,18 @@ const (
 	ColVerify  = "Verify"
 	ColTimeout = "Timeout"
 	ColContext = "Context"
+	// ColGroup is canonical in a format-3 plan only (SPEC §3.8); in an
+	// older format it is an extra column, as it always was.
+	ColGroup = "Group"
 )
 
-// FormatVersion is the newest plan format igris reads: formats 1 and 2
-// (SPEC §3, §19). Format 2 is format 1 plus includes (§3.7).
-const FormatVersion = 2
+// FormatVersion is the newest plan format igris reads: formats 1 to 3
+// (SPEC §3, §19). Format 2 is format 1 plus includes (§3.7), format 3
+// format 2 plus parallel phases and the Group column (§3.8).
+const FormatVersion = 3
+
+// formatParallel is the first format with parallel phases (SPEC §3.8).
+const formatParallel = 3
 
 // formatMarker matches a format marker line, `<!-- igris:format 1 -->`;
 // the group is what follows "igris:format".
@@ -38,6 +45,10 @@ var formatMarker = regexp.MustCompile(`^<!--\s*igris:format\b(.*)-->$`)
 // includeLine matches an include line, `<!-- igris:include phases/v2.md -->`
 // (SPEC §3.7); the group is what follows "igris:include".
 var includeLine = regexp.MustCompile(`^<!--\s*igris:include\b(.*)-->$`)
+
+// parallelLine matches a parallel marker, `<!-- igris:parallel -->` (SPEC
+// §3.8); the group is what follows "igris:parallel".
+var parallelLine = regexp.MustCompile(`^<!--\s*igris:parallel\b(.*)-->$`)
 
 var canonicalCols = []string{ColID, ColTask, ColDeps, ColStatus, ColModel, ColOwner, ColMode, ColVerify, ColTimeout, ColContext}
 
@@ -100,6 +111,8 @@ type Phase struct {
 	// Include is the include path as written (SPEC §3.7) for a phase of
 	// an included file, "" for one in the main plan.
 	Include string
+	// Parallel: the phase is marked <!-- igris:parallel --> (SPEC §3.8).
+	Parallel bool
 
 	file      *planFile
 	tableLine int // line of the table header
@@ -227,6 +240,7 @@ type section struct {
 	tableFound   bool
 	control      bool // the heading line holds a control character
 	subLine      int  // line of the last "###"-or-deeper heading in the section
+	parallelLine int  // line of the section's parallel marker, 0 for none
 }
 
 // Parse parses data as a plan of one file. It never fails outright:
@@ -239,15 +253,17 @@ func Parse(name string, data []byte, opts Options) *Plan {
 
 // parse parses the main plan and, with inc, the files it includes.
 func parse(name string, data []byte, opts Options, inc *includer) *Plan {
-	p := parseTables(name, data, opts, inc)
+	p := parseTables(name, data, opts, inc, 1)
 	p.resolveDeps()
 	return p
 }
 
 // parseTables is parse without resolving the Deps cells: an extend
-// fragment's deps name tasks of the plan it extends (SPEC §9.1).
-func parseTables(name string, data []byte, opts Options, inc *includer) *Plan {
-	p := &Plan{Path: name, Format: 1}
+// fragment's deps name tasks of the plan it extends (SPEC §9.1). format
+// is the format the file has without a marker of its own: 1, or for a
+// fragment the format of the plan it extends.
+func parseTables(name string, data []byte, opts Options, inc *includer, format int) *Plan {
+	p := &Plan{Path: name, Format: format}
 	aliases := make(map[string]string, len(opts.Columns))
 	for k, v := range opts.Columns {
 		aliases[strings.ToLower(normalizeHeader(k))] = v
@@ -265,7 +281,7 @@ func parseTables(name string, data []byte, opts Options, inc *includer) *Plan {
 		if p.newerFormat != nil {
 			continue // a newer format's includes may mean something else
 		}
-		if p.Format != 2 {
+		if p.Format < 2 {
 			p.addIssue(name, it.inc.line, "an include needs plan format 2; add <!-- igris:format 2 --> on a line of its own before the first ## heading")
 		}
 		if inc == nil {
@@ -331,7 +347,12 @@ func (s *scanner) scan() []item {
 			s.formatMarker(cur != nil, m[1], l.num)
 			continue
 		}
+		if m := parallelLine.FindStringSubmatch(trimmed); m != nil {
+			s.parallelMarker(cur, m[1], l.num)
+			continue
+		}
 		if m := includeLine.FindStringSubmatch(trimmed); m != nil {
+			s.endSection(cur)
 			if s.included {
 				s.addIssue(l.num, "only the main plan may include files; move this include to %s", s.p.Path)
 				continue
@@ -344,6 +365,7 @@ func (s *scanner) scan() []item {
 			continue
 		}
 		if text, ok := headingText(l.text); ok {
+			s.endSection(cur)
 			ph := newPhase(textsafe.Line(text), l.num)
 			ph.File, ph.Include, ph.file = s.f.name, s.f.inc, s.f
 			cur = &section{phase: ph, control: textsafe.HasControl(l.text)}
@@ -371,8 +393,43 @@ func (s *scanner) scan() []item {
 		}
 		i = end - 1
 	}
+	s.endSection(cur)
 	s.f.fence = fence
 	return items
+}
+
+// parallelMarker reads a parallel marker line (SPEC §3.8): in a format-3
+// plan, with no value, in a phase's section, once per phase. A section
+// without a task table is reported when it ends (endSection).
+func (s *scanner) parallelMarker(cur *section, arg string, num int) {
+	ok := true
+	if s.p.Format < formatParallel {
+		s.addIssue(num, "a parallel marker needs plan format 3; add <!-- igris:format 3 --> on a line of its own before the first ## heading")
+		ok = false
+	}
+	if strings.TrimSpace(arg) != "" {
+		s.addIssue(num, "the parallel marker takes no value; write <!-- igris:parallel --> and set how many tasks run at once with [parallel] max in igris.toml")
+		ok = false
+	}
+	switch {
+	case cur == nil:
+		s.addIssue(num, "the parallel marker must come after a phase's ## heading, in the section of the phase it marks")
+	case cur.phase == nil:
+		s.addIssue(num, "the parallel marker after the include line at line %d marks no phase; put it under the ## heading of the phase it marks", cur.afterInclude)
+	case cur.parallelLine != 0:
+		s.addIssue(num, "a second parallel marker in this section (the first is on line %d)", cur.parallelLine)
+	default:
+		cur.parallelLine = num
+		cur.phase.Parallel = ok
+	}
+}
+
+// endSection reports a parallel marker in a section that turned out to
+// have no task table (SPEC §3.8).
+func (s *scanner) endSection(cur *section) {
+	if cur != nil && cur.phase != nil && cur.parallelLine != 0 && !cur.tableFound {
+		s.addIssue(cur.parallelLine, "the parallel marker is in a section without a task table; put it under the ## heading of the phase it marks")
+	}
 }
 
 // NewerFormat says the plan declares a format this igris doesn't read, so
@@ -382,7 +439,8 @@ func (p *Plan) NewerFormat() bool { return p.newerFormat != nil }
 // formatMarker reads a format marker line (SPEC §3): one per file, before
 // its first "##" heading, naming a whole number. The main plan's marker is
 // the plan's format; a format this igris doesn't read is recorded as the
-// plan's only issue. An included file may declare format 1 or 2 (§3.7).
+// plan's only issue. An included file may declare any format this igris
+// reads (§3.7).
 func (s *scanner) formatMarker(afterHeading bool, arg string, num int) {
 	switch {
 	case afterHeading:
@@ -401,11 +459,11 @@ func (s *scanner) formatMarker(afterHeading bool, arg string, num int) {
 	}
 	switch {
 	case s.included && n > FormatVersion:
-		s.addIssue(num, "an included file may declare format 1 or 2, not %d; the main plan's marker is the plan's format", n)
+		s.addIssue(num, "an included file may declare format 1, 2 or 3, not %d; the main plan's marker is the plan's format", n)
 	case s.included:
 	case n > FormatVersion:
 		s.p.Format = n
-		s.p.newerFormat = &Issue{File: s.f.name, Line: num, Msg: fmt.Sprintf("plan format %d needs a newer igris (this igris reads formats 1 and 2)", n)}
+		s.p.newerFormat = &Issue{File: s.f.name, Line: num, Msg: fmt.Sprintf("plan format %d needs a newer igris (this igris reads formats 1 to 3)", n)}
 	default:
 		s.p.Format = n
 	}
@@ -478,7 +536,7 @@ func (s *scanner) columns(header []cell, at int) ([]string, bool) {
 		if target, ok := s.aliases[strings.ToLower(name)]; ok {
 			name = target
 		}
-		if c := canonical(name); c != "" {
+		if c := s.canonical(name); c != "" {
 			name = c
 		}
 		cols[i] = name
@@ -486,7 +544,7 @@ func (s *scanner) columns(header []cell, at int) ([]string, bool) {
 	isTask := hasCol(cols, ColID) && hasCol(cols, ColStatus) && hasCol(cols, ColModel)
 	if isTask {
 		for _, c := range cols {
-			if canonical(c) != "" && seen[c] {
+			if s.canonical(c) != "" && seen[c] {
 				s.addIssue(at, "column %s appears more than once in the table header", c)
 			}
 			seen[c] = true
@@ -504,8 +562,21 @@ func hasCol(cols []string, name string) bool {
 	return false
 }
 
-// canonical returns the canonical column name matching name
-// case-insensitively, or "".
+// canonical is canonical for the plan's format: Group is a column of
+// format 3 (SPEC §3.8) and an extra column before it. The main plan's
+// marker comes before its first table, so the format is known here.
+func (s *scanner) canonical(name string) string {
+	if strings.EqualFold(name, ColGroup) {
+		if s.p.Format >= formatParallel {
+			return ColGroup
+		}
+		return ""
+	}
+	return canonical(name)
+}
+
+// canonical returns the canonical column name of formats 1 and 2 matching
+// name case-insensitively, or "".
 func canonical(name string) string {
 	for _, c := range canonicalCols {
 		if strings.EqualFold(c, name) {

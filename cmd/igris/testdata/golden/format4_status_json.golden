@@ -6,7 +6,7 @@ exit: 1
     {
       "file": "tasks.md",
       "line": 3,
-      "message": "plan format 3 needs a newer igris (this igris reads formats 1 and 2)"
+      "message": "plan format 4 needs a newer igris (this igris reads formats 1 to 3)"
     }
   ],
   "plan": "tasks.md",

@@ -1,0 +1,6 @@
+exit: 0
+--- stdout
+warning: tasks.md:18: B-2 names B-1, which comes before it in parallel phase B, but neither depends on the other, so they may run at the same time; add B-1 to its Deps if it must finish first
+note: no igris.toml here; using the defaults (`igris init` creates one)
+tasks.md: OK (2 phases, 5 tasks, 1 warnings)
+--- stderr

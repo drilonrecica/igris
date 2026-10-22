@@ -45,7 +45,7 @@ func docBlocks(data string) []docBlock {
 	return out
 }
 
-// docs/plan-format.md describes formats 1 and 2 for people and tools
+// docs/plan-format.md describes formats 1 to 3 for people and tools
 // writing plans (SPEC §19). Every ```markdown block in it with a phase
 // heading is a plan igris must read as valid, with Status cells in step
 // with their dependencies; examples of mistakes are written as ```text.

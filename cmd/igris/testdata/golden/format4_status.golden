@@ -2,4 +2,4 @@ exit: 1
 --- stdout
 --- stderr
 igris status: tasks.md is not valid; run `igris check` and fix:
-  tasks.md:3: plan format 3 needs a newer igris (this igris reads formats 1 and 2)
+  tasks.md:3: plan format 4 needs a newer igris (this igris reads formats 1 to 3)

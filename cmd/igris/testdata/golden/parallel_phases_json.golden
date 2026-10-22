@@ -1,0 +1,57 @@
+exit: 0
+--- stdout
+{
+  "v": 1,
+  "files": [
+    "tasks.md"
+  ],
+  "phases": [
+    {
+      "id": "A",
+      "title": "First, one at a time",
+      "file": "tasks.md",
+      "total": 1,
+      "counts": {
+        "blocked": 0,
+        "done": 1,
+        "in_progress": 0,
+        "ready": 0,
+        "skipped": 0
+      },
+      "parallelism": {
+        "critical_path": [],
+        "width": 0,
+        "together": []
+      }
+    },
+    {
+      "id": "B",
+      "title": "Second, side by side",
+      "file": "tasks.md",
+      "total": 4,
+      "counts": {
+        "blocked": 1,
+        "done": 0,
+        "in_progress": 0,
+        "ready": 3,
+        "skipped": 0
+      },
+      "parallelism": {
+        "critical_path": [
+          "B-1",
+          "B-G"
+        ],
+        "width": 3,
+        "together": [
+          [
+            "B-1",
+            "B-2",
+            "B-3"
+          ]
+        ]
+      }
+    }
+  ],
+  "plan": "tasks.md"
+}
+--- stderr

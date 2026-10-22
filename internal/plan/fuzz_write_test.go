@@ -44,9 +44,14 @@ func checkSplice(t *testing.T, data []byte, pick uint, s Status) {
 	if len(q.Tasks) != len(p.Tasks) || len(q.Phases) != len(p.Phases) {
 		t.Fatalf("after setting %s to %s: %d phases / %d tasks, was %d / %d", target.ID, s, len(q.Phases), len(q.Tasks), len(p.Phases), len(p.Tasks))
 	}
+	for i, ph := range p.Phases {
+		if q.Phases[i].Parallel != ph.Parallel {
+			t.Fatalf("after setting %s to %s, phase %s parallel %v, was %v", target.ID, s, ph.ID, q.Phases[i].Parallel, ph.Parallel)
+		}
+	}
 	for i, a := range p.Tasks {
 		b := q.Tasks[i]
-		if a.ID != b.ID || a.Text != b.Text || a.DepsText != b.DepsText || a.Rank != b.Rank || a.OwnerText != b.OwnerText || a.Mode != b.Mode || a.Line != b.Line || fmt.Sprint(a.Extra) != fmt.Sprint(b.Extra) {
+		if a.ID != b.ID || a.Text != b.Text || a.DepsText != b.DepsText || a.Rank != b.Rank || a.OwnerText != b.OwnerText || a.Mode != b.Mode || a.Group != b.Group || a.Line != b.Line || fmt.Sprint(a.Extra) != fmt.Sprint(b.Extra) {
 			t.Fatalf("after setting %s to %s, task %d changed: %+v → %+v", target.ID, s, i, a, b)
 		}
 		wantStatus := a.Status
@@ -98,7 +103,8 @@ func escapeCell(s string) string {
 }
 
 // generatedPlan builds a valid two-phase plan around fuzzed cell text, so
-// the checked half of checkSplice runs on most inputs.
+// the checked half of checkSplice runs on most inputs. It is format 3: the
+// second phase is parallel and has a Group column.
 func generatedPlan(title, deps, extra, status string, crlf, trailingNL bool) []byte {
 	title, extra = escapeCell(title), escapeCell(extra)
 	if strings.TrimSpace(title) == "" {
@@ -112,6 +118,7 @@ func generatedPlan(title, deps, extra, status string, crlf, trailingNL bool) []b
 	}
 	lines := []string{
 		"# Plan " + extra,
+		"<!-- igris:format 3 -->",
 		"",
 		"## P1 — " + title,
 		"",
@@ -128,10 +135,12 @@ func generatedPlan(title, deps, extra, status string, crlf, trailingNL bool) []b
 		"```",
 		"",
 		"## P2",
+		"<!-- igris:parallel -->",
 		"",
-		"| ID | Deps | Status | Model |",
-		"| --- | --- | --- | --- |",
-		"| P2-01 | P1-01…P1-03 | blocked | haiku |",
+		"| ID | Deps | Status | Model | Group |",
+		"| --- | --- | --- | --- | --- |",
+		"| P2-01 | P1-01…P1-03 | blocked | haiku | `g` |",
+		"| P2-02 | P1-01 | blocked | sonnet | g |",
 	}
 	nl := "\n"
 	if crlf {
@@ -165,8 +174,8 @@ func TestGeneratedPlanThroughWriter(t *testing.T) {
 		for _, nl := range []bool{false, true} {
 			data := generatedPlan("Größe | ✓", "P1-01", "a | b", "`ready` (soon)", crlf, nl)
 			p := Parse("tasks.md", data, Options{})
-			if err := p.Check(testRules); err != nil {
-				t.Fatalf("crlf=%v nl=%v: generated plan invalid: %v", crlf, nl, err)
+			if err := p.Check(testRules); err != nil || !p.Phase("P2").Parallel {
+				t.Fatalf("crlf=%v nl=%v: generated plan invalid or P2 not parallel: %v", crlf, nl, err)
 			}
 			path := filepath.Join(t.TempDir(), "tasks.md")
 			if err := os.WriteFile(path, data, 0o600); err != nil {

@@ -36,7 +36,7 @@ igris arise V2 --dry-run
 - Only the main plan includes files, one level deep, each file once.
 - At most 32 files and 16 MiB in all.
 - Phase and task IDs are unique across all files. A dependency may point into another file, and a range `A…B` follows the order of the whole plan.
-- A plan with an include must declare `<!-- igris:format 2 -->`. Without it, each include is an error that says to add it.
+- A plan with an include must declare `<!-- igris:format 2 -->` (or `3`, which a plan with parallel phases declares, since 1.5). Without it, each include is an error that says to add it.
 
 ## While it runs
 

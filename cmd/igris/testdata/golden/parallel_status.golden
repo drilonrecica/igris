@@ -1,0 +1,13 @@
+exit: 0
+--- stdout
+A — First, one at a time: 1/1 finished, complete
+  ID   STATUS  RANK    OWNER  MODE  WAITS ON
+  A-1  done    sonnet  agent  —     
+
+B — Second, side by side: 0/4 finished, next (B-1)
+  ID   STATUS   RANK    OWNER         MODE  WAITS ON
+  B-1  ready    sonnet  agent         —     
+  B-2  ready    sonnet  agent         —     
+  B-3  ready    opus    agent         —     
+  B-G  blocked  sonnet  agent + user  —     B-1 (ready, phase B), B-2 (ready, phase B), B-3 (ready, phase B)
+--- stderr

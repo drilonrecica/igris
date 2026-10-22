@@ -2,7 +2,7 @@ package plan
 
 // Parallelism describes how much of a phase's remaining work could run at
 // once (SPEC §14 `phases`). It is a read-only view of the dependency graph;
-// igris itself runs one task at a time.
+// igris runs tasks together only in a phase marked parallel (§3.8).
 type Parallelism struct {
 	// CriticalPath is the longest chain of unfinished tasks, each depending
 	// on the one before it, in dependency order. Empty when nothing is left.

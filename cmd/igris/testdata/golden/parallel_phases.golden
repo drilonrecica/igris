@@ -1,0 +1,9 @@
+exit: 0
+--- stdout
+PHASE  TITLE                 READY  BLOCKED  IN PROGRESS  DONE  SKIPPED  TOTAL
+A      First, one at a time  0      0        0            1     0        1
+B      Second, side by side  3      1        0            0     0        4
+
+B: critical path B-1 → B-G (2), width 3
+    together: B-1, B-2, B-3
+--- stderr

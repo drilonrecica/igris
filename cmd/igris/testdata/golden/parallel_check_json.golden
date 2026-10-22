@@ -1,0 +1,21 @@
+exit: 0
+--- stdout
+{
+  "v": 1,
+  "files": [
+    "tasks.md"
+  ],
+  "issues": [],
+  "phases": 2,
+  "plan": "tasks.md",
+  "tasks": 5,
+  "valid": true,
+  "warnings": [
+    {
+      "file": "tasks.md",
+      "line": 18,
+      "message": "B-2 names B-1, which comes before it in parallel phase B, but neither depends on the other, so they may run at the same time; add B-1 to its Deps if it must finish first"
+    }
+  ]
+}
+--- stderr

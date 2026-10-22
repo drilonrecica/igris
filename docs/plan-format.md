@@ -1,6 +1,6 @@
-# The igris plan format (formats 1 and 2)
+# The igris plan format (formats 1 to 3)
 
-This is the format of the markdown plans igris runs: how a plan is split into phases and tasks, what each column means, and what igris changes when it runs one. It is written for people writing plans by hand and for tools that produce them. It describes **format 1** and **format 2** (since igris 1.2: format 1 plus [includes](#split-plans-format-2)), both frozen for igris 1.x ([SPEC §19](../SPEC.md#19-compatibility)). [SPEC §3–4](../SPEC.md#3-canonical-plan-format) is the normative text; this page says the same with more examples. If they ever disagree, the SPEC wins and this page is fixed.
+This is the format of the markdown plans igris runs: how a plan is split into phases and tasks, what each column means, and what igris changes when it runs one. It is written for people writing plans by hand and for tools that produce them. It describes **format 1**, **format 2** (since igris 1.2: format 1 plus [includes](#split-plans-format-2)) and **format 3** (since igris 1.5: format 2 plus [parallel phases](#parallel-phases-format-3)), all frozen for igris 1.x ([SPEC §19](../SPEC.md#19-compatibility)). [SPEC §3–4](../SPEC.md#3-canonical-plan-format) is the normative text; this page says the same with more examples. If they ever disagree, the SPEC wins and this page is fixed.
 
 `igris check` validates a plan against all of this and prints every problem at once as `file:line: message`. A plan in another format can be converted with [`igris adapt`](../README.md#different-format-igris-adapt).
 
@@ -47,7 +47,8 @@ A plan may declare its format on a line of its own **before the first `##` headi
 - Spaces inside the comment don't matter (`<!--igris:format 1-->` is the same). A marker inside a fenced code block is not one.
 - A marker that isn't a whole number, a second marker, or a marker after the first `##` heading is a validation error.
 - `<!-- igris:format 2 -->` declares format 2, which a plan that [includes other files](#split-plans-format-2) needs. A format-2 plan without includes is valid too.
-- A plan marked with a format igris doesn't know (`<!-- igris:format 3 -->`) is refused with `plan format 3 needs a newer igris`, and nothing else about it is reported or changed. igris 1.0 and 1.1 read format 1 only, so they refuse a format-2 plan this way. A future format will need its marker, so an unmarked plan never has to be edited.
+- `<!-- igris:format 3 -->` declares format 3, which a plan with [parallel phases](#parallel-phases-format-3) needs. It may include files too.
+- A plan marked with a format igris doesn't know (`<!-- igris:format 4 -->`) is refused with `plan format 4 needs a newer igris`, and nothing else about it is reported or changed. igris 1.0 and 1.1 read format 1 only, so they refuse a format-2 plan this way, and igris 1.2–1.4 refuse a format-3 plan. A future format will need its marker, so an unmarked plan never has to be edited.
 
 ## Split plans (format 2)
 
@@ -90,7 +91,7 @@ Since igris 1.2 a plan may be split across files. The **main plan** is the file 
 
 The phases run `M0`, `V2`, `M9`: **plan order** is the main plan with each include line replaced by its file, and "file order" everywhere on this page means plan order.
 
-- **Format 2.** A plan with an include line declares `<!-- igris:format 2 -->`; without it (or with `1`) each include line is an error saying to add it. Only the main plan's marker counts; an included file may declare format 1 or 2, so it can be checked on its own.
+- **Format 2.** A plan with an include line declares `<!-- igris:format 2 -->` (or `3`); without it (or with `1`) each include line is an error saying to add it. Only the main plan's marker counts; an included file may declare format 1, 2 or 3, so it can be checked on its own.
 - **The line.** `<!-- igris:include PATH -->` on a line of its own, outside a fenced code block, spaces inside the comment ignored. PATH is everything between `igris:include` and `-->`, trimmed, without quotes, and ends in `.md`.
 - **Where.** Anywhere in the main plan, before or between phases. An include line ends the section above it, so a task table right after it, before the next `##` heading, is an error. Text in an included file before its first `##` heading is prose.
 - **One level.** Only the main plan includes files; an include line in an included file is an error. Each file is included once: including a file a second time, or the main plan itself, is an error naming the first.
@@ -102,6 +103,37 @@ The phases run `M0`, `V2`, `M9`: **plan order** is the main plan with each inclu
 - Context paths stay relative to the project root, whichever file the row is in.
 - **When igris runs it**, each Status cell is written in the file its row is in; include lines and every other byte of every file stay as they are. Every file is re-read whenever igris looks at the plan, so an edit to any of them holds the run, as does a row moved to another file or an include added or removed. The task prompt names the file the row is in.
 - **`igris adapt`** converts one file: it refuses a split plan. Inline the included files first, or adapt one of them on its own with `--plan`.
+
+## Parallel phases (format 3)
+
+Since igris 1.5 the tasks of a phase may run at the same time. A line `<!-- igris:parallel -->` in a phase's section marks it **parallel**; the plan declares `<!-- igris:format 3 -->`:
+
+```markdown
+# Shop backend
+
+<!-- igris:format 3 -->
+
+## M1 — Storage
+
+<!-- igris:parallel -->
+
+| ID | Task | Deps | Status | Model | Owner | Group |
+|---|---|---|---|---|---|---|
+| M1-01 | **Orders table** | — | ready | sonnet | agent | db |
+| M1-02 | **Users table** | — | ready | sonnet | agent | db |
+| M1-03 | **Cache client** | — | ready | sonnet | agent | — |
+| M1-04 | **Orders store** — on the orders table | M1-01 | blocked | opus | agent | — |
+| M1-G | **Storage gate** — the owner approves the schema | M1-01…M1-04 | blocked | sonnet | agent + user | — |
+```
+
+`M1-01` and `M1-03` start together. `M1-02` waits for `M1-01`, since both are in group `db`, and `M1-04` waits for its dependency. The gate runs last, alone.
+
+- **What the marker means.** The phase's `Deps` are complete: any two of its tasks of which neither depends on the other, directly or through other tasks, may run at the same time, each in a git worktree of its own. File order no longer orders them. A phase without the marker runs one task at a time, as always.
+- **The line.** `<!-- igris:parallel -->` on a line of its own, anywhere in the phase's section (after its `##` heading, before the next `##` heading or include line), outside a fenced code block, spaces inside the comment ignored. In a split plan, a phase in an included file is marked in that file.
+- **Errors:** a marker in a plan that doesn't declare format 3, a marker with a value (`<!-- igris:parallel 4 -->`: how many tasks run at once is `[parallel] max` in `igris.toml`), a marker before the first `##` heading, after an include line, in a section without a task table, or twice in one phase.
+- **`Group`.** Tasks with the same Group never run at the same time, whatever their `Deps` say: use it for tasks that touch one shared thing (a database schema, a lockfile, a port). A Group is one name (letters, digits, `.`, `_`, `-`), compared without regard to case; empty, `—` or `-` is none. A task is in at most one group, so `db, cache` is an error. In a phase without the marker Group changes nothing, and `igris check` says so. In a format-1 or format-2 plan, a `Group` column is an ordinary extra column.
+- **Implied dependencies.** A plan written to run in order often leaves the order unsaid. In a parallel phase, `igris check` warns when a task's text names an earlier task of the phase (`builds on M1-02`) and neither depends on the other: add the dependency if it must finish first.
+- **Who runs alone.** `user` and `agent + user` tasks, gates included, run with nothing beside them (`[parallel] exclusive_owner_tasks`).
 
 ## Phases
 
@@ -127,6 +159,7 @@ A task table is a GitHub-flavored markdown table whose header has at least **ID*
 | `Verify` | no | A verify profile from `igris.toml`, `none` to skip verification, or `—`/empty for the default. Never a command. |
 | `Timeout` | no | A Go duration of at least `1s` (`45m`, `1h30m`) after which the task is reported overdue. |
 | `Context` | no | Up to 20 comma-separated paths inside the project that the session is told to read first. |
+| `Group` | no | Format 3: a name; tasks of a [parallel phase](#parallel-phases-format-3) with the same Group never run at the same time. |
 
 Reading the header and cells:
 
