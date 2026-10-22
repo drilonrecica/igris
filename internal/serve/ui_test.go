@@ -409,6 +409,51 @@ func TestUIScriptPaths(t *testing.T) {
 	}
 }
 
+// serve ends with the run (SPEC §14), so after run_stopped the page can't
+// fetch the ended run's page: the script shows the end itself, removing
+// what that page leaves out (found at the V16 gate: the page kept a live
+// run's buttons and said "Failed to fetch").
+func TestUIScriptEndsWithTheRun(t *testing.T) {
+	b, err := uiFiles.ReadFile("ui/app.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	js := string(b)
+	if !regexp.MustCompile(`m\.type === "run_stopped"\) \{\s*ended\(m\.detail\);\s*return;`).MatchString(js) {
+		t.Error("app.js doesn't end the page on run_stopped without fetching it")
+	}
+	remove := regexp.MustCompile(`var gone = live.querySelectorAll\("(form\.cmd[^"]*)"\)`).FindStringSubmatch(js)
+	if remove == nil {
+		t.Fatal("app.js's ended removes nothing")
+	}
+	pages := uiPages(t)
+	ended := pages["ended.html"]
+	if !strings.Contains(ended, "ended: stopped") {
+		t.Error("the ended page doesn't say so")
+	}
+	for _, c := range []struct{ sel, mark string }{
+		{"form.cmd", `class="cmd`},
+		{"section.question", `<section class="question"`},
+		{".actions", `<div class="actions">`},
+		{"details", "<details>"},
+		{"section[aria-label='Run mode']", `<section aria-label="Run mode">`},
+	} {
+		if !strings.Contains(remove[1], c.sel) {
+			t.Errorf("app.js's ended keeps %s", c.sel)
+		}
+		if strings.Contains(ended, c.mark) {
+			t.Errorf("the ended page has %s", c.mark)
+		}
+		shown := false
+		for name, body := range pages {
+			shown = shown || (name != "ended.html" && strings.Contains(body, c.mark))
+		}
+		if !shown {
+			t.Errorf("no live page has %s: the test no longer checks it", c.mark)
+		}
+	}
+}
+
 func TestRan(t *testing.T) {
 	for d, want := range map[time.Duration]string{
 		-time.Second: "0s", 59 * time.Second: "59s", 4*time.Minute + 12*time.Second: "4m12s",

@@ -18,6 +18,7 @@
   var timer = 0;
   var stream = null;
   var flashTimer = 0;
+  var over = false; // the run ended: nothing left to read or refresh
 
   function id() {
     seq += 1;
@@ -91,6 +92,9 @@
   }
 
   function refresh() {
+    if (over) {
+      return;
+    }
     if (refreshing) {
       stale = true;
       return;
@@ -110,6 +114,9 @@
       }
       return r.text();
     }).then(function (html) {
+      if (over) {
+        return; // ended while this was on its way
+      }
       var doc = new DOMParser().parseFromString("<!doctype html><body>" + html, "text/html");
       var kept = typed();
       live.replaceChildren.apply(live, Array.prototype.slice.call(doc.body.childNodes));
@@ -145,6 +152,9 @@
   // readTails asks for each active task's tail in turn, every few seconds
   // while the page is visible.
   function readTails() {
+    if (over) {
+      return;
+    }
     if (document.visibilityState !== "visible") {
       setTimeout(readTails, 4000);
       return;
@@ -216,11 +226,32 @@
         refresh(); // the first message, also after a reconnect
         return;
       }
-      later();
       if (m.type === "run_stopped") {
-        stream.close();
+        ended(m.detail);
+        return;
       }
+      later();
     };
+  }
+
+  // ended shows the run's end as the page of an ended run does: serve
+  // ends with the run, so there is no page left to fetch. Nothing can be
+  // sent any more, so the forms and the questions go.
+  function ended(outcome) {
+    over = true;
+    stream.close();
+    clearTimeout(timer);
+    conn.hidden = true;
+    var gone = live.querySelectorAll("form.cmd, section.question, .actions, details, section[aria-label='Run mode']");
+    for (var i = 0; i < gone.length; i++) {
+      gone[i].remove();
+    }
+    var meta = live.querySelector("header .meta");
+    if (meta) {
+      var s = document.createElement("strong");
+      s.textContent = "ended: " + (outcome || "unknown");
+      meta.append(" · ", s);
+    }
   }
 
   function confirming(form, on) {
