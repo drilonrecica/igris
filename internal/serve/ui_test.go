@@ -431,7 +431,7 @@ func TestUIScriptPaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, p := range []string{PathCommand, PathEvents, PathLive, CSRFHeader, `"confirmed"`, `meta[name="igris-csrf"]`, "dataset.live", `"has-field"`, `"has-sheet"`, `"over"`, `"down"`} {
+	for _, p := range []string{PathCommand, PathEvents, PathLive, CSRFHeader, `"confirmed"`, `meta[name="igris-csrf"]`, "dataset.live", `"has-field"`, `"has-sheet"`, `"over"`, `"down"`, "disabled = true", "m.ended"} {
 		if !strings.Contains(string(js), p) {
 			t.Errorf("app.js doesn't use %s", p)
 		}

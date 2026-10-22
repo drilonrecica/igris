@@ -88,6 +88,9 @@ func TestUISheets(t *testing.T) {
 		w.srv.Publish(ev)
 	}
 	_, body, _ = w.get("/", "cookie")
+	if strings.Contains(body, "`") {
+		t.Error("the user task's sheet prints literal backticks")
+	}
 	if !strings.Contains(body, "Your turn: P1-05") || strings.Count(body, `<section class="question`) != 1 {
 		t.Errorf("a user task's turn has no sheet:\n%s", body)
 	}
@@ -124,12 +127,35 @@ func TestUIStylesheetTokens(t *testing.T) {
 		t.Fatal(err)
 	}
 	css := string(b)
-	for _, want := range []string{"@font-face", `font-family: "Chakra Petch"`, "/static/fonts/chakra-petch-latin-700-normal.woff2", "prefers-color-scheme: light", "prefers-reduced-motion", "--plume: #E3172B", ".question.sheet", "nav.bar", ".word.needs"} {
+	for _, want := range []string{"@font-face", `font-family: "Chakra Petch"`, "/static/fonts/chakra-petch-latin-700-normal.woff2", "prefers-color-scheme: light", "prefers-reduced-motion", "--plume: #E3172B", ".question.sheet", "nav.bar", ".word.needs", "pointer-events: none", "--on-accent: #05070F", "html.over .dot"} {
 		if !strings.Contains(css, want) {
 			t.Errorf("app.css lacks %s", want)
 		}
 	}
 	if regexp.MustCompile(`font(-family)?:[^;]*\bsystem-ui\b`).MatchString(css) {
 		t.Error("app.css uses system-ui")
+	}
+	// Red is Needs you and the Stop button only (the design's constraint):
+	// no rule paints every danger form or every confirmation red.
+	for _, no := range []string{"form.danger button.go { color", "\n.confirm button[name=confirmed] { border-color: var(--needs-text)", "#flash.error { color: var(--needs-text)"} {
+		if strings.Contains(css, no) {
+			t.Errorf("app.css has %q: red beyond Needs you and Stop", no)
+		}
+	}
+}
+
+// Several things waiting at once: the sheet says which it is and links to
+// the next, so a person can answer in any order.
+func TestUISheetsCounted(t *testing.T) {
+	w := uiWeb(t, "accept", true)
+	running(w.srv)
+	_, body, _ := w.get("/", "cookie")
+	for _, want := range []string{`1 of 3 · next`, `href="#q-P1-03"`, `id="q-P1-02"`, `id="q-P1-04"`, `3 of 3`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the page lacks %s", want)
+		}
+	}
+	if strings.Contains(body, "`igris done`") {
+		t.Error("the page prints literal backticks")
 	}
 }

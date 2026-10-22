@@ -23,6 +23,20 @@
   var over = false; // the run ended: nothing left to read or refresh
   var liveURL = live.dataset.live || "/live"; // the run's live part, or the plan's
 
+  // collapse disables the text field of every form that hasn't been
+  // opened: a disabled control is left out of the browser's own
+  // validation, which would otherwise refuse to submit a hidden, empty,
+  // required field before this script ever hears of the tap.
+  function collapse() {
+    var forms = live.querySelectorAll("form.has-field");
+    for (var i = 0; i < forms.length; i++) {
+      var field = forms[i].querySelector("input[type=text], textarea");
+      if (field) {
+        field.disabled = !forms[i].classList.contains("open");
+      }
+    }
+  }
+
   // sheet marks the page as having a sheet, which the stylesheet dims
   // the rest for.
   function sheet() {
@@ -77,14 +91,15 @@
     return parts.join("&");
   }
 
-  // typed keeps what the owner typed into the forms, put back after a
-  // refresh.
+  // typed keeps what the owner typed into the forms, and which fields
+  // are open, put back after a refresh.
   function typed() {
     var kept = {};
     var fields = live.querySelectorAll("form.cmd input[type=text], form.cmd textarea");
     for (var i = 0; i < fields.length; i++) {
-      if (fields[i].value !== "") {
-        kept[formKey(fields[i].form)] = fields[i].value;
+      var open = fields[i].form.classList.contains("open");
+      if (fields[i].value !== "" || open) {
+        kept[formKey(fields[i].form)] = { value: fields[i].value, open: open };
       }
     }
     return kept;
@@ -93,11 +108,13 @@
   function retype(kept) {
     var fields = live.querySelectorAll("form.cmd input[type=text], form.cmd textarea");
     for (var i = 0; i < fields.length; i++) {
-      var v = kept[formKey(fields[i].form)];
-      if (v !== undefined) {
-        fields[i].value = v;
+      var k = kept[formKey(fields[i].form)];
+      if (k !== undefined) {
+        fields[i].value = k.value;
+        fields[i].form.classList.toggle("open", k.open);
       }
     }
+    collapse();
   }
 
   function refresh() {
@@ -187,8 +204,12 @@
     next();
   }
 
-  // tick keeps how long each task has run current between refreshes.
+  // tick keeps how long each task has run current between refreshes,
+  // and stops with the run.
   function tick() {
+    if (over) {
+      return;
+    }
     var spans = live.querySelectorAll(".ran[data-started]");
     var now = Date.now();
     for (var i = 0; i < spans.length; i++) {
@@ -234,6 +255,10 @@
         return; // counters the page doesn't show
       }
       if (m.type === "snapshot") {
+        if (m.ended) {
+          ended(m.end); // opened after the end: nothing to follow
+          return;
+        }
         refresh(); // the first message, also after a reconnect
         return;
       }
@@ -321,6 +346,7 @@
       say("Sent.", false);
       form.reset();
       form.classList.remove("open");
+      collapse();
       confirming(form, false);
     }).catch(function () {
       say("Not sent: the run can't be reached", true);
@@ -346,6 +372,7 @@
       form.classList.add("open");
       var field = form.querySelector("input[type=text], textarea");
       if (field) {
+        field.disabled = false;
         field.focus();
       }
       return;
@@ -362,6 +389,7 @@
     if (b && b.form) {
       confirming(b.form, false);
       b.form.classList.remove("open");
+      collapse();
     }
   });
 
@@ -373,6 +401,7 @@
 
   localTimes();
   sheet();
+  collapse();
   setInterval(tick, 1000);
   follow();
   readTails();

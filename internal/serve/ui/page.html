@@ -5,7 +5,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark light">
-<meta name="theme-color" content="#05070F">
+<meta name="theme-color" content="#05070F" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#EAF4FF" media="(prefers-color-scheme: light)">
 <title>{{.}}</title>
 <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/static/app.css">
@@ -169,8 +170,8 @@
 {{end}}
 
 {{define "question" -}}
-<section class="question{{if .Sheet}} sheet{{end}}" aria-label="Needs you">
-<p class="kind">{{with .Q.Task}}<span class="id">{{.}}</span> {{end}}<span class="what">{{.Kind}}</span></p>
+<section class="question{{if .Sheet}} sheet{{end}}" aria-label="Needs you"{{with .Q.Task}} id="q-{{.}}"{{end}}>
+<p class="kind">{{with .Q.Task}}<span class="id">{{.}}</span> {{end}}<span class="what">{{.Kind}}</span>{{if gt .Of 1}}<a class="next"{{with .NextID}} href="#q-{{.}}"{{end}}>{{.N}} of {{.Of}}{{if .NextID}} · next{{end}}</a>{{end}}</p>
 <h2>{{.Title}}</h2>
 {{- with .Q.Detail}}
 <p>{{.}}</p>
@@ -195,7 +196,7 @@
 {{- end}}
 
 {{define "form" -}}
-<form method="post" action="/act" class="cmd{{if .Danger}} danger{{end}}{{if .Primary}} primary{{end}}{{if and .Input (not .Select)}} has-field{{end}}"{{if .Confirm}} data-confirm="1"{{end}}>
+<form method="post" action="/act" class="cmd{{if .Danger}} danger{{end}}{{if eq .Type "stop"}} stop{{end}}{{if .Primary}} primary{{end}}{{if and .Input (not .Select)}} has-field{{end}}"{{if .Confirm}} data-confirm="1"{{end}}>
 <input type="hidden" name="csrf" value="{{.CSRF}}">
 <input type="hidden" name="type" value="{{.Type}}">
 {{- with .Task}}

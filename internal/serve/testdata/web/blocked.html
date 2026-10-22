@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark light">
-<meta name="theme-color" content="#05070F">
+<meta name="theme-color" content="#05070F" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#EAF4FF" media="(prefers-color-scheme: light)">
 <title>igris · demo</title>
 <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/static/app.css">
@@ -32,7 +33,7 @@
 </ol>
 <p class="meta"><span>phase P1 · Parser &lt;i&gt;and&lt;/i&gt; writer</span><span>1 of 5 done · 4m12s</span></p>
 </section>
-<section class="question sheet" aria-label="Needs you">
+<section class="question sheet" aria-label="Needs you" id="q-P1-03">
 <p class="kind"><span class="id">P1-03</span> <span class="what">blocked</span></p>
 <h2>P1-03 waits for you in its pane</h2>
 <p>waiting for a permission or an answer</p>
@@ -59,7 +60,7 @@
 <button type="submit" name="confirmed" value="1">Skip P1-03</button>
 <button type="button" class="cancel">Cancel</button>
 </div>
-</form><form method="post" action="/act" class="cmd danger" data-confirm="1">
+</form><form method="post" action="/act" class="cmd danger stop" data-confirm="1">
 <input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
 <input type="hidden" name="type" value="stop">
 <button type="submit" class="go">Stop igris</button>
@@ -142,7 +143,7 @@
 <input type="hidden" name="type" value="pause">
 <button type="submit" class="go">Pause after this task</button>
 </form>
-<form method="post" action="/act" class="cmd danger" data-confirm="1">
+<form method="post" action="/act" class="cmd danger stop" data-confirm="1">
 <input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
 <input type="hidden" name="type" value="stop">
 <button type="submit" class="go">Stop</button>

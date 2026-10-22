@@ -293,8 +293,11 @@ type cardView struct {
 // Text says it).
 type questionView struct {
 	Q Event
-	// Sheet marks the first entry, drawn as the sheet.
-	Sheet bool
+	// Sheet marks the first entry, drawn as the sheet; N of Of says which
+	// of the page's entries this is, and NextID the task of the next.
+	Sheet  bool
+	N, Of  int
+	NextID string
 	// Kind is the small label: commit?, plan, session lost, your turn…
 	Kind    string
 	Title   string
@@ -426,6 +429,12 @@ func (u *ui) view(r *http.Request) pageView {
 		if len(v.Sheet) > 0 {
 			v.Sheet[0].Sheet = true
 		}
+		for i := range v.Sheet {
+			v.Sheet[i].N, v.Sheet[i].Of = i+1, len(v.Sheet)
+			if i+1 < len(v.Sheet) {
+				v.Sheet[i].NextID = v.Sheet[i+1].Q.Task
+			}
+		}
 		pause := form{CSRF: csrf, Type: CmdPause, Label: "Pause after this task"}
 		if snap.Paused {
 			pause.Label = "Resume"
@@ -549,7 +558,7 @@ func sheetOf(c Current, csrf string) (questionView, bool) {
 		if c.Title != "" {
 			v.Title += " · " + c.Title
 		}
-		v.Text = "This task is yours. Do it in the terminal and run `igris done` there, or mark it done here."
+		v.Text = "This task is yours. Do it in the terminal and run igris done there, or mark it done here."
 		if c.Detail != "" {
 			v.Text = c.Detail + ". " + v.Text
 		}
@@ -588,7 +597,6 @@ func statusOf(s Snapshot, now time.Time) (word, line string) {
 	if !s.Started.IsZero() {
 		elapsed = " · " + ran(now.Sub(s.Started))
 	}
-	asked := map[string]bool{}
 	var oldest time.Time
 	questions := 0
 	note := func(q Event) {
@@ -598,7 +606,6 @@ func statusOf(s Snapshot, now time.Time) (word, line string) {
 		}
 	}
 	for _, q := range s.Questions {
-		asked[q.Task] = true
 		note(q)
 	}
 	if s.Reset != nil {
