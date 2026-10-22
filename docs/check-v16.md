@@ -87,7 +87,7 @@ Needs a decision: none.
 
 Observations (no change):
 
-- **`/favicon.ico` is a 404** on each page load (the browser asks for it; the UI has no icon), so the console shows one error. Harmless: it carries the cookie, so it isn't a failed authentication, and an unpaired browser sends no credential. A `<link rel="icon" href="data:,">` in the head (the CSP allows `data:` images) would silence it, or the igris icon could be served. That is a design choice for the not-frozen UI.
+- ~~**`/favicon.ico` is a 404** on each page load~~ (fixed in V16-R: the brand icon is served at `/favicon.ico` and `/static/icon.svg`) (the browser asks for it; the UI has no icon), so the console shows one error. Harmless: it carries the cookie, so it isn't a failed authentication, and an unpaired browser sends no credential. A `<link rel="icon" href="data:,">` in the head (the CSP allows `data:` images) would silence it, or the igris icon could be served. That is a design choice for the not-frozen UI.
 - **A lost connection while the run goes on** (`reconnecting…`) was not seen live: serve can't be cut off from the page without ending the run, which ends the page through `run_stopped`. The page did keep one event stream for about 14 minutes without a drop.
 - **ntfy's `Retry`/`Stop` and `Skip`/`Keep` sets** were not produced live (no session was lost and no skip was requested). They are covered by `action_test.go`.
 - **Claude Code refused the foreground `sleep 100`** in W1-05 and asked the owner what to do. igris reminded it once and showed it in the card's tail. The owner's answer in the pane let it finish, as at the V15 gate.

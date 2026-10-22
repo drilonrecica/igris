@@ -871,3 +871,16 @@ Decided:
 - **Frozen (§19):** `[serve] http`, `tls_cert`, `tls_key`, `serve --http`, `--listen-public`, `igris serve token`, `[notify.ntfy] actions`, the HTTP mapping of protocol 1. Not frozen: the web UI.
 
 **Amended 2026-10-21 (owner):** V13 and V14 run in one unattended night, so igris draft (V13) and serve/attach (V14) ship together as **v1.4.0**; 1.3.0 is not published on its own. V14-01 starts after the V13 gate instead of after a 1.3.0 release; V14-05 folds the 1.3.0 changelog and release notes into 1.4.0 and changes "since 1.3" to "since 1.4". Later releases keep their numbers (1.5 parallel, 1.6 remote).
+
+## V16-P2 — The phone page's design (v1.6)
+
+**Approved by owner** (2026-10-22, before v1.6.0 shipped, after the phone checks of V16-R). Design: `docs/superpowers/specs/2026-10-22-phone-ui-design.md`; mockups: https://claude.ai/artifact/Y3jYneQeuwyA85KURUJP7S; plan: `docs/superpowers/plans/2026-10-22-phone-ui.md`.
+
+- **One glance, two answers** (owner's words: "is it stuck and does it need me", "how far along is it"): a status word and a phase bar lead the page; red means Needs you and nothing else.
+- **Needs you is a sheet at the thumb**, never a card to scroll to, and never shows without something to tap: a user task's turn and a blocked or lost session get a sheet with the actions that apply.
+- **The plan is its own page** (`/plan`), so the run page stays short.
+- **Dark first, light by the phone's setting** (owner: "also offer light since it sometimes may make sense"); no toggle.
+- **The brand on the page:** the visor icon, the wordmark with the red i, Chakra Petch for the status word, embedded and served by igris (`font-src 'self'`); body text in the phone's own sans; no other asset, no dependency, no build step.
+- **No new actions**; the mockups' `Show diff` and the mode pill were not built.
+- Opinionated by design (owner, 2026-10-22): one way, no layout or theme options.
+

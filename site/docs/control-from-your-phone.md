@@ -54,7 +54,7 @@ The token is a file, `.igris/serve-token` (0600), one per project. `igris serve 
 
 ## What it can and can't do
 
-The page at `/` is the narrow run view's actions, sized for a phone:
+The page at `/` is made for a glance: a status word (`Working`, `Needs you`, `Paused`, `Done`) with red for Needs you only, a bar with one segment per task of the phase, and whatever needs you as a sheet at your thumb, dark by default and light when your phone is. It holds the narrow run view's actions:
 
 - the run's phase, progress, mode and pause, the phases and their tasks, and a card for every active task with its state, model, how long it has run, its question and the session's last lines;
 - answer a question: the commit question, a plan for approval (approve, or reject with feedback), a session's skip or reset request, a lost session;
