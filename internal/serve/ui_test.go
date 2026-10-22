@@ -419,3 +419,49 @@ func TestRan(t *testing.T) {
 		}
 	}
 }
+
+// A form is shape-checked before the confirmation page names its task:
+// nothing of the form is shown back unchecked.
+func TestUIFormCheckedBeforeConfirm(t *testing.T) {
+	w := uiWeb(t, "accept", true)
+	running(w.srv)
+	junk := "<b>" + strings.Repeat("x", 300)
+	status, body, _ := w.postForm(PathAct, url.Values{"type": {CmdSkip}, "task": {junk}, "text": {"later"}})
+	if status != http.StatusBadRequest || !strings.Contains(body, "not a task ID") {
+		t.Fatalf("status = %d, want 400 naming the task ID: %s", status, body)
+	}
+	if strings.Contains(body, "<form") || strings.Contains(body, strings.Repeat("x", 100)) {
+		t.Errorf("the page shows the form or the whole junk:\n%s", body)
+	}
+	if got := w.send.got(); len(got) != 0 {
+		t.Errorf("sent %+v", got)
+	}
+}
+
+// Every body is bounded to 1 MiB, a form as much as a command: the CSRF
+// header path never parsed the form before the UI did, where Go's own
+// limit is 10 MiB.
+func TestUIFormBodyBounded(t *testing.T) {
+	w := uiWeb(t, "accept", true)
+	running(w.srv)
+	big := "type=pause&note=" + strings.Repeat("x", MaxLine)
+	req, err := http.NewRequest(http.MethodPost, w.ts.URL+PathAct, strings.NewReader(big))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set(CSRFHeader, csrfFor(goodToken))
+	req.AddCookie(&http.Cookie{Name: CookieName, Value: goodToken}) //nolint:gosec // a client's cookie
+	resp, err := noRedirect.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(string(body), "could not be read") {
+		t.Errorf("a 1 MiB form: %d %s, want 400", resp.StatusCode, body)
+	}
+	if got := w.send.got(); len(got) != 0 {
+		t.Errorf("sent %+v", got)
+	}
+}

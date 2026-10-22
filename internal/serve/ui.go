@@ -14,6 +14,7 @@ import (
 
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/state"
+	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
 // The web UI (SPEC §15.8): server-rendered pages from the snapshot, one
@@ -133,7 +134,13 @@ func (u *ui) act(w http.ResponseWriter, r *http.Request) {
 	f := r.PostForm
 	req := formRequest(f)
 	if _, ok := commandKinds[req.Type]; !ok {
-		u.message(w, http.StatusBadRequest, "Not sent", fmt.Sprintf("%q is not a command.", cut(req.Type, maxID)))
+		u.message(w, http.StatusBadRequest, "Not sent", fmt.Sprintf("%q is not a command.", textsafe.Line(cut(req.Type, maxID))))
+		return
+	}
+	// The shape first: nothing of the form is shown back before it is
+	// checked (the confirmation page names the task).
+	if _, err := req.command(); err != nil {
+		u.message(w, http.StatusBadRequest, "Not sent", err.Error())
 		return
 	}
 	if c, ok := confirmOf(req.Type, req.Task); ok && f.Get(confirmedField) != "1" {

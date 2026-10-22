@@ -1,6 +1,6 @@
 # Threat model
 
-What igris protects, from whom, where the boundaries are, and which test enforces each safety rule. SPEC §16 is normative; this document explains it and keeps its rules tied to tests. It is updated with each security review (V06-07, then V10-05, V2R-04, V2X-03) and with every change to SPEC §16. Written for v0.6 (task V06-06).
+What igris protects, from whom, where the boundaries are, and which test enforces each safety rule. SPEC §16 is normative; this document explains it and keeps its rules tied to tests. It is updated with each security review (V06-07, then V10-05, V2R-04, V2X-03, V16-05) and with every change to SPEC §16. Written for v0.6 (task V06-06).
 
 ## Trust model
 
@@ -167,7 +167,7 @@ Since 1.5 the same boundary holds for the task worktrees of a parallel phase (`.
 
 ### B9 — `igris serve`'s HTTP listener ↔ remote callers (since 1.6)
 
-Off unless the owner sets an address (`[serve] http`, `serve --http`). A remote caller is untrusted until it authenticates; an authenticated one is an attached client short of skip-permissions mode (SPEC §14, §16, decisions.md V16-P1). V16-05 reviews this boundary in full.
+Off unless the owner sets an address (`[serve] http`, `serve --http`). A remote caller is untrusted until it authenticates; an authenticated one is an attached client short of skip-permissions mode (SPEC §14, §16, decisions.md V16-P1). V16-05 reviewed it (below).
 
 | Threat | Mitigation |
 |---|---|
@@ -176,8 +176,12 @@ Off unless the owner sets an address (`[serve] http`, `serve --http`). A remote 
 | The token leaks through a URL, a log or a header | The pairing URL redirects to `/` once the cookie is set; `Referrer-Policy: no-referrer`; serve never prints the token (its output goes to `serve.log`), only `igris serve token` does, on its own terminal. The cookie is `HttpOnly`, `SameSite=Strict`, `Secure` on TLS. |
 | Cross-site request forgery, clickjacking, script injection | A cookie-authenticated `POST` needs the CSRF token (an HMAC of the owner token); a non-`GET` with a foreign `Origin` or `Sec-Fetch-Site: cross-site` is refused; commands are `application/json` only; a CSP without inline script and `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `nosniff`. |
 | A remote caller switches the run to skip-permissions mode | `mode` and `task_mode` naming `yolo` or `plan:yolo` are refused before the engine, also on a run whose owner typed the phrase at start (where the engine would take it without `yes`); an HTTP client never says hello, so it can't be the starter whose `yolo` a run takes (SPEC §7.3, §14). |
-| A remote caller floods or stalls serve | Request headers in 10 s and 16 KiB, bodies in 30 s and 1 MiB, at most 16 event streams; each stream is a client with the socket's bounded queue, dropped when slow; commands are shape-checked as on the socket. |
+| A remote caller floods or stalls serve | Request headers in 10 s and 16 KiB, every body in 30 s and 1 MiB (bounded before any handler reads it, a form as much as a command), at most 16 event streams and 8 tail reads at once (`503` beyond; a socket client reads one tail at a time, and a tail is a backend read); each stream is a client with the socket's bounded queue, dropped when slow; commands are shape-checked as on the socket, and the web UI shape-checks a form before its confirmation page names anything from it. |
 | A paired device is lost, or the token was seen | `igris serve token --rotate` replaces it; a live serve reads the token on every request, so the old one stops working at once and open event streams end within 15 s. |
+| DNS rebinding: a site the owner visits points a name at the listener's address and reads its answers | The cookie is set for the host the pairing URL named (an address), so a request under a rebound name carries no cookie and no token: it gets only the unpaired answers (`401`, the pairing text), which say nothing about the run; a change needs the CSRF token and a same-origin request besides, and `Origin: null` is foreign. |
+| Another web service on the listener's host receives the cookie | Browsers scope cookies by host, not port: a service on another port of the same address (a dev server the project starts; a local app on the laptop behind `ssh -L`) gets `igris_token` from a paired browser and can set one in its place (a nuisance: a wrong cookie is a wrong token, `401`). On the serve machine that is risk 24; through `ssh -L` the services are the laptop's own. A bearer client sends no cookie; a loopback address of its own (`127.0.0.2`) keeps the cookie to igris (accepted, risk 25). |
+| An ISP's CGNAT address binds like a Tailscale one | `100.64.0.0/10` is Tailscale's range and the carrier-grade NAT range: an interface of the machine that holds such an address from its ISP binds without `--listen-public` or TLS (accepted, risk 26). The token guards every request either way. |
+| The pairing URL stays in the browser's history, or a messaging app previews it | Whoever sees the pairing URL pairs (risk 24); `igris serve token --rotate` unpairs everyone. A preview's `HEAD` is refused (`405`) and its `GET` pairs a server that never uses the cookie. |
 
 ## Accepted risks
 
@@ -208,6 +212,10 @@ Off unless the owner sets an address (`[serve] http`, `serve --http`). A remote 
 23. **Parallel tasks share the machine and a mode** (V15-P1): the sessions of a parallel phase run as the owner at the same time, each able to read or write the other tasks' worktrees and everything else the permission mode lets it. Isolation is for the code (one branch and tree per task, a rebase and verify before integration), not for a hostile session. Verify and git hooks of N worktrees run session-written code as the owner (risk 1). Run a phase in parallel only where you would run one task unattended; worktree mode (`--worktree`) keeps the whole run off your branch.
 
 24. **Whoever holds the serve token controls the run** (V16-P1): a paired phone, someone who saw the pairing URL or its QR code, or a process of the owner's user (a session included) that reads `.igris/serve-token` can do what an attached client does, short of skip-permissions mode, until the owner rotates the token. A session can also replace the file with a token of its own, as it can drive the socket (risk 22). The listener is off by default and binds only loopback and Tailscale addresses without `--listen-public`.
+
+25. **The cookie reaches every port of the listener's host** (V16-05): browsers scope cookies by host, not port, so another web service on the same address, a dev server the project starts or a local app on the laptop that `ssh -L` runs on, receives `igris_token` from a paired browser; `HttpOnly`, `SameSite=Strict` and `Secure` don't change that, and `__Host-` prefixes need TLS. On the serve machine a local process can read `.igris/serve-token` anyway (risk 24). Rotate the token when such a service isn't yours; a bearer client (`Authorization: Bearer`) sends no cookie; a loopback address of its own (`ssh -L 127.0.0.2:7777:127.0.0.1:7777`, with `[serve] http = "127.0.0.2:7777"` or the URL edited) keeps the cookie to igris.
+
+26. **Tailscale's IPv4 range is the CGNAT range** (V16-05): `100.64.0.0/10` is what Tailscale assigns and what ISPs assign behind carrier-grade NAT. A machine whose own interface holds an ISP's CGNAT address (a tethered or cellular machine; a router's WAN address never reaches igris's host) binds it as a Tailscale address: plain HTTP, no `--listen-public`, on a wire that is the ISP's. The token guards every request; telling the interface apart would need the `tailscale` command or its socket, which igris doesn't call.
 
 ## Reviews
 
@@ -256,6 +264,22 @@ The final review before 1.0. Four reviewers on the Fable model read the whole tr
 | 16 | prompts | `prompt_template` is not part of the config snapshot. | info | Accepted (risk 13) |
 
 Checked and holding, among others: no plan text reaches a shell; verify, hooks and git never see the secrets' variables; every command has a timeout and bounded output; the yolo confirmation on every path; redirects never followed; secrets never in errors, hashes or pages; every workflow step pinned and read-only; the reproducible build; signed checksums and formula checksums derived from them.
+
+### V16-05 (2026-10-22, v1.6.0)
+
+The remote boundary (B9) read on the Fable model against SPEC §10, §14, §15.8 and §16 and decision V16-P1: authentication and the token file, pairing, CSRF and origin checks, the headers, the bind rules and TLS, the ntfy action tokens, the rate limit, the bounds, skip-permissions mode and the web UI's output. Baseline: the serve package's tests under the race detector.
+
+| # | Area | Finding | Severity | Outcome |
+|---|---|---|---|---|
+| 1 | bounds | A form posted to the web UI with the CSRF token in the header was parsed by the UI under Go's own 10 MiB limit, not the listener's 1 MiB: the listener bounded only the bodies it read itself. | low | Fixed: every body is bounded at 1 MiB before any handler reads it (R68) |
+| 2 | bounds | Tail reads over HTTP had no bound: a socket client reads one at a time, an HTTP client could start a backend read (`tmux capture-pane`, a herdr call) per request. | low | Fixed: at most 8 at once, `503` beyond (R68) |
+| 3 | web UI | The confirmation page named the form's task before the command was shape-checked: escaped by `html/template`, but of any length and any text. | info | Fixed: the shape check comes first (R72) |
+| 4 | protocol | The error for an unknown message type quoted the type whole and uncleaned, on the socket and over HTTP; a 1 MiB type made the socket's reply too long to send. | info | Fixed: cut to 64 characters and cleaned (R55) |
+| 5 | cookie | Browsers scope cookies by host, not port: other web services on the listener's address receive the cookie. | low | Accepted (risk 25); V16-06 says so on the site page |
+| 6 | bind rules | `100.64.0.0/10` is also the ISPs' CGNAT range. | info | Accepted (risk 26) |
+| 7 | pairing | The pairing URL stays in a browser's history and is fetched by link previews. | info | Risk 24 covers it: a preview's `HEAD` is refused, its `GET` pairs a server that never uses the cookie |
+
+Checked and holding: the token is compared in constant time and read from its file on every request, so a rotation ends every session at once and every stream within a ping; it is never logged, never in a notification and never in a URL after the `303`; a wrong pairing token, cookie or bearer counts against its address and a missing one doesn't; the limiter's table is bounded and fails closed; a cookie-authenticated `POST` needs the CSRF token (an HMAC of the owner token, so a rotation changes it, and nothing can be derived from it), and a non-`GET` with a foreign `Origin`, `Origin: null` or `Sec-Fetch-Site: cross-site` is refused whatever its credentials, while a bearer request carries nothing ambient and a cross-site request with a custom header never leaves the browser's preflight; the headers go on every response, errors and static files included; the `mode` and `task_mode` refusal lowercases and trims as the engine does and comes before the engine, so a run whose owner typed the phrase takes nothing from HTTP, their `yes` is dropped, the web UI's select offers no such mode, and `hello` is refused; action tokens are 32 random bytes kept as their SHA-256, one answer of one question each, bounded in number, refused once the question was answered by any client or settled by the run, and a `GET` on one touches nothing; the SSE stream is a bounded socket client dropped when slow, 16 at once; headers and bodies have deadlines; TLS is 1.2 or later from the owner's files, `Secure` and HSTS only then; `RemoteAddr` is the rate limit's key, never `X-Forwarded-For`; the UI is `html/template` under a CSP without inline script or style, tails reach the page as text nodes, the static server serves two files, and the only redirect is to `/`; the token file is 0600, read bounded and never through a symlink, and created with a link so two igris can't race.
 
 ## Rule → test map
 
@@ -315,7 +339,7 @@ One row per safety rule. The tests are named `package.TestName`; `tools/threatmo
 | R52 | The update command is built from the version only, runs as argv with a timeout after the owner confirms, never during a run on home, and without the notification secrets' variables; igris never replaces its own binary | §14, §15.6, §16 | `internal/update.TestDetectAndFor`, `internal/update.TestRun`, `cmd/igris.TestUpdateAsks`, `cmd/igris.TestUpdateYes`, `internal/project.TestServicesUpdate`, `internal/tui.TestUpdateNotDuringARun` |
 | R53 | The update trusts the package manager that installed igris | §14 | accepted (see Accepted risks 21) |
 | R54 | Only the owner's user reaches the run's socket: 0600 in a 0700 directory of the user's own, never a symlink; on Linux the peer's uid is checked | §13, §16 | `internal/serve.TestRealSocket`, `internal/serve.TestServeRefusesAnotherUser`, `internal/serve.TestPeerUID`, `internal/serve.TestListenFallback`, `internal/serve.TestListenFallbackDirSymlink`, `internal/serve.TestListenStaleLiveAndInTheWay` |
-| R55 | Every socket message is bounded and shape-checked before it reaches the engine; malformed input ends the connection | §13, §16 | `internal/serve.TestMalformedEndsConnection`, `internal/serve.TestCommandsRefused`, `internal/serve.TestCommandsMirrorEngine`, `internal/serve.TestEventLinesAreBounded` |
+| R55 | Every socket message is bounded and shape-checked before it reaches the engine; malformed input ends the connection; an error names a client's text cut and cleaned | §13, §16 | `internal/serve.TestMalformedEndsConnection`, `internal/serve.TestCommandsRefused`, `internal/serve.TestCommandsMirrorEngine`, `internal/serve.TestEventLinesAreBounded`, `internal/serve.TestHTTPUnknownTypeIsCut` |
 | R56 | A slow client is dropped, never waited for; the engine is never blocked by a client | §13 | `internal/serve.TestSlowClientDropped`, `internal/serve.TestSlowClientDroppedByBytes` |
 | R57 | `.igris/igris.sock.path` is used only when it names this root's fallback socket | §13 | `internal/serve.TestSocketPathIgnoresForeignPathFile` |
 | R58 | Any process of the owner's user can drive a run over the socket | §16 | accepted (see Accepted risks 22) |
@@ -328,9 +352,12 @@ One row per safety rule. The tests are named `package.TestName`; `tools/threatmo
 | R65 | Failed authentication is rate-limited per address in a bounded table | §14 | `internal/serve.TestHTTPRateLimit`, `internal/serve.TestLimiterBounded`, `internal/serve.TestAddrKey` |
 | R66 | A cookie-authenticated change needs the CSRF token; a cross-site non-GET is refused (but an ntfy answer, which nothing ambient authenticates); every response has the security headers | §14 | `internal/serve.TestHTTPCSRFAndOrigin`, `internal/serve.TestHTTPSecurityHeaders` |
 | R67 | Skip-permissions mode is never set over HTTP, and an HTTP client is never the starter | §7.3, §14, §16 | `internal/serve.TestHTTPCommands`, `internal/serve.TestHTTPNeverYoloOnAConfirmedRun`, `internal/serve.TestHTTPEventsSnapshotThenEvents` |
-| R68 | HTTP requests and event streams are bounded; a slow stream is dropped, never waited for | §14 | `internal/serve.TestHTTPCommands`, `internal/serve.TestHTTPEventStreamsBounded`, `internal/serve.TestHTTPSlowStreamDropped` |
+| R68 | HTTP requests and event streams are bounded (every body 1 MiB, 16 streams, 8 tail reads); a slow stream is dropped, never waited for | §14 | `internal/serve.TestHTTPCommands`, `internal/serve.TestHTTPEventStreamsBounded`, `internal/serve.TestHTTPSlowStreamDropped`, `internal/serve.TestHTTPTailsBounded`, `internal/serve.TestUIFormBodyBounded` |
 | R69 | Serve never prints the serve token | §14 | `cmd/igris.TestServeHTTPListener` |
 | R70 | Whoever holds the serve token controls the run, short of skip-permissions mode | §16 | accepted (see Accepted risks 24) |
 | R71 | An ntfy answer button answers one question of one task, once, within 10 minutes: its token is random, never the owner token, kept only as its SHA-256 in serve's memory; a used, expired, unknown or superseded token, or one whose question was answered elsewhere, is refused with 410 and the run is not touched; only POST answers; unknown tokens count as failed authentication; the tokens kept are bounded | §10, §14, §16 | `internal/serve.TestActionAnswersOnce`, `internal/serve.TestActionExpires`, `internal/serve.TestActionAnsweredElsewhere`, `internal/serve.TestActionRefusals`, `internal/serve.TestActionTokensBounded`, `internal/serve.TestActionButtonsOnlyForThePendingQuestion` |
+| R72 | The web UI shape-checks a form before any of it is shown back; what it shows is escaped by `html/template` under a CSP without inline script, and it offers no skip-permissions mode | §15.8, §16 | `internal/serve.TestUIFormCheckedBeforeConfirm`, `internal/serve.TestUIPagesKeepTheCSPAndNoYolo`, `internal/serve.TestUIFormActions` |
+| R73 | The cookie reaches every port of the listener's host | §16 | accepted (see Accepted risks 25) |
+| R74 | Tailscale's IPv4 range is the CGNAT range | §14, §16 | accepted (see Accepted risks 26) |
 | R29 | Verify and git hooks run session-written code as the owner | §16 | accepted (see Accepted risks 1) |
 | R30 | A session can forge hook state, moving Needs you within `waiting_limit` | §6.3 | accepted (see Accepted risks 3) |

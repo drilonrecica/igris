@@ -286,7 +286,7 @@ var questions = map[engine.Question]bool{
 func (r Request) command() (engine.Command, error) {
 	kind, ok := commandKinds[r.Type]
 	if !ok {
-		return engine.Command{}, fmt.Errorf("unknown message type %q", r.Type)
+		return engine.Command{}, fmt.Errorf("unknown message type %q", textsafe.Line(cut(r.Type, maxID)))
 	}
 	if len(r.Text) > maxText {
 		return engine.Command{}, fmt.Errorf("text is over %d bytes", maxText)

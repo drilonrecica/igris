@@ -628,3 +628,89 @@ func TestHTTPServeRemoteShutdown(t *testing.T) {
 		t.Error("the listener still accepts after Shutdown")
 	}
 }
+
+// Tail reads over HTTP are bounded: the socket allows one per client, and
+// a token holder must not get a backend read per request.
+func TestHTTPTailsBounded(t *testing.T) {
+	started := make(chan struct{}, maxTails)
+	release := make(chan struct{})
+	w := newWebWith(t, func(o *Options) {
+		o.Tail = func(ctx context.Context, _ string, _ int) ([]string, error) {
+			started <- struct{}{}
+			select {
+			case <-release:
+				return []string{"line"}, nil
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+	}, nil)
+	body := `{"v":1,"type":"tail","id":"t","n":5}`
+	tail := func() (int, error) {
+		req, err := http.NewRequest(http.MethodPost, w.ts.URL+PathCommand, strings.NewReader(body))
+		if err != nil {
+			return 0, err
+		}
+		req.Header.Set("Authorization", "Bearer "+goodToken)
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := noRedirect.Do(req)
+		if err != nil {
+			return 0, err
+		}
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+		return resp.StatusCode, nil
+	}
+	codes := make(chan int, maxTails)
+	var wg sync.WaitGroup
+	for range maxTails {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			code, err := tail()
+			if err != nil {
+				t.Error(err)
+			}
+			codes <- code
+		}()
+	}
+	for range maxTails {
+		<-started // every allowed read is in the backend
+	}
+	if code, err := tail(); err != nil || code != http.StatusServiceUnavailable {
+		t.Errorf("tail %d: %d %v, want 503", maxTails+1, code, err)
+	}
+	close(release)
+	wg.Wait()
+	close(codes)
+	for code := range codes {
+		if code != http.StatusOK {
+			t.Errorf("an allowed tail got %d", code)
+		}
+	}
+	if code, err := tail(); err != nil || code != http.StatusOK {
+		t.Errorf("after the reads ended: %d %v, want 200", code, err)
+	}
+}
+
+// An unknown message type is named in the error cut and cleaned: over the
+// socket a 1 MiB type made the reply too long to send at all.
+func TestHTTPUnknownTypeIsCut(t *testing.T) {
+	w := newWeb(t, nil)
+	long := strings.Repeat("a\x1b[2J", 4000)
+	body, err := json.Marshal(map[string]any{"v": 1, "type": long, "id": "u"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp := w.do("POST", PathCommand, "bearer", string(body), nil)
+	r := readReply(t, resp)
+	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(r.Error, "unknown message type") {
+		t.Fatalf("%d %+v", resp.StatusCode, r)
+	}
+	if len(r.Error) > 2*maxID || strings.Contains(r.Error, "\x1b") {
+		t.Errorf("the error echoes the type uncut or uncleaned: %q", r.Error)
+	}
+	if n := len(w.send.got()); n != 0 {
+		t.Errorf("%d commands reached the run", n)
+	}
+}

@@ -45,6 +45,7 @@ const (
 	authFails      = 10          // per address and window before it gets 429
 	limiterMax     = 4096        // addresses tracked; the rest share one entry
 	maxStreams     = 16          // event streams at once
+	maxTails       = 8           // tail reads at once (the socket allows one per client)
 	pingInterval   = 15 * time.Second
 	headerTimeout  = 10 * time.Second
 	bodyTimeout    = 30 * time.Second
@@ -94,6 +95,7 @@ type remote struct {
 	opts    RemoteOptions
 	limit   *limiter
 	streams atomic.Int32
+	tails   atomic.Int32
 }
 
 // Remote returns the HTTP listener's handler for s (SPEC §14).
@@ -167,6 +169,9 @@ func (h *remote) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_ = rc.SetReadDeadline(time.Now().Add(bodyTimeout))
 		_ = rc.SetWriteDeadline(time.Now().Add(bodyTimeout))
 	}
+	// Every body is bounded, whoever reads it: a form the UI parses as
+	// much as a command (SPEC §14).
+	r.Body = http.MaxBytesReader(w, r.Body, MaxLine)
 	if strings.HasPrefix(r.URL.Path, PathAction) {
 		// Its token is its authority: no cookie, so no other site can
 		// borrow one, and ntfy's web app sends its own Origin.
@@ -409,6 +414,16 @@ func (h *remote) command(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.fail(w, r, http.StatusBadRequest, err.Error())
 		return
+	}
+	if req.Type == TypeTail {
+		// A tail is a backend read; a token holder gets a bounded number
+		// at once, as a socket client gets one.
+		if h.tails.Add(1) > maxTails {
+			h.tails.Add(-1)
+			h.fail(w, r, http.StatusServiceUnavailable, "too many tail reads at once; try again")
+			return
+		}
+		defer h.tails.Add(-1)
 	}
 	rep, status := h.srv.remoteRequest(r.Context(), req)
 	writeReply(w, status, rep)
