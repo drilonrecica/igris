@@ -2,7 +2,7 @@
 
 All notable changes to igris are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and igris uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Until 1.0, minor versions may change the plan format, config or CLI; such changes are called out here.
 
-## [1.5.0] - unreleased
+## [1.5.0] - 2026-10-22
 
 igris 1.5 adds one thing to 1.4 and breaks nothing: the tasks of a phase can run at the same time, if the plan says so. A phase without the new marker runs one task at a time exactly as before, so plans, `igris.toml` and scripts written for 1.0 to 1.4 need no changes ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). Parallel costs more than it looks; read [what it costs](https://drilonrecica.github.io/igris/docs/parallel-phases.html#what-it-costs) before you use it. The additions are a plan format (3), a column, a config table, a flag, an environment variable, two fields and three events. `state.json` becomes version 4, which igris 1.0 to 1.4 refuse.
 
