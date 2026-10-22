@@ -54,7 +54,7 @@ func spawnGuard(self string, inTest bool, depth string) (next int, err error) {
 	switch {
 	case inTest:
 		return 0, fmt.Errorf("igris serve can't be started from a test binary (%s); tests must set Env.Spawn to a fake", base)
-	case strings.HasSuffix(base, ".test"), strings.HasPrefix(self, os.TempDir()+string(filepath.Separator)+"go-build"):
+	case strings.HasSuffix(base, ".test"), strings.HasPrefix(self, filepath.Join(os.TempDir(), "go-build")):
 		return 0, fmt.Errorf("igris serve can't be started from a test binary (%s); tests must set Env.Spawn to a fake", self)
 	}
 	if depth != "" {

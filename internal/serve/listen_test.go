@@ -26,10 +26,30 @@ func openDir(t *testing.T, root string) *state.Dir {
 	return d
 }
 
+// shortTempDir is a temp dir of the test's own that a unix socket fits
+// under: t.TempDir() where that is short enough (Linux), else a directory
+// under /tmp with its symlinks resolved (macOS: t.TempDir() is about 90
+// bytes under /var/folders, and the socket may have 103).
+func shortTempDir(t *testing.T) string {
+	t.Helper()
+	if dir := t.TempDir(); len(dir)+len("/igris/")+len(fallbackName(dir)) <= maxSocketPath() && len(dir)+len(state.SocketPath("")) <= maxSocketPath() {
+		return dir
+	}
+	dir, err := os.MkdirTemp("/tmp", "igris-serve-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if real, err := filepath.EvalSymlinks(dir); err == nil {
+		dir = real
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	return dir
+}
+
 // shortEnv chooses .igris/igris.sock whenever it fits, with fallbacks in
 // directories of the test's own.
 func shortEnv(t *testing.T) env {
-	return env{runtimeDir: t.TempDir(), tempDir: t.TempDir(), max: maxSocketPath()}
+	return env{runtimeDir: shortTempDir(t), tempDir: shortTempDir(t), max: maxSocketPath()}
 }
 
 // listenTemp serves s on a socket of a new project in a temp dir and
@@ -106,7 +126,7 @@ func TestRealSocket(t *testing.T) {
 
 // Closing the listener removes the socket; Dial then says no run is live.
 func TestListenerCloseRemovesSocket(t *testing.T) {
-	root := t.TempDir()
+	root := shortTempDir(t)
 	l, err := listen(openDir(t, root), shortEnv(t))
 	if err != nil {
 		t.Fatal(err)
@@ -129,7 +149,7 @@ func TestListenerCloseRemovesSocket(t *testing.T) {
 func TestServeAfterShutdownClosesTheListener(t *testing.T) {
 	for _, stop := range []string{"Shutdown", "Close"} {
 		t.Run(stop, func(t *testing.T) {
-			root := t.TempDir()
+			root := shortTempDir(t)
 			l, err := listen(openDir(t, root), shortEnv(t))
 			if err != nil {
 				t.Fatal(err)
@@ -156,7 +176,7 @@ func TestServeAfterShutdownClosesTheListener(t *testing.T) {
 // A socket nobody listens on is replaced; a live one is refused; a file
 // or a symlink in its place is never removed.
 func TestListenStaleLiveAndInTheWay(t *testing.T) {
-	root := t.TempDir()
+	root := shortTempDir(t)
 	d := openDir(t, root)
 	path := state.SocketPath(root)
 
