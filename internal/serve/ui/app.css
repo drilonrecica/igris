@@ -227,7 +227,7 @@ button, .btn {
 }
 button:active, .btn:active { background: var(--line-soft); }
 form.primary button.go { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
-form.danger button.go, nav.bar form.danger button { color: var(--needs-text); }
+form.danger button.go { color: var(--needs-text); }
 .confirm { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; border-top: 1px solid var(--line-soft); }
 .confirm p { color: var(--muted); }
 .confirm button[name=confirmed] { border-color: var(--needs-text); color: var(--needs-text); font-weight: 600; }
@@ -323,7 +323,6 @@ nav.bar {
 }
 nav.bar > * { flex: 1 1 0; margin: 0; }
 nav.bar form.danger { flex: 0 0 5.5rem; }
-nav.bar form.confirming { flex-basis: 100%; }
 nav.bar .confirm { position: absolute; left: 16px; right: 16px; bottom: calc(100% - 2px); background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
 
 /* status lines */
