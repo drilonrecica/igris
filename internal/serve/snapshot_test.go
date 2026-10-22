@@ -258,3 +258,24 @@ func TestCut(t *testing.T) {
 		}
 	}
 }
+
+// The snapshot carries when the run started (since 1.6), for the page's
+// elapsed time; a server without a run has no start, and its JSON has no
+// "started" key.
+func TestSnapshotStarted(t *testing.T) {
+	s := New(Options{})
+	if got := s.Snapshot(); !got.Started.IsZero() {
+		t.Errorf("fresh snapshot started at %v", got.Started)
+	}
+	b, err := json.Marshal(s.Snapshot())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(b), `"started"`) {
+		t.Errorf("fresh snapshot JSON has a started key: %s", b)
+	}
+	s.Publish(engine.Event{At: uiT0, Kind: engine.RunStarted, Run: "r1", Phase: "P1"})
+	if got := s.Snapshot(); !got.Started.Equal(uiT0) {
+		t.Errorf("started = %v, want %v", got.Started, uiT0)
+	}
+}

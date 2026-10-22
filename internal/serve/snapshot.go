@@ -22,10 +22,12 @@ type Snapshot struct {
 	Project string `json:"project,omitempty"`
 	Backend string `json:"backend,omitempty"`
 
-	Run   string   `json:"run,omitempty"`
-	Phase string   `json:"phase,omitempty"`
-	Slice []string `json:"slice,omitempty"`
-	Mode  string   `json:"mode,omitempty"`
+	Run string `json:"run,omitempty"`
+	// Started is when the run started (since 1.6); zero before a run.
+	Started time.Time `json:"started,omitzero"`
+	Phase   string    `json:"phase,omitempty"`
+	Slice   []string  `json:"slice,omitempty"`
+	Mode    string    `json:"mode,omitempty"`
 	// Overrides are the per-task modes the owner chose (task → mode).
 	Overrides map[string]string `json:"overrides,omitempty"`
 	Paused    bool              `json:"paused,omitempty"`
@@ -120,6 +122,7 @@ const feedLen = 200
 // folds them into its own (internal/tui).
 type tracker struct {
 	run, phase, mode, end     string
+	started                   time.Time
 	slice                     []string
 	overrides                 map[string]string
 	paused, holding, worktree bool
@@ -161,6 +164,7 @@ func (t *tracker) drop(id string) {
 func (t *tracker) apply(raw engine.Event, ev Event) {
 	if raw.Kind == engine.RunStarted && raw.Run != "" {
 		t.run = raw.Run
+		t.started = raw.At
 	}
 	if raw.Phase != "" {
 		t.phase = raw.Phase
@@ -323,7 +327,7 @@ func (t *tracker) addFeed(ev Event) {
 func (t *tracker) snapshot(phases []Phase) Snapshot {
 	s := Snapshot{
 		V: Protocol, Type: TypeSnapshot, Protocol: Protocol,
-		Run: t.run, Phase: t.phase, Slice: t.slice, Mode: t.mode,
+		Run: t.run, Started: t.started, Phase: t.phase, Slice: t.slice, Mode: t.mode,
 		Paused: t.paused, Holding: t.holding, Worktree: t.worktree, Ended: t.ended, End: t.end,
 		Reset: t.reset, Quota: t.quota,
 	}
