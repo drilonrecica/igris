@@ -355,7 +355,7 @@ func TestHTTPSecurityHeaders(t *testing.T) {
 		}
 	}
 	csp := resps[0].Header.Get("Content-Security-Policy")
-	for _, want := range []string{"frame-ancestors 'none'", "script-src 'self'", "default-src 'none'"} {
+	for _, want := range []string{"frame-ancestors 'none'", "script-src 'self'", "default-src 'none'", "font-src 'self'"} {
 		if !strings.Contains(csp, want) || strings.Contains(csp, "unsafe-inline") {
 			t.Errorf("CSP %q: want %s, no unsafe-inline", csp, want)
 		}

@@ -59,7 +59,7 @@ const errRemoteYolo = "skip-permissions mode is never set remotely; set it in th
 
 // securityHeaders go on every response (SPEC §14).
 var securityHeaders = [][2]string{
-	{"Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"},
+	{"Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"},
 	{"Referrer-Policy", "no-referrer"},
 	{"X-Content-Type-Options", "nosniff"},
 	{"X-Frame-Options", "DENY"},

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"io/fs"
+	"mime"
 	"net/http"
 	"net/url"
 	"slices"
@@ -28,9 +29,16 @@ const (
 	PathLive = "/live"
 	// PathAct takes a form's command when the script doesn't send it.
 	PathAct = "/act"
-	// pathStatic serves the script and the stylesheet.
+	// pathStatic serves the script, the stylesheet, the icon and the fonts.
 	pathStatic = "/static/"
+	// pathFavicon is the icon where browsers look for one.
+	pathFavicon = "/favicon.ico"
 )
+
+// staticFiles are the files served under pathStatic: a list, not the
+// whole embedded directory (the templates and the font licence stay in).
+var staticFiles = []string{"app.js", "app.css", "icon.svg",
+	"fonts/chakra-petch-latin-600-normal.woff2", "fonts/chakra-petch-latin-700-normal.woff2"}
 
 // confirmedField is the form field a second confirmation sets.
 const confirmedField = "confirmed"
@@ -38,7 +46,7 @@ const confirmedField = "confirmed"
 // recentLen is how many of the feed's last events the page lists.
 const recentLen = 8
 
-//go:embed ui/page.html ui/app.js ui/app.css
+//go:embed ui/page.html ui/app.js ui/app.css ui/icon.svg ui/fonts/*.woff2
 var uiFiles embed.FS
 
 var uiTemplates = template.Must(template.New("ui").Funcs(template.FuncMap{
@@ -72,6 +80,7 @@ func (s *Server) UI(opts UIOptions) http.Handler {
 	if err != nil {
 		panic(err) // the embedded directory is there by construction
 	}
+	_ = mime.AddExtensionType(".woff2", "font/woff2") // not in every system's table
 	return &ui{srv: s, now: opts.Now, static: http.StripPrefix(pathStatic, http.FileServerFS(sub))}
 }
 
@@ -91,13 +100,23 @@ func (u *ui) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if method(w, r, http.MethodPost) {
 			u.act(w, r)
 		}
-	case pathStatic + "app.js", pathStatic + "app.css":
+	case pathFavicon:
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			method(w, r, http.MethodGet)
 			return
 		}
-		u.static.ServeHTTP(w, r)
+		r2 := r.Clone(r.Context())
+		r2.URL.Path = pathStatic + "icon.svg"
+		u.static.ServeHTTP(w, r2)
 	default:
+		if strings.HasPrefix(p, pathStatic) && slices.Contains(staticFiles, strings.TrimPrefix(p, pathStatic)) {
+			if r.Method != http.MethodGet && r.Method != http.MethodHead {
+				method(w, r, http.MethodGet)
+				return
+			}
+			u.static.ServeHTTP(w, r)
+			return
+		}
 		u.message(w, http.StatusNotFound, "Not found", "There is nothing at this address.")
 	}
 }
