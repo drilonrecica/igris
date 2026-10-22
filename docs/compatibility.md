@@ -15,7 +15,7 @@ Not promised: the TUI (layout, keys, colors), the default task prompt's wording,
 | A plan | `<!-- igris:format 1 -->`, optional; `<!-- igris:format 2 -->` for a plan that includes other files (since 1.2); `<!-- igris:format 3 -->` for a plan with parallel phases (since 1.5) | No marker is format 1, forever. A format igris doesn't know is refused: upgrade igris. igris 1.0 and 1.1 refuse format 2, so a split plan needs igris 1.2 wherever it runs; igris 1.2–1.4 refuse format 3, so a plan with parallel phases needs igris 1.5. ([plan format](plan-format.md)) |
 | `--json` output | `"v": 1`, first key | Stays 1 in 1.x. Ignore fields you don't know. ([schemas](json/)) |
 | `.igris/runs.jsonl` | `"v": 1` per line; none on lines from igris ≤ 0.4 | Ignore event types and fields you don't know. ([run log](runlog.md)) |
-| `.igris/state.json` | `"version"`: 3 from 0.7; 1 and 2 before | igris reads and upgrades older versions; a newer one says to upgrade igris. |
+| `.igris/state.json` | `"version"`: 4 from 1.5 (the `active` list); 3 from 0.7; 1 and 2 before | igris reads and upgrades older versions; a newer one says to upgrade igris. igris 1.0–1.4 refuse version 4, so finish a run (or delete its state) before going back to one of them. |
 | The generic webhook | `"v": 1` in the payload | Ignore fields you don't know. |
 | The run's socket (since 1.4) | `"v": 1` on every message | Stays 1 in 1.x: any 1.x client attaches to any 1.x `igris serve`. Ignore fields and message types you don't know. |
 
@@ -36,7 +36,7 @@ One row per frozen surface. `tools/contract` fails when a named test no longer e
 | C5 | Exit codes | §14 | `cmd/igris.TestRun`, `cmd/igris.TestAriseExitCodes`, `cmd/igris.TestTUIExit`, `cmd/igris.TestConfigUsage`, `cmd/igris.TestUpdateExitCodes` |
 | C6 | `--json` of check, phases, status, history, report, doctor | §14 | `cmd/igris.TestJSONGoldensMatchSchemas`, `cmd/igris.TestJSONRunGoldens`, `cmd/igris.TestReportGoldens` |
 | C7 | `igris done`, `skip`, `reset` and the signal files | §6.2, §13 | `cmd/igris.TestDoneAndSkipWriteSignals`, `cmd/igris.TestResetDirect`, `internal/state.TestSignalSlots`, `internal/state.TestResetSignal` |
-| C8 | `.igris/` layout and `state.json` versions | §13 | `internal/state.TestLayout`, `internal/state.TestLoadRunVersions`, `internal/state.TestMigratedRunSavesAsVersion3` |
+| C8 | `.igris/` layout and `state.json` versions | §13 | `internal/state.TestLayout`, `internal/state.TestLoadRunVersions`, `internal/state.TestMigratedRunSavesAsVersion4` |
 | C9 | The run log | §13 | `internal/state.TestRunLogV1`, `internal/state.TestPeekLog`, `cmd/igris.TestHistoryGoldens`, `cmd/igris.TestRunReportGoldens` |
 | C10 | Template variables of `prompt_template`, `commit_message` and notification templates | §6.1, §6.5, §10 | `internal/prompt.TestPromptTemplateEveryVariable`, `internal/engine.TestCommitMessageEveryVariable`, `internal/notify.TestTemplateReplacesText` |
 | C11 | The generic webhook: payload, `X-Igris-Event`, `X-Igris-Signature` | §10 | `internal/notify.TestWebhookSend` |

@@ -1,0 +1,60 @@
+{
+  "version": 4,
+  "started_at": "2026-10-22T09:30:00Z",
+  "phases": [
+    "M1"
+  ],
+  "config_hash": "4b625b91b982f40c0cef9a66a18dadb41543249b665ec2e905020ed7f8039a84",
+  "current": {
+    "task_id": "M1-03",
+    "mode": "auto",
+    "claude_session": "1c8d4b63-6b9f-4d2f-8e3a-7a2f3b4c5d6e",
+    "session": {
+      "backend": "tmux",
+      "pane_id": "%4",
+      "claude_session": "1c8d4b63-6b9f-4d2f-8e3a-7a2f3b4c5d6e"
+    },
+    "verify_attempts": 0,
+    "pending_prompt": "held",
+    "started_at": "2026-10-22T09:31:00Z"
+  },
+  "active": [
+    {
+      "task": "M1-03",
+      "attempt": 1,
+      "session": {
+        "backend": "tmux",
+        "pane_id": "%4",
+        "claude_session": "1c8d4b63-6b9f-4d2f-8e3a-7a2f3b4c5d6e"
+      },
+      "claude_session": "1c8d4b63-6b9f-4d2f-8e3a-7a2f3b4c5d6e",
+      "worktree": {
+        "path": ".igris/worktrees/20261022-093000-3fa2-M1-03",
+        "branch": "igris/20261022-093000-3fa2-M1-03"
+      },
+      "slot": 0,
+      "mode": "auto",
+      "verify_attempts": 0,
+      "pending_prompt": "held",
+      "started_at": "2026-10-22T09:31:00Z"
+    },
+    {
+      "task": "M1-04",
+      "attempt": 2,
+      "session": {
+        "backend": "tmux",
+        "pane_id": "%5",
+        "claude_session": "2d9e5c74-7c0a-4e3a-9f4b-8b3a4c5d6e7f"
+      },
+      "claude_session": "2d9e5c74-7c0a-4e3a-9f4b-8b3a4c5d6e7f",
+      "worktree": {
+        "path": ".igris/worktrees/20261022-093000-3fa2-M1-04",
+        "branch": "igris/20261022-093000-3fa2-M1-04"
+      },
+      "slot": 1,
+      "mode": "auto",
+      "verify_attempts": 2,
+      "started_at": "2026-10-22T09:32:00Z"
+    }
+  ]
+}

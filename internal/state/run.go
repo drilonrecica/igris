@@ -25,11 +25,19 @@ const (
 	// §5.5), so v0.3, which knows only 1, refused it instead of running
 	// the whole phases.
 	runVersionSlice = 2
-	// runVersion is igris 1.x's: the selection is optional in it. A new
-	// field gets a new version only when an igris that ignored it would do
-	// something wrong.
-	runVersion = 3
+	// runVersionOptional is igris 0.7–1.4's: the selection is optional in
+	// it.
+	runVersionOptional = 3
+	// runVersion is igris 1.5's: the active list beside the current task,
+	// so igris 1.0–1.4, which would see only the first active task, refuse
+	// it. A new field gets a new version only when an igris that ignored
+	// it would do something wrong.
+	runVersion = 4
 )
+
+// MaxSlots bounds a parallel phase's slots (SPEC §6.11): an active task's
+// slot is from 0 to MaxSlots-1.
+const MaxSlots = 8
 
 var (
 	// ErrNoRun is returned by LoadRun when there is no state.json.
@@ -52,8 +60,14 @@ type Run struct {
 	// Selection is the part of the phases the run is limited to (SPEC
 	// §5.5); nil runs them whole. A v0.3 state file has none.
 	Selection  *Selection `json:"selection,omitempty"`
-	ConfigHash string     `json:"config_hash"`       // hash of the config snapshot
-	Current    *Current   `json:"current,omitempty"` // nil between tasks
+	ConfigHash string     `json:"config_hash"` // hash of the config snapshot
+	// Current is the first active task, nil when none is active; it is
+	// written as before version 4 so older readers of the file keep
+	// working. Activate and Deactivate keep it in step with Active.
+	Current *Current `json:"current,omitempty"`
+	// Active are the tasks being worked on, in plan order (SPEC §5.1,
+	// §6.11); a sequential phase has at most one. Since version 4.
+	Active ActiveTasks `json:"active,omitempty"`
 	// Worktree is where the run's sessions, verify and commits happen in
 	// worktree mode (SPEC §6.8); nil runs them in the project root.
 	Worktree *Worktree `json:"worktree,omitempty"`
@@ -116,11 +130,131 @@ type Current struct {
 	// commit body. Since 1.1; no version change.
 	ApprovedPlan string    `json:"approved_plan,omitempty"`
 	StartedAt    time.Time `json:"started_at"`
+
+	// The fields only the active list records (SPEC §13), not "current".
+
+	// Attempt is the task's attempt in the run that recorded it (SPEC
+	// §13, runs.jsonl); 0 before its first.
+	Attempt int `json:"-"`
+	// Worktree is the task's own worktree in a parallel phase (SPEC
+	// §6.11), .igris/worktrees/<run-id>-<ID> on igris/<run-id>-<ID>.
+	Worktree *Worktree `json:"-"`
+	// Slot is the task's slot in a parallel phase (SPEC §6.11), from 0 to
+	// MaxSlots-1; nil outside one.
+	Slot *int `json:"-"`
 }
 
-// SaveRun writes r to state.json atomically.
+// ActiveTasks is the run's active list. Its entries share the record of
+// Current but are written as {"task", "attempt", "session",
+// "claude_session", "worktree", "slot", …} (SPEC §13).
+type ActiveTasks []*Current
+
+// activeEntry is an active task as state.json writes it.
+type activeEntry struct {
+	Task           string              `json:"task"`
+	Attempt        int                 `json:"attempt"`
+	Session        *backend.SessionRef `json:"session,omitempty"`
+	ClaudeSession  string              `json:"claude_session"`
+	Worktree       *Worktree           `json:"worktree,omitempty"`
+	Slot           *int                `json:"slot,omitempty"`
+	Mode           string              `json:"mode"`
+	VerifyAttempts int                 `json:"verify_attempts"`
+	PendingPrompt  string              `json:"pending_prompt,omitempty"`
+	ApprovedPlan   string              `json:"approved_plan,omitempty"`
+	StartedAt      time.Time           `json:"started_at"`
+}
+
+// MarshalJSON writes the active list in its own shape.
+func (a ActiveTasks) MarshalJSON() ([]byte, error) {
+	out := make([]activeEntry, 0, len(a))
+	for _, c := range a {
+		out = append(out, activeEntry{
+			Task: c.TaskID, Attempt: c.Attempt, Session: c.Session, ClaudeSession: c.ClaudeSession,
+			Worktree: c.Worktree, Slot: c.Slot, Mode: c.Mode, VerifyAttempts: c.VerifyAttempts,
+			PendingPrompt: c.PendingPrompt, ApprovedPlan: c.ApprovedPlan, StartedAt: c.StartedAt,
+		})
+	}
+	return json.Marshal(out)
+}
+
+// UnmarshalJSON reads the active list; a null entry stays nil, which
+// checkReadBack reports.
+func (a *ActiveTasks) UnmarshalJSON(data []byte) error {
+	var in []*activeEntry
+	if err := json.Unmarshal(data, &in); err != nil {
+		var te *json.UnmarshalTypeError
+		if errors.As(err, &te) {
+			// Named from the run, as for its other fields: active.0.slot.
+			te.Field = strings.TrimSuffix("active."+te.Field, ".")
+		}
+		return err
+	}
+	out := make(ActiveTasks, 0, len(in))
+	for _, e := range in {
+		if e == nil {
+			out = append(out, nil)
+			continue
+		}
+		out = append(out, &Current{
+			TaskID: e.Task, Attempt: e.Attempt, Session: e.Session, ClaudeSession: e.ClaudeSession,
+			Worktree: e.Worktree, Slot: e.Slot, Mode: e.Mode, VerifyAttempts: e.VerifyAttempts,
+			PendingPrompt: e.PendingPrompt, ApprovedPlan: e.ApprovedPlan, StartedAt: e.StartedAt,
+		})
+	}
+	*a = out
+	return nil
+}
+
+// ActiveTask returns the record of active task id, or nil.
+func (r *Run) ActiveTask(id string) *Current {
+	for _, c := range r.Active {
+		if c.TaskID == id {
+			return c
+		}
+	}
+	return nil
+}
+
+// Activate records c as an active task, in place of an earlier record of
+// the same task. A new task goes last: the scheduler starts tasks in plan
+// order (SPEC §5.1).
+func (r *Run) Activate(c *Current) {
+	for i, old := range r.Active {
+		if old.TaskID == c.TaskID {
+			r.Active[i] = c
+			r.syncCurrent()
+			return
+		}
+	}
+	r.Active = append(r.Active, c)
+	r.syncCurrent()
+}
+
+// Deactivate forgets active task id, if it is one.
+func (r *Run) Deactivate(id string) {
+	r.Active = slices.DeleteFunc(r.Active, func(c *Current) bool { return c.TaskID == id })
+	if len(r.Active) == 0 {
+		r.Active = nil
+	}
+	r.syncCurrent()
+}
+
+// syncCurrent makes Current the first active task.
+func (r *Run) syncCurrent() {
+	r.Current = nil
+	if len(r.Active) > 0 {
+		r.Current = r.Active[0]
+	}
+}
+
+// SaveRun writes r to state.json atomically. A run with a Current but no
+// active list has its Current as the one active task.
 func (d *Dir) SaveRun(r *Run) error {
 	r.Version = runVersion
+	if len(r.Active) == 0 && r.Current != nil {
+		r.Active = ActiveTasks{r.Current}
+	}
+	r.syncCurrent()
 	data, err := json.MarshalIndent(r, "", "  ")
 	if err != nil {
 		return fmt.Errorf("save run state: %w", err)
@@ -189,6 +323,11 @@ func loadRun(path string) (*Run, error) {
 			}
 		}
 	}
+	if r.Version < runVersion {
+		// No release before 1.5 wrote an active list: anything under that
+		// name is not part of the file.
+		r.Active = nil
+	}
 	if why := checkReadBack(&r); why != "" {
 		return nil, damaged(why)
 	}
@@ -204,7 +343,19 @@ func migrateRun(r *Run) {
 		// Both have version 3's fields: 1 never has a selection, and a
 		// session ref written before v0.3 has no claude_session, which
 		// version 3 allows too.
+		r.Version = runVersionOptional
+	}
+	switch r.Version {
+	case runVersionOptional:
+		// The current task becomes the one active task.
+		if r.Current != nil {
+			r.Active = ActiveTasks{r.Current}
+		}
 		r.Version = runVersion
+	case runVersion:
+		// The active list is what igris uses; the file's current task,
+		// checked to be its first, is for older readers.
+		r.syncCurrent()
 	}
 }
 
@@ -229,6 +380,7 @@ func checkReadBack(r *Run) string {
 			return "the current task's approved plan is not a file igris kept"
 		}
 	}
+	runID := ""
 	if wt := r.Worktree; wt != nil {
 		// Only the worktree igris makes: .igris/worktrees/<run-id> on
 		// igris/<run-id>, never a path elsewhere or a branch of the owner's.
@@ -236,6 +388,56 @@ func checkReadBack(r *Run) string {
 		if !ValidRunID(id) || wt.Branch != "igris/"+id || wt.Path != filepath.Join(WorktreesDir, id) {
 			return "the worktree is not one igris made"
 		}
+		runID = id
+	}
+	if r.Version < runVersion {
+		return ""
+	}
+	switch {
+	case len(r.Active) == 0 && r.Current != nil,
+		len(r.Active) > 0 && (r.Current == nil || r.Active[0] == nil || r.Current.TaskID != r.Active[0].TaskID):
+		return "the current task is not the first active task"
+	}
+	slots := map[int]bool{}
+	for i, c := range r.Active {
+		if c == nil {
+			return fmt.Sprintf("active task %d is not a task record", i+1)
+		}
+		switch {
+		case !plan.ValidID(c.TaskID):
+			return fmt.Sprintf("active task %d is not a task ID", i+1)
+		case r.Active[:i].index(c.TaskID) >= 0:
+			return fmt.Sprintf("the active task %s is listed twice", c.TaskID)
+		case !slices.Contains(sessionModes, c.Mode):
+			return fmt.Sprintf("the active task %s's mode is not a run mode", c.TaskID)
+		case c.VerifyAttempts < 0:
+			return fmt.Sprintf("the active task %s's verify attempts are negative", c.TaskID)
+		case c.Attempt < 0:
+			return fmt.Sprintf("the active task %s's attempt is negative", c.TaskID)
+		case c.ApprovedPlan != "" && !ValidPlanFile(c.ApprovedPlan, c.TaskID):
+			return fmt.Sprintf("the active task %s's approved plan is not a file igris kept", c.TaskID)
+		}
+		if s := c.Slot; s != nil {
+			if *s < 0 || *s >= MaxSlots || slots[*s] {
+				return fmt.Sprintf("the active task %s's slot is not one igris gives", c.TaskID)
+			}
+			slots[*s] = true
+		}
+		if wt := c.Worktree; wt != nil {
+			// Only the task's own worktree in this run:
+			// .igris/worktrees/<run-id>-<ID> on igris/<run-id>-<ID>.
+			id, ok := strings.CutSuffix(strings.TrimPrefix(wt.Branch, "igris/"), "-"+c.TaskID)
+			if !ok || !ValidRunID(id) || (runID != "" && id != runID) ||
+				wt.Branch != "igris/"+id+"-"+c.TaskID || wt.Path != filepath.Join(WorktreesDir, id+"-"+c.TaskID) {
+				return fmt.Sprintf("the worktree of the active task %s is not one igris made for it", c.TaskID)
+			}
+			runID = id
+		}
 	}
 	return ""
+}
+
+// index is the position of task id in a, or -1.
+func (a ActiveTasks) index(id string) int {
+	return slices.IndexFunc(a, func(c *Current) bool { return c != nil && c.TaskID == id })
 }

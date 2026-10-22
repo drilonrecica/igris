@@ -61,6 +61,9 @@ type launch struct {
 func (e *Engine) nextAttempt(l *launch) {
 	e.attempts[l.t.ID]++
 	l.attempt = e.attempts[l.t.ID]
+	if l.cur != nil {
+		l.cur.Attempt = l.attempt // saved with the next change (SPEC §13)
+	}
 }
 
 // startAttempt starts a new attempt's Timeout clock at now.
@@ -138,7 +141,7 @@ func (e *Engine) runTask(ctx context.Context, t *plan.Task) (stopped bool, err e
 // is recorded then and the loop selects again.
 func (e *Engine) markInProgress(ctx context.Context, l *launch, detail string) (started bool, err error) {
 	t := l.t
-	e.run.Current = l.cur
+	e.run.Activate(l.cur)
 	if err := e.dir.SaveRun(e.run); err != nil {
 		return false, err
 	}
@@ -156,7 +159,7 @@ func (e *Engine) markInProgress(ctx context.Context, l *launch, detail string) (
 	if err != nil {
 		// The writer failed before changing the file, so nothing started:
 		// withdraw the intent.
-		e.run.Current = nil
+		e.run.Deactivate(t.ID)
 		if saveErr := e.dir.SaveRun(e.run); saveErr != nil {
 			return false, saveErr
 		}
@@ -432,7 +435,7 @@ func (e *Engine) finish(ctx context.Context, l *launch, to plan.Status, note str
 		// After the session is closed, so a slow channel doesn't keep it open.
 		e.toast(ctx, notifyTaskDone, "done")
 	}
-	e.run.Current = nil
+	e.run.Deactivate(t.ID)
 	if err := e.dir.SaveRun(e.run); err != nil {
 		return err
 	}

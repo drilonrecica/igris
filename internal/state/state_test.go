@@ -321,12 +321,16 @@ func TestRunRoundTrip(t *testing.T) {
 		t.Errorf("LoadRun = %+v\nwant %+v", got, want)
 	}
 
+	if len(got.Active) != 1 || got.Active[0] != got.Current {
+		t.Errorf("active = %+v, want the current task", got.Active)
+	}
+
 	// Between tasks Current is cleared.
-	want.Current = nil
+	want.Deactivate("M2-01")
 	if err := d.SaveRun(want); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := d.LoadRun(); err != nil || got.Current != nil {
+	if got, err := d.LoadRun(); err != nil || got.Current != nil || got.Active != nil {
 		t.Errorf("LoadRun after clearing Current = %+v, %v", got, err)
 	}
 }
@@ -342,14 +346,14 @@ func TestRunSelection(t *testing.T) {
 	if got, err := d.LoadRun(); err != nil || !reflect.DeepEqual(got, want) {
 		t.Errorf("LoadRun = %+v, %v\nwant %+v", got, err, want)
 	}
-	// Sliced or not, a run is saved as version 3, which igris v0.6 and
+	// Sliced or not, a run is saved as version 4, which igris 1.4 and
 	// older refuse.
 	for _, r := range []*Run{want, {StartedAt: t0, Phases: []string{"M1"}}} {
 		if err := d.SaveRun(r); err != nil {
 			t.Fatal(err)
 		}
-		if data := readFile(t, d.runPath()); !strings.Contains(data, `"version": 3`) {
-			t.Errorf("state.json = %s, want version 3", data)
+		if data := readFile(t, d.runPath()); !strings.Contains(data, `"version": 4`) {
+			t.Errorf("state.json = %s, want version 4", data)
 		}
 	}
 
@@ -626,7 +630,7 @@ func readFile(t *testing.T, path string) string {
 }
 
 // config_changed marks a run during which igris.toml was edited (SPEC
-// §13, V10-05); it stays within version 3.
+// §13, V10-05); it needed no version of its own.
 func TestRunConfigChangedRoundTrip(t *testing.T) {
 	d := testDir(t)
 	if err := d.SaveRun(&Run{StartedAt: t0, Phases: []string{"M1"}, ConfigHash: "abc", ConfigChanged: true}); err != nil {
@@ -679,5 +683,61 @@ func TestRulesPathMatchesBackendMarker(t *testing.T) {
 	}
 	if want := filepath.Join(d.Root(), backend.RulesFile("M0-01")); path != want {
 		t.Errorf("WriteRules path = %s, want %s", path, want)
+	}
+}
+
+// Version 4's active list (SPEC §13): what igris writes for a parallel
+// phase reads back, the current task is its first entry, written in the
+// older shape, and the entries in their own.
+func TestRunActiveRoundTrip(t *testing.T) {
+	d := testDir(t)
+	slot := func(n int) *int { return &n }
+	run := &Run{Phases: []string{"M1"}, Worktree: &Worktree{Path: filepath.Join(WorktreesDir, "20261022-093000-3fa2"), Branch: "igris/20261022-093000-3fa2"}}
+	for i, id := range []string{"M1-03", "M1-04", "M1-05"} {
+		run.Activate(&Current{TaskID: id, Mode: "auto", Attempt: i + 1, Slot: slot(i), StartedAt: t0,
+			Worktree: &Worktree{Path: filepath.Join(WorktreesDir, "20261022-093000-3fa2-"+id), Branch: "igris/20261022-093000-3fa2-" + id}})
+	}
+	run.Deactivate("M1-03")
+	if run.Current == nil || run.Current.TaskID != "M1-04" || len(run.Active) != 2 {
+		t.Fatalf("after deactivating the first: current %+v, active %+v", run.Current, run.Active)
+	}
+	// A record replaced keeps its place.
+	run.Activate(&Current{TaskID: "M1-05", Mode: "accept", Attempt: 4, Slot: slot(2), StartedAt: t0})
+	if run.Active[1].Mode != "accept" || run.ActiveTask("M1-05") != run.Active[1] || run.ActiveTask("M1-03") != nil {
+		t.Fatalf("active = %+v", run.Active)
+	}
+	if err := d.SaveRun(run); err != nil {
+		t.Fatal(err)
+	}
+	data := readFile(t, d.runPath())
+	for _, want := range []string{`"version": 4`, `"current": {` + "\n" + `    "task_id": "M1-04"`, `"task": "M1-04"`, `"attempt": 2`, `"slot": 1`, `"task": "M1-05"`, `"branch": "igris/20261022-093000-3fa2-M1-04"`} {
+		if !strings.Contains(data, want) {
+			t.Errorf("state.json lacks %s:\n%s", want, data)
+		}
+	}
+	// The current task keeps 1.4's shape: nothing of the active list in it.
+	var raw struct{ Current map[string]any }
+	if err := json.Unmarshal([]byte(data), &raw); err != nil {
+		t.Fatal(err)
+	}
+	for _, k := range []string{"task", "attempt", "slot", "worktree"} {
+		if _, ok := raw.Current[k]; ok {
+			t.Errorf("current has %q: %v", k, raw.Current)
+		}
+	}
+	got, err := d.LoadRun()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got.Active, run.Active) || got.Current != got.Active[0] {
+		t.Errorf("active = %+v\nwant %+v", got.Active, run.Active)
+	}
+	run.Deactivate("M1-04")
+	run.Deactivate("M1-05")
+	if err := d.SaveRun(run); err != nil {
+		t.Fatal(err)
+	}
+	if data := readFile(t, d.runPath()); strings.Contains(data, `"active"`) || strings.Contains(data, `"current"`) {
+		t.Errorf("between tasks state.json = %s", data)
 	}
 }

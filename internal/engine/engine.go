@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"text/template"
@@ -448,29 +449,36 @@ func (e *Engine) prepare(check bool) ([]string, error) {
 		e.configMoved = true
 	}
 	e.plans.reset(p)
-	var cur *state.Current
+	var active state.ActiveTasks
 	if prev != nil {
-		cur = prev.Current
+		active = prev.Active
 	}
 	// An interrupted task with a pending reset is asked about first
 	// (resumeAndRun); once the owner confirms it, it is not picked up
-	// again, so its mode and phase don't matter.
-	resetting := cur != nil && e.resetPending(cur.TaskID)
-	// A session left running in skip-permissions mode is only reattached
-	// with this run's confirmation too (SPEC §7.3); new sessions are gated
-	// by modeFor.
-	if cur != nil && SkipsPermissions(cur.Mode) && !e.yoloConfirmed() {
-		if !resetting {
-			return nil, yoloInterrupted(cur.TaskID, cur.Mode)
+	// again, so its mode and phase don't matter. cur is the first task
+	// that is picked up again: the run starts in its phase.
+	var cur *state.Current
+	for _, c := range active {
+		resetting := e.resetPending(c.TaskID)
+		// A session left running in skip-permissions mode is only
+		// reattached with this run's confirmation too (SPEC §7.3); new
+		// sessions are gated by modeFor.
+		if SkipsPermissions(c.Mode) && !e.yoloConfirmed() {
+			if !resetting {
+				return nil, yoloInterrupted(c.TaskID, c.Mode)
+			}
+			e.yoloDeferred = true
 		}
-		e.yoloDeferred = true
+		if cur == nil && !resetting {
+			cur = c
+		}
 	}
 	ids := make([]string, 0, len(phases))
 	for _, ph := range phases {
 		// A resumed run starts in the phase of the task it picks up again;
 		// the phases before it have nothing left to do for this run. A
 		// slice keeps them: its earlier tasks may still be left.
-		if cur != nil && !resetting && rng.Slice == nil && len(ids) > 0 && hasTask(ph, cur.TaskID) {
+		if cur != nil && rng.Slice == nil && len(ids) > 0 && hasTask(ph, cur.TaskID) {
 			ids = ids[:0]
 		}
 		ids = append(ids, ph.ID)
@@ -488,14 +496,17 @@ func (e *Engine) prepare(check bool) ([]string, error) {
 	if check {
 		return ids, nil
 	}
-	e.run = &state.Run{StartedAt: e.clock.Now(), Phases: ids, Through: rng.Through, ConfigHash: e.cfg.Hash(), Current: cur}
+	e.run = &state.Run{StartedAt: e.clock.Now(), Phases: ids, Through: rng.Through, ConfigHash: e.cfg.Hash()}
+	for _, c := range active {
+		e.run.Activate(c)
+	}
 	if !sel.Empty() {
 		e.run.Selection = &sel
 	}
-	if err := e.pickWorktree(prev, resumed, cur != nil && !resetting); err != nil {
+	if err := e.pickWorktree(prev, resumed, cur); err != nil {
 		return nil, err
 	}
-	if prev != nil && cur != nil && prev.ConfigHash != e.run.ConfigHash {
+	if prev != nil && len(active) > 0 && prev.ConfigHash != e.run.ConfigHash {
 		e.configMoved = true
 	}
 	return ids, e.dir.SaveRun(e.run)
@@ -576,13 +587,22 @@ func (e *Engine) resumeAndRun(ctx context.Context, phases []string) (Result, err
 	if _, stopped, err := e.settleResets(ctx, ""); err != nil || stopped {
 		return Result{Outcome: Stopped, Phase: e.phase}, err
 	}
-	if e.yoloDeferred && e.run.Current != nil {
-		// The owner kept the interrupted yolo task: it needs this run's
-		// confirmation after all.
-		return Result{Phase: e.phase}, yoloInterrupted(e.run.Current.TaskID, e.run.Current.Mode)
+	if e.yoloDeferred {
+		for _, c := range e.run.Active {
+			if SkipsPermissions(c.Mode) {
+				// The owner kept the interrupted yolo task: it needs this
+				// run's confirmation after all.
+				return Result{Phase: e.phase}, yoloInterrupted(c.TaskID, c.Mode)
+			}
+		}
 	}
-	if e.run.Current != nil {
-		stopped, err := e.resume(ctx)
+	// Every active task is picked up again before any new task starts
+	// (SPEC §13), in plan order.
+	for _, c := range slices.Clone(e.run.Active) {
+		if e.run.ActiveTask(c.TaskID) != c {
+			continue // settled meanwhile
+		}
+		stopped, err := e.resume(ctx, c)
 		if err != nil {
 			return Result{Phase: e.phase}, err
 		}

@@ -11,11 +11,10 @@ import (
 	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
-// resume picks up the task the previous run was working on (SPEC §13): its
-// pending signal first, then its live session, else the owner chooses how
-// to go on. stopped reports that the run stopped meanwhile.
-func (e *Engine) resume(ctx context.Context) (stopped bool, err error) {
-	cur := e.run.Current
+// resume picks up cur, a task the previous run was working on (SPEC §13):
+// its pending signal first, then its live session, else the owner chooses
+// how to go on. stopped reports that the run stopped meanwhile.
+func (e *Engine) resume(ctx context.Context, cur *state.Current) (stopped bool, err error) {
 	p, err := e.loadPlan()
 	if err != nil {
 		return false, err
@@ -24,11 +23,11 @@ func (e *Engine) resume(ctx context.Context) (stopped bool, err error) {
 	switch {
 	case t == nil:
 		e.warn(fmt.Sprintf("the interrupted task %s is no longer in the plan; igris forgets it", cur.TaskID))
-		return false, e.forget()
+		return false, e.forget(cur.TaskID)
 	case t.Status != plan.InProgress:
 		// The owner settled it while igris was not running.
 		e.warn(fmt.Sprintf("the interrupted task %s is %s in the plan now; igris leaves it", t.ID, t.Status))
-		return false, e.forget()
+		return false, e.forget(cur.TaskID)
 	}
 	if t.Phase != nil {
 		e.phase = t.Phase.ID
@@ -128,7 +127,7 @@ func (e *Engine) resume(ctx context.Context) (stopped bool, err error) {
 func (e *Engine) adopt(ctx context.Context, l *launch) (stopped bool, err error) {
 	t := l.t
 	l.cur = &state.Current{TaskID: t.ID, StartedAt: e.clock.Now()}
-	e.run.Current = l.cur
+	e.run.Activate(l.cur)
 	if err := e.dir.SaveRun(e.run); err != nil {
 		return false, err
 	}
@@ -163,9 +162,9 @@ func (e *Engine) logResumed(l *launch, detail string) {
 	e.log(ev)
 }
 
-// forget drops the interrupted task from state.json.
-func (e *Engine) forget() error {
-	e.run.Current = nil
+// forget drops the interrupted task id from state.json.
+func (e *Engine) forget(id string) error {
+	e.run.Deactivate(id)
 	e.task = nil
 	return e.dir.SaveRun(e.run)
 }

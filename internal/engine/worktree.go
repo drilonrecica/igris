@@ -72,11 +72,11 @@ func ChooseWorktree(root string, prev *state.Run, on, resumes, carried bool) Wor
 
 // pickWorktree decides, in prepare, which worktree the run uses
 // (ChooseWorktree). A new one is made by enterWorktree once the run has
-// its ID.
-func (e *Engine) pickWorktree(prev *state.Run, resumed, carried bool) error {
-	c := ChooseWorktree(e.dir.Root(), prev, e.worktreeOn(), resumed, carried)
+// its ID. carried is the interrupted task picked up first, if any.
+func (e *Engine) pickWorktree(prev *state.Run, resumed bool, carried *state.Current) error {
+	c := ChooseWorktree(e.dir.Root(), prev, e.worktreeOn(), resumed, carried != nil)
 	if wt := c.Gone; wt != nil {
-		id := prev.Current.TaskID
+		id := carried.TaskID
 		return fmt.Errorf("the interrupted task %s ran in the worktree %s (branch %s), which is gone (or no longer a directory): restore it with `git worktree add %s %s`, or reset the task with `igris reset %s`",
 			id, wt.Path, wt.Branch, wt.Path, wt.Branch, id)
 	}

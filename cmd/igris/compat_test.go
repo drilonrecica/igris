@@ -150,7 +150,7 @@ func TestCompatSignals(t *testing.T) {
 	}
 }
 
-// Every release's state.json loads (migrated to version 3) and status
+// Every release's state.json loads (migrated to version 4) and status
 // shows its run.
 func TestCompatState(t *testing.T) {
 	files, _ := filepath.Glob(filepath.Join(compatDir, "state", "*.json"))
@@ -172,7 +172,7 @@ func TestCompatState(t *testing.T) {
 				t.Fatal(err)
 			}
 			r, err := state.PeekRun(root)
-			if err != nil || r.Version != 3 {
+			if err != nil || r.Version != 4 || (r.Current != nil && (len(r.Active) == 0 || r.Active[0] != r.Current)) {
 				t.Fatalf("run %+v, %v", r, err)
 			}
 			if out := runJSON(t, "status", "status", "--json"); !bytes.Contains([]byte(out), []byte(`"run": {`)) || bytes.Contains([]byte(out), []byte(`"unreadable"`)) {

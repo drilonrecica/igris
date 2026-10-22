@@ -1,10 +1,13 @@
 package state
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/drilonrecica/igris/internal/backend"
+	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
@@ -64,6 +67,49 @@ func FuzzParseAgentState(f *testing.F) {
 		case backend.Working, backend.Idle, backend.Blocked, backend.Exited:
 		default:
 			t.Fatalf("accepted state %q", s.State)
+		}
+	})
+}
+
+// FuzzLoadRun: a session can write state.json (SPEC §16), so arbitrary
+// bytes must give an error or a run whose active list holds what igris
+// itself would write: the current task first, task IDs, distinct tasks and
+// slots in range, never a panic (SPEC §13).
+func FuzzLoadRun(f *testing.F) {
+	for _, s := range []string{
+		`{"version": 3, "phases": ["M1"], "current": {"task_id": "M1-01", "mode": "auto"}}`,
+		`{"version": 4, "phases": ["M1"], "current": {"task_id": "M1-01"}, "active": [{"task": "M1-01", "slot": 0}, {"task": "M1-02", "slot": 1}]}`,
+		`{"version": 4, "active": [{"task": "M1-01", "worktree": {"path": ".igris/worktrees/20261022-093000-3fa2-M1-01", "branch": "igris/20261022-093000-3fa2-M1-01"}}], "current": {"task_id": "M1-01"}}`,
+		`{"version": 4, "active": [null]}`, `{"version": 4, "active": {}}`, `{"version": 5}`, `[]`, ``,
+	} {
+		f.Add([]byte(s))
+	}
+	f.Fuzz(func(t *testing.T, data []byte) {
+		path := filepath.Join(t.TempDir(), "state.json")
+		if err := os.WriteFile(path, data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		r, err := loadRun(path)
+		if err != nil {
+			return
+		}
+		if r.Version != runVersion {
+			t.Fatalf("version %d after migration", r.Version)
+		}
+		if (r.Current == nil) != (len(r.Active) == 0) || (r.Current != nil && r.Current != r.Active[0]) {
+			t.Fatalf("current %+v is not the first of %+v", r.Current, r.Active)
+		}
+		slots := map[int]bool{}
+		for i, c := range r.Active {
+			if c == nil || !plan.ValidID(c.TaskID) || r.Active[:i].index(c.TaskID) >= 0 {
+				t.Fatalf("active entry %d: %+v", i, c)
+			}
+			if c.Slot != nil {
+				if *c.Slot < 0 || *c.Slot >= MaxSlots || slots[*c.Slot] {
+					t.Fatalf("slot %d of %s", *c.Slot, c.TaskID)
+				}
+				slots[*c.Slot] = true
+			}
 		}
 	})
 }

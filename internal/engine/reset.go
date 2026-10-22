@@ -115,7 +115,7 @@ func (e *Engine) askReset(ctx context.Context, s state.Signal) error {
 	if s.Force {
 		what += " (forced)"
 	}
-	if e.run.Current != nil && e.run.Current.TaskID == t.ID {
+	if e.run.ActiveTask(t.ID) != nil {
 		what += "; its session is closed and the run pauses"
 	}
 	e.emit(Event{Kind: Asked, Question: QuestionConfirmReset, Task: t.ID, Title: t.Title, Rank: t.Rank, Phase: phaseOf(t),
@@ -238,17 +238,20 @@ func (e *Engine) applyReset(ctx context.Context, s state.Signal) (current bool, 
 		return false, err
 	}
 
-	current = e.run.Current != nil && e.run.Current.TaskID == t.ID
+	rec := e.run.ActiveTask(t.ID)
+	// mine: the task this run drives is the one reset, or none is driven
+	// yet (at start, the interrupted task).
+	mine := rec != nil && (e.task == nil || e.task.t.ID == t.ID)
 	model := ""
-	if current {
+	if rec != nil {
 		// Closed first, then forgotten, then rewritten: a crash in between
 		// leaves the task in progress with its reset still pending, which
 		// the next run asks about before anything else.
-		if e.task != nil {
+		if e.task != nil && e.task.t.ID == t.ID {
 			model = e.task.model
 		}
-		e.closeForReset(ctx)
-		e.run.Current = nil
+		e.closeForReset(ctx, rec)
+		e.run.Deactivate(t.ID)
 		if err := e.dir.SaveRun(e.run); err != nil {
 			return false, err
 		}
@@ -269,15 +272,17 @@ func (e *Engine) applyReset(ctx context.Context, s state.Signal) (current bool, 
 		detail = changes[0].String()
 	}
 	e.emit(Event{Kind: TaskReset, Task: t.ID, Title: t.Title, Rank: t.Rank, Phase: phaseOf(t), Detail: detail, Changes: changes})
-	if current {
-		e.task = nil
+	if rec != nil {
+		if mine {
+			e.task = nil
+		}
 		if !e.pause {
 			// Nothing relaunches the task behind the owner's back.
 			e.pause = true
 			e.emit(Event{Kind: PauseOn})
 		}
 	}
-	return current, nil
+	return mine, nil
 }
 
 // phaseOf is the ID of t's phase.
@@ -288,19 +293,20 @@ func phaseOf(t *plan.Task) string {
 	return t.Phase.ID
 }
 
-// closeForReset closes the session of the task being reset, without the
-// idle wait (SPEC §6.2). At start there is no launch yet: the interrupted
-// task's session is reattached to be closed, if it is still there.
-func (e *Engine) closeForReset(ctx context.Context) {
-	id := e.run.Current.TaskID
+// closeForReset closes the session of rec, the active task being reset,
+// without the idle wait (SPEC §6.2). A task with no launch in this run (at
+// start, the interrupted one) has its session reattached to be closed, if
+// it is still there.
+func (e *Engine) closeForReset(ctx context.Context, rec *state.Current) {
+	id := rec.TaskID
 	var sess backend.Session
 	switch {
-	case e.task != nil:
+	case e.task != nil && e.task.t.ID == id:
 		if !e.task.lost {
 			sess = e.task.sess
 		}
-	case e.run.Current.Session != nil && e.run.Current.Session.Backend == e.be.Name():
-		s, err := e.be.Attach(ctx, *e.run.Current.Session, id)
+	case rec.Session != nil && rec.Session.Backend == e.be.Name():
+		s, err := e.be.Attach(ctx, *rec.Session, id)
 		switch {
 		case errors.Is(err, backend.ErrSessionGone):
 		case err != nil:
@@ -308,8 +314,8 @@ func (e *Engine) closeForReset(ctx context.Context) {
 		default:
 			sess = s
 		}
-	case e.run.Current.Session != nil:
-		e.warn(fmt.Sprintf("the session of %s ran on %s; close its pane by hand", id, e.run.Current.Session.Backend))
+	case rec.Session != nil:
+		e.warn(fmt.Sprintf("the session of %s ran on %s; close its pane by hand", id, rec.Session.Backend))
 	}
 	if sess == nil {
 		return

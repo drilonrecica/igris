@@ -484,3 +484,130 @@ func TestResumeRefusesAnotherTasksPane(t *testing.T) {
 		t.Errorf("no warning that state.json named a pane igris did not start for A-1")
 	}
 }
+
+const pairPlan = `# Pair plan
+
+## A — First phase
+
+| ID | Task | Deps | Status | Model | Owner |
+|---|---|---|---|---|---|
+| P-1 | **One** | — | ready | sonnet | agent |
+| P-2 | **Two** | — | ready | sonnet | agent |
+| P-3 | **Three** | — | ready | sonnet | agent |
+`
+
+// A run stopped with two active tasks (state v4, SPEC §13) picks both up
+// again before any new task starts: each live session is reattached, a
+// gone one is that task's choice alone.
+func TestResumeEveryActiveTask(t *testing.T) {
+	for _, gone := range []bool{false, true} {
+		t.Run(map[bool]string{false: "both live", true: "second gone"}[gone], func(t *testing.T) {
+			h := newHarness(t, pairPlan, "")
+			h.autoSignalExcept("P-1", "P-2")
+			h.stopMidTask(6 * time.Second)
+
+			// The second active task, as a parallel phase leaves it: in
+			// progress in the plan, its session open, recorded after the
+			// first.
+			const uuid = "2d9e5c74-7c0a-4e3a-9f4b-8b3a4c5d6e7f"
+			sess, err := h.be.OpenSession(context.Background(), backend.SessionSpec{TaskID: "P-2", ClaudeSession: uuid})
+			if err != nil {
+				t.Fatal(err)
+			}
+			h.write("tasks.md", strings.Replace(h.read("tasks.md"), "| P-2 | **Two** | — | ready |", "| P-2 | **Two** | — | in progress |", 1))
+			run, err := h.dir.LoadRun()
+			if err != nil {
+				t.Fatal(err)
+			}
+			ref := sess.Ref()
+			run.Activate(&state.Current{TaskID: "P-2", Mode: run.Current.Mode, ClaudeSession: uuid, Session: &ref, Attempt: 1, StartedAt: t0})
+			if err := h.dir.SaveRun(run); err != nil {
+				t.Fatal(err)
+			}
+			if gone {
+				h.be.Kill(ref)
+				h.onEvent = func(ev Event) {
+					if ev.Kind == Asked && ev.Question == QuestionSessionLost && ev.Task == "P-2" {
+						h.eng.Send(Command{Kind: CmdRetry})
+					}
+				}
+			}
+			h.be.SetAutoSignal(func(_ context.Context, id string) error { return h.signal(id) })
+			h.signalAt(20*time.Second, "P-1")
+			if !gone {
+				h.signalAt(40*time.Second, "P-2")
+			}
+
+			res, err := h.run(resumeLast)
+			if err != nil || res.Outcome != Completed {
+				t.Fatalf("resumed run = %s, %v", res.Outcome, err)
+			}
+			if got := h.statuses(); got != "P-1=done P-2=done P-3=done" {
+				t.Errorf("statuses = %s", got)
+			}
+			want := "P-1 P-2 P-3" // the first run's P-1, the test's P-2, then only P-3
+			if gone {
+				want = "P-1 P-2 P-2 P-3"
+			}
+			if got := h.opened(); got != want {
+				t.Errorf("sessions opened for %q, want %q", got, want)
+			}
+			if got := h.event(TaskResumed, "P-1").Detail; got != "reattached to its session" {
+				t.Errorf("P-1 resumed: %q", got)
+			}
+			wantP2 := "reattached to its session"
+			if gone {
+				wantP2 = "its session is gone"
+			}
+			if got := h.event(TaskResumed, "P-2").Detail; got != wantP2 {
+				t.Errorf("P-2 resumed: %q, want %q", got, wantP2)
+			}
+			// Both active tasks before the new one.
+			got := h.logged()
+			second := got[strings.LastIndex(got, "run_started"):]
+			if strings.Count(second, "task_resumed") != 2 || strings.LastIndex(second, "task_resumed") > strings.Index(second, "task_started") {
+				t.Errorf("run log = %s", got)
+			}
+			end, err := h.dir.LoadRun()
+			if err != nil || end.Current != nil || len(end.Active) != 0 {
+				t.Errorf("state after the run = %+v, %v", end, err)
+			}
+		})
+	}
+}
+
+// What the engine records is state v4: the task it works on is the one
+// active task, with its attempt.
+func TestActiveRecordsTheTask(t *testing.T) {
+	h := newHarness(t, chainPlan, "")
+	h.autoSignalExcept("A-1")
+	h.stopMidTask(6 * time.Second)
+	run, err := h.dir.LoadRun()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(run.Active) != 1 || run.Current != run.Active[0] || run.Current.TaskID != "A-1" || run.Current.Attempt != 1 || run.Current.Session == nil {
+		t.Errorf("active = %+v", run.Active)
+	}
+}
+
+// Every active task left in skip-permissions mode needs this run's
+// confirmation, not only the first (SPEC §7.3).
+func TestResumeYoloSecondActiveTask(t *testing.T) {
+	h := newHarness(t, pairPlan, "")
+	h.autoSignalExcept("P-1", "P-2")
+	h.stopMidTask(6 * time.Second)
+	h.write("tasks.md", strings.Replace(h.read("tasks.md"), "| P-2 | **Two** | — | ready |", "| P-2 | **Two** | — | in progress |", 1))
+	run, err := h.dir.LoadRun()
+	if err != nil {
+		t.Fatal(err)
+	}
+	run.Activate(&state.Current{TaskID: "P-2", Mode: "yolo", StartedAt: t0})
+	if err := h.dir.SaveRun(run); err != nil {
+		t.Fatal(err)
+	}
+	_, err = h.run(resumeLast)
+	if !errors.Is(err, ErrYoloUnconfirmed) || !strings.Contains(err.Error(), "P-2") {
+		t.Fatalf("resumed run: %v, want P-2's yolo refused", err)
+	}
+}

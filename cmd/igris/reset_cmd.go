@@ -151,7 +151,7 @@ func resetDirect(root, path string, opts plan.Options, rules plan.Rules, t *plan
 		// The plan is written; the log is a record, not state.
 		fmt.Fprintf(stderr, "igris reset: warning: %v\n", err)
 	}
-	if run, err := state.PeekRun(root); err == nil && run.Current != nil && run.Current.TaskID == t.ID {
+	if run, err := state.PeekRun(root); err == nil && run.ActiveTask(t.ID) != nil {
 		fmt.Fprintf(stdout, "%s was the task of the interrupted run; its session may still be open: close it by hand\n", t.ID)
 	}
 	return exitOK
