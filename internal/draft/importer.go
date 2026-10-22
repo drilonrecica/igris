@@ -356,7 +356,7 @@ func parseCSV(data []byte, format string) ([]Item, error) {
 		if len(items) == MaxImportItems {
 			return nil, tooMany(len(items) + 1)
 		}
-		key := clip(textsafe.Line(strings.TrimSpace(cols.first(rec, lay.key))), maxKeySize)
+		key := field(cols.first(rec, lay.key), maxKeySize)
 		if key == "" {
 			return nil, fmt.Errorf("record %d has no %s; export again with all rows complete", row, header[cols[lay.key][0]])
 		}
@@ -415,7 +415,7 @@ func splitKeys(cells []string) []string {
 func headerNames(header []string) string {
 	names := make([]string, 0, len(header))
 	for _, h := range header {
-		if h = clip(textsafe.Line(strings.TrimSpace(h)), 40); h != "" {
+		if h = field(h, 40); h != "" {
 			names = append(names, h)
 		}
 		if len(names) == 12 {
@@ -436,9 +436,9 @@ func tooMany(n int) error {
 // and control characters, bounded, with the status reduced to a state.
 func newItem(key, title, body, status string, labels []string) Item {
 	it := Item{
-		Key:    clip(textsafe.Line(strings.TrimSpace(key)), maxKeySize),
-		Title:  clip(textsafe.Line(strings.TrimSpace(title)), maxTitleSize),
-		Status: clip(textsafe.Line(strings.TrimSpace(status)), maxKeySize),
+		Key:    field(key, maxKeySize),
+		Title:  field(title, maxTitleSize),
+		Status: field(status, maxKeySize),
 		Labels: []string{},
 		Links:  []string{},
 	}
@@ -455,7 +455,7 @@ func newItem(key, title, body, status string, labels []string) Item {
 		it.Body = body
 	}
 	for _, l := range labels {
-		if l = clip(textsafe.Line(strings.TrimSpace(l)), maxKeySize); l != "" && len(it.Labels) < maxLabels {
+		if l = field(l, maxKeySize); l != "" && len(it.Labels) < maxLabels {
 			it.Labels = append(it.Labels, l)
 		}
 	}
@@ -482,4 +482,11 @@ func clip(s string, n int) string {
 		n--
 	}
 	return s[:n]
+}
+
+// field is one line of export text cleaned of escape sequences and control
+// characters, trimmed after cleaning (a value of spaces and control
+// characters is empty), cut to at most n bytes.
+func field(s string, n int) string {
+	return clip(strings.TrimSpace(textsafe.Line(s)), n)
 }

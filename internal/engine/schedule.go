@@ -135,9 +135,18 @@ func (e *Engine) schedule(ctx context.Context, p *plan.Plan, id string) (schedul
 // wantsPlan says whether a poll of phase id re-reads the plan: when a task
 // could start, so with nothing active, or in a phase known to run its tasks
 // at once while fewer than max are active. A phase is known that way once
-// its first poll decided it (parallelOn).
+// its first poll decided it (parallelOn). A resumed run reattaches its
+// tasks before its first poll, so a phase still undecided with an isolated
+// task active is read too: that poll decides it.
 func (e *Engine) wantsPlan(id string) bool {
-	return len(e.active) == 0 || (e.parallel[id] && len(e.active) < e.parallelMax())
+	if len(e.active) == 0 {
+		return true
+	}
+	on, decided := e.parallel[id]
+	if !decided {
+		on = slices.ContainsFunc(e.active, (*launch).isolated)
+	}
+	return on && len(e.active) < e.parallelMax()
 }
 
 // parallelMax is how many tasks a parallel phase runs at once: --parallel,

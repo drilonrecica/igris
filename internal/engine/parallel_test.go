@@ -332,6 +332,36 @@ func TestParallelResumeReattachesEveryActiveTask(t *testing.T) {
 	}
 }
 
+// A resumed run fills a slot as soon as a reattached task frees it, while
+// the others still run (SPEC §5.1): the phase is known to be parallel from
+// its first poll, though nothing was ever selected with nothing active.
+func TestParallelResumeFillsAFreedSlot(t *testing.T) {
+	h := newParallel(t, parallelPlan(), parallelTOML)
+	h.clock.At(time.Minute, func() { h.eng.Send(Command{Kind: CmdStop}) })
+	if res, err := h.run(); err != nil || res.Outcome != Stopped {
+		t.Fatalf("Run = %s, %v", res.Outcome, err)
+	}
+
+	h.events = nil
+	h.signalAt(2*time.Minute, "a")
+	h.clock.At(3*time.Minute, func() {
+		if got := h.opened(); got != "a b c" {
+			t.Errorf("with a done and b running, sessions opened for %q; want c in a's slot", got)
+		}
+		if err := h.signal("b"); err != nil {
+			t.Fatal(err)
+		}
+	})
+	h.signalAt(4*time.Minute, "c")
+	res, err := h.run(func(o *Options) { o.Phase = "" })
+	if err != nil || res.Outcome != Completed {
+		t.Fatalf("resumed Run = %s, %v", res.Outcome, err)
+	}
+	if got := h.statuses(); got != "a=done b=done c=done B-1=ready" {
+		t.Errorf("statuses: %s", got)
+	}
+}
+
 // Needs you raised for several tasks in one poll is one notification,
 // "2 tasks need you: a, b" (SPEC §10); a single task's goes out as before.
 // Every event of an active task carries its slot, and each task's session

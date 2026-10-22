@@ -125,6 +125,7 @@ func TestParseImportErrors(t *testing.T) {
 		{"linear missing column", "ID,Name\nA,b\n", "linear", `no "title" column`},
 		{"jira missing column", "Summary,Status\nA,b\n", "jira", `no "issue key" column`},
 		{"csv no key", "ID,Title\n,x\n", "linear", "record 2 has no ID"},
+		{"csv key of control characters", "ID,Title\n\x00 \x00,x\n", "linear", "record 2 has no ID"},
 		{"csv duplicate key", "ID,Title\nA,x\nA,y\n", "linear", "A appears twice"},
 		{"unknown format", "x", "xml", "unknown format"},
 		{"github too many", many(MaxImportItems+1, func(i int) string {

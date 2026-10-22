@@ -19,6 +19,10 @@ igris 1.5 adds one thing to 1.4 and breaks nothing: the tasks of a phase can run
 - **State version 4** with an `active` list next to `current`, migrated in memory from 1 to 3; a resumed run reattaches every active task. New run-log events `integrated`, `integration_failed` and `overlap`, and the fields `slot` and a per-task `branch`.
 - **Docs.** A [Parallel phases](https://drilonrecica.github.io/igris/docs/parallel-phases.html) page and README section with what it costs, an [upgrade](https://drilonrecica.github.io/igris/docs/upgrade.html) section, threat-model section B6 extended and accepted risk 23, and new compatibility rows.
 
+### Fixed
+
+- **`igris draft --import` refuses a CSV row whose key is only control characters and spaces** (`record 2 has no ID`). Since 1.4 such a key was trimmed before its control characters were removed, so the row became an item with an empty key. Titles, statuses, labels and header names are now trimmed after cleaning too.
+
 ### Costs and limits
 
 - Your Claude limits burn N times faster with N sessions at once.
