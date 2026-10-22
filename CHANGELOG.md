@@ -2,7 +2,7 @@
 
 All notable changes to igris are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and igris uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Until 1.0, minor versions may change the plan format, config or CLI; such changes are called out here.
 
-## [1.6.0] - 2026-10-22
+## [1.6.0] - 2026-10-23
 
 igris 1.6 adds one thing to 1.5 and breaks nothing: you can follow a run and answer its questions from your phone. It is off until you set an address, there is no relay or igris cloud, and skip-permissions mode can never be set remotely. Plans, `igris.toml` and scripts written for 1.0 to 1.5 need no changes ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). The additions are a config table, two flags, a subcommand, a file, an ntfy option and an HTTP mapping of protocol 1. `state.json` stays version 4.
 
