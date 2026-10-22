@@ -1,6 +1,7 @@
 package serve
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -109,5 +110,25 @@ func TestUISheets(t *testing.T) {
 		if !strings.Contains(body, label) {
 			t.Errorf("the blocked sheet lacks %s", label)
 		}
+	}
+}
+
+// The stylesheet carries the brand: its fonts served by igris, the dark
+// and light palettes by the phone's setting, no motion for those who
+// asked for none, and never a bare system-ui (a monospace face on some
+// Linux setups).
+func TestUIStylesheetTokens(t *testing.T) {
+	b, err := uiFiles.ReadFile("ui/app.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	css := string(b)
+	for _, want := range []string{"@font-face", `font-family: "Chakra Petch"`, "/static/fonts/chakra-petch-latin-700-normal.woff2", "prefers-color-scheme: light", "prefers-reduced-motion", "--plume: #E3172B", ".question.sheet", "nav.bar", ".word.needs"} {
+		if !strings.Contains(css, want) {
+			t.Errorf("app.css lacks %s", want)
+		}
+	}
+	if regexp.MustCompile(`font(-family)?:[^;]*\bsystem-ui\b`).MatchString(css) {
+		t.Error("app.css uses system-ui")
 	}
 }
