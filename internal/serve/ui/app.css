@@ -119,7 +119,7 @@ header.top .mark { flex: none; }
 }
 html.down .dot { background: var(--muted); box-shadow: none; animation: none; }
 html.over .dot { animation: none; }
-header.top .btn.back { margin-left: auto; }
+header.top .btn.back { margin-left: auto; width: auto; min-height: 40px; padding: 8px 16px; }
 
 /* the glance: the status word, its line, the phase bar */
 .glance { display: flex; flex-direction: column; gap: 10px; }
