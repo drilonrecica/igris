@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"github.com/drilonrecica/igris/internal/fsafe"
 	"github.com/drilonrecica/igris/internal/textsafe"
+	"net"
+	"net/netip"
 	"net/url"
 	"os"
 	"regexp"
@@ -108,8 +110,11 @@ type Config struct {
 	// left out of the hash and the written file while at its defaults
 	// (since 1.5).
 	Parallel Parallel `toml:"parallel,omitempty" json:",omitzero"`
-	TUI      TUI      `toml:"tui"`
-	Notify   Notify   `toml:"notify"`
+	// Serve configures serve's HTTP listener (SPEC §14); left out of the
+	// hash and the written file while unset (since 1.6).
+	Serve  Serve  `toml:"serve,omitempty" json:",omitzero"`
+	TUI    TUI    `toml:"tui"`
+	Notify Notify `toml:"notify"`
 }
 
 // Claude configures how Claude Code is launched. The backends start claude
@@ -390,6 +395,62 @@ func (d Draft) ModelOrDefault() string {
 		return d.Model
 	}
 	return DefaultDraftModel
+}
+
+// Serve is the [serve] table (SPEC §12, V16-P1): the HTTP listener of
+// igris serve. Every key is empty when not set.
+type Serve struct {
+	// HTTP is the listener's "ADDR:PORT"; "" leaves it off.
+	HTTP string `toml:"http,omitempty" json:",omitempty"`
+	// TLSCert and TLSKey are PEM files relative to the project root, both
+	// or neither.
+	TLSCert string `toml:"tls_cert,omitempty" json:",omitempty"`
+	TLSKey  string `toml:"tls_key,omitempty" json:",omitempty"`
+}
+
+// TLS reports whether the listener serves TLS.
+func (s Serve) TLS() bool { return s.TLSCert != "" && s.TLSKey != "" }
+
+// ParseHTTPAddr parses an HTTP listener address (SPEC §12): "ADDR:PORT"
+// with ADDR an IP address (IPv6 in brackets) or "localhost", which is
+// 127.0.0.1, and PORT from 1 to 65535. Host names are refused: the bind
+// rules go by the address.
+func ParseHTTPAddr(s string) (netip.AddrPort, error) {
+	host, port, err := net.SplitHostPort(s)
+	if err != nil {
+		return netip.AddrPort{}, errors.New("use ADDR:PORT, e.g. 127.0.0.1:7777 or [::1]:7777")
+	}
+	n, err := strconv.ParseUint(port, 10, 16)
+	if err != nil || n == 0 {
+		return netip.AddrPort{}, fmt.Errorf("port %q: use a number from 1 to 65535", textsafe.Line(port))
+	}
+	if strings.EqualFold(host, "localhost") {
+		return netip.AddrPortFrom(netip.AddrFrom4([4]byte{127, 0, 0, 1}), uint16(n)), nil
+	}
+	addr, err := netip.ParseAddr(host)
+	if err != nil || addr.Zone() != "" {
+		return netip.AddrPort{}, fmt.Errorf("%q is not an IP address; use an IP address (a host name could resolve anywhere)", textsafe.Line(host))
+	}
+	return netip.AddrPortFrom(addr.Unmap(), uint16(n)), nil
+}
+
+// validateServe checks [serve] (SPEC §12): the address's shape, TLS files
+// both or neither. Which addresses need --listen-public is serve's check.
+func (c *Config) validateServe(add func(string, ...any)) {
+	s := c.Serve
+	if s.HTTP != "" {
+		if _, err := ParseHTTPAddr(s.HTTP); err != nil {
+			add("serve.http = %q: %v", textsafe.Line(s.HTTP), err)
+		}
+	}
+	if (s.TLSCert == "") != (s.TLSKey == "") {
+		add("serve.tls_cert and serve.tls_key go together; set both, or neither")
+	}
+	for _, f := range []struct{ key, v string }{{"serve.tls_cert", s.TLSCert}, {"serve.tls_key", s.TLSKey}} {
+		if strings.ContainsFunc(f.v, unicode.IsControl) {
+			add("%s contains a control character; fix the path in igris.toml", f.key)
+		}
+	}
 }
 
 // Parallel-phase defaults and limits (SPEC §12, V15-P1).
@@ -902,6 +963,7 @@ func (c *Config) Validate() error {
 
 	c.validateSide(add)
 	c.validateParallel(add)
+	c.validateServe(add)
 
 	for i, arg := range c.Claude.ExtraArgs {
 		switch {

@@ -290,6 +290,17 @@ Since 1.4, `igris arise` starts the run in a background `igris serve` and attach
 - **After `igris update`** during a run, an attached view says `served by igris X.Y.Z`; the run keeps that igris until it ends.
 - **Reconnecting:** if the connection to serve drops, the header says `reconnecting…` and the view returns with a fresh snapshot.
 
+### Control from your phone
+
+Since 1.6, `igris serve` can also listen on HTTP, for a web UI on your phone and for answering questions from ntfy's buttons. It is off until you give it an address:
+
+```toml
+[serve]
+http = "100.101.102.103:7777"   # this machine's Tailscale address, or "127.0.0.1:7777" for ssh -L
+```
+
+(or `igris serve --http ADDR:PORT` for one run). Loopback and Tailscale addresses bind as they are; any other needs `igris serve --listen-public` plus `tls_cert` and `tls_key` under `[serve]`, and serve warns. Run `igris serve token` and open the URL it prints on the device to pair it: the token becomes an `HttpOnly` cookie and the URL loses it. `igris serve token --rotate` unpairs every device. Over HTTP you can do what an attached run view does, except skip-permissions mode, which is never set remotely. The API (`/api/v1/events` as server-sent events, `/api/v1/command` for protocol-1 commands) also takes `Authorization: Bearer <token>` for scripts.
+
 ### Done, skip and reset
 
 `igris done ID [--note TEXT]` and `igris skip ID --reason TEXT` work from anywhere inside the project. They only drop a signal file in `.igris/signals/`; the running `igris arise` applies it.
@@ -518,7 +529,8 @@ template = "{{.At.Format \"15:04\"}} {{.TaskID}} {{.What}}"
 | `igris check [--strict]` | Validates the plan; `--strict` also lints it, for CI. |
 | `igris phases` / `igris status [PHASE]` | Task counts per phase, with each phase's critical path, width and the tasks that could run together (also shown by `arise --dry-run`; igris runs them together only in a [parallel phase](#parallel-phases)) / tasks with rank, owner and what each waits on, plus the current run. |
 | `igris arise [PHASE]` | Runs (or resumes) a phase; see [Running a phase](#running-a-phase). |
-| `igris serve [PHASE]` | Since 1.4: runs (or resumes) a phase headless, with `arise`'s run flags and plain log lines on stdout (questions in them are answered in `igris attach`), hosting the run on `.igris/igris.sock`. It asks the start-up questions on stdin (`y`; a closed stdin declines); `--mode yolo` asks for the typed phrase on a terminal and refuses without one. SIGHUP, SIGINT and SIGTERM stop the run (sessions stay open; a second one exits at once). Outside herdr and tmux its sessions open in a detached tmux session `igris-<project>` (`tmux attach -t igris-<project>` shows them). |
+| `igris serve [PHASE]` | Since 1.4: runs (or resumes) a phase headless, with `arise`'s run flags and plain log lines on stdout (questions in them are answered in `igris attach`), hosting the run on `.igris/igris.sock`. It asks the start-up questions on stdin (`y`; a closed stdin declines); `--mode yolo` asks for the typed phrase on a terminal and refuses without one. SIGHUP, SIGINT and SIGTERM stop the run (sessions stay open; a second one exits at once). Outside herdr and tmux its sessions open in a detached tmux session `igris-<project>` (`tmux attach -t igris-<project>` shows them). Since 1.6 `--http ADDR:PORT` (or `[serve] http`) also serves it on HTTP, with `--listen-public` for an address beyond loopback and Tailscale ([Control from your phone](#control-from-your-phone)). |
+| `igris serve token [--rotate]` | Since 1.6: prints the pairing URL of serve's HTTP listener, making `.igris/serve-token` when there is none; `--rotate` replaces it, unpairing every device. See [Control from your phone](#control-from-your-phone). |
 | `igris attach` | Since 1.4: opens the run view of this project's live run, hosted by `igris serve`, from any terminal (another pane, an ssh session from your phone); several can be attached at once. `q` asks **Detach** (the run goes on; `igris attach` shows it again) · Stop run · Cancel, and Ctrl-C, a closed terminal or a dropped connection detach. When the connection drops the header says `reconnecting…` and the view comes back with a fresh snapshot; a run served by another igris version (after `igris update`) shows `served by igris X.Y.Z` and keeps that igris until it ends. Outside herdr and tmux (plain ssh) the view can't reach the session's pane, so it doesn't offer Open session. |
 | `igris stop` | Since 1.4: stops this project's live run over its socket, as Stop run does (sessions stay open), and waits until it has; exit 1 when no run is live. For scripts and cron. |
 | `igris done` / `skip` / `reset` | Signal a task done or skipped, or put it back; see [Done, skip and reset](#done-skip-and-reset). |
@@ -707,6 +719,7 @@ From 1.0, igris keeps the plan format, `igris.toml`, the CLI and its exit codes,
 - **igris treats every session as untrusted.** It snapshots `igris.toml` per run and asks you before a later run uses a file that changed during one, pauses when the plan changes in a way it didn't write, checks what it reads back from `.igris/` (and reattaches only to the pane it started for the task, so a rewritten `state.json` can't point it at your shell), asks you before applying a session's skip or reset, reads every file a session can replace as a bounded regular file, and cleans everything a session wrote (notes, verify output, plan text) of escape sequences and invisible characters before it reaches your terminal, a notification or a session's pane.
 - **Your secrets stay out of the project's commands:** verify, task hooks and git never get the variables your notification tokens come from ([details](#what-verify-and-hooks-see)), nor does `igris update`'s command.
 - **The run's socket is yours alone** (since 1.4): `.igris/igris.sock` is 0600 in the 0700 `.igris/`, on Linux the peer's uid is checked, every message is bounded and shape-checked, and a client can't reach skip-permissions mode without the typed phrase.
+- **The HTTP listener is off by default** (since 1.6): with an address set it binds only loopback and Tailscale addresses unless you pass `--listen-public` with TLS; every request needs the paired token (rate-limited on failure), cookie-authenticated changes need a CSRF token, responses carry a strict CSP, and skip-permissions mode is never set remotely.
 - **No network calls but the ones you set up or ask for:** your notification channels, and GitHub's releases API when you run `igris update` or press `u` on home. Only the release's tag is read from GitHub's answer.
 - **What igris can't prevent:** a session edits files, and verify and git hooks run your project's code as you. The permission mode is the real boundary; [worktree mode](#worktree-mode) keeps a run's changes on a branch of its own.
 - **Releases are signed** from 0.6.0 ([Verifying a download](#verifying-a-download)).

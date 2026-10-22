@@ -67,9 +67,12 @@ complete -c igris -n '__fish_seen_subcommand_from arise' -l worktree
 complete -c igris -n '__fish_seen_subcommand_from arise' -a '(__igris_ids phases)'
 complete -c igris -n '__fish_seen_subcommand_from serve' -l force-unlock
 complete -c igris -n '__fish_seen_subcommand_from serve' -l from -x -a '(__igris_ids tasks)'
+complete -c igris -n '__fish_seen_subcommand_from serve' -l http -x
+complete -c igris -n '__fish_seen_subcommand_from serve' -l listen-public
 complete -c igris -n '__fish_seen_subcommand_from serve' -l mode -x -a 'default accept auto plan yolo manual plan:default plan:accept plan:auto plan:yolo'
 complete -c igris -n '__fish_seen_subcommand_from serve' -l only -x -a '(__igris_id_list)'
 complete -c igris -n '__fish_seen_subcommand_from serve' -l parallel -x
+complete -c igris -n '__fish_seen_subcommand_from serve' -l rotate
 complete -c igris -n '__fish_seen_subcommand_from serve' -l through -x -a '(__igris_ids phases)'
 complete -c igris -n '__fish_seen_subcommand_from serve' -l until -x -a '(__igris_ids tasks)'
 complete -c igris -n '__fish_seen_subcommand_from serve' -l worktree

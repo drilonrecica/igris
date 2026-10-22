@@ -29,6 +29,7 @@ _igris() {
         arise:--through) COMPREPLY=($(compgen -W "$(igris __complete phases 2>/dev/null)" -- "$cur")) ; return ;;
         arise:--until) COMPREPLY=($(compgen -W "$(igris __complete tasks 2>/dev/null)" -- "$cur")) ; return ;;
         serve:--from) COMPREPLY=($(compgen -W "$(igris __complete tasks 2>/dev/null)" -- "$cur")) ; return ;;
+        serve:--http) return ;;
         serve:--mode) COMPREPLY=($(compgen -W "default accept auto plan yolo manual plan:default plan:accept plan:auto plan:yolo" -- "$cur")) ; return ;;
         serve:--only) local pre=; [[ $cur == *,* ]] && pre="${cur%,*},"; COMPREPLY=($(compgen -P "$pre" -W "$(igris __complete tasks 2>/dev/null)" -- "${cur##*,}")) ; return ;;
         serve:--parallel) return ;;
@@ -54,7 +55,7 @@ _igris() {
             report) COMPREPLY=($(compgen -W "--json" -- "$cur")) ;;
             usage) COMPREPLY=($(compgen -W "--json --since" -- "$cur")) ;;
             arise) COMPREPLY=($(compgen -W "--dry-run --force-unlock --from --mode --no-tui --only --parallel --through --until --worktree" -- "$cur")) ;;
-            serve) COMPREPLY=($(compgen -W "--force-unlock --from --mode --only --parallel --through --until --worktree" -- "$cur")) ;;
+            serve) COMPREPLY=($(compgen -W "--force-unlock --from --http --listen-public --mode --only --parallel --rotate --through --until --worktree" -- "$cur")) ;;
             done) COMPREPLY=($(compgen -W "--note" -- "$cur")) ;;
             skip) COMPREPLY=($(compgen -W "--reason" -- "$cur")) ;;
             reset) COMPREPLY=($(compgen -W "--force" -- "$cur")) ;;

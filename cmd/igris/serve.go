@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/drilonrecica/igris/internal/backend/tmux"
+	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/project"
@@ -54,10 +55,48 @@ var serveSignals = []os.Signal{os.Interrupt, syscall.SIGTERM, syscall.SIGHUP}
 // events before it closes their connections.
 const shutdownWait = 2 * time.Second
 
+// serveTokenArg is the word that makes `igris serve token` (SPEC §14).
+const serveTokenArg = "token"
+
+// serveFlags registers serve's flags: arise's run flags, the HTTP
+// listener's, and --rotate for `serve token`.
+func serveFlags(fs *flag.FlagSet) func([]string) error {
+	runValidate := runFlags(fs)
+	httpAddr := fs.String("http", "", "also listen on HTTP at ADDR:PORT for the web UI and ntfy answers (in place of [serve] http)")
+	fs.Bool("listen-public", false, "let --http or [serve] http be an address beyond loopback and Tailscale (needs TLS)")
+	fs.Bool("rotate", false, "serve token only: replace the token, unpairing every device")
+	return func(args []string) error {
+		if len(args) > 0 && args[0] == serveTokenArg {
+			var other []string
+			fs.Visit(func(f *flag.Flag) {
+				if f.Name != "rotate" {
+					other = append(other, "--"+f.Name)
+				}
+			})
+			if len(other) > 0 {
+				return fmt.Errorf("serve token takes only --rotate, not %s", strings.Join(other, ", "))
+			}
+			return atMost(args, 1)
+		}
+		if flagSet(fs, "rotate") {
+			return errors.New("--rotate is for `igris serve token`")
+		}
+		if flagSet(fs, "http") {
+			if _, err := config.ParseHTTPAddr(*httpAddr); err != nil {
+				return fmt.Errorf("invalid --http %q: %v", *httpAddr, err)
+			}
+		}
+		return runValidate(args)
+	}
+}
+
 // execServe is `igris serve` (SPEC §14): arise's run, headless, hosted on
 // the project's socket. Start-up answers come from stdin; the owner's
 // commands come over the socket from attached clients and `igris stop`.
 func execServe(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
+	if len(args) > 0 && args[0] == serveTokenArg {
+		return execServeToken(fs.Lookup("rotate").Value.String() == "true", stdout, stderr)
+	}
 	f := runFlagValues(fs, args)
 	// Started by arise or home, serve takes the start-up answers from
 	// that igris: the questions from its environment, the typed
@@ -116,6 +155,15 @@ func execServe(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stderr, "igris serve: %v\n", err)
 		}
 	}()
+	// The HTTP listener's rules are checked before the socket exists, so a
+	// refusal leaves nothing behind (SPEC §14).
+	web, err := listenWeb(l.State, proj.Cfg.Serve, fs.Lookup("http").Value.String(), fs.Lookup("listen-public").Value.String() == "true", out)
+	if err != nil {
+		return fail("the HTTP listener can't start: %v", err)
+	}
+	if web != nil {
+		defer func() { _ = web.Close() }() // also when serve fails before it serves
+	}
 	ln, err := serve.Listen(l.State)
 	if err != nil {
 		return fail("the run's socket can't be created: %v", err)
@@ -143,6 +191,15 @@ func execServe(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(out, "warning: %v\n", err)
 		}
 	}()
+	if web != nil {
+		root := l.State.Root()
+		h := srv.Remote(serve.RemoteOptions{TLS: web.TLS, Token: func() (string, error) { return state.ReadServeToken(root) }})
+		go func() {
+			if err := srv.ServeRemote(web, h); err != nil {
+				fmt.Fprintf(out, "warning: the HTTP listener stopped: %v\n", err)
+			}
+		}()
+	}
 	defer func() {
 		if !host.ended() {
 			// The run never started: tell waiting clients it is over.
@@ -162,6 +219,9 @@ func execServe(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		_ = ln.Close()
 	}()
 	fmt.Fprintf(out, "serving the run on %s; `igris attach` shows it, `igris stop` stops it\n", ln.Path())
+	if web != nil {
+		fmt.Fprintf(out, "web UI on %s/ for paired devices; `igris serve token` pairs one\n", web.URL())
+	}
 	if tb, ok := l.Backend.(*tmux.Backend); ok && tb.Headless() != "" {
 		fmt.Fprintf(out, "sessions open in the tmux session %s: `tmux attach -t %s` shows them\n", tb.Headless(), tb.Headless())
 	}
@@ -375,4 +435,98 @@ func waitLockFree(ctx context.Context, root string) {
 		case <-time.After(10 * time.Millisecond):
 		}
 	}
+}
+
+// listenWeb binds serve's HTTP listener when an address is set (flag, then
+// [serve] http), or returns nil. It makes the owner token when there is
+// none, without printing it: serve's output goes to serve.log.
+func listenWeb(d *state.Dir, cfg config.Serve, flagAddr string, public bool, out io.Writer) (*serve.HTTPListener, error) {
+	addr := cfg.HTTP
+	if flagAddr != "" {
+		addr = flagAddr
+	}
+	if addr == "" {
+		if public {
+			return nil, errors.New("--listen-public needs an address: pass --http ADDR:PORT or set [serve] http")
+		}
+		return nil, nil
+	}
+	hc := serve.HTTPConfig{Addr: addr, Public: public}
+	if cfg.TLS() {
+		hc.CertFile, hc.KeyFile = rootPath(d.Root(), cfg.TLSCert), rootPath(d.Root(), cfg.TLSKey)
+	}
+	l, err := serve.ListenHTTP(hc)
+	if err != nil {
+		return nil, err
+	}
+	_, created, err := d.EnsureServeToken()
+	if err != nil {
+		_ = l.Close()
+		return nil, err
+	}
+	if l.Exposure == serve.Public {
+		fmt.Fprintf(out, "warning: the HTTP listener on %s is reachable beyond loopback and Tailscale; only the token and TLS guard it\n", l.Addr())
+	}
+	if created {
+		fmt.Fprintln(out, "no device is paired yet; run igris serve token to pair one")
+	}
+	return l, nil
+}
+
+// execServeToken is `igris serve token [--rotate]` (SPEC §14): it prints
+// the pairing URL of the project's HTTP listener, making the token first
+// when there is none, or a new one with rotate.
+func execServeToken(rotate bool, stdout, stderr io.Writer) int {
+	fail := func(format string, a ...any) int {
+		fmt.Fprintf(stderr, "igris serve token: %s\n", fmt.Sprintf(format, a...))
+		return exitFail
+	}
+	proj, err := loadProject("")
+	if err != nil {
+		return fail("%v", err)
+	}
+	d, err := state.Open(proj.Root, state.Options{})
+	if err != nil {
+		return fail("%v", err)
+	}
+	var tok string
+	if rotate {
+		tok, err = d.RotateServeToken()
+	} else {
+		tok, _, err = d.EnsureServeToken()
+	}
+	if err != nil {
+		return fail("%v", err)
+	}
+	base, note := pairingBase(proj.Cfg.Serve)
+	if rotate {
+		fmt.Fprintln(stdout, "the token was replaced: every paired device must pair again")
+	}
+	fmt.Fprintln(stdout, "Open this URL on the device to pair it; anyone with it controls the run (short of skip-permissions mode):")
+	fmt.Fprintf(stdout, "  %s%s?token=%s\n", base, serve.PathPair, tok)
+	if note != "" {
+		fmt.Fprintln(stdout, note)
+	}
+	return exitOK
+}
+
+// pairingBase is the listener's base URL as [serve] says it, and a note
+// when the owner has to fill in or change the address.
+func pairingBase(cfg config.Serve) (base, note string) {
+	scheme := "http"
+	if cfg.TLS() {
+		scheme = "https"
+	}
+	if cfg.HTTP == "" {
+		return scheme + "://ADDR:PORT", `set [serve] http in igris.toml (e.g. http = "127.0.0.1:7777" for ssh -L, or this machine's Tailscale address) and put it in place of ADDR:PORT`
+	}
+	ap, err := config.ParseHTTPAddr(cfg.HTTP)
+	if err != nil { // the config loaded, so it parses
+		return scheme + "://" + cfg.HTTP, ""
+	}
+	base = scheme + "://" + ap.String()
+	if ap.Addr().IsUnspecified() {
+		note = fmt.Sprintf("the listener takes every address (%s): put this machine's own address in place of %s", ap.Addr(), ap.Addr())
+	}
+	return base, note
 }

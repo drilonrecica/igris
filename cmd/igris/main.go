@@ -73,6 +73,10 @@ Commands:
         [--mode MODE] [--worktree]      arise's run flags, plain log lines on stdout
         [--force-unlock] [--parallel N]
         [--only ID[,ID...] | [--from ID] [--until ID]]
+        [--http ADDR:PORT] [--listen-public]
+                                        also on HTTP for the web UI and ntfy answers (in place of [serve] http)
+  serve token [--rotate]                print the pairing URL of the HTTP listener (creating the token);
+                                        --rotate replaces the token, unpairing every device
   attach                                open the run view of this project's live run
   stop                                  stop this project's live run (sessions stay open)
   done ID [--note TEXT]                 signal that a task is finished
@@ -143,7 +147,7 @@ func commands() []command {
 			fs.Bool("dry-run", false, "walk the phase with the fake backend, write nothing")
 			return runFlags(fs)
 		}, exec: execArise},
-		{name: "serve", setup: runFlags, exec: execServe},
+		{name: "serve", setup: serveFlags, exec: execServe},
 		{name: "attach", setup: func(fs *flag.FlagSet) func([]string) error { return maxArgs(fs, 0) }, exec: execAttach},
 		{name: "stop", setup: func(fs *flag.FlagSet) func([]string) error { return maxArgs(fs, 0) }, exec: execStop},
 		{name: "done", setup: func(fs *flag.FlagSet) func([]string) error {

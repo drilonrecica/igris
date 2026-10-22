@@ -1395,3 +1395,66 @@ func TestHashWithNewDefaultEventIsUnchanged(t *testing.T) {
 		}
 	}
 }
+
+func TestServe(t *testing.T) {
+	d := Default()
+	if d.Serve.HTTP != "" || d.Serve.TLS() || d.Hash() != v04DefaultHash {
+		t.Errorf("default: http %q, tls %v, hash changed %v", d.Serve.HTTP, d.Serve.TLS(), d.Hash() != v04DefaultHash)
+	}
+	c, err := Parse([]byte("[serve]\nhttp = \"100.101.102.103:7777\"\ntls_cert = \"cert.pem\"\ntls_key = \"key.pem\"\n"), "igris.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Serve.HTTP != "100.101.102.103:7777" || !c.Serve.TLS() || c.Hash() == v04DefaultHash {
+		t.Errorf("set: %+v, hash unchanged %v", c.Serve, c.Hash() == v04DefaultHash)
+	}
+	path := filepath.Join(t.TempDir(), "igris.toml")
+	if err := Write(path, c); err != nil {
+		t.Fatal(err)
+	}
+	if back, err := Load(path); err != nil || back.Serve != c.Serve {
+		t.Errorf("Write and Load lost [serve]: %v", err)
+	}
+	if err := Write(path, Default()); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(path); strings.Contains(string(data), "[serve]") { //nolint:gosec // test temp dir
+		t.Error("an unset [serve] was written")
+	}
+	for _, tc := range []struct{ toml, want string }{
+		{`http = "7777"`, "use ADDR:PORT"},
+		{`http = "pi.local:7777"`, "use an IP address"},
+		{`http = "127.0.0.1:0"`, "from 1 to 65535"},
+		{`http = "127.0.0.1:65536"`, "from 1 to 65535"},
+		{`http = "127.0.0.1:http"`, "from 1 to 65535"},
+		{`http = "[fe80::1%eth0]:7777"`, "use an IP address"},
+		{`tls_cert = "cert.pem"`, "go together"},
+		{`tls_key = "key.pem"`, "go together"},
+		{"tls_cert = \"a\\u001b.pem\"\ntls_key = \"k.pem\"", "serve.tls_cert contains a control character"},
+	} {
+		if _, err := Parse([]byte("[serve]\n"+tc.toml+"\n"), "igris.toml"); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: %v, want %q", tc.toml, err, tc.want)
+		}
+	}
+	for _, ok := range []string{`http = "127.0.0.1:7777"`, `http = "localhost:7777"`, `http = "[::1]:7777"`, `http = "0.0.0.0:7777"`, `http = "[fd7a:115c:a1e0::1]:443"`} {
+		if _, err := Parse([]byte("[serve]\n"+ok+"\n"), "igris.toml"); err != nil {
+			t.Errorf("%s: %v", ok, err)
+		}
+	}
+}
+
+func TestParseHTTPAddr(t *testing.T) {
+	for in, want := range map[string]string{
+		"localhost:7777":        "127.0.0.1:7777",
+		"LOCALHOST:1":           "127.0.0.1:1",
+		"[::1]:7777":            "[::1]:7777",
+		"[::ffff:1.2.3.4]:80":   "1.2.3.4:80",
+		"100.64.0.1:65535":      "100.64.0.1:65535",
+		"[fd7a:115c:a1e0::5]:8": "[fd7a:115c:a1e0::5]:8",
+	} {
+		got, err := ParseHTTPAddr(in)
+		if err != nil || got.String() != want {
+			t.Errorf("ParseHTTPAddr(%q) = %v, %v; want %s", in, got, err, want)
+		}
+	}
+}

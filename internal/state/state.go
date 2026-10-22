@@ -113,16 +113,30 @@ func (d *Dir) eventsPath() string { return filepath.Join(d.path, "runs.jsonl") }
 // the same directory, fsyncs it and renames it over path, so readers see
 // either the old or the new content, never a partial file.
 func writeFileAtomic(path string, data []byte) error {
-	dir := filepath.Dir(path)
-	f, err := os.CreateTemp(dir, "."+filepath.Base(path)+".tmp-*")
+	tmp, err := writeTemp(path, data)
 	if err != nil {
-		return fmt.Errorf("write %s: %w", path, err)
+		return err
 	}
-	tmp := f.Name()
-	fail := func(err error) error {
-		_ = f.Close()
+	if err := os.Rename(tmp, path); err != nil {
 		_ = os.Remove(tmp)
 		return fmt.Errorf("write %s: %w", path, err)
+	}
+	syncDir(filepath.Dir(path))
+	return nil
+}
+
+// writeTemp writes data to a new 0600 temp file next to path, fsynced,
+// and returns its name.
+func writeTemp(path string, data []byte) (string, error) {
+	f, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return "", fmt.Errorf("write %s: %w", path, err)
+	}
+	tmp := f.Name()
+	fail := func(err error) (string, error) {
+		_ = f.Close()
+		_ = os.Remove(tmp)
+		return "", fmt.Errorf("write %s: %w", path, err)
 	}
 	if err := f.Chmod(filePerm); err != nil {
 		return fail(err)
@@ -135,14 +149,9 @@ func writeFileAtomic(path string, data []byte) error {
 	}
 	if err := f.Close(); err != nil {
 		_ = os.Remove(tmp)
-		return fmt.Errorf("write %s: %w", path, err)
+		return "", fmt.Errorf("write %s: %w", path, err)
 	}
-	if err := os.Rename(tmp, path); err != nil {
-		_ = os.Remove(tmp)
-		return fmt.Errorf("write %s: %w", path, err)
-	}
-	syncDir(dir)
-	return nil
+	return tmp, nil
 }
 
 // syncDir fsyncs a directory so a rename in it is durable. It is best

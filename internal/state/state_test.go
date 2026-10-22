@@ -91,6 +91,7 @@ func TestLayout(t *testing.T) {
 		HooksDir(root):                    in("hooks"),
 		AgentStateDir(root):               in("agent-state"),
 		filepath.Join(root, WorktreesDir): in("worktrees"),
+		ServeTokenPath(root):              in("serve-token"),
 	} {
 		if got != want {
 			t.Errorf("path %s, want %s", got, want)

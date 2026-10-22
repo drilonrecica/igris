@@ -95,6 +95,14 @@
 | `on_conflict` | string | `"rerun"` | What happens to a task whose commit doesn't integrate, a rebase conflict or verify failing on the integrated tree (SPEC §6.11): `rerun` runs it again from the start once, then asks; `ask` asks at once. Allowed: `rerun`, `ask`. |
 | `ranks` | table | `{ fable = 1 }` | At most this many active tasks of a rank, under `[parallel.ranks]` (SPEC §5.1): a `[models]` key to `1`–`8`. Merged with the default `fable = 1`; a cap above `max` changes nothing. |
 
+## `[serve]`
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `http` | string | unset | The address of serve's HTTP listener for the web UI and ntfy's answer buttons (SPEC §14), `ADDR:PORT`. Unset: no listener. Loopback and Tailscale addresses bind as they are; any other needs `igris serve --listen-public` and TLS. `serve --http` replaces it for one serve. |
+| `tls_cert` | string | unset | A PEM certificate the HTTP listener serves TLS with, relative to the project root; together with `serve.tls_key` (SPEC §14). |
+| `tls_key` | string | unset | The PEM private key of `serve.tls_cert`, relative to the project root. |
+
 ## `[tui]`
 
 | Key | Type | Default | Description |

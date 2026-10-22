@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -81,7 +82,9 @@ type Server struct {
 	track     *tracker
 	clients   map[*client]struct{}
 	listeners []net.Listener
-	closed    bool
+	// https are the HTTP listeners' servers (ServeRemote).
+	https  []*http.Server
+	closed bool
 
 	wg sync.WaitGroup
 }
@@ -209,6 +212,8 @@ func (s *Server) Close() error {
 	s.closed = true
 	ls := s.listeners
 	s.listeners = nil
+	hs := s.https
+	s.https = nil
 	for c := range s.clients {
 		c.close()
 	}
@@ -216,6 +221,11 @@ func (s *Server) Close() error {
 	var first error
 	for _, l := range ls {
 		if err := l.Close(); err != nil && !errors.Is(err, net.ErrClosed) && first == nil {
+			first = err
+		}
+	}
+	for _, h := range hs {
+		if err := h.Close(); err != nil && first == nil {
 			first = err
 		}
 	}
@@ -231,6 +241,8 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	s.closed = true
 	ls := s.listeners
 	s.listeners = nil
+	hs := s.https
+	s.https = nil
 	for c := range s.clients {
 		c.end()
 	}
@@ -243,12 +255,22 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	}
 	done := make(chan struct{})
 	go func() {
+		// The event streams end with their clients (above); the HTTP
+		// servers then have only idle connections left.
+		for _, h := range hs {
+			if err := h.Shutdown(ctx); err != nil {
+				_ = h.Close()
+			}
+		}
 		s.wg.Wait()
 		close(done)
 	}()
 	select {
 	case <-done:
 	case <-ctx.Done():
+		for _, h := range hs {
+			_ = h.Close()
+		}
 		if err := s.Close(); err != nil && first == nil {
 			first = err
 		}
@@ -339,6 +361,12 @@ func (c *client) writer() {
 // ServeConn talks protocol 1 with one client until it goes away or the
 // server closes. It is what Serve runs for each connection.
 func (s *Server) ServeConn(conn net.Conn) {
+	s.serveClient(conn, s.read)
+}
+
+// serveClient attaches conn as a client, runs body for it and detaches it
+// when body returns.
+func (s *Server) serveClient(conn net.Conn, body func(*client)) {
 	c := &client{srv: s, conn: conn, out: make(chan []byte, s.opts.QueueLen), done: make(chan struct{})}
 	s.mu.Lock()
 	if s.closed {
@@ -363,7 +391,7 @@ func (s *Server) ServeConn(conn net.Conn) {
 		}
 		wg.Wait() // after an error, until the writer has sent it
 	}()
-	s.read(c)
+	body(c)
 }
 
 // read handles the client's messages. A malformed one ends the
@@ -468,12 +496,8 @@ func (s *Server) handle(c *client, r Request) bool {
 // tail reads the session's last lines off the reading goroutine, so
 // commands keep flowing while the backend answers.
 func (s *Server) tail(c *client, r Request) {
-	if r.N < 1 || r.N > maxTail {
-		c.reply(Reply{Type: TypeError, ID: r.ID, Error: fmt.Sprintf("n is 1 to %d", maxTail)})
-		return
-	}
-	if r.Task != "" && (len(r.Task) > maxID || !plan.ValidID(r.Task)) {
-		c.reply(Reply{Type: TypeError, ID: r.ID, Error: fmt.Sprintf("%q is not a task ID", textsafe.Line(cut(r.Task, maxID)))})
+	if rep, bad := checkTail(r); bad {
+		c.reply(rep)
 		return
 	}
 	if s.opts.Tail == nil {
@@ -488,7 +512,7 @@ func (s *Server) tail(c *client, r Request) {
 	go func() {
 		defer s.wg.Done()
 		defer c.tailing.Store(false)
-		ctx, cancel := context.WithTimeout(context.Background(), tailTimeout)
+		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		go func() {
 			select {
@@ -497,17 +521,37 @@ func (s *Server) tail(c *client, r Request) {
 			case <-ctx.Done():
 			}
 		}()
-		lines, err := s.opts.Tail(ctx, r.Task, r.N)
-		if err != nil {
-			c.reply(Reply{Type: TypeError, ID: r.ID, Error: "tail: " + cut(textsafe.Line(err.Error()), 4<<10)})
-			return
-		}
-		out := make([]string, 0, len(lines))
-		for _, l := range tail(lines, r.N) {
-			out = append(out, cut(textsafe.Clean(l), 4<<10))
-		}
-		c.reply(Reply{Type: TypeTail, ID: r.ID, Lines: out})
+		c.reply(s.readTail(ctx, r))
 	}()
+}
+
+// checkTail checks a tail request's n and task; bad reports a refusal.
+func checkTail(r Request) (rep Reply, bad bool) {
+	if r.N < 1 || r.N > maxTail {
+		return Reply{Type: TypeError, ID: r.ID, Error: fmt.Sprintf("n is 1 to %d", maxTail)}, true
+	}
+	if r.Task != "" && (len(r.Task) > maxID || !plan.ValidID(r.Task)) {
+		return Reply{Type: TypeError, ID: r.ID, Error: fmt.Sprintf("%q is not a task ID", textsafe.Line(cut(r.Task, maxID)))}, true
+	}
+	return Reply{}, false
+}
+
+// readTail reads a checked tail request's lines, within tailTimeout.
+func (s *Server) readTail(ctx context.Context, r Request) Reply {
+	if s.opts.Tail == nil {
+		return Reply{Type: TypeTail, ID: r.ID}
+	}
+	ctx, cancel := context.WithTimeout(ctx, tailTimeout)
+	defer cancel()
+	lines, err := s.opts.Tail(ctx, r.Task, r.N)
+	if err != nil {
+		return Reply{Type: TypeError, ID: r.ID, Error: "tail: " + cut(textsafe.Line(err.Error()), 4<<10)}
+	}
+	out := make([]string, 0, len(lines))
+	for _, l := range tail(lines, r.N) {
+		out = append(out, cut(textsafe.Clean(l), 4<<10))
+	}
+	return Reply{Type: TypeTail, ID: r.ID, Lines: out}
 }
 
 // reply queues r for the client.

@@ -10,6 +10,7 @@ What igris protects, from whom, where the boundaries are, and which test enforce
   - the plan's text (a plan someone else wrote, or one `igris adapt` produced);
   - the output of any command;
   - the network;
+  - since 1.6, callers of `igris serve`'s HTTP listener until they present the serve token, and even then they never reach skip-permissions mode (B9);
   - other local users.
 - **The boundary that matters is the permission mode.** A session can't change the mode or model a task runs with, make igris skip verification, or drive the owner's terminal. What it can do by design is edit files, and therefore what `verify` and git hooks execute as the owner. Worktree mode (SPEC §6.8) keeps those edits on a branch of their own.
 
@@ -37,6 +38,7 @@ What igris protects, from whom, where the boundaries are, and which test enforce
 | Project code (verify, task hooks, git hooks) | Run as the owner with the project's files | See the variables the notification secrets come from; run without a timeout |
 | Notification endpoint, network | Read what is sent to it; delay or drop it | Make igris block (requests have timeouts); read a secret over plain http without a warning |
 | GitHub's releases API, or whoever answers in its place (since 1.2; only when the owner checks for updates) | Answer with any status, body or tag; delay or drop it | Show the owner text (only a `vX.Y.Z` tag is used), make igris read more than 1 MiB or wait more than 10 s, put anything but a version into the update command, or replace the binary (the package manager installs it) |
+| Remote caller of serve's HTTP listener (since 1.6; only when the owner turns it on) | Reach the address it binds (loopback through `ssh -L`, the tailnet, or with `--listen-public` whatever routes to it); with the serve token, do what an attached client does | Reach a listener the owner didn't turn on, guess the token (rate-limited, 256 bits), forge a cookie-authenticated request from another site, or set skip-permissions mode |
 | Another local user | Read world-readable files | Read `.igris/` (`0700`/`0600`) |
 | Supply chain | — | Replace a release unnoticed (signed `checksums.txt` and tags, SBOM, govulncheck, reproducible build) |
 
@@ -163,6 +165,20 @@ Since 1.5 the same boundary holds for the task worktrees of a parallel phase (`.
 | A session points clients at a socket of its own through `.igris/igris.sock.path` | The file is read bounded, never through a symlink, and used only when it names this root's fallback path (SPEC §13). |
 | A client switches the run to skip-permissions mode | Only with the phrase typed in that client (the `mode` command's `yes`), checked by the engine as for the TUI (SPEC §7.3). |
 
+### B9 — `igris serve`'s HTTP listener ↔ remote callers (since 1.6)
+
+Off unless the owner sets an address (`[serve] http`, `serve --http`). A remote caller is untrusted until it authenticates; an authenticated one is an attached client short of skip-permissions mode (SPEC §14, §16, decisions.md V16-P1). V16-05 reviews this boundary in full.
+
+| Threat | Mitigation |
+|---|---|
+| The listener is reachable from the internet or the LAN | Only loopback (`ssh -L`) and Tailscale addresses (`100.64.0.0/10`, `fd7a:115c:a1e0::/48`) bind as they are; any other address needs `--listen-public`, serve's flag only, and TLS from the owner's certificate, and serve warns at start. Host names are refused: the rule goes by the address. A refusal starts nothing (SPEC §14). |
+| Guessing or brute-forcing the token | 32 random bytes; compared in constant time; failed authentications (a wrong pairing token, cookie or bearer) are limited to 10 a minute per address (an IPv6 /64), in a bounded table whose overflow fails closed. |
+| The token leaks through a URL, a log or a header | The pairing URL redirects to `/` once the cookie is set; `Referrer-Policy: no-referrer`; serve never prints the token (its output goes to `serve.log`), only `igris serve token` does, on its own terminal. The cookie is `HttpOnly`, `SameSite=Strict`, `Secure` on TLS. |
+| Cross-site request forgery, clickjacking, script injection | A cookie-authenticated `POST` needs the CSRF token (an HMAC of the owner token); a non-`GET` with a foreign `Origin` or `Sec-Fetch-Site: cross-site` is refused; commands are `application/json` only; a CSP without inline script and `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `nosniff`. |
+| A remote caller switches the run to skip-permissions mode | `mode` and `task_mode` naming `yolo` or `plan:yolo` are refused before the engine, also on a run whose owner typed the phrase at start (where the engine would take it without `yes`); an HTTP client never says hello, so it can't be the starter whose `yolo` a run takes (SPEC §7.3, §14). |
+| A remote caller floods or stalls serve | Request headers in 10 s and 16 KiB, bodies in 30 s and 1 MiB, at most 16 event streams; each stream is a client with the socket's bounded queue, dropped when slow; commands are shape-checked as on the socket. |
+| A paired device is lost, or the token was seen | `igris serve token --rotate` replaces it; a live serve reads the token on every request, so the old one stops working at once and open event streams end within 15 s. |
+
 ## Accepted risks
 
 1. **Verify and git hooks run session-written code as the owner.** That is what verifying means. The permission mode the owner chooses limits what a session may write; worktree mode keeps it on a branch; the env rules keep the notification secrets out.
@@ -190,6 +206,8 @@ Since 1.5 the same boundary holds for the task worktrees of a parallel phase (`.
 22. **Any process of the owner's user can drive a run over the socket** (V14-P1): it can attach, answer questions, skip, stop and switch modes, skip-permissions included with the `yes` a client sends after its owner typed the phrase. Such a process can already edit the plan, `igris.toml` and `.igris/`, and run `claude` itself; the socket is guarded against other users, not against the owner's own programs.
 
 23. **Parallel tasks share the machine and a mode** (V15-P1): the sessions of a parallel phase run as the owner at the same time, each able to read or write the other tasks' worktrees and everything else the permission mode lets it. Isolation is for the code (one branch and tree per task, a rebase and verify before integration), not for a hostile session. Verify and git hooks of N worktrees run session-written code as the owner (risk 1). Run a phase in parallel only where you would run one task unattended; worktree mode (`--worktree`) keeps the whole run off your branch.
+
+24. **Whoever holds the serve token controls the run** (V16-P1): a paired phone, someone who saw the pairing URL or its QR code, or a process of the owner's user (a session included) that reads `.igris/serve-token` can do what an attached client does, short of skip-permissions mode, until the owner rotates the token. A session can also replace the file with a token of its own, as it can drive the socket (risk 22). The listener is off by default and binds only loopback and Tailscale addresses without `--listen-public`.
 
 ## Reviews
 
@@ -305,5 +323,13 @@ One row per safety rule. The tests are named `package.TestName`; `tools/threatmo
 | R60 | A task is integrated one at a time, by rebase and fast-forward only; a conflict is aborted, never merged, and verify runs on the integrated tree before `done` | §6.11 | `internal/engine.TestIntegrationInCompletionOrder`, `internal/engine.TestIntegrationConflictRerunsOnce`, `internal/engine.TestIntegrationVerifyFailsOnIntegratedTree` |
 | R61 | A parallel phase never runs more than `max` tasks, rank caps, `Group` and owner-task exclusivity hold, and skip-permissions mode still needs its typed phrase | §5.1, §7.3 | `internal/plan.TestSelectParallelProperties`, `internal/engine.TestParallelE2ECapsGroupsAndExclusivity` |
 | R62 | A parallel phase that can't integrate (no git, `commit = "never"`) runs one task at a time | §6.11 | `internal/engine.TestParallelWithoutCommitRunsOneAtATime`, `internal/engine.TestParallelWithoutGitRunsOneAtATime` |
+| R63 | The HTTP listener binds only loopback and Tailscale addresses, unless `--listen-public` and TLS are given; a refusal starts nothing | §14, §16 | `internal/serve.TestExposureOf`, `internal/serve.TestListenHTTPRules`, `internal/serve.TestListenHTTPServesTLS`, `cmd/igris.TestServeHTTPBindRules` |
+| R64 | Every HTTP request but pairing needs the owner token (cookie or bearer), compared in constant time; a damaged or unreadable token authenticates nobody; a rotation takes effect at once | §13, §14 | `internal/serve.TestHTTPAuth`, `internal/serve.TestHTTPPairing`, `internal/serve.TestHTTPEventsEndOnRotation`, `internal/state.TestServeToken`, `internal/state.TestServeTokenUntrusted` |
+| R65 | Failed authentication is rate-limited per address in a bounded table | §14 | `internal/serve.TestHTTPRateLimit`, `internal/serve.TestLimiterBounded`, `internal/serve.TestAddrKey` |
+| R66 | A cookie-authenticated change needs the CSRF token; a cross-site non-GET is refused; every response has the security headers | §14 | `internal/serve.TestHTTPCSRFAndOrigin`, `internal/serve.TestHTTPSecurityHeaders` |
+| R67 | Skip-permissions mode is never set over HTTP, and an HTTP client is never the starter | §7.3, §14, §16 | `internal/serve.TestHTTPCommands`, `internal/serve.TestHTTPNeverYoloOnAConfirmedRun`, `internal/serve.TestHTTPEventsSnapshotThenEvents` |
+| R68 | HTTP requests and event streams are bounded; a slow stream is dropped, never waited for | §14 | `internal/serve.TestHTTPCommands`, `internal/serve.TestHTTPEventStreamsBounded`, `internal/serve.TestHTTPSlowStreamDropped` |
+| R69 | Serve never prints the serve token | §14 | `cmd/igris.TestServeHTTPListener` |
+| R70 | Whoever holds the serve token controls the run, short of skip-permissions mode | §16 | accepted (see Accepted risks 24) |
 | R29 | Verify and git hooks run session-written code as the owner | §16 | accepted (see Accepted risks 1) |
 | R30 | A session can forge hook state, moving Needs you within `waiting_limit` | §6.3 | accepted (see Accepted risks 3) |
