@@ -47,6 +47,8 @@ type DryRunOptions struct {
 	// Worktree is --worktree (SPEC §6.8); the walk says where the run
 	// would work, and makes no worktree.
 	Worktree bool
+	// Parallel is --parallel N (SPEC §5.1); 0 takes [parallel] max.
+	Parallel int
 }
 
 // DryRun walks the phases on a copy of the plan with the fake backend and
@@ -151,6 +153,9 @@ func DryRun(ctx context.Context, o DryRunOptions) (report.DryRun, error) {
 		Runner:         &runner.Fake{}, // verify and commits are off; nothing may run
 		noVerify:       true,
 		noHooks:        true,
+		noGit:          true,
+		scheduleCommit: f.Config.Run.Commit, // the walk schedules parallel phases as the real run would
+		Parallel:       f.Parallel,
 		contextRoot:    cmp.Or(f.Root, "."), // the owner's files, not the copy's
 		Phase:          f.Phase,
 		Through:        f.Through,
@@ -250,14 +255,14 @@ func (w *dryWalk) event(eng *Engine, dir *state.Dir, ev Event) {
 			verify = plan.VerifyNone
 		}
 		r.Steps = append(r.Steps, report.DryStep{
-			Kind: report.StepSession, N: r.Sessions + r.Users, Task: textsafe.Line(ev.Task),
+			Kind: report.StepSession, N: eng.round, Task: textsafe.Line(ev.Task),
 			Rank: textsafe.Line(ev.Rank), Model: textsafe.Line(ev.Model), Mode: textsafe.Line(ev.Mode), Then: textsafe.Line(eng.planThen(ev.Mode)), Verify: textsafe.Line(verify),
 			Title: textsafe.Line(ev.Title), Resumed: w.resumed[ev.Task],
 		})
 	case YourTurn:
 		r.Users++
 		r.Steps = append(r.Steps, report.DryStep{
-			Kind: report.StepUser, N: r.Sessions + r.Users, Task: textsafe.Line(ev.Task), Title: textsafe.Line(ev.Title),
+			Kind: report.StepUser, N: eng.round, Task: textsafe.Line(ev.Task), Title: textsafe.Line(ev.Title),
 		})
 		if err := dir.WriteSignal(state.Signal{ID: ev.Task, Action: state.ActionDone, Note: "dry run"}); err != nil {
 			r.Steps = append(r.Steps, report.DryStep{Kind: report.StepWarning, Lines: []string{textsafe.Line(err.Error())}})

@@ -159,7 +159,8 @@ func TestResumeStartsInThePhaseOfTheTask(t *testing.T) {
 	if err != nil || res.Outcome != Completed || res.Phase != "B" {
 		t.Fatalf("resumed run = %s in %q, %v", res.Outcome, res.Phase, err)
 	}
-	if got, want := h.kinds(), "run_started task_resumed not_committed task_done phase_started phase_done run_stopped"; got != want {
+	// The phase loop drives the reattached task (SPEC §5.1).
+	if got, want := h.kinds(), "run_started task_resumed phase_started not_committed task_done phase_done run_stopped"; got != want {
 		t.Errorf("events = %s\nwant     %s", got, want)
 	}
 	run, err := h.dir.LoadRun()
@@ -528,7 +529,8 @@ func TestResumeEveryActiveTask(t *testing.T) {
 				h.be.Kill(ref)
 				h.onEvent = func(ev Event) {
 					if ev.Kind == Asked && ev.Question == QuestionSessionLost && ev.Task == "P-2" {
-						h.eng.Send(Command{Kind: CmdRetry})
+						// Both tasks are active: the command names its task.
+						h.eng.Send(Command{Kind: CmdRetry, Task: "P-2"})
 					}
 				}
 			}

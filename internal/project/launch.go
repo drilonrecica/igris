@@ -110,6 +110,7 @@ func (l *Launch) Options(c report.Confirmations, events func(engine.Event)) engi
 		Mode:            l.req.Mode,
 		Selection:       l.req.Selection,
 		Worktree:        l.req.Worktree,
+		Parallel:        l.req.Parallel,
 		ForceUnlock:     c.ForceUnlock,
 		ConfirmedDrift:  c.Drift,
 		ConfirmedYolo:   c.Yolo,
@@ -169,7 +170,7 @@ func (p *Project) DryRun(ctx context.Context, req report.RunRequest) (report.Dry
 	return engine.DryRun(ctx, engine.DryRunOptions{
 		Root: p.Root, Config: p.Cfg, Phase: req.Phase, Through: req.Through, Mode: req.Mode, Selection: req.Selection,
 		Runner: p.env.runner(), Getenv: p.env.getenv(), Versions: p.env.versions(), Format: p.env.format(),
-		BackendName: BackendName(p.Cfg, p.env.getenv()), Worktree: req.Worktree, Self: p.env.self(), Version: p.env.Version,
+		BackendName: BackendName(p.Cfg, p.env.getenv()), Worktree: req.Worktree, Parallel: req.Parallel, Self: p.env.self(), Version: p.env.Version,
 	})
 }
 

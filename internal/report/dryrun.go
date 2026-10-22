@@ -11,10 +11,12 @@ const (
 	StepWarning   StepKind = "warning"    // the walk itself hit a problem; Lines[0] is it
 )
 
-// DryStep is one line of the walk. Sessions and user tasks are numbered.
+// DryStep is one line of the walk. Sessions and user tasks are numbered by
+// scheduling round: the tasks a parallel phase starts together share one
+// number (SPEC §14).
 type DryStep struct {
 	Kind  StepKind
-	N     int // 1-based position among sessions and user tasks; 0 for the others
+	N     int // 1-based scheduling round of a session or user task; 0 for the others
 	Task  string
 	Rank  string
 	Model string

@@ -146,7 +146,7 @@ func (e *Engine) ask(ctx context.Context, q Question, text string) (yes, stopped
 		if e.stopping(ctx) {
 			return false, true
 		}
-		for _, c := range e.takeCommands() {
+		for _, c := range e.takeCommands(e.task) {
 			if c.Kind == CmdAnswer {
 				return c.Yes, false
 			}

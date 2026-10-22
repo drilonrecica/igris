@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -60,12 +61,13 @@ type ariseFlags struct {
 	phase, through, mode       string
 	noTUI, dryRun, forceUnlock bool
 	worktree                   bool
+	parallel                   int             // --parallel N; 0 is unset
 	sel                        state.Selection // --only, --from, --until
 	lines                      <-chan string   // --no-tui: the owner's stdin lines
 }
 
 func (f ariseFlags) request() report.RunRequest {
-	return report.RunRequest{Phase: f.phase, Through: f.through, Mode: f.mode, Selection: f.sel, Worktree: f.worktree}
+	return report.RunRequest{Phase: f.phase, Through: f.through, Mode: f.mode, Selection: f.sel, Worktree: f.worktree, Parallel: f.parallel}
 }
 
 // parseSelection reads --only, --from and --until (SPEC §5.5). Combining
@@ -125,6 +127,7 @@ func runFlags(fs *flag.FlagSet) func(args []string) error {
 	mode := fs.String("mode", "", "run mode: "+strings.Join(runModes, "|"))
 	fs.Bool("force-unlock", false, "clear a stale lock left by a run that is no longer alive")
 	fs.Bool("worktree", false, "run in a git worktree on a branch of its own, igris/<run-id>")
+	fs.String("parallel", "", "tasks at once in a parallel phase, 1 to 8 (in place of [parallel] max)")
 	fs.String("only", "", "run only these tasks, in plan order: ID[,ID...]")
 	fs.String("from", "", "start the run at task ID")
 	fs.String("until", "", "stop the run after task ID")
@@ -135,8 +138,27 @@ func runFlags(fs *flag.FlagSet) func(args []string) error {
 		if _, err := parseSelection(fs); err != nil {
 			return err
 		}
+		if _, err := parseParallel(fs); err != nil {
+			return err
+		}
 		return atMost(args, 1)
 	}
+}
+
+// parseParallel reads --parallel (SPEC §14): 0 when not given, else a
+// whole number from 1 to config.MaxParallel; anything else is a usage error.
+func parseParallel(fs *flag.FlagSet) (int, error) {
+	given := false
+	fs.Visit(func(f *flag.Flag) { given = given || f.Name == "parallel" })
+	if !given {
+		return 0, nil
+	}
+	v := fs.Lookup("parallel").Value.String()
+	n, err := strconv.Atoi(strings.TrimSpace(v))
+	if err != nil || n < 1 || n > config.MaxParallel {
+		return 0, fmt.Errorf("invalid --parallel %s: use a whole number from 1 to %d", v, config.MaxParallel)
+	}
+	return n, nil
 }
 
 // runFlagValues reads runFlags' flags and the phase argument.
@@ -150,7 +172,8 @@ func runFlagValues(fs *flag.FlagSet, args []string) ariseFlags {
 	if len(args) > 0 {
 		f.phase = args[0]
 	}
-	f.sel, _ = parseSelection(fs) // checked when the flags were parsed
+	f.sel, _ = parseSelection(fs)     // checked when the flags were parsed
+	f.parallel, _ = parseParallel(fs) // checked when the flags were parsed
 	return f
 }
 
@@ -167,7 +190,7 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		return fail("%v", err)
 	}
 	if wantWizard(f, proj.Root) {
-		return runApp(tui.Wizard{Mode: f.mode, Through: f.through, ForceUnlock: f.forceUnlock, Worktree: f.worktree}, stdout, stderr)
+		return runApp(tui.Wizard{Mode: f.mode, Through: f.through, ForceUnlock: f.forceUnlock, Worktree: f.worktree, Parallel: f.parallel}, stdout, stderr)
 	}
 	out := &lockedWriter{w: stdout}
 	if f.dryRun {
@@ -836,6 +859,16 @@ func printDryRun(out io.Writer, r report.DryRun) {
 	for _, s := range r.Steps {
 		verifies = verifies || s.Verify != ""
 	}
+	// The tasks a parallel phase starts together are one numbered step
+	// (SPEC §14): the number once, the others under it.
+	lastN := 0
+	number := func(n int) string {
+		if n == lastN {
+			return "    "
+		}
+		lastN = n
+		return fmt.Sprintf("%3d.", n)
+	}
 	for _, s := range r.Steps {
 		switch s.Kind {
 		case report.StepSession:
@@ -847,9 +880,9 @@ func printDryRun(out io.Writer, r report.DryRun) {
 			if verifies {
 				verify = fmt.Sprintf("verify %-7s ", cmp.Or(s.Verify, "—"))
 			}
-			fmt.Fprintf(out, "%3d. %-10s %-7s → model %-7s mode %-12s %s%s%s%s\n", s.N, s.Task, s.Rank, s.Model, s.ModeText(), verify, s.Title, yoloBadge(s.Mode), how)
+			fmt.Fprintf(out, "%s %-10s %-7s → model %-7s mode %-12s %s%s%s%s\n", number(s.N), s.Task, s.Rank, s.Model, s.ModeText(), verify, s.Title, yoloBadge(s.Mode), how)
 		case report.StepUser:
-			fmt.Fprintf(out, "%3d. %-10s user task: waits for you  %s\n", s.N, s.Task, s.Title)
+			fmt.Fprintf(out, "%s %-10s user task: waits for you  %s\n", number(s.N), s.Task, s.Title)
 		case report.StepPhaseDone:
 			fmt.Fprintf(out, "     phase %s complete\n", s.Phase)
 		case report.StepWarning:

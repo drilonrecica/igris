@@ -103,9 +103,13 @@ type Config struct {
 	Adapt Adapt `toml:"adapt"`
 	// Draft configures `igris draft` (SPEC §9.1); left out of the hash
 	// and the written file while unset (since 1.4).
-	Draft  Draft  `toml:"draft,omitempty" json:",omitzero"`
-	TUI    TUI    `toml:"tui"`
-	Notify Notify `toml:"notify"`
+	Draft Draft `toml:"draft,omitempty" json:",omitzero"`
+	// Parallel configures the parallel phases (SPEC §3.8, §5.1, §6.11);
+	// left out of the hash and the written file while at its defaults
+	// (since 1.5).
+	Parallel Parallel `toml:"parallel,omitempty" json:",omitzero"`
+	TUI      TUI      `toml:"tui"`
+	Notify   Notify   `toml:"notify"`
 }
 
 // Claude configures how Claude Code is launched. The backends start claude
@@ -386,6 +390,109 @@ func (d Draft) ModelOrDefault() string {
 		return d.Model
 	}
 	return DefaultDraftModel
+}
+
+// Parallel-phase defaults and limits (SPEC §12, V15-P1).
+const (
+	DefaultParallelMax = 2
+	// MaxParallel bounds max, --parallel and every rank cap.
+	MaxParallel = 8
+	// OnConflictRerun runs a task that doesn't integrate again once, from
+	// the start; OnConflictAsk asks the owner at once (SPEC §6.11).
+	OnConflictRerun = "rerun"
+	OnConflictAsk   = "ask"
+	// defaultCapRank is the rank held to one active task unless
+	// [parallel.ranks] says otherwise.
+	defaultCapRank = "fable"
+)
+
+// validOnConflict are the on_conflict policies.
+var validOnConflict = []string{OnConflictRerun, OnConflictAsk}
+
+// Parallel is the [parallel] table (SPEC §12): how the phases marked
+// <!-- igris:parallel --> run (SPEC §5.1, §6.11). Every key is nil or
+// empty when not set; the accessors give the defaults.
+type Parallel struct {
+	// Max is how many tasks run at once, 1 to MaxParallel; nil is
+	// DefaultParallelMax. arise/serve --parallel N replaces it for one run.
+	Max *int `toml:"max,omitempty" json:",omitempty"`
+	// ExclusiveOwnerTasks: a user or agent + user task runs alone; nil is
+	// true.
+	ExclusiveOwnerTasks *bool `toml:"exclusive_owner_tasks,omitempty" json:",omitempty"`
+	// SerialVerify: one verify at a time while the sessions stay
+	// parallel; nil is false.
+	SerialVerify *bool `toml:"serial_verify,omitempty" json:",omitempty"`
+	// OnConflict is what happens to a task that doesn't integrate:
+	// OnConflictRerun or OnConflictAsk; "" is rerun.
+	OnConflict string `toml:"on_conflict,omitempty" json:",omitempty"`
+	// Ranks caps the active tasks of a rank ([parallel.ranks]), 1 to
+	// MaxParallel each; RankCaps merges in the default fable = 1.
+	Ranks map[string]int `toml:"ranks,omitempty" json:",omitempty"`
+}
+
+// IsZero reports that nothing in [parallel] is set, so the table stays out
+// of the written file; Hash normalizes the defaults away first.
+func (p Parallel) IsZero() bool {
+	return p.Max == nil && p.ExclusiveOwnerTasks == nil && p.SerialVerify == nil && p.OnConflict == "" && len(p.Ranks) == 0
+}
+
+// MaxOrDefault is parallel.max, or DefaultParallelMax when unset.
+func (p Parallel) MaxOrDefault() int {
+	if p.Max == nil {
+		return DefaultParallelMax
+	}
+	return *p.Max
+}
+
+// ExclusiveOwnerTasksOn reports whether owner tasks run alone in a
+// parallel phase; on unless exclusive_owner_tasks = false.
+func (p Parallel) ExclusiveOwnerTasksOn() bool {
+	return p.ExclusiveOwnerTasks == nil || *p.ExclusiveOwnerTasks
+}
+
+// SerialVerifyOn reports whether verify runs one task at a time; off
+// unless serial_verify = true.
+func (p Parallel) SerialVerifyOn() bool { return p.SerialVerify != nil && *p.SerialVerify }
+
+// OnConflictOrDefault is parallel.on_conflict, lower-case, or
+// OnConflictRerun.
+func (p Parallel) OnConflictOrDefault() string {
+	if v := strings.ToLower(strings.TrimSpace(p.OnConflict)); v != "" {
+		return v
+	}
+	return OnConflictRerun
+}
+
+// RankCaps is [parallel.ranks] merged with the default fable = 1 (SPEC
+// §12): at most that many active tasks of each listed rank. A new map
+// every call.
+func (p Parallel) RankCaps() map[string]int {
+	caps := map[string]int{defaultCapRank: 1}
+	for rank, n := range p.Ranks {
+		caps[rank] = n
+	}
+	return caps
+}
+
+// normalized is p with every key at its default unset, so the hash of a
+// config that writes the defaults out is the hash of one that doesn't.
+func (p Parallel) normalized() Parallel {
+	if p.Max != nil && *p.Max == DefaultParallelMax {
+		p.Max = nil
+	}
+	if p.ExclusiveOwnerTasks != nil && *p.ExclusiveOwnerTasks {
+		p.ExclusiveOwnerTasks = nil
+	}
+	if p.SerialVerify != nil && !*p.SerialVerify {
+		p.SerialVerify = nil
+	}
+	if p.OnConflictOrDefault() == OnConflictRerun {
+		p.OnConflict = ""
+	}
+	if n, ok := p.Ranks[defaultCapRank]; ok && n == 1 && len(p.Ranks) == 1 {
+		p.Ranks = nil
+	}
+	return p
 }
 
 // TUI configures the terminal UI (SPEC §15).
@@ -794,6 +901,7 @@ func (c *Config) Validate() error {
 	}
 
 	c.validateSide(add)
+	c.validateParallel(add)
 
 	for i, arg := range c.Claude.ExtraArgs {
 		switch {
@@ -963,6 +1071,28 @@ func (c *Config) validateSide(add func(string, ...any)) {
 		add("side.mode = %q: side sessions never skip permissions; use one of: %s", textsafe.Line(c.Side.Mode), strings.Join(SideModes, ", "))
 	case !contains(SideModes, mode):
 		add("side.mode = %q is invalid; use one of: %s", textsafe.Line(c.Side.Mode), strings.Join(SideModes, ", "))
+	}
+}
+
+// validateParallel checks [parallel] and [parallel.ranks] (SPEC §12): max
+// and every cap from 1 to MaxParallel, on_conflict a known policy, the
+// ranks [models] keys.
+func (c *Config) validateParallel(add func(string, ...any)) {
+	p := c.Parallel
+	if p.Max != nil && (*p.Max < 1 || *p.Max > MaxParallel) {
+		add("parallel.max = %d is out of range; use 1 to %d", *p.Max, MaxParallel)
+	}
+	if p.OnConflict != "" && !contains(validOnConflict, p.OnConflictOrDefault()) {
+		add("parallel.on_conflict = %q is invalid; use one of: %s", textsafe.Line(p.OnConflict), strings.Join(validOnConflict, ", "))
+	}
+	for _, rank := range sortedKeys(p.Ranks) {
+		if _, ok := c.Models[rank]; !ok {
+			add("parallel.ranks.%s is not a [models] rank; use one of: %s", textsafe.Line(rank), strings.Join(sortedKeys(c.Models), ", "))
+			continue
+		}
+		if n := p.Ranks[rank]; n < 1 || n > MaxParallel {
+			add("parallel.ranks.%s = %d is out of range; use 1 to %d", rank, n, MaxParallel)
+		}
 	}
 }
 
@@ -1138,6 +1268,7 @@ func Write(path string, c *Config) error {
 // references unresolved), recorded in the run snapshot (SPEC §13).
 func (c *Config) Hash() string {
 	h := *c
+	h.Parallel = h.Parallel.normalized() // the defaults written out are no change (SPEC §12)
 	for _, ev := range []*[]string{&h.Notify.Ntfy.Events, &h.Notify.Discord.Events, &h.Notify.Webhook.Events, &h.Notify.Slack.Events, &h.Notify.Gotify.Events} {
 		if slices.Equal(*ev, defaultEvents()) {
 			*ev = hashEvents() // replaced, never written through: c keeps its lists

@@ -100,10 +100,13 @@ const (
 	Next     Outcome = iota // Selection.Task is the task to run
 	Complete                // every task in the phase is satisfied
 	Stuck                   // unfinished tasks remain, none can start
+	// Busy: tasks are active and none more may start now (a parallel
+	// phase, SelectParallel).
+	Busy
 )
 
 func (o Outcome) String() string {
-	return [...]string{"next", "complete", "stuck"}[o]
+	return [...]string{"next", "complete", "stuck", "busy"}[o]
 }
 
 // Waiting is an unfinished task and the IDs of the dependencies it waits on.

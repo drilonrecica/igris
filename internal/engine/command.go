@@ -169,11 +169,23 @@ func (e *Engine) setMode(c Command) {
 	e.emit(Event{Kind: ModeChanged, Detail: m})
 }
 
-// takeCommands returns the task-scoped commands received so far.
-func (e *Engine) takeCommands() []Command {
-	cmds := e.pending
-	e.pending = nil
-	return cmds
+// takeCommands returns the task-scoped commands for l received so far:
+// the ones naming its task and, when l is the first active task (state.json's
+// current one, SPEC §13), the ones naming none. The others wait for their
+// task's step; routeCommands rejects the ones no task can take.
+func (e *Engine) takeCommands(l *launch) []Command {
+	first := l != nil && e.first() == l
+	var mine []Command
+	kept := e.pending[:0]
+	for _, c := range e.pending {
+		if l != nil && (c.Task == l.t.ID || (c.Task == "" && first)) {
+			mine = append(mine, c)
+		} else {
+			kept = append(kept, c)
+		}
+	}
+	e.pending = kept
+	return mine
 }
 
 // reject tells the owner that c can't be used right now.

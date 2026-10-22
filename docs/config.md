@@ -85,6 +85,16 @@
 |---|---|---|---|
 | `model` | string | `"opus"` | Model rank `igris draft` uses (SPEC §9.1). Allowed: `sonnet`, `opus`. |
 
+## `[parallel]`
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `max` | integer | `2` | How many tasks a phase marked `<!-- igris:parallel -->` runs at once, each in its own worktree (SPEC §5.1, §6.11). `arise`/`serve --parallel N` replaces it for one run. Allowed: `1` to `8`. |
+| `exclusive_owner_tasks` | boolean | `true` | A `user` or `agent + user` task of a parallel phase starts only when no other task is active, and nothing starts beside it (SPEC §5.1). `false` schedules them like the others. |
+| `serial_verify` | boolean | `false` | Run one verify at a time in a parallel phase while the sessions stay parallel (SPEC §6.11). |
+| `on_conflict` | string | `"rerun"` | What happens to a task whose commit doesn't integrate, a rebase conflict or verify failing on the integrated tree (SPEC §6.11): `rerun` runs it again from the start once, then asks; `ask` asks at once. Allowed: `rerun`, `ask`. |
+| `ranks` | table | `{ fable = 1 }` | At most this many active tasks of a rank, under `[parallel.ranks]` (SPEC §5.1): a `[models]` key to `1`–`8`. Merged with the default `fable = 1`; a cap above `max` changes nothing. |
+
 ## `[tui]`
 
 | Key | Type | Default | Description |

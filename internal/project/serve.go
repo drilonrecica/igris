@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -101,6 +102,9 @@ func serveArgs(req report.RunRequest, c report.Confirmations) []string {
 	flag("until", req.Selection.Until)
 	if req.Worktree {
 		args = append(args, "--worktree")
+	}
+	if req.Parallel > 0 {
+		args = append(args, "--parallel", strconv.Itoa(req.Parallel))
 	}
 	if c.ForceUnlock {
 		args = append(args, "--force-unlock")

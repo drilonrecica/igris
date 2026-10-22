@@ -113,7 +113,7 @@ func (m *homeScreen) openWizard(pre Wizard) tea.Cmd {
 		return nil
 	}
 	m.launch = &launch{
-		req:  report.RunRequest{Through: pre.Through, Mode: pre.Mode, Worktree: pre.Worktree},
+		req:  report.RunRequest{Through: pre.Through, Mode: pre.Mode, Worktree: pre.Worktree, Parallel: pre.Parallel},
 		conf: report.Confirmations{ForceUnlock: pre.ForceUnlock},
 	}
 	if m.resumable() {
@@ -141,12 +141,12 @@ func (m *homeScreen) ariseFrom(req report.RunRequest) tea.Cmd {
 		return nil
 	}
 	if req.Phase == "" {
-		return m.openWizard(Wizard{Mode: req.Mode, Through: req.Through, Worktree: req.Worktree})
+		return m.openWizard(Wizard{Mode: req.Mode, Through: req.Through, Worktree: req.Worktree, Parallel: req.Parallel})
 	}
 	if m.launch != nil || m.run != nil {
 		return nil
 	}
-	m.launch = &launch{req: report.RunRequest{Phase: req.Phase, Through: req.Through, Mode: req.Mode, Worktree: req.Worktree}}
+	m.launch = &launch{req: report.RunRequest{Phase: req.Phase, Through: req.Through, Mode: req.Mode, Worktree: req.Worktree, Parallel: req.Parallel}}
 	return m.phaseStep()
 }
 

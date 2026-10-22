@@ -239,18 +239,18 @@ func (e *Engine) applyReset(ctx context.Context, s state.Signal) (current bool, 
 	}
 
 	rec := e.run.ActiveTask(t.ID)
-	// mine: the task this run drives is the one reset, or none is driven
-	// yet (at start, the interrupted task).
-	mine := rec != nil && (e.task == nil || e.task.t.ID == t.ID)
+	l := e.launchOf(t.ID)
+	// mine: the task igris handles at this moment is the one reset.
+	mine := l != nil && l == e.task
 	model := ""
 	if rec != nil {
 		// Closed first, then forgotten, then rewritten: a crash in between
 		// leaves the task in progress with its reset still pending, which
 		// the next run asks about before anything else.
-		if e.task != nil && e.task.t.ID == t.ID {
-			model = e.task.model
+		if l != nil {
+			model = l.model
 		}
-		e.closeForReset(ctx, rec)
+		e.closeForReset(ctx, rec, l)
 		e.run.Deactivate(t.ID)
 		if err := e.dir.SaveRun(e.run); err != nil {
 			return false, err
@@ -273,9 +273,7 @@ func (e *Engine) applyReset(ctx context.Context, s state.Signal) (current bool, 
 	}
 	e.emit(Event{Kind: TaskReset, Task: t.ID, Title: t.Title, Rank: t.Rank, Phase: phaseOf(t), Detail: detail, Changes: changes})
 	if rec != nil {
-		if mine {
-			e.task = nil
-		}
+		e.dropLaunch(t.ID)
 		if !e.pause {
 			// Nothing relaunches the task behind the owner's back.
 			e.pause = true
@@ -294,16 +292,16 @@ func phaseOf(t *plan.Task) string {
 }
 
 // closeForReset closes the session of rec, the active task being reset,
-// without the idle wait (SPEC §6.2). A task with no launch in this run (at
-// start, the interrupted one) has its session reattached to be closed, if
-// it is still there.
-func (e *Engine) closeForReset(ctx context.Context, rec *state.Current) {
+// without the idle wait (SPEC §6.2); l is its launch in this run. A task
+// with no launch (at start, the interrupted one) has its session
+// reattached to be closed, if it is still there.
+func (e *Engine) closeForReset(ctx context.Context, rec *state.Current, l *launch) {
 	id := rec.TaskID
 	var sess backend.Session
 	switch {
-	case e.task != nil && e.task.t.ID == id:
-		if !e.task.lost {
-			sess = e.task.sess
+	case l != nil:
+		if !l.lost {
+			sess = l.sess
 		}
 	case rec.Session != nil && rec.Session.Backend == e.be.Name():
 		s, err := e.be.Attach(ctx, *rec.Session, id)

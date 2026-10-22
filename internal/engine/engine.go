@@ -73,6 +73,9 @@ type Options struct {
 	// Worktree runs this run in a git worktree on a branch of its own
 	// (--worktree, SPEC §6.8), as [run] worktree = true does.
 	Worktree bool
+	// Parallel is how many tasks a parallel phase runs at once (--parallel
+	// N, SPEC §5.1), in place of [parallel] max; 0 takes the config's.
+	Parallel int
 
 	ForceUnlock bool // clear a stale run lock (--force-unlock)
 	// LockHeld says the caller holds the project's run lock (igris serve
@@ -108,6 +111,12 @@ type Options struct {
 	beforeMark func() // test hook: runs just before a task is marked in progress
 	noVerify   bool   // a dry run: verify profiles are shown, never run
 	noHooks    bool   // a dry run: task hooks are announced, never run
+	// noGit: a dry run runs no git, so a parallel phase is walked as if
+	// the repository had a commit (SPEC §6.11); scheduleCommit is the
+	// commit policy the scheduler goes by then, the owner's, while the
+	// walk's config never commits.
+	noGit          bool
+	scheduleCommit string
 	// contextRoot, when set, is the directory Context paths are checked
 	// against instead of the state root: a dry run walks a scratch copy of
 	// the plan, but its Context names the owner's files.
@@ -167,8 +176,9 @@ type Result struct {
 	Worktree *WorktreeResult
 }
 
-// Engine runs the tasks of one or more phases, one session at a time
-// (SPEC §5, §6). Create it with New, call Run once, and steer it with Send.
+// Engine runs the tasks of one or more phases (SPEC §5, §6): one session
+// at a time, or up to max at once in a phase the plan marks parallel (§3.8,
+// §5.1). Create it with New, call Run once, and steer it with Send.
 type Engine struct {
 	notifier  Notifier
 	opts      Options
@@ -196,10 +206,21 @@ type Engine struct {
 	tailSess backend.Session
 
 	// Only touched by the goroutine in Run.
-	run      *state.Run      // state.json
-	rng      Range           // the run's phases and slice
-	phase    string          // current phase
-	task     *launch         // current task; nil between tasks
+	run   *state.Run // state.json
+	rng   Range      // the run's phases and slice
+	phase string     // current phase
+	// active are the tasks the run drives, in the order of state.json's
+	// active list (SPEC §13): one in a phase without the parallel marker,
+	// up to max in a parallel phase (SPEC §5.1). task is the one igris
+	// handles at this moment: the task whose step runs (focus), else the
+	// first active task, state.json's current one; nil with none.
+	active []*launch
+	task   *launch
+	// parallel records, per phase, whether it runs its tasks at once
+	// (parallelOn); round counts the scheduling rounds that started or
+	// picked up a task (the dry run numbers its steps by it).
+	parallel map[string]bool
+	round    int
 	pause    bool            // pause-after-task is on
 	hold     bool            // the plan changed outside igris; nothing is selected until pause goes off
 	stop     bool            // the owner asked to stop
@@ -363,11 +384,13 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 		e.emit(Event{Kind: RunFailed, Detail: err.Error()})
 		e.toast(ctx, notifyRunError, "the run stopped with an error")
 	}
-	if e.task != nil {
+	for _, l := range e.active {
 		// The task stays in progress; its attempt's usage so far is logged
 		// (SPEC §13), and the next run counts from when it reattaches.
-		e.endUsage(context.WithoutCancel(ctx), e.task)
+		e.focus(l)
+		e.endUsage(context.WithoutCancel(ctx), l)
 	}
+	e.unfocus()
 	e.leaveWorktree(context.WithoutCancel(ctx), &res)
 	// igris can't hold messages once it exits: what is left goes out now,
 	// even when the owner's stop cancelled ctx.
@@ -483,7 +506,7 @@ func (e *Engine) prepare(check bool) ([]string, error) {
 		}
 		ids = append(ids, ph.ID)
 		// Refuse an unconfirmed skip-permissions task now rather than hours
-		// into the run. runTask checks again: the plan can change.
+		// into the run. startTask checks again: the plan can change.
 		for _, t := range ph.Tasks {
 			if t.Status.Satisfied() || !t.Owner.IsAgent() || !rng.In(t) {
 				continue
@@ -597,17 +620,13 @@ func (e *Engine) resumeAndRun(ctx context.Context, phases []string) (Result, err
 		}
 	}
 	// Every active task is picked up again before any new task starts
-	// (SPEC §13), in plan order.
+	// (SPEC §13), in plan order; the phase loop then drives them all.
 	for _, c := range slices.Clone(e.run.Active) {
 		if e.run.ActiveTask(c.TaskID) != c {
 			continue // settled meanwhile
 		}
-		stopped, err := e.resume(ctx, c)
-		if err != nil {
+		if err := e.reattach(ctx, c); err != nil {
 			return Result{Phase: e.phase}, err
-		}
-		if stopped {
-			return Result{Outcome: Stopped, Phase: e.phase}, nil
 		}
 	}
 	return e.runPhases(ctx, phases)
@@ -666,82 +685,6 @@ func sliceHas(p *plan.Plan, id string, rng Range) bool {
 		}
 	}
 	return false
-}
-
-// runPhase runs the tasks of one phase in §5.1 order until the phase is
-// complete or stuck, or the run stops.
-func (e *Engine) runPhase(ctx context.Context, id string) (Result, error) {
-	res := Result{Phase: id}
-	held := false // the Paused event for the current hold was sent
-	for {
-		e.checkConfig(ctx)
-		if e.stopping(ctx) {
-			res.Outcome = Stopped
-			return res, nil
-		}
-		for _, c := range e.takeCommands() {
-			e.reject(c, "no task is running")
-		}
-		if _, err := e.resets(ctx, true); err != nil {
-			return res, err
-		}
-		p, err := e.loadPlan()
-		if err != nil {
-			return res, err
-		}
-		e.checkPlan(ctx, p)
-		if e.hold {
-			e.wait(ctx, e.cfg.PollInterval.Std())
-			continue
-		}
-		sel, err := p.SelectIn(id, e.rng.In)
-		if err != nil {
-			return res, err
-		}
-		switch sel.Outcome {
-		case plan.Complete:
-			res.Outcome = Completed
-			// The slice may be done in a phase that is not (SPEC §5.5).
-			if whole, err := p.Select(id); err == nil && whole.Outcome == plan.Complete {
-				e.emit(Event{Kind: PhaseDone})
-				e.flushTasks(ctx)
-				e.toast(ctx, notifyPhaseDone, "complete")
-			}
-			return res, nil
-		case plan.Stuck:
-			if e.rng.Slice != nil {
-				// Not a stuck phase: the slice's tasks left here wait on
-				// tasks the run doesn't touch. The run goes on.
-				res.Outcome, res.NotRun = Completed, sel.Waiting
-				e.emit(Event{Kind: NotRun, Waiting: sel.Waiting, Detail: waitText(sel.Waiting)})
-				return res, nil
-			}
-			res.Outcome, res.Waiting = Stuck, sel.Waiting
-			e.emit(Event{Kind: PhaseStuck, Waiting: sel.Waiting, Detail: waitText(sel.Waiting)})
-			e.flushTasks(ctx)
-			e.toast(ctx, notifyPhaseStuck, fmt.Sprintf("stuck: %d unfinished task(s), none can start", len(sel.Waiting)))
-			return res, nil
-		}
-
-		if e.pause {
-			// Pause-after-task: the run stays alive but launches nothing.
-			if !held {
-				held = true
-				e.emit(Event{Kind: Paused, Task: sel.Task.ID, Title: sel.Task.Title})
-			}
-			e.wait(ctx, e.cfg.PollInterval.Std())
-			continue
-		}
-		held = false
-		stopped, err := e.runTask(ctx, sel.Task)
-		if err != nil {
-			return res, err
-		}
-		if stopped {
-			res.Outcome = Stopped
-			return res, nil
-		}
-	}
 }
 
 // waitText joins the waits for an event's Detail.

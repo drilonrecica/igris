@@ -126,8 +126,14 @@ type Event struct {
 	Profile string `json:"profile,omitempty"` // verify profile, on verify_*
 	Commit  string `json:"commit,omitempty"`  // commit SHA, on committed
 	// Branch is the worktree branch on run_started, in worktree mode
-	// (SPEC §6.8).
+	// (SPEC §6.8); since 1.5 the task's branch on task_started and
+	// task_retried in a parallel phase, and the run branch on integrated
+	// (SPEC §6.11).
 	Branch string `json:"branch,omitempty"`
+	// Slot is the task's slot in a parallel phase (SPEC §6.11) on
+	// task_started, task_resumed and task_retried; nil outside one. Since
+	// 1.5.
+	Slot *int `json:"slot,omitempty"`
 	// DurationMS is the task's time in this run on task_done/task_skipped,
 	// the verify command's on verify_*, and the run's on run_stopped.
 	DurationMS int64  `json:"duration_ms,omitempty"`

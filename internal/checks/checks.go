@@ -337,12 +337,32 @@ func loadValidPlan(o Options) *plan.Plan {
 	return p
 }
 
-// planHints lists the plan's hints and each [phases.<id>] of the config
-// that names no phase of the plan (the config is validated without it).
+// phaseDone reports that every task of ph is done or skipped.
+func phaseDone(ph *plan.Phase) bool {
+	for _, t := range ph.Tasks {
+		if !t.Status.Satisfied() {
+			return false
+		}
+	}
+	return true
+}
+
+// planHints lists the plan's hints, each [phases.<id>] of the config that
+// names no phase of the plan (the config is validated without it), and
+// each parallel phase with work left that commit = "never" makes run one
+// task at a time (SPEC §6.11).
 func planHints(p *plan.Plan, cfg *config.Config) []Result {
 	var out []Result
 	for _, h := range p.Hints() {
 		out = append(out, Result{ID: IDPlanHints, Level: Warn, Message: h.Msg, File: h.File, Line: h.Line})
+	}
+	if cfg.Run.Commit == "never" { // engine.CommitNever; checks can't import engine
+		for _, ph := range p.Phases {
+			if ph.Parallel && !phaseDone(ph) {
+				out = append(out, Result{ID: IDPlanHints, Level: Warn, File: ph.File, Line: ph.Line,
+					Message: fmt.Sprintf("phase %s is marked parallel, but commit = %q; it runs one task at a time", ph.ID, cfg.Run.Commit)})
+			}
+		}
 	}
 	for _, id := range slices.Sorted(maps.Keys(cfg.Phases)) {
 		if p.Phase(id) == nil {

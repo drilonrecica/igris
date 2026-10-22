@@ -20,6 +20,9 @@ type RunRequest struct {
 	// Worktree is --worktree: the run works in a git worktree (SPEC §6.8),
 	// as [run] worktree = true does.
 	Worktree bool
+	// Parallel is --parallel N: how many tasks a parallel phase of this run
+	// runs at once in place of [parallel] max (SPEC §5.1); 0 is unset.
+	Parallel int
 }
 
 // Confirmations are the owner's answers to arise's start-up questions for

@@ -55,6 +55,12 @@ type launch struct {
 	// usage counts the tokens of the attempt's session (SPEC §6.9); nil
 	// without a session, with [usage] off, or once logged.
 	usage *attemptUsage
+	// The state watchStep keeps between polls (SPEC §6.3): the idle
+	// episode, the skip request waiting for the owner's answer and the
+	// last State error reported.
+	ep       episode
+	skip     *state.Signal
+	stateErr string
 }
 
 // nextAttempt counts a new attempt of l's task in this run.
@@ -71,6 +77,9 @@ func (l *launch) startAttempt(now time.Time) { l.attemptAt, l.overdue, l.nudged 
 
 func (l *launch) fill(ev Event) Event {
 	ev.Task, ev.Title, ev.Rank, ev.Model, ev.Mode = l.t.ID, l.t.Title, l.t.Rank, l.model, l.mode
+	if ev.Phase == "" {
+		ev.Phase = phaseOf(l.t)
+	}
 	return ev
 }
 
@@ -92,21 +101,22 @@ type sessionStart struct {
 	text      string // the first prompt
 }
 
-// runTask runs one agent task from launch to acceptance (SPEC §6). stopped
-// reports that the owner stopped the run while the task was in progress.
+// startTask starts the task t (SPEC §6 steps 1–5): a user task is handed to
+// the owner, an agent task gets its session. parallel says the phase runs
+// its tasks at once: the task takes a slot (SPEC §6.11). started is false
+// if the task's row changed since it was selected; the loop then selects
+// again.
 //
 // The order of the side effects is what makes a crash recoverable: the
 // intent goes to state.json before the plan says "in progress", the session
 // ref is stored as soon as the session exists, and state.json keeps pointing
 // at the task until its session is closed.
-func (e *Engine) runTask(ctx context.Context, t *plan.Task) (stopped bool, err error) {
+func (e *Engine) startTask(ctx context.Context, t *plan.Task, parallel bool) (started bool, err error) {
 	l := &launch{t: t}
-	e.task = l
-	if t.Status == plan.InProgress {
-		return e.adopt(ctx, l)
-	}
+	e.focus(l)
+	defer e.unfocus()
 	if !t.Owner.IsAgent() {
-		return e.runUserTask(ctx, l)
+		return e.startUserTask(ctx, l, parallel)
 	}
 
 	// Resolve everything that can fail before anything is written, so a
@@ -116,6 +126,9 @@ func (e *Engine) runTask(ctx context.Context, t *plan.Task) (stopped bool, err e
 		return false, fmt.Errorf("task %s: unknown model rank %q; add it to [models] in igris.toml", t.ID, t.Rank)
 	}
 	l.cur = &state.Current{TaskID: t.ID, StartedAt: e.clock.Now()}
+	if parallel {
+		l.cur.Slot = e.freeSlot()
+	}
 	start, err := e.prepareSession(l, startNew)
 	if err != nil {
 		return false, err
@@ -133,7 +146,7 @@ func (e *Engine) runTask(ctx context.Context, t *plan.Task) (stopped bool, err e
 			return false, err
 		}
 	}
-	return e.drive(ctx, l)
+	return true, nil
 }
 
 // markInProgress records l in state.json, then marks its task in progress.
@@ -164,14 +177,14 @@ func (e *Engine) markInProgress(ctx context.Context, l *launch, detail string) (
 			return false, saveErr
 		}
 		if errors.Is(err, errReselect) {
-			e.task = nil
 			return false, nil
 		}
 		return false, err
 	}
+	e.addLaunch(l)
 	e.plans.wrote(changes)
 	l.since = e.clock.Now()
-	ev := taskInfo(state.Event{Type: state.EventTaskStarted, Detail: detail}, t)
+	ev := taskInfo(state.Event{Type: state.EventTaskStarted, Detail: detail, Slot: l.cur.Slot}, t)
 	if t.Owner.IsAgent() {
 		ev.Session = l.cur.ClaudeSession
 		e.nextAttempt(l)
@@ -319,48 +332,6 @@ func (e *Engine) promptDelivered(l *launch) bool {
 	return true
 }
 
-// drive watches l's session until the task is finished or the run stops,
-// verifying every done signal (SPEC §6.4) and committing before the task is
-// marked done (SPEC §6 steps 8–9).
-func (e *Engine) drive(ctx context.Context, l *launch) (stopped bool, err error) {
-	for {
-		v, err := e.watch(ctx, l)
-		if err != nil {
-			return false, err
-		}
-		switch v.kind {
-		case verdictDone:
-			// A session's done signal is verified; the owner's word is final.
-			if v.sig != nil && e.verifies(l.t) {
-				passed, err := e.verify(ctx, l)
-				if err != nil {
-					return false, err
-				}
-				if !passed {
-					continue // the task stays in progress
-				}
-			}
-			// A reset requested while the task was verified is answered
-			// and applied before it is accepted, never lost (SPEC §6.2).
-			if reset, stopped, err := e.settleResets(ctx, l.t.ID); err != nil || stopped || reset {
-				return stopped, err
-			}
-			if stopped, reset, err := e.commit(ctx, l, v.note); err != nil || stopped || reset {
-				return stopped, err
-			}
-			return false, e.finish(ctx, l, plan.Done, v.note)
-		case verdictSkip:
-			if reset, stopped, err := e.settleResets(ctx, l.t.ID); err != nil || stopped || reset {
-				return stopped, err
-			}
-			return false, e.finish(ctx, l, plan.Skipped, v.note)
-		case verdictReset:
-			return false, nil
-		}
-		return true, nil
-	}
-}
-
 // retry replaces l's session (SPEC §6.3, §15.3 `r`): the old one is closed
 // and a new one continues the conversation or starts fresh.
 func (e *Engine) retry(ctx context.Context, l *launch, cont bool) error {
@@ -385,7 +356,7 @@ func (e *Engine) retry(ctx context.Context, l *launch, cont bool) error {
 	// Every session opened is an attempt, also one the hook keeps from
 	// opening (SPEC §13).
 	e.nextAttempt(l)
-	e.log(state.Event{Type: state.EventTaskRetried, Session: st.sessionID, Detail: detail})
+	e.log(state.Event{Type: state.EventTaskRetried, Session: st.sessionID, Detail: detail, Slot: l.cur.Slot})
 	if open, err := e.beforeSession(ctx, l); err != nil || !open {
 		return err
 	}
@@ -447,7 +418,7 @@ func (e *Engine) finish(ctx context.Context, l *launch, to plan.Status, note str
 			return err
 		}
 	}
-	e.task = nil
+	e.dropLaunch(t.ID)
 	return nil
 }
 

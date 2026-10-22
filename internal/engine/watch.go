@@ -47,103 +47,96 @@ type stretch struct {
 	needsYou bool      // NeedsYou was raised: waited longer than waiting_limit
 }
 
-// watch polls l's session and the signals until the task is finished, the
-// owner decides, or the run stops (SPEC §6.3). Igris advances on a signal or
-// an owner action only, never on what the session looks like.
-func (e *Engine) watch(ctx context.Context, l *launch) (verdict, error) {
+// watchStep is one poll of l's session and its signals (SPEC §6.3): the
+// owner's commands for the task, its signal, then its session's state.
+// decided reports a verdict: the task is finished, skipped or reset. Igris
+// advances on a signal or an owner action only, never on what the session
+// looks like.
+func (e *Engine) watchStep(ctx context.Context, l *launch) (v verdict, decided bool, err error) {
 	t := l.t
-	var ep episode
-	var skip *state.Signal // the skip request waiting for the owner's answer
-	stateErr := ""         // the last State error reported
-	for {
-		e.checkConfig(ctx) // before the signal, so a config edit is seen before the task is accepted
-		if e.stopping(ctx) {
-			return verdict{kind: verdictStop}, nil
-		}
-		for _, c := range e.takeCommands() {
-			switch c.Kind {
-			case CmdDone:
-				e.endEpisode(&ep)
-				return verdict{kind: verdictDone, note: c.Text, owner: true}, nil
-			case CmdSkip:
-				return verdict{kind: verdictSkip, note: c.Text, owner: true}, nil
-			case CmdRetry:
-				if c.Continue && l.cur.Session == nil {
-					e.reject(c, "there is no earlier conversation of "+t.ID+" to continue; retry fresh")
-					continue
-				}
-				if c.Continue && !ValidSessionID(l.cur.ClaudeSession) {
-					e.reject(c, "the conversation ID recorded for "+t.ID+" in state.json is not a session ID; retry fresh")
-					continue
-				}
-				if err := e.retry(ctx, l, c.Continue); err != nil {
-					return verdict{}, err
-				}
-				ep, stateErr = episode{}, ""
-			case CmdAnswer:
-				if skip == nil {
-					e.reject(c, "no question is waiting for an answer")
-					continue
-				}
-				if c.Yes {
-					return verdict{kind: verdictSkip, note: skip.Note, sig: skip, owner: true}, nil
-				}
-				if err := e.dir.RemoveSignal(t.ID); err != nil {
-					return verdict{}, err
-				}
-				skip = nil
-				e.waitOver(state.ReasonSkipRequest)
-			case CmdPlan:
-				e.decidePlan(l, c)
+	for _, c := range e.takeCommands(l) {
+		switch c.Kind {
+		case CmdDone:
+			e.endEpisode(&l.ep)
+			return verdict{kind: verdictDone, note: c.Text, owner: true}, true, nil
+		case CmdSkip:
+			return verdict{kind: verdictSkip, note: c.Text, owner: true}, true, nil
+		case CmdRetry:
+			if c.Continue && l.cur.Session == nil {
+				e.reject(c, "there is no earlier conversation of "+t.ID+" to continue; retry fresh")
+				continue
 			}
-		}
-
-		if reset, err := e.resets(ctx, true); err != nil || reset {
-			return verdict{kind: verdictReset}, err
-		}
-		switch sig := e.scanSignals(t, l.cur.StartedAt); {
-		case sig == nil:
-			if skip != nil {
-				// A skip request that disappeared is withdrawn.
-				skip = nil
-				e.waitOver(state.ReasonSkipRequest)
+			if c.Continue && !ValidSessionID(l.cur.ClaudeSession) {
+				e.reject(c, "the conversation ID recorded for "+t.ID+" in state.json is not a session ID; retry fresh")
+				continue
 			}
-		case state.Classify(*sig, t.ID, t.Owner) == state.Apply:
-			// igris no longer waits on the owner: the session said it is
-			// done. If its verify fails, a new episode starts.
-			e.endEpisode(&ep)
-			return verdict{kind: verdictDone, note: sig.Note, sig: sig}, nil
-		case skip == nil || !skip.At.Equal(sig.At):
-			// A skip from an agent session is only a request (SPEC §6.2).
-			skip = sig
-			e.needsYou(ctx, notifyNeedsInput, state.ReasonSkipRequest, "the session asks to skip the task", "the session asks to skip")
-			e.emit(Event{Kind: Asked, Question: QuestionConfirmSkip, Detail: fmt.Sprintf("skip %s? the session's reason: %s", t.ID, sig.Note)})
-		}
-
-		if !l.lost {
-			st, err := l.sess.State(ctx)
-			switch {
-			case err != nil:
-				if ctx.Err() == nil && err.Error() != stateErr {
-					stateErr = err.Error()
-					e.warn(fmt.Sprintf("read the state of %s: %v", t.ID, err))
-				}
-			case st == backend.Exited:
-				e.lose(ctx, l)
-			default:
-				stateErr = ""
-				delivered := e.promptDelivered(l)
-				e.checkSubmitted(ctx, l, st, delivered)
-				e.checkPlanRequest(ctx, l)
-				e.observe(ctx, l, st, &ep)
-				e.readUsage(l, false)
-				e.readQuota()
-				e.auditRank(ctx, l, false)
+			if err := e.retry(ctx, l, c.Continue); err != nil {
+				return verdict{}, false, err
 			}
-			e.checkOverdue(ctx, l)
+			l.ep, l.stateErr = episode{}, ""
+		case CmdAnswer:
+			if l.skip == nil {
+				e.reject(c, "no question is waiting for an answer")
+				continue
+			}
+			if c.Yes {
+				return verdict{kind: verdictSkip, note: l.skip.Note, sig: l.skip, owner: true}, true, nil
+			}
+			if err := e.dir.RemoveSignal(t.ID); err != nil {
+				return verdict{}, false, err
+			}
+			l.skip = nil
+			e.waitOver(state.ReasonSkipRequest)
+		case CmdPlan:
+			e.decidePlan(l, c)
+		default:
+			e.reject(c, t.ID+" takes no "+c.Kind.String()+" now")
 		}
-		e.wait(ctx, e.cfg.PollInterval.Std())
 	}
+
+	switch sig := e.scanSignals(t, l.cur.StartedAt); {
+	case sig == nil:
+		if l.skip != nil {
+			// A skip request that disappeared is withdrawn.
+			l.skip = nil
+			e.waitOver(state.ReasonSkipRequest)
+		}
+	case state.Classify(*sig, t.ID, t.Owner) == state.Apply:
+		// igris no longer waits on the owner: the session said it is
+		// done. If its verify fails, a new episode starts.
+		e.endEpisode(&l.ep)
+		return verdict{kind: verdictDone, note: sig.Note, sig: sig}, true, nil
+	case l.skip == nil || !l.skip.At.Equal(sig.At):
+		// A skip from an agent session is only a request (SPEC §6.2).
+		l.skip = sig
+		e.needsYou(ctx, notifyNeedsInput, state.ReasonSkipRequest, "the session asks to skip the task", "the session asks to skip")
+		e.emit(Event{Kind: Asked, Question: QuestionConfirmSkip, Detail: fmt.Sprintf("skip %s? the session's reason: %s", t.ID, sig.Note)})
+	}
+
+	if l.lost {
+		return verdict{}, false, nil
+	}
+	st, err := l.sess.State(ctx)
+	switch {
+	case err != nil:
+		if ctx.Err() == nil && err.Error() != l.stateErr {
+			l.stateErr = err.Error()
+			e.warn(fmt.Sprintf("read the state of %s: %v", t.ID, err))
+		}
+	case st == backend.Exited:
+		e.lose(ctx, l)
+	default:
+		l.stateErr = ""
+		delivered := e.promptDelivered(l)
+		e.checkSubmitted(ctx, l, st, delivered)
+		e.checkPlanRequest(ctx, l)
+		e.observe(ctx, l, st, &l.ep)
+		e.readUsage(l, false)
+		e.readQuota()
+		e.auditRank(ctx, l, false)
+	}
+	e.checkOverdue(ctx, l)
+	return verdict{}, false, nil
 }
 
 // observe updates the idle episode with the agent state st and raises Needs
@@ -378,7 +371,10 @@ func (e *Engine) scanSignals(t *plan.Task, started time.Time) *state.Signal {
 		case s.Action == state.ActionReset:
 			// Asked about and applied by resets, for any task.
 		case s.ID != t.ID:
-			e.reportOnce("stray|"+key, StraySignal, fmt.Sprintf("kept, not applied: a %s signal for %s, which is not the current task", s.Action, s.ID))
+			// Another active task's signal is its own step's (SPEC §5.1).
+			if e.run.ActiveTask(s.ID) == nil {
+				e.reportOnce("stray|"+key, StraySignal, fmt.Sprintf("kept, not applied: a %s signal for %s, which is not the current task", s.Action, s.ID))
+			}
 		case s.At.Before(started):
 			e.reportOnce("stale|"+key, StaleSignal, fmt.Sprintf("ignoring a %s signal for %s written before the task started; run `igris %s %s` again if it is meant", s.Action, t.ID, s.Action, t.ID))
 		default:

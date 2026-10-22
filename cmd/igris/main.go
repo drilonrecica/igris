@@ -66,12 +66,12 @@ Commands:
                                         started since D (7d, 36h, 2026-10-01); with the last subscription quota
   arise [PHASE] [--through PHASE]       run (or resume) with the TUI
         [--mode default|accept|auto|plan[:MODE]|yolo|manual] [--no-tui]
-        [--dry-run] [--force-unlock] [--worktree]
+        [--dry-run] [--force-unlock] [--worktree] [--parallel N]
         [--only ID[,ID...] | [--from ID] [--until ID]]
                                         run only part of the phases
   serve [PHASE] [--through PHASE]       run (or resume) headless, hosting the run on .igris/igris.sock;
         [--mode MODE] [--worktree]      arise's run flags, plain log lines on stdout
-        [--force-unlock]
+        [--force-unlock] [--parallel N]
         [--only ID[,ID...] | [--from ID] [--until ID]]
   attach                                open the run view of this project's live run
   stop                                  stop this project's live run (sessions stay open)

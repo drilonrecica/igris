@@ -33,7 +33,8 @@ Every line igris v0.5 or later writes has `"v":1`. `v`, `at` and `type` are alwa
 | `side` | string | the side session's ID, 6 lowercase hex characters (since 1.2). These lines have no `task`, and carry `run` only when the igris writing them has a run | `side_opened`, `side_closed`, `side_usage` |
 | `profile` | string | the verify profile | `verify_passed`, `verify_failed` |
 | `commit` | string | the full commit SHA (`git rev-parse HEAD` after the commit; left out, with a warning, if that fails) | `committed` |
-| `branch` | string | the run's worktree branch, `igris/<run-id>`, in worktree mode (since 0.6) | `run_started` |
+| `branch` | string | the run's worktree branch, `igris/<run-id>`, in worktree mode (since 0.6); since 1.5 the task's branch, `igris/<run-id>-<ID>`, in a parallel phase, and the run branch on `integrated` | `run_started`; `task_started`, `task_retried`, `integrated` |
+| `slot` | integer | the task's slot in a parallel phase, `0` to `max - 1` (SPEC §6.11; since 1.5). Absent outside a parallel phase | `task_started`, `task_resumed`, `task_retried` |
 | `duration_ms` | integer | milliseconds. `task_done`/`task_skipped`: since this run's `task_started` or `task_resumed` of the task (wall time: watching, verify, questions, everything). `verify_*`: the verify command's run time. `run_stopped`: the run's length. Readers take a negative value or one over 30 days as unknown | those events |
 | `reason` | string | why igris waits on you (below) | `needs_you`, `needs_you_clear` |
 | `plan_file` | string | where the plan is kept, `.igris/plans/<ID>-a<attempt>-<n>.md` (left out if it couldn't be saved; since 1.1) | `plan_presented`, `plan_approved`, `plan_rejected` |

@@ -59,6 +59,7 @@ type Wizard struct {
 	Through     string // --through
 	ForceUnlock bool   // --force-unlock
 	Worktree    bool   // --worktree
+	Parallel    int    // --parallel N; 0 is unset
 }
 
 func (Home) start()   {}
