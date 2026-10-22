@@ -10,6 +10,7 @@ import (
 
 	"github.com/drilonrecica/igris/internal/state"
 	"github.com/drilonrecica/igris/internal/textsafe"
+	"github.com/drilonrecica/igris/internal/usage"
 )
 
 // ErrNoRuns is NewReport's error for a log with no runs, or no log at all.
@@ -71,11 +72,42 @@ type ReportTask struct {
 	// worst result, mismatch before unavailable, unchecked and ok; "" when
 	// the log has none. Since 1.1.
 	Audit string `json:"audit,omitempty"`
+	// Usage is the tokens of the task's attempts whose usage was read,
+	// subagents included, Sub their part of them, Models the main
+	// thread's model ids; nil/empty when no attempt's usage was read
+	// (SPEC §6.9). Since 1.1.
+	Usage  *Tokens  `json:"usage,omitempty"`
+	Sub    *Tokens  `json:"sub,omitempty"`
+	Models []string `json:"models,omitempty"`
 }
 
 // RankMismatch reports that some attempt of the task ran on a model its
 // rank doesn't resolve to: the report marks it.
 func (t ReportTask) RankMismatch() bool { return t.Audit == state.AuditMismatch }
+
+// tokens counts a usage line's tokens into the task; a line without any
+// (usage unavailable) adds nothing.
+func (t *taskRec) tokens(e state.Event) {
+	if e.Usage == nil {
+		return
+	}
+	var sub usage.Counts
+	if e.Sub != nil {
+		sub = *e.Sub
+	}
+	if t.t.Usage == nil {
+		t.t.Usage = &Tokens{}
+	}
+	t.t.Usage.add(*e.Usage)
+	t.t.Usage.add(sub)
+	if !sub.IsZero() {
+		if t.t.Sub == nil {
+			t.t.Sub = &Tokens{}
+		}
+		t.t.Sub.add(sub)
+	}
+	t.t.Models = mergeModels(t.t.Models, e.Models)
+}
 
 // auditOrder ranks the audit results, the one to show last.
 var auditOrder = []string{state.AuditOK, state.AuditUnchecked, state.AuditUnavailable, state.AuditMismatch}
@@ -270,6 +302,7 @@ func (r *runRec) report(live bool) Report {
 		case state.EventUsage:
 			if t := byID[e.Task]; t != nil {
 				t.audit(e.Audit)
+				t.tokens(e)
 			}
 		case state.EventRankMismatch:
 			// Also when the run stopped before the attempt's usage line.

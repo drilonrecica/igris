@@ -11,6 +11,7 @@ import (
 	"github.com/drilonrecica/igris/internal/project"
 	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/state"
+	"github.com/drilonrecica/igris/internal/usage"
 )
 
 // reportArgs registers the flags of `igris report` and checks RUN: a
@@ -112,8 +113,8 @@ func printReport(w io.Writer, r report.Report, color bool) {
 		} else {
 			fmt.Fprintf(w, "\n## Phase %s\n\n", md(g.Phase))
 		}
-		fmt.Fprintln(w, "| Task | Result | Duration | Attempts | Verify | Commit | Needs you |")
-		fmt.Fprintln(w, "|---|---|---|---|---|---|---|")
+		fmt.Fprintln(w, "| Task | Result | Duration | Attempts | Tokens | Verify | Commit | Needs you |")
+		fmt.Fprintln(w, "|---|---|---|---|---|---|---|---|")
 		for _, t := range g.Tasks {
 			attempts := ""
 			if t.Attempts > 0 {
@@ -131,8 +132,8 @@ func printReport(w io.Writer, r report.Report, color bool) {
 				}
 				result += " " + mark
 			}
-			fmt.Fprintf(w, "| %s | %s | %s | %s | %s | %s | %s |\n",
-				cell(strings.TrimSpace(t.ID+" "+t.Title)), result, dash(fmtSeconds(t.DurationS)), dash(attempts),
+			fmt.Fprintf(w, "| %s | %s | %s | %s | %s | %s | %s | %s |\n",
+				cell(strings.TrimSpace(t.ID+" "+t.Title)), result, dash(fmtSeconds(t.DurationS)), dash(attempts), tokensCell(t.Usage),
 				dash(cell(verifyMarks(t.Verify))), dash(shortSHA(t.Commit)), dash(needs))
 		}
 		var notes, resume []string
@@ -224,4 +225,13 @@ func fmtDuration(s int) string {
 		return "0s"
 	}
 	return fmtSeconds(s)
+}
+
+// tokensCell is a task's tokens as "2.3M in · 41k out" (in counts cache
+// reads and writes, subagents included), "—" when no usage was read.
+func tokensCell(u *report.Tokens) string {
+	if u == nil {
+		return "—"
+	}
+	return usage.Short(u.In) + " in · " + usage.Short(u.Output) + " out"
 }

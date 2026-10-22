@@ -8,9 +8,9 @@ Phase M2
 
 ## Phase M2
 
-| Task | Result | Duration | Attempts | Verify | Commit | Needs you |
-|---|---|---|---|---|---|---|
-| M2-01 Wire it up | unfinished | — | 1 | — | — | 2m00s |
+| Task | Result | Duration | Attempts | Tokens | Verify | Commit | Needs you |
+|---|---|---|---|---|---|---|---|
+| M2-01 Wire it up | unfinished | — | 1 | — | — | — | 2m00s |
 
 Resume
 - M2-01: `claude --resume 9aa07c5e-d5cc-43b5-812b-1a20c5336f67` (run it in the project root)

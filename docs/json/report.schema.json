@@ -221,6 +221,21 @@
             "unavailable"
           ],
           "description": "Since 1.1: the rank audit over the task's attempts (SPEC §6.9), its worst result; absent when the log has none."
+        },
+        "usage": {
+          "$ref": "#/$defs/tokens",
+          "description": "Since 1.1: the tokens of the task's attempts whose usage was read, subagents included; absent when none was."
+        },
+        "sub": {
+          "$ref": "#/$defs/tokens",
+          "description": "Since 1.1: the subagents' part of usage; absent when there were none."
+        },
+        "models": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Since 1.1: the main thread's model ids; absent when no usage was read."
         }
       },
       "required": [
@@ -228,6 +243,45 @@
         "result",
         "verify",
         "sessions"
+      ]
+    },
+    "tokens": {
+      "type": "object",
+      "description": "Summed token counts as recorded in the session transcripts.",
+      "properties": {
+        "in": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Input + cache read + cache write."
+        },
+        "output": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "input": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cache_read": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cache_write": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "messages": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "in",
+        "output",
+        "input",
+        "cache_read",
+        "cache_write",
+        "messages"
       ]
     }
   }

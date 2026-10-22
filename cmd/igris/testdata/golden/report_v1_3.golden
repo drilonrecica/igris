@@ -10,9 +10,9 @@ Phase A · only A-2
 
 ## Phase A
 
-| Task | Result | Duration | Attempts | Verify | Commit | Needs you |
-|---|---|---|---|---|---|---|
-| A-2 Two | done | 12m05s | 2 | fast ✗ ✓ | 3fa29c1 | 1m00s |
+| Task | Result | Duration | Attempts | Tokens | Verify | Commit | Needs you |
+|---|---|---|---|---|---|---|---|
+| A-2 Two | done | 12m05s | 2 | — | fast ✗ ✓ | 3fa29c1 | 1m00s |
 
 Notes
 - A-2 done: did the second thing

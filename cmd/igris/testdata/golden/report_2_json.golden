@@ -63,7 +63,19 @@ exit: 0
       ],
       "resume": "claude --resume 7d1e9b20-3c4a-4f5e-8b6d-0a1b2c3d4e5f",
       "needs_you_s": 240,
-      "audit": "mismatch"
+      "audit": "mismatch",
+      "usage": {
+        "in": 152015,
+        "output": 3000,
+        "input": 15,
+        "cache_read": 140000,
+        "cache_write": 12000,
+        "messages": 18
+      },
+      "models": [
+        "claude-sonnet-5-5",
+        "claude-opus-5-5"
+      ]
     },
     {
       "id": "M1-05",
