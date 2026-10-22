@@ -9,7 +9,7 @@ igris is one static binary. You need Claude Code and a place for sessions to liv
 - **git**, recommended: igris can commit after each task and warns when the tree is dirty.
 - **Linux or macOS** (amd64 or arm64). On Windows, use WSL2 ([below](#windows-wsl2)).
 
-igris needs Claude Code 2.1.291 or later (tested with 2.1.294), herdr 0.9.1 and tmux 3.2 or later (tested with 3.7). `igris check` and `igris arise` warn when one of them is missing, older, or a newer major version; they never refuse to run because of it.
+igris needs Claude Code 2.1.291 or later (tested with 2.1.309), herdr 0.9.1 and tmux 3.2 or later (tested with 3.7). `igris check` and `igris arise` warn when one of them is missing, older, or a newer major version; they never refuse to run because of it.
 
 > If `ANTHROPIC_API_KEY` is set in your environment, Claude Code bills the API instead of your subscription. igris warns you about this at start and asks you to confirm.
 

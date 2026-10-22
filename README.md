@@ -83,7 +83,7 @@ No plan yet? `igris init --example` writes an example one, and `igris init --tem
 - **git** (recommended): igris can commit after each task and warns when the tree is dirty.
 - Linux or macOS (amd64 or arm64). On Windows, use [WSL2](#windows-wsl2).
 
-igris needs Claude Code 2.1.291 or later (tested with 2.1.294), herdr 0.9.1 and tmux 3.2 or later (tested with 3.7). `igris check` and `igris arise` warn when one of them is missing, older, or a newer major version; they never refuse to run because of it. They also warn when the `igris` in your `PATH` isn't the one you're running (since 1.2): sessions run `igris done` through `PATH`.
+igris needs Claude Code 2.1.291 or later (tested with 2.1.309), herdr 0.9.1 and tmux 3.2 or later (tested with 3.7). `igris check` and `igris arise` warn when one of them is missing, older, or a newer major version; they never refuse to run because of it. They also warn when the `igris` in your `PATH` isn't the one you're running (since 1.2): sessions run `igris done` through `PATH`.
 
 **Homebrew** (Linux and macOS):
 

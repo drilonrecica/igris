@@ -560,7 +560,7 @@ Claude Code and herdr change often, and igris relies on their flags and output s
 
 | Tool | Oldest verified (`Min`) | Newest re-verified (`Tested`) | Verified in |
 |---|---|---|---|
-| Claude Code (`claude`) | 2.1.291 | 2.1.294 | P0-02; `docs/reverify.md` 2026-10-08 |
+| Claude Code (`claude`) | 2.1.291 | 2.1.309 | P0-02; `docs/reverify.md` 2026-10-23 |
 | herdr (`herdr`) | 0.9.1 | 0.9.1 | P0-03; `docs/reverify.md` 2026-10-08 |
 | tmux (`tmux`) | 3.2 | 3.7 | V03-P2 (3.7c) |
 
