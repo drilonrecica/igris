@@ -322,7 +322,8 @@ nav.bar {
   border-top: 1px solid var(--line-soft);
 }
 nav.bar > * { flex: 1 1 0; margin: 0; }
-nav.bar form.danger { flex: 0 0 5.5rem; }
+nav.bar > .btn { flex: 0 0 4.5rem; }
+nav.bar form.danger { flex: 0 0 5rem; }
 nav.bar .confirm { position: absolute; left: 16px; right: 16px; bottom: calc(100% - 2px); background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
 
 /* status lines */
