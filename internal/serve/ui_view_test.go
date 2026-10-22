@@ -25,6 +25,7 @@ func TestUIStatusWord(t *testing.T) {
 		{"started, no task", Snapshot{Run: "r", Started: uiT0}, "Waiting", "nothing running yet · 4m12s"},
 		{"working", Snapshot{Run: "r", Started: uiT0, Active: []Current{working}}, "Working", "nothing needs you · 4m12s"},
 		{"question", Snapshot{Run: "r", Started: uiT0, Active: []Current{asking}, Questions: []Event{ask}}, "Needs you", "1 question · 2m12s"},
+		{"answered, card still asks", Snapshot{Run: "r", Started: uiT0, Active: []Current{asking}}, "Working", "nothing needs you · 4m12s"},
 		{"two need you", Snapshot{Run: "r", Started: uiT0, Active: []Current{asking, {Task: "B", State: StateYourTurn}}, Questions: []Event{ask}}, "Needs you", "2 tasks need you"},
 		{"reset only", Snapshot{Run: "r", Started: uiT0, Active: []Current{working}, Reset: &Event{Task: "B", Question: string(engine.QuestionConfirmReset), At: uiT0.Add(time.Minute)}}, "Needs you", "1 question · 3m12s"},
 		{"paused beats working", Snapshot{Run: "r", Started: uiT0, Paused: true, Active: []Current{working}}, "Paused", "after this task · 4m12s"},
@@ -52,8 +53,8 @@ func TestUISegments(t *testing.T) {
 		{ID: "P1-01", Status: "done"}, {ID: "P1-02", Status: "in progress"}, {ID: "P1-03", Status: "in progress"},
 		{ID: "P1-04", Status: "blocked"}, {ID: "P1-05", Status: "skipped"},
 	}}
-	active := []Current{{Task: "P1-02", State: StateWorking}, {Task: "P1-03", State: StateQuestion}}
-	got := segmentsOf(ph, active, map[string]bool{"P1-03": true})
+	active := []Current{{Task: "P1-02", State: StateQuestion}, {Task: "P1-03", State: StateQuestion}}
+	got := segmentsOf(ph, active, map[string]bool{"P1-03": true}) // P1-02's answer is in flight
 	want := []segment{{"P1-01", "done"}, {"P1-02", "active"}, {"P1-03", "needs"}, {"P1-04", "todo"}, {"P1-05", "skipped"}}
 	if len(got) != len(want) {
 		t.Fatalf("segments = %v, want %v", got, want)

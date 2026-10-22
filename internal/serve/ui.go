@@ -604,15 +604,14 @@ func statusOf(s Snapshot, now time.Time) (word, line string) {
 	if s.Reset != nil {
 		note(*s.Reset)
 	}
-	needs := 0 // tasks that need the owner without a question
+	// needs counts the tasks that need the owner without a question. A
+	// card still in the question state with no question pending is an
+	// answer in flight (sent from here or elsewhere), not a need.
+	needs := 0
 	for _, c := range s.Active {
 		switch c.State {
 		case StateYourTurn, StateNeedsYou, StateLost:
 			needs++
-		case StateQuestion:
-			if !asked[c.Task] {
-				needs++
-			}
 		}
 	}
 	switch {
@@ -670,7 +669,7 @@ func segmentsOf(ph *Phase, active []Current, asked map[string]bool) []segment {
 			seg.State = "done"
 		case strings.EqualFold(t.Status, "skipped"):
 			seg.State = "skipped"
-		case isActive && (asked[t.ID] || st == StateYourTurn || st == StateNeedsYou || st == StateLost || st == StateQuestion):
+		case isActive && (asked[t.ID] || st == StateYourTurn || st == StateNeedsYou || st == StateLost):
 			seg.State = "needs"
 		case isActive:
 			seg.State = "active"
