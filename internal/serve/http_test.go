@@ -152,7 +152,7 @@ func TestHTTPPairing(t *testing.T) {
 			t.Fatalf("pair set %d cookies", len(cookies))
 		}
 		c := cookies[0]
-		if c.Name != CookieName || c.Value != goodToken || !c.HttpOnly || c.SameSite != http.SameSiteStrictMode || c.Path != "/" || c.Secure != tlsOn || c.MaxAge < 300*24*3600 {
+		if c.Name != CookieName || c.Value != goodToken || !c.HttpOnly || c.SameSite != http.SameSiteLaxMode || c.Path != "/" || c.Secure != tlsOn || c.MaxAge < 300*24*3600 {
 			t.Errorf("tls %v: cookie %+v", tlsOn, c)
 		}
 		if hsts := resp.Header.Get("Strict-Transport-Security"); (hsts != "") != tlsOn {

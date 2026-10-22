@@ -94,6 +94,15 @@ Observations (no change):
 - **Gate-only pitfalls.** zsh doesn't split an unquoted variable, so `$T send-keys …` and a loop over `"--http ADDR"` strings went to tmux and igris as one word. The first gave `exit 127`, the second `exit 2` usage errors from igris, which were correct. Twice a call without the gate environment ran the owner's older igris (`unknown key(s) "serve"`, `unknown command "serve"`). A first copy of p1's plan into p2 carried W1-03 `in progress`. That serve resumed it, found no session (`session_lost`), opened nothing and stopped on the timeout's SIGTERM. The plan was then reset.
 - Answering folder trust records the scratch paths in Claude Code's own config, and the sessions left transcripts under `~/.claude/projects/`, as at earlier gates. The gate didn't edit the owner's Claude configuration to remove them.
 
+## Owner checks (2026-10-22, with the agent)
+
+Done on the owner's OnePlus 13 (Android, Chrome 155) over Tailscale, against a scratch project with two sonnet tasks, `[serve] http` on the machine's Tailscale address and a throwaway ntfy topic with `actions = true`. Two findings, both outside what the headless gate could see:
+
+- **Fedora's firewall dropped the port.** `tailscale0` sits in no firewalld zone, so the default zone applies and the phone got no answer at all. `sudo firewall-cmd --add-port=7777/tcp` fixed it. **Docs:** the Tailscale section of the phone page now says so.
+- **The pairing cookie never came back: `SameSite=Strict` is withheld on a navigation another app started.** The camera's QR scan opens Chrome with the pairing URL; Chrome treats that navigation, its redirect to `/` and even a later reload of that tab as cross-site, and sends no Strict cookie, so the page said `not paired`. A diagnostic server on the same port that set a Strict, a Lax and an attribute-less cookie proved it: after the redirect the phone sent the Lax and the plain one and not the Strict one. ntfy's `Open` button, which also starts the browser from another app, would fail the same way. **Fixed:** the cookie is `SameSite=Lax` (code, `http_test.go`, SPEC §14, the decision V16-P1 amended, threat model, phone page, CHANGELOG). Lax still withholds the cookie on a cross-site `POST` and on subresource requests, and every change needs the CSRF token.
+
+One more thing seen on the way: a session that igris had held its first prompt for died when a watcher of the agent's own pressed Enter at Claude Code's folder-trust dialog, whose default is **No, exit** in a folder with pre-approved permissions (which `igris init` writes). igris held the prompt as designed and raised session lost. Not a defect; noted because the gates answer that dialog by hand and a reader of their scripts should press Down first.
+
 ## Owner checks left
 
 Only these need the owner before v1.6.0 ships (with V16-R):

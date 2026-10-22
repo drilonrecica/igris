@@ -316,10 +316,16 @@ func (h *remote) pair(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Secure only on TLS: a loopback or Tailscale listener is plain http,
-	// where a Secure cookie would never be sent back (SPEC §14).
-	http.SetCookie(w, &http.Cookie{ //nolint:gosec // HttpOnly and SameSite=Strict always, Secure on TLS
+	// where a Secure cookie would never be sent back (SPEC §14). Lax, not
+	// Strict: a phone opens the pairing URL from its camera and the ntfy
+	// Open button from the ntfy app, and Android Chrome withholds Strict
+	// cookies on a navigation another app started, this redirect included
+	// (the page then said "not paired", owner check 2026-10-22). Lax still
+	// withholds the cookie on a cross-site POST and on subresource requests,
+	// and every change needs the CSRF token besides.
+	http.SetCookie(w, &http.Cookie{ //nolint:gosec // HttpOnly and SameSite=Lax always, Secure on TLS
 		Name: CookieName, Value: token, Path: "/",
-		MaxAge: int(cookieMaxAge / time.Second), HttpOnly: true, Secure: h.opts.TLS, SameSite: http.SameSiteStrictMode,
+		MaxAge: int(cookieMaxAge / time.Second), HttpOnly: true, Secure: h.opts.TLS, SameSite: http.SameSiteLaxMode,
 	})
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }

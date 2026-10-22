@@ -23,6 +23,8 @@ igris binds only addresses it can call private: loopback (`127.0.0.1`, `::1`) an
 
 Install [Tailscale](https://tailscale.com) on the machine that runs igris and on the phone, sign in to the same tailnet, and set `http` to the machine's Tailscale address (`tailscale ip -4`). Traffic is WireGuard-encrypted end to end, and nothing is exposed to the internet.
 
+The machine's firewall still applies to its Tailscale interface. On Fedora, firewalld leaves `tailscale0` in the default zone, which drops the port, so the phone gets no answer until you let it through: `sudo firewall-cmd --add-port=7777/tcp` for now, or with `--permanent` (then `--reload`) to keep it. Other distributions with `ufw` or `nftables` want the same for their rules.
+
 ### ssh -L
 
 Without Tailscale, keep the listener on loopback and tunnel to it:
@@ -46,7 +48,7 @@ In the project, with a run going (or before it):
 igris serve token
 ```
 
-It prints a pairing URL and, under it, a QR code. Scan the code with the phone, or open the URL in its browser. Opening it stores the token in an `HttpOnly`, `SameSite=Strict` cookie (`Secure` over TLS) and redirects to the same address without the token, so it doesn't stay in the address bar or the history. If the listener's address is `0.0.0.0` or has no port the phone can use, the URL is printed without a QR code.
+It prints a pairing URL and, under it, a QR code. Scan the code with the phone, or open the URL in its browser. Opening it stores the token in an `HttpOnly`, `SameSite=Lax` cookie (`Secure` over TLS) and redirects to the same address without the token, so it doesn't stay in the address bar or the history. If the listener's address is `0.0.0.0` or has no port the phone can use, the URL is printed without a QR code.
 
 The token is a file, `.igris/serve-token` (0600), one per project. `igris serve token` prints the same URL again; `igris serve token --rotate` makes a new token and unpairs every device at once, a live run included. Pair again afterwards. Scripts can send the token as `Authorization: Bearer <token>` instead of a cookie.
 
