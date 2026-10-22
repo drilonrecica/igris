@@ -476,3 +476,55 @@ func TestSessionRefInEvents(t *testing.T) {
 		t.Errorf("session_opened = %v", m)
 	}
 }
+
+// TestCloseRightAfterAccept: a connection accepted as Close runs is
+// either counted before Close waits or dropped, never counted after.
+// The accept loop once counted it (wg.Add) outside the lock, so the
+// count could run alongside Close's wg.Wait (the WaitGroup contract:
+// the first Add happens before Wait), which go test -race reported on
+// 2026-10-22 in project's TestSnapshotServed once in a few hundred runs.
+// Here the peer check, which runs on the accept loop right before the
+// count, holds the loop until Close is past the lock and closing the
+// listener, so the count comes exactly then.
+func TestCloseRightAfterAccept(t *testing.T) {
+	for range 20 {
+		s := New(Options{})
+		closing := make(chan struct{})
+		s.peerUID = func(*net.UnixConn) (int, error) {
+			<-closing
+			return 0, errNoPeerCred
+		}
+		root := t.TempDir()
+		l, err := Listen(openDir(t, root))
+		if err != nil {
+			t.Fatal(err)
+		}
+		served := make(chan error, 1)
+		go func() { served <- s.Serve(&closingListener{Listener: l, closing: closing}) }()
+		ctx, cancel := context.WithTimeout(context.Background(), patience)
+		c, err := Dial(ctx, root)
+		cancel()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := s.Close(); err != nil {
+			t.Error(err)
+		}
+		if err := <-served; err != nil {
+			t.Error(err)
+		}
+		_ = c.Close()
+	}
+}
+
+// closingListener closes closing when the server closes it.
+type closingListener struct {
+	net.Listener
+	closing chan struct{}
+	once    sync.Once
+}
+
+func (l *closingListener) Close() error {
+	l.once.Do(func() { close(l.closing) })
+	return l.Listener.Close()
+}

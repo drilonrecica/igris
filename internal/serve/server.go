@@ -164,7 +164,18 @@ func (s *Server) Serve(l net.Listener) error {
 			_ = conn.Close()
 			continue
 		}
+		// Count the connection under the lock: Close marks the server
+		// closed there before it waits, so a connection accepted as
+		// Close runs is counted before the wait or dropped, never
+		// counted after it (the WaitGroup contract).
+		s.mu.Lock()
+		if s.closed {
+			s.mu.Unlock()
+			_ = conn.Close()
+			continue
+		}
 		s.wg.Add(1)
+		s.mu.Unlock()
 		go func() {
 			defer s.wg.Done()
 			s.ServeConn(conn)
