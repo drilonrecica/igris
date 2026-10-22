@@ -52,4 +52,4 @@ A session can write `.igris/` like everything else in the project, so it could f
 
 ## Planning for parallel work
 
-`igris phases` and `igris arise --dry-run` also show, per phase, the **critical path** (the longest chain of dependent tasks), the **width** (the most tasks that depend on none of each other) and the sets of tasks that could run together. It is read-only. igris still runs one task at a time; this shows how much a plan would allow.
+`igris phases` and `igris arise --dry-run` also show, per phase, the **critical path** (the longest chain of dependent tasks), the **width** (the most tasks that depend on none of each other) and the sets of tasks that could run together. Mark the phase [parallel](parallel-phases.md) and igris runs them together. It is read-only. igris still runs one task at a time; this shows how much a plan would allow.

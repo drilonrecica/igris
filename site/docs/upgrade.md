@@ -74,3 +74,14 @@ What is new, all additive:
 **Two things to know:** `q` in the run view now asks **Detach** · Stop run · Cancel (Detach is focused) instead of leaving at once, and a run started by `arise` has a `serve` process that outlives your terminal: `igris stop` ends it. After `igris update` during a run, an attached view says `served by igris X.Y.Z` and the run keeps that igris until it ends.
 
 Going back to 1.2 is fine: the plans a draft wrote are ordinary plans, and 1.4 changes no file format, so 1.2 can resume a run 1.4 left (stop it first with `igris stop`).
+
+## From 1.4 to 1.5
+
+Install the new igris (or run `igris update`) and you are done: 1.5 only adds to 1.4, and a plan without the new marker runs exactly as before. A run interrupted under 1.4 resumes.
+
+What is new, all additive:
+
+- **[Parallel phases](parallel-phases.md).** Mark a phase `<!-- igris:parallel -->` in a plan that declares `<!-- igris:format 3 -->` and its independent tasks run at the same time, each in its own git worktree, merged back in the order they finish with your verify run on the merged tree. New optional `Group` column, `[parallel]` and `[parallel.ranks]` in `igris.toml`, `--parallel N` on `arise` and `serve`, `IGRIS_SLOT` in a task's environment, and the run-log events `integrated`, `integration_failed` and `overlap`.
+- **A run view for several tasks:** one card per active task, one Needs-you queue, aggregated notifications.
+
+**Three things to know:** parallel costs more than it looks (your limits burn N times faster, every worktree needs its own caches, a dependency the plan leaves unsaid becomes a conflict: [what it costs](parallel-phases.md#what-it-costs)); `state.json` is now version 4, which igris 1.0 to 1.4 refuse, so finish a run (or `igris stop` and delete its state) before going back; and igris 1.0 to 1.4 refuse a format-3 plan with `plan format 3 needs a newer igris`.

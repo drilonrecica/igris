@@ -79,7 +79,7 @@
           <li><strong>On <code>igris done</code></strong> it runs your checks, offers to commit, marks the task done and unblocks dependents.</li>
           <li><strong>Starts the next task</strong> in a new session, until the phase is finished.</li>
         </ol>
-        <p class="note">Strictly sequential. Deterministic. No LLM decides which model runs what.</p>
+        <p class="note">One task at a time unless you mark a phase parallel. Deterministic. No LLM decides which model runs what.</p>
       </div>
     </section>
 
@@ -122,6 +122,7 @@
           <div class="feature"><h3>Verify and commit</h3><p>Your checks run on every done, with a verify profile per task or phase: a fast check here, the full suite there. Failures go back to the same session. Commits are <code>ask</code>, <code>auto</code> or <code>never</code>.</p></div>
           <div class="feature"><h3>Watch it work, from your phone</h3><p>A live tail of the current session, the phase's progress and an estimate from your past runs. Mouse and keyboard, choice dialogs, and a single-column layout for small terminals over SSH.</p></div>
           <div class="feature"><h3>On a branch of its own</h3><p>Worktree mode runs a whole run in a git worktree on its own branch, so your checkout stays as it is. Review the branch, merge it or drop it: igris never merges.</p></div>
+          <div class="feature"><h3>Parallel, when you say so</h3><p>Mark a phase parallel and its independent tasks run at once, each in its own worktree, merged back in order with your checks after every merge. It burns your limits faster and needs a plan with honest dependencies: <a href="docs/parallel-phases.html">what it costs</a>.</p></div>
           <div class="feature"><h3>Approve plans from igris</h3><p>A plan-mode session's plan opens in igris: approve it, send it back with feedback, or answer in the pane. Your plan can say which mode the session continues in after you approve.</p></div>
           <div class="feature"><h3>Usage you can see</h3><p><code>igris usage</code> shows the tokens per run, task, model and rank, and igris tells you when a task ran on a model its rank doesn't name.</p></div>
           <div class="feature"><h3>A session of your own</h3><p>Open a side session next to the run for a question or a look into something, with the model and mode you choose. It never counts as a task, and a plan edit from it holds the run.</p></div>
@@ -158,7 +159,6 @@
         <h2>What's next</h2>
         <p class="section-lead">Plans, not promises. 1.x only adds to what 1.0 keeps stable, so even the bigger changes arrive as 1.x releases.</p>
         <div class="features">
-          <div class="feature"><h3>Parallel, safely</h3><p>Planned for 1.5: independent tasks at the same time, each in its own worktree, merged back in plan order with your checks after every merge. <code>igris phases</code> already shows which tasks could run together.</p></div>
           <div class="feature"><h3>From your phone</h3><p>Planned for 1.6: a small web page on your own network or tailnet to answer questions and approve plans. Off by default, never in skip-permissions mode. Until then, <code>igris attach</code> over ssh does it.</p></div>
         </div>
       </div>

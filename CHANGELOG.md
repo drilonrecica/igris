@@ -2,6 +2,30 @@
 
 All notable changes to igris are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and igris uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Until 1.0, minor versions may change the plan format, config or CLI; such changes are called out here.
 
+## [1.5.0] - unreleased
+
+igris 1.5 adds one thing to 1.4 and breaks nothing: the tasks of a phase can run at the same time, if the plan says so. A phase without the new marker runs one task at a time exactly as before, so plans, `igris.toml` and scripts written for 1.0 to 1.4 need no changes ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). Parallel costs more than it looks; read [what it costs](https://drilonrecica.github.io/igris/docs/parallel-phases.html#what-it-costs) before you use it. The additions are a plan format (3), a column, a config table, a flag, an environment variable, two fields and three events. `state.json` becomes version 4, which igris 1.0 to 1.4 refuse.
+
+### Added
+
+- **Parallel phases.** `<!-- igris:parallel -->` on a line of its own under a phase heading, in a plan that declares `<!-- igris:format 3 -->`, means the phase's `Deps` are complete: tasks that don't depend on each other run together, up to `[parallel] max` (default 2, 1 to 8; `igris arise --parallel N` and `igris serve --parallel N` for one run). Unmarked phases stay sequential. `igris check` warns when a marked phase has a task whose text names an earlier one it doesn't depend on, and when it can't run in parallel (no git, or `commit = "never"`, which runs it one task at a time).
+- **A git worktree per task.** Each task of a parallel phase works in `.igris/worktrees/<run-id>-<ID>` on `igris/<run-id>-<ID>`, cut from the run branch's head, with its own session, verify and task hooks. A session never sees another task, and the plan's copy in a worktree is never written.
+- **Integration in completion order.** A task that passes verify is committed, rebased onto the run branch, verified again on the integrated tree and fast-forwarded in; only then is it `done`, so a dependent never starts on code that isn't on the branch. One commit per task, linear history.
+- **When a task doesn't integrate** (a rebase conflict, or verify failing on the integrated tree) it is run again from the start on the new base, once (`[parallel] on_conflict = "rerun"`, the default; `"ask"` goes to Needs you at once). A second failure is Needs you with the conflicting files or the verify output: **Rerun fresh**, **Mark done**, **Skip** or **Stop igris**.
+- **Scheduling controls.** An optional `Group` column (format 3): tasks with the same value never run together. `[parallel.ranks]` caps a rank (default `fable = 1`). `user` and `agent + user` tasks, gates included, run alone (`exclusive_owner_tasks`, default `true`). `serial_verify = true` runs one verify at a time while sessions stay parallel.
+- **`IGRIS_SLOT`** (`0` to `max - 1`) in a task's session, verify and hooks, so a project can offset ports or test databases.
+- **An overlap warning** when two active tasks change the same file, once per pair and file, in the feed and the run log. Nothing is held.
+- **A run view for several tasks.** One card per active task on a wide terminal (a switcher on a narrow one; `[` and `]` select), one Needs-you queue in plan order, notifications for several tasks in one poll sent as one (`2 tasks need you`), and a socket snapshot that lists every active task.
+- **State version 4** with an `active` list next to `current`, migrated in memory from 1 to 3; a resumed run reattaches every active task. New run-log events `integrated`, `integration_failed` and `overlap`, and the fields `slot` and a per-task `branch`.
+- **Docs.** A [Parallel phases](https://drilonrecica.github.io/igris/docs/parallel-phases.html) page and README section with what it costs, an [upgrade](https://drilonrecica.github.io/igris/docs/upgrade.html) section, threat-model section B6 extended and accepted risk 23, and new compatibility rows.
+
+### Costs and limits
+
+- Your Claude limits burn N times faster with N sessions at once.
+- Every worktree starts without build caches or `node_modules`: N installs, N cold builds, N times the disk.
+- A dependency the plan leaves unsaid becomes a conflict at integration, and the rerun does the work twice.
+- Phases still run one after the other; only the tasks of one marked phase run together. The resolver session that merges a conflict for you is not part of 1.5.
+
 ## [1.4.0] - 2026-10-22
 
 igris 1.4 adds two things to 1.2 and breaks nothing: Claude can write your plan (`igris draft`), and a run survives a closed terminal and can be opened again from any terminal (`igris serve`, `attach` and `stop`). There is no 1.3 release; both ship as 1.4. Plans, `igris.toml` and scripts written for 1.0 to 1.2 need no changes ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). All of it is additive: four commands, a `[draft]` config section, a socket and two files in `.igris/`, and a directory for drafts. `state.json` stays version 3. One behavior changes by design: `q` in the run view asks Detach, Stop run or Cancel instead of leaving at once.
@@ -563,7 +587,8 @@ First release. Linux and macOS, herdr backend only. The full behavior is specifi
 - Release artifacts are not signed (checksums only); signing is planned.
 - No Homebrew tap yet.
 
-[Unreleased]: https://github.com/drilonrecica/igris/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/drilonrecica/igris/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/drilonrecica/igris/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/drilonrecica/igris/compare/v1.2.1...v1.4.0
 [1.2.1]: https://github.com/drilonrecica/igris/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/drilonrecica/igris/compare/v1.1.0...v1.2.0

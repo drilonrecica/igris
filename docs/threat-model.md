@@ -59,7 +59,7 @@ What igris protects, from whom, where the boundaries are, and which test enforce
                                          │ git (+ git hooks)     │   │ (lock, state, signals,    │
                                          │ project code          │   │  agent state, run log)    │
                                          └───────────────────────┘   └───────────────────────────┘
-   B6 project root ↔ run worktree (.igris/worktrees/<run-id>)      B7 release build ↔ user (signatures)
+   B6 project root ↔ run worktree (.igris/worktrees/<run-id>[-<ID>])   B7 release build ↔ user (signatures)
 ```
 
 ## Threats by boundary
@@ -133,6 +133,18 @@ What igris protects, from whom, where the boundaries are, and which test enforce
 | The run's changes reach the owner's checkout | In worktree mode sessions, verify, hooks and commits run in `.igris/worktrees/<run-id>`; igris never merges (SPEC §6.8). |
 | Worktree mode widens what a session may do | Only the project's own `igris done` rules and reading the plan (B1). |
 
+Since 1.5 the same boundary holds for the task worktrees of a parallel phase (`.igris/worktrees/<run-id>-<ID>` on `igris/<run-id>-<ID>`, SPEC §6.11).
+
+| Threat | Mitigation |
+|---|---|
+| A session rewrites `state.json`'s `active` list to point igris at a worktree or branch that isn't the task's own (another project, another task's, the project root), so igris runs sessions, verify, commits or removals there | Each active task's worktree must be exactly `.igris/worktrees/<run-id>-<ID>` on `igris/<run-id>-<ID>` for its own task and this run; anything else is a damaged state file, refused with the file to delete (R59). |
+| One task's session reads or edits another's work | It can't be prevented: the worktrees are directories of the owner's user, and in `accept`, `auto` and `yolo` mode a session can write any file. A session is told nothing of the other tasks, and each task is rebased and verified on the integrated tree before it is `done`, so changes meet in the open at integration, not silently (accepted risk 23). |
+| A session writes the plan, `igris.toml` or `.igris/` through its worktree | The worktree holds none of them (the plan's copy is never written; Status lives in the main plan), and what a session writes to the main ones is as in B2 (R1, R2, R7). |
+| Several sessions, verifies and git processes starve the machine or the plan writer | At most `[parallel] max` (8) tasks are active; the engine is the only writer of the plan and `state.json`; commits and integration run one at a time in completion order, as every external command runs with a timeout (R7). |
+| Concurrent git operations corrupt the run branch | Integration is serial: rebase in the task's worktree, then a fast-forward only (`git merge --ff-only`); a conflict is aborted (`git rebase --abort`) and the task rerun or put to the owner, never merged by guess (R60). |
+| A task's `IGRIS_SLOT` is used to reach another task's resources | A convenience, not a boundary: it names a number the project may offset ports or databases by. It carries no secret. |
+| Skip-permissions mode starts N sessions at once with one confirmation | The typed phrase is still asked once per run and covers each session the run starts in that mode, as a run of one task does (R19); nothing starts parallel work in that mode without it. |
+
 ### B7 — release ↔ user
 
 | Threat | Mitigation |
@@ -176,6 +188,8 @@ What igris protects, from whom, where the boundaries are, and which test enforce
 21. **The update trusts the package manager that installed igris** (V12-P4): `igris update` runs `brew upgrade igris` or `go install …@vX.Y.Z` as the owner, with igris's environment minus the notification secrets' variables, and the new binary is as good as the tap's formula or the Go module proxy and checksum database. A forged answer to the check can only name a version: a higher one that doesn't exist makes `go install` fail (or Homebrew upgrade to what its tap has), and it never makes igris download anything. A machine that reaches GitHub through a proxy it doesn't trust should not use `igris update`.
 
 22. **Any process of the owner's user can drive a run over the socket** (V14-P1): it can attach, answer questions, skip, stop and switch modes, skip-permissions included with the `yes` a client sends after its owner typed the phrase. Such a process can already edit the plan, `igris.toml` and `.igris/`, and run `claude` itself; the socket is guarded against other users, not against the owner's own programs.
+
+23. **Parallel tasks share the machine and a mode** (V15-P1): the sessions of a parallel phase run as the owner at the same time, each able to read or write the other tasks' worktrees and everything else the permission mode lets it. Isolation is for the code (one branch and tree per task, a rebase and verify before integration), not for a hostile session. Verify and git hooks of N worktrees run session-written code as the owner (risk 1). Run a phase in parallel only where you would run one task unattended; worktree mode (`--worktree`) keeps the whole run off your branch.
 
 ## Reviews
 
@@ -287,5 +301,9 @@ One row per safety rule. The tests are named `package.TestName`; `tools/threatmo
 | R56 | A slow client is dropped, never waited for; the engine is never blocked by a client | §13 | `internal/serve.TestSlowClientDropped`, `internal/serve.TestSlowClientDroppedByBytes` |
 | R57 | `.igris/igris.sock.path` is used only when it names this root's fallback socket | §13 | `internal/serve.TestSocketPathIgnoresForeignPathFile` |
 | R58 | Any process of the owner's user can drive a run over the socket | §16 | accepted (see Accepted risks 22) |
+| R59 | A task worktree named in `state.json` is the task's own, `.igris/worktrees/<run-id>-<ID>` on `igris/<run-id>-<ID>`, and the active list is checked (IDs, slots, modes, attempts) | §6.11, §13, §16 | `internal/state.TestLoadRunVersions`, `internal/state.TestLoadRunErrors` |
+| R60 | A task is integrated one at a time, by rebase and fast-forward only; a conflict is aborted, never merged, and verify runs on the integrated tree before `done` | §6.11 | `internal/engine.TestIntegrationInCompletionOrder`, `internal/engine.TestIntegrationConflictRerunsOnce`, `internal/engine.TestIntegrationVerifyFailsOnIntegratedTree` |
+| R61 | A parallel phase never runs more than `max` tasks, rank caps, `Group` and owner-task exclusivity hold, and skip-permissions mode still needs its typed phrase | §5.1, §7.3 | `internal/plan.TestSelectParallelProperties`, `internal/engine.TestParallelE2ECapsGroupsAndExclusivity` |
+| R62 | A parallel phase that can't integrate (no git, `commit = "never"`) runs one task at a time | §6.11 | `internal/engine.TestParallelWithoutCommitRunsOneAtATime`, `internal/engine.TestParallelWithoutGitRunsOneAtATime` |
 | R29 | Verify and git hooks run session-written code as the owner | §16 | accepted (see Accepted risks 1) |
 | R30 | A session can forge hook state, moving Needs you within `waiting_limit` | §6.3 | accepted (see Accepted risks 3) |

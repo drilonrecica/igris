@@ -38,7 +38,7 @@ Yes, one run per project. They share your subscription's limits. See [running se
 
 ## Can two tasks run in parallel?
 
-No. A run is strictly sequential. Running independent tasks in parallel, each in its own worktree, is a possible later feature, not part of 1.x.
+Only where the plan says so. A phase runs one task at a time unless you mark it `<!-- igris:parallel -->` (since 1.5); then independent tasks run together, each in its own worktree, and are merged back in order. It costs more than it looks: see [Parallel phases](parallel-phases.md).
 
 ## Will an update break my plans and config?
 

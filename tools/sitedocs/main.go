@@ -46,12 +46,13 @@ var pages = []page{
 	{"templates", "Plan templates", "Start a project from go-cli, web-app or library.", "site/docs/templates.md"},
 	{"draft", "Draft a plan", "Have Claude write a plan from a goal, a spec or an issue export.", "site/docs/draft.md"},
 	{"detach-attach", "Detach and attach", "Leave a run going, and open it again from any terminal.", "site/docs/detach-attach.md"},
+	{"parallel-phases", "Parallel phases", "Run independent tasks at once, each in its own worktree, and what it costs.", "site/docs/parallel-phases.md"},
 	{"side-sessions", "Side sessions", "A Claude Code session of your own next to a run.", "site/docs/side-sessions.md"},
 	{"adapt", "Adapt a plan", "Convert a plan in another format, and review it first.", "site/docs/adapt.md"},
 	{"several-projects", "Several projects", "Running igris in more than one project at once.", "site/docs/several-projects.md"},
 	{"faq", "FAQ", "Subscription or API, models, skip-permissions, Windows.", "site/docs/faq.md"},
 	{"troubleshooting", "Troubleshooting", "What the symptoms mean and what to do.", "site/docs/troubleshooting.md"},
-	{"upgrade", "Upgrade", "From any 0.x release to 1.0, then 1.1, 1.2 and 1.4.", "site/docs/upgrade.md"},
+	{"upgrade", "Upgrade", "From any 0.x release to 1.0, then 1.1, 1.2, 1.4 and 1.5.", "site/docs/upgrade.md"},
 	{"compatibility", "Compatibility", "What 1.x promises not to break, and the tests behind it.", "docs/compatibility.md"},
 }
 

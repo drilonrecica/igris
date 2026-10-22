@@ -18,13 +18,13 @@
 
 <p align="center"><img src="docs/demo/igris-demo.gif" alt="igris running a two-task phase in herdr: each task gets a fresh Claude Code session on the model the plan assigns, sonnet then opus, and the phase completes" width="900"></p>
 
-**igris** runs the tasks in your markdown project plan **one at a time**, each in a **fresh Claude Code session**, started with **exactly the model your plan assigns to that task**.
+**igris** runs the tasks in your markdown project plan **one at a time** (or, in phases you mark parallel, side by side), each in a **fresh Claude Code session**, started with **exactly the model your plan assigns to that task**.
 
 You write the plan and decide which tasks need Fable, which need Opus and which are fine on Sonnet. igris makes sure that's what happens: it never runs a Sonnet task on a more expensive model, never lets one task's context bleed into the next, and stops to wait for you whenever a task needs a decision.
 
 > **Status:** v1.2.1, stable: what 1.x keeps stable is in [`docs/compatibility.md`](docs/compatibility.md). Linux and macOS, Windows through WSL2; runs in herdr or tmux. The full behavior is specified in [`SPEC.md`](SPEC.md).
 
-**Contents:** [Why](#why) · [Quick start](#quick-start) · [Install](#install) · [Where igris runs](#where-igris-runs) · [Your plan](#your-plan) · [Running a phase](#running-a-phase) · [Verification and commits](#verification-and-commits) · [Worktree mode](#worktree-mode) · [Modes](#modes) · [Notifications](#notifications) · [Commands](#commands) · [The TUI](#the-tui) · [Security](#security) · [FAQ](#faq)
+**Contents:** [Why](#why) · [Quick start](#quick-start) · [Install](#install) · [Where igris runs](#where-igris-runs) · [Your plan](#your-plan) · [Running a phase](#running-a-phase) · [Verification and commits](#verification-and-commits) · [Worktree mode](#worktree-mode) · [Parallel phases](#parallel-phases) · [Modes](#modes) · [Notifications](#notifications) · [Commands](#commands) · [The TUI](#the-tui) · [Security](#security) · [FAQ](#faq)
 
 ---
 
@@ -41,7 +41,7 @@ If you already plan your work as a task table with dependencies and a model per 
 5. When the task is truly done, Claude runs `igris done M0-03`. igris runs your checks if you set them, commits if you want, marks the task `done`, unblocks what depends on it and closes the session.
 6. Starts a fresh session for the next task, until the phase is finished.
 
-Strictly sequential. Deterministic. No LLM decides which model runs what.
+Sequential unless you mark a phase [parallel](#parallel-phases). Deterministic. No LLM decides which model runs what.
 
 ### Shadows have ranks
 
@@ -263,7 +263,7 @@ It keeps every task, ID, description, dependency, status and model; it only rest
 
 ## Running a phase
 
-`igris arise M0` runs phase `M0`; `--through M2` continues through later phases. A run is strictly sequential, and only one `igris arise` runs per project at a time.
+`igris arise M0` runs phase `M0`; `--through M2` continues through later phases. A run is sequential unless a phase is marked [parallel](#parallel-phases) (since 1.5), and only one `igris arise` runs per project at a time.
 
 - **Preview first:** `igris arise M0 --dry-run` shows the launch order with each task's model, mode and verify profile (and whether task hooks would run), without starting anything or writing a byte.
 - **Without the TUI:** `igris arise M0 --no-tui` prints plain log lines and reads your answers from stdin: `y`/`n`, `reset yes|no` for a reset request, `done [note]`, `skip <reason>`, `retry [continue|fresh]`, `pause`, `stop`, `mode [task] <m>`, `help`.
@@ -399,6 +399,18 @@ Hooks run where the sessions do (the project root, or the run's [worktree](#work
 - **igris never merges.** When the run completes with nothing uncommitted, it removes the worktree, keeps the branch and tells you: `the run's work is on branch igris/20261014-100518-7c5d; igris doesn't merge it: git merge igris/20261014-100518-7c5d`. Review it with `git log -p main..igris/<run-id>`, then merge it, or drop it with `git branch -D igris/<run-id>`. A worktree with uncommitted changes is kept (`git worktree remove .igris/worktrees/<run-id>` when you're done with it).
 - `igris arise --dry-run --worktree` shows where the run would work. A fresh worktree has no build caches or `node_modules`, so the first verify may take longer.
 
+## Parallel phases
+
+Since 1.5 the tasks of a phase can run at the same time, if you say so. Declare `<!-- igris:format 3 -->`, put `<!-- igris:parallel -->` on a line of its own under the phase heading, and any tasks of that phase that don't depend on each other may run together, up to `[parallel] max` (default 2, at most 8; `igris arise --parallel N` for one run). A phase without the marker runs one task at a time, as always. The marker means the phase's `Deps` are complete, so file order stops implying dependencies; `igris check` warns when a task's text names an earlier one it doesn't depend on.
+
+- **A worktree per task.** Each task works in `.igris/worktrees/<run-id>-<ID>` on its own branch, from the run branch's head, with its own session and verify; a session never sees another task. `IGRIS_SLOT` (`0` to `max - 1`) in its environment lets your project offset ports and test databases.
+- **Merged back in completion order.** A task that passes verify is committed, rebased onto the run branch, verified again on the merged tree and fast-forwarded in. Only then is it `done`, so dependents never start on code that isn't on the branch. One commit per task, linear history. Needs git and `commit` `ask` or `auto`; otherwise the phase runs one task at a time, with a warning.
+- **What runs together.** `Group` (optional column): tasks with the same value never run together. `[parallel.ranks]` caps a rank (default `fable = 1`). `user` and `agent + user` tasks, gates included, run alone.
+- **When a task doesn't merge** (a rebase conflict, or verify failing on the merged tree) it is run again from the start on the new base, once; a second failure is **Needs you** with the details (`on_conflict = "ask"` skips the rerun). When two active tasks change the same file, igris warns once and holds nothing.
+- **In the run view,** one card per active task (a switcher on a narrow terminal) and one Needs-you queue in plan order. Stop leaves every session open; the next `arise` reattaches them all.
+
+**It costs more than it looks.** Your Claude limits burn N times faster, each worktree starts without build caches or `node_modules` (N installs, N cold builds, N times the disk), and a dependency the plan leaves unsaid becomes a conflict whose rerun does the work twice. Start with `max = 2` on a small, independent, well-gated phase; [`igris phases`](#commands) shows which tasks could run together. Details, an example plan and advice: [Parallel phases](https://drilonrecica.github.io/igris/docs/parallel-phases.html). Reference: [plan format](docs/plan-format.md#parallel-phases-format-3), [`[parallel]`](docs/config.md#parallel) and SPEC §3.8, §5.1 and §6.11.
+
 ## Modes
 
 Choose the permission mode in the TUI, per run or per task: `m` (or **Mode**) for the run, or select a task and press `M` (**Task mode**) to override it for that task. A change applies to the next session; a running one keeps its mode. User tasks have no session, so they have no mode.
@@ -504,7 +516,7 @@ template = "{{.At.Format \"15:04\"}} {{.TaskID}} {{.What}}"
 | `igris init [--example \| --template NAME]` | Creates `igris.toml` and `.igris/`, ignores `.igris/` in git, allows `igris done` for Claude. `--example` also writes the example plan; `--template` (since 1.2: `go-cli`, `web-app` or `library`) writes a starter plan. Neither overwrites a plan. |
 | `igris doctor [--json]` | Read-only health check of the machine and the project. |
 | `igris check [--strict]` | Validates the plan; `--strict` also lints it, for CI. |
-| `igris phases` / `igris status [PHASE]` | Task counts per phase, with each phase's critical path, width and the tasks that could run together (also shown by `arise --dry-run`; igris itself still runs one task at a time) / tasks with rank, owner and what each waits on, plus the current run. |
+| `igris phases` / `igris status [PHASE]` | Task counts per phase, with each phase's critical path, width and the tasks that could run together (also shown by `arise --dry-run`; igris runs them together only in a [parallel phase](#parallel-phases)) / tasks with rank, owner and what each waits on, plus the current run. |
 | `igris arise [PHASE]` | Runs (or resumes) a phase; see [Running a phase](#running-a-phase). |
 | `igris serve [PHASE]` | Since 1.4: runs (or resumes) a phase headless, with `arise`'s run flags and plain log lines on stdout (questions in them are answered in `igris attach`), hosting the run on `.igris/igris.sock`. It asks the start-up questions on stdin (`y`; a closed stdin declines); `--mode yolo` asks for the typed phrase on a terminal and refuses without one. SIGHUP, SIGINT and SIGTERM stop the run (sessions stay open; a second one exits at once). Outside herdr and tmux its sessions open in a detached tmux session `igris-<project>` (`tmux attach -t igris-<project>` shows them). |
 | `igris attach` | Since 1.4: opens the run view of this project's live run, hosted by `igris serve`, from any terminal (another pane, an ssh session from your phone); several can be attached at once. `q` asks **Detach** (the run goes on; `igris attach` shows it again) · Stop run · Cancel, and Ctrl-C, a closed terminal or a dropped connection detach. When the connection drops the header says `reconnecting…` and the view comes back with a fresh snapshot; a run served by another igris version (after `igris update`) shows `served by igris X.Y.Z` and keeps that igris until it ends. Outside herdr and tmux (plain ssh) the view can't reach the session's pane, so it doesn't offer Open session. |
@@ -732,7 +744,7 @@ Through WSL2, with herdr or tmux and Claude Code installed inside WSL too; see [
 Plans, not promises:
 
 - **1.x, additive:** more ways to start and grow a plan (1.2 added side sessions, plan includes and templates; 1.4 added `igris draft` and `igris serve`/`attach`).
-- **1.5:** running independent tasks in parallel, each in its own worktree and merged back in plan order.
+- **1.5 (shipped):** [parallel phases](#parallel-phases): independent tasks at once, each in its own worktree, merged back in the order they finish.
 - **1.6:** remote control from a browser or a notification, off by default, never in skip-permissions mode.
 - **Later:** other agents next to Claude Code (Codex CLI, Kiro CLI, Gemini CLI, …).
 
