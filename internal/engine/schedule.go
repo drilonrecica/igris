@@ -34,6 +34,7 @@ func (e *Engine) addLaunch(l *launch) {
 func (e *Engine) dropLaunch(id string) {
 	if l := e.launchOf(id); l != nil {
 		e.dropCheck(l)
+		e.unqueueIntegration(l)
 	}
 	e.active = slices.DeleteFunc(e.active, func(l *launch) bool { return l.t.ID == id })
 	if e.task != nil && e.task.t.ID == id {
@@ -297,6 +298,7 @@ func (e *Engine) runPhase(ctx context.Context, id string) (Result, error) {
 		if progressed {
 			continue // a task ended: select again at once
 		}
+		e.watchOverlap(ctx)
 		e.wait(ctx, e.cfg.PollInterval.Std())
 	}
 }
@@ -344,6 +346,9 @@ func (e *Engine) routeCommands() {
 // stops.
 func (e *Engine) step(ctx context.Context, l *launch) (ended, stopped bool, err error) {
 	e.checkConfig(ctx) // before the signal, so a config edit is seen before the task is accepted
+	if l.integ != nil {
+		return e.stepIntegrate(ctx, l)
+	}
 	if l.check != nil {
 		return e.stepCheck(ctx, l)
 	}
@@ -391,8 +396,14 @@ func (e *Engine) conclude(ctx context.Context, l *launch, v verdict) (ended, sto
 }
 
 // accept accepts the done v of l's task once verified, or the owner's
-// done: it is committed (SPEC §6.5) before it is marked done.
+// done: it is committed (SPEC §6.5) before it is marked done. A task in a
+// worktree of its own is integrated first (SPEC §6.11), beside the other
+// tasks.
 func (e *Engine) accept(ctx context.Context, l *launch, v verdict) (ended, stopped bool, err error) {
+	if l.isolated() && l.t.Owner.IsAgent() {
+		// A user task has no worktree and is never committed (SPEC §6.5).
+		return e.beginIntegration(ctx, l, v)
+	}
 	// A reset requested while the task was verified is answered and
 	// applied before it is accepted, never lost (SPEC §6.2).
 	if reset, stopped, err := e.settleResets(ctx, l.t.ID); err != nil || stopped || reset {

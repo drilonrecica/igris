@@ -219,6 +219,11 @@ type Engine struct {
 	// checks are the active tasks of a parallel phase whose verify is
 	// queued or runs (check), in the order their done signals came in.
 	checks []*launch
+	// integrations are the committed tasks of a parallel phase in line for
+	// the integrator, which takes the first (SPEC §6.11); reran are the
+	// tasks run again after a failed integration, once per run.
+	integrations []*launch
+	reran        map[string]bool
 	// parallel records, per phase, whether it runs its tasks at once
 	// (parallelOn); round counts the scheduling rounds that started or
 	// picked up a task (the dry run numbers its steps by it).
@@ -307,6 +312,7 @@ func New(opts Options) (*Engine, error) {
 		wake:      make(chan struct{}, 1),
 		reported:  map[string]bool{},
 		attempts:  map[string]int{},
+		reran:     map[string]bool{},
 		commitMsg: commitMsg,
 		runMode:   opts.Mode,
 		overrides: map[string]string{},

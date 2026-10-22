@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -15,25 +16,62 @@ import (
 )
 
 // repo answers git like a repository would for the worktrees of a
-// parallel phase (SPEC §6.11): `worktree add` (with -b or onto an
-// existing branch) and `worktree remove` make and remove the directory, a
-// new worktree has uncommitted changes (its session's work) until a commit
-// in it, `branch -d` refuses a branch with a commit the run branch lacks
-// unless merged says the run branch has it, and every call is logged as
+// parallel phase (SPEC §6.11). `worktree add` (with -b or onto an existing
+// branch) and `worktree remove` make and remove the directory; a new
+// worktree has uncommitted changes (its session's work, the files of
+// changes or main.go) until a commit in it; `rev-parse HEAD` names a
+// worktree's base on the run branch and its commits, so a rebase that
+// moves the base changes it; `rebase` conflicts where conflicts says so;
+// `merge --ff-only` moves the run branch's head; `branch -d` refuses a
+// branch with a commit the run branch lacks. Every call is logged as
 // "<dir>: <args>" with the root shown as ".".
 type repo struct {
 	h        *harness
 	mu       sync.Mutex
 	log      []string
-	branches map[string]bool // branch → it has a commit of its own
-	dirty    map[string]bool // worktree dir (relative) → uncommitted changes
-	merged   bool
+	runHead  int                // commits on the run branch
+	wts      map[string]*fakeWT // worktree dir (relative) → its state
+	branches map[string]*fakeWT // branch → the state of its commits
+	// conflicts: a worktree dir whose next rebases (times of them) fail on
+	// files.
+	conflicts map[string]*conflict
+	// changes are the files a dirty worktree's status shows; main.go
+	// without an entry.
+	changes map[string][]string
+	ffFail  bool // the next fast-forward fails: the run branch moved
+}
+
+type fakeWT struct {
+	base, commits int
+	dirty         bool
+	integrated    bool // its commits are on the run branch
+	run           bool // the run's own worktree (worktree mode), not a task's
+}
+
+type conflict struct {
+	files []string
+	times int
 }
 
 func (h *harness) repo() *repo {
-	r := &repo{h: h, branches: map[string]bool{}, dirty: map[string]bool{}}
+	r := &repo{h: h, wts: map[string]*fakeWT{}, branches: map[string]*fakeWT{}, conflicts: map[string]*conflict{}, changes: map[string][]string{}}
 	h.gitFn = r.git
 	return r
+}
+
+// conflictOn makes the next times rebases in the worktree dir fail on files.
+func (r *repo) conflictOn(dir string, times int, files ...string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.conflicts[dir] = &conflict{files: files, times: times}
+}
+
+// sha is the commit hash HEAD names in dir: 40 digits, so it looks like one.
+func (r *repo) sha(dir string) string {
+	if wt := r.wts[dir]; wt != nil && !wt.run {
+		return fmt.Sprintf("%040d", wt.base*1000+wt.commits)
+	}
+	return fmt.Sprintf("%040d", 1000000+r.runHead)
 }
 
 func (r *repo) git(c runner.Cmd) (runner.Result, error) {
@@ -43,35 +81,97 @@ func (r *repo) git(c runner.Cmd) (runner.Result, error) {
 	a := c.Args
 	r.log = append(r.log, dir+": "+strings.Join(a, " "))
 	fail := runner.Result{ExitCode: 1}
+	out := func(s string) (runner.Result, error) { return runner.Result{Stdout: []byte(s)}, nil }
 	switch {
-	case a[0] == "worktree" && a[1] == "add":
-		path := a[2]
-		if a[2] == "-b" {
-			path = a[4]
-			if _, ok := r.branches[a[3]]; ok {
-				return fail, nil
-			}
-			r.branches[a[3]] = false
+	case a[0] == "worktree" && a[1] == "add" && a[2] == "-b":
+		branch, path := a[3], a[4]
+		if _, ok := r.branches[branch]; ok {
+			return fail, nil
 		}
-		r.dirty[path] = true
+		wt := &fakeWT{base: r.runHead, dirty: true, run: !strings.Contains(strings.TrimPrefix(branch, "igris/"), "-") || len(filepath.Base(path)) == 20}
+		if wt.run {
+			wt.dirty = false
+		}
+		r.branches[branch], r.wts[path] = wt, wt
+		return runner.Result{}, os.MkdirAll(filepath.Join(c.Dir, path), 0o750)
+	case a[0] == "worktree" && a[1] == "add":
+		path, branch := a[2], a[3]
+		wt := r.branches[branch]
+		if wt == nil {
+			return fail, nil
+		}
+		r.wts[path] = wt
 		return runner.Result{}, os.MkdirAll(filepath.Join(c.Dir, path), 0o750)
 	case a[0] == "worktree" && a[1] == "remove":
-		return runner.Result{}, os.RemoveAll(filepath.Join(c.Dir, a[2]))
+		path := a[len(a)-1]
+		delete(r.wts, path)
+		return runner.Result{}, os.RemoveAll(filepath.Join(c.Dir, path))
 	case a[0] == "rev-parse" && len(a) == 4: // --verify --quiet refs/heads/<branch>
 		if _, ok := r.branches[strings.TrimPrefix(a[3], "refs/heads/")]; !ok {
 			return fail, nil
 		}
 	case a[0] == "rev-parse":
-		return runner.Result{Stdout: []byte(fakeSHA + "\n")}, nil
-	case a[0] == "status" && r.dirty[dir]:
-		return runner.Result{Stdout: []byte(" M main.go\n")}, nil
+		return out(r.sha(dir) + "\n")
+	case a[0] == "symbolic-ref":
+		return out("main\n")
+	case a[0] == "status":
+		wt := r.wts[dir]
+		if wt == nil || !wt.dirty {
+			return runner.Result{}, nil
+		}
+		files := r.changes[dir]
+		if len(files) == 0 {
+			files = []string{"main.go"}
+		}
+		sep := "\n"
+		if slices.Contains(a, "-z") {
+			sep = "\x00"
+		}
+		var b strings.Builder
+		for _, f := range files {
+			b.WriteString(" M " + f + sep)
+		}
+		return out(b.String())
 	case a[0] == "commit":
-		r.dirty[dir] = false
-		r.branches["igris/"+filepath.Base(dir)] = true
-	case a[0] == "branch" && a[1] == "-d":
-		if r.branches[a[2]] && !r.merged {
+		if wt := r.wts[dir]; wt != nil {
+			wt.dirty, wt.commits = false, wt.commits+1
+		}
+	case a[0] == "rev-list":
+		n := 0
+		if wt := r.wts[dir]; wt != nil && !wt.integrated {
+			n = wt.commits
+		}
+		return out(fmt.Sprintf("%d\n", n))
+	case a[0] == "rebase" && a[1] == "--abort":
+	case a[0] == "rebase":
+		if k := r.conflicts[dir]; k != nil && k.times > 0 {
+			k.times--
 			return fail, nil
 		}
+		if wt := r.wts[dir]; wt != nil {
+			wt.base = r.runHead
+		}
+	case a[0] == "diff":
+		if k := r.conflicts[dir]; k != nil {
+			return out(strings.Join(k.files, "\n") + "\n")
+		}
+	case a[0] == "merge":
+		wt := r.branches[a[len(a)-1]]
+		if r.ffFail || wt == nil || wt.base != r.runHead {
+			r.ffFail = false
+			return fail, nil
+		}
+		r.runHead += wt.commits
+		wt.integrated = true
+	case a[0] == "log":
+		return out("subject\n")
+	case a[0] == "branch" && a[1] == "-d":
+		wt := r.branches[a[2]]
+		if wt != nil && wt.commits > 0 && !wt.integrated {
+			return fail, nil
+		}
+		delete(r.branches, a[2])
+	case a[0] == "branch" && a[1] == "-D":
 		delete(r.branches, a[2])
 	}
 	return runner.Result{}, nil
@@ -171,26 +271,29 @@ func TestParallelTaskWorktrees(t *testing.T) {
 		if _, err := os.Stat(h.path(wt)); !os.IsNotExist(err) {
 			t.Errorf("%s: the worktree is still there: %v", id, err)
 		}
-		var want []ran
-		for _, name := range []string{"./prep", "make check", "./post"} {
-			want = append(want, ran{name, wt, slot[id]})
-		}
 		var got []ran
 		for _, c := range cmds() {
 			if c.dir == wt {
 				got = append(got, c)
 			}
 		}
-		if !slices.Equal(got, want) {
-			t.Errorf("%s: commands %+v, want %+v", id, got, want)
+		// prep, verify, maybe verify again on the integrated tree, post.
+		if n := len(got); n < 3 || n > 4 || got[0] != (ran{"./prep", wt, slot[id]}) || got[1] != (ran{"make check", wt, slot[id]}) || got[n-1] != (ran{"./post", wt, slot[id]}) {
+			t.Errorf("%s: commands %+v", id, got)
 		}
 		branch := "igris/" + base + "-" + id
-		if !h.warned("the branch " + branch + " of " + id + " has commits the run branch doesn't and is kept: git merge " + branch) {
-			t.Errorf("%s: no warning naming its branch in %s", id, h.kinds())
+		if got := r.calls(".: merge --ff-only " + branch); len(got) != 1 {
+			t.Errorf("%s: fast-forwarded by %q, want once in the root", id, got)
+		}
+		if got := r.calls(".: branch -d " + branch); len(got) != 1 {
+			t.Errorf("%s: branch deleted by %q, want once", id, got)
 		}
 	}
-	if n := len(cmds()); n != 9 {
-		t.Errorf("%d commands, want 9 in the task worktrees", n)
+	if h.warned("is kept") {
+		t.Errorf("a warning about a kept worktree or branch: %s", h.kinds())
+	}
+	if n := len(cmds()); n < 9 || n > 11 {
+		t.Errorf("%d commands, want 9 in the task worktrees plus up to two verifies of integrated trees", n)
 	}
 	for _, c := range r.calls(": commit ") {
 		if strings.HasPrefix(c, ".: ") {
@@ -229,11 +332,11 @@ func (h *harness) warned(text string) bool {
 	return false
 }
 
-// A branch the run branch has (merged) is deleted with its worktree.
+// An integrated branch, which the run branch has, is deleted with its
+// worktree (SPEC §6.11).
 func TestParallelTaskBranchDeletedWhenMerged(t *testing.T) {
 	h := newParallel(t, parallelPlan(), parallelTOML)
 	r := h.repo()
-	r.merged = true
 	h.be.SetAutoSignal(func(_ context.Context, id string) error { return h.signal(id) })
 	res, err := h.run()
 	if err != nil || res.Outcome != Completed {
@@ -280,15 +383,16 @@ func TestParallelSerialVerify(t *testing.T) {
 				id := c.Dir[len(c.Dir)-1:]
 				mu.Lock()
 				order = append(order, id)
+				first := !slices.Contains(order[:len(order)-1], id)
 				overlap := id == "a" && !bDone
 				mu.Unlock()
-				switch id {
-				case "b":
+				switch {
+				case id == "b" && first:
 					<-release
 					mu.Lock()
 					bDone = true
 					mu.Unlock()
-				case "a":
+				case id == "a" && first:
 					if overlap != !serial {
 						t.Errorf("a's verify started while b's ran: %v, want %v", overlap, !serial)
 					}
@@ -312,8 +416,15 @@ func TestParallelSerialVerify(t *testing.T) {
 			if err != nil || res.Outcome != Completed {
 				t.Fatalf("Run = %s, %v", res.Outcome, err)
 			}
-			if got := strings.Join(order, " "); got != "b a c" {
-				t.Errorf("verify order %q, want b a c", got)
+			// The second task to integrate is verified again on the
+			// integrated tree (SPEC §6.11): a when b passed first, b when
+			// a's verify passed while b's still ran.
+			want := "b a b c"
+			if serial {
+				want = "b a a c"
+			}
+			if got := strings.Join(order, " "); got != want {
+				t.Errorf("verify order %q, want %s", got, want)
 			}
 			if got := h.statuses(); got != "a=done b=done c=done B-1=ready" {
 				t.Errorf("statuses: %s", got)
@@ -524,7 +635,6 @@ func TestParallelTaskWorktreeInWorktreeMode(t *testing.T) {
 	h := newParallel(t, parallelPlan(), parallelTOML)
 	r := h.repo()
 	h.be.SetAutoSignal(func(_ context.Context, id string) error { return h.signal(id) })
-	r.merged = true
 	res, err := h.run(withWorktree)
 	if err != nil || res.Outcome != Completed {
 		t.Fatalf("Run = %s, %v", res.Outcome, err)

@@ -32,11 +32,11 @@ Every line igris v0.5 or later writes has `"v":1`. `v`, `at` and `type` are alwa
 | `owner` | string | `agent`, `user` or `agent + user` | `task_started`, `task_resumed` |
 | `side` | string | the side session's ID, 6 lowercase hex characters (since 1.2). These lines have no `task`, and carry `run` only when the igris writing them has a run | `side_opened`, `side_closed`, `side_usage` |
 | `profile` | string | the verify profile | `verify_passed`, `verify_failed` |
-| `commit` | string | the full commit SHA (`git rev-parse HEAD` after the commit; left out, with a warning, if that fails) | `committed` |
+| `commit` | string | the full commit SHA (`git rev-parse HEAD` after the commit; left out, with a warning, if that fails); on `integrated` the run branch's new head (since 1.5) | `committed`, `integrated` |
 | `branch` | string | the run's worktree branch, `igris/<run-id>`, in worktree mode (since 0.6); since 1.5 the task's branch, `igris/<run-id>-<ID>`, in a parallel phase, and the run branch on `integrated` | `run_started`; `task_started`, `task_retried`, `integrated` |
 | `slot` | integer | the task's slot in a parallel phase, `0` to `max - 1` (SPEC §6.11; since 1.5). Absent outside a parallel phase | `task_started`, `task_resumed`, `task_retried` |
 | `duration_ms` | integer | milliseconds. `task_done`/`task_skipped`: since this run's `task_started` or `task_resumed` of the task (wall time: watching, verify, questions, everything). `verify_*`: the verify command's run time. `run_stopped`: the run's length. Readers take a negative value or one over 30 days as unknown | those events |
-| `reason` | string | why igris waits on you (below) | `needs_you`, `needs_you_clear` |
+| `reason` | string | why igris waits on you (below); on `integration_failed`, why the task didn't integrate: `conflict` (the rebase) or `verify` (on the integrated tree; since 1.5) | `needs_you`, `needs_you_clear`, `integration_failed` |
 | `plan_file` | string | where the plan is kept, `.igris/plans/<ID>-a<attempt>-<n>.md` (left out if it couldn't be saved; since 1.1) | `plan_presented`, `plan_approved`, `plan_rejected` |
 | `plan_sha256` | string | the sha256 of the plan's text, in hex; the text itself and any feedback are never logged (since 1.1) | `plan_presented`, `plan_approved`, `plan_rejected` |
 | `mode` | string | the mode the session switches to: `default`, `accept` or `auto` (since 1.1) | `plan_approved` |
@@ -75,6 +75,9 @@ Every line igris v0.5 or later writes has `"v":1`. `v`, `at` and `type` are alwa
 | `side_opened` | a side session was opened (SPEC §6.10; since 1.2). No `task`; `side`, `rank` and `model` name it | empty |
 | `side_closed` | a side session was closed or found gone; once, by the igris that claimed its record (since 1.2) | empty |
 | `side_usage` | the ended side session's usage, read from its transcript as an attempt's is (SPEC §6.9), with `side`, `rank`, `model`, `usage`, `sub`, `models` and `sub_models`; never `attempt` or `audit`. Never an attempt, never audited. Not with `[usage] enabled = false` (since 1.2) | empty, or why the usage is unavailable (as for `usage`) |
+| `integrated` | a task of a parallel phase is on the run branch: its commit was rebased onto it, verified there (when the rebase moved it) and fast-forwarded; written right before the task's `task_done` (SPEC §6.11; since 1.5). `commit` is the run branch's new head, `branch` the run branch | the commit subject |
+| `integration_failed` | a task of a parallel phase didn't integrate: its rebase onto the run branch conflicted (`reason` `conflict`; igris aborted the rebase) or verify failed on the integrated tree (`reason` `verify`). What follows is in the detail: the task is run again from the start (`task_retried` `fresh`, once per task and run with `[parallel] on_conflict = "rerun"`), or it needs you (since 1.5) | the conflicting files, at most 20, comma-separated, or the verify profile and why (`profile fast: exit status 1`), then `; then rerun` or `; then needs you` |
+| `overlap` | two active tasks of a parallel phase both change one file; once per pair of tasks and file, from `git status` in their worktrees at each poll. Nothing is held. `task` is the task that changed it last (since 1.5) | `<ID> and <ID> both change <path>` |
 | `error` | a task hook failed, or the run stopped with an error | the hook's reason (`before_task hook failed: exit status 1`) or the error |
 
 ### Needs-you reasons
@@ -95,6 +98,7 @@ Every line igris v0.5 or later writes has `"v":1`. `v`, `at` and `type` are alwa
 | `plan_changed` | the plan changed outside igris and the run holds (SPEC §5.4); run-wide, no `task` |
 | `plan_approval` | a plan waits for your approval in igris (SPEC §6.3; since 1.1) |
 | `rank_mismatch` | the session runs on a model its rank doesn't resolve to; igris leaves it running (SPEC §6.9; since 1.1) |
+| `integration` | the task didn't integrate (a rebase conflict or verify failing on the integrated tree) and igris won't run it again by itself; its worktree is kept and you rerun it fresh, mark it done, skip it or stop (SPEC §6.11; since 1.5) |
 
 A reader treats any other reason as `other`. The config-changed notice is not a wait (the run goes on with its snapshot) and is not logged as `needs_you`.
 
@@ -102,6 +106,7 @@ Needs-you time is the time igris waited on you. So:
 
 - `idle` and `blocked` end when the agent works again or the session runs `igris done` (also when its verify then fails: a new idle stretch is a new wait).
 - `task_overdue`, `rank_mismatch`, `verify_limit` and `verify_not_sent` end when the agent is seen working again: an overdue task, or one on another model, that keeps working waits on nobody. A mismatch first seen by the read at the attempt's end is logged and notified, but is no wait.
+- `commit` in a parallel phase stays open while the commit question waits and after you decline it, until you answer again, retry, skip or stop (SPEC §6.11); `integration` ends when you rerun the task, mark it done or skip it.
 - `plan_approval` ends when you approve or reject the plan, or when it is answered in the session's pane (then the session's own `blocked` wait may follow, as when you pick *Answer in the pane*).
 - `plan_changed` starts when the run holds: the change is noticed between tasks, after the current task ended. It ends when you resume.
 - A wait that is already open is not logged again: a second skip request from the session, the verify limit hit again, another plan edit while the run holds.

@@ -61,6 +61,12 @@ func logLines(ev engine.Event) []string {
 		return []string{id + " committed: " + ev.Detail}
 	case engine.NotCommitted:
 		return []string{id + " not committed: " + ev.Detail}
+	case engine.Integrated:
+		return []string{id + " integrated " + ev.Detail}
+	case engine.IntegrationFailed:
+		return hookLines(id, ev)
+	case engine.Overlap:
+		return []string{"overlap: " + ev.Detail}
 	case engine.TaskDone:
 		return []string{note(id+" done", ev.Detail)}
 	case engine.TaskSkipped:

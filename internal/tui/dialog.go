@@ -101,6 +101,22 @@ func questionDialog(ev engine.Event) *dialog {
 			{"Stop igris", actStop},
 		}
 		d.cancel = actClose
+	case engine.QuestionIntegration:
+		// The task didn't integrate (SPEC §6.11, §15.5); its worktree is
+		// kept. The conflicting files or the verify output's last lines
+		// follow the question.
+		d.title = ev.Task + " didn't integrate"
+		if len(ev.Output) > 0 {
+			d.detail += "\n\n" + strings.Join(ev.Output, "\n")
+			d.pre = true
+		}
+		d.options = []option{
+			{"Rerun fresh", actRetryFresh},
+			{"Mark done (integrated by hand)", actDone},
+			{"Skip…", actSkip},
+			{"Stop igris", actStop},
+		}
+		d.cancel = actClose
 	default:
 		d.title = "Question"
 		d.options = []option{{"Yes", actAnswerYes}, {"No", actAnswerNo}}

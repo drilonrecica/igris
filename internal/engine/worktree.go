@@ -353,6 +353,32 @@ func (e *Engine) ensureWorktree(ctx context.Context, l *launch, how startKind) e
 	return nil
 }
 
+// discardWorktree throws away the worktree and the branch of rec's task,
+// with whatever they hold, before the task is run again from the start
+// after a failed integration (SPEC §6.11). rec forgets the worktree, so
+// the next session gets a new one from the run branch's head.
+func (e *Engine) discardWorktree(ctx context.Context, rec *state.Current) error {
+	wt := rec.Worktree
+	if wt == nil || e.opts.noGit {
+		return nil
+	}
+	root := e.dir.Root()
+	if isDir(e.worktreeAbs(wt)) {
+		if _, err := e.gitIn(ctx, root, "worktree", "remove", "--force", wt.Path); err != nil {
+			return fmt.Errorf("discard the worktree %s of %s: %w; remove it by hand, then run `igris arise` again", wt.Path, rec.TaskID, err)
+		}
+	} else if _, err := e.gitIn(ctx, root, "worktree", "prune"); err != nil {
+		e.warn(fmt.Sprintf("prune the worktrees: %v", err))
+	}
+	if _, err := e.gitIn(ctx, root, "rev-parse", "--verify", "--quiet", "refs/heads/"+wt.Branch); err == nil {
+		if _, err := e.gitIn(ctx, e.work, "branch", "-D", wt.Branch); err != nil {
+			return fmt.Errorf("discard the branch %s of %s: %w; delete it by hand, then run `igris arise` again", wt.Branch, rec.TaskID, err)
+		}
+	}
+	rec.Worktree = nil
+	return e.dir.SaveRun(e.run)
+}
+
 // dropWorktree removes the worktree of rec's task once the task is done,
 // skipped or reset (SPEC §6.11), and its branch with it. A worktree with
 // uncommitted changes is kept and named, and so is a branch with commits

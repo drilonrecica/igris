@@ -61,15 +61,9 @@ func (e *Engine) commit(ctx context.Context, l *launch, note string) (stopped, r
 		e.emit(Event{Kind: NotCommitted, Detail: "nothing to commit"})
 		return false, false, nil
 	}
-	var subject bytes.Buffer
-	approved := e.approvedPlan(l)
-	vars := CommitVars{ID: t.ID, Title: t.Title, Phase: e.phase, Rank: t.Rank, Model: l.model, Note: note, Plan: approved}
-	if err := e.commitMsg.Execute(&subject, vars); err != nil {
-		return false, false, fmt.Errorf("render run.commit_message for %s: %w; fix the template in igris.toml", t.ID, err)
-	}
-	msg := strings.TrimSpace(subject.String())
-	if msg == "" {
-		return false, false, fmt.Errorf("run.commit_message renders to an empty message for %s; fix it in igris.toml", t.ID)
+	msg, approved, err := e.commitMessage(l, note)
+	if err != nil {
+		return false, false, err
 	}
 
 	if e.cfg.Run.Commit == CommitAsk {
@@ -89,8 +83,34 @@ func (e *Engine) commit(ctx context.Context, l *launch, note string) (stopped, r
 		}
 	}
 
+	return false, false, e.commitChanges(ctx, l, msg, note, approved)
+}
+
+// commitMessage renders the commit subject for l's task from
+// commit_message (SPEC §6.5) and returns it with the approved plan the
+// body carries ("" without one).
+func (e *Engine) commitMessage(l *launch, note string) (msg, approved string, err error) {
+	t := l.t
+	var subject bytes.Buffer
+	approved = e.approvedPlan(l)
+	vars := CommitVars{ID: t.ID, Title: t.Title, Phase: e.phase, Rank: t.Rank, Model: l.model, Note: note, Plan: approved}
+	if err := e.commitMsg.Execute(&subject, vars); err != nil {
+		return "", "", fmt.Errorf("render run.commit_message for %s: %w; fix the template in igris.toml", t.ID, err)
+	}
+	msg = strings.TrimSpace(subject.String())
+	if msg == "" {
+		return "", "", fmt.Errorf("run.commit_message renders to an empty message for %s; fix it in igris.toml", t.ID)
+	}
+	return msg, approved, nil
+}
+
+// commitChanges stages and commits every change where l's task works
+// with the subject msg, the note and the approved plan as the body (SPEC
+// §6.5), and logs the commit. A git failure is an error.
+func (e *Engine) commitChanges(ctx context.Context, l *launch, msg, note, approved string) error {
+	t := l.t
 	if _, err := e.git(ctx, l, "add", "-A"); err != nil {
-		return false, false, err
+		return err
 	}
 	args := []string{"commit", "-m", msg}
 	if note = strings.TrimSpace(note); note != "" {
@@ -100,11 +120,11 @@ func (e *Engine) commit(ctx context.Context, l *launch, note string) (stopped, r
 		args = append(args, "-m", "Approved plan:\n\n"+approved)
 	}
 	if _, err := e.git(ctx, l, args...); err != nil {
-		return false, false, fmt.Errorf("%w; fix what git reports (e.g. a failing hook), commit the changes of %s by hand or set commit = \"never\" in [run], then run `igris arise` again", err, t.ID)
+		return fmt.Errorf("%w; fix what git reports (e.g. a failing hook), commit the changes of %s by hand or set commit = \"never\" in [run], then run `igris arise` again", err, t.ID)
 	}
 	e.log(state.Event{Type: state.EventCommitted, Commit: e.head(ctx, l), Detail: msg})
 	e.emit(Event{Kind: Committed, Detail: msg})
-	return false, false, nil
+	return nil
 }
 
 // head is the commit SHA HEAD points at where l works, for the run log; "" with a

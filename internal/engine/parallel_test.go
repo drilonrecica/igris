@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -36,8 +37,13 @@ const parallelTOML = "needs_input_after = \"1h\"\n[run]\ncommit = \"auto\"\n[par
 func newParallel(t *testing.T, planText, tomlText string) *harness {
 	h := newHarness(t, planText, tomlText)
 	h.gitFn = func(c runner.Cmd) (runner.Result, error) {
-		if c.Args[0] == "rev-parse" {
+		switch c.Args[0] {
+		case "rev-parse":
 			return runner.Result{Stdout: []byte(fakeSHA + "\n")}, nil
+		case "symbolic-ref":
+			return runner.Result{Stdout: []byte("main\n")}, nil
+		case "rev-list":
+			return runner.Result{Stdout: []byte("0\n")}, nil
 		}
 		return runner.Result{}, nil
 	}
@@ -164,6 +170,13 @@ func TestParallelOwnerTaskRunsAlone(t *testing.T) {
 		// Two at once again.
 		if got := h.statuses(); got != "a=done b=done c=in progress d=in progress B-1=blocked" {
 			t.Errorf("after the owner task: %s", got)
+		}
+		// The user task is never committed or integrated (SPEC §6.5): no
+		// git ran in the project root for it between a's done and now.
+		for _, c := range h.calls("git") {
+			if c.Dir == h.root && !slices.Contains([]string{"rev-parse", "symbolic-ref", "worktree", "branch", "merge"}, c.Args[0]) {
+				t.Errorf("git %v ran in the project root; a user task needs no git", c.Args)
+			}
 		}
 	})
 	h.signalAt(6*time.Minute, "c")

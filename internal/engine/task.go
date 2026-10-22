@@ -64,6 +64,12 @@ type launch struct {
 	// check is the task's verify while it is queued or runs beside the
 	// poll loop, in a parallel phase (SPEC §6.11); nil otherwise.
 	check *check
+	// integ is the task's integration from its accepted done until it is
+	// marked done (SPEC §6.11); nil otherwise.
+	integ *integration
+	// files are the paths the task's worktree changed at the last poll and
+	// fresh the ones new then, for the overlap watcher (SPEC §6.11).
+	files, fresh map[string]bool
 }
 
 // nextAttempt counts a new attempt of l's task in this run.
@@ -195,6 +201,9 @@ func (e *Engine) markInProgress(ctx context.Context, l *launch, detail string) (
 	if t.Owner.IsAgent() {
 		ev.Session = l.cur.ClaudeSession
 		e.nextAttempt(l)
+		if l.cur.Slot != nil {
+			ev.Branch = e.taskWorktree(t.ID).Branch // the worktree it gets (SPEC §6.11)
+		}
 	}
 	e.log(ev)
 	e.emit(Event{Kind: TaskStarted, Changes: changes})
@@ -364,7 +373,11 @@ func (e *Engine) retry(ctx context.Context, l *launch, cont bool) error {
 	// Every session opened is an attempt, also one the hook keeps from
 	// opening (SPEC §13).
 	e.nextAttempt(l)
-	e.log(state.Event{Type: state.EventTaskRetried, Session: st.sessionID, Detail: detail, Slot: l.cur.Slot})
+	retried := state.Event{Type: state.EventTaskRetried, Session: st.sessionID, Detail: detail, Slot: l.cur.Slot}
+	if l.cur.Worktree != nil {
+		retried.Branch = l.cur.Worktree.Branch
+	}
+	e.log(retried)
 	if err := e.ensureWorktree(ctx, l, how); err != nil {
 		return err
 	}

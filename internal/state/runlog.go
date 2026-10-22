@@ -62,7 +62,22 @@ const (
 	EventSideOpened EventType = "side_opened"
 	EventSideClosed EventType = "side_closed"
 	EventSideUsage  EventType = "side_usage"
-	EventError      EventType = "error"
+	// Parallel phases (SPEC §6.11), since 1.5: a task's commit was rebased
+	// onto the run branch, verified there and fast-forwarded (Commit is
+	// the run branch's new head, Branch the run branch); a task didn't
+	// integrate (Reason is "conflict" or "verify"); two active tasks both
+	// change one file (Task is the one that changed it last).
+	EventIntegrated        EventType = "integrated"
+	EventIntegrationFailed EventType = "integration_failed"
+	EventOverlap           EventType = "overlap"
+	EventError             EventType = "error"
+)
+
+// Why a task didn't integrate (SPEC §6.11): a rebase conflict, or verify
+// failing on the integrated tree. Reason on integration_failed.
+const (
+	FailedConflict = "conflict"
+	FailedVerify   = "verify"
 )
 
 // Why a needs_you event says igris waits on the owner (SPEC §13). Readers
@@ -82,6 +97,7 @@ const (
 	ReasonPlanChanged   = "plan_changed"    // the plan changed outside igris (SPEC §5.4)
 	ReasonPlanApproval  = "plan_approval"   // a plan awaits approval in igris (SPEC §6.3); since 1.1
 	ReasonRankMismatch  = "rank_mismatch"   // the session runs on a model its rank doesn't resolve to (SPEC §6.9); since 1.1
+	ReasonIntegration   = "integration"     // the task didn't integrate and the owner decides (SPEC §6.11); since 1.5
 	ReasonOther         = "other"
 )
 
@@ -99,7 +115,7 @@ var reasons = map[string]bool{
 	ReasonIdle: true, ReasonBlocked: true, ReasonSkipRequest: true, ReasonSessionLost: true,
 	ReasonTaskOverdue: true, ReasonVerifyLimit: true, ReasonVerifyNotSent: true, ReasonHookFailed: true,
 	ReasonCommit: true, ReasonResetRequest: true, ReasonPlanChanged: true, ReasonWaiting: true,
-	ReasonPlanApproval: true, ReasonRankMismatch: true,
+	ReasonPlanApproval: true, ReasonRankMismatch: true, ReasonIntegration: true,
 }
 
 // Event is one line of .igris/runs.jsonl (SPEC §13, docs/runlog.md). Fields
@@ -124,7 +140,9 @@ type Event struct {
 	Title   string `json:"title,omitempty"`
 	Owner   string `json:"owner,omitempty"`
 	Profile string `json:"profile,omitempty"` // verify profile, on verify_*
-	Commit  string `json:"commit,omitempty"`  // commit SHA, on committed
+	// Commit is the commit SHA on committed, and the run branch's new head
+	// on integrated (SPEC §6.11).
+	Commit string `json:"commit,omitempty"`
 	// Branch is the worktree branch on run_started, in worktree mode
 	// (SPEC §6.8); since 1.5 the task's branch on task_started and
 	// task_retried in a parallel phase, and the run branch on integrated
@@ -136,8 +154,11 @@ type Event struct {
 	Slot *int `json:"slot,omitempty"`
 	// DurationMS is the task's time in this run on task_done/task_skipped,
 	// the verify command's on verify_*, and the run's on run_stopped.
-	DurationMS int64  `json:"duration_ms,omitempty"`
-	Reason     string `json:"reason,omitempty"` // on needs_you and needs_you_clear
+	DurationMS int64 `json:"duration_ms,omitempty"`
+	// Reason is why igris waits on needs_you and needs_you_clear, and why
+	// a task didn't integrate on integration_failed (FailedConflict or
+	// FailedVerify, SPEC §6.11).
+	Reason string `json:"reason,omitempty"`
 	// PlanFile and PlanSHA256 name the plan on plan_* events: its file
 	// under .igris/plans/ and the sha256 of its text, never the text
 	// (SPEC §6.3). Mode is the mode an approved session switches to, on
@@ -385,7 +406,12 @@ func (e Event) checked() Event {
 	if e.Side != "" && !backend.ValidSideID(e.Side) {
 		e.Side = ""
 	}
-	if e.Reason != "" && !reasons[e.Reason] {
+	switch {
+	case e.Type == EventIntegrationFailed:
+		if e.Reason != FailedConflict && e.Reason != FailedVerify {
+			e.Reason = ReasonOther
+		}
+	case e.Reason != "" && !reasons[e.Reason]:
 		e.Reason = ReasonOther
 	}
 	if e.Attempt < 0 {

@@ -460,8 +460,8 @@ var knownKinds = func() map[string]engine.EventKind {
 		engine.SessionLost, engine.TaskOverdue, engine.RankMismatch, engine.QuotaRead, engine.Asked,
 		engine.PlanClosed, engine.Retrying, engine.TaskSkipped, engine.TaskReset, engine.ResetDropped,
 		engine.YourTurn, engine.VerifyStarted, engine.VerifyPassed, engine.VerifyFailed, engine.VerifyLimit,
-		engine.Committed, engine.NotCommitted, engine.HookStarted, engine.HookFailed, engine.Warning,
-		engine.RunFailed, engine.RunStopped,
+		engine.Committed, engine.NotCommitted, engine.Integrated, engine.IntegrationFailed, engine.Overlap,
+		engine.HookStarted, engine.HookFailed, engine.Warning, engine.RunFailed, engine.RunStopped,
 	} {
 		m[string(k)] = k
 	}

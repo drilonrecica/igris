@@ -720,6 +720,12 @@ func formatEvent(ev engine.Event) []string {
 			return []string{"? " + ev.Detail, "  type `retry continue`, `retry fresh`, `done [note]`, `skip <reason>` or `stop`"}
 		case engine.QuestionHookFailed:
 			return []string{"? " + ev.Detail, "  type `retry`, `done [note]`, `skip <reason>` or `stop`"}
+		case engine.QuestionIntegration:
+			lines := []string{"? " + ev.Detail}
+			for _, l := range ev.Output {
+				lines = append(lines, "  | "+l)
+			}
+			return append(lines, "  type `retry fresh`, `done [note]`, `skip <reason>` or `stop`")
 		case engine.QuestionConfirmReset:
 			return []string{"? " + ev.Detail, "  type `reset yes " + id + "` or `reset no " + id + "`"}
 		default:
@@ -739,6 +745,16 @@ func formatEvent(ev engine.Event) []string {
 		return []string{id + " committed: " + ev.Detail}
 	case engine.NotCommitted:
 		return []string{id + " not committed: " + ev.Detail}
+	case engine.Integrated:
+		return []string{id + " integrated " + ev.Detail}
+	case engine.IntegrationFailed:
+		lines := []string{id + " " + ev.Detail}
+		for _, l := range ev.Output {
+			lines = append(lines, "  | "+l)
+		}
+		return lines
+	case engine.Overlap:
+		return []string{"overlap: " + ev.Detail}
 	case engine.TaskDone:
 		return []string{withNote(id+" done", ev.Detail)}
 	case engine.TaskSkipped:
