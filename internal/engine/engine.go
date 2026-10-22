@@ -216,6 +216,9 @@ type Engine struct {
 	// first active task, state.json's current one; nil with none.
 	active []*launch
 	task   *launch
+	// checks are the active tasks of a parallel phase whose verify is
+	// queued or runs (check), in the order their done signals came in.
+	checks []*launch
 	// parallel records, per phase, whether it runs its tasks at once
 	// (parallelOn); round counts the scheduling rounds that started or
 	// picked up a task (the dry run numbers its steps by it).
@@ -383,6 +386,11 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 		e.log(state.Event{Type: state.EventError, Detail: err.Error()})
 		e.emit(Event{Kind: RunFailed, Detail: err.Error()})
 		e.toast(ctx, notifyRunError, "the run stopped with an error")
+	}
+	for _, l := range e.active {
+		// A verify still running is stopped: the task's done signal stays,
+		// and the next run verifies it again.
+		e.dropCheck(l)
 	}
 	for _, l := range e.active {
 		// The task stays in progress; its attempt's usage so far is logged

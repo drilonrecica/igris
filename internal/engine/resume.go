@@ -24,11 +24,11 @@ func (e *Engine) reattach(ctx context.Context, cur *state.Current) error {
 	switch {
 	case t == nil:
 		e.warn(fmt.Sprintf("the interrupted task %s is no longer in the plan; igris forgets it", cur.TaskID))
-		return e.forget(cur.TaskID)
+		return e.forget(ctx, cur.TaskID)
 	case t.Status != plan.InProgress:
 		// The owner settled it while igris was not running.
 		e.warn(fmt.Sprintf("the interrupted task %s is %s in the plan now; igris leaves it", t.ID, t.Status))
-		return e.forget(cur.TaskID)
+		return e.forget(ctx, cur.TaskID)
 	}
 	if t.Phase != nil {
 		e.phase = t.Phase.ID
@@ -175,8 +175,10 @@ func (e *Engine) logResumed(l *launch, detail string) {
 	e.log(ev)
 }
 
-// forget drops the interrupted task id from state.json.
-func (e *Engine) forget(id string) error {
+// forget drops the interrupted task id from state.json, and its worktree
+// in a parallel phase (SPEC §6.11) with it.
+func (e *Engine) forget(ctx context.Context, id string) error {
+	e.dropWorktree(ctx, e.run.ActiveTask(id))
 	e.run.Deactivate(id)
 	e.dropLaunch(id)
 	return e.dir.SaveRun(e.run)

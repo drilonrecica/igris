@@ -53,7 +53,7 @@ func (e *Engine) commit(ctx context.Context, l *launch, note string) (stopped, r
 	if e.cfg.Run.Commit == CommitNever {
 		return false, false, nil
 	}
-	status, err := e.git(ctx, "status", "--porcelain")
+	status, err := e.git(ctx, l, "status", "--porcelain")
 	if err != nil {
 		return false, false, err
 	}
@@ -89,7 +89,7 @@ func (e *Engine) commit(ctx context.Context, l *launch, note string) (stopped, r
 		}
 	}
 
-	if _, err := e.git(ctx, "add", "-A"); err != nil {
+	if _, err := e.git(ctx, l, "add", "-A"); err != nil {
 		return false, false, err
 	}
 	args := []string{"commit", "-m", msg}
@@ -99,18 +99,18 @@ func (e *Engine) commit(ctx context.Context, l *launch, note string) (stopped, r
 	if approved != "" {
 		args = append(args, "-m", "Approved plan:\n\n"+approved)
 	}
-	if _, err := e.git(ctx, args...); err != nil {
+	if _, err := e.git(ctx, l, args...); err != nil {
 		return false, false, fmt.Errorf("%w; fix what git reports (e.g. a failing hook), commit the changes of %s by hand or set commit = \"never\" in [run], then run `igris arise` again", err, t.ID)
 	}
-	e.log(state.Event{Type: state.EventCommitted, Commit: e.head(ctx), Detail: msg})
+	e.log(state.Event{Type: state.EventCommitted, Commit: e.head(ctx, l), Detail: msg})
 	e.emit(Event{Kind: Committed, Detail: msg})
 	return false, false, nil
 }
 
-// head is the commit SHA HEAD points at, for the run log; "" with a
+// head is the commit SHA HEAD points at where l works, for the run log; "" with a
 // warning if git can't say.
-func (e *Engine) head(ctx context.Context) string {
-	out, err := e.git(ctx, "rev-parse", "HEAD")
+func (e *Engine) head(ctx context.Context, l *launch) string {
+	out, err := e.git(ctx, l, "rev-parse", "HEAD")
 	sha := strings.TrimSpace(out)
 	if err == nil && !commitSHA.MatchString(sha) {
 		err = fmt.Errorf("git rev-parse HEAD printed %q, not a commit hash", textsafe.Line(sha))
@@ -125,10 +125,11 @@ func (e *Engine) head(ctx context.Context) string {
 // commitSHA is a full SHA-1 or SHA-256 commit hash.
 var commitSHA = regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`)
 
-// git runs git where the run works (the project root or its worktree, SPEC
-// §6.8) and returns its output; a non-zero exit is an error.
-func (e *Engine) git(ctx context.Context, args ...string) (string, error) {
-	out, err := e.gitIn(ctx, e.work, args...)
+// git runs git where l's task works (the project root, the run's worktree
+// or the task's own, SPEC §6.8, §6.11) and returns its output; a non-zero
+// exit is an error.
+func (e *Engine) git(ctx context.Context, l *launch, args ...string) (string, error) {
+	out, err := e.gitIn(ctx, e.workDir(l), args...)
 	if err != nil {
 		return "", fmt.Errorf("commit: %w", err)
 	}

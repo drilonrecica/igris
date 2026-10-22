@@ -32,6 +32,9 @@ func (e *Engine) addLaunch(l *launch) {
 // dropLaunch forgets the active task id, and the focus with it when it was
 // the focused one.
 func (e *Engine) dropLaunch(id string) {
+	if l := e.launchOf(id); l != nil {
+		e.dropCheck(l)
+	}
 	e.active = slices.DeleteFunc(e.active, func(l *launch) bool { return l.t.ID == id })
 	if e.task != nil && e.task.t.ID == id {
 		e.task = nil
@@ -341,6 +344,9 @@ func (e *Engine) routeCommands() {
 // stops.
 func (e *Engine) step(ctx context.Context, l *launch) (ended, stopped bool, err error) {
 	e.checkConfig(ctx) // before the signal, so a config edit is seen before the task is accepted
+	if l.check != nil {
+		return e.stepCheck(ctx, l)
+	}
 	var v verdict
 	var decided bool
 	if l.t.Owner.IsAgent() {
@@ -356,27 +362,23 @@ func (e *Engine) step(ctx context.Context, l *launch) (ended, stopped bool, err 
 
 // conclude acts on the verdict v of l's task: a done signal is verified
 // (SPEC §6.4) and committed (§6.5) before the task is marked done; the
-// owner's word is final. A failed verify leaves the task active.
+// owner's word is final. A failed verify leaves the task active; so does
+// a verify in a parallel phase until its check ends (stepCheck).
 func (e *Engine) conclude(ctx context.Context, l *launch, v verdict) (ended, stopped bool, err error) {
 	switch v.kind {
 	case verdictDone:
 		if l.t.Owner.IsAgent() && v.sig != nil && e.verifies(l.t) {
+			if l.isolated() {
+				// Beside the other tasks' sessions (SPEC §6.11).
+				e.queueVerify(ctx, l, v)
+				return false, false, nil
+			}
 			passed, err := e.verify(ctx, l)
 			if err != nil || !passed {
 				return false, false, err // the task stays in progress
 			}
 		}
-		// A reset requested while the task was verified is answered and
-		// applied before it is accepted, never lost (SPEC §6.2).
-		if reset, stopped, err := e.settleResets(ctx, l.t.ID); err != nil || stopped || reset {
-			return reset, stopped, err
-		}
-		if l.t.Owner.IsAgent() {
-			if stopped, reset, err := e.commit(ctx, l, v.note); err != nil || stopped || reset {
-				return reset, stopped, err
-			}
-		}
-		return true, false, e.finish(ctx, l, plan.Done, v.note)
+		return e.accept(ctx, l, v)
 	case verdictSkip:
 		if reset, stopped, err := e.settleResets(ctx, l.t.ID); err != nil || stopped || reset {
 			return reset, stopped, err
@@ -386,4 +388,20 @@ func (e *Engine) conclude(ctx context.Context, l *launch, v verdict) (ended, sto
 		return true, false, nil
 	}
 	return false, true, nil
+}
+
+// accept accepts the done v of l's task once verified, or the owner's
+// done: it is committed (SPEC §6.5) before it is marked done.
+func (e *Engine) accept(ctx context.Context, l *launch, v verdict) (ended, stopped bool, err error) {
+	// A reset requested while the task was verified is answered and
+	// applied before it is accepted, never lost (SPEC §6.2).
+	if reset, stopped, err := e.settleResets(ctx, l.t.ID); err != nil || stopped || reset {
+		return reset, stopped, err
+	}
+	if l.t.Owner.IsAgent() {
+		if stopped, reset, err := e.commit(ctx, l, v.note); err != nil || stopped || reset {
+			return reset, stopped, err
+		}
+	}
+	return true, false, e.finish(ctx, l, plan.Done, v.note)
 }

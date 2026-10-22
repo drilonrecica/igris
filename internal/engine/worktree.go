@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/drilonrecica/igris/internal/checks"
-	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/runner"
 	"github.com/drilonrecica/igris/internal/state"
 )
@@ -79,6 +78,15 @@ func (e *Engine) pickWorktree(prev *state.Run, resumed bool, carried *state.Curr
 		id := carried.TaskID
 		return fmt.Errorf("the interrupted task %s ran in the worktree %s (branch %s), which is gone (or no longer a directory): restore it with `git worktree add %s %s`, or reset the task with `igris reset %s`",
 			id, wt.Path, wt.Branch, wt.Path, wt.Branch, id)
+	}
+	if c.New && prev != nil {
+		// A task of a parallel phase works in a worktree off the project's
+		// branch, and state.json holds the worktrees of one run.
+		for _, a := range prev.Active {
+			if wt := a.Worktree; wt != nil {
+				return fmt.Errorf("the interrupted task %s works in its worktree %s, made from the project's branch, so this run can't work in a worktree of its own: finish it in a run without worktree mode, or reset it with `igris reset %s`", a.TaskID, wt.Path, a.TaskID)
+			}
+		}
 	}
 	e.run.Worktree, e.newWorktree, e.leftover = c.Reuse, c.New, c.Leftover
 	return nil
@@ -170,24 +178,30 @@ func (e *Engine) planFiles() []string {
 	return append([]string{e.planPath}, e.included...)
 }
 
-// planFile is the plan's path as the task prompt names it: as configured,
+// inWorktree says whether l's sessions work in a worktree: the run's
+// (SPEC §6.8) or the task's own (§6.11).
+func (e *Engine) inWorktree(l *launch) bool {
+	return (e.run != nil && e.run.Worktree != nil) || l.isolated()
+}
+
+// planFile is the plan's path as l's task prompt names it: as configured,
 // or the absolute path in the project root from a worktree, whose own copy
-// of the plan igris doesn't update (SPEC §6.8).
-func (e *Engine) planFile() string {
-	if e.run != nil && e.run.Worktree != nil {
+// of the plan igris doesn't update (SPEC §6.8, §6.11).
+func (e *Engine) planFile(l *launch) string {
+	if e.inWorktree(l) {
 		return e.planPath
 	}
 	return e.cfg.Plan
 }
 
-// taskFile is the file t's row is in as the task prompt names it (SPEC
-// §6.1): planFile for a row of the main plan, else the include's path
-// joined to planFile's directory, so in the same form.
-func (e *Engine) taskFile(t *plan.Task) string {
-	if t.Phase == nil || t.Phase.Include == "" {
-		return e.planFile()
+// taskFile is the file l's task's row is in as the task prompt names it
+// (SPEC §6.1): planFile for a row of the main plan, else the include's
+// path joined to planFile's directory, so in the same form.
+func (e *Engine) taskFile(l *launch) string {
+	if t := l.t; t.Phase != nil && t.Phase.Include != "" {
+		return filepath.Join(filepath.Dir(e.planFile(l)), filepath.FromSlash(t.Phase.Include))
 	}
-	return filepath.Join(filepath.Dir(e.planFile()), filepath.FromSlash(t.Phase.Include))
+	return e.planFile(l)
 }
 
 // isDir reports whether path is a directory itself, not a symlink to one:
@@ -225,4 +239,146 @@ func (w *WorktreeResult) Closing() []string {
 		lines = append(lines, fmt.Sprintf("its worktree %s has uncommitted changes and is kept", w.Path))
 	}
 	return lines
+}
+
+// A task's own worktree in a parallel phase (SPEC §6.11): its sessions,
+// verify, task hooks and the git of its commit run in
+// .igris/worktrees/<run-id>-<ID> on igris/<run-id>-<ID>, made from the run
+// branch's head. The plan, igris.toml and .igris/ stay in the project
+// root, as in worktree mode; the worktree's copy of the plan is never
+// written.
+
+// isolated says whether l's task works in a worktree of its own: it holds
+// a slot in a parallel phase, or state.json records its worktree.
+func (l *launch) isolated() bool {
+	return l.cur != nil && (l.cur.Slot != nil || l.cur.Worktree != nil)
+}
+
+// workDir is where l's sessions, verify, task hooks and git run: its own
+// worktree once it has one, else where the run works (the project root or
+// the run's worktree, SPEC §6.8).
+func (e *Engine) workDir(l *launch) string {
+	if l != nil && l.cur != nil && l.cur.Worktree != nil {
+		return e.worktreeAbs(l.cur.Worktree)
+	}
+	return e.work
+}
+
+// slotEnv is IGRIS_SLOT for l's task in a parallel phase, for its session,
+// verify and task hooks (SPEC §6.11); nil outside one. run.env doesn't
+// drop it: it is added after the environment is limited.
+func slotEnv(l *launch) []string {
+	if l == nil || l.cur == nil || l.cur.Slot == nil {
+		return nil
+	}
+	return []string{fmt.Sprintf("IGRIS_SLOT=%d", *l.cur.Slot)}
+}
+
+// taskWorktree is the worktree task id gets in a parallel phase. Its
+// <run-id> is the run's worktree's, or else that of the worktrees of the
+// tasks still active, which a resumed run keeps (state.json holds the
+// worktrees of one run, SPEC §13), or else this run's ID.
+func (e *Engine) taskWorktree(id string) *state.Worktree {
+	base := e.runID
+	if wt := e.run.Worktree; wt != nil {
+		base = strings.TrimPrefix(wt.Branch, "igris/")
+	} else {
+		for _, c := range e.run.Active {
+			if c.Worktree != nil {
+				base = strings.TrimSuffix(strings.TrimPrefix(c.Worktree.Branch, "igris/"), "-"+c.TaskID)
+				break
+			}
+		}
+	}
+	return &state.Worktree{Path: filepath.Join(state.WorktreesDir, base+"-"+id), Branch: "igris/" + base + "-" + id}
+}
+
+// runBranch is the start point of a task's worktree: the run branch, the
+// run's worktree's branch in worktree mode, else the branch checked out in
+// the project root (SPEC §6.11).
+func (e *Engine) runBranch() string {
+	if wt := e.run.Worktree; wt != nil {
+		return wt.Branch
+	}
+	return "HEAD"
+}
+
+// ensureWorktree gives l's task in a parallel phase its worktree before a
+// session igris opens for it (SPEC §6.11): after in progress is written,
+// before before_task. A worktree state.json records is used again while it
+// is there (a retry, a resumed run); one that is gone is made again from
+// its branch if that is still there, else anew from the run branch's
+// head. A worktree there but not recorded (kept for its uncommitted
+// changes after a reset, or left by a crash before state.json recorded
+// it) is taken over; how says whether a first session does, with a
+// warning. A dry run makes none.
+func (e *Engine) ensureWorktree(ctx context.Context, l *launch, how startKind) error {
+	if !l.t.Owner.IsAgent() || !l.isolated() || e.opts.noGit {
+		return nil
+	}
+	id, root := l.t.ID, e.dir.Root()
+	wt := l.cur.Worktree
+	if wt == nil {
+		wt = e.taskWorktree(id)
+	}
+	abs := e.worktreeAbs(wt)
+	switch _, err := os.Lstat(abs); {
+	case isDir(abs):
+		if l.cur.Worktree == nil && how == startNew {
+			// Kept for its uncommitted changes when the task was reset:
+			// they stay for the next session, as in the shared tree.
+			e.warn(fmt.Sprintf("%s works in the worktree %s kept from an earlier attempt, with its changes (branch %s)", id, wt.Path, wt.Branch))
+		}
+	case err == nil:
+		return fmt.Errorf("%s is not a directory igris made for %s: remove it, then run `igris arise` again", wt.Path, id)
+	default:
+		var gitErr error
+		if _, err := e.gitIn(ctx, root, "rev-parse", "--verify", "--quiet", "refs/heads/"+wt.Branch); err == nil {
+			// The branch outlived its worktree: git still lists the
+			// missing directory until it is pruned.
+			if _, gitErr = e.gitIn(ctx, root, "worktree", "prune"); gitErr == nil {
+				_, gitErr = e.gitIn(ctx, root, "worktree", "add", wt.Path, wt.Branch)
+			}
+		} else {
+			_, gitErr = e.gitIn(ctx, root, "worktree", "add", "-b", wt.Branch, wt.Path, e.runBranch())
+		}
+		if gitErr != nil {
+			return fmt.Errorf("make the worktree %s of %s: %w; fix what git reports, then run `igris arise` again", wt.Path, id, gitErr)
+		}
+	}
+	if l.cur.Worktree == nil {
+		l.cur.Worktree = wt
+		return e.dir.SaveRun(e.run)
+	}
+	return nil
+}
+
+// dropWorktree removes the worktree of rec's task once the task is done,
+// skipped or reset (SPEC §6.11), and its branch with it. A worktree with
+// uncommitted changes is kept and named, and so is a branch with commits
+// the run branch doesn't have (`git branch -d` refuses it).
+func (e *Engine) dropWorktree(ctx context.Context, rec *state.Current) {
+	if rec == nil || rec.Worktree == nil || e.opts.noGit {
+		return
+	}
+	wt, root := rec.Worktree, e.dir.Root()
+	if abs := e.worktreeAbs(wt); isDir(abs) {
+		out, err := e.gitIn(ctx, abs, "status", "--porcelain")
+		if err != nil || strings.TrimSpace(out) != "" {
+			e.warn(fmt.Sprintf("the worktree %s of %s has uncommitted changes and is kept (branch %s)", wt.Path, rec.TaskID, wt.Branch))
+			return
+		}
+		if _, err := e.gitIn(ctx, root, "worktree", "remove", wt.Path); err != nil {
+			e.warn(fmt.Sprintf("keep the worktree %s of %s: %v", wt.Path, rec.TaskID, err))
+			return
+		}
+	}
+	if _, err := e.gitIn(ctx, root, "rev-parse", "--verify", "--quiet", "refs/heads/"+wt.Branch); err != nil {
+		return // gone already
+	}
+	// In the run's work dir, where the run branch is checked out: -d
+	// deletes only a branch merged into it.
+	if _, err := e.gitIn(ctx, e.work, "branch", "-d", wt.Branch); err != nil {
+		e.warn(fmt.Sprintf("the branch %s of %s has commits the run branch doesn't and is kept: git merge %s", wt.Branch, rec.TaskID, wt.Branch))
+	}
 }

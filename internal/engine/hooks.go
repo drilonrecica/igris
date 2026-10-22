@@ -30,8 +30,8 @@ const (
 func (e *Engine) runsHooks() bool { return !e.opts.noHooks }
 
 // runHook runs the task hook name with argv from the config snapshot for
-// l's task (SPEC §6.7): as argv, never through a shell, in the project
-// root, with igris's environment plus the IGRIS_* variables. result is
+// l's task (SPEC §6.7): as argv, never through a shell, where the task
+// works (workDir), with igris's environment plus the IGRIS_* variables. result is
 // IGRIS_RESULT, set for after_task only. It returns the short reason of a
 // failure ("" when the hook passed or there is none); the output tail is
 // shown in the feed only. err is set only when ctx ended.
@@ -50,6 +50,7 @@ func (e *Engine) runHook(ctx context.Context, l *launch, name string, argv []str
 		"IGRIS_RANK="+t.Rank,
 		"IGRIS_MODEL="+l.model,
 	)
+	env = append(env, slotEnv(l)...)
 	if name == hookAfter {
 		env = append(env, "IGRIS_RESULT="+result.String())
 	}
@@ -58,7 +59,7 @@ func (e *Engine) runHook(ctx context.Context, l *launch, name string, argv []str
 	res, runErr := e.runner.Run(ctx, runner.Cmd{
 		Name:     argv[0],
 		Args:     argv[1:],
-		Dir:      e.work,
+		Dir:      e.workDir(l),
 		Env:      env,
 		Timeout:  timeout,
 		Combined: true,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -62,17 +63,30 @@ func (e *Engine) verifies(t *plan.Task) bool {
 // session so the agent can fix it; at the limit the owner is called instead.
 // Only a command that can't be run at all is an error.
 func (e *Engine) verify(ctx context.Context, l *launch) (bool, error) {
-	t := l.t
-	profile, script := e.verifyProfile(t)
-	timeout := e.cfg.Run.VerifyTimeout.Std()
+	profile, script, c := e.verifyCmd(l)
 	e.emit(Event{Kind: VerifyStarted, Detail: script})
-	c := runner.Shell(script, e.work, timeout)
-	c.Combined = true
-	c.Env = e.commandEnv()
 	began := e.clock.Now()
 	res, err := e.runner.Run(ctx, c)
-	took := e.sinceMS(began)
+	return e.verified(ctx, l, profile, script, res, err, e.sinceMS(began))
+}
 
+// verifyCmd is the verify command of l's task: its profile's script, run
+// with `sh -c` where the task works, with the environment of SPEC §6.4 and
+// IGRIS_SLOT in a parallel phase (§6.11).
+func (e *Engine) verifyCmd(l *launch) (profile, script string, c runner.Cmd) {
+	profile, script = e.verifyProfile(l.t)
+	c = runner.Shell(script, e.workDir(l), e.cfg.Run.VerifyTimeout.Std())
+	c.Combined = true
+	c.Env = append(e.commandEnv(), slotEnv(l)...)
+	return profile, script, c
+}
+
+// verified acts on the result of l's verify, which ran the script of
+// profile for took milliseconds: res and err are what the runner
+// returned. It reports whether it passed (see verify).
+func (e *Engine) verified(ctx context.Context, l *launch, profile, script string, res runner.Result, err error, took int64) (bool, error) {
+	t := l.t
+	timeout := e.cfg.Run.VerifyTimeout.Std()
 	var why string
 	switch {
 	case errors.Is(err, runner.ErrTimeout):
@@ -130,6 +144,109 @@ func (e *Engine) verify(ctx context.Context, l *launch) (bool, error) {
 		e.needsYou(ctx, notifyNeedsInput, state.ReasonVerifyNotSent, "the verify failure could not be sent to the session; tell it yourself", "verify failure not sent to the session")
 	}
 	return false, nil
+}
+
+// check is the verify of a task in a parallel phase (SPEC §6.11). It
+// runs beside the poll loop, so the other tasks' sessions are watched
+// meanwhile; step picks up its result. With [parallel] serial_verify only
+// the first check of the queue runs, the others waiting in the order
+// their done signals came in.
+type check struct {
+	v       verdict // the done it verifies
+	started bool
+	profile string
+	script  string
+	began   time.Time
+	cancel  context.CancelFunc
+	done    chan struct{} // closed once res and err are set
+	res     runner.Result
+	err     error
+}
+
+// queueVerify verifies the done v of l's task beside the poll loop
+// (check): the task waits for its turn, if serial_verify makes it wait.
+func (e *Engine) queueVerify(ctx context.Context, l *launch, v verdict) {
+	l.check = &check{v: v}
+	e.checks = append(e.checks, l)
+	e.startChecks(ctx)
+}
+
+// startChecks starts the queued checks that may run: every one, or only
+// the first with serial_verify.
+func (e *Engine) startChecks(ctx context.Context) {
+	serial := e.cfg.Parallel.SerialVerifyOn()
+	for i, l := range e.checks {
+		if serial && i > 0 {
+			return
+		}
+		if !l.check.started {
+			e.startCheck(ctx, l)
+		}
+	}
+}
+
+// startCheck starts l's check: the command runs on a goroutine of its
+// own, which wakes the poll loop when it ends.
+func (e *Engine) startCheck(ctx context.Context, l *launch) {
+	k := l.check
+	was := e.task
+	e.focus(l)
+	var c runner.Cmd
+	k.profile, k.script, c = e.verifyCmd(l)
+	e.emit(Event{Kind: VerifyStarted, Detail: k.script})
+	e.task = was
+	k.started, k.began, k.done = true, e.clock.Now(), make(chan struct{})
+	var run context.Context
+	run, k.cancel = context.WithCancel(ctx)
+	go func() {
+		defer close(k.done)
+		k.res, k.err = e.runner.Run(run, c)
+		select {
+		case e.wake <- struct{}{}:
+		default: // a wake-up is already pending
+		}
+	}()
+}
+
+// stepCheck is a poll of l's task while its check is queued or runs:
+// nothing happens until it ends; then the result is acted on as verify
+// does, and a passed check accepts the task. The next queued check
+// starts first.
+func (e *Engine) stepCheck(ctx context.Context, l *launch) (ended, stopped bool, err error) {
+	k := l.check
+	if !k.started {
+		return false, false, nil
+	}
+	select {
+	case <-k.done:
+	default:
+		return false, false, nil
+	}
+	e.dropCheck(l)
+	e.startChecks(ctx)
+	if k.err != nil && ctx.Err() != nil {
+		return false, false, k.err
+	}
+	passed, err := e.verified(ctx, l, k.profile, k.script, k.res, k.err, e.sinceMS(k.began))
+	if err != nil || !passed {
+		return false, false, err // the task stays in progress
+	}
+	return e.accept(ctx, l, k.v)
+}
+
+// dropCheck takes l's check off the queue, stopping its command if it
+// still runs (the task was reset, or the run ends).
+func (e *Engine) dropCheck(l *launch) {
+	k := l.check
+	if k == nil {
+		return
+	}
+	l.check = nil
+	e.checks = slices.DeleteFunc(e.checks, func(o *launch) bool { return o == l })
+	if k.started {
+		k.cancel()
+		<-k.done
+	}
 }
 
 // tail returns the last n lines of out, and at most verifyTailBytes of

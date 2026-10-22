@@ -251,6 +251,7 @@ func (e *Engine) applyReset(ctx context.Context, s state.Signal) (current bool, 
 			model = l.model
 		}
 		e.closeForReset(ctx, rec, l)
+		e.dropWorktree(ctx, rec)
 		e.run.Deactivate(t.ID)
 		if err := e.dir.SaveRun(e.run); err != nil {
 			return false, err

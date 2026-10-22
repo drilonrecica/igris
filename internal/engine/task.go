@@ -61,6 +61,9 @@ type launch struct {
 	ep       episode
 	skip     *state.Signal
 	stateErr string
+	// check is the task's verify while it is queued or runs beside the
+	// poll loop, in a parallel phase (SPEC §6.11); nil otherwise.
+	check *check
 }
 
 // nextAttempt counts a new attempt of l's task in this run.
@@ -137,8 +140,12 @@ func (e *Engine) startTask(ctx context.Context, t *plan.Task, parallel bool) (st
 	if started, err := e.markInProgress(ctx, l, "mode "+l.mode); err != nil || !started {
 		return false, err
 	}
-	// The hook runs after the mark, so a failure or a crash leaves the
-	// known "in progress, no session" state (SPEC §6.7).
+	// The worktree and the hook come after the mark, so a failure or a
+	// crash leaves the known "in progress, no session" state (SPEC §6.7,
+	// §6.11).
+	if err := e.ensureWorktree(ctx, l, startNew); err != nil {
+		return false, err
+	}
 	if open, err := e.beforeSession(ctx, l); err != nil {
 		return false, err
 	} else if open {
@@ -219,7 +226,7 @@ func (e *Engine) prepareSession(l *launch, how startKind) (sessionStart, error) 
 		return st, err
 	}
 	var allow []string
-	if e.run.Worktree != nil {
+	if e.inWorktree(l) {
 		allow = e.worktreeAllow()
 	}
 	hooks, err := WriteHooks(e.dir, t.ID, e.opts.IgrisPath, allow, e.planApproval(st.mode), e.cfg.Usage.Statusline)
@@ -243,8 +250,8 @@ func (e *Engine) prepareSession(l *launch, how startKind) (sessionStart, error) 
 func (e *Engine) taskPrompt(l *launch, resumed bool) (string, error) {
 	return prompt.Render(prompt.VarsFor(l.t, prompt.Env{
 		Model:        l.model,
-		PlanFile:     e.planFile(),
-		TaskFile:     e.taskFile(l.t),
+		PlanFile:     e.planFile(l),
+		TaskFile:     e.taskFile(l),
 		CommitPolicy: e.cfg.Run.Commit,
 		Resumed:      resumed,
 	}), e.templatePath())
@@ -271,9 +278,10 @@ func (e *Engine) openSession(ctx context.Context, l *launch, st sessionStart) er
 	from := e.clock.Now() // a continued session's transcript holds the earlier attempts too
 	sess, err := e.be.OpenSession(ctx, backend.SessionSpec{
 		TaskID: t.ID,
-		Dir:    e.work,
+		Dir:    e.workDir(l),
 		Label:  t.ID + " · " + t.Rank,
 		Args:   st.args,
+		Env:    slotEnv(l),
 		// Keys the session's hook state (SPEC §6.3).
 		ClaudeSession: st.sessionID,
 	})
@@ -357,6 +365,9 @@ func (e *Engine) retry(ctx context.Context, l *launch, cont bool) error {
 	// opening (SPEC §13).
 	e.nextAttempt(l)
 	e.log(state.Event{Type: state.EventTaskRetried, Session: st.sessionID, Detail: detail, Slot: l.cur.Slot})
+	if err := e.ensureWorktree(ctx, l, how); err != nil {
+		return err
+	}
 	if open, err := e.beforeSession(ctx, l); err != nil || !open {
 		return err
 	}
@@ -372,7 +383,8 @@ func (e *Engine) templatePath() string {
 }
 
 // finish marks a task done or skipped, unblocks its dependents, logs it,
-// drops its signal, closes its session and runs the after_task hook.
+// drops its signal, closes its session, runs the after_task hook and
+// removes the task's worktree.
 func (e *Engine) finish(ctx context.Context, l *launch, to plan.Status, note string) error {
 	t := l.t
 	changes, err := e.writer.Update(ctx, func(p *plan.Plan) ([]plan.Change, error) {
@@ -413,11 +425,13 @@ func (e *Engine) finish(ctx context.Context, l *launch, to plan.Status, note str
 	e.emit(Event{Kind: kind, Detail: note, Changes: changes})
 	if t.Owner.IsAgent() {
 		// Once, after the session is closed; a failure is reported and the
-		// run goes on (SPEC §6.7).
+		// run goes on (SPEC §6.7). In the task's worktree, removed after it
+		// (SPEC §6.11).
 		if _, err := e.runHook(ctx, l, hookAfter, e.cfg.Hooks.AfterTask, to); err != nil {
 			return err
 		}
 	}
+	e.dropWorktree(ctx, l.cur)
 	e.dropLaunch(t.ID)
 	return nil
 }
