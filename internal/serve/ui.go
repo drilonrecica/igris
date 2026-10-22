@@ -27,6 +27,10 @@ const (
 	// PathLive is the page's live part alone, which the script fetches
 	// again when an event arrives.
 	PathLive = "/live"
+	// PathPlan is the plan page: the phases and their tasks, the modes.
+	PathPlan = "/plan"
+	// PathPlanLive is the plan page's live part alone.
+	PathPlanLive = "/plan/live"
 	// PathAct takes a form's command when the script doesn't send it.
 	PathAct = "/act"
 	// pathStatic serves the script, the stylesheet, the icon and the fonts.
@@ -52,6 +56,7 @@ var uiFiles embed.FS
 var uiTemplates = template.Must(template.New("ui").Funcs(template.FuncMap{
 	"mark":      statusMark,
 	"stateText": stateText,
+	"slug":      slug,
 	"offered":   func(m string) bool { return slices.Contains(remoteModes, m) },
 }).ParseFS(uiFiles, "ui/page.html"))
 
@@ -86,16 +91,15 @@ func (s *Server) UI(opts UIOptions) http.Handler {
 
 func (u *ui) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch p := r.URL.Path; p {
-	case "/", PathLive:
+	case "/", PathLive, PathPlan, PathPlanLive:
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			method(w, r, http.MethodGet)
 			return
 		}
-		name := "page"
-		if p == PathLive {
-			name = "live"
-		}
-		u.render(w, http.StatusOK, name, u.view(r))
+		name := map[string]string{"/": "page", PathLive: "live", PathPlan: "plan", PathPlanLive: "plan-live"}[p]
+		v := u.view(r)
+		v.Plan = p == PathPlan || p == PathPlanLive
+		u.render(w, http.StatusOK, name, v)
 	case PathAct:
 		if method(w, r, http.MethodPost) {
 			u.act(w, r)
@@ -227,6 +231,8 @@ func (v confirmView) Fields() [][2]string {
 type pageView struct {
 	CSRF string
 	Snap Snapshot
+	// Plan says the plan page is rendered, not the run's.
+	Plan bool
 	// Phases are the plan's phases; Phase is the run's, nil before it is
 	// known. Done and Total count its tasks done or skipped, and all.
 	Phases      []phaseView
@@ -536,7 +542,7 @@ func answersFor(t, csrf string) answers {
 // tap (the design, 2026-10-22).
 func sheetOf(c Current, csrf string) (questionView, bool) {
 	a := answersFor(c.Task, csrf)
-	v := questionView{}
+	v := questionView{Q: Event{Task: c.Task}}
 	switch c.State {
 	case StateYourTurn:
 		v.Kind, v.Title = "your turn", "Your turn: "+c.Task
@@ -704,6 +710,11 @@ func statusMark(status string) string {
 		return "–"
 	}
 	return "?"
+}
+
+// slug makes a status a class name: "in progress" → "in-progress".
+func slug(status string) string {
+	return strings.ReplaceAll(strings.ToLower(status), " ", "-")
 }
 
 // stateText says a card's state in words.

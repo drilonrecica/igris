@@ -242,7 +242,7 @@
     stream.close();
     clearTimeout(timer);
     conn.hidden = true;
-    var gone = live.querySelectorAll("form.cmd, section.question, .actions, details, section[aria-label='Run mode']");
+    var gone = live.querySelectorAll("form.cmd, section.question, .actions, details, section[aria-label='Run mode'], nav.bar");
     for (var i = 0; i < gone.length; i++) {
       gone[i].remove();
     }

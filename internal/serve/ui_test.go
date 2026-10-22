@@ -150,6 +150,8 @@ func uiPages(t *testing.T) map[string]string {
 	running(w.srv)
 	page("running.html", w, "/")
 	page("running-live.html", w, PathLive)
+	page("plan.html", w, PathPlan)
+	page("plan-live.html", w, PathPlanLive)
 	status, body, _ := w.postForm(PathAct, url.Values{"type": {CmdSkip}, "task": {"P1-03"}, "text": {"not <needed>"}})
 	if status != http.StatusOK {
 		t.Fatalf("skip without confirmation = %d", status)
@@ -193,6 +195,16 @@ func uiPages(t *testing.T) map[string]string {
 		w.srv.Publish(ev)
 	}
 	page("ended.html", w, "/")
+
+	w = uiWeb(t, "accept", true)
+	for _, ev := range []engine.Event{
+		{At: uiT0, Kind: engine.RunStarted, Run: "r5", Phase: "P1"},
+		{At: uiT0.Add(time.Minute), Kind: engine.TaskStarted, Task: "P1-03", Title: "Writer", Rank: "sonnet", Model: "claude-sonnet-5-5"},
+		{At: uiT0.Add(2 * time.Minute), Kind: engine.NeedsYou, Task: "P1-03", Detail: "waiting for a permission or an answer"},
+	} {
+		w.srv.Publish(ev)
+	}
+	page("blocked.html", w, "/")
 
 	w = uiWeb(t, "", false)
 	page("empty.html", w, "/")
@@ -374,6 +386,9 @@ func TestUIRoutes(t *testing.T) {
 		{"GET", "/", "", 401, "text/plain"},
 		{"GET", PathLive, "cookie", 200, "text/html"},
 		{"GET", PathLive, "", 401, "text/plain"},
+		{"GET", PathPlan, "cookie", 200, "text/html"},
+		{"GET", PathPlanLive, "cookie", 200, "text/html"},
+		{"GET", PathPlan, "", 401, "text/plain"},
 		{"GET", "/static/app.js", "cookie", 200, "text/javascript"},
 		{"GET", "/static/app.css", "cookie", 200, "text/css"},
 		{"GET", "/static/app.js", "", 401, "text/plain"},
@@ -399,6 +414,14 @@ func TestUIRoutes(t *testing.T) {
 	_, page, _ := w.get("/", "cookie")
 	if strings.Contains(live, "<html") || !strings.Contains(page, live) {
 		t.Error("the live part is not the page's")
+	}
+	_, planLive, _ := w.get(PathPlanLive, "cookie")
+	_, planPage, _ := w.get(PathPlan, "cookie")
+	if strings.Contains(planLive, "<html") || !strings.Contains(planPage, planLive) {
+		t.Error("the plan's live part is not the plan page's")
+	}
+	if !strings.Contains(page, `data-live="/live"`) || !strings.Contains(planPage, `data-live="/plan/live"`) {
+		t.Error("the pages don't say which live part the script fetches")
 	}
 }
 
@@ -443,6 +466,7 @@ func TestUIScriptEndsWithTheRun(t *testing.T) {
 		{".actions", `<div class="actions">`},
 		{"details", "<details>"},
 		{"section[aria-label='Run mode']", `<section aria-label="Run mode">`},
+		{"nav.bar", `<nav class="bar"`},
 	} {
 		if !strings.Contains(remove[1], c.sel) {
 			t.Errorf("app.js's ended keeps %s", c.sel)
@@ -514,5 +538,23 @@ func TestUIFormBodyBounded(t *testing.T) {
 	}
 	if got := w.send.got(); len(got) != 0 {
 		t.Errorf("sent %+v", got)
+	}
+}
+
+// Without JavaScript the fields a form needs are in the markup and shown:
+// /act checks the form's shape before it confirms, so Skip's reason and
+// Reject's feedback must be typed before the first tap.
+func TestUINoJSFields(t *testing.T) {
+	body := uiPages(t)["running.html"]
+	deny := strings.Index(body, `<input type="hidden" name="plan" value="deny">`)
+	if deny < 0 || !strings.Contains(body[deny:deny+600], `<textarea name="text"`) {
+		t.Error("the reject form has no feedback field")
+	}
+	skip := strings.Index(body, `<input type="hidden" name="type" value="skip">`)
+	if skip < 0 || !strings.Contains(body[skip:skip+600], `<input type="text" name="text"`) {
+		t.Error("the skip form has no reason field")
+	}
+	if strings.Contains(body, `class="field" hidden`) {
+		t.Error("a field is hidden in the markup")
 	}
 }
