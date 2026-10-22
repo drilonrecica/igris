@@ -85,6 +85,14 @@ The plan declares `<!-- igris:format 2 -->`, which igris 1.2 introduced for plan
 
 Run `igris notify test`. It sends a sample of each event to every channel and prints `ok` or the reason per channel: `connection refused`, `TLS failed`, `server answered 403 Forbidden`. igris doesn't follow redirects, so a `3xx` means the URL should be the final one. During quiet hours only the `break_through` events reach ntfy, Discord, Slack, Gotify and the webhook; the rest arrive as one digest afterwards. See [notifications](notifications.md).
 
+## The web UI doesn't start or the phone can't reach it
+
+`igris serve` says why in its output and `.igris/serve.log`. `… is reachable beyond loopback and Tailscale` means the address is not one igris binds on its own: use `127.0.0.1` (with `ssh -L`) or the machine's Tailscale address (`tailscale ip -4`), or pass `--listen-public` with `tls_cert` and `tls_key` under `[serve]`. `--listen-public needs TLS` and `the TLS certificate … doesn't load` name the missing or mismatched files; a host name is refused, use an IP address. If it binds but the phone gets nothing, check that the phone is on the tailnet, or that the `ssh -L` is still open. A page that answers `401` needs pairing again: run `igris serve token` (the token was rotated, or the cookie is gone). See [Control from your phone](control-from-your-phone.md).
+
+## An ntfy button says expired or already answered
+
+A button answers its question once, within 10 minutes, and only while that question is still waiting. It says `already answered` after anyone answers it elsewhere and `expired` after the time or the run is over. Buttons are left out when `[serve] http` is unset (`igris check` warns) or is `0.0.0.0`. Open the web UI or `igris attach` to answer.
+
 ## The ANTHROPIC_API_KEY warning
 
 If `ANTHROPIC_API_KEY` is set, Claude Code bills the API instead of your subscription. igris asks you to confirm at start. Unset the variable in the shell you run igris from to use your subscription.

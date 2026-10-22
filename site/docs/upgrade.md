@@ -85,3 +85,15 @@ What is new, all additive:
 - **A run view for several tasks:** one card per active task, one Needs-you queue, aggregated notifications.
 
 **Three things to know:** parallel costs more than it looks (your limits burn N times faster, every worktree needs its own caches, a dependency the plan leaves unsaid becomes a conflict: [what it costs](parallel-phases.md#what-it-costs)); `state.json` is now version 4, which igris 1.0 to 1.4 refuse, so finish a run (or `igris stop` and delete its state) before going back; and igris 1.0 to 1.4 refuse a format-3 plan with `plan format 3 needs a newer igris`.
+
+## From 1.5 to 1.6
+
+Install the new igris (or run `igris update`) and you are done: 1.6 only adds to 1.5, and nothing listens on the network until you set an address. A run interrupted under 1.5 resumes.
+
+What is new, all additive:
+
+- **[Control from your phone](control-from-your-phone.md).** `[serve] http = "ADDR:PORT"` (or `igris serve --http`) makes `igris serve` also answer on HTTP: a web UI for your phone that follows the run and answers its questions, plus `igris serve token` to pair a device by URL or QR code (`--rotate` unpairs all). Loopback and Tailscale addresses bind directly; any other needs `--listen-public` and `tls_cert` and `tls_key`. New file `.igris/serve-token`.
+- **ntfy answer buttons.** `actions = true` under `[notify.ntfy]` adds buttons to a question's message whose links answer that one question, once, for 10 minutes.
+- **The commit question is now notified** as `needs_input`, like every other question, so a run left alone says that it waits.
+
+**Two things to know:** whoever holds the pairing token controls the run (short of skip-permissions mode, which is never set remotely) until you run `igris serve token --rotate`; and the web UI's pages are not part of what 1.x promises, only the HTTP API is. `state.json` stays version 4 and plans need no change, so going back to 1.5 is fine (it ignores `.igris/serve-token`).

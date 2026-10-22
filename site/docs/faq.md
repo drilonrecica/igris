@@ -40,6 +40,10 @@ Yes, one run per project. They share your subscription's limits. See [running se
 
 Only where the plan says so. A phase runs one task at a time unless you mark it `<!-- igris:parallel -->` (since 1.5); then independent tasks run together, each in its own worktree, and are merged back in order. It costs more than it looks: see [Parallel phases](parallel-phases.md).
 
+## Can I control a run from my phone?
+
+Yes, since 1.6, once you set `[serve] http` to a Tailscale or loopback address (for `ssh -L`) and pair the phone with `igris serve token`. A web page follows the run and answers its questions, and ntfy messages can carry answer buttons. It is off by default, goes through no relay of ours, and never offers skip-permissions mode. See [Control from your phone](control-from-your-phone.md).
+
 ## Will an update break my plans and config?
 
 Not within 1.x. The plan format, `igris.toml`, the CLI, the `--json` output and the files in `.igris/` are frozen until 2.0: 1.x only adds. See [compatibility](../../docs/compatibility.md) and the [upgrade guide](upgrade.md).

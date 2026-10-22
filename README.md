@@ -292,7 +292,7 @@ Since 1.4, `igris arise` starts the run in a background `igris serve` and attach
 
 ### Control from your phone
 
-Since 1.6, `igris serve` can also listen on HTTP, for a web UI on your phone and for answering questions from ntfy's buttons. It is off until you give it an address:
+Since 1.6, `igris serve` can also listen on HTTP (the [site page](https://drilonrecica.github.io/igris/docs/control-from-your-phone.html) walks through Tailscale, `ssh -L` and pairing), for a web UI on your phone and for answering questions from ntfy's buttons. It is off until you give it an address:
 
 ```toml
 [serve]

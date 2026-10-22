@@ -2,6 +2,28 @@
 
 All notable changes to igris are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and igris uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Until 1.0, minor versions may change the plan format, config or CLI; such changes are called out here.
 
+## [1.6.0] - 2026-10-22
+
+igris 1.6 adds one thing to 1.5 and breaks nothing: you can follow a run and answer its questions from your phone. It is off until you set an address, there is no relay or igris cloud, and skip-permissions mode can never be set remotely. Plans, `igris.toml` and scripts written for 1.0 to 1.5 need no changes ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). The additions are a config table, two flags, a subcommand, a file, an ntfy option and an HTTP mapping of protocol 1. `state.json` stays version 4.
+
+### Added
+
+- **An HTTP listener in `igris serve`.** `[serve] http = "ADDR:PORT"` (or `igris serve --http ADDR:PORT`) serves protocol 1 over HTTP next to the socket: commands as `POST`, events as server-sent events. Loopback and Tailscale addresses (`100.64.0.0/10`, `fd7a:115c:a1e0::/48`) bind directly; any other needs `--listen-public` with `[serve] tls_cert` and `tls_key`, and serve warns. Never in `arise --no-tui` or `--dry-run`.
+- **Pairing.** `igris serve token [--rotate]` makes the project's random 32-byte token (`.igris/serve-token`, 0600) and prints a pairing URL and a QR code (drawn by a small standard-library encoder, `internal/qr`). Opening the URL sets an `HttpOnly`, `SameSite=Strict` cookie (`Secure` over TLS) and redirects to a URL without the token; scripts send `Authorization: Bearer`. `--rotate` unpairs every device at once. Failed authentication is rate-limited per address, cookie-authenticated changes carry a CSRF token and a same-origin check, and responses carry a strict CSP without inline script.
+- **A web UI for your phone.** Embedded in the binary, no build step: the run's phase, progress, mode and pause, the phases and tasks, a card per active task with its tail, and the actions of the narrow run view: answer questions, approve or reject a plan (feedback required), pause, stop, retry, done, skip and the mode for the next sessions. Stop, skip and done ask a second time. Skip-permissions modes are never offered and the API refuses them. [Control from your phone](https://drilonrecica.github.io/igris/docs/control-from-your-phone.html).
+- **ntfy answer buttons.** With `[notify.ntfy] actions = true` and the listener on, a question's message carries buttons (`Commit`/`Don't commit`, `Skip`/`Keep`, `Retry`/`Stop`, `Approve`/`Open`) whose links hold a single-use, 10-minute token bound to that question, kept only as a hash in serve's memory. Never your owner token; a replay or a late tap is refused. `igris check` warns when `actions` is set without `[serve] http`.
+- **The commit question is notified** as `needs_input`, like every other question that waits on you.
+- **Docs.** A site page "Control from your phone" (Tailscale, `ssh -L`, pairing), README section, an upgrade section, FAQ and troubleshooting entries, SPEC §10, §12, §14, §15.8, §16 and §19, threat model boundary B9 and risks 24 to 26, and compatibility rows (C4, C14, the token file).
+
+### Security
+
+- A remote security review (V16-05) found four low-severity issues, all fixed with regression tests: every request body is bounded to 1 MiB, tail reads are limited to 8 at once, a web form is shape-checked before its confirmation page, and an unknown message type's error is cut. Two limits are accepted and documented rather than coded around: a browser sends the cookie to every port of the listener's host, and `100.64.0.0/10` is the whole CGNAT range, not only Tailscale's.
+- Whoever holds the token controls the run, short of skip-permissions mode, until `igris serve token --rotate`.
+
+### Not promised
+
+The web UI's pages, paths and script may change in any 1.x release. The HTTP mapping of protocol 1, `.igris/serve-token` and the `[serve]` and `[notify.ntfy] actions` keys are frozen for 1.x.
+
 ## [1.5.0] - 2026-10-22
 
 igris 1.5 adds one thing to 1.4 and breaks nothing: the tasks of a phase can run at the same time, if the plan says so. A phase without the new marker runs one task at a time exactly as before, so plans, `igris.toml` and scripts written for 1.0 to 1.4 need no changes ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). Parallel costs more than it looks; read [what it costs](https://drilonrecica.github.io/igris/docs/parallel-phases.html#what-it-costs) before you use it. The additions are a plan format (3), a column, a config table, a flag, an environment variable, two fields and three events. `state.json` becomes version 4, which igris 1.0 to 1.4 refuse.
@@ -591,7 +613,8 @@ First release. Linux and macOS, herdr backend only. The full behavior is specifi
 - Release artifacts are not signed (checksums only); signing is planned.
 - No Homebrew tap yet.
 
-[Unreleased]: https://github.com/drilonrecica/igris/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/drilonrecica/igris/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/drilonrecica/igris/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/drilonrecica/igris/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/drilonrecica/igris/compare/v1.2.1...v1.4.0
 [1.2.1]: https://github.com/drilonrecica/igris/compare/v1.2.0...v1.2.1
