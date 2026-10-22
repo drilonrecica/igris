@@ -12,11 +12,13 @@ import (
 // without a topic, Discord, Slack and the webhook without a URL, Gotify
 // without a server and a token, and any channel whose events list is
 // empty. Quiet hours, break_through, task_done_digest and the channel
-// templates come from c (pass Immediate to turn the holding off). secrets holds the resolved env: references; every value is
+// templates come from c (pass Immediate to turn the holding off); ntfy
+// gets Options.Actions, as tuned, when its actions setting is on. secrets holds the resolved env: references; every value is
 // scrubbed from the errors the router reports. tune adjusts the router's
 // Options last (tests use it to avoid real sleeps).
 func FromConfig(c config.Notify, s config.Secrets, be backend.Backend, tune ...func(*Options)) *Router {
 	var entries []Entry
+	var ntfy *Ntfy
 	if c.Backend.Enabled && be != nil {
 		// The toast has no events setting: it gets the default events, the
 		// ones that need the owner or end a phase (SPEC §10), not task_done.
@@ -24,10 +26,8 @@ func FromConfig(c config.Notify, s config.Secrets, be backend.Backend, tune ...f
 		entries = append(entries, Entry{Channel: Toast{Backend: be}, Events: DefaultEvents, NeverHeld: true})
 	}
 	if c.Ntfy.Topic != "" && len(c.Ntfy.Events) > 0 {
-		entries = append(entries, Entry{
-			Channel: &Ntfy{Server: c.Ntfy.Server, Topic: c.Ntfy.Topic, Token: s.NtfyToken, Template: tmpl("ntfy", c.Ntfy.Template)},
-			Events:  toEvents(c.Ntfy.Events),
-		})
+		ntfy = &Ntfy{Server: c.Ntfy.Server, Topic: c.Ntfy.Topic, Token: s.NtfyToken, Template: tmpl("ntfy", c.Ntfy.Template)}
+		entries = append(entries, Entry{Channel: ntfy, Events: toEvents(c.Ntfy.Events)})
 	}
 	if s.DiscordWebhook != "" && len(c.Discord.Events) > 0 {
 		entries = append(entries, Entry{
@@ -64,6 +64,9 @@ func FromConfig(c config.Notify, s config.Secrets, be backend.Backend, tune ...f
 	}
 	for _, f := range tune {
 		f(&o)
+	}
+	if ntfy != nil && c.Ntfy.Actions {
+		ntfy.Actions = o.Actions
 	}
 	return New(o)
 }

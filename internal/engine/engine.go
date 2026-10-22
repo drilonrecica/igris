@@ -61,6 +61,11 @@ type Options struct {
 	// Notifier delivers notifications (SPEC §10); nil means a router built
 	// from Config.Notify, Secrets and Backend.
 	Notifier Notifier
+	// Actions makes the answer buttons of a question's ntfy message (SPEC
+	// §10): serve's, while its HTTP listener is on. It goes to the router
+	// built from Config.Notify, which uses it when [notify.ntfy] actions
+	// is on.
+	Actions notify.Actions
 
 	Phase   string // phase to run; "" resumes the previous run's phases
 	Through string // last phase to run; "" means only Phase (SPEC §5.3)
@@ -300,7 +305,9 @@ func New(opts Options) (*Engine, error) {
 	}
 	if opts.Notifier == nil {
 		// Quiet hours go by the run's clock.
-		opts.Notifier = notify.FromConfig(opts.Config.Notify, opts.Secrets, opts.Backend, func(o *notify.Options) { o.Now = opts.Clock.Now })
+		opts.Notifier = notify.FromConfig(opts.Config.Notify, opts.Secrets, opts.Backend, func(o *notify.Options) {
+			o.Now, o.Actions = opts.Clock.Now, opts.Actions
+		})
 	}
 	root := opts.State.Root()
 	e := &Engine{

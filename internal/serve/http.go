@@ -167,6 +167,12 @@ func (h *remote) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_ = rc.SetReadDeadline(time.Now().Add(bodyTimeout))
 		_ = rc.SetWriteDeadline(time.Now().Add(bodyTimeout))
 	}
+	if strings.HasPrefix(r.URL.Path, PathAction) {
+		// Its token is its authority: no cookie, so no other site can
+		// borrow one, and ntfy's web app sends its own Origin.
+		h.action(w, r)
+		return
+	}
 	if r.Method != http.MethodGet && r.Method != http.MethodHead && !h.sameOrigin(r) {
 		h.fail(w, r, http.StatusForbidden, "a request from another site is refused")
 		return
@@ -440,6 +446,7 @@ func (s *Server) remoteRequest(ctx context.Context, r Request) (Reply, int) {
 		}
 		cmd.Yes = false
 	}
+	s.answering(cmd)
 	if s.opts.Sender != nil {
 		s.opts.Sender.Send(cmd)
 	}

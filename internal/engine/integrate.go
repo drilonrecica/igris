@@ -87,8 +87,8 @@ func (e *Engine) stepIntegrate(ctx context.Context, l *launch) (ended, stopped b
 				continue
 			}
 			e.emit(Event{Kind: NotCommitted, Detail: "the owner declined"})
-			e.needsYou(ctx, notifyNeedsInput, state.ReasonCommit, "the commit of "+l.t.ID+" was declined; its worktree is kept: answer the commit question again, retry, skip or stop", "commit declined")
-			e.askCommit(l, g.msg)
+			asked := commitAsked(l, g.msg)
+			e.needsYouAsking(ctx, notifyNeedsInput, state.ReasonCommit, "the commit of "+l.t.ID+" was declined; its worktree is kept: answer the commit question again, retry, skip or stop", "commit declined", &asked)
 		case g.stage == integAsk && c.Kind == CmdRetry:
 			// The owner wants more from the session: its done is withdrawn.
 			if err := e.dir.RemoveSignal(l.t.ID); err != nil {
@@ -181,7 +181,8 @@ func (e *Engine) startIntegration(ctx context.Context, l *launch) (ended, stoppe
 	if e.cfg.Run.Commit == CommitAsk {
 		g.stage = integAsk
 		e.waitOn(state.ReasonCommit, "commit question")
-		e.askCommit(l, g.msg)
+		e.emit(commitAsked(l, g.msg))
+		e.toastAsking(ctx, notifyNeedsInput, commitWhat, QuestionCommit)
 		return false, false, nil
 	}
 	if err := e.commitChanges(ctx, l, g.msg, g.note, g.approved); err != nil {
@@ -191,10 +192,10 @@ func (e *Engine) startIntegration(ctx context.Context, l *launch) (ended, stoppe
 	return e.stepIntegrate(ctx, l)
 }
 
-// askCommit asks the commit question for l's task, without waiting for
-// the answer: the task's next steps take it.
-func (e *Engine) askCommit(l *launch, msg string) {
-	e.emit(Event{Kind: Asked, Question: QuestionCommit, Detail: fmt.Sprintf("commit the changes of %s as %q?", l.t.ID, msg)})
+// commitAsked is the commit question for l's task, asked without waiting
+// for the answer: the task's next steps take it.
+func commitAsked(l *launch, msg string) Event {
+	return Event{Kind: Asked, Question: QuestionCommit, Detail: fmt.Sprintf("commit the changes of %s as %q?", l.t.ID, msg)}
 }
 
 // queueIntegration puts l's committed task in line for the integrator.

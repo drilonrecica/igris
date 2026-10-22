@@ -75,7 +75,9 @@ func (e *Engine) runHook(ctx context.Context, l *launch, name string, argv []str
 	// The run log gets the reason, never the output (SPEC §6.7).
 	e.log(state.Event{Type: state.EventError, Detail: reason})
 	e.emit(Event{Kind: HookFailed, Detail: reason, Output: hookOutput(res.Stdout)})
-	e.toast(ctx, notifyRunError, reason)
+	if name == hookAfter {
+		e.toast(ctx, notifyRunError, reason)
+	} // before_task's notification asks its question (beforeSession)
 	return reason, nil
 }
 
@@ -138,9 +140,11 @@ func (e *Engine) beforeSession(ctx context.Context, l *launch) (opened bool, err
 		return true, nil
 	}
 	l.sess, l.lost = nil, true
-	// run_error is the notification (runHook); Needs you is the UI's.
+	// run_error is the notification, with the question's buttons; Needs
+	// you is the UI's.
 	e.emit(Event{Kind: NeedsYou, Detail: reason + "; no session was opened"})
 	e.waitOn(state.ReasonHookFailed, reason)
 	e.emit(Event{Kind: Asked, Question: QuestionHookFailed, Detail: "the " + hookBefore + " hook of " + l.t.ID + " failed: retry (runs the hook again), mark the task done, skip it, or stop"})
+	e.toastAsking(ctx, notifyRunError, reason, QuestionHookFailed)
 	return false, nil
 }

@@ -68,6 +68,10 @@ type Message struct {
 	// TaskID for templates. What then names them all and Body leaves the
 	// task out.
 	Tasks []string
+	// Question is the pending question the message announces (an
+	// engine.Question: commit, confirm_skip, …); "" for none. ntfy puts
+	// its answer buttons on it (SPEC §10).
+	Question string
 }
 
 // NeedYou is what a needs_input message for several tasks says:
@@ -178,6 +182,10 @@ type Options struct {
 	// Now is the clock quiet hours go by, in the location whose wall clock
 	// counts; nil means time.Now.
 	Now func() time.Time
+	// Actions makes the answer buttons of a question's ntfy message
+	// (SPEC §10); FromConfig gives it to ntfy when [notify.ntfy] actions
+	// is on. Nil: no buttons.
+	Actions Actions
 }
 
 // Immediate turns quiet hours and the task_done digest off, for a router

@@ -937,6 +937,9 @@ func TestHTTPWarnings(t *testing.T) {
 		{"[notify.gotify]\nserver = \"https://gotify.lan\"\ntoken = \"env:T\"\n", ""},
 		{"[notify.webhook]\nurl = \"http://hooks.lan/x\"\n", "notify.webhook.url uses http://, so the payload (and its signature) go unencrypted; use an https:// URL"},
 		{"[notify.webhook]\nurl = \"env:U\"\n", ""},
+		// ntfy's answer buttons need serve's HTTP listener (SPEC §12).
+		{"[notify.ntfy]\ntopic = \"t\"\nactions = true\n", "notify.ntfy.actions = true needs serve's HTTP listener: set [serve] http (SPEC §14), or the answer buttons are left out"},
+		{"[serve]\nhttp = \"127.0.0.1:7777\"\n[notify.ntfy]\ntopic = \"t\"\nactions = true\n", ""},
 	} {
 		c, err := Parse([]byte(tt.toml), "igris.toml")
 		if err != nil {

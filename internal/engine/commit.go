@@ -68,7 +68,7 @@ func (e *Engine) commit(ctx context.Context, l *launch, note string) (stopped, r
 
 	if e.cfg.Run.Commit == CommitAsk {
 		e.waitOn(state.ReasonCommit, "commit question")
-		yes, stopped := e.ask(ctx, QuestionCommit, fmt.Sprintf("commit the changes of %s as %q?", t.ID, msg))
+		yes, stopped := e.ask(ctx, QuestionCommit, fmt.Sprintf("commit the changes of %s as %q?", t.ID, msg), commitWhat)
 		if stopped {
 			return true, false, nil
 		}
@@ -85,6 +85,9 @@ func (e *Engine) commit(ctx context.Context, l *launch, note string) (stopped, r
 
 	return false, false, e.commitChanges(ctx, l, msg, note, approved)
 }
+
+// commitWhat is what the commit question's notification says.
+const commitWhat = "needs you (commit question)"
 
 // commitMessage renders the commit subject for l's task from
 // commit_message (SPEC §6.5) and returns it with the approved plan the
@@ -156,12 +159,13 @@ func (e *Engine) git(ctx context.Context, l *launch, args ...string) (string, er
 	return out, nil
 }
 
-// ask raises a yes/no question and waits for the owner's CmdAnswer. Other
-// task commands are rejected until it is answered; reset requests are
-// asked about meanwhile, never applied. stopped reports that the run
-// stopped instead.
-func (e *Engine) ask(ctx context.Context, q Question, text string) (yes, stopped bool) {
+// ask raises a yes/no question, notifies it (needs_input, a few words
+// in what) and waits for the owner's CmdAnswer. Other task commands are
+// rejected until it is answered; reset requests are asked about
+// meanwhile, never applied. stopped reports that the run stopped instead.
+func (e *Engine) ask(ctx context.Context, q Question, text, what string) (yes, stopped bool) {
 	e.emit(Event{Kind: Asked, Question: q, Detail: text})
+	e.toastAsking(ctx, notifyNeedsInput, what, q)
 	for {
 		e.checkConfig(ctx)
 		if e.stopping(ctx) {

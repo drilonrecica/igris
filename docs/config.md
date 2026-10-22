@@ -135,6 +135,7 @@
 | `token` | string | `""` | ntfy access token, or `"env:VAR"` to read it from the environment. |
 | `events` | list of strings | `["needs_input", "session_lost", "task_overdue", "rank_mismatch", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]` | Events sent to ntfy. A file igris writes leaves this out while it is the default list. Allowed: event names (see below). |
 | `template` | string | `""` | Message text template (SPEC §10), at most 1000 characters. Empty uses the default text. |
+| `actions` | boolean | `false` | Answer buttons on a pending question's message (SPEC §10): commit, skip, retry or stop, approve a plan. Needs serve's HTTP listener (`[serve] http` or `serve --http`). |
 
 ## `[notify.discord]`
 

@@ -2,6 +2,7 @@ package notify
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"mime"
 	"net/http"
@@ -13,6 +14,31 @@ import (
 // ntfyLimit is ntfy's cap on a message body, in bytes.
 const ntfyLimit = 4096
 
+// ntfyMaxActions is how many buttons ntfy shows on one message.
+const ntfyMaxActions = 3
+
+// Action is an ntfy action button (https://docs.ntfy.sh/publish/#action-buttons):
+// an http one POSTs to URL from the phone, a view one opens URL.
+type Action struct {
+	View  bool // a view action; else http with POST
+	Label string
+	URL   string
+}
+
+// Actions makes the answer buttons of a message that announces a pending
+// question (Message.Question, SPEC §10); none when it returns nil. It is
+// called on every attempt to send the message.
+type Actions func(m Message) []Action
+
+// ntfyAction is an action in ntfy's JSON form.
+type ntfyAction struct {
+	Action string `json:"action"`
+	Label  string `json:"label"`
+	URL    string `json:"url"`
+	Method string `json:"method,omitempty"`
+	Clear  bool   `json:"clear"`
+}
+
 // Ntfy publishes to an ntfy topic (https://docs.ntfy.sh/publish/).
 type Ntfy struct {
 	Server string // base URL, e.g. https://ntfy.sh
@@ -21,6 +47,9 @@ type Ntfy struct {
 	HTTP   *http.Client // nil means a default client
 	// Template, when set, makes the body (SPEC §10).
 	Template *template.Template
+	// Actions, when set, makes the buttons of a question's message
+	// (SPEC §10): not on a message for several tasks, nor on a digest.
+	Actions Actions
 }
 
 // Name implements Channel.
@@ -48,6 +77,9 @@ func (n *Ntfy) Send(ctx context.Context, m Message) error {
 	if n.Token != "" {
 		req.Header.Set("Authorization", "Bearer "+n.Token)
 	}
+	if h := n.actionsHeader(m); h != "" {
+		req.Header.Set("Actions", h)
+	}
 	resp, err := defaultHTTP(n.HTTP).Do(req)
 	if err != nil {
 		return fmt.Errorf("ntfy: %w", transportError(err))
@@ -64,4 +96,34 @@ func ntfyPriority(ev Event) string {
 		return "high"
 	}
 	return "default"
+}
+
+// actionsHeader is the Actions header of m's buttons, in ntfy's JSON form
+// (its simple form would need quoting for labels like "Don't commit"); ""
+// when m gets none.
+func (n *Ntfy) actionsHeader(m Message) string {
+	if n.Actions == nil || m.Question == "" || len(m.Tasks) > 0 || m.Event == Digest {
+		return ""
+	}
+	acts := n.Actions(m)
+	if len(acts) > ntfyMaxActions {
+		acts = acts[:ntfyMaxActions]
+	}
+	if len(acts) == 0 {
+		return ""
+	}
+	out := make([]ntfyAction, len(acts))
+	for i, a := range acts {
+		if a.View {
+			out[i] = ntfyAction{Action: "view", Label: a.Label, URL: a.URL}
+			continue
+		}
+		// clear: an answered question's notification goes away.
+		out[i] = ntfyAction{Action: "http", Label: a.Label, URL: a.URL, Method: http.MethodPost, Clear: true}
+	}
+	b, err := json.Marshal(out)
+	if err != nil {
+		return ""
+	}
+	return string(b)
 }

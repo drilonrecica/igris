@@ -628,6 +628,9 @@ type Ntfy struct {
 	// Template replaces the message text (SPEC §10); "" is the default
 	// text. Left out of the hash when unset, on every channel.
 	Template string `toml:"template,omitempty" json:",omitempty"`
+	// Actions puts answer buttons on a question's message (SPEC §10, since
+	// 1.6); they need serve's HTTP listener. Left out of the hash when off.
+	Actions bool `toml:"actions,omitempty" json:",omitempty"`
 }
 
 // Discord is the Discord webhook channel.
@@ -1194,6 +1197,9 @@ func (c *Config) Warnings() []string {
 	}
 	if !isEnvRef(n.Webhook.URL) && plainHTTP(n.Webhook.URL) {
 		out = append(out, webhookHTTP)
+	}
+	if n.Ntfy.Actions && c.Serve.HTTP == "" {
+		out = append(out, "notify.ntfy.actions = true needs serve's HTTP listener: set [serve] http (SPEC §14), or the answer buttons are left out")
 	}
 	return out
 }

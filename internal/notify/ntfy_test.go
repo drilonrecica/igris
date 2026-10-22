@@ -94,3 +94,42 @@ func TestNtfyCutsDefaultBody(t *testing.T) {
 		t.Errorf("body is %d bytes, want at most %d ending in …", len(got.body), ntfyLimit)
 	}
 }
+
+// A question's message gets its buttons as ntfy's JSON actions; a message
+// without a question, for several tasks or a digest gets none (SPEC §10).
+func TestNtfyActions(t *testing.T) {
+	buttons := func(m Message) []Action {
+		return []Action{
+			{Label: "Don't commit", URL: "http://100.64.0.1:7777/api/v1/action/tok-" + m.TaskID},
+			{View: true, Label: "Open", URL: "http://100.64.0.1:7777/"},
+			{Label: "3"}, {Label: "4 is one too many"},
+		}
+	}
+	none := func(Message) []Action { return nil }
+	q := Message{Event: NeedsInput, Project: "p", TaskID: "M1-03", What: "needs you", Question: "commit"}
+	tests := []struct {
+		name    string
+		actions Actions
+		m       Message
+		want    string
+	}{
+		{"question", buttons, q,
+			`[{"action":"http","label":"Don't commit","url":"http://100.64.0.1:7777/api/v1/action/tok-M1-03","method":"POST","clear":true},` +
+				`{"action":"view","label":"Open","url":"http://100.64.0.1:7777/","clear":false},` +
+				`{"action":"http","label":"3","url":"","method":"POST","clear":true}]`},
+		{"no question", buttons, Message{Event: NeedsInput, TaskID: "M1-03"}, ""},
+		{"several tasks", buttons, Message{Event: NeedsInput, TaskID: "M1-03", Tasks: []string{"M1-03", "M1-05"}, Question: "commit"}, ""},
+		{"digest", buttons, Message{Event: Digest, Question: "commit"}, ""},
+		{"actions off", nil, q, ""},
+		{"no buttons made", none, q, ""},
+	}
+	for _, tt := range tests {
+		srv, got := serve(t, 200)
+		if err := (&Ntfy{Server: srv.URL, Topic: "t", Actions: tt.actions}).Send(context.Background(), tt.m); err != nil {
+			t.Fatalf("%s: %v", tt.name, err)
+		}
+		if h := got.header.Get("Actions"); h != tt.want {
+			t.Errorf("%s: Actions = %s\nwant %s", tt.name, h, tt.want)
+		}
+	}
+}

@@ -109,8 +109,8 @@ func (e *Engine) watchStep(ctx context.Context, l *launch) (v verdict, decided b
 	case l.skip == nil || !l.skip.At.Equal(sig.At):
 		// A skip from an agent session is only a request (SPEC §6.2).
 		l.skip = sig
-		e.needsYou(ctx, notifyNeedsInput, state.ReasonSkipRequest, "the session asks to skip the task", "the session asks to skip")
-		e.emit(Event{Kind: Asked, Question: QuestionConfirmSkip, Detail: fmt.Sprintf("skip %s? the session's reason: %s", t.ID, sig.Note)})
+		e.needsYouAsking(ctx, notifyNeedsInput, state.ReasonSkipRequest, "the session asks to skip the task", "the session asks to skip",
+			&Event{Kind: Asked, Question: QuestionConfirmSkip, Detail: fmt.Sprintf("skip %s? the session's reason: %s", t.ID, sig.Note)})
 	}
 
 	if l.lost {
@@ -322,6 +322,13 @@ func (e *Engine) checkOverdue(ctx context.Context, l *launch) {
 // and sends the notification event. why is shown in the UI; the
 // notification only says that igris waits, in words.
 func (e *Engine) needsYou(ctx context.Context, event notify.Event, reason, why, words string) {
+	e.needsYouAsking(ctx, event, reason, why, words, nil)
+}
+
+// needsYouAsking is needsYou for a wait that asks a question: asked, the
+// Asked event, is emitted after Needs you and before the notification,
+// which then carries its answer buttons (SPEC §10). Nil asks nothing.
+func (e *Engine) needsYouAsking(ctx context.Context, event notify.Event, reason, why, words string, asked *Event) {
 	e.emit(Event{Kind: NeedsYou, Detail: why})
 	what := "needs you"
 	if event == notifyVerifyLimit {
@@ -331,7 +338,12 @@ func (e *Engine) needsYou(ctx context.Context, event notify.Event, reason, why, 
 		what += " (" + words + ")"
 	}
 	e.waitOn(reason, what)
-	e.toast(ctx, event, what)
+	var q Question
+	if asked != nil {
+		e.emit(*asked)
+		q = asked.Question
+	}
+	e.toastAsking(ctx, event, what, q)
 }
 
 // lose marks l's session lost and asks the owner how to go on (SPEC §6.3).
@@ -341,12 +353,12 @@ func (e *Engine) lose(ctx context.Context, l *launch) {
 	e.dropPlan(l, "the session is gone")
 	e.emit(Event{Kind: SessionLost, Detail: "the session is gone without `igris done`"})
 	e.waitOn(state.ReasonSessionLost, "session lost")
-	e.toast(ctx, notifySessionLost, "session lost")
 	choices := "continue its conversation, start a fresh session"
 	if l.cur.Session == nil {
 		choices = "start a fresh session" // no conversation was ever started
 	}
 	e.emit(Event{Kind: Asked, Question: QuestionSessionLost, Detail: "the session of " + l.t.ID + " is gone: " + choices + ", mark the task done, skip it, or stop"})
+	e.toastAsking(ctx, notifySessionLost, "session lost", QuestionSessionLost)
 }
 
 // scanSignals reads every pending signal, reports the ones that are not

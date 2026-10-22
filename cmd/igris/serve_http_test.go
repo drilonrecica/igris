@@ -6,11 +6,13 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/serve"
 	"github.com/drilonrecica/igris/internal/state"
 )
@@ -220,5 +222,47 @@ func TestPairingBase(t *testing.T) {
 	var out, errb bytes.Buffer
 	if code := run([]string{"serve", "token"}, &out, &errb); code != exitFail {
 		t.Errorf("outside a project: exit %d, want 1", code)
+	}
+}
+
+// addrListener is a listener that says it is on addr.
+type addrListener struct {
+	net.Listener
+	addr net.Addr
+}
+
+func (l addrListener) Addr() net.Addr { return l.addr }
+
+// ntfy's answer buttons are made only with [notify.ntfy] actions on, and
+// not for a listener on every address, whose URL no phone reaches.
+func TestServeButtons(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = ln.Close() }()
+	srv := serve.New(serve.Options{})
+	on := config.Ntfy{Topic: "t", Actions: true}
+	tests := []struct {
+		name    string
+		ntfy    config.Ntfy
+		addr    string
+		want    bool
+		printed string
+	}{
+		{"on", on, "100.64.0.1:7777", true, "ntfy's answer buttons go to http://100.64.0.1:7777\n"},
+		{"off", config.Ntfy{Topic: "t"}, "100.64.0.1:7777", false, ""},
+		{"no topic", config.Ntfy{Actions: true}, "100.64.0.1:7777", false, ""},
+		{"every address", on, "0.0.0.0:7777", false, "warning: ntfy's answer buttons are left out: the HTTP listener takes every address (0.0.0.0), so no URL in a button would reach it; set [serve] http to one address\n"},
+	}
+	for _, tt := range tests {
+		var out bytes.Buffer
+		web := &serve.HTTPListener{Listener: addrListener{ln, net.TCPAddrFromAddrPort(netip.MustParseAddrPort(tt.addr))}}
+		if got := serveButtons(srv, web, tt.ntfy, &out); (got != nil) != tt.want {
+			t.Errorf("%s: buttons %v, want %v", tt.name, got != nil, tt.want)
+		}
+		if out.String() != tt.printed {
+			t.Errorf("%s: printed %q, want %q", tt.name, out.String(), tt.printed)
+		}
 	}
 }

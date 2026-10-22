@@ -53,6 +53,10 @@ type Options struct {
 	// it is dropped as too slow; zero means 4 MiB and 4096 messages.
 	QueueBytes int64
 	QueueLen   int
+
+	// Now is the clock ntfy's answer buttons expire by (Buttons); nil is
+	// time.Now.
+	Now func() time.Time
 }
 
 // Default per-client bounds (SPEC §13).
@@ -85,6 +89,8 @@ type Server struct {
 	// https are the HTTP listeners' servers (ServeRemote).
 	https  []*http.Server
 	closed bool
+	// actions are ntfy's answer buttons, by their token's SHA-256.
+	actions map[[32]byte]*actionToken
 
 	wg sync.WaitGroup
 }
@@ -100,11 +106,16 @@ func New(opts Options) *Server {
 	if opts.Logf == nil {
 		opts.Logf = func(string, ...any) {}
 	}
+	if opts.Now == nil {
+		opts.Now = time.Now
+	}
 	return &Server{
 		opts: opts, uid: os.Getuid(), peerUID: peerUID, helloTimeout: helloTimeout,
-		track: newTracker(opts.Mode), clients: map[*client]struct{}{},
+		track: newTracker(opts.Mode), clients: map[*client]struct{}{}, actions: map[[32]byte]*actionToken{},
 	}
 }
+
+func (s *Server) now() time.Time { return s.opts.Now() }
 
 // Publish hands ev to every client and folds it into the snapshot. It
 // never blocks: a client whose queue is full is dropped. Call it from the
@@ -506,6 +517,7 @@ func (s *Server) handle(c *client, r Request) bool {
 			c.reply(Reply{Type: TypeError, ID: r.ID, Error: err.Error()})
 			return true
 		}
+		s.answering(cmd)
 		if s.opts.Sender != nil {
 			s.opts.Sender.Send(cmd)
 		}

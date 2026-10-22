@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/netip"
 	"os"
 	"strings"
 	"sync"
@@ -16,6 +17,7 @@ import (
 	"github.com/drilonrecica/igris/internal/backend/tmux"
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/engine"
+	"github.com/drilonrecica/igris/internal/notify"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/project"
 	"github.com/drilonrecica/igris/internal/qr"
@@ -192,7 +194,10 @@ func execServe(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(out, "warning: %v\n", err)
 		}
 	}()
+	// ntfy's answer buttons go to the listener as the phone reaches it.
+	var buttons notify.Actions
 	if web != nil {
+		buttons = serveButtons(srv, web, proj.Cfg.Notify.Ntfy, out)
 		root := l.State.Root()
 		h := srv.Remote(serve.RemoteOptions{TLS: web.TLS, UI: srv.UI(serve.UIOptions{}), Token: func() (string, error) { return state.ReadServeToken(root) }})
 		go func() {
@@ -248,6 +253,7 @@ func execServe(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 			host.saw(ev)
 		})
 		opts.LockHeld = true
+		opts.Actions = buttons
 		// Clients show plans for approval, as the TUI does (SPEC §6.3).
 		opts.PlanApproval = true
 		res, err := host.run(ctx, opts)
@@ -472,6 +478,21 @@ func listenWeb(d *state.Dir, cfg config.Serve, flagAddr string, public bool, out
 		fmt.Fprintln(out, "no device is paired yet; run igris serve token to pair one")
 	}
 	return l, nil
+}
+
+// serveButtons is what makes ntfy's answer buttons for a run served on
+// web (SPEC §10), or nil when they are off. A listener on every address
+// has no URL a phone could use, so it gets none, with a warning.
+func serveButtons(srv *serve.Server, web *serve.HTTPListener, ntfy config.Ntfy, out io.Writer) notify.Actions {
+	if !ntfy.Actions || ntfy.Topic == "" {
+		return nil
+	}
+	if ap, err := netip.ParseAddrPort(web.Addr().String()); err == nil && ap.Addr().IsUnspecified() {
+		fmt.Fprintf(out, "warning: ntfy's answer buttons are left out: the HTTP listener takes every address (%s), so no URL in a button would reach it; set [serve] http to one address\n", ap.Addr())
+		return nil
+	}
+	fmt.Fprintf(out, "ntfy's answer buttons go to %s\n", web.URL())
+	return srv.Buttons(web.URL())
 }
 
 // execServeToken is `igris serve token [--rotate]` (SPEC §14): it prints

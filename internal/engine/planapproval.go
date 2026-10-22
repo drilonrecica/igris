@@ -98,12 +98,11 @@ func (e *Engine) presentPlan(ctx context.Context, l *launch, r state.PlanRequest
 	}
 	l.plan.file = file
 	e.log(state.Event{Type: state.EventPlanPresented, PlanFile: file, PlanSHA256: l.plan.sum})
-	e.needsYou(ctx, notifyNeedsInput, state.ReasonPlanApproval, "the session presents a plan for approval", "plan awaiting approval")
 	text := r.Plan
 	if strings.TrimSpace(text) == "" {
 		text = "(the session sent an empty plan)"
 	}
-	e.emit(Event{
+	e.needsYouAsking(ctx, notifyNeedsInput, state.ReasonPlanApproval, "the session presents a plan for approval", "plan awaiting approval", &Event{
 		Kind:     Asked,
 		Question: QuestionPlanApproval,
 		Detail:   fmt.Sprintf("approve the plan of %s? approving switches its session to mode %s", t.ID, e.planThen(l.mode)),

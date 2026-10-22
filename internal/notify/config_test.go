@@ -87,3 +87,25 @@ func TestFromConfigPassesSecrets(t *testing.T) {
 		t.Errorf("discord events = %v, want the defaults", got)
 	}
 }
+
+// ntfy gets the router's Actions only with [notify.ntfy] actions on.
+func TestFromConfigNtfyActions(t *testing.T) {
+	buttons := func(Message) []Action { return []Action{{Label: "Commit", URL: "u"}} }
+	for _, on := range []bool{true, false} {
+		c := config.Default().Notify
+		c.Ntfy.Topic, c.Ntfy.Actions = "t", on
+		r := FromConfig(c, config.Secrets{}, nil, func(o *Options) { o.Actions = buttons })
+		var n *Ntfy
+		for _, e := range r.o.Channels {
+			if x, ok := e.Channel.(*Ntfy); ok {
+				n = x
+			}
+		}
+		if n == nil {
+			t.Fatal("no ntfy channel")
+		}
+		if (n.Actions != nil) != on {
+			t.Errorf("actions = %v: ntfy has buttons %v", on, n.Actions != nil)
+		}
+	}
+}

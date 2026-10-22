@@ -375,13 +375,22 @@ const (
 // reported as a warning and the run goes on. The call waits for the
 // channels (at most one timeout plus one retry each, in parallel).
 func (e *Engine) toast(ctx context.Context, event notify.Event, what string) {
+	e.toastAsking(ctx, event, what, "")
+}
+
+// toastAsking is toast for a message that announces the pending question
+// q of the current task ("" for none): ntfy gives it answer buttons (SPEC
+// §10). It is sent after q's Asked event, so serve knows the question by
+// the time it makes them.
+func (e *Engine) toastAsking(ctx context.Context, event notify.Event, what string, q Question) {
 	m := notify.Message{
-		Event:   event,
-		Project: filepath.Base(e.dir.Root()),
-		Phase:   e.phase,
-		What:    what,
-		RunID:   e.runID,
-		At:      e.clock.Now(),
+		Event:    event,
+		Project:  filepath.Base(e.dir.Root()),
+		Phase:    e.phase,
+		What:     what,
+		RunID:    e.runID,
+		At:       e.clock.Now(),
+		Question: string(q),
 	}
 	if e.task != nil {
 		m.TaskID, m.Title = e.task.t.ID, e.task.t.Title

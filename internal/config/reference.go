@@ -74,6 +74,7 @@ var keyDocs = map[string]keyDoc{
 	"notify.ntfy.token":              {desc: "ntfy access token, or `\"env:VAR\"` to read it from the environment."},
 	"notify.ntfy.events":             {desc: "Events sent to ntfy. A file igris writes leaves this out while it is the default list.", values: "event names (see below)"},
 	"notify.ntfy.template":           {desc: "Message text template (SPEC §10), at most 1000 characters. Empty uses the default text.", def: "`\"\"`"},
+	"notify.ntfy.actions":            {desc: "Answer buttons on a pending question's message (SPEC §10): commit, skip, retry or stop, approve a plan. Needs serve's HTTP listener (`[serve] http` or `serve --http`).", def: "`false`"},
 	"notify.discord.webhook_url":     {desc: "Discord webhook URL (https only), or `\"env:VAR\"`. The channel is off while this is empty."},
 	"notify.discord.events":          {desc: "Events sent to Discord.", values: "event names (see below)"},
 	"notify.discord.template":        {desc: "Message text template (SPEC §10).", def: "`\"\"`"},
