@@ -64,7 +64,9 @@ type field struct {
 
 // questionDialog builds the dialog for an Asked event.
 func questionDialog(ev engine.Event) *dialog {
-	d := &dialog{detail: ev.Detail, question: ev.Question}
+	// The task it asks about: the answer goes to it, and it closes when
+	// that task's question is settled (SPEC §15.1).
+	d := &dialog{detail: ev.Detail, question: ev.Question, task: ev.Task}
 	switch ev.Question {
 	case engine.QuestionCommit:
 		d.title = "Commit " + ev.Task + "?"
@@ -89,7 +91,6 @@ func questionDialog(ev engine.Event) *dialog {
 		d.title = "Reset " + ev.Task + "?"
 		d.options = []option{{"Keep it as it is", actAnswerNo}, {"Reset " + ev.Task, actAnswerYes}}
 		d.cancel = actClose
-		d.task = ev.Task
 	case engine.QuestionPlanApproval:
 		return planDialog(ev)
 	case engine.QuestionHookFailed:

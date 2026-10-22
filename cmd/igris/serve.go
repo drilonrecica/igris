@@ -294,15 +294,16 @@ func (h *serveHost) run(ctx context.Context, opts engine.Options) (engine.Result
 	return eng.Run(ctx)
 }
 
-// tail reads the current session's last lines for a client.
-func (h *serveHost) tail(ctx context.Context, n int) ([]string, error) {
+// tail reads the last lines of task's session ("" the current task's)
+// for a client.
+func (h *serveHost) tail(ctx context.Context, task string, n int) ([]string, error) {
 	h.mu.Lock()
 	eng := h.eng
 	h.mu.Unlock()
 	if eng == nil {
 		return nil, nil
 	}
-	return eng.Tail(ctx, n)
+	return eng.TailTask(ctx, task, n)
 }
 
 // saw notes the run's start and end.

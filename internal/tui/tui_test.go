@@ -271,19 +271,19 @@ func TestQuestionDialogs(t *testing.T) {
 		open    bool // the dialog stays open, nothing sent
 		closed  bool // the dialog closes, the question stays pending
 	}{
-		{name: "commit default", q: engine.QuestionCommit, keys: []string{"enter"}, want: engine.Command{Kind: engine.CmdAnswer, Yes: true}},
-		{name: "commit by number", q: engine.QuestionCommit, keys: []string{"2"}, want: engine.Command{Kind: engine.CmdAnswer}},
+		{name: "commit default", q: engine.QuestionCommit, keys: []string{"enter"}, want: engine.Command{Kind: engine.CmdAnswer, Yes: true, Task: "M0-03"}},
+		{name: "commit by number", q: engine.QuestionCommit, keys: []string{"2"}, want: engine.Command{Kind: engine.CmdAnswer, Task: "M0-03"}},
 		{name: "commit esc closes, stays pending", q: engine.QuestionCommit, keys: []string{"esc"}, closed: true},
-		{name: "skip default keeps working", q: engine.QuestionConfirmSkip, keys: []string{" "}, want: engine.Command{Kind: engine.CmdAnswer}},
-		{name: "skip esc keeps working", q: engine.QuestionConfirmSkip, keys: []string{"esc"}, want: engine.Command{Kind: engine.CmdAnswer}},
-		{name: "skip by arrows", q: engine.QuestionConfirmSkip, keys: []string{"down", "enter"}, want: engine.Command{Kind: engine.CmdAnswer, Yes: true}},
-		{name: "lost default fresh", q: engine.QuestionSessionLost, keys: []string{"enter"}, want: engine.Command{Kind: engine.CmdRetry}},
+		{name: "skip default keeps working", q: engine.QuestionConfirmSkip, keys: []string{" "}, want: engine.Command{Kind: engine.CmdAnswer, Task: "M0-03"}},
+		{name: "skip esc keeps working", q: engine.QuestionConfirmSkip, keys: []string{"esc"}, want: engine.Command{Kind: engine.CmdAnswer, Task: "M0-03"}},
+		{name: "skip by arrows", q: engine.QuestionConfirmSkip, keys: []string{"down", "enter"}, want: engine.Command{Kind: engine.CmdAnswer, Yes: true, Task: "M0-03"}},
+		{name: "lost default fresh", q: engine.QuestionSessionLost, keys: []string{"enter"}, want: engine.Command{Kind: engine.CmdRetry, Task: "M0-03"}},
 		{name: "lost wraps up to stop", q: engine.QuestionSessionLost, keys: []string{"up", "enter"}, want: engine.Command{Kind: engine.CmdStop}},
-		{name: "lost click continue", q: engine.QuestionSessionLost, clickOp: 1, want: engine.Command{Kind: engine.CmdRetry, Continue: true}},
-		{name: "lost click done", q: engine.QuestionSessionLost, clickOp: 2, want: engine.Command{Kind: engine.CmdDone}},
+		{name: "lost click continue", q: engine.QuestionSessionLost, clickOp: 1, want: engine.Command{Kind: engine.CmdRetry, Continue: true, Task: "M0-03"}},
+		{name: "lost click done", q: engine.QuestionSessionLost, clickOp: 2, want: engine.Command{Kind: engine.CmdDone, Task: "M0-03"}},
 		{name: "lost esc closes, stays pending", q: engine.QuestionSessionLost, keys: []string{"esc"}, closed: true},
-		{name: "hook failed default retry", q: engine.QuestionHookFailed, keys: []string{"enter"}, want: engine.Command{Kind: engine.CmdRetry}},
-		{name: "hook failed click done", q: engine.QuestionHookFailed, clickOp: 1, want: engine.Command{Kind: engine.CmdDone}},
+		{name: "hook failed default retry", q: engine.QuestionHookFailed, keys: []string{"enter"}, want: engine.Command{Kind: engine.CmdRetry, Task: "M0-03"}},
+		{name: "hook failed click done", q: engine.QuestionHookFailed, clickOp: 1, want: engine.Command{Kind: engine.CmdDone, Task: "M0-03"}},
 		{name: "hook failed wraps up to stop", q: engine.QuestionHookFailed, keys: []string{"up", "enter"}, want: engine.Command{Kind: engine.CmdStop}},
 		{name: "shortcuts are off in a dialog", q: engine.QuestionCommit, keys: []string{"p", "d", "9"}, open: true},
 	}
@@ -302,8 +302,8 @@ func TestQuestionDialogs(t *testing.T) {
 			}
 			got := hs.s.take()
 			if tt.closed {
-				if len(got) != 0 || hs.m.dialog != nil || hs.m.asked == nil {
-					t.Fatalf("sent %+v, dialog %v, asked %v; want it closed, nothing sent, still pending", got, hs.m.dialog, hs.m.asked)
+				if len(got) != 0 || hs.m.dialog != nil || hs.m.firstAsk() == nil {
+					t.Fatalf("sent %+v, dialog %v, asked %v; want it closed, nothing sent, still pending", got, hs.m.dialog, hs.m.firstAsk())
 				}
 				return
 			}
@@ -316,7 +316,7 @@ func TestQuestionDialogs(t *testing.T) {
 			if len(got) != 1 || got[0] != tt.want {
 				t.Fatalf("sent %+v, want %+v", got, tt.want)
 			}
-			if hs.m.dialog != nil || hs.m.asked != nil {
+			if hs.m.dialog != nil || hs.m.firstAsk() != nil {
 				t.Errorf("dialog still open after the answer")
 			}
 		})
@@ -493,7 +493,7 @@ func TestWaitingState(t *testing.T) {
 		if !strings.Contains(view, "waiting on background work (4m") || strings.Contains(view, "NEEDS YOU") {
 			t.Errorf("%dx%d: waiting view:\n%s", size[0], size[1], view)
 		}
-		if hs.m.stateLook() != lookPlain {
+		if stateLook(hs.m.cur) != lookPlain {
 			t.Errorf("%dx%d: waiting is drawn as an alert", size[0], size[1])
 		}
 		if r := hs.m.rows(); r.needsOwner(&plan.Task{ID: "M0-03"}) {

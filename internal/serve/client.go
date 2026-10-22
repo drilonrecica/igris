@@ -14,6 +14,7 @@ import (
 
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/plan"
+	"github.com/drilonrecica/igris/internal/state"
 	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
@@ -403,9 +404,14 @@ func (c *Client) Send(cmd engine.Command) {
 
 // Tail reads the current session's last n lines through the run, as
 // engine.Engine.Tail does (backend.Tailer).
-func (c *Client) Tail(ctx context.Context, n int) ([]string, error) {
+func (c *Client) Tail(ctx context.Context, n int) ([]string, error) { return c.TailTask(ctx, "", n) }
+
+// TailTask is Tail for the session of active task id (SPEC §15.1); "" is
+// the current task's. A serve of 1.4 ignores the task and answers with the
+// current task's lines.
+func (c *Client) TailTask(ctx context.Context, id string, n int) ([]string, error) {
 	ch := make(chan Reply, 1)
-	if err := c.send(Request{Type: TypeTail, N: min(n, maxTail)}, ch); err != nil {
+	if err := c.send(Request{Type: TypeTail, Task: id, N: min(n, maxTail)}, ch); err != nil {
 		return nil, err
 	}
 	select {
@@ -482,7 +488,7 @@ func (ev Event) Engine() (engine.Event, bool) {
 		Mode: textsafe.Line(ev.Mode), Verify: textsafe.Line(ev.Profile), Detail: textsafe.Clean(ev.Detail),
 		Session: ev.Session, ClaudeSession: textsafe.Line(ev.ClaudeSession),
 		Question: engine.Question(ev.Question), Plan: textsafe.Clean(ev.Plan), Then: textsafe.Line(ev.Then),
-		Quota: ev.Quota,
+		Quota: ev.Quota, Slot: slotOf(ev.Slot),
 	}
 	if kind == engine.RunStarted {
 		out.Run = textsafe.Line(ev.Run) // the envelope stamps every event; the engine this one
@@ -513,4 +519,14 @@ func (ev Event) Engine() (engine.Event, bool) {
 		out.Tokens = &engine.Tokens{In: t.In, Out: t.Out, Models: t.Models, Unavailable: t.Unavailable}
 	}
 	return out, true
+}
+
+// slotOf is a slot the run sent, nil unless it is one (0 to
+// state.MaxSlots-1).
+func slotOf(s *int) *int {
+	if s == nil || *s < 0 || *s >= state.MaxSlots {
+		return nil
+	}
+	n := *s
+	return &n
 }

@@ -52,10 +52,10 @@ func TestDoneOnAUserTaskTakesANote(t *testing.T) {
 		keys []string
 		want *engine.Command // nil: nothing sent
 	}{
-		{name: "enter confirms without a note", keys: []string{"enter"}, want: &engine.Command{Kind: engine.CmdDone}},
-		{name: "note then enter", keys: []string{"A", "u", "r", "o", "r", "a", "enter"}, want: &engine.Command{Kind: engine.CmdDone, Text: "Aurora"}},
-		{name: "blank note is no note", keys: []string{" ", " ", "enter"}, want: &engine.Command{Kind: engine.CmdDone}},
-		{name: "shortcut keys type", keys: []string{"d", "s", "q", "enter"}, want: &engine.Command{Kind: engine.CmdDone, Text: "dsq"}},
+		{name: "enter confirms without a note", keys: []string{"enter"}, want: &engine.Command{Kind: engine.CmdDone, Task: "M0-04"}},
+		{name: "note then enter", keys: []string{"A", "u", "r", "o", "r", "a", "enter"}, want: &engine.Command{Kind: engine.CmdDone, Text: "Aurora", Task: "M0-04"}},
+		{name: "blank note is no note", keys: []string{" ", " ", "enter"}, want: &engine.Command{Kind: engine.CmdDone, Task: "M0-04"}},
+		{name: "shortcut keys type", keys: []string{"d", "s", "q", "enter"}, want: &engine.Command{Kind: engine.CmdDone, Text: "dsq", Task: "M0-04"}},
 		{name: "esc cancels", keys: []string{"x", "esc"}},
 		{name: "Cancel by number", keys: []string{"tab", "2"}},
 	}
@@ -88,7 +88,7 @@ func TestDoneOnAnAgentTaskIsImmediate(t *testing.T) {
 	hs := newHarness(t, 80, 24)
 	hs.events(started("M0-03"), opened("M0-03"))
 	hs.key("d")
-	if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdDone}) || hs.m.dialog != nil {
+	if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdDone, Task: "M0-03"}) || hs.m.dialog != nil {
 		t.Errorf("agent d: sent %+v, dialog %v", got, hs.m.dialog != nil)
 	}
 }

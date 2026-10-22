@@ -135,6 +135,8 @@ type Event struct {
 	Then          string              `json:"then,omitempty"`
 	Tokens        *Tokens             `json:"tokens,omitempty"`
 	Quota         *state.Quota        `json:"quota,omitempty"`
+	// Slot is the task's slot in a parallel phase (SPEC §6.11), since 1.5.
+	Slot *int `json:"slot,omitempty"`
 }
 
 // Change is a Status cell the run wrote.
@@ -177,6 +179,7 @@ func fromEngine(ev engine.Event, run string) Event {
 		Profile: ev.Verify, Detail: cut(ev.Detail, maxDetail),
 		Session: ev.Session, ClaudeSession: ev.ClaudeSession,
 		Question: string(ev.Question), Plan: cut(ev.Plan, maxPlan), Then: ev.Then, Quota: ev.Quota,
+		Slot: ev.Slot,
 	}
 	for _, c := range head(ev.Changes, maxListItems) {
 		out.Changes = append(out.Changes, Change{ID: c.ID, From: c.From.String(), To: c.To.String()})

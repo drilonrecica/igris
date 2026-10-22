@@ -264,8 +264,8 @@ func TestProgramHookQuestionStaysPending(t *testing.T) {
 	seen(t, tm, "Skip M0-03?")
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	m := finished(t, tm)
-	if m.asked == nil || m.asked.Question != engine.QuestionHookFailed {
-		t.Errorf("the hook question is no longer pending: %+v", m.asked)
+	if m.firstAsk() == nil || m.firstAsk().Question != engine.QuestionHookFailed {
+		t.Errorf("the hook question is no longer pending: %+v", m.firstAsk())
 	}
 	if m.dialog == nil || strings.Contains(m.dialog.detail, "session is closed") {
 		t.Errorf("skip dialog = %+v, want no word of a session", m.dialog)

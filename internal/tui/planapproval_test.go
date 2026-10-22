@@ -36,7 +36,7 @@ func TestPlanViewShowsThePlan(t *testing.T) {
 	}
 	// Esc leaves it pending; Answer… brings it back.
 	hs.key("esc")
-	if hs.m.dialog != nil || hs.m.asked == nil {
+	if hs.m.dialog != nil || hs.m.firstAsk() == nil {
 		t.Fatal("esc dropped the plan")
 	}
 	hs.click(isAct(actAnswer))
@@ -49,16 +49,16 @@ func TestPlanApproveAndPane(t *testing.T) {
 	hs := newHarness(t, 120, 30)
 	hs.events(started("M0-03"), opened("M0-03"), planAsked())
 	hs.key("enter")
-	if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdPlan, Plan: state.PlanAllow}) {
+	if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdPlan, Plan: state.PlanAllow, Task: "M0-03"}) {
 		t.Fatalf("sent %+v", got)
 	}
-	if hs.m.dialog != nil || hs.m.asked != nil {
+	if hs.m.dialog != nil || hs.m.firstAsk() != nil {
 		t.Error("approving left the plan open")
 	}
 
 	hs.events(planAsked())
 	hs.key("3")
-	if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdPlan, Plan: state.PlanPane}) {
+	if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdPlan, Plan: state.PlanPane, Task: "M0-03"}) {
 		t.Fatalf("sent %+v", got)
 	}
 	if len(hs.focus) != 1 {
@@ -83,10 +83,10 @@ func TestPlanRejectNeedsFeedback(t *testing.T) {
 		t.Fatalf("esc in the feedback did not return to the plan: %+v", hs.m.dialog)
 	}
 	hs.keys("2", "u", "s", "e", " ", "G", "o", "enter")
-	if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdPlan, Plan: state.PlanDeny, Text: "use Go"}) {
+	if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdPlan, Plan: state.PlanDeny, Text: "use Go", Task: "M0-03"}) {
 		t.Fatalf("sent %+v", got)
 	}
-	if hs.m.dialog != nil || hs.m.asked != nil {
+	if hs.m.dialog != nil || hs.m.firstAsk() != nil {
 		t.Error("rejecting left the plan open")
 	}
 }
@@ -99,7 +99,7 @@ func TestPlanClosedElsewhere(t *testing.T) {
 		hs.events(started("M0-03"), opened("M0-03"), planAsked())
 		hs.keys(keys...)
 		hs.events(engine.Event{Kind: engine.PlanClosed, Task: "M0-03", Detail: "the plan was answered in the session's pane, or its hook gave up"})
-		if hs.m.dialog != nil || hs.m.asked != nil {
+		if hs.m.dialog != nil || hs.m.firstAsk() != nil {
 			t.Errorf("keys %v: the plan stayed open", keys)
 		}
 		if hs.m.cur.state != stateNeedsYou {

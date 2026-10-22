@@ -646,12 +646,14 @@ igris runs in its own herdr pane or tmux window, showing the task list with stat
 - **The current-task card** shows the task's text from the plan, cut with `… t: details` when it doesn't fit.
 - **A live tail** above it shows the session's last 6 lines above Claude Code's input box (3 on a narrow terminal), read every `poll_interval` through `herdr agent read` or `tmux capture-pane`, cleaned of escape sequences and invisible bidi characters, blank lines dropped and cut to the card's width (emoji included); the task text gives way first when the card is short. The tail is only drawn: never logged, sent or stored, and it disappears when the session is gone or can't be read. `tail = false` under `[tui]` turns it off, and igris then never reads the pane.
 - **When a session needs you,** the card says so: `NEEDS YOU — o opens the session`. When igris needs an answer (commit? session lost?) it opens a choice dialog, like Claude Code's prompts.
+- **Several tasks at once** (since 1.5, a parallel phase): one card per active task in plan order, each with its slot (`M1-03 · slot 1`) and a shorter tail; the header says `3 active` and `needs you: M1-03, M1-05`. The selected card has a heavier border and a `›`: `o`, `d`, `s`, `r`, `t`, `M` and `y` act on its task, and `[` / `]` (or a click on another card) select another. On a narrow terminal the selected card sits under a switcher line, `‹ M1-03 · 1/3 › M1-04 ● M1-05 !`, where you tap a task or use `[` / `]`. Questions form one queue in plan order: **Answer…** opens the first, answering it brings the next, and a question never covers another task's open one. Notifications raised for several tasks in one poll go out as one, `2 tasks need you: M1-03, M1-05`.
 
 Every action is a button you can click or tap, reach with `tab` and the arrow keys, or trigger with its key:
 
 | Key | Action |
 |---|---|
 | `o` | Open session: bring the current session's pane to the front |
+| `[` / `]` | Since 1.5, with several active tasks: select the previous / next card |
 | `t` | Details: the selected task's full text, its dependencies and their states, the plan's extra columns |
 | `m` / `M` | Run mode / the selected task's mode, for sessions launched from now on (yolo needs the typed phrase) |
 | `p` | Pause after the current task / resume |

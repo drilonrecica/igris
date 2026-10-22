@@ -279,6 +279,7 @@ func (e *Engine) runPhase(ctx context.Context, id string) (Result, error) {
 			}
 		}
 		progressed := false
+		e.gather()
 		for _, l := range slices.Clone(e.active) {
 			if e.launchOf(l.t.ID) != l {
 				continue // settled meanwhile, by a reset
@@ -287,14 +288,17 @@ func (e *Engine) runPhase(ctx context.Context, id string) (Result, error) {
 			ended, stopped, err := e.step(ctx, l)
 			e.unfocus()
 			if err != nil {
+				e.sendNeeds(ctx)
 				return res, err
 			}
 			if stopped {
+				e.sendNeeds(ctx)
 				res.Outcome = Stopped
 				return res, nil
 			}
 			progressed = progressed || ended
 		}
+		e.sendNeeds(ctx)
 		if progressed {
 			continue // a task ended: select again at once
 		}

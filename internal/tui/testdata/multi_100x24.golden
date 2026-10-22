@@ -1,0 +1,24 @@
+┌ igris · sinjal ────────── phase M1 · 0/4 · 0% · 3 active · needs you: M1-04 · mode: plan · herdr ┐
+│ TASKS                                          │ CURRENT                                         │
+│  ● M1-03  Parser                        sonnet │ ┌─ M1-03 · slot 1 title of M1-03 ─────────────┐ │
+│  ! M1-04  Writer                        sonnet │ │ state: working                              │ │
+│  ● M1-05  Docs                          opus   │ │ [o] Open session  [t] Details               │ │
+│  ⨯ M1-06  Release                       sonnet │ └─────────────────────────────────────────────┘ │
+│    waits on M1-03                              │ ┌─ M1-04 · slot 2 title of M1-04 ─────────────┐ │
+│                                                │ │ state: NEEDS YOU (idle 0s)                  │ │
+│                                                │ │ [o] Open session  [t] Details               │ │
+│                                                │ └─────────────────────────────────────────────┘ │
+│                                                │ ┏━ › M1-05 · slot 0 title of M1-05 ━━━━━━━━━━━┓ │
+│                                                │ ┃ state: working                              ┃ │
+│                                                │ ┃ [o] Open session  [t] Details               ┃ │
+│                                                │ ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ │
+├─ LOG ──────────────────────────────────────────┴─────────────────────────────────────────────────┤
+│ 09:41 M1-05 session open                                                                         │
+│ 09:41 M1-03 started (sonnet → sonnet, plan) · title of M1-03                                     │
+│ 09:41 M1-03 session open                                                                         │
+│ 09:41 M1-04 started (sonnet → sonnet, plan) · title of M1-04                                     │
+│ 09:41 M1-04 session open                                                                         │
+│ 09:41 M1-04 needs you: the agent is idle                                                         │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ [›Open session‹] [Mode] [Task mode] [Pause] [Done] [Retry] [Skip] [Stop] [?] [Quit]              │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘

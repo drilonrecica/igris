@@ -245,7 +245,7 @@ func TestClientRefusedCommand(t *testing.T) {
 }
 
 func TestClientTail(t *testing.T) {
-	s := New(Options{Version: "1.4.0", Tail: func(_ context.Context, n int) ([]string, error) {
+	s := New(Options{Version: "1.4.0", Tail: func(_ context.Context, _ string, n int) ([]string, error) {
 		return []string{fmt.Sprintf("asked %d", n), "\x1b[31mred\x1b[0m"}, nil
 	}})
 	c, _, _ := attachTo(t, s)

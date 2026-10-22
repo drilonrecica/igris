@@ -51,8 +51,34 @@ func (m *model) restore(s serve.Snapshot) {
 	if s.Ended {
 		m.endText = "the run stopped: " + s.End
 	}
-	m.cur = currentOf(s.Current)
-	m.asked, m.resetAsk = eventOf(s.Question), eventOf(s.Reset)
+	// Every active task since 1.5; a serve of 1.4 sends the current one.
+	sel := ""
+	if m.cur != nil {
+		sel = m.cur.id
+	}
+	m.cards, m.cur = nil, nil
+	active := s.Active
+	if len(active) == 0 && s.Current != nil {
+		active = []serve.Current{*s.Current}
+	}
+	for i := range active {
+		m.addCard(currentOf(&active[i]))
+	}
+	if c := m.card(sel); c != nil {
+		m.cur = c // the owner's selection survives a reconnect
+	}
+	m.asks = map[string]*engine.Event{}
+	questions := s.Questions
+	if len(questions) == 0 && s.Question != nil {
+		questions = []serve.Event{*s.Question}
+	}
+	for i := range questions {
+		if q := eventOf(&questions[i]); q != nil {
+			m.asks[q.Task] = q
+		}
+	}
+	m.resetAsk = eventOf(s.Reset)
+	m.tails = map[string][]string{}
 
 	m.log, m.scroll = nil, 0
 	for _, w := range s.Feed {
@@ -68,11 +94,8 @@ func (m *model) restore(s serve.Snapshot) {
 
 	if !m.side.owns(m.dialog) {
 		m.dialog = nil
-		switch {
-		case m.resetAsk != nil:
-			m.dialog = questionDialog(*m.resetAsk)
-		case m.asked != nil:
-			m.dialog = questionDialog(*m.asked)
+		if q := m.question(); q != nil {
+			m.dialog = questionDialog(*q)
 		}
 	}
 	m.taskTop = -1
@@ -85,7 +108,7 @@ func currentOf(c *serve.Current) *current {
 		return nil
 	}
 	cur := &current{
-		id: c.Task, title: c.Title, rank: c.Rank, model: c.Model, mode: c.Mode, user: c.User,
+		id: c.Task, title: c.Title, rank: c.Rank, model: c.Model, mode: c.Mode, user: c.User, slot: c.Slot,
 		started: c.Started, state: cardStates[c.State], since: c.Since, detail: c.Detail,
 		overdue: c.Overdue, rankMismatch: c.RankMismatch, waiting: c.Waiting,
 		session: c.Session, claudeSession: c.ClaudeSession,

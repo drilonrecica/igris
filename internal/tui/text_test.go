@@ -46,11 +46,11 @@ func TestEmojiFitsEveryWidth(t *testing.T) {
 		for _, h := range []int{3, 10, 24, 40} {
 			hs := newHarness(t, w, h)
 			hs.withPlan(emojiPlan)
-			hs.m.opts.Tail = func(context.Context, int) ([]string, error) { return nil, nil }
+			hs.m.opts.Tail = func(context.Context, string, int) ([]string, error) { return nil, nil }
 			ev := started("M0-03")
 			ev.Title = "Makefile ⚠️⚠️⚠️ with ❤️ and a title long enough to be cut"
 			hs.events(engine.Event{Kind: engine.RunStarted, Phase: "M0", Detail: "phase M0"}, ev, opened("M0-03"))
-			hs.m.tail = tailLines([]string{"✔️ tests passed ⚠️ one warning ❤️ " + strings.Repeat("x", 200), "⚠️\tindented"}, tailWide)
+			hs.m.tails["M0-03"] = tailLines([]string{"✔️ tests passed ⚠️ one warning ❤️ " + strings.Repeat("x", 200), "⚠️\tindented"}, tailWide)
 			for i, l := range strings.Split(hs.m.View(), "\n") {
 				if textWidth(l) > w {
 					t.Errorf("w=%d h=%d line %d is %d cells: %q", w, h, i, textWidth(l), l)

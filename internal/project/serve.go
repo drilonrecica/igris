@@ -246,6 +246,11 @@ func (s *Served) Send(c engine.Command) { s.client.Send(c) }
 // Tail reads the current session's last lines through the run.
 func (s *Served) Tail(ctx context.Context, n int) ([]string, error) { return s.client.Tail(ctx, n) }
 
+// TailTask reads the last lines of active task's session through the run.
+func (s *Served) TailTask(ctx context.Context, task string, n int) ([]string, error) {
+	return s.client.TailTask(ctx, task, n)
+}
+
 // ClientVersion is this igris's version, so the view can name another
 // serving igris.
 func (s *Served) ClientVersion() string { return s.version }

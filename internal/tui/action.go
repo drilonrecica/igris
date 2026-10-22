@@ -114,6 +114,11 @@ const (
 	// Home's Attach (SPEC §15.6): the run view of the run igris serve
 	// hosts here.
 	actAttach
+	// Several active tasks (SPEC §15.1, cards.go).
+	actCardPrev   // [: select the previous card
+	actCardNext   // ]: select the next card
+	actCardPick   // a card or a switcher entry; the zone's option is the card's index
+	actAnswerCard // a card's [Answer…]: its task's question, else the first in line
 )
 
 // modeActs maps the mode picker's actions to their modes, in the order
@@ -183,6 +188,8 @@ var shortcuts = map[string]action{
 	"r":      actRetry,
 	"x":      actStopAsk,
 	"S":      actSide,
+	"[":      actCardPrev,
+	"]":      actCardNext,
 	"y":      actCopy,
 	"?":      actHelp,
 	"q":      actQuit,
@@ -195,6 +202,7 @@ type helpEntry struct{ key, name, what string }
 // helpActions are the actions the help page lists, in SPEC §15.3 order.
 var helpActions = []helpEntry{
 	{"o", "Open session", "bring the current session's pane to the front"},
+	{"[ ]", "Select card", "with several active tasks: the previous or next card; o d s r t M y act on its task"},
 	{"t", "Details", "the selected task's full text and facts: the current one unless you picked another"},
 	{"m", "Mode", "run mode for the sessions launched from now on; yolo needs the typed phrase"},
 	{"M", "Task mode", "mode for the selected agent task's next session, over its Mode column (not for user tasks)"},
@@ -211,7 +219,7 @@ var helpActions = []helpEntry{
 
 // helpFocus are the focus keys the help page lists (SPEC §15.5).
 var helpFocus = []helpEntry{
-	{"click", "", "a task for its details; the card's title or [t] Details for the current one"},
+	{"click", "", "a task for its details; the card's title or [t] Details for the current one; another card selects it"},
 	{"tab", "", "move between the task list, the action bar and the log"},
 	{"← →", "", "move along the action bar"},
 	{"↑ ↓  j k", "", "move in lists and dialogs, scroll the log"},

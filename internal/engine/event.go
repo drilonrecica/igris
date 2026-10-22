@@ -117,6 +117,9 @@ type Event struct {
 	Tokens *Tokens
 	// Quota is the subscription quota, set on QuotaRead (SPEC §6.3, §15.1).
 	Quota *state.Quota
+	// Slot is the task's slot in a parallel phase (SPEC §6.11), set on the
+	// events of an active task that holds one; nil otherwise.
+	Slot *int
 }
 
 // Tokens is what the current attempt's transcripts record so far, for the
@@ -179,6 +182,10 @@ func (e *Engine) emit(ev Event) {
 		ev = e.task.fill(ev)
 		ev.Verify, _ = e.verifyProfile(e.task.t)
 	}
+	if l := e.launchOf(ev.Task); ev.Slot == nil && l != nil && l.cur != nil && l.cur.Slot != nil {
+		slot := *l.cur.Slot
+		ev.Slot = &slot // the card's head shows it (SPEC §15.1)
+	}
 	// Details quote notes, plan text and command output: nothing in them may
 	// reach the owner's terminal as an escape sequence (SPEC §16).
 	ev.Detail, ev.Title, ev.Verify = textsafe.Clean(ev.Detail), textsafe.Line(ev.Title), textsafe.Line(ev.Verify)
@@ -191,15 +198,38 @@ func (e *Engine) emit(ev Event) {
 	}
 }
 
-// trackTail records the session Tail reads: the current agent task's, while
-// it is open. Called from the goroutine in Run, which owns e.task.
+// trackTail records the sessions Tail and TailTask read: each active agent
+// task's, while it is open, and the current one's: the first active task
+// (state.json's current one), else the task being started. Called from
+// the goroutine in Run, which owns e.task and e.active.
 func (e *Engine) trackTail() {
-	var s backend.Session
-	if l := e.task; l != nil && l.sess != nil && !l.lost {
-		s = l.sess
+	open := func(l *launch) backend.Session {
+		if l != nil && l.sess != nil && !l.lost {
+			return l.sess
+		}
+		return nil
+	}
+	cur := open(e.first())
+	if cur == nil {
+		cur = open(e.task)
+	}
+	var tasks map[string]backend.Session
+	for _, l := range e.active {
+		if s := open(l); s != nil {
+			if tasks == nil {
+				tasks = map[string]backend.Session{}
+			}
+			tasks[l.t.ID] = s
+		}
+	}
+	if s := open(e.task); s != nil && tasks[e.task.t.ID] == nil {
+		if tasks == nil {
+			tasks = map[string]backend.Session{}
+		}
+		tasks[e.task.t.ID] = s // started, not yet active
 	}
 	e.tailMu.Lock()
-	e.tailSess = s
+	e.tailSess, e.tailTasks = cur, tasks
 	e.tailMu.Unlock()
 }
 
@@ -210,8 +240,18 @@ var _ backend.Tailer = (*Engine)(nil)
 // session is open or the backend can't tail. It is safe to call from any
 // goroutine; its output goes nowhere but the caller.
 func (e *Engine) Tail(ctx context.Context, n int) ([]string, error) {
+	return e.TailTask(ctx, "", n)
+}
+
+// TailTask is Tail for the session of active task id (SPEC §15.1: every
+// card has its tail); "" is the current task's, the first active one. It returns nothing when
+// that task has no open session.
+func (e *Engine) TailTask(ctx context.Context, id string, n int) ([]string, error) {
 	e.tailMu.Lock()
 	s := e.tailSess
+	if id != "" {
+		s = e.tailTasks[id]
+	}
 	e.tailMu.Unlock()
 	t, ok := s.(backend.Tailer)
 	if !ok {
@@ -346,7 +386,46 @@ func (e *Engine) toast(ctx context.Context, event notify.Event, what string) {
 	if e.task != nil {
 		m.TaskID, m.Title = e.task.t.ID, e.task.t.Title
 	}
+	if event == notifyNeedsInput && e.gathering {
+		e.needs = append(e.needs, m) // sent with the poll's others (sendNeeds)
+		return
+	}
 	e.notified(e.notifier.Notify(ctx, m))
+}
+
+// gather starts collecting the needs_input notifications of one poll over
+// several active tasks (SPEC §10): sendNeeds sends them, as one message
+// when they are for more than one task. With one active task there is
+// nothing to group and each goes out at once.
+func (e *Engine) gather() { e.gathering = len(e.active) > 1 }
+
+// sendNeeds sends the needs_input notifications gathered so far and stops
+// gathering. Those for one task go out as they are; those for several go
+// out as one, "2 tasks need you: M1-03, M1-05", with no title and the
+// first task's ID for templates. Every wait calls it, so a question asked
+// in the middle of a poll is never held back by the gathering.
+func (e *Engine) sendNeeds(ctx context.Context) {
+	e.gathering = false
+	needs := e.needs
+	e.needs = nil
+	var ids []string
+	for _, m := range needs {
+		if !slices.Contains(ids, m.TaskID) {
+			ids = append(ids, m.TaskID)
+		}
+	}
+	if len(ids) < 2 {
+		for _, m := range needs {
+			e.notified(e.notifier.Notify(ctx, m))
+		}
+		return
+	}
+	last := needs[len(needs)-1]
+	e.notified(e.notifier.Notify(ctx, notify.Message{
+		Event: notifyNeedsInput, Project: last.Project, Phase: last.Phase,
+		TaskID: ids[0], Tasks: ids, What: notify.NeedYou(ids),
+		RunID: last.RunID, At: last.At,
+	}))
 }
 
 // notified logs how each delivery went: sent, held for quiet hours or a

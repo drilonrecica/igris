@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"maps"
 	"strings"
 	"time"
 
@@ -30,9 +31,10 @@ const (
 	stateWaiting             // the agent waits on background work Claude Code resumes it for
 )
 
-// current is the task the run works on.
+// current is an active task, as its card shows it (SPEC §15.3).
 type current struct {
 	id, title, rank, model, mode string
+	slot                         *int // the task's slot in a parallel phase (SPEC §6.11)
 	user                         bool
 	started                      time.Time
 	state                        taskState
@@ -83,8 +85,14 @@ type model struct {
 	mode    string
 	paused  bool // pause-after-task is on
 	holding bool // the run holds because of the pause
-	cur     *current
-	asked   *engine.Event // the question waiting for an answer
+	// cards are the active tasks in plan order (SPEC §15.1): one in a
+	// sequential phase, up to max in a parallel one. cur is the selected
+	// card, which o, d, s, r, t, M and y act on; nil with none.
+	cards []*current
+	cur   *current
+	// asks are the questions waiting for an answer, one per task at most:
+	// Needs you is one queue in plan order (SPEC §15.1).
+	asks map[string]*engine.Event
 	// resetAsk is the reset request waiting for the owner's answer
 	// (SPEC §6.2); it can come while another question waits.
 	resetAsk *engine.Event
@@ -117,10 +125,10 @@ type model struct {
 	notice   string // what the last y copied, shown in the header
 	noticeAt time.Time
 
-	// tail is the current session's last lines, cleaned (tail.go);
-	// tailBusy says a refresh is in flight, tailGen counts the sessions
-	// so a late result for an earlier one is dropped.
-	tail     []string
+	// tails are each card's session's last lines, cleaned, by task
+	// (tail.go); tailBusy says a refresh is in flight, tailGen counts the
+	// session changes so a late result for an earlier one is dropped.
+	tails    map[string][]string
 	tailBusy bool
 	tailGen  int
 
@@ -149,7 +157,10 @@ func newModel(ctx context.Context, opts Options) *model {
 	if opts.Now == nil {
 		opts.Now = time.Now
 	}
-	m := &model{ctx: ctx, opts: opts, mode: opts.Mode, width: 80, height: 24, taskTop: -1, loc: time.Local, overrides: map[string]string{}, th: &theme{}}
+	m := &model{
+		ctx: ctx, opts: opts, mode: opts.Mode, width: 80, height: 24, taskTop: -1, loc: time.Local,
+		overrides: map[string]string{}, asks: map[string]*engine.Event{}, tails: map[string][]string{}, th: &theme{},
+	}
 	if opts.Side != nil {
 		m.side = newSideUI(ctx, opts.Side, opts.Now, nil)
 	}
@@ -243,6 +254,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			break
 		}
 		m.plan = msg.p
+		m.sortCards()
 	case tickMsg:
 		if m.notice != "" && m.opts.Now().Sub(m.noticeAt) >= noticeFor {
 			m.notice = ""
@@ -463,6 +475,9 @@ func (m *model) mouse(msg tea.MouseMsg) tea.Cmd {
 		case t.act == actTaskRow && m.dialog == nil:
 			m.clickTask(t.option)
 			return nil
+		case t.act == actCardPick && m.dialog == nil:
+			m.pickCard(t.option)
+			return nil
 		case t.act == actField && m.dialog != nil:
 			m.dialog.inField = true
 			return nil
@@ -519,10 +534,10 @@ func (m *model) pick(a action) tea.Cmd {
 			return nil
 		}
 		m.dialog = nil
+		m.opts.Sender.Send(engine.Command{Kind: engine.CmdSkip, Text: reason, Task: d.task})
 		if d.answers != "" {
-			m.asked = nil // the skip answers the question it came from
+			m.answered(d.task) // the skip answers the question it came from
 		}
-		m.opts.Sender.Send(engine.Command{Kind: engine.CmdSkip, Text: reason})
 		return nil
 	}
 	if a == actPlanRejectConfirm && d != nil && d.input != nil {
@@ -531,13 +546,14 @@ func (m *model) pick(a action) tea.Cmd {
 			d.inField, d.input.hint = true, "Type what the session should change."
 			return nil
 		}
-		m.dialog, m.asked = nil, nil
-		m.opts.Sender.Send(engine.Command{Kind: engine.CmdPlan, Plan: state.PlanDeny, Text: feedback})
+		m.dialog = nil
+		m.opts.Sender.Send(engine.Command{Kind: engine.CmdPlan, Plan: state.PlanDeny, Text: feedback, Task: d.task})
+		m.answered(d.task)
 		return nil
 	}
 	if a == actDoneConfirm && d != nil && d.input != nil {
 		m.dialog = nil
-		m.opts.Sender.Send(engine.Command{Kind: engine.CmdDone, Text: strings.TrimSpace(d.input.value)})
+		m.opts.Sender.Send(engine.Command{Kind: engine.CmdDone, Text: strings.TrimSpace(d.input.value), Task: d.task})
 		return nil
 	}
 	if mode, ok := modeOf(a); ok && d != nil {
@@ -610,7 +626,7 @@ func (m *model) activate(a action) tea.Cmd {
 		m.opts.Sender.Send(engine.Command{Kind: engine.CmdStop})
 		return nil
 	case actOpen:
-		return m.focusSession()
+		return m.focusSession(m.cur)
 	case actClose:
 		m.dialog = nil
 		return nil
@@ -618,6 +634,23 @@ func (m *model) activate(a action) tea.Cmd {
 		if q := m.question(); q != nil {
 			m.dialog = questionDialog(*q)
 		}
+		return nil
+	case actAnswerCard:
+		// The selected card's own question, else the first in line.
+		q := m.question()
+		if m.cur != nil && m.cardAsk(m.cur) != nil {
+			q = m.cardAsk(m.cur)
+		}
+		if q != nil {
+			m.dialog = questionDialog(*q)
+		}
+		return nil
+	case actCardPrev, actCardNext:
+		by := 1
+		if a == actCardPrev {
+			by = -1
+		}
+		m.moveCard(by)
 		return nil
 	case actMore:
 		if len(m.folded) > 0 {
@@ -655,10 +688,10 @@ func (m *model) activate(a action) tea.Cmd {
 		}
 		return nil
 	case actSkip:
-		if m.cur != nil && !m.ended {
+		if c := m.target(); c != nil && !m.ended {
 			// After a lost session or a failed before_task hook there is
 			// no session left to close.
-			d := skipDialog(m.cur.id, !m.cur.user && m.cur.session != nil)
+			d := skipDialog(c.id, !c.user && c.session != nil)
 			if m.dialog != nil && m.dialog.question != "" {
 				d.answers = m.dialog.question
 			}
@@ -671,26 +704,33 @@ func (m *model) activate(a action) tea.Cmd {
 		}
 		return nil
 	case actRetry:
-		if m.cur != nil && !m.cur.user && !m.ended {
-			m.dialog = retryDialog(m.cur.id)
+		if c := m.target(); c != nil && !c.user && !m.ended {
+			m.dialog = retryDialog(c.id)
 		}
 		return nil
 	case actCopy:
 		m.copySelected()
 		return nil
 	case actDone:
-		if m.cur == nil {
+		c := m.target()
+		if c == nil {
 			return nil
 		}
-		if m.cur.user && !m.ended {
-			m.dialog = doneDialog(m.cur.id) // the owner's own work: a note may say how
+		if c.user && !m.ended {
+			m.dialog = doneDialog(c.id) // the owner's own work: a note may say how
 			return nil
 		}
 	}
 	resetQ := m.dialog != nil && m.dialog.question == engine.QuestionConfirmReset
+	target := m.target()
 	if c, ok := a.command(); ok {
-		if resetQ && c.Kind == engine.CmdAnswer {
+		switch {
+		case resetQ && c.Kind == engine.CmdAnswer:
 			c.Question, c.Task = engine.QuestionConfirmReset, m.dialog.task
+		case c.Kind != engine.CmdPause && c.Kind != engine.CmdStop && target != nil:
+			// Addressed to its task: with several active, the
+			// question's or the selected card's (SPEC §15.1).
+			c.Task = target.id
 		}
 		m.opts.Sender.Send(c)
 	}
@@ -698,17 +738,45 @@ func (m *model) activate(a action) tea.Cmd {
 	case resetQ:
 		// The other question, if one waits, comes back.
 		m.dialog, m.resetAsk = nil, nil
-		if m.asked != nil {
-			m.dialog = questionDialog(*m.asked)
+		if q := m.firstAsk(); q != nil {
+			m.dialog = questionDialog(*q)
 		}
 	case m.dialog != nil && m.dialog.question != "":
-		// The engine has its answer; the events that follow say what it did.
-		m.dialog, m.asked = nil, nil
+		// The engine has its answer; the events that follow say what it
+		// did. The next question in line comes up.
+		m.dialog = nil
+		if target != nil {
+			m.answered(target.id)
+		}
 	}
 	if a == actPlanPane {
-		return m.focusSession() // Claude Code's own plan dialog waits there
+		return m.focusSession(target) // Claude Code's own plan dialog waits there
 	}
 	return nil
+}
+
+// target is the task an action is for: the open question's (or the
+// dialog's that came from one), else the selected card's; nil when there
+// is neither.
+func (m *model) target() *current {
+	if d := m.dialog; d != nil && (d.question != "" || d.answers != "") && d.task != "" {
+		if c := m.card(d.task); c != nil {
+			return c
+		}
+		return &current{id: d.task} // a task no card shows (anymore)
+	}
+	return m.cur
+}
+
+// answered forgets task id's question once the owner answered it, and
+// brings up the next one in line unless a dialog is open (SPEC §15.1).
+func (m *model) answered(id string) {
+	delete(m.asks, id)
+	if m.dialog == nil {
+		if q := m.question(); q != nil {
+			m.dialog = questionDialog(*q)
+		}
+	}
 }
 
 // sideAt is what a side session opened now can be about (SPEC §15.7): the
@@ -726,8 +794,8 @@ func (m *model) sideAt() sideAt {
 	at.run = &SideRun{Worktree: m.worktree}
 	at.state = &side.RunInfo{Phase: m.phase}
 	if c := m.cur; c != nil {
-		at.running = c.id == at.task
-		at.state.Task, at.state.Agent = c.id, m.stateText()
+		at.running = m.card(at.task) != nil
+		at.state.Task, at.state.Agent = c.id, m.stateText(c)
 		if !c.user {
 			at.run.Task = c.id // a user task has no session working on it
 		}
@@ -744,19 +812,20 @@ func sessionPlace(backend string) string {
 	return "herdr tab"
 }
 
-// canOpen says whether Open session would do something: a session exists
-// and this igris can reach its backend. An attached client outside herdr
-// and tmux (ssh from a phone) can't, so it isn't offered (SPEC §15.3).
-func (m *model) canOpen() bool {
-	return m.cur != nil && m.cur.session != nil && m.opts.Focus != nil
+// canOpen says whether Open session would do something for c: its
+// session exists and this igris can reach its backend. An attached client
+// outside herdr and tmux (ssh from a phone) can't, so it isn't offered
+// (SPEC §15.3).
+func (m *model) canOpen(c *current) bool {
+	return c != nil && c.session != nil && m.opts.Focus != nil
 }
 
-// focusSession brings the current session's pane to the front.
-func (m *model) focusSession() tea.Cmd {
-	if !m.canOpen() {
+// focusSession brings c's session's pane to the front.
+func (m *model) focusSession(c *current) tea.Cmd {
+	if !m.canOpen(c) {
 		return nil
 	}
-	ref, id, focus, ctx := *m.cur.session, m.cur.id, m.opts.Focus, m.ctx
+	ref, id, focus, ctx := *c.session, c.id, m.opts.Focus, m.ctx
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
@@ -767,21 +836,24 @@ func (m *model) focusSession() tea.Cmd {
 	}
 }
 
-// event applies one engine event.
+// event applies one engine event. A task's events change its own card.
 func (m *model) event(ev engine.Event) {
-	if session := m.sessionOf(); session != nil {
-		defer func() {
-			if m.sessionOf() != session {
-				m.resetTail() // another session, or none
-			}
-		}()
-	}
+	before := m.sessions()
+	defer func() {
+		if !maps.Equal(before, m.sessions()) {
+			m.resetTail() // another session, or none, for some card
+		}
+	}()
 	for _, line := range logLines(ev) {
 		m.addLog(ev.At, line, logLook(ev.Kind))
 	}
 	if ev.Phase != "" {
 		m.phase = ev.Phase
 	}
+	if ev.Task == "" && len(m.cards) == 1 {
+		ev.Task = m.cards[0].id // a task's event, from a sequential run
+	}
+	c := m.card(ev.Task)
 	switch ev.Kind {
 	case engine.RunStarted:
 		m.slice = nil
@@ -792,108 +864,116 @@ func (m *model) event(ev engine.Event) {
 			}
 		}
 	case engine.TaskStarted, engine.TaskResumed:
-		if m.cur == nil || m.cur.id != ev.Task {
-			m.cur = &current{id: ev.Task, started: ev.At}
+		if c == nil {
+			c = &current{id: ev.Task, started: ev.At}
+			m.addCard(c)
 		}
-		m.cur.title, m.cur.rank, m.cur.model, m.cur.mode = ev.Title, ev.Rank, ev.Model, ev.Mode
-		m.cur.user = ev.Model == ""
+		c.title, c.rank, c.model, c.mode, c.slot = ev.Title, ev.Rank, ev.Model, ev.Mode, ev.Slot
+		c.user = ev.Model == ""
 		if ev.Session != nil { // a resume reattached it
-			m.cur.session, m.cur.claudeSession = ev.Session, ev.ClaudeSession
+			c.session, c.claudeSession = ev.Session, ev.ClaudeSession
 		}
-		m.setState(stateWorking, ev)
+		setState(c, stateWorking, ev)
 		m.holding = false
-		m.taskTop = -1
-		m.settle()
+		if c == m.cur {
+			m.taskTop = -1
+		}
+		m.settle(ev.Task)
 	case engine.SessionOpened:
-		if m.cur != nil {
-			m.cur.session, m.cur.mode, m.cur.claudeSession = ev.Session, ev.Mode, ev.ClaudeSession
-			m.cur.overdue, m.cur.rankMismatch, m.cur.tokens = "", "", nil // a new attempt
+		if c != nil {
+			c.session, c.mode, c.claudeSession = ev.Session, ev.Mode, ev.ClaudeSession
+			c.overdue, c.rankMismatch, c.tokens = "", "", nil // a new attempt
 		}
 	case engine.UsageRead:
-		if m.cur != nil && m.cur.id == ev.Task {
-			m.cur.tokens = ev.Tokens
+		if c != nil {
+			c.tokens = ev.Tokens
 		}
 	case engine.QuotaRead:
 		m.quota = ev.Quota
 	case engine.TaskOverdue:
-		if m.cur != nil {
-			m.cur.overdue = ev.Detail
+		if c != nil {
+			c.overdue = ev.Detail
 		}
 	case engine.RankMismatch:
-		if m.cur != nil && m.cur.id == ev.Task {
-			m.cur.rankMismatch = ev.Detail
+		if c != nil {
+			c.rankMismatch = ev.Detail
 		}
 	case engine.YourTurn:
-		m.setState(stateYourTurn, ev)
+		setState(c, stateYourTurn, ev)
 	case engine.AgentWaiting:
-		m.setState(stateWaiting, ev)
-		if m.cur != nil {
-			m.cur.waiting = true
+		setState(c, stateWaiting, ev)
+		if c != nil {
+			c.waiting = true
 		}
 	case engine.AgentWaitingOver:
-		if m.cur != nil {
-			m.cur.waiting = false
-			if m.cur.state == stateWaiting {
-				m.setState(stateWorking, ev)
+		if c != nil {
+			c.waiting = false
+			if c.state == stateWaiting {
+				setState(c, stateWorking, ev)
 			}
 		}
 	case engine.NeedsYou:
-		if m.cur != nil && m.cur.waiting && m.cur.state == stateWaiting {
+		if c != nil && c.waiting && c.state == stateWaiting {
 			// Waited past waiting_limit: the time counts from the start.
-			m.cur.state, m.cur.detail = stateNeedsYou, ev.Detail
+			c.state, c.detail = stateNeedsYou, ev.Detail
 			break
 		}
-		m.setState(stateNeedsYou, ev)
+		setState(c, stateNeedsYou, ev)
 	case engine.NeedsYouClear, engine.VerifyFailed:
-		m.setState(stateWorking, ev)
+		setState(c, stateWorking, ev)
 	case engine.VerifyStarted:
-		m.setState(stateVerifying, ev)
+		setState(c, stateVerifying, ev)
 	case engine.SessionLost:
-		m.setState(stateLost, ev)
-		if m.cur != nil {
-			m.cur.session, m.cur.overdue, m.cur.rankMismatch = nil, "", "" // the attempt ended
+		setState(c, stateLost, ev)
+		if c != nil {
+			c.session, c.overdue, c.rankMismatch = nil, "", "" // the attempt ended
 		}
 	case engine.Asked:
 		e := ev
-		m.dialog = questionDialog(ev)
 		if ev.Question == engine.QuestionConfirmReset {
-			m.resetAsk = &e // the current task's state is its own
+			m.resetAsk = &e // the task's state is its own
+			m.dialog = questionDialog(ev)
 			break
 		}
-		m.asked = &e
-		m.setState(stateQuestion, ev)
-	case engine.PlanClosed:
-		if m.asked != nil && m.asked.Question == engine.QuestionPlanApproval {
-			m.asked = nil
+		m.asks[ev.Task] = &e
+		setState(c, stateQuestion, ev)
+		// It opens at once, but never over another task's question: that
+		// one is answered first, and this one comes next (SPEC §15.1).
+		if d := m.dialog; d == nil || (d.question == "" && d.answers == "") || d.task == ev.Task {
+			m.dialog = questionDialog(ev)
 		}
-		if d := m.dialog; d != nil && (d.question == engine.QuestionPlanApproval || d.answers == engine.QuestionPlanApproval) {
+	case engine.PlanClosed:
+		if q := m.asks[ev.Task]; q != nil && q.Question == engine.QuestionPlanApproval {
+			delete(m.asks, ev.Task)
+		}
+		if d := m.dialog; d != nil && d.task == ev.Task && (d.question == engine.QuestionPlanApproval || d.answers == engine.QuestionPlanApproval) {
 			m.dialog = nil
 		}
-		if m.cur != nil && m.cur.state == stateQuestion {
-			m.setState(stateNeedsYou, ev) // until the agent works again
+		if c != nil && c.state == stateQuestion {
+			setState(c, stateNeedsYou, ev) // until the agent works again
 		}
 	case engine.ResetDropped:
 		m.dropResetAsk(ev.Task)
 	case engine.Retrying:
-		if m.cur != nil {
-			m.cur.session, m.cur.overdue, m.cur.rankMismatch = nil, "", ""
+		if c != nil {
+			c.session, c.overdue, c.rankMismatch = nil, "", ""
 		}
-		m.setState(stateWorking, ev)
-		m.settle()
+		setState(c, stateWorking, ev)
+		m.settle(ev.Task)
 	case engine.Committed, engine.NotCommitted:
-		m.settle()
+		m.settle(ev.Task)
 	case engine.TaskReset:
 		m.dropResetAsk(ev.Task)
-		if m.cur != nil && m.cur.id == ev.Task {
-			m.cur = nil // the run let go of it and pauses
-			m.settle()
+		if c != nil {
+			m.dropCard(ev.Task) // the run let go of it and pauses
+			m.settle(ev.Task)
 			if m.dialog != nil && m.dialog.task == ev.Task {
 				m.dialog = nil
 			}
 		}
 	case engine.TaskDone, engine.TaskSkipped:
-		m.cur = nil
-		m.settle()
+		m.dropCard(ev.Task)
+		m.settle(ev.Task)
 		if m.dialog != nil && m.dialog.task == ev.Task {
 			m.dialog = nil // it asked about a task that is over
 		}
@@ -912,35 +992,62 @@ func (m *model) event(ev engine.Event) {
 	case engine.RunStopped:
 		m.ended = true
 		m.endText = "the run stopped: " + ev.Detail
-		m.settle()
+		clear(m.asks)
 		if !m.side.owns(m.dialog) {
 			m.dialog = nil // nothing left to ask or confirm; a side session isn't the run's
 		}
 	}
 }
 
-func (m *model) setState(s taskState, ev engine.Event) {
-	if m.cur == nil {
+func setState(c *current, s taskState, ev engine.Event) {
+	if c == nil {
 		return
 	}
-	m.cur.state, m.cur.since, m.cur.detail = s, ev.At, ev.Detail
+	c.state, c.since, c.detail = s, ev.At, ev.Detail
 }
 
-// settle drops a pending engine question: a later event answered it. A
-// reset request is not the current task's question and stays.
-func (m *model) settle() {
-	m.asked = nil
-	if m.dialog != nil && m.dialog.question != "" && m.dialog.question != engine.QuestionConfirmReset {
+// settle drops task id's pending question: a later event answered it. A
+// reset request is not the task's question and stays.
+func (m *model) settle(id string) {
+	delete(m.asks, id)
+	if d := m.dialog; d != nil && d.question != "" && d.question != engine.QuestionConfirmReset && d.task == id {
 		m.dialog = nil
 	}
 }
 
-// question is the question Answer… opens: a reset request first.
+// question is the question Answer… opens: a reset request first, then the
+// first of the queue in plan order (SPEC §15.1).
 func (m *model) question() *engine.Event {
 	if m.resetAsk != nil {
 		return m.resetAsk
 	}
-	return m.asked
+	return m.firstAsk()
+}
+
+// firstAsk is the first pending question in plan order: the cards' first,
+// then any for a task no card shows, oldest first.
+func (m *model) firstAsk() *engine.Event {
+	for _, c := range m.cards {
+		if q := m.asks[c.id]; q != nil {
+			return q
+		}
+	}
+	var first *engine.Event
+	for _, q := range m.asks {
+		if first == nil || q.At.Before(first.At) || (q.At.Equal(first.At) && q.Task < first.Task) {
+			first = q
+		}
+	}
+	return first
+}
+
+// cardAsk is what c's task waits for the owner to answer: its reset
+// request, else its question; nil when nothing.
+func (m *model) cardAsk(c *current) *engine.Event {
+	if m.resetAsk != nil && m.resetAsk.Task == c.id {
+		return m.resetAsk
+	}
+	return m.asks[c.id]
 }
 
 // dropResetAsk forgets the reset request for task id once it is applied,
@@ -952,8 +1059,8 @@ func (m *model) dropResetAsk(id string) {
 	m.resetAsk = nil
 	if m.dialog != nil && m.dialog.question == engine.QuestionConfirmReset {
 		m.dialog = nil
-		if m.asked != nil {
-			m.dialog = questionDialog(*m.asked)
+		if q := m.firstAsk(); q != nil {
+			m.dialog = questionDialog(*q)
 		}
 	}
 }

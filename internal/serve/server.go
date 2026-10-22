@@ -32,9 +32,10 @@ type Options struct {
 	// Sender gets every valid command. Nil drops them, still answered
 	// with an ack (a run that hasn't started yet).
 	Sender Sender
-	// Tail reads the current session's last lines (engine.Engine.Tail);
-	// nil answers every tail request with no lines.
-	Tail func(ctx context.Context, n int) ([]string, error)
+	// Tail reads the last lines of active task's session, "" for the
+	// current task's (engine.Engine.TailTask); nil answers every tail
+	// request with no lines.
+	Tail func(ctx context.Context, task string, n int) ([]string, error)
 	// Plan loads the plan for a snapshot's phases; nil sends none.
 	Plan func() (*plan.Plan, error)
 	// Hello is called with every client's hello, once its snapshot is
@@ -413,7 +414,7 @@ func (s *Server) snapshot(c *client) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	snap := s.track.snapshot()
+	snap := s.track.snapshot(phases)
 	snap.Server, snap.Project, snap.Backend = "igris "+s.opts.Version, textsafe.Line(s.opts.Project), s.opts.Backend
 	snap.Phases, snap.PlanError = phases, planErr
 	b, err := encodeSnapshot(snap)
@@ -460,6 +461,10 @@ func (s *Server) tail(c *client, r Request) {
 		c.reply(Reply{Type: TypeError, ID: r.ID, Error: fmt.Sprintf("n is 1 to %d", maxTail)})
 		return
 	}
+	if r.Task != "" && (len(r.Task) > maxID || !plan.ValidID(r.Task)) {
+		c.reply(Reply{Type: TypeError, ID: r.ID, Error: fmt.Sprintf("%q is not a task ID", textsafe.Line(cut(r.Task, maxID)))})
+		return
+	}
 	if s.opts.Tail == nil {
 		c.reply(Reply{Type: TypeTail, ID: r.ID})
 		return
@@ -481,7 +486,7 @@ func (s *Server) tail(c *client, r Request) {
 			case <-ctx.Done():
 			}
 		}()
-		lines, err := s.opts.Tail(ctx, r.N)
+		lines, err := s.opts.Tail(ctx, r.Task, r.N)
 		if err != nil {
 			c.reply(Reply{Type: TypeError, ID: r.ID, Error: "tail: " + cut(textsafe.Line(err.Error()), 4<<10)})
 			return

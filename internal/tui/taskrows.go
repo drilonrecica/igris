@@ -25,8 +25,9 @@ type rows struct {
 	// curID is the task the run is on ("" for none); the list follows it.
 	curID string
 	// waiting is set while the current task waits on the owner: its glyph
-	// is "!" then.
+	// is "!" then. waits holds the other active tasks that do (SPEC §15.1).
 	waiting bool
+	waits   map[string]bool
 	// mode is the run mode; overrides are the per-task modes the owner chose.
 	mode      string
 	overrides map[string]string
@@ -39,6 +40,14 @@ func (m *model) rows() rows {
 	if m.cur != nil {
 		r.curID = m.cur.id
 		r.waiting = m.cur.state != stateWorking && m.cur.state != stateVerifying && m.cur.state != stateWaiting
+	}
+	for _, c := range m.cards {
+		if c != m.cur && c.state != stateWorking && c.state != stateVerifying && c.state != stateWaiting {
+			if r.waits == nil {
+				r.waits = map[string]bool{}
+			}
+			r.waits[c.id] = true
+		}
 	}
 	return r
 }
@@ -54,9 +63,9 @@ func (r rows) tasks() []*plan.Task {
 	return nil
 }
 
-// needsOwner reports whether t is the current task and waits on the owner.
+// needsOwner reports whether t is an active task that waits on the owner.
 func (r rows) needsOwner(t *plan.Task) bool {
-	return r.curID == t.ID && r.waiting
+	return (r.curID == t.ID && r.waiting) || r.waits[t.ID]
 }
 
 // glyph is t's status glyph; the current task shows "!" while it waits on

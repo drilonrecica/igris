@@ -400,7 +400,7 @@ func TestHelloTimesOut(t *testing.T) {
 
 func TestTail(t *testing.T) {
 	var asked int
-	s := New(Options{Tail: func(_ context.Context, n int) ([]string, error) {
+	s := New(Options{Tail: func(_ context.Context, _ string, n int) ([]string, error) {
 		asked = n
 		return []string{"one", "two \x1b[31mred\x1b[0m", "three"}, nil
 	}})
@@ -413,7 +413,7 @@ func TestTail(t *testing.T) {
 		t.Errorf("tail = %v (asked %d), want the last 2 lines, cleaned", m, asked)
 	}
 
-	failing := New(Options{Tail: func(context.Context, int) ([]string, error) { return nil, errors.New("pane gone") }})
+	failing := New(Options{Tail: func(context.Context, string, int) ([]string, error) { return nil, errors.New("pane gone") }})
 	p = attach(t, failing)
 	p.hello()
 	p.send(`{"v":1,"type":"tail","id":"t","n":6}`)

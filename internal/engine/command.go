@@ -205,6 +205,7 @@ func (e *Engine) stopping(ctx context.Context) bool {
 // whole poll interval, and quiet-hours digests go out when the window ends
 // even while the run waits on the owner.
 func (e *Engine) wait(ctx context.Context, d time.Duration) {
+	e.sendNeeds(ctx)
 	select {
 	case <-ctx.Done():
 	case <-e.wake:

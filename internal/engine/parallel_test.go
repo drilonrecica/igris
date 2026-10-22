@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/runner"
 	"github.com/drilonrecica/igris/internal/state"
 )
@@ -328,5 +329,77 @@ func TestParallelResumeReattachesEveryActiveTask(t *testing.T) {
 	// The reattached tasks keep their slots; c takes the one a freed.
 	if got := h.slots(); !strings.HasSuffix(got, "a:0 b:1 c:0") {
 		t.Errorf("slots: %s", got)
+	}
+}
+
+// Needs you raised for several tasks in one poll is one notification,
+// "2 tasks need you: a, b" (SPEC §10); a single task's goes out as before.
+// Every event of an active task carries its slot, and each task's session
+// can be tailed (SPEC §15.1).
+func TestParallelNeedsYouIsOneNotification(t *testing.T) {
+	h := newParallel(t, parallelPlan(), "[run]\ncommit = \"auto\"\n[parallel]\nmax = 2\n")
+	h.be.Script("a", states(backend.Idle, 120)...)
+	h.be.Script("b", states(backend.Idle, 120)...)
+	h.be.Script("c", states(backend.Working, 120)...)
+	h.be.SetTail("a", "⏺ working on a")
+	h.be.SetTail("b", "⏺ working on b")
+	h.clock.At(time.Minute, func() {
+		for id, want := range map[string]string{"a": "on a", "b": "on b", "": "on a"} {
+			lines, err := h.eng.TailTask(context.Background(), id, 10)
+			if err != nil || !strings.Contains(strings.Join(lines, "\n"), want) {
+				t.Errorf("TailTask(%q) = %q, %v; want %q", id, lines, err, want)
+			}
+		}
+	})
+	h.signalAt(5*time.Minute, "a")
+	h.signalAt(5*time.Minute, "b")
+	h.signalAt(6*time.Minute, "c")
+	if _, err := h.run(); err != nil {
+		t.Fatal(err)
+	}
+	var needs []string
+	for _, n := range h.toasts() {
+		if strings.Contains(n, "need") {
+			needs = append(needs, n)
+		}
+	}
+	if len(needs) != 1 || needs[0] != "request: phase A: 2 tasks need you: a, b" {
+		t.Errorf("needs-you toasts = %q, want one for both tasks", needs)
+	}
+	if got := h.count(NeedsYou); got != 2 {
+		t.Errorf("%d NeedsYou events, want one per task", got)
+	}
+	for _, id := range []string{"a", "b"} {
+		for _, kind := range []EventKind{TaskStarted, SessionOpened, NeedsYou} {
+			if ev := h.event(kind, id); ev.Slot == nil {
+				t.Errorf("%s of %s has no slot", kind, id)
+			}
+		}
+	}
+	if s := h.event(TaskStarted, "b").Slot; s == nil || *s != 1 {
+		t.Errorf("b's slot = %v, want 1", s)
+	}
+}
+
+// One task needing the owner while another works is told on its own.
+func TestParallelNeedsYouAlone(t *testing.T) {
+	h := newParallel(t, parallelPlan(), "[run]\ncommit = \"auto\"\n[parallel]\nmax = 2\n")
+	h.be.Script("a", states(backend.Idle, 120)...)
+	h.be.Script("b", states(backend.Working, 120)...)
+	h.be.Script("c", states(backend.Working, 120)...)
+	h.signalAt(5*time.Minute, "a")
+	h.signalAt(6*time.Minute, "b")
+	h.signalAt(7*time.Minute, "c")
+	if _, err := h.run(); err != nil {
+		t.Fatal(err)
+	}
+	var needs []string
+	for _, n := range h.toasts() {
+		if strings.Contains(n, "need") {
+			needs = append(needs, n)
+		}
+	}
+	if len(needs) != 1 || !strings.HasPrefix(needs[0], "request: phase A · a One: needs you") {
+		t.Errorf("needs-you toasts = %q, want a's own", needs)
 	}
 }

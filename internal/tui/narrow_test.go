@@ -191,7 +191,7 @@ func TestClicksLandWhereTheTextIs(t *testing.T) {
 			hs.withPlan(demoPlan)
 			hs.events(started("M0-03"), opened("M0-03"), asked(engine.QuestionCommit, "commit?"))
 			hs.clickText("2. Leave")
-			if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdAnswer}) {
+			if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdAnswer, Task: "M0-03"}) {
 				t.Fatalf("dialog option: sent %+v", got)
 			}
 			hs.clickText("[Done]")

@@ -230,3 +230,16 @@ func jsonText(s string) string {
 	b, _ := json.Marshal(s)
 	return strings.Trim(string(b), `"`)
 }
+
+// A needs_input message for several tasks (SPEC §10) names them all and no
+// title; templates still get the first task's ID.
+func TestSeveralTasksNeedYou(t *testing.T) {
+	m := Message{Event: NeedsInput, Project: "p", Phase: "M1", TaskID: "M1-03", Tasks: []string{"M1-03", "M1-05"}, What: NeedYou([]string{"M1-03", "M1-05"})}
+	if got, want := m.Body(), "phase M1: 2 tasks need you: M1-03, M1-05"; got != want {
+		t.Errorf("Body = %q, want %q", got, want)
+	}
+	tm := mustTemplate(t, "{{.TaskID}} | {{.Title}} | {{.What}}")
+	if got, want := templated(tm, m, cutTo(200)), "M1-03 |  | 2 tasks need you: M1-03, M1-05"; got != want {
+		t.Errorf("templated = %q, want %q", got, want)
+	}
+}

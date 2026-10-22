@@ -27,7 +27,7 @@ type wire struct {
 	client *serve.Client
 
 	mu   sync.Mutex
-	tail func(context.Context, int) ([]string, error)
+	tail func(context.Context, string, int) ([]string, error)
 }
 
 // attachedHarness is newHarness with its run served: the view starts from
@@ -97,23 +97,23 @@ func (wr *wire) drain(hs *harness, n int) {
 	}
 }
 
-func (wr *wire) readTail(ctx context.Context, n int) ([]string, error) {
+func (wr *wire) readTail(ctx context.Context, task string, n int) ([]string, error) {
 	wr.mu.Lock()
 	tail := wr.tail
 	wr.mu.Unlock()
 	if tail == nil {
 		return nil, nil
 	}
-	return tail(ctx, n)
+	return tail(ctx, task, n)
 }
 
 // setTail makes serve read the session's tail from tail; the view reads
 // it through the client, then refreshes once.
-func (wr *wire) setTail(hs *harness, tail func(context.Context, int) ([]string, error)) {
+func (wr *wire) setTail(hs *harness, tail func(context.Context, string, int) ([]string, error)) {
 	wr.mu.Lock()
 	wr.tail = tail
 	wr.mu.Unlock()
-	hs.m.opts.Tail = wr.client.Tail
+	hs.m.opts.Tail = wr.client.TailTask
 }
 
 // The run view attached to a served run draws what it draws for a run in

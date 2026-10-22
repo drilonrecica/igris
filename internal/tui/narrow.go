@@ -28,9 +28,14 @@ func (m *model) narrowView() string {
 	}
 	bar := m.fitBar(w)
 
-	// Header, three section rules and the bar are fixed; the card, the
-	// task list and the log share the rest.
-	rest := max(h-1-3-len(bar.rows), 0)
+	// Header, three section rules, the switcher with several active tasks
+	// (SPEC §15.1) and the bar are fixed; the card, the task list and the
+	// log share the rest.
+	switchRows := 0
+	if m.multi() && !m.ended {
+		switchRows = 1
+	}
+	rest := max(h-1-3-switchRows-len(bar.rows), 0)
 	logRows := min(narrowLog, rest)
 	card := m.cardLines(w, 0, 0, false)
 	cardRows := min(len(card), max(rest-logRows-1, 0)) // leave a task row
@@ -39,11 +44,14 @@ func (m *model) narrowView() string {
 	var out []string
 	out = append(out, m.statusBar(w))
 	out = append(out, m.rule(m.th.paint(lookTitle, "CURRENT"), w))
-	out = append(out, m.card(0, len(out), w, cardRows)...)
+	if switchRows > 0 {
+		out = append(out, m.switcher(len(out), w))
+	}
+	out = append(out, m.cardPane(0, len(out), w, cardRows)...)
 	out = append(out, m.rule(m.areaTitle("TASKS", focusTasks), w))
 	m.zones.add(rect{0, len(out), w, taskRows}, target{region: regionTasks})
 	out = append(out, m.compactTasks(len(out), w, taskRows)...)
-	for len(out) < 1+1+cardRows+1+taskRows {
+	for len(out) < 1+1+switchRows+cardRows+1+taskRows {
 		out = append(out, "")
 	}
 	out = append(out, m.rule(m.areaTitle("LOG", focusLog), w))

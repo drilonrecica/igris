@@ -20,9 +20,8 @@ func (m *model) View() string {
 // wide reports whether the frame uses the wide layout.
 func (m *model) wide() bool { return m.width >= wideWidth && m.height >= wideMinHeight }
 
-// stateText says what the current task needs, in words.
-func (m *model) stateText() string {
-	c := m.cur
+// stateText says what c's task needs, in words.
+func (m *model) stateText(c *current) string {
 	switch c.state {
 	case stateNeedsYou:
 		word := "idle"
@@ -66,10 +65,9 @@ func (m *model) logText(e logEntry, text string) string {
 	return m.th.paint(e.look, text)
 }
 
-// stateLook is how the current task's state is drawn: waiting on the
-// owner stands out.
-func (m *model) stateLook() look {
-	switch m.cur.state {
+// stateLook is how c's state is drawn: waiting on the owner stands out.
+func stateLook(c *current) look {
+	switch c.state {
 	case stateNeedsYou, stateYourTurn, stateQuestion, stateLost:
 		return lookAlert
 	case stateVerifying:
@@ -89,7 +87,7 @@ func (m *model) buttons() []option {
 	if m.question() != nil && m.dialog == nil {
 		out = append(out, option{"Answer…", actAnswer})
 	}
-	if m.canOpen() {
+	if m.canOpen(m.cur) {
 		out = append(out, option{"Open session", actOpen})
 	}
 	if !m.ended {

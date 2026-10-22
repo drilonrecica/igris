@@ -9,12 +9,11 @@ import (
 
 	"github.com/rivo/uniseg"
 
-	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
-// The live tail (SPEC §15.3): the last lines of the current session in the
+// The live tail (SPEC §15.3): the last lines of each card's session in the
 // card, read through Options.Tail every poll interval. It is display only:
 // it never goes to the log, and any failure just hides it.
 
@@ -38,24 +37,30 @@ const (
 // on top when they arrive, or a later run view.
 type (
 	tailTickMsg struct{ m *model }
-	// tailMsg is a refresh's result for the session of generation gen.
+	// tailMsg is a refresh's result for the sessions of generation gen:
+	// the lines read for each task; a task whose read failed has none.
 	tailMsg struct {
 		m     *model
 		gen   int
-		lines []string
-		err   error
+		lines map[string][]string
 	}
 )
 
+// TaskTailer reads the last n lines of an active task's session, "" for
+// the current task's: the engine, or a client of a served run.
+type TaskTailer interface {
+	TailTask(ctx context.Context, task string, n int) ([]string, error)
+}
+
 // TailOf is the live tail's source for a run steered through sender (the
-// engine, a backend.Tailer for its current session) and how often to read
-// it: none when [tui] tail is off or sender can't tail.
-func TailOf(cfg *config.Config, sender Sender) (func(context.Context, int) ([]string, error), time.Duration) {
-	t, ok := sender.(backend.Tailer)
+// engine, a TaskTailer for its active tasks' sessions) and how often to
+// read it: none when [tui] tail is off or sender can't tail.
+func TailOf(cfg *config.Config, sender Sender) (func(context.Context, string, int) ([]string, error), time.Duration) {
+	t, ok := sender.(TaskTailer)
 	if cfg == nil || !cfg.TUI.Tail || !ok {
 		return nil, 0
 	}
-	return t.Tail, cfg.PollInterval.Std()
+	return t.TailTask, cfg.PollInterval.Std()
 }
 
 // tailTick schedules the next refresh; nil without a Tail.
@@ -70,10 +75,9 @@ func (m *model) tailTick() tea.Cmd {
 	return tea.Tick(every, func(time.Time) tea.Msg { return tailTickMsg{m} })
 }
 
-// tailing reports whether the current task has a tail to show: an agent
-// task whose session is open.
-func (m *model) tailing() bool {
-	c := m.cur
+// tailing reports whether c has a tail to show: an agent task whose
+// session is open.
+func (m *model) tailing(c *current) bool {
 	return m.opts.Tail != nil && !m.ended && !m.lost && c != nil && !c.user && c.session != nil && c.state != stateLost
 }
 
@@ -86,49 +90,53 @@ func (m *model) refreshTail() tea.Cmd {
 	return tea.Batch(m.fetchTail(), m.tailTick())
 }
 
-// fetchTail reads the tail, one read at a time; nil when one is in flight
-// or there is nothing to tail.
+// fetchTail reads every card's tail, one read at a time (a served run
+// answers one tail request of a client at a time); nil when a refresh is
+// in flight or there is nothing to tail.
 func (m *model) fetchTail() tea.Cmd {
-	if !m.tailing() || m.tailBusy {
+	var ids []string
+	for _, c := range m.cards {
+		if m.tailing(c) {
+			ids = append(ids, c.id)
+		}
+	}
+	if len(ids) == 0 || m.tailBusy {
 		return nil
 	}
 	m.tailBusy = true
 	tail, gen, ctx := m.opts.Tail, m.tailGen, m.ctx
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(ctx, tailTimeout)
-		defer cancel()
-		lines, err := tail(ctx, tailFetch)
-		return tailMsg{m: m, gen: gen, lines: lines, err: err}
+		out := make(map[string][]string, len(ids))
+		for _, id := range ids {
+			ctx, cancel := context.WithTimeout(ctx, tailTimeout)
+			lines, err := tail(ctx, id, tailFetch)
+			cancel()
+			if err == nil {
+				out[id] = lines
+			}
+		}
+		return tailMsg{m: m, gen: gen, lines: out}
 	}
 }
 
-// gotTail takes a refresh's result: one for an earlier session is
-// dropped, and an error hides the tail.
+// gotTail takes a refresh's result: one for earlier sessions is dropped,
+// and a task whose read failed loses its tail.
 func (m *model) gotTail(msg tailMsg) {
 	m.tailBusy = false
 	if msg.gen != m.tailGen {
 		return
 	}
-	if msg.err != nil {
-		m.tail = nil
-		return
+	m.tails = make(map[string][]string, len(msg.lines))
+	for id, lines := range msg.lines {
+		m.tails[id] = tailLines(lines, tailWide)
 	}
-	m.tail = tailLines(msg.lines, tailWide)
 }
 
-// resetTail forgets the tail when the session changes; a refresh still in
-// flight is for the old one and will be dropped.
+// resetTail forgets the tails when a session changes; a refresh still in
+// flight is for the old ones and will be dropped.
 func (m *model) resetTail() {
-	m.tail = nil
+	m.tails = map[string][]string{}
 	m.tailGen++
-}
-
-// sessionOf is the current task's session ref, nil when there is none.
-func (m *model) sessionOf() *backend.SessionRef {
-	if m.cur == nil {
-		return nil
-	}
-	return m.cur.session
 }
 
 // tailLines cleans raw pane lines for drawing (SPEC §16): escape sequences
@@ -170,20 +178,21 @@ func expandTabs(s string) string {
 	return b.String()
 }
 
-// tailView is the card's tail, w cells wide: the last lines that fit the
+// tailView is c's card's tail, w cells wide: the last lines that fit the
 // layout, dimmed so they don't read as igris's own text. A line wider than
 // the card loses its leading spaces before it is clipped: Claude Code pads
 // right-aligned text (`◐ medium · /effort`) to the pane's width, and
 // clipping the padding would leave a blank row ending in "…".
-func (m *model) tailView(w int) []string {
-	if !m.tailing() || len(m.tail) == 0 {
+func (m *model) tailView(c *current, w int) []string {
+	tail := m.tails[c.id]
+	if !m.tailing(c) || len(tail) == 0 {
 		return nil
 	}
 	n := tailNarrow
-	if m.wide() {
-		n = tailWide
+	if m.wide() && !m.multi() {
+		n = tailWide // several cards share the height: each a shorter tail
 	}
-	lines := m.tail[max(len(m.tail)-n, 0):]
+	lines := tail[max(len(tail)-n, 0):]
 	out := make([]string, len(lines))
 	for i, l := range lines {
 		if textWidth(l) > w {

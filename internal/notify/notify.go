@@ -8,6 +8,7 @@ package notify
 import (
 	"context"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -62,6 +63,17 @@ type Message struct {
 	// Held is set on a digest (Event Digest): the messages it stands for.
 	// What is then the digest's text.
 	Held []Message
+	// Tasks is set on a needs_input message that stands for several tasks
+	// at once (SPEC §10, a parallel phase): their IDs, the first also in
+	// TaskID for templates. What then names them all and Body leaves the
+	// task out.
+	Tasks []string
+}
+
+// NeedYou is what a needs_input message for several tasks says:
+// "2 tasks need you: M1-03, M1-05".
+func NeedYou(ids []string) string {
+	return strconv.Itoa(len(ids)) + " tasks need you: " + strings.Join(ids, ", ")
 }
 
 // Subject is the short headline: "igris · <project>".
@@ -73,7 +85,7 @@ func (m Message) Body() string {
 	if m.Phase != "" {
 		b.WriteString("phase " + m.Phase)
 	}
-	if m.TaskID != "" {
+	if m.TaskID != "" && len(m.Tasks) == 0 {
 		if b.Len() > 0 {
 			b.WriteString(" · ")
 		}

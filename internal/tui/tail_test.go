@@ -40,7 +40,7 @@ type tailSource struct {
 	calls []int // the n of each call
 }
 
-func (s *tailSource) tail(ctx context.Context, n int) ([]string, error) {
+func (s *tailSource) tail(ctx context.Context, _ string, n int) ([]string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.calls = append(s.calls, n)
@@ -286,10 +286,12 @@ func TestTailOf(t *testing.T) {
 	}
 }
 
-// tailingSender is an engine that can tail its session.
+// tailingSender is an engine that can tail its active tasks' sessions.
 type tailingSender struct{ sender }
 
-func (*tailingSender) Tail(context.Context, int) ([]string, error) { return []string{"x"}, nil }
+func (*tailingSender) TailTask(context.Context, string, int) ([]string, error) {
+	return []string{"x"}, nil
+}
 
 // TestProgramTailsOnEveryPoll runs both layouts in a real program: the
 // tail appears and follows the session; without a Tail nothing is read.
@@ -325,7 +327,7 @@ func TestTailMessagesOfAnotherView(t *testing.T) {
 	if _, cmd := hs.m.Update(tailTickMsg{other}); cmd != nil || src.count() != 0 {
 		t.Error("a tick of another view started a read")
 	}
-	hs.m.Update(tailMsg{m: other, gen: hs.m.tailGen, lines: []string{"theirs"}})
+	hs.m.Update(tailMsg{m: other, gen: hs.m.tailGen, lines: map[string][]string{"M0-02": {"theirs"}}})
 	if strings.Contains(hs.m.View(), "theirs") {
 		t.Error("another view's tail was drawn")
 	}

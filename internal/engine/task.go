@@ -89,6 +89,10 @@ func (l *launch) fill(ev Event) Event {
 	if ev.Phase == "" {
 		ev.Phase = phaseOf(l.t)
 	}
+	if l.cur != nil && l.cur.Slot != nil {
+		slot := *l.cur.Slot
+		ev.Slot = &slot
+	}
 	return ev
 }
 

@@ -180,7 +180,7 @@ func TestWideCardAnswerReopensTheDialog(t *testing.T) {
 		t.Fatal("Answer… did not reopen the question")
 	}
 	hs.click(isOption(1))
-	if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdRetry, Continue: true}) {
+	if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdRetry, Continue: true, Task: "M0-03"}) {
 		t.Errorf("sent %+v", got)
 	}
 }
@@ -240,7 +240,7 @@ func TestWideTaskListFollowsAndScrolls(t *testing.T) {
 	if v := hs.m.View(); !strings.Contains(v, "L-01 ") {
 		t.Fatalf("wheel did not scroll the list up:\n%s", v)
 	}
-	hs.events(engine.Event{Kind: engine.TaskStarted, Phase: "L", Task: "L-32", Title: "Task 32"})
+	hs.events(engine.Event{Kind: engine.TaskDone, Phase: "L", Task: "L-31"}, engine.Event{Kind: engine.TaskStarted, Phase: "L", Task: "L-32", Title: "Task 32"})
 	if hs.m.taskTop != -1 {
 		t.Error("a new task does not bring the list back to it")
 	}

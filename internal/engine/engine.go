@@ -202,8 +202,9 @@ type Engine struct {
 	// tailSess is the current agent task's live session, for Tail (called
 	// from the TUI's goroutine); nil when there is none. emit keeps it
 	// current, so it follows every session opened, lost or closed.
-	tailMu   sync.Mutex
-	tailSess backend.Session
+	tailMu    sync.Mutex
+	tailSess  backend.Session
+	tailTasks map[string]backend.Session // by task ID: every active task's open session
 
 	// Only touched by the goroutine in Run.
 	run   *state.Run // state.json
@@ -251,6 +252,10 @@ type Engine struct {
 	// lastFlush is when the notifier was last asked to send what quiet
 	// hours held (flushHeld).
 	lastFlush time.Time
+	// gathering: the needs_input notifications of this poll's tasks are
+	// collected in needs and sent together (gather, sendNeeds).
+	gathering bool
+	needs     []notify.Message
 	// yoloDeferred: the interrupted task runs in skip-permissions mode and
 	// has a pending reset, so its yolo check waits until that is answered.
 	yoloDeferred bool

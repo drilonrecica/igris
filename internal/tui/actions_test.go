@@ -131,7 +131,7 @@ func TestSkipAsksForAReason(t *testing.T) {
 			got := hs.s.take()
 			switch {
 			case tt.want != "":
-				if len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdSkip, Text: tt.want}) {
+				if len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdSkip, Text: tt.want, Task: "M0-03"}) {
 					t.Errorf("sent %+v, want skip %q", got, tt.want)
 				}
 			case len(got) != 0:
@@ -180,7 +180,7 @@ func TestRetryAsksHow(t *testing.T) {
 	hs.keys("r", "2")
 	hs.keys("r", "esc")
 	got := hs.s.take()
-	want := []engine.Command{{Kind: engine.CmdRetry}, {Kind: engine.CmdRetry, Continue: true}}
+	want := []engine.Command{{Kind: engine.CmdRetry, Task: "M0-03"}, {Kind: engine.CmdRetry, Continue: true, Task: "M0-03"}}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("sent %+v, want %+v", got, want)
 	}
@@ -200,15 +200,15 @@ func TestSessionLostSkip(t *testing.T) {
 		t.Fatalf("Skip… opened %+v", hs.m.dialog)
 	}
 	hs.key("esc")
-	if hs.m.asked == nil {
+	if hs.m.firstAsk() == nil {
 		t.Fatal("cancelling the skip dropped the pending question")
 	}
 	hs.click(isAct(actAnswer))
 	hs.keys("4", "w", "o", "n", "t", "enter", "2")
-	if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdSkip, Text: "wont"}) {
+	if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdSkip, Text: "wont", Task: "M0-03"}) {
 		t.Fatalf("sent %+v", got)
 	}
-	if hs.m.asked != nil || hs.m.dialog != nil {
+	if hs.m.firstAsk() != nil || hs.m.dialog != nil {
 		t.Error("the skip didn't answer the question")
 	}
 }

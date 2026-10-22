@@ -1,6 +1,7 @@
 package serve
 
 import (
+	"slices"
 	"time"
 
 	"github.com/drilonrecica/igris/internal/backend"
@@ -39,12 +40,19 @@ type Snapshot struct {
 	// PlanError says why Phases is empty: the plan can't be read.
 	PlanError string `json:"plan_error,omitempty"`
 
-	Current *Current `json:"current,omitempty"`
-	// Question is the asked event the current task waits on; Reset the
-	// pending reset request's (SPEC §6.2).
-	Question *Event       `json:"question,omitempty"`
-	Reset    *Event       `json:"reset,omitempty"`
-	Quota    *state.Quota `json:"quota,omitempty"`
+	// Active are the active tasks in plan order (SPEC §6.11, since 1.5):
+	// one in a sequential phase, up to max in a parallel one. Current is
+	// the first of them, as 1.4 clients read it.
+	Active  []Current `json:"active,omitempty"`
+	Current *Current  `json:"current,omitempty"`
+	// Question is the first pending question in plan order, the one
+	// Answer… opens; Questions every pending question in that order (one
+	// per task at most, since 1.5); Reset the pending reset request's
+	// (SPEC §6.2).
+	Question  *Event       `json:"question,omitempty"`
+	Questions []Event      `json:"questions,omitempty"`
+	Reset     *Event       `json:"reset,omitempty"`
+	Quota     *state.Quota `json:"quota,omitempty"`
 	// Feed is the last events, oldest first, without plan text or hook
 	// output.
 	Feed []Event `json:"feed,omitempty"`
@@ -54,7 +62,9 @@ type Snapshot struct {
 type Phase struct {
 	ID    string `json:"id"`
 	Title string `json:"title,omitempty"`
-	Tasks []Task `json:"tasks"`
+	// Parallel: the phase is marked parallel (SPEC §3.8, since 1.5).
+	Parallel bool   `json:"parallel,omitempty"`
+	Tasks    []Task `json:"tasks"`
 }
 
 // Task is a task as the run view's list shows it.
@@ -67,9 +77,11 @@ type Task struct {
 	Mode   string `json:"mode,omitempty"`
 }
 
-// Current is the task the run works on.
+// Current is an active task, as its card shows it.
 type Current struct {
-	Task    string    `json:"task"`
+	Task string `json:"task"`
+	// Slot is the task's slot in a parallel phase (SPEC §6.11).
+	Slot    *int      `json:"slot,omitempty"`
 	Title   string    `json:"title,omitempty"`
 	Rank    string    `json:"rank,omitempty"`
 	Model   string    `json:"model,omitempty"`
@@ -112,18 +124,40 @@ type tracker struct {
 	overrides                 map[string]string
 	paused, holding, worktree bool
 	ended                     bool
-	cur                       *Current
-	question, reset           *Event
+	cards                     []*Current        // the active tasks, in the order they started
+	asks                      map[string]*Event // the pending question of each task
+	reset                     *Event
 	quota                     *state.Quota
 	feed                      []Event // a ring of the last feedLen events
 	feedNext                  int
 }
 
 func newTracker(mode string) *tracker {
-	return &tracker{mode: mode, overrides: map[string]string{}}
+	return &tracker{mode: mode, overrides: map[string]string{}, asks: map[string]*Event{}}
 }
 
-// apply folds one event, ev being ev's wire form.
+// card is active task id's card, or nil.
+func (t *tracker) card(id string) *Current {
+	for _, c := range t.cards {
+		if c.Task == id {
+			return c
+		}
+	}
+	return nil
+}
+
+// drop forgets task id's card: it is no longer active.
+func (t *tracker) drop(id string) {
+	for i, c := range t.cards {
+		if c.Task == id {
+			t.cards = append(t.cards[:i:i], t.cards[i+1:]...)
+			return
+		}
+	}
+}
+
+// apply folds one event, ev being ev's wire form. A task's events change
+// its own card only.
 func (t *tracker) apply(raw engine.Event, ev Event) {
 	if raw.Kind == engine.RunStarted && raw.Run != "" {
 		t.run = raw.Run
@@ -132,68 +166,74 @@ func (t *tracker) apply(raw engine.Event, ev Event) {
 		t.phase = raw.Phase
 	}
 	t.addFeed(ev)
+	if raw.Task == "" && len(t.cards) == 1 {
+		raw.Task = t.cards[0].Task // a task's event, from a sequential run
+	}
+	c := t.card(raw.Task)
 	switch raw.Kind {
 	case engine.RunStarted:
 		t.slice = ev.Slice
 	case engine.TaskStarted, engine.TaskResumed:
-		if t.cur == nil || t.cur.Task != raw.Task {
-			t.cur = &Current{Task: raw.Task, Started: ev.At}
+		if c == nil {
+			c = &Current{Task: raw.Task, Started: ev.At}
+			t.cards = append(t.cards, c)
 		}
-		t.cur.Title, t.cur.Rank, t.cur.Model, t.cur.Mode = raw.Title, raw.Rank, raw.Model, raw.Mode
-		t.cur.User = raw.Model == ""
+		c.Title, c.Rank, c.Model, c.Mode = raw.Title, raw.Rank, raw.Model, raw.Mode
+		c.User = raw.Model == ""
+		c.Slot = ev.Slot
 		if raw.Session != nil { // a resume reattached it
-			t.cur.Session, t.cur.ClaudeSession = raw.Session, raw.ClaudeSession
+			c.Session, c.ClaudeSession = raw.Session, raw.ClaudeSession
 		}
-		t.setState(StateWorking, ev)
+		setState(c, StateWorking, ev)
 		t.holding = false
-		t.settle()
+		t.settle(raw.Task)
 	case engine.SessionOpened:
-		if t.cur != nil {
-			t.cur.Session, t.cur.Mode, t.cur.ClaudeSession = raw.Session, raw.Mode, raw.ClaudeSession
-			t.cur.Overdue, t.cur.RankMismatch, t.cur.Tokens = "", "", nil // a new attempt
+		if c != nil {
+			c.Session, c.Mode, c.ClaudeSession = raw.Session, raw.Mode, raw.ClaudeSession
+			c.Overdue, c.RankMismatch, c.Tokens = "", "", nil // a new attempt
 		}
 	case engine.UsageRead:
-		if t.cur != nil && t.cur.Task == raw.Task {
-			t.cur.Tokens = ev.Tokens
+		if c != nil {
+			c.Tokens = ev.Tokens
 		}
 	case engine.QuotaRead:
 		t.quota = raw.Quota
 	case engine.TaskOverdue:
-		if t.cur != nil {
-			t.cur.Overdue = ev.Detail
+		if c != nil {
+			c.Overdue = ev.Detail
 		}
 	case engine.RankMismatch:
-		if t.cur != nil && t.cur.Task == raw.Task {
-			t.cur.RankMismatch = ev.Detail
+		if c != nil {
+			c.RankMismatch = ev.Detail
 		}
 	case engine.YourTurn:
-		t.setState(StateYourTurn, ev)
+		setState(c, StateYourTurn, ev)
 	case engine.AgentWaiting:
-		t.setState(StateWaiting, ev)
-		if t.cur != nil {
-			t.cur.Waiting = true
+		setState(c, StateWaiting, ev)
+		if c != nil {
+			c.Waiting = true
 		}
 	case engine.AgentWaitingOver:
-		if t.cur != nil {
-			t.cur.Waiting = false
-			if t.cur.State == StateWaiting {
-				t.setState(StateWorking, ev)
+		if c != nil {
+			c.Waiting = false
+			if c.State == StateWaiting {
+				setState(c, StateWorking, ev)
 			}
 		}
 	case engine.NeedsYou:
-		if t.cur != nil && t.cur.Waiting && t.cur.State == StateWaiting {
-			t.cur.State, t.cur.Detail = StateNeedsYou, ev.Detail // the wait counts from its start
+		if c != nil && c.Waiting && c.State == StateWaiting {
+			c.State, c.Detail = StateNeedsYou, ev.Detail // the wait counts from its start
 			break
 		}
-		t.setState(StateNeedsYou, ev)
+		setState(c, StateNeedsYou, ev)
 	case engine.NeedsYouClear, engine.VerifyFailed:
-		t.setState(StateWorking, ev)
+		setState(c, StateWorking, ev)
 	case engine.VerifyStarted:
-		t.setState(StateVerifying, ev)
+		setState(c, StateVerifying, ev)
 	case engine.SessionLost:
-		t.setState(StateLost, ev)
-		if t.cur != nil {
-			t.cur.Session, t.cur.Overdue, t.cur.RankMismatch = nil, "", ""
+		setState(c, StateLost, ev)
+		if c != nil {
+			c.Session, c.Overdue, c.RankMismatch = nil, "", ""
 		}
 	case engine.Asked:
 		e := ev
@@ -201,34 +241,32 @@ func (t *tracker) apply(raw engine.Event, ev Event) {
 			t.reset = &e
 			break
 		}
-		t.question = &e
-		t.setState(StateQuestion, ev)
+		t.asks[raw.Task] = &e
+		setState(c, StateQuestion, ev)
 	case engine.PlanClosed:
-		if t.question != nil && t.question.Question == string(engine.QuestionPlanApproval) {
-			t.question = nil
+		if q := t.asks[raw.Task]; q != nil && q.Question == string(engine.QuestionPlanApproval) {
+			delete(t.asks, raw.Task)
 		}
-		if t.cur != nil && t.cur.State == StateQuestion {
-			t.setState(StateNeedsYou, ev)
+		if c != nil && c.State == StateQuestion {
+			setState(c, StateNeedsYou, ev)
 		}
 	case engine.ResetDropped:
 		t.dropReset(raw.Task)
 	case engine.Retrying:
-		if t.cur != nil {
-			t.cur.Session, t.cur.Overdue, t.cur.RankMismatch = nil, "", ""
+		if c != nil {
+			c.Session, c.Overdue, c.RankMismatch = nil, "", ""
 		}
-		t.setState(StateWorking, ev)
-		t.settle()
+		setState(c, StateWorking, ev)
+		t.settle(raw.Task)
 	case engine.Committed, engine.NotCommitted:
-		t.settle()
+		t.settle(raw.Task)
 	case engine.TaskReset:
 		t.dropReset(raw.Task)
-		if t.cur != nil && t.cur.Task == raw.Task {
-			t.cur = nil
-			t.settle()
-		}
+		t.drop(raw.Task)
+		t.settle(raw.Task)
 	case engine.TaskDone, engine.TaskSkipped:
-		t.cur = nil
-		t.settle()
+		t.drop(raw.Task)
+		t.settle(raw.Task)
 	case engine.PauseOn:
 		t.paused = true
 	case engine.PauseOff:
@@ -243,20 +281,20 @@ func (t *tracker) apply(raw engine.Event, ev Event) {
 		t.worktree = true
 	case engine.RunStopped:
 		t.ended, t.end = true, raw.Detail
-		t.settle()
+		clear(t.asks)
 		t.reset = nil
 	}
 }
 
-func (t *tracker) setState(s string, ev Event) {
-	if t.cur == nil {
+func setState(c *Current, s string, ev Event) {
+	if c == nil {
 		return
 	}
-	t.cur.State, t.cur.Since, t.cur.Detail = s, ev.At, ev.Detail
+	c.State, c.Since, c.Detail = s, ev.At, ev.Detail
 }
 
-// settle drops the current task's question: a later event answered it.
-func (t *tracker) settle() { t.question = nil }
+// settle drops task id's question: a later event answered it.
+func (t *tracker) settle(id string) { delete(t.asks, id) }
 
 func (t *tracker) dropReset(task string) {
 	if t.reset != nil && (task == "" || t.reset.Task == task) {
@@ -278,14 +316,16 @@ func (t *tracker) addFeed(ev Event) {
 	t.feedNext = (t.feedNext + 1) % feedLen
 }
 
-// snapshot returns the run state, with the feed oldest first. Nothing in
-// it is shared with the tracker.
-func (t *tracker) snapshot() Snapshot {
+// snapshot returns the run state, with the feed oldest first and the
+// active tasks and questions in the order of phases (the plan; tasks it
+// doesn't list keep the order they started in, after the others). Nothing
+// in it is shared with the tracker.
+func (t *tracker) snapshot(phases []Phase) Snapshot {
 	s := Snapshot{
 		V: Protocol, Type: TypeSnapshot, Protocol: Protocol,
 		Run: t.run, Phase: t.phase, Slice: t.slice, Mode: t.mode,
 		Paused: t.paused, Holding: t.holding, Worktree: t.worktree, Ended: t.ended, End: t.end,
-		Question: t.question, Reset: t.reset, Quota: t.quota,
+		Reset: t.reset, Quota: t.quota,
 	}
 	if len(t.overrides) > 0 {
 		s.Overrides = make(map[string]string, len(t.overrides))
@@ -293,14 +333,52 @@ func (t *tracker) snapshot() Snapshot {
 			s.Overrides[k] = v
 		}
 	}
-	if t.cur != nil {
-		c := *t.cur
+	order := planOrder(phases)
+	rank := func(id string) int {
+		if i, ok := order[id]; ok {
+			return i
+		}
+		return len(order)
+	}
+	for _, c := range t.cards {
+		s.Active = append(s.Active, *c)
+	}
+	slices.SortStableFunc(s.Active, func(a, b Current) int { return rank(a.Task) - rank(b.Task) })
+	if len(s.Active) > 0 {
+		c := s.Active[0]
 		s.Current = &c
+	}
+	for _, q := range t.asks {
+		s.Questions = append(s.Questions, *q)
+	}
+	// Map order is random: sort by the plan, then by when they were asked.
+	slices.SortStableFunc(s.Questions, func(a, b Event) int {
+		if d := rank(a.Task) - rank(b.Task); d != 0 {
+			return d
+		}
+		return a.At.Compare(b.At)
+	})
+	if len(s.Questions) > 0 {
+		q := s.Questions[0]
+		s.Question = &q
 	}
 	s.Feed = make([]Event, 0, len(t.feed))
 	s.Feed = append(s.Feed, t.feed[t.feedNext:]...)
 	s.Feed = append(s.Feed, t.feed[:t.feedNext]...)
 	return s
+}
+
+// planOrder numbers the tasks of phases in plan order.
+func planOrder(phases []Phase) map[string]int {
+	order := map[string]int{}
+	for _, ph := range phases {
+		for _, tk := range ph.Tasks {
+			if _, ok := order[tk.ID]; !ok {
+				order[tk.ID] = len(order)
+			}
+		}
+	}
+	return order
 }
 
 // maxTitle is how much of a task title the snapshot keeps.
@@ -311,7 +389,7 @@ const maxTitle = 200
 func phasesOf(p *plan.Plan) []Phase {
 	out := make([]Phase, 0, len(p.Phases))
 	for _, ph := range p.Phases {
-		x := Phase{ID: textsafe.Line(ph.ID), Title: cut(textsafe.Line(ph.Title), maxTitle), Tasks: make([]Task, 0, len(ph.Tasks))}
+		x := Phase{ID: textsafe.Line(ph.ID), Title: cut(textsafe.Line(ph.Title), maxTitle), Parallel: ph.Parallel, Tasks: make([]Task, 0, len(ph.Tasks))}
 		for _, tk := range ph.Tasks {
 			x.Tasks = append(x.Tasks, Task{
 				ID: textsafe.Line(tk.ID), Title: cut(textsafe.Line(tk.Title), maxTitle), Status: tk.Status.String(),
@@ -337,7 +415,7 @@ func encodeSnapshot(s Snapshot) ([]byte, error) {
 		case len(s.Phases) > 0:
 			s.Phases, s.PlanError = nil, "the plan is too large for the snapshot"
 		default:
-			s.Question, s.Reset = nil, nil
+			s.Question, s.Questions, s.Reset = nil, nil, nil
 			return encode(s)
 		}
 	}
