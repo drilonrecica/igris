@@ -25,12 +25,14 @@ Below 48px the helm loses its detail, so use the icon instead.
 | Glow core | `#B8F0FF` | Hot center of the visor |
 | Plume | `#E3172B` | The plume, and the red `i` in the wordmark |
 | Snow | `#EAF4FF` | Text on dark backgrounds |
+| Ember | `#FFB000` dark · `#9A6700` light | Warnings, on every surface (since 1.7) |
 
 On light backgrounds the seams use `#0A86C8` and the visor `#0A9BE6`, so they keep their contrast.
 
 Rules:
 - Cyan is the working accent. Red appears once per mark and is never used as a fill on the armor.
 - Never recolor the plume, and never use the helm without it.
+- In the product, red means *you*: plume is drawn for **Needs you** and the `[SKIP PERMISSIONS]` badge, nothing else. Every warning is **Ember**: amber on dark, dark gold on light, both AA against their ground. Ember is functional, never decoration, and never appears on the mark. How the colors, glyphs and words are used on the terminal, the phone and the command line is in [`docs/design.md`](../design.md).
 
 ## Wordmark
 
