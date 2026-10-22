@@ -439,24 +439,45 @@ func (s *Server) hello(c *client, r Request) {
 	}
 }
 
-// snapshot queues the run's snapshot for c; the events follow it.
-func (s *Server) snapshot(c *client) {
-	var phases []Phase
-	var planErr string
-	if s.opts.Plan != nil {
-		// Read outside the lock: the plan is a file, events must not wait.
-		if p, err := s.opts.Plan(); err != nil {
-			planErr = cut(textsafe.Line(err.Error()), 4<<10)
-		} else if p != nil {
-			phases = phasesOf(p)
-		}
-	}
+// Snapshot returns the run as a client starting now would see it (the
+// web UI's pages, SPEC §15.8).
+func (s *Server) Snapshot() Snapshot {
+	phases, planErr := s.phases()
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.snapshotLocked(phases, planErr)
+}
+
+// phases reads the plan for a snapshot, outside the lock: the plan is a
+// file, events must not wait.
+func (s *Server) phases() (phases []Phase, planErr string) {
+	if s.opts.Plan == nil {
+		return nil, ""
+	}
+	p, err := s.opts.Plan()
+	if err != nil {
+		return nil, cut(textsafe.Line(err.Error()), 4<<10)
+	}
+	if p != nil {
+		phases = phasesOf(p)
+	}
+	return phases, ""
+}
+
+// snapshotLocked is the snapshot with phases; s.mu is held.
+func (s *Server) snapshotLocked(phases []Phase, planErr string) Snapshot {
 	snap := s.track.snapshot(phases)
 	snap.Server, snap.Project, snap.Backend = "igris "+s.opts.Version, textsafe.Line(s.opts.Project), s.opts.Backend
 	snap.Phases, snap.PlanError = phases, planErr
-	b, err := encodeSnapshot(snap)
+	return snap
+}
+
+// snapshot queues the run's snapshot for c; the events follow it.
+func (s *Server) snapshot(c *client) {
+	phases, planErr := s.phases()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	b, err := encodeSnapshot(s.snapshotLocked(phases, planErr))
 	if err != nil {
 		s.opts.Logf("snapshot not sent: %v", err)
 		c.close()

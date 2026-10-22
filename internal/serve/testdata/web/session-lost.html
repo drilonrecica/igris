@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>igris · demo</title>
+<link rel="stylesheet" href="/static/app.css">
+<meta name="igris-csrf" content="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+<p id="conn" role="status" hidden>reconnecting…</p>
+<p id="flash" role="status" hidden></p>
+<main id="live">
+<header>
+<h1>igris · demo</h1>
+<p class="meta">phase P1 · 1/5 done · mode plan</p>
+<div class="actions">
+<form method="post" action="/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="pause">
+<button type="submit" class="go">Pause after this task</button>
+</form><form method="post" action="/act" class="cmd danger" data-confirm="1">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="stop">
+<button type="submit" class="go">Stop</button>
+<div class="confirm" hidden>
+<p><strong>Stop igris?</strong> The session stays open; igris arise picks the run up again.</p>
+<button type="submit" name="confirmed" value="1">Stop igris</button>
+<button type="button" class="cancel">Cancel</button>
+</div>
+</form>
+</div>
+</header>
+<section aria-label="Active tasks">
+<article class="card" id="card-P1-02">
+<h2>P1-02 · Parser</h2>
+<p class="meta">asks you</p>
+<p class="meta">rank opus → claude-opus-5-5 · mode plan · <span class="ran" data-started="2026-10-22T09:00:00Z">4m12s</span></p>
+<section class="question" aria-label="Question">
+<h2>P1-02: session lost</h2>
+<p>the session of P1-02 is gone: start fresh or continue, mark the task done, skip it, or stop</p>
+<div class="actions">
+<form method="post" action="/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="retry">
+<input type="hidden" name="task" value="P1-02">
+<button type="submit" class="go">Start fresh</button>
+</form><form method="post" action="/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="retry">
+<input type="hidden" name="task" value="P1-02">
+<input type="hidden" name="continue" value="1">
+<button type="submit" class="go">Continue conversation</button>
+</form><form method="post" action="/act" class="cmd" data-confirm="1">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="done">
+<input type="hidden" name="task" value="P1-02">
+<label>Note (optional) <input type="text" name="text" maxlength="16384"></label>
+<button type="submit" class="go">Mark done</button>
+<div class="confirm" hidden>
+<p><strong>Mark P1-02 done?</strong> It&#39;s your decision, so igris doesn&#39;t verify it.</p>
+<button type="submit" name="confirmed" value="1">Mark P1-02 done</button>
+<button type="button" class="cancel">Cancel</button>
+</div>
+</form><form method="post" action="/act" class="cmd danger" data-confirm="1">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="skip">
+<input type="hidden" name="task" value="P1-02">
+<label>Reason <input type="text" name="text" maxlength="16384" required></label>
+<button type="submit" class="go">Skip</button>
+<div class="confirm" hidden>
+<p><strong>Skip P1-02?</strong> The reason is recorded with the skip; an open session is closed.</p>
+<button type="submit" name="confirmed" value="1">Skip P1-02</button>
+<button type="button" class="cancel">Cancel</button>
+</div>
+</form><form method="post" action="/act" class="cmd danger" data-confirm="1">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="stop">
+<button type="submit" class="go">Stop igris</button>
+<div class="confirm" hidden>
+<p><strong>Stop igris?</strong> The session stays open; igris arise picks the run up again.</p>
+<button type="submit" name="confirmed" value="1">Stop igris</button>
+<button type="button" class="cancel">Cancel</button>
+</div>
+</form>
+</div>
+</section>
+<pre class="tail" data-task="P1-02" aria-label="The session's last lines"></pre>
+<div class="actions">
+<form method="post" action="/act" class="cmd" data-confirm="1">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="done">
+<input type="hidden" name="task" value="P1-02">
+<label>Note (optional) <input type="text" name="text" maxlength="16384"></label>
+<button type="submit" class="go">Mark done</button>
+<div class="confirm" hidden>
+<p><strong>Mark P1-02 done?</strong> It&#39;s your decision, so igris doesn&#39;t verify it.</p>
+<button type="submit" name="confirmed" value="1">Mark P1-02 done</button>
+<button type="button" class="cancel">Cancel</button>
+</div>
+</form><form method="post" action="/act" class="cmd danger" data-confirm="1">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="skip">
+<input type="hidden" name="task" value="P1-02">
+<label>Reason <input type="text" name="text" maxlength="16384" required></label>
+<button type="submit" class="go">Skip</button>
+<div class="confirm" hidden>
+<p><strong>Skip P1-02?</strong> The reason is recorded with the skip; an open session is closed.</p>
+<button type="submit" name="confirmed" value="1">Skip P1-02</button>
+<button type="button" class="cancel">Cancel</button>
+</div>
+</form><form method="post" action="/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="retry">
+<input type="hidden" name="task" value="P1-02">
+<button type="submit" class="go">Retry fresh</button>
+</form><form method="post" action="/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="retry">
+<input type="hidden" name="task" value="P1-02">
+<input type="hidden" name="continue" value="1">
+<button type="submit" class="go">Retry, continuing the conversation</button>
+</form>
+</div>
+</article>
+</section>
+<section aria-label="Run mode">
+<form method="post" action="/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="mode">
+<label>Mode of the next sessions <select name="text" required>
+<option>default</option>
+<option>accept</option>
+<option>auto</option>
+<option selected>plan</option>
+<option>manual</option>
+<option>plan:default</option>
+<option>plan:accept</option>
+<option>plan:auto</option>
+</select></label>
+<button type="submit" class="go">Set</button>
+</form>
+</section>
+<section class="phase" aria-label="Phase P1">
+<h2>P1 · Parser &lt;i&gt;and&lt;/i&gt; writer · this run</h2>
+<ul class="tasks">
+<li><span class="mark" aria-hidden="true">✓</span> <span class="id">P1-01</span> Go module <span class="meta">done · sonnet</span></li>
+<li><span class="mark" aria-hidden="true">●</span> <span class="id">P1-02</span> &lt;b&gt;Parser&lt;/b&gt; <span class="meta">in progress · opus · plan</span>
+<details><summary>mode</summary><form method="post" action="/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="task_mode">
+<input type="hidden" name="task" value="P1-02">
+<label>Mode of its next session <select name="text" required>
+<option>default</option>
+<option>accept</option>
+<option>auto</option>
+<option selected>plan</option>
+<option>manual</option>
+<option>plan:default</option>
+<option>plan:accept</option>
+<option>plan:auto</option>
+</select></label>
+<button type="submit" class="go">Set</button>
+</form></details></li>
+<li><span class="mark" aria-hidden="true">●</span> <span class="id">P1-03</span> Writer <span class="meta">in progress · sonnet</span>
+<details><summary>mode</summary><form method="post" action="/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="task_mode">
+<input type="hidden" name="task" value="P1-03">
+<label>Mode of its next session <select name="text" required>
+<option>default</option>
+<option>accept</option>
+<option>auto</option>
+<option selected>plan</option>
+<option>manual</option>
+<option>plan:default</option>
+<option>plan:accept</option>
+<option>plan:auto</option>
+</select></label>
+<button type="submit" class="go">Set</button>
+</form></details></li>
+<li><span class="mark" aria-hidden="true">◌</span> <span class="id">P1-04</span> Docs <span class="meta">blocked · sonnet</span>
+<details><summary>mode</summary><form method="post" action="/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="task_mode">
+<input type="hidden" name="task" value="P1-04">
+<label>Mode of its next session <select name="text" required>
+<option>default</option>
+<option>accept</option>
+<option>auto</option>
+<option selected>plan</option>
+<option>manual</option>
+<option>plan:default</option>
+<option>plan:accept</option>
+<option>plan:auto</option>
+</select></label>
+<button type="submit" class="go">Set</button>
+</form></details></li>
+<li><span class="mark" aria-hidden="true">◌</span> <span class="id">P1-05</span> Owner check <span class="meta">blocked</span></li>
+</ul>
+</section>
+<section class="phase" aria-label="Phase P2">
+<h2>P2 · Later</h2>
+<ul class="tasks">
+<li><span class="mark" aria-hidden="true">◌</span> <span class="id">P2-01</span> Release <span class="meta">blocked</span></li>
+</ul>
+</section>
+<section aria-label="Recent events">
+<h2>Recent</h2>
+<ul class="recent">
+<li><time datetime="2026-10-22T09:01:00Z">09:01:00</time> asked P1-02: the session of P1-02 is gone: start fresh or continue, mark the task done, skip it, or stop</li>
+<li><time datetime="2026-10-22T09:01:00Z">09:01:00</time> session_lost P1-02: the pane is gone</li>
+<li><time datetime="2026-10-22T09:00:00Z">09:00:00</time> task_started P1-02</li>
+<li><time datetime="2026-10-22T09:00:00Z">09:00:00</time> run_started</li>
+</ul>
+</section>
+
+</main>
+</body>
+</html>

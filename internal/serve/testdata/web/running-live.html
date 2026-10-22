@@ -1,0 +1,261 @@
+<header>
+<h1>igris · demo</h1>
+<p class="meta">phase P1 · 1/5 done · mode accept</p>
+<div class="actions">
+<form method="post" action="/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="pause">
+<button type="submit" class="go">Pause after this task</button>
+</form><form method="post" action="/act" class="cmd danger" data-confirm="1">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="stop">
+<button type="submit" class="go">Stop</button>
+<div class="confirm" hidden>
+<p><strong>Stop igris?</strong> The session stays open; igris arise picks the run up again.</p>
+<button type="submit" name="confirmed" value="1">Stop igris</button>
+<button type="button" class="cancel">Cancel</button>
+</div>
+</form>
+</div>
+</header>
+<section class="question" aria-label="Question">
+<h2>Reset P1-04?</h2>
+<p>reset P1-04 to blocked? the session&#39;s reason: wrong deps</p>
+<div class="actions">
+<form method="post" action="/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="answer">
+<input type="hidden" name="task" value="P1-04">
+<input type="hidden" name="question" value="confirm_reset">
+<button type="submit" class="go">Keep it as it is</button>
+</form><form method="post" action="/act" class="cmd danger">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="answer">
+<input type="hidden" name="task" value="P1-04">
+<input type="hidden" name="question" value="confirm_reset">
+<input type="hidden" name="yes" value="1">
+<button type="submit" class="go">Reset P1-04</button>
+</form>
+</div>
+</section>
+<section aria-label="Active tasks">
+<article class="card" id="card-P1-02">
+<h2>P1-02 · &lt;b&gt;Parser&lt;/b&gt;</h2>
+<p class="meta">asks you</p>
+<p class="meta">rank opus → claude-opus-5-5 · mode plan · <span class="ran" data-started="2026-10-22T09:00:01Z">4m11s</span></p>
+<section class="question" aria-label="Question">
+<h2>P1-02 presents a plan</h2>
+<pre class="plan"># Plan
+
+1. parse &lt;script&gt;alert(1)&lt;/script&gt;
+2. test it</pre>
+<div class="actions">
+<form method="post" action="/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="plan">
+<input type="hidden" name="task" value="P1-02">
+<input type="hidden" name="plan" value="allow">
+<button type="submit" class="go">Approve: the session switches to accept</button>
+</form><form method="post" action="/act" class="cmd danger">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="plan">
+<input type="hidden" name="task" value="P1-02">
+<input type="hidden" name="plan" value="deny">
+<label>Feedback for the session <textarea name="text" rows="3" maxlength="16384" required></textarea></label>
+<button type="submit" class="go">Reject with feedback</button>
+</form>
+</div>
+</section>
+<pre class="tail" data-task="P1-02" aria-label="The session's last lines"></pre>
+<div class="actions">
+<form method="post" action="/act" class="cmd" data-confirm="1">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="done">
+<input type="hidden" name="task" value="P1-02">
+<label>Note (optional) <input type="text" name="text" maxlength="16384"></label>
+<button type="submit" class="go">Mark done</button>
+<div class="confirm" hidden>
+<p><strong>Mark P1-02 done?</strong> It&#39;s your decision, so igris doesn&#39;t verify it.</p>
+<button type="submit" name="confirmed" value="1">Mark P1-02 done</button>
+<button type="button" class="cancel">Cancel</button>
+</div>
+</form><form method="post" action="/act" class="cmd danger" data-confirm="1">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="skip">
+<input type="hidden" name="task" value="P1-02">
+<label>Reason <input type="text" name="text" maxlength="16384" required></label>
+<button type="submit" class="go">Skip</button>
+<div class="confirm" hidden>
+<p><strong>Skip P1-02?</strong> The reason is recorded with the skip; an open session is closed.</p>
+<button type="submit" name="confirmed" value="1">Skip P1-02</button>
+<button type="button" class="cancel">Cancel</button>
+</div>
+</form><form method="post" action="/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="retry">
+<input type="hidden" name="task" value="P1-02">
+<button type="submit" class="go">Retry fresh</button>
+</form><form method="post" action="/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="retry">
+<input type="hidden" name="task" value="P1-02">
+<input type="hidden" name="continue" value="1">
+<button type="submit" class="go">Retry, continuing the conversation</button>
+</form>
+</div>
+</article>
+<article class="card" id="card-P1-03">
+<h2>P1-03 · Writer</h2>
+<p class="meta">asks you</p>
+<p class="meta">rank sonnet → claude-sonnet-5-5 · mode accept · <span class="ran" data-started="2026-10-22T09:00:02Z">4m10s</span></p>
+<section class="question" aria-label="Question">
+<h2>Commit P1-03?</h2>
+<p>commit the changes of P1-03 as &#34;P1-03: Writer&#34;?</p>
+<div class="actions">
+<form method="post" action="/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="answer">
+<input type="hidden" name="task" value="P1-03">
+<input type="hidden" name="yes" value="1">
+<button type="submit" class="go">Commit</button>
+</form><form method="post" action="/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="answer">
+<input type="hidden" name="task" value="P1-03">
+<button type="submit" class="go">Leave uncommitted</button>
+</form>
+</div>
+</section>
+<pre class="tail" data-task="P1-03" aria-label="The session's last lines"></pre>
+<div class="actions">
+<form method="post" action="/act" class="cmd" data-confirm="1">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="done">
+<input type="hidden" name="task" value="P1-03">
+<label>Note (optional) <input type="text" name="text" maxlength="16384"></label>
+<button type="submit" class="go">Mark done</button>
+<div class="confirm" hidden>
+<p><strong>Mark P1-03 done?</strong> It&#39;s your decision, so igris doesn&#39;t verify it.</p>
+<button type="submit" name="confirmed" value="1">Mark P1-03 done</button>
+<button type="button" class="cancel">Cancel</button>
+</div>
+</form><form method="post" action="/act" class="cmd danger" data-confirm="1">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="skip">
+<input type="hidden" name="task" value="P1-03">
+<label>Reason <input type="text" name="text" maxlength="16384" required></label>
+<button type="submit" class="go">Skip</button>
+<div class="confirm" hidden>
+<p><strong>Skip P1-03?</strong> The reason is recorded with the skip; an open session is closed.</p>
+<button type="submit" name="confirmed" value="1">Skip P1-03</button>
+<button type="button" class="cancel">Cancel</button>
+</div>
+</form><form method="post" action="/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="retry">
+<input type="hidden" name="task" value="P1-03">
+<button type="submit" class="go">Retry fresh</button>
+</form><form method="post" action="/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="retry">
+<input type="hidden" name="task" value="P1-03">
+<input type="hidden" name="continue" value="1">
+<button type="submit" class="go">Retry, continuing the conversation</button>
+</form>
+</div>
+</article>
+</section>
+<section aria-label="Run mode">
+<form method="post" action="/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="mode">
+<label>Mode of the next sessions <select name="text" required>
+<option>default</option>
+<option selected>accept</option>
+<option>auto</option>
+<option>plan</option>
+<option>manual</option>
+<option>plan:default</option>
+<option>plan:accept</option>
+<option>plan:auto</option>
+</select></label>
+<button type="submit" class="go">Set</button>
+</form>
+</section>
+<section class="phase" aria-label="Phase P1">
+<h2>P1 · Parser &lt;i&gt;and&lt;/i&gt; writer · this run</h2>
+<ul class="tasks">
+<li><span class="mark" aria-hidden="true">✓</span> <span class="id">P1-01</span> Go module <span class="meta">done · sonnet</span></li>
+<li><span class="mark" aria-hidden="true">●</span> <span class="id">P1-02</span> &lt;b&gt;Parser&lt;/b&gt; <span class="meta">in progress · opus · plan</span>
+<details><summary>mode</summary><form method="post" action="/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="task_mode">
+<input type="hidden" name="task" value="P1-02">
+<label>Mode of its next session <select name="text" required>
+<option>default</option>
+<option>accept</option>
+<option>auto</option>
+<option selected>plan</option>
+<option>manual</option>
+<option>plan:default</option>
+<option>plan:accept</option>
+<option>plan:auto</option>
+</select></label>
+<button type="submit" class="go">Set</button>
+</form></details></li>
+<li><span class="mark" aria-hidden="true">●</span> <span class="id">P1-03</span> Writer <span class="meta">in progress · sonnet</span>
+<details><summary>mode</summary><form method="post" action="/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="task_mode">
+<input type="hidden" name="task" value="P1-03">
+<label>Mode of its next session <select name="text" required>
+<option>default</option>
+<option selected>accept</option>
+<option>auto</option>
+<option>plan</option>
+<option>manual</option>
+<option>plan:default</option>
+<option>plan:accept</option>
+<option>plan:auto</option>
+</select></label>
+<button type="submit" class="go">Set</button>
+</form></details></li>
+<li><span class="mark" aria-hidden="true">◌</span> <span class="id">P1-04</span> Docs <span class="meta">blocked · sonnet · auto</span>
+<details><summary>mode</summary><form method="post" action="/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="task_mode">
+<input type="hidden" name="task" value="P1-04">
+<label>Mode of its next session <select name="text" required>
+<option>default</option>
+<option>accept</option>
+<option selected>auto</option>
+<option>plan</option>
+<option>manual</option>
+<option>plan:default</option>
+<option>plan:accept</option>
+<option>plan:auto</option>
+</select></label>
+<button type="submit" class="go">Set</button>
+</form></details></li>
+<li><span class="mark" aria-hidden="true">◌</span> <span class="id">P1-05</span> Owner check <span class="meta">blocked</span></li>
+</ul>
+</section>
+<section class="phase" aria-label="Phase P2">
+<h2>P2 · Later</h2>
+<ul class="tasks">
+<li><span class="mark" aria-hidden="true">◌</span> <span class="id">P2-01</span> Release <span class="meta">blocked</span></li>
+</ul>
+</section>
+<section aria-label="Recent events">
+<h2>Recent</h2>
+<ul class="recent">
+<li><time datetime="2026-10-22T09:04:00Z">09:04:00</time> asked P1-04: reset P1-04 to blocked? the session&#39;s reason: wrong deps</li>
+<li><time datetime="2026-10-22T09:03:00Z">09:03:00</time> warning: ignored mode: unknown run mode &#34;fast&#34;</li>
+<li><time datetime="2026-10-22T09:03:00Z">09:03:00</time> task_mode_changed P1-04: auto</li>
+<li><time datetime="2026-10-22T09:02:00Z">09:02:00</time> asked P1-03: commit the changes of P1-03 as &#34;P1-03: Writer&#34;?</li>
+<li><time datetime="2026-10-22T09:01:00Z">09:01:00</time> asked P1-02</li>
+<li><time datetime="2026-10-22T09:00:02Z">09:00:02</time> task_started P1-03</li>
+<li><time datetime="2026-10-22T09:00:01Z">09:00:01</time> task_started P1-02</li>
+<li><time datetime="2026-10-22T09:00:00Z">09:00:00</time> run_started: phase P1</li>
+</ul>
+</section>

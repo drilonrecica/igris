@@ -194,7 +194,7 @@ func execServe(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 	}()
 	if web != nil {
 		root := l.State.Root()
-		h := srv.Remote(serve.RemoteOptions{TLS: web.TLS, Token: func() (string, error) { return state.ReadServeToken(root) }})
+		h := srv.Remote(serve.RemoteOptions{TLS: web.TLS, UI: srv.UI(serve.UIOptions{}), Token: func() (string, error) { return state.ReadServeToken(root) }})
 		go func() {
 			if err := srv.ServeRemote(web, h); err != nil {
 				fmt.Fprintf(out, "warning: the HTTP listener stopped: %v\n", err)

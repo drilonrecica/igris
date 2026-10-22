@@ -1,0 +1,213 @@
+{{define "head" -}}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>{{.}}</title>
+<link rel="stylesheet" href="/static/app.css">
+{{- end}}
+
+{{define "page" -}}
+{{template "head" (printf "igris · %s" (or .Snap.Project "run"))}}
+<meta name="igris-csrf" content="{{.CSRF}}">
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+<p id="conn" role="status" hidden>reconnecting…</p>
+<p id="flash" role="status" hidden></p>
+<main id="live">
+{{template "live" .}}
+</main>
+</body>
+</html>
+{{end}}
+
+{{define "live" -}}
+<header>
+<h1>igris · {{or .Snap.Project "run"}}</h1>
+<p class="meta">
+{{- if .Snap.Phase}}phase {{.Snap.Phase}}{{if .Total}} · {{.Done}}/{{.Total}} done{{end}}{{else}}no run yet{{end}}
+{{- with .Snap.Mode}} · mode {{.}}{{end}}
+{{- if .Snap.Paused}} · <strong>paused</strong>{{if .Snap.Holding}} (holding){{end}}{{end}}
+{{- if .Snap.Ended}} · <strong>ended: {{or .Snap.End "unknown"}}</strong>{{end}}</p>
+{{- if .Header}}
+<div class="actions">
+{{range .Header}}{{template "form" .}}{{end}}
+</div>
+{{- end}}
+</header>
+{{- range .Questions}}
+{{template "question" .}}
+{{- end}}
+{{- if .Cards}}
+<section aria-label="Active tasks">
+{{- range .Cards}}
+<article class="card" id="card-{{.Task}}">
+<h2>{{.Task}}{{with .Title}} · {{.}}{{end}}</h2>
+<p class="meta">{{stateText .State}}{{if ne .State "question"}}{{with .Detail}}: {{.}}{{end}}{{end}}</p>
+<p class="meta">{{if .User}}your task{{else}}rank {{or .Rank "—"}} → {{or .Model "—"}}{{end}}{{with .Mode}} · mode {{.}}{{end}}{{with .Override}} · next session {{.}}{{end}} · <span class="ran" data-started="{{.Started.UTC.Format "2006-01-02T15:04:05Z07:00"}}">{{.Ran}}</span></p>
+{{- with .Overdue}}
+<p class="warn">overdue: {{.}}</p>
+{{- end}}
+{{- with .RankMismatch}}
+<p class="warn">{{.}}</p>
+{{- end}}
+{{- with .Question}}
+{{template "question" .}}
+{{- end}}
+{{- if not .User}}
+<pre class="tail" data-task="{{.Task}}" aria-label="The session's last lines"></pre>
+{{- end}}
+{{- if .Actions}}
+<div class="actions">
+{{range .Actions}}{{template "form" .}}{{end}}
+</div>
+{{- end}}
+</article>
+{{- end}}
+</section>
+{{- end}}
+{{- if .Mode}}
+<section aria-label="Run mode">
+{{- with .ModeNote}}
+<p class="note">{{.}}</p>
+{{- end}}
+{{template "form" .Mode}}
+</section>
+{{- end}}
+{{- with .Snap.PlanError}}
+<p class="warn">The plan can't be read: {{.}}</p>
+{{- end}}
+{{- range .Phases}}
+<section class="phase" aria-label="Phase {{.ID}}">
+<h2>{{.ID}}{{with .Title}} · {{.}}{{end}}{{if .Parallel}} · parallel{{end}}{{if .Run}} · this run{{end}}</h2>
+<ul class="tasks">
+{{- range .Tasks}}
+<li><span class="mark" aria-hidden="true">{{mark .Status}}</span> <span class="id">{{.ID}}</span> {{.Title}} <span class="meta">{{.Status}}{{with .Rank}} · {{.}}{{end}}{{with .Mode}} · {{.}}{{end}}</span>
+{{- with .ModeForm}}
+<details><summary>mode</summary>{{template "form" .}}</details>
+{{- end}}</li>
+{{- end}}
+</ul>
+</section>
+{{- end}}
+{{- if .Recent}}
+<section aria-label="Recent events">
+<h2>Recent</h2>
+<ul class="recent">
+{{- range .Recent}}
+<li><time datetime="{{.At.UTC.Format "2006-01-02T15:04:05Z07:00"}}">{{.At.UTC.Format "15:04:05"}}</time> {{.Type}}{{with .Task}} {{.}}{{end}}{{with .Detail}}: {{.}}{{end}}</li>
+{{- end}}
+</ul>
+</section>
+{{- end}}
+{{end}}
+
+{{define "question" -}}
+<section class="question" aria-label="Question">
+<h2>{{.Title}}</h2>
+{{- with .Q.Detail}}
+<p>{{.}}</p>
+{{- end}}
+{{- with .Q.Plan}}
+<pre class="plan">{{.}}</pre>
+{{- end}}
+{{- if .NoPlan}}
+<p class="note">The plan is too long to show here; read it in the session's pane.</p>
+{{- end}}
+{{- with .Q.Output}}
+<pre>{{range .}}{{.}}
+{{end}}</pre>
+{{- end}}
+<div class="actions">
+{{range .Answers}}{{template "form" .}}{{end}}
+</div>
+</section>
+{{- end}}
+
+{{define "form" -}}
+<form method="post" action="/act" class="cmd{{if .Danger}} danger{{end}}"{{if .Confirm}} data-confirm="1"{{end}}>
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<input type="hidden" name="type" value="{{.Type}}">
+{{- with .Task}}
+<input type="hidden" name="task" value="{{.}}">
+{{- end}}
+{{- with .Question}}
+<input type="hidden" name="question" value="{{.}}">
+{{- end}}
+{{- with .Plan}}
+<input type="hidden" name="plan" value="{{.}}">
+{{- end}}
+{{- if .Continue}}
+<input type="hidden" name="continue" value="1">
+{{- end}}
+{{- if .Yes}}
+<input type="hidden" name="yes" value="1">
+{{- end}}
+{{- if .Select}}
+<label>{{.Input}} <select name="text" required>
+{{- $sel := .Selected}}
+{{- if not (offered .Selected)}}
+<option value="" selected disabled>choose…</option>
+{{- end}}
+{{- range .Select}}
+<option{{if eq . $sel}} selected{{end}}>{{.}}</option>
+{{- end}}
+</select></label>
+{{- else if .Multi}}
+<label>{{.Input}} <textarea name="text" rows="3" maxlength="16384"{{if .Required}} required{{end}}></textarea></label>
+{{- else if .Input}}
+<label>{{.Input}} <input type="text" name="text" maxlength="16384"{{if .Required}} required{{end}}></label>
+{{- end}}
+<button type="submit" class="go">{{.Label}}</button>
+{{- with .Confirm}}
+<div class="confirm" hidden>
+<p><strong>{{.Title}}</strong> {{.Text}}</p>
+<button type="submit" name="confirmed" value="1">{{.Label}}</button>
+<button type="button" class="cancel">Cancel</button>
+</div>
+{{- end}}
+</form>
+{{- end}}
+
+{{define "confirm" -}}
+{{template "head" .Confirm.Title}}
+</head>
+<body>
+<main>
+<section class="question">
+<h1>{{.Confirm.Title}}</h1>
+<p>{{.Confirm.Text}}</p>
+{{- range .Fields}}{{if eq (index . 0) "text"}}
+<p class="note">{{index . 1}}</p>
+{{- end}}{{end}}
+<form method="post" action="/act" class="cmd danger">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+{{- range .Fields}}
+<input type="hidden" name="{{index . 0}}" value="{{index . 1}}">
+{{- end}}
+<button type="submit" name="confirmed" value="1">{{.Confirm.Label}}</button>
+</form>
+<p><a href="/">Cancel</a></p>
+</section>
+</main>
+</body>
+</html>
+{{end}}
+
+{{define "message" -}}
+{{template "head" .Title}}
+</head>
+<body>
+<main>
+<section class="question">
+<h1>{{.Title}}</h1>
+<p>{{.Text}}</p>
+<p><a href="/">Back to the run</a></p>
+</section>
+</main>
+</body>
+</html>
+{{end}}

@@ -1,0 +1,493 @@
+package serve
+
+import (
+	"bytes"
+	"embed"
+	"fmt"
+	"html/template"
+	"io/fs"
+	"net/http"
+	"net/url"
+	"slices"
+	"strings"
+	"time"
+
+	"github.com/drilonrecica/igris/internal/engine"
+	"github.com/drilonrecica/igris/internal/state"
+)
+
+// The web UI (SPEC §15.8): server-rendered pages from the snapshot, one
+// script that follows the event stream and sends the forms as protocol-1
+// commands, and the same forms posting to PathAct without it.
+
+// The web UI's paths, besides "/".
+const (
+	// PathLive is the page's live part alone, which the script fetches
+	// again when an event arrives.
+	PathLive = "/live"
+	// PathAct takes a form's command when the script doesn't send it.
+	PathAct = "/act"
+	// pathStatic serves the script and the stylesheet.
+	pathStatic = "/static/"
+)
+
+// confirmedField is the form field a second confirmation sets.
+const confirmedField = "confirmed"
+
+// recentLen is how many of the feed's last events the page lists.
+const recentLen = 8
+
+//go:embed ui/page.html ui/app.js ui/app.css
+var uiFiles embed.FS
+
+var uiTemplates = template.Must(template.New("ui").Funcs(template.FuncMap{
+	"mark":      statusMark,
+	"stateText": stateText,
+	"offered":   func(m string) bool { return slices.Contains(remoteModes, m) },
+}).ParseFS(uiFiles, "ui/page.html"))
+
+// UIOptions configures the web UI.
+type UIOptions struct {
+	// Now is the clock for how long a task has run; nil is time.Now.
+	Now func() time.Time
+}
+
+// ui serves the web UI of a server's run.
+type ui struct {
+	srv    *Server
+	now    func() time.Time
+	static http.Handler
+}
+
+// UI returns the web UI's handler (SPEC §15.8), for RemoteOptions.UI: the
+// listener has authenticated every request it passes on, checked the CSRF
+// token of a cookie's POST and put the token for the forms in the
+// request's context (CSRFToken).
+func (s *Server) UI(opts UIOptions) http.Handler {
+	if opts.Now == nil {
+		opts.Now = time.Now
+	}
+	sub, err := fs.Sub(uiFiles, "ui")
+	if err != nil {
+		panic(err) // the embedded directory is there by construction
+	}
+	return &ui{srv: s, now: opts.Now, static: http.StripPrefix(pathStatic, http.FileServerFS(sub))}
+}
+
+func (u *ui) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	switch p := r.URL.Path; p {
+	case "/", PathLive:
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			method(w, r, http.MethodGet)
+			return
+		}
+		name := "page"
+		if p == PathLive {
+			name = "live"
+		}
+		u.render(w, http.StatusOK, name, u.view(r))
+	case PathAct:
+		if method(w, r, http.MethodPost) {
+			u.act(w, r)
+		}
+	case pathStatic + "app.js", pathStatic + "app.css":
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			method(w, r, http.MethodGet)
+			return
+		}
+		u.static.ServeHTTP(w, r)
+	default:
+		u.message(w, http.StatusNotFound, "Not found", "There is nothing at this address.")
+	}
+}
+
+// render executes template name into a buffer first, so a failure is a
+// clean 500 rather than half a page.
+func (u *ui) render(w http.ResponseWriter, status int, name string, data any) {
+	var b bytes.Buffer
+	if err := uiTemplates.ExecuteTemplate(&b, name, data); err != nil {
+		u.srv.opts.Logf("web UI: page %s not rendered: %v", name, err)
+		http.Error(w, "igris: the page could not be rendered", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+	_, _ = w.Write(b.Bytes())
+}
+
+// message shows a page with a title, a text and a way back.
+func (u *ui) message(w http.ResponseWriter, status int, title, text string) {
+	u.render(w, status, "message", messageView{Title: title, Text: text})
+}
+
+type messageView struct{ Title, Text string }
+
+// act sends a form's command (SPEC §15.8, JavaScript off): stop, skip and
+// done first show their second confirmation; the rest go to the run at
+// once and the browser goes back to the page.
+func (u *ui) act(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		u.message(w, http.StatusBadRequest, "Not sent", "The form could not be read.")
+		return
+	}
+	f := r.PostForm
+	req := formRequest(f)
+	if _, ok := commandKinds[req.Type]; !ok {
+		u.message(w, http.StatusBadRequest, "Not sent", fmt.Sprintf("%q is not a command.", cut(req.Type, maxID)))
+		return
+	}
+	if c, ok := confirmOf(req.Type, req.Task); ok && f.Get(confirmedField) != "1" {
+		u.render(w, http.StatusOK, "confirm", confirmView{Confirm: c, Form: f, CSRF: CSRFToken(r.Context())})
+		return
+	}
+	rep, status := u.srv.remoteRequest(r.Context(), req)
+	if rep.Type == TypeError {
+		u.message(w, status, "Not sent", rep.Error)
+		return
+	}
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+// formRequest reads a form's command; the form fields are the request's.
+func formRequest(f url.Values) Request {
+	return Request{
+		V: Protocol, Type: f.Get("type"), ID: "web-form",
+		Text: f.Get("text"), Task: f.Get("task"), Question: f.Get("question"), Plan: f.Get("plan"),
+		Continue: f.Get("continue") == "1", Yes: f.Get("yes") == "1",
+	}
+}
+
+// confirmation is the second confirmation stop, skip and done ask.
+type confirmation struct {
+	Title, Text, Label string
+}
+
+// confirmOf is the second confirmation a command type asks, if any.
+func confirmOf(typ, task string) (confirmation, bool) {
+	if task == "" {
+		task = "the task"
+	}
+	switch typ {
+	case CmdStop:
+		return confirmation{"Stop igris?", "The session stays open; igris arise picks the run up again.", "Stop igris"}, true
+	case CmdSkip:
+		return confirmation{"Skip " + task + "?", "The reason is recorded with the skip; an open session is closed.", "Skip " + task}, true
+	case CmdDone:
+		return confirmation{"Mark " + task + " done?", "It's your decision, so igris doesn't verify it.", "Mark " + task + " done"}, true
+	}
+	return confirmation{}, false
+}
+
+// confirmView is the confirmation page: the form again, confirmed.
+type confirmView struct {
+	Confirm confirmation
+	Form    url.Values
+	CSRF    string
+}
+
+// Fields are the form's fields to post again, in a stable order, without
+// the CSRF token (the page sets the current one) and the confirmation.
+func (v confirmView) Fields() [][2]string {
+	var out [][2]string
+	for _, k := range []string{"type", "task", "question", "plan", "text", "continue", "yes"} {
+		if val := v.Form.Get(k); val != "" {
+			out = append(out, [2]string{k, val})
+		}
+	}
+	return out
+}
+
+// pageView is what the page shows: the snapshot, arranged.
+type pageView struct {
+	CSRF string
+	Snap Snapshot
+	// Phases are the plan's phases; Phase is the run's, nil before it is
+	// known. Done and Total count its tasks done or skipped, and all.
+	Phases      []phaseView
+	Phase       *Phase
+	Done, Total int
+	Cards       []cardView
+	// Questions are the pending questions of tasks without a card, and
+	// the reset request.
+	Questions []questionView
+	Header    []form // pause or resume, stop
+	Mode      *form  // the mode for the next sessions
+	// ModeNote says the run's mode can't be chosen here.
+	ModeNote string
+	Recent   []Event
+}
+
+// phaseView is a phase of the task list.
+type phaseView struct {
+	Phase
+	Run   bool // the run's phase
+	Tasks []taskView
+}
+
+// taskView is a row of the task list; Mode is the owner's mode for the
+// task's next session, else its Mode cell. ModeForm sets it.
+type taskView struct {
+	Task
+	Mode     string
+	ModeForm *form
+}
+
+// cardView is an active task's card.
+type cardView struct {
+	Current
+	Ran      string // how long it has run
+	Override string // the owner's mode for its next session
+	Question *questionView
+	Actions  []form
+}
+
+// questionView is a pending question and its answers.
+type questionView struct {
+	Q       Event
+	Title   string
+	Answers []form
+	// NoPlan says the plan was too long for the snapshot.
+	NoPlan bool
+}
+
+// form is one command's form: hidden fields, at most one text or select
+// field, and the button. Confirm asks the second confirmation first.
+type form struct {
+	CSRF     string
+	Type     string
+	Task     string
+	Question string
+	Plan     string
+	Continue bool
+	Yes      bool
+	Label    string
+	Danger   bool
+	// Input is the text field's label; Required makes it so, Multi a text
+	// area.
+	Input    string
+	Required bool
+	Multi    bool
+	// Select lists the choices of the text field instead; Selected is
+	// chosen.
+	Select   []string
+	Selected string
+	Confirm  *confirmation
+}
+
+// remoteModes are the modes the web UI offers: none that skips
+// permissions (SPEC §7.3, §15.8).
+var remoteModes = slices.DeleteFunc(slices.Clone(engine.Modes), engine.SkipsPermissions)
+
+// view arranges the snapshot for the page.
+func (u *ui) view(r *http.Request) pageView {
+	snap := u.srv.Snapshot()
+	now := u.now()
+	csrf := CSRFToken(r.Context())
+	v := pageView{CSRF: csrf, Snap: snap}
+	live := snap.Run != "" && !snap.Ended
+	for i, ph := range snap.Phases {
+		pv := phaseView{Phase: ph, Run: ph.ID == snap.Phase}
+		if pv.Run {
+			v.Phase = &snap.Phases[i]
+		}
+		for _, t := range ph.Tasks {
+			tv := taskView{Task: t, Mode: snap.Overrides[t.ID]}
+			if tv.Mode == "" {
+				tv.Mode = t.Mode
+			}
+			// Task mode, as the TUI's M: an agent task of the run's phase
+			// that is still to do (SPEC §15.3).
+			agent := t.Owner == "" || t.Owner == "agent" || t.Owner == "agent + user"
+			if live && pv.Run && agent && t.Status != "done" && t.Status != "skipped" {
+				sel := tv.Mode
+				if sel == "" {
+					sel = snap.Mode
+				}
+				tv.ModeForm = &form{CSRF: csrf, Type: CmdTaskMode, Task: t.ID, Label: "Set", Input: "Mode of its next session", Select: remoteModes, Selected: sel}
+			}
+			pv.Tasks = append(pv.Tasks, tv)
+		}
+		v.Phases = append(v.Phases, pv)
+	}
+	if v.Phase != nil {
+		v.Total = len(v.Phase.Tasks)
+		for _, t := range v.Phase.Tasks {
+			if t.Status == "done" || t.Status == "skipped" {
+				v.Done++
+			}
+		}
+	}
+	asks := map[string]Event{}
+	for _, q := range snap.Questions {
+		asks[q.Task] = q
+	}
+	for _, c := range snap.Active {
+		cv := cardView{Current: c, Ran: ran(now.Sub(c.Started)), Override: snap.Overrides[c.Task]}
+		if q, ok := asks[c.Task]; ok && live {
+			qv := questionOf(q, csrf)
+			cv.Question = &qv
+			delete(asks, c.Task)
+		}
+		if live {
+			cv.Actions = cardActions(c, csrf)
+		}
+		v.Cards = append(v.Cards, cv)
+	}
+	if live {
+		for _, q := range snap.Questions {
+			if _, left := asks[q.Task]; left {
+				v.Questions = append(v.Questions, questionOf(q, csrf))
+			}
+		}
+		if snap.Reset != nil {
+			v.Questions = append(v.Questions, questionOf(*snap.Reset, csrf))
+		}
+		pause := form{CSRF: csrf, Type: CmdPause, Label: "Pause after this task"}
+		if snap.Paused {
+			pause.Label = "Resume"
+		}
+		stop, _ := confirmOf(CmdStop, "")
+		v.Header = []form{pause, {CSRF: csrf, Type: CmdStop, Label: "Stop", Danger: true, Confirm: &stop}}
+		if engine.SkipsPermissions(snap.Mode) {
+			v.ModeNote = "Next sessions run in " + snap.Mode + ", chosen in the terminal; a skip-permissions mode is set there only."
+		}
+		v.Mode = &form{CSRF: csrf, Type: CmdMode, Label: "Set", Input: "Mode of the next sessions", Select: remoteModes, Selected: snap.Mode}
+	}
+	feed := snap.Feed
+	if len(feed) > recentLen {
+		feed = feed[len(feed)-recentLen:]
+	}
+	for i := len(feed) - 1; i >= 0; i-- {
+		v.Recent = append(v.Recent, feed[i])
+	}
+	return v
+}
+
+// cardActions are an active task's buttons: done, skip, and for an agent
+// task retry fresh or continuing.
+func cardActions(c Current, csrf string) []form {
+	done, _ := confirmOf(CmdDone, c.Task)
+	skip, _ := confirmOf(CmdSkip, c.Task)
+	out := []form{
+		{CSRF: csrf, Type: CmdDone, Task: c.Task, Label: "Mark done", Input: "Note (optional)", Confirm: &done},
+		{CSRF: csrf, Type: CmdSkip, Task: c.Task, Label: "Skip", Input: "Reason", Required: true, Danger: true, Confirm: &skip},
+	}
+	if !c.User {
+		out = append(out,
+			form{CSRF: csrf, Type: CmdRetry, Task: c.Task, Label: "Retry fresh"},
+			form{CSRF: csrf, Type: CmdRetry, Task: c.Task, Continue: true, Label: "Retry, continuing the conversation"})
+	}
+	return out
+}
+
+// questionOf is a pending question with the answers the TUI's dialog
+// offers (internal/tui), less the pane: opening one stays in the terminal.
+func questionOf(q Event, csrf string) questionView {
+	t := q.Task
+	v := questionView{Q: q, Title: "Question"}
+	answer := func(label string, yes bool) form {
+		return form{CSRF: csrf, Type: CmdAnswer, Task: t, Yes: yes, Label: label}
+	}
+	done, _ := confirmOf(CmdDone, t)
+	skip, _ := confirmOf(CmdSkip, t)
+	stop, _ := confirmOf(CmdStop, "")
+	doneF := form{CSRF: csrf, Type: CmdDone, Task: t, Label: "Mark done", Input: "Note (optional)", Confirm: &done}
+	skipF := form{CSRF: csrf, Type: CmdSkip, Task: t, Label: "Skip", Input: "Reason", Required: true, Danger: true, Confirm: &skip}
+	stopF := form{CSRF: csrf, Type: CmdStop, Label: "Stop igris", Danger: true, Confirm: &stop}
+	fresh := form{CSRF: csrf, Type: CmdRetry, Task: t, Label: "Start fresh"}
+	switch engine.Question(q.Question) {
+	case engine.QuestionCommit:
+		v.Title = "Commit " + t + "?"
+		v.Answers = []form{answer("Commit", true), answer("Leave uncommitted", false)}
+	case engine.QuestionConfirmSkip:
+		v.Title = t + " asks to skip"
+		v.Answers = []form{answer("Keep working", false), answer("Skip the task", true)}
+		v.Answers[1].Danger = true
+	case engine.QuestionSessionLost:
+		v.Title = t + ": session lost"
+		cont := form{CSRF: csrf, Type: CmdRetry, Task: t, Continue: true, Label: "Continue conversation"}
+		v.Answers = []form{fresh, cont, doneF, skipF, stopF}
+	case engine.QuestionHookFailed:
+		v.Title = t + ": before_task hook failed"
+		fresh.Label = "Retry"
+		v.Answers = []form{fresh, doneF, skipF, stopF}
+	case engine.QuestionIntegration:
+		v.Title = t + " didn't integrate"
+		fresh.Label = "Rerun fresh"
+		doneF.Label = "Mark done (integrated by hand)"
+		v.Answers = []form{fresh, doneF, skipF, stopF}
+	case engine.QuestionConfirmReset:
+		v.Title = "Reset " + t + "?"
+		keep, reset := answer("Keep it as it is", false), answer("Reset "+t, true)
+		keep.Question, reset.Question = string(engine.QuestionConfirmReset), string(engine.QuestionConfirmReset)
+		reset.Danger = true
+		v.Answers = []form{keep, reset}
+	case engine.QuestionPlanApproval:
+		v.Title = t + " presents a plan"
+		v.NoPlan = q.Plan == ""
+		then := q.Then
+		if then == "" {
+			then = "the mode after approval"
+		}
+		v.Answers = []form{
+			{CSRF: csrf, Type: CmdPlan, Task: t, Plan: state.PlanAllow, Label: "Approve: the session switches to " + then},
+			{CSRF: csrf, Type: CmdPlan, Task: t, Plan: state.PlanDeny, Label: "Reject with feedback", Input: "Feedback for the session", Required: true, Multi: true, Danger: true},
+		}
+	default:
+		v.Answers = []form{answer("Yes", true), answer("No", false)}
+	}
+	return v
+}
+
+// ran says how long a task has run: 4m12s, 1h05m.
+func ran(d time.Duration) string {
+	if d < 0 {
+		d = 0
+	}
+	d = d.Truncate(time.Second)
+	switch {
+	case d < time.Minute:
+		return fmt.Sprintf("%ds", int(d.Seconds()))
+	case d < time.Hour:
+		return fmt.Sprintf("%dm%02ds", int(d.Minutes()), int(d.Seconds())%60)
+	}
+	return fmt.Sprintf("%dh%02dm", int(d.Hours()), int(d.Minutes())%60)
+}
+
+// statusMark is a task status as a sign that reads without colour.
+func statusMark(status string) string {
+	switch strings.ToLower(status) {
+	case "done":
+		return "✓"
+	case "in progress":
+		return "●"
+	case "ready":
+		return "○"
+	case "blocked":
+		return "◌"
+	case "skipped":
+		return "–"
+	}
+	return "?"
+}
+
+// stateText says a card's state in words.
+func stateText(s string) string {
+	switch s {
+	case StateWorking:
+		return "working"
+	case StateYourTurn:
+		return "your turn"
+	case StateWaiting:
+		return "waiting on background work"
+	case StateNeedsYou:
+		return "needs you"
+	case StateVerifying:
+		return "verifying"
+	case StateLost:
+		return "session lost"
+	case StateQuestion:
+		return "asks you"
+	}
+	return s
+}
