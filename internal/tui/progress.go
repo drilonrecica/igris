@@ -3,8 +3,9 @@ package tui
 import (
 	"fmt"
 	"slices"
-	"strings"
 	"time"
+
+	"github.com/drilonrecica/igris/internal/look"
 )
 
 // Progress and ETA in the run view (SPEC §15.1–§15.3).
@@ -59,20 +60,9 @@ func (m *model) progressText(level, cells int) string {
 		s += fmt.Sprintf(" · %d%%", 100*done/total)
 	}
 	if level < progressNoBar {
-		s += " " + roundBar(done, total, cells)
+		s += " " + look.Bar(done, total, cells)
 	}
 	return s
-}
-
-// roundBar draws done of total in n cells, rounded: █ done, ░ to do. Only
-// a finished phase fills it and only an untouched one leaves it empty.
-func roundBar(done, total, n int) string {
-	filled := (2*done*n + total) / (2 * total)
-	if done > 0 && done < total {
-		filled = min(max(filled, 1), n-1)
-	}
-	filled = min(max(filled, 0), n)
-	return strings.Repeat("█", filled) + strings.Repeat("░", n-filled)
 }
 
 // eta is the current agent task's ETA after its elapsed time (SPEC
@@ -87,9 +77,9 @@ func (m *model) eta(c *current) string {
 	typical := median(ds)
 	elapsed := m.opts.Now().Sub(c.started)
 	if c.started.IsZero() || elapsed < typical {
-		return "≈ " + minutes(typical-max(elapsed, 0)) + " left"
+		return look.Estimate(typical-max(elapsed, 0)) + " left"
 	}
-	return "over ≈ " + minutes(typical) + " typical"
+	return "over " + look.Estimate(typical) + " typical"
 }
 
 func median(ds []time.Duration) time.Duration {
@@ -99,13 +89,4 @@ func median(ds []time.Duration) time.Duration {
 		return s[len(s)/2]
 	}
 	return (s[len(s)/2-1] + s[len(s)/2]) / 2
-}
-
-// minutes is d rounded to the minute, at least 1m: "14m", "1h05m".
-func minutes(d time.Duration) string {
-	n := max(int(d.Round(time.Minute)/time.Minute), 1)
-	if n < 60 {
-		return fmt.Sprintf("%dm", n)
-	}
-	return fmt.Sprintf("%dh%02dm", n/60, n%60)
 }

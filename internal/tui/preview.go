@@ -196,7 +196,7 @@ func (s *previewScreen) body(w int) []string {
 
 // painted wraps plain text under prefix and paints each line, so the
 // wrapping never counts an escape sequence.
-func painted(th *theme, l look, prefix, text string, w int) []string {
+func painted(th *theme, l tone, prefix, text string, w int) []string {
 	var out []string
 	for i, line := range wrap(text, w-textWidth(prefix)) {
 		lead := prefix

@@ -66,7 +66,7 @@ func (m *homeScreen) kind() nowKind {
 }
 
 // stateWord is the run state the header shows on the right, and its look.
-func (m *homeScreen) stateWord() (string, look) {
+func (m *homeScreen) stateWord() (string, tone) {
 	switch m.kind() {
 	case nowLoading:
 		return "reading…", lookDim
@@ -268,7 +268,7 @@ var homeFold = []action{actUpdate, actSide, actNotify, actSettings, actEdit, act
 type phaseRow struct {
 	glyph, id, title, count, word string
 	done, total                   int
-	glyphLook, textLook           look
+	glyphLook, textLook           tone
 }
 
 // phaseRows describe the plan's phases: the §5.1 outcome as a glyph and a

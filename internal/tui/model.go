@@ -63,7 +63,7 @@ var areaOrder = []area{focusTasks, focusBar, focusLog}
 type logEntry struct {
 	at   time.Time
 	text string
-	look look
+	tone tone
 }
 
 // model is the TUI's state. Only Update changes it; View only records the
@@ -1065,7 +1065,7 @@ func (m *model) dropResetAsk(id string) {
 	}
 }
 
-func (m *model) addLog(at time.Time, text string, l look) {
+func (m *model) addLog(at time.Time, text string, l tone) {
 	m.log = append(m.log, logEntry{at, text, l})
 	if len(m.log) > maxLog {
 		m.log = m.log[len(m.log)-maxLog:]

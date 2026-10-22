@@ -193,12 +193,12 @@ func (m *model) cardsView(x, y, w, rows int) []string {
 		bodyRows := max(give[i]-2, 0)
 		body := m.cardBody(c, inner, x+2, top+1, bodyRows, c == m.cur, true)
 		title := fit(m.cardTitle(c), max(inner-2, 1))
-		look := lookTitle
+		tone := lookTitle
 		if c == m.cur {
-			look = lookAccentBold
+			tone = lookAccentBold
 		}
 		fill := max(w-2-1-textWidth(title)-2, 0) // corner, "─ ", title, " ", fill, corner
-		out = append(out, m.th.paint(lookFrame, box[0]+box[1])+" "+m.th.paint(look, title)+" "+m.th.paint(lookFrame, strings.Repeat(box[1], fill)+box[2]))
+		out = append(out, m.th.paint(lookFrame, box[0]+box[1])+" "+m.th.paint(tone, title)+" "+m.th.paint(lookFrame, strings.Repeat(box[1], fill)+box[2]))
 		if c == m.cur {
 			m.zones.add(rect{x + 3, top, textWidth(title), 1}, target{act: actDetails})
 		}
@@ -283,11 +283,11 @@ func (m *model) switcher(y, w int) string {
 			continue
 		}
 		g := m.cardGlyph(c)
-		look := lookPlain
+		tone := lookPlain
 		if g == "!" {
-			look = lookAlert
+			tone = lookAlert
 		}
-		put(c.id+" "+g, target{act: actCardPick, option: j}, c.id+" "+m.th.paint(look, g))
+		put(c.id+" "+g, target{act: actCardPick, option: j}, c.id+" "+m.th.paint(tone, g))
 	}
 	return fit(b.String(), w)
 }

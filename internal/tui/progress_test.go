@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/x/exp/teatest"
 
 	"github.com/drilonrecica/igris/internal/engine"
+	"github.com/drilonrecica/igris/internal/look"
 )
 
 func TestRoundBar(t *testing.T) {
@@ -22,8 +23,8 @@ func TestRoundBar(t *testing.T) {
 		{49, 50, 10, "█████████░"}, // unfinished never looks full
 		{3, 7, 6, "███░░░"},
 	} {
-		if got := roundBar(tc.done, tc.total, tc.n); got != tc.want {
-			t.Errorf("roundBar(%d, %d, %d) = %q, want %q", tc.done, tc.total, tc.n, got, tc.want)
+		if got := look.Bar(tc.done, tc.total, tc.n); got != tc.want {
+			t.Errorf("look.Bar(%d, %d, %d) = %q, want %q", tc.done, tc.total, tc.n, got, tc.want)
 		}
 	}
 }

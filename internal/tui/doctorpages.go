@@ -222,7 +222,7 @@ func (s *doctorScreen) View() string {
 }
 
 // levelWord is a result's level as a glyph and a word.
-func levelWord(l checks.Level) (string, look) {
+func levelWord(l checks.Level) (string, tone) {
 	switch l {
 	case checks.Fail:
 		return glyphs[plan.Blocked] + " fail", lookAlert
@@ -613,7 +613,7 @@ func (s *historyScreen) runLines(w int) (out []string, owner []int, selAt int) {
 }
 
 // endLook dims what ended well; a run that stopped short stands out.
-func endLook(end string) look {
+func endLook(end string) tone {
 	switch end {
 	case "completed":
 		return lookPlain
@@ -660,11 +660,11 @@ func (s *historyScreen) taskLines(w int) (out []string, owner []int, selAt int) 
 		if t.DurationS > 0 {
 			parts = append(parts, shortDur(t.DurationS))
 		}
-		look := lookPlain
+		tone := lookPlain
 		if t.Result != report.ResultDone {
-			look = lookDim
+			tone = lookDim
 		}
-		add(i, painted(th, look, s.marker(i == s.taskSel)+pad(t.ID, taskIDWidth(r))+"  ", strings.Join(parts, " · "), w)...)
+		add(i, painted(th, tone, s.marker(i == s.taskSel)+pad(t.ID, taskIDWidth(r))+"  ", strings.Join(parts, " · "), w)...)
 	}
 	return out, owner, selAt
 }

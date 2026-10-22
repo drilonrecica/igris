@@ -7,7 +7,9 @@ import (
 	"os"
 	"strings"
 	"text/tabwriter"
+	"time"
 
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/project"
 	"github.com/drilonrecica/igris/internal/report"
@@ -160,15 +162,18 @@ func dash(s string) string {
 	return s
 }
 
-// fmtSeconds is "45s", "2m05s" or "1h02m"; "" for 0.
+// fmtSeconds is look.Duration of s seconds: "45s", "2m05s", "1h02m"; ""
+// for 0.
 func fmtSeconds(s int) string {
-	switch {
-	case s <= 0:
+	if s <= 0 {
 		return ""
-	case s < 60:
-		return fmt.Sprintf("%ds", s)
-	case s < 3600:
-		return fmt.Sprintf("%dm%02ds", s/60, s%60)
 	}
-	return fmt.Sprintf("%dh%02dm", s/3600, s%3600/60)
+	return look.Duration(time.Duration(s) * time.Second)
+}
+
+// colorOn reports whether w gets colors: a terminal, NO_COLOR unset and
+// TERM not dumb (SPEC §14).
+func colorOn(w io.Writer) bool {
+	f, _ := w.(*os.File)
+	return look.ColorOn(look.Terminal(f), os.Getenv)
 }

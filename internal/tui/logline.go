@@ -146,7 +146,7 @@ func badge(mode string) string {
 
 // logLook is how the log lines of an event are drawn: what needs the
 // owner stands out. The words say it either way.
-func logLook(k engine.EventKind) look {
+func logLook(k engine.EventKind) tone {
 	switch k {
 	case engine.NeedsYou, engine.TaskOverdue, engine.RankMismatch, engine.SessionLost, engine.HookFailed, engine.VerifyFailed, engine.VerifyLimit, engine.PhaseStuck, engine.PlanChanged, engine.RunFailed:
 		return lookAlert

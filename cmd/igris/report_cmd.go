@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/project"
 	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/state"
@@ -67,8 +68,7 @@ func execReport(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 	if jsonFlag(fs) {
 		writeJSON(stdout, r)
 	} else {
-		f, _ := stdout.(*os.File)
-		printReport(stdout, r, isCharDevice(f) && os.Getenv("TERM") != "dumb")
+		printReport(stdout, r, colorOn(stdout))
 	}
 	return exitOK
 }
@@ -92,7 +92,7 @@ func printReport(w io.Writer, r report.Report, color bool) {
 	fmt.Fprintf(w, " · %s\n", md(r.End))
 	var scope []string
 	if len(r.Phases) > 0 {
-		scope = append(scope, plural(len(r.Phases), "Phase ", "Phases ")+md(strings.Join(r.Phases, ", ")))
+		scope = append(scope, look.Plural(len(r.Phases), "Phase ", "Phases ")+md(strings.Join(r.Phases, ", ")))
 	}
 	if r.Selection != nil {
 		scope = append(scope, md(r.Selection.String()))
@@ -101,7 +101,7 @@ func printReport(w io.Writer, r report.Report, color bool) {
 		fmt.Fprintln(w, strings.Join(scope, " · "))
 	}
 	counts := fmt.Sprintf("%d done · %d skipped · %d unfinished · %d %s",
-		r.Done, r.Skipped, r.Unfinished, len(r.Commits), plural(len(r.Commits), "commit", "commits"))
+		r.Done, r.Skipped, r.Unfinished, len(r.Commits), look.Plural(len(r.Commits), "commit", "commits"))
 	if r.NeedsYouS != nil {
 		counts += " · needs you " + fmtDuration(*r.NeedsYouS)
 	}
@@ -210,13 +210,6 @@ func sep(s, suffix string) string {
 		return ""
 	}
 	return suffix
-}
-
-func plural(n int, one, many string) string {
-	if n == 1 {
-		return one
-	}
-	return many
 }
 
 // fmtDuration is fmtSeconds, with "0s" for 0.

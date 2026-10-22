@@ -456,11 +456,11 @@ func (s *taskScreen) attemptLines(a taskAttempt, w int) []string {
 	if a.VerifyFailed+a.VerifyPassed > 0 {
 		parts = append(parts, fmt.Sprintf("verify %d failed, %d passed", a.VerifyFailed, a.VerifyPassed))
 	}
-	look := lookPlain
+	tone := lookPlain
 	if a.Result != report.ResultDone {
-		look = lookDim
+		tone = lookDim
 	}
-	return painted(s.home.th, look, when+"  ", strings.Join(parts, " · "), w)
+	return painted(s.home.th, tone, when+"  ", strings.Join(parts, " · "), w)
 }
 
 // shortDur is a duration in seconds as "45s", "14m" or "2h05m".

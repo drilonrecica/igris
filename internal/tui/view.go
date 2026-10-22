@@ -59,14 +59,14 @@ func (m *model) logView(n int) []string {
 
 // logText draws text, a line of entry e, in the entry's look.
 func (m *model) logText(e logEntry, text string) string {
-	if e.look == lookPlain {
+	if e.tone == lookPlain {
 		return m.th.marks(text)
 	}
-	return m.th.paint(e.look, text)
+	return m.th.paint(e.tone, text)
 }
 
 // stateLook is how c's state is drawn: waiting on the owner stands out.
-func stateLook(c *current) look {
+func stateLook(c *current) tone {
 	switch c.state {
 	case stateNeedsYou, stateYourTurn, stateQuestion, stateLost:
 		return lookAlert

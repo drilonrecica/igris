@@ -527,5 +527,5 @@ var appFocus = []helpEntry{
 	{"1…9", "", "pick a dialog option by its number"},
 	{"esc", "", "close a dialog, else go back"},
 	{"q", "", "go back; on home, quit"},
-	{"ctrl+c", "", "quit igris from anywhere; a run stops, its session keeps running"},
+	{"ctrl+c", "", "quit igris from anywhere; a run goes on in igris serve"},
 }

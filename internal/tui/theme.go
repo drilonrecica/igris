@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/drilonrecica/igris/internal/look"
 )
 
 // The visual rules of SPEC §15.4. The layout code builds plain text; a
@@ -13,10 +15,10 @@ import (
 // meaning, color and weight only help the eye.
 
 // look is how a piece of text is drawn.
-type look int
+type tone int
 
 const (
-	lookPlain      look = iota
+	lookPlain      tone = iota
 	lookAccent          // the working color: running, done, borders of dialogs
 	lookAccentBold      // the app title, the focused region, what wants a click
 	lookAlert           // needs the owner; skip permissions
@@ -36,33 +38,14 @@ const (
 	sgrReset   = "\x1b[0m"
 )
 
-// shade is a color for dark and for light terminals.
-type shade struct{ dark, light string }
-
-func (s shade) pick(dark bool) string {
-	if dark {
-		return s.dark
-	}
-	return s.light
-}
-
-// The palette follows docs/brand: glow cyan is the working accent, plume
-// red marks what needs the owner.
+// The palette is internal/look's (docs/brand, SPEC §15.4): glow cyan is
+// the working accent, plume red marks what needs the owner, Ember warns.
 var (
-	accentShade = shade{"#3CC8FF", "#0A86C8"}
-	alertShade  = shade{"#E3172B", "#E3172B"}
-	frameShade  = shade{"#2C5AA0", "#8FA9CC"}
-	warnShade   = shade{"#FFB000", "#9A6700"}
+	accentShade = look.Glow
+	alertShade  = look.Plume
+	frameShade  = look.Frame
+	warnShade   = look.Ember
 )
-
-// rankShades are the colors of the stock ranks; [tui.rank_colors] sets
-// others or replaces these. A rank without a color is drawn plain.
-var rankShades = map[string]shade{
-	"haiku":  {"#9FB3C8", "#52657A"},
-	"sonnet": {"#6EA8FF", "#1D5FD1"},
-	"opus":   {"#B48CFF", "#6D3FD6"},
-	"fable":  {"#FFC857", "#946200"},
-}
 
 // paintStyle is a look resolved for one terminal.
 type paintStyle struct {
@@ -84,19 +67,19 @@ type theme struct {
 // Under NO_COLOR r renders no colors; the attributes stay.
 func newTheme(r *lipgloss.Renderer, dark bool, rankColors map[string]string) *theme {
 	th := &theme{on: true, r: r, ranks: map[string]string{}}
-	accent := accentShade.pick(dark)
+	accent := accentShade.Pick(dark)
 	th.looks = [lookCount]paintStyle{
 		lookAccent:     {color: accent},
 		lookAccentBold: {color: accent, attrs: sgrBold},
-		lookAlert:      {color: alertShade.pick(dark), attrs: sgrBold},
-		lookWarn:       {color: warnShade.pick(dark), attrs: sgrBold},
-		lookFrame:      {color: frameShade.pick(dark)},
+		lookAlert:      {color: alertShade.Pick(dark), attrs: sgrBold},
+		lookWarn:       {color: warnShade.Pick(dark), attrs: sgrBold},
+		lookFrame:      {color: frameShade.Pick(dark)},
 		lookTitle:      {attrs: sgrBold},
 		lookDim:        {attrs: sgrFaint},
 		lookFocus:      {attrs: sgrBold + ";" + sgrReverse},
 	}
-	for rank, s := range rankShades {
-		th.ranks[rank] = s.pick(dark)
+	for _, r := range look.Ranks {
+		th.ranks[r.Rank] = r.Pick(dark)
 	}
 	for rank, c := range rankColors {
 		th.ranks[rank] = c
@@ -105,7 +88,7 @@ func newTheme(r *lipgloss.Renderer, dark bool, rankColors map[string]string) *th
 }
 
 // paint draws s in look l.
-func (th *theme) paint(l look, s string) string {
+func (th *theme) paint(l tone, s string) string {
 	if !th.on || s == "" {
 		return s
 	}

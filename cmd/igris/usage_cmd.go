@@ -11,6 +11,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/project"
 	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/state"
@@ -119,8 +120,7 @@ func execUsage(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 	if jsonFlag(fs) {
 		writeJSON(stdout, u)
 	} else {
-		f, _ := stdout.(*os.File)
-		printUsage(stdout, u, isCharDevice(f) && os.Getenv("TERM") != "dumb")
+		printUsage(stdout, u, colorOn(stdout))
 	}
 	return exitOK
 }
@@ -133,7 +133,7 @@ func printUsage(w io.Writer, u report.Usage, color bool) {
 	if u.Note != "" {
 		fmt.Fprintf(w, "note: %s\n", u.Note)
 	}
-	fmt.Fprintf(w, "\n%s\n", plural(len(u.Runs), "Run", "Runs"))
+	fmt.Fprintf(w, "\n%s\n", look.Plural(len(u.Runs), "Run", "Runs"))
 	for _, r := range u.Runs {
 		fmt.Fprintf(w, "  %s · %s · %s\n", dash(r.Run), r.StartedAt, r.End)
 	}
@@ -146,16 +146,16 @@ func printUsage(w io.Writer, u report.Usage, color bool) {
 	}
 
 	t := u.Totals
-	fmt.Fprintf(w, "\nTotals · %d %s · in %s · out %s\n", t.Attempts, plural(t.Attempts, "attempt", "attempts"), usage.Short(t.In), usage.Short(t.Output))
+	fmt.Fprintf(w, "\nTotals · %d %s · in %s · out %s\n", t.Attempts, look.Plural(t.Attempts, "attempt", "attempts"), usage.Short(t.In), usage.Short(t.Output))
 	fmt.Fprintf(w, "  input %s · cache read %s · cache write %s · output %s · %d %s\n",
 		usage.Short(t.Input), usage.Short(t.CacheRead), usage.Short(t.CacheWrite), usage.Short(t.Output),
-		t.Messages, plural(int(min(t.Messages, 2)), "response", "responses"))
+		t.Messages, look.Plural(int(min(t.Messages, 2)), "response", "responses"))
 	if sub := t.Sub; sub.Messages > 0 {
 		fmt.Fprintf(w, "  subagents included: in %s · out %s\n", usage.Short(sub.In), usage.Short(sub.Output))
 	}
 	if u.Unavailable > 0 {
 		fmt.Fprintf(w, "  note: %d %s without readable usage left out (audit: unavailable)\n",
-			u.Unavailable, plural(u.Unavailable, "attempt", "attempts"))
+			u.Unavailable, look.Plural(u.Unavailable, "attempt", "attempts"))
 	}
 
 	if len(u.Tasks) > 0 {

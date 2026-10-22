@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/drilonrecica/igris/internal/engine"
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/state"
 	"github.com/drilonrecica/igris/internal/usage"
@@ -573,32 +574,21 @@ func (m *model) quotaText() string {
 		if w.w == nil {
 			continue
 		}
-		look := lookPlain
+		tone := lookPlain
 		switch {
 		case w.w.Used >= 95:
-			look = lookAlert
+			tone = lookAlert
 		case w.w.Used >= 80:
-			look = lookWarn
+			tone = lookWarn
 		}
-		parts = append(parts, m.th.paint(look, fmt.Sprintf("%s %.0f%%", w.name, math.Round(w.w.Used))))
+		parts = append(parts, m.th.paint(tone, fmt.Sprintf("%s %.0f%%", w.name, math.Round(w.w.Used))))
 	}
 	if len(parts) == 0 {
 		return ""
 	}
 	text := strings.Join(parts, " · ")
 	if age := m.opts.Now().Sub(q.At); age > quotaStale {
-		text += " · " + m.th.paint(lookDim, ageText(age)+" ago")
+		text += " · " + m.th.paint(lookDim, look.Age(age))
 	}
 	return text
-}
-
-// ageText is a short age: 25m, 3h, 2d.
-func ageText(d time.Duration) string {
-	switch {
-	case d < time.Hour:
-		return fmt.Sprintf("%dm", int(d/time.Minute))
-	case d < 24*time.Hour:
-		return fmt.Sprintf("%dh", int(d/time.Hour))
-	}
-	return fmt.Sprintf("%dd", int(d/(24*time.Hour)))
 }

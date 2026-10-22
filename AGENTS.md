@@ -34,6 +34,7 @@ These rules apply to every coding agent working in this repository (Claude Code 
   - `internal/project/` — opens a project (root, config, plan) tolerantly, builds the engine for `arise` and home, implements the home screen's services
   - `internal/side/` — side sessions (SPEC §6.10): open, list and reattach, focus, close; records under `.igris/side/` through `internal/state`
   - `internal/fsafe/` — reads files an untrusted party may have replaced (the plan, `igris.toml`, `.igris/`) as regular files of bounded size, never blocking
+  - `internal/look/` — the design language as data (SPEC §15.4, docs/design.md): glyphs, status words, severities, palette and rank colors, and how counts, durations, times and tokens are written; the TUI and the CLI draw with it, the web UI's CSS tokens are tested against it
   - `internal/textsafe/` — cleans untrusted text (plan cells, notes, command output) of escape sequences before it is drawn or typed into a pane
 - Small concrete types, plain functions. Interfaces only at real seams (`Backend`, `Session`, notifier, clock, command runner).
 - Every external process call goes through one injectable command runner with a timeout. Never build shell strings from plan text; pass argv.

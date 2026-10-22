@@ -426,8 +426,8 @@ func (d *dialog) render(th *theme, w, h int) ([]string, zones) {
 	}
 
 	var body []string
-	var looks []look // of each body line
-	add := func(l look, lines ...string) {
+	var looks []tone // of each body line
+	add := func(l tone, lines ...string) {
 		for _, s := range lines {
 			body, looks = append(body, s), append(looks, l)
 		}

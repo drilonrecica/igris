@@ -3,16 +3,17 @@ package tui
 import (
 	"strings"
 
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/plan"
 )
 
-// glyphs are the status glyphs of SPEC §15.4.
+// glyphs are the status glyphs of SPEC §15.4, from internal/look.
 var glyphs = map[plan.Status]string{
-	plan.Done:       "✓",
-	plan.InProgress: "●",
-	plan.Ready:      "·",
-	plan.Blocked:    "⨯",
-	plan.Skipped:    "–",
+	plan.Done:       look.GlyphDone,
+	plan.InProgress: look.GlyphRunning,
+	plan.Ready:      look.GlyphReady,
+	plan.Blocked:    look.GlyphBlocked,
+	plan.Skipped:    look.GlyphSkipped,
 }
 
 // rows is what task rows, task details and the phase summary are drawn
@@ -82,7 +83,7 @@ func (r rows) glyph(t *plan.Task) string {
 
 // looks are the looks of t's glyph and of its text: what runs or waits on
 // the owner stands out, what is over or can't start recedes.
-func (r rows) looks(t *plan.Task) (glyph, text look) {
+func (r rows) looks(t *plan.Task) (glyph, text tone) {
 	if r.needsOwner(t) {
 		return lookAlert, lookTitle
 	}
