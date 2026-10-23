@@ -48,8 +48,8 @@ func TestActionButtonsPerQuestion(t *testing.T) {
 		q    engine.Question
 		want string
 	}{
-		{engine.QuestionCommit, "Commit, Don't commit"},
-		{engine.QuestionConfirmSkip, "Skip, Keep"},
+		{engine.QuestionCommit, "Commit, Leave uncommitted"},
+		{engine.QuestionConfirmSkip, "Skip, Keep working"},
 		{engine.QuestionSessionLost, "Retry, Stop"},
 		{engine.QuestionHookFailed, "Retry, Stop"},
 		{engine.QuestionPlanApproval, "Approve, Open (view)"},
@@ -116,7 +116,7 @@ func TestActionAnswersOnce(t *testing.T) {
 	w.ask("M1-03", engine.QuestionCommit)
 	acts := w.buttons("M1-03", engine.QuestionCommit)
 	code, text := w.press(acts[1], map[string]string{"Origin": "https://ntfy.sh", "Sec-Fetch-Site": "cross-site"})
-	if code != http.StatusOK || text != "Don't commit sent for M1-03" {
+	if code != http.StatusOK || text != "Leave uncommitted sent for M1-03" {
 		t.Fatalf("press = %d %q", code, text)
 	}
 	want := engine.Command{Kind: engine.CmdAnswer, Task: "M1-03", Question: engine.QuestionCommit}

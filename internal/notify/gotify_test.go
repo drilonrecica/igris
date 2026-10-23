@@ -13,8 +13,8 @@ func TestGotifySend(t *testing.T) {
 		ev   Event
 		prio int
 	}{
-		{NeedsInput, 8}, {SessionLost, 8}, {TaskOverdue, 8},
-		{VerifyFailedLimit, 5}, {PhaseStuck, 5}, {RunError, 5}, {PhaseDone, 5},
+		{NeedsInput, 8}, {SessionLost, 8}, {VerifyFailedLimit, 8},
+		{TaskOverdue, 5}, {RankMismatch, 5}, {PhaseStuck, 5}, {RunError, 5}, {PhaseDone, 5},
 		{TaskDone, 3},
 	}
 	for _, tt := range tests {
@@ -35,7 +35,7 @@ func TestGotifySend(t *testing.T) {
 			if err := json.Unmarshal([]byte(got.body), &p); err != nil {
 				t.Fatalf("body %q: %v", got.body, err)
 			}
-			want := map[string]any{"title": "igris · demo", "message": "phase M5 · M5-02 Gotify: news", "priority": float64(tt.prio)}
+			want := map[string]any{"title": m.Subject(), "message": "phase M5 · M5-02 Gotify: news", "priority": float64(tt.prio)}
 			if len(p) != len(want) {
 				t.Errorf("payload %v, want %v", p, want)
 			}

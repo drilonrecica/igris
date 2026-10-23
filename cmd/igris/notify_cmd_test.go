@@ -73,8 +73,8 @@ func TestNotifyTest(t *testing.T) {
 	for i, want := range []string{
 		"phase TEST · TEST-1 Notification check: test of needs_input: needs you",
 		"phase TEST · TEST-1 Notification check: test of session_lost: session lost",
-		"phase TEST · TEST-1 Notification check: test of task_overdue: needs you (running longer than its Timeout 45m)",
-		"phase TEST · TEST-1 Notification check: test of rank_mismatch: needs you (on claude-opus-5-5, not its rank sonnet)",
+		"phase TEST · TEST-1 Notification check: test of task_overdue: running longer than its Timeout 45m",
+		"phase TEST · TEST-1 Notification check: test of rank_mismatch: on claude-opus-5-5, not its rank sonnet",
 		"phase TEST · TEST-1 Notification check: test of verify_failed_limit: verification keeps failing; needs you",
 		"phase TEST: test of phase_done: complete",
 		"phase TEST: test of phase_stuck: stuck: 2 unfinished task(s), none can start",

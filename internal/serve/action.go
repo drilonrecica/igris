@@ -50,11 +50,11 @@ type answer struct {
 var buttonSets = map[engine.Question][]answer{
 	engine.QuestionCommit: {
 		{label: "Commit", cmd: engine.Command{Kind: engine.CmdAnswer, Yes: true}},
-		{label: "Don't commit", cmd: engine.Command{Kind: engine.CmdAnswer}},
+		{label: "Leave uncommitted", cmd: engine.Command{Kind: engine.CmdAnswer}},
 	},
 	engine.QuestionConfirmSkip: {
 		{label: "Skip", cmd: engine.Command{Kind: engine.CmdAnswer, Yes: true}},
-		{label: "Keep", cmd: engine.Command{Kind: engine.CmdAnswer}},
+		{label: "Keep working", cmd: engine.Command{Kind: engine.CmdAnswer}},
 	},
 	engine.QuestionSessionLost: {
 		{label: "Retry", cmd: engine.Command{Kind: engine.CmdRetry}},

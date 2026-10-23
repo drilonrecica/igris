@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/drilonrecica/igris/internal/config"
+	"github.com/drilonrecica/igris/internal/look"
 )
 
 // Event is a SPEC §10 notification event.
@@ -80,8 +81,46 @@ func NeedYou(ids []string) string {
 	return strconv.Itoa(len(ids)) + " tasks need you: " + strings.Join(ids, ", ")
 }
 
-// Subject is the short headline: "igris · <project>".
-func (m Message) Subject() string { return "igris · " + m.Project }
+// NeedsYou reports whether the event is igris waiting on the owner: the
+// only events that get a high priority (SPEC §10, §15.4). A warning
+// (task_overdue, rank_mismatch) is Urgent, not Needs you.
+func (e Event) NeedsYou() bool {
+	return e == NeedsInput || e == SessionLost || e == VerifyFailedLimit
+}
+
+// Subject is the headline: the status word with its glyph, then the
+// project, "! Needs you · igris" (SPEC §10, internal/look). Needs you
+// leads when anything waits on the owner; a warning is worded as one.
+func (m Message) Subject() string {
+	return m.Event.headline() + " · " + m.Project
+}
+
+// headline is the glyph and word an event's title starts with.
+func (e Event) headline() string {
+	switch e {
+	case NeedsInput, SessionLost, VerifyFailedLimit:
+		return look.NeedsYou.Label()
+	case TaskOverdue:
+		return look.GlyphWarn + " Overdue"
+	case RankMismatch:
+		return look.GlyphWarn + " Rank mismatch"
+	case RunError:
+		return look.GlyphFail + " " + capital(look.Failed.String())
+	case PhaseStuck:
+		return look.GlyphWarn + " " + capital(look.Stuck.String())
+	case PhaseDone:
+		return look.GlyphDone + " Phase done"
+	case TaskDone:
+		return look.GlyphDone + " Task done"
+	case Digest:
+		return look.GlyphWaiting + " Held"
+	}
+	return string(e)
+}
+
+func capital(s string) string {
+	return strings.ToUpper(s[:1]) + s[1:]
+}
 
 // Body is "phase P · ID title: what", leaving out what is not known.
 func (m Message) Body() string {

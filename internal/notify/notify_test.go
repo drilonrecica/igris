@@ -68,8 +68,34 @@ func TestMessageBody(t *testing.T) {
 			t.Errorf("%s: Body() = %q, want %q", tt.name, got, tt.want)
 		}
 	}
-	if got := (Message{Project: "demo"}).Subject(); got != "igris · demo" {
-		t.Errorf("Subject() = %q", got)
+}
+
+// Every title leads with its status word and glyph from internal/look;
+// only the Needs you events get a high priority (SPEC §10).
+func TestSubject(t *testing.T) {
+	tests := []struct {
+		ev       Event
+		want     string
+		needsYou bool
+	}{
+		{NeedsInput, "! Needs you · demo", true},
+		{SessionLost, "! Needs you · demo", true},
+		{VerifyFailedLimit, "! Needs you · demo", true},
+		{TaskOverdue, "▲ Overdue · demo", false},
+		{RankMismatch, "▲ Rank mismatch · demo", false},
+		{RunError, "✗ Failed · demo", false},
+		{PhaseStuck, "▲ Stuck · demo", false},
+		{PhaseDone, "✓ Phase done · demo", false},
+		{TaskDone, "✓ Task done · demo", false},
+		{Digest, "◌ Held · demo", false},
+	}
+	for _, tt := range tests {
+		if got := (Message{Event: tt.ev, Project: "demo"}).Subject(); got != tt.want {
+			t.Errorf("%s: Subject() = %q, want %q", tt.ev, got, tt.want)
+		}
+		if tt.ev != Digest && tt.ev.NeedsYou() != tt.needsYou {
+			t.Errorf("%s: NeedsYou() = %v", tt.ev, !tt.needsYou)
+		}
 	}
 }
 

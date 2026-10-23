@@ -23,7 +23,7 @@ func TestSlackSend(t *testing.T) {
 	if err := json.Unmarshal([]byte(got.body), &p); err != nil {
 		t.Fatalf("body %q: %v", got.body, err)
 	}
-	want := "*igris · demo* · phase M5 · M5-02 Ping &lt;!channel&gt; &amp; &lt;https://evil.test|click&gt;: needs you (needs_input)"
+	want := "*! Needs you · demo* · phase M5 · M5-02 Ping &lt;!channel&gt; &amp; &lt;https://evil.test|click&gt;: needs you (needs_input)"
 	if len(p) != 1 || p["text"] != want {
 		t.Errorf("payload = %v, want only text %q", p, want)
 	}

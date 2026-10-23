@@ -68,7 +68,7 @@ func TestRankMismatchLive(t *testing.T) {
 	if ny := h.event(NeedsYou, "A-1"); ny.Detail != "the session runs "+what+"; igris leaves it running" {
 		t.Errorf("needs you = %q", ny.Detail)
 	}
-	if got := h.toasts(); !slices.Contains(got, "request: phase A · A-1 One: needs you ("+what+")") {
+	if got := h.toasts(); !slices.Contains(got, "request: phase A · A-1 One: "+what) {
 		t.Errorf("toasts = %q", got)
 	}
 	lines := h.logLines(state.EventRankMismatch, "A-1")

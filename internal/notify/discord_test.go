@@ -30,7 +30,7 @@ func TestDiscordSend(t *testing.T) {
 	if err := json.Unmarshal([]byte(got.body), &p); err != nil {
 		t.Fatalf("body %q: %v", got.body, err)
 	}
-	if want := "**igris · demo** · phase M5: complete (phase_done)"; p.Content != want {
+	if want := "**✓ Phase done · demo** · phase M5: complete (phase_done)"; p.Content != want {
 		t.Errorf("content = %q, want %q", p.Content, want)
 	}
 	if p.AllowedMentions.Parse == nil || len(p.AllowedMentions.Parse) != 0 {

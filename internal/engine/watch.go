@@ -343,6 +343,11 @@ func (e *Engine) needsYouAsking(ctx context.Context, event notify.Event, reason,
 		e.emit(*asked)
 		q = asked.Question
 	}
+	if event == notifyTaskOverdue || event == notifyRankMismatch {
+		// The title already says ▲ Overdue / ▲ Rank mismatch: a warning,
+		// worded as one, not "needs you" (SPEC §10).
+		what = words
+	}
 	e.toastAsking(ctx, event, what, q)
 }
 

@@ -37,6 +37,8 @@ func TestNtfySend(t *testing.T) {
 	}{
 		{"urgent with token", "tk_abc", "my topic", "/my%20topic", "high", NeedsInput},
 		{"session lost is urgent", "", "t", "/t", "high", SessionLost},
+		{"overdue is a warning, not high", "", "t", "/t", "default", TaskOverdue},
+		{"verify limit needs you", "", "t", "/t", "high", VerifyFailedLimit},
 		{"phase done is default", "", "t", "/t", "default", PhaseDone},
 	}
 	for _, tt := range tests {
@@ -53,7 +55,7 @@ func TestNtfySend(t *testing.T) {
 			t.Errorf("%s: body = %q", tt.name, got.body)
 		}
 		title, err := new(mime.WordDecoder).DecodeHeader(got.header.Get("Title"))
-		if err != nil || title != "igris · demo" {
+		if err != nil || title != (Message{Event: tt.ev, Project: "demo"}).Subject() {
 			t.Errorf("%s: Title = %q (%v)", tt.name, got.header.Get("Title"), err)
 		}
 		if p := got.header.Get("Priority"); p != tt.wantPrio {

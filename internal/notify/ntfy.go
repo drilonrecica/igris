@@ -92,14 +92,14 @@ func (n *Ntfy) Send(ctx context.Context, m Message) error {
 }
 
 func ntfyPriority(ev Event) string {
-	if ev.Urgent() {
+	if ev.NeedsYou() {
 		return "high"
 	}
 	return "default"
 }
 
 // actionsHeader is the Actions header of m's buttons, in ntfy's JSON form
-// (its simple form would need quoting for labels like "Don't commit"); ""
+// (its simple form would need quoting for labels like "Leave uncommitted"); ""
 // when m gets none.
 func (n *Ntfy) actionsHeader(m Message) string {
 	if n.Actions == nil || m.Question == "" || len(m.Tasks) > 0 || m.Event == Digest {

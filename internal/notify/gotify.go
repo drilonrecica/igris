@@ -77,7 +77,7 @@ func (g *Gotify) Send(ctx context.Context, m Message) error {
 // finished tasks only), 5 for the rest, other digests included.
 func gotifyPriority(m Message) int {
 	switch {
-	case m.Event.Urgent():
+	case m.Event.NeedsYou():
 		return 8
 	case m.Event == TaskDone:
 		return 3

@@ -39,7 +39,7 @@ func TestTemplateReplacesText(t *testing.T) {
 	if err := (&Ntfy{Server: srv.URL, Topic: "t", Template: tm}).Send(ctx, tmplMsg); err != nil {
 		t.Fatal(err)
 	}
-	if title, _ := new(mime.WordDecoder).DecodeHeader(got.header.Get("Title")); got.body != want || title != "igris · demo" {
+	if title, _ := new(mime.WordDecoder).DecodeHeader(got.header.Get("Title")); got.body != want || title != "✓ Task done · demo" {
 		t.Errorf("ntfy body %q (title %q), want %q", got.body, got.header.Get("Title"), want)
 	}
 
@@ -62,7 +62,7 @@ func TestTemplateReplacesText(t *testing.T) {
 	if err := (&Gotify{Server: srv.URL, Token: "x", Template: tm}).Send(ctx, tmplMsg); err != nil {
 		t.Fatal(err)
 	}
-	if m, ti := field(got.body, "message"), field(got.body, "title"); m != want || ti != "igris · demo" {
+	if m, ti := field(got.body, "message"), field(got.body, "title"); m != want || ti != "✓ Task done · demo" {
 		t.Errorf("gotify message %q title %q", m, ti)
 	}
 	srv, got = serve(t, 200)
@@ -204,14 +204,14 @@ func TestDigestOnChannels(t *testing.T) {
 	if err := (&Discord{WebhookURL: srv.URL, Template: tm}).Send(ctx, d); err != nil {
 		t.Fatal(err)
 	}
-	if want := "**igris · demo** · " + d.What; !strings.Contains(got.body, jsonText(want)) {
+	if want := "**◌ Held · demo** · " + d.What; !strings.Contains(got.body, jsonText(want)) {
 		t.Errorf("discord digest %s, want content %q", got.body, want)
 	}
 	srv, got = serve(t, 200)
 	if err := (&Slack{WebhookURL: srv.URL}).Send(ctx, d); err != nil {
 		t.Fatal(err)
 	}
-	if want := "*igris · demo* · " + d.What; !strings.Contains(got.body, jsonText(want)) {
+	if want := "*◌ Held · demo* · " + d.What; !strings.Contains(got.body, jsonText(want)) {
 		t.Errorf("slack digest %s, want text %q", got.body, want)
 	}
 

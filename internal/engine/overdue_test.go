@@ -40,7 +40,7 @@ func TestTaskOverdueOncePerAttempt(t *testing.T) {
 	if got, want := durations(h.times(NeedsYou)...), "1m2s"; got != want {
 		t.Errorf("needs_you at %s, want %s", got, want)
 	}
-	if got := h.toasts(); len(got) == 0 || got[0] != "request: phase A · A-1 One: needs you (running longer than its Timeout 1m)" {
+	if got := h.toasts(); len(got) == 0 || got[0] != "request: phase A · A-1 One: running longer than its Timeout 1m" {
 		t.Errorf("toasts = %q", got)
 	}
 	events, err := h.dir.Events()

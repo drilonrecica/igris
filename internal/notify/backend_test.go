@@ -15,6 +15,7 @@ func TestToastSounds(t *testing.T) {
 		want backend.Sound
 	}{
 		{NeedsInput, backend.SoundRequest},
+		{TaskOverdue, backend.SoundRequest},
 		{SessionLost, backend.SoundRequest},
 		{VerifyFailedLimit, backend.SoundRequest},
 		{PhaseStuck, backend.SoundRequest},
@@ -29,7 +30,7 @@ func TestToastSounds(t *testing.T) {
 			t.Fatal(err)
 		}
 		got := be.Notifications()
-		if len(got) != 1 || got[0].Sound != tt.want || got[0].Title != "igris · demo" || got[0].Body != "phase M5 · M5-04 Toasts: w" {
+		if len(got) != 1 || got[0].Sound != tt.want || got[0].Title != (Message{Event: tt.ev, Project: "demo"}).Subject() || got[0].Body != "phase M5 · M5-04 Toasts: w" {
 			t.Errorf("%s: toast = %+v, want sound %s", tt.ev, got, tt.want)
 		}
 	}
