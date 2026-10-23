@@ -77,7 +77,7 @@ func TestNotifyTest(t *testing.T) {
 		"phase TEST · TEST-1 Notification check: test of rank_mismatch: on claude-opus-5-5, not its rank sonnet",
 		"phase TEST · TEST-1 Notification check: test of verify_failed_limit: verification keeps failing; needs you",
 		"phase TEST: test of phase_done: complete",
-		"phase TEST: test of phase_stuck: stuck: 2 unfinished task(s), none can start",
+		"phase TEST: test of phase_stuck: stuck: 2 unfinished tasks, none can start",
 		"phase TEST: test of run_error: the run stopped with an error",
 	} {
 		if i >= len(bodies) || bodies[i] != want {

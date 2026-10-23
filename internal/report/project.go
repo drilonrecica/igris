@@ -88,6 +88,9 @@ type Stamp struct {
 	State  FileStamp // .igris/state.json
 	Lock   FileStamp // .igris/igris.lock
 	Log    FileStamp // .igris/runs.jsonl
+	// LockAlive says the lock's holder runs on this host: a holder that
+	// dies without cleaning up changes no file.
+	LockAlive bool
 }
 
 // Snapshot is the project as the home screen shows it. Nothing in it fails:

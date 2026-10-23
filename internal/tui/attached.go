@@ -2,6 +2,7 @@ package tui
 
 import (
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -81,13 +82,21 @@ func (m *model) restore(s serve.Snapshot) {
 	m.tails = map[string][]string{}
 
 	m.log, m.scroll = nil, 0
+	prev := m.sum
 	m.sum = summary{run: s.Run, start: s.Started}
+	if prev.run != "" && prev.run == s.Run {
+		// A reconnect: the feed can't rebuild the needs-you time so far.
+		m.sum.needsYou, m.sum.needSince = prev.needsYou, prev.needSince
+	}
 	for _, w := range s.Feed {
 		if ev, ok := w.Engine(); ok {
 			m.logEvent(ev)
 			m.sum.note(ev)
 		}
 	}
+	// What waits on the owner now has waited since it was asked, also for
+	// a view that wasn't there to see it.
+	m.sum.need(m.needsOwner() && !s.Ended, m.askedSince())
 	if s.Ended {
 		m.sum.outcome = outcomeOf(s.End)
 		m.endFocus()
@@ -104,6 +113,21 @@ func (m *model) restore(s serve.Snapshot) {
 	}
 	m.taskTop = -1
 	m.resetTail()
+}
+
+// askedSince is when what waits on the owner began: its oldest pending
+// question's time, else now.
+func (m *model) askedSince() time.Time {
+	at := m.opts.Now()
+	for _, q := range m.asks {
+		if !q.At.IsZero() && q.At.Before(at) {
+			at = q.At
+		}
+	}
+	if q := m.resetAsk; q != nil && !q.At.IsZero() && q.At.Before(at) {
+		at = q.At
+	}
+	return at
 }
 
 // currentOf is the snapshot's current task as the card's.

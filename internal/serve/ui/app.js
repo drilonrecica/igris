@@ -231,12 +231,19 @@
     timer = setTimeout(refresh, 300);
   }
 
+  // fillTails shows each card's last lines, scrolled to the newest unless
+  // the reader has scrolled up to read.
   function fillTails() {
     var pres = live.querySelectorAll("pre.tail");
     for (var i = 0; i < pres.length; i++) {
-      var lines = tails[pres[i].dataset.task];
+      var pre = pres[i];
+      var lines = tails[pre.dataset.task];
       if (lines) {
-        pres[i].textContent = lines.join("\n");
+        var follow = pre.scrollHeight - pre.scrollTop - pre.clientHeight < 8;
+        pre.textContent = lines.join("\n");
+        if (follow) {
+          pre.scrollTop = pre.scrollHeight;
+        }
       }
     }
   }

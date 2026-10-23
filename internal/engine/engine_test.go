@@ -259,7 +259,9 @@ func TestRunStuck(t *testing.T) {
 			if ev := h.event(PhaseStuck, ""); len(ev.Waiting) != 1 || ev.Phase != tt.wantPhase {
 				t.Errorf("phase_stuck event = %+v", ev)
 			}
-			if got := h.toasts(); len(got) != 1 || !strings.HasPrefix(got[0], "request: ") || !strings.Contains(got[0], "stuck") {
+			// One waiting task, counted with its noun (SPEC §15.4): the
+			// V17 gate saw "1 unfinished task(s)" on the phone.
+			if got := h.toasts(); len(got) != 1 || !strings.HasPrefix(got[0], "request: ") || !strings.Contains(got[0], "stuck: 1 unfinished task, none can start") {
 				t.Errorf("toasts = %q, want one stuck toast", got)
 			}
 		})

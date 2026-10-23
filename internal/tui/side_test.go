@@ -212,6 +212,26 @@ func TestSideDialogDuringRun(t *testing.T) {
 	}
 }
 
+// The dialog names where the session opens by the run's backend: a view
+// pushed by home has the config's `auto` and an attached one none, so the
+// served run's snapshot says (the V17 gate saw "in a herdr tab" on tmux).
+func TestSideDialogNamesTheRunsBackend(t *testing.T) {
+	for _, tt := range []struct{ opts, served, want string }{
+		{"auto", "tmux", "in a tmux window"},
+		{"", "tmux", "in a tmux window"},
+		{"auto", "herdr", "in a herdr tab"},
+		{"tmux", "", "in a tmux window"},
+	} {
+		hs := sideHarness(t, newFakeSide())
+		hs.m.opts.Backend, hs.m.backend = tt.opts, tt.served
+		hs.events(engine.Event{Kind: engine.RunStarted, Phase: "M0"}, started("M0-03"), opened("M0-03"))
+		hs.press("S")
+		if hs.dialogTitle() != "Side session" || !strings.Contains(strings.Join(strings.Fields(hs.m.dialog.detail), " "), tt.want) {
+			t.Errorf("backend %q, served %q: %q", tt.opts, tt.served, hs.m.dialog.detail)
+		}
+	}
+}
+
 // Own worktree tells the session about no task; in a worktree run only the
 // plan warning is given and the mode isn't forced to manual.
 func TestSideDialogWorktrees(t *testing.T) {

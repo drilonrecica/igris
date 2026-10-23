@@ -152,16 +152,21 @@ func problemLines(err error) []string {
 }
 
 // Stamp stats the files the home screen watches: igris.toml, the plan, and
-// .igris/state.json, igris.lock and runs.jsonl.
+// .igris/state.json, igris.lock and runs.jsonl; and whether the lock's
+// holder still runs.
 func (p *Project) Stamp() report.Stamp {
 	dir := filepath.Join(p.Root, state.DirName)
-	return report.Stamp{
+	s := report.Stamp{
 		Config: fileStamp(filepath.Join(p.Root, state.ConfigFile)),
 		Plan:   fileStamp(p.PlanPath),
 		State:  fileStamp(filepath.Join(dir, "state.json")),
 		Lock:   fileStamp(filepath.Join(dir, "igris.lock")),
 		Log:    fileStamp(filepath.Join(dir, "runs.jsonl")),
 	}
+	if l, err := state.PeekLock(p.Root); err == nil {
+		s.LockAlive = l.Alive
+	}
+	return s
 }
 
 func fileStamp(path string) report.FileStamp {

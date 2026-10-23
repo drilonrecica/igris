@@ -40,7 +40,7 @@ var testWhat = map[notify.Event]string{
 	notify.VerifyFailedLimit: "verification keeps failing; needs you",
 	notify.TaskDone:          "done",
 	notify.PhaseDone:         "complete",
-	notify.PhaseStuck:        "stuck: 2 unfinished task(s), none can start",
+	notify.PhaseStuck:        "stuck: 2 unfinished tasks, none can start",
 	notify.RunError:          "the run stopped with an error",
 }
 

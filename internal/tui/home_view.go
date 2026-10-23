@@ -295,6 +295,7 @@ func (m *homeScreen) phaseWidth(w int) int {
 	for _, r := range rows {
 		idW, titleW, countW = max(idW, textWidth(r.id)), max(titleW, textWidth(r.title)), max(countW, textWidth(r.count))
 	}
+	titleW = max(titleW, 4) // phaseLines keeps a title at least 4 cells wide
 	barW := 0
 	if w >= homeBarsFrom {
 		barW = homeBarWidth + 1

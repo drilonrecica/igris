@@ -433,3 +433,35 @@ func TestParallelNeedsYouAlone(t *testing.T) {
 		t.Errorf("needs-you toasts = %q, want a's own", needs)
 	}
 }
+
+// The poll's needs-you messages go out after its steps, when the first
+// active task is in focus again; the run log still files each delivery
+// under the task it is about (the V17 gate saw A-03's under A-02).
+func TestParallelNeedsYouLoggedForItsTask(t *testing.T) {
+	h := newParallel(t, parallelPlan(), "[run]\ncommit = \"auto\"\n[parallel]\nmax = 2\n")
+	h.be.Script("a", states(backend.Working, 120)...)
+	h.be.Script("b", states(backend.Idle, 120)...)
+	h.be.Script("c", states(backend.Working, 120)...)
+	h.signalAt(5*time.Minute, "b")
+	h.signalAt(6*time.Minute, "a")
+	h.signalAt(7*time.Minute, "c")
+	if _, err := h.run(); err != nil {
+		t.Fatal(err)
+	}
+	events, err := h.dir.Events()
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	for _, ev := range events {
+		if ev.Type == state.EventNotification && strings.HasPrefix(ev.Detail, "needs_input") {
+			n++
+			if ev.Task != "b" {
+				t.Errorf("needs_input delivery logged for %q, want b: %+v", ev.Task, ev)
+			}
+		}
+	}
+	if n == 0 {
+		t.Error("no needs_input delivery logged")
+	}
+}

@@ -266,6 +266,44 @@ func TestPlanAnswerInPaneChoice(t *testing.T) {
 	}
 }
 
+// A plan answered in igris after needs_input_after: the session still
+// shows its blocked prompt until its hook returns, a poll or two, and that
+// is not the owner's (seen at the V17 gate: an approval a minute after the
+// plan raised `blocked` and a Needs-you notification at once). The idle
+// clock starts at the answer.
+func TestPlanAnswerRestartsTheIdleClock(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		cmd  Command
+	}{
+		{"approved", Command{Kind: CmdPlan, Plan: state.PlanAllow}},
+		{"rejected", Command{Kind: CmdPlan, Plan: state.PlanDeny, Text: "smaller steps"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			h, hook := planHarness(t, "")
+			h.onEvent = func(ev Event) {
+				switch {
+				case ev.Kind == SessionOpened:
+					h.clock.At(ev.At.Sub(t0)+5*time.Second, func() { hook.present(planText) })
+				case ev.Kind == Asked && ev.Question == QuestionPlanApproval:
+					// The owner answers a minute later, past needs_input_after.
+					h.clock.At(ev.At.Sub(t0)+time.Minute, func() { h.eng.Send(tt.cmd) })
+				case ev.Kind == PlanClosed:
+					hook.done()
+					// Still blocked for a while, as the hook hands over.
+					h.signalAt(ev.At.Sub(t0)+10*time.Second, "A-1")
+				}
+			}
+			if _, err := h.run(withPlanApproval); err != nil {
+				t.Fatal(err)
+			}
+			if got, want := h.waits(), "A-1#1 plan_approval, clear A-1#1 plan_approval"; got != want {
+				t.Errorf("waits = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
 // Without a TUI (--no-tui) there is no plan-approve entry, and a request
 // is never shown.
 func TestPlanApprovalOffWithoutTUI(t *testing.T) {

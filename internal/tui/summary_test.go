@@ -12,6 +12,7 @@ import (
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/plan"
+	"github.com/drilonrecica/igris/internal/serve"
 )
 
 // at is t0 plus d.
@@ -190,6 +191,25 @@ func TestSummaryWithoutRunStopped(t *testing.T) {
 	hs.m.Update(batch{ended: true})
 	if v := hs.m.View(); !strings.Contains(v, "Done ▲ stuck") {
 		t.Errorf("summary lacks the feed's outcome:\n%s", v)
+	}
+}
+
+// A view that attaches while a question waits counts the wait from when
+// it was asked, and a reconnect keeps what was counted (the V17 gate saw
+// 3m07s in an attached view and 6m16s in the one that saw it all).
+func TestSummaryNeedsYouOfAnAttachedView(t *testing.T) {
+	hs := newHarness(t, 120, 40)
+	hs.withPlan(multiPlan)
+	q := serve.Event{V: 1, Type: string(engine.Asked), Task: "M1-05", Question: string(engine.QuestionCommit), At: t0.Add(time.Minute)}
+	asking := []serve.Current{{Task: "M1-05", State: serve.StateQuestion, Model: "opus"}}
+	hs.now = t0.Add(4 * time.Minute)
+	hs.m.restore(serve.Snapshot{Run: "r1", Started: t0, Phase: "M1", Active: asking, Questions: []serve.Event{q}})
+	// The question was answered while the view was cut off.
+	hs.now = t0.Add(5 * time.Minute)
+	hs.m.restore(serve.Snapshot{Run: "r1", Started: t0, Phase: "M1", Active: []serve.Current{{Task: "M1-05", State: serve.StateWorking, Model: "opus"}}})
+	hs.events(engine.Event{Kind: engine.RunStopped, At: t0.Add(6 * time.Minute), Detail: "completed"})
+	if got := hs.m.sum.needsYou; got != 4*time.Minute {
+		t.Errorf("needs you %v, want 4m0s: from the question to the reconnect that found it answered", got)
 	}
 }
 

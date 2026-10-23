@@ -66,7 +66,7 @@
 {{template "top" .}}
 <section class="glance" aria-label="Status">
 <h1 class="word{{with .Status.Tone}} {{.}}{{end}}">{{.Status.Word}}</h1>
-<p class="line">{{.Status.Line}}</p>
+<p class="line">{{.Status.Line}}{{with .Status.Ran}} · <span class="ran" data-started="{{$.Status.Since.UTC.Format "2006-01-02T15:04:05Z07:00"}}">{{.}}</span>{{end}}</p>
 {{- if .Segments}}
 <ol class="bar-phase" aria-label="Phase progress">
 {{- range .Segments}}
@@ -74,7 +74,7 @@
 {{- end}}
 </ol>
 {{- end}}
-<p class="meta">{{if .Phase}}<span>phase {{.Phase.ID}}{{with .Phase.Title}} · {{.}}{{end}}</span><span>{{.Done}} of {{.Total}} done{{with .Elapsed}} · {{.}}{{end}}</span>{{else}}<span>no phase yet</span>{{end}}</p>
+<p class="meta">{{if .Phase}}<span>phase {{.Phase.ID}}{{with .Phase.Title}} · {{.}}{{end}}</span><span>{{.Done}} of {{.Total}} done{{with .Elapsed}} · <span class="ran" data-started="{{$.Snap.Started.UTC.Format "2006-01-02T15:04:05Z07:00"}}">{{.}}</span>{{end}}</span>{{else}}<span>no phase yet</span>{{end}}</p>
 </section>
 {{- range .Sheet}}
 {{template "question" .}}

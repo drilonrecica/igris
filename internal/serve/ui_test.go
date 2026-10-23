@@ -468,6 +468,54 @@ func TestUIScriptPaths(t *testing.T) {
 // fetch the ended run's page: the script shows the end itself, removing
 // what that page leaves out (found at the V16 gate: the page kept a live
 // run's buttons and said "Failed to fetch").
+// The status line's clock and the run's elapsed time tick between
+// refreshes as the cards' do: spans the script's tick keeps current (the
+// V17 gate saw both frozen at the page's last refresh).
+func TestUIClocksTick(t *testing.T) {
+	pages := uiPages(t)
+	for _, name := range []string{"running.html", "running-live.html"} {
+		glance := pages[name]
+		if i := strings.Index(glance, `<section class="glance"`); i >= 0 {
+			glance = glance[i:]
+		}
+		if j := strings.Index(glance, "</section>"); j >= 0 {
+			glance = glance[:j]
+		}
+		line := regexp.MustCompile(`<p class="line">3 questions · <span class="ran" data-started="[0-9TZ:-]+">3m12s</span></p>`)
+		elapsed := regexp.MustCompile(`done · <span class="ran" data-started="[0-9TZ:-]+">[0-9a-z]+</span></span>`)
+		if !line.MatchString(glance) || !elapsed.MatchString(glance) {
+			t.Errorf("%s: the glance's clocks don't tick:\n%s", name, glance)
+		}
+	}
+	b, err := uiFiles.ReadFile("ui/app.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), `live.querySelectorAll(".ran[data-started]")`) {
+		t.Error("app.js's tick no longer updates the .ran spans")
+	}
+}
+
+// A card's tail is a scroll box of the session's last 40 lines: it shows
+// the newest, not the oldest (the V17 gate saw Claude Code's banner on the
+// phone, the latest lines below the fold), unless the reader scrolled up.
+func TestUITailFollowsTheNewestLines(t *testing.T) {
+	b, err := uiFiles.ReadFile("ui/app.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	js := string(b)
+	fill := regexp.MustCompile(`(?s)function fillTails\(\) \{.*?\n  \}`).FindString(js)
+	for _, want := range []string{"scrollHeight - pre.scrollTop - pre.clientHeight", "pre.textContent = lines.join", "pre.scrollTop = pre.scrollHeight"} {
+		if !strings.Contains(fill, want) {
+			t.Errorf("fillTails lacks %q:\n%s", want, fill)
+		}
+	}
+	if strings.Index(fill, "scrollHeight - pre.scrollTop") > strings.Index(fill, "pre.textContent") {
+		t.Error("fillTails measures the scroll after replacing the text")
+	}
+}
+
 func TestUIScriptEndsWithTheRun(t *testing.T) {
 	b, err := uiFiles.ReadFile("ui/app.js")
 	if err != nil {

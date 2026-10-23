@@ -425,16 +425,28 @@ func (e *Engine) sendNeeds(ctx context.Context) {
 	}
 	if len(ids) < 2 {
 		for _, m := range needs {
-			e.notified(e.notifier.Notify(ctx, m))
+			e.notifyAs(ctx, m)
 		}
 		return
 	}
 	last := needs[len(needs)-1]
-	e.notified(e.notifier.Notify(ctx, notify.Message{
+	e.notifyAs(ctx, notify.Message{
 		Event: notifyNeedsInput, Project: last.Project, Phase: last.Phase,
 		TaskID: ids[0], Tasks: ids, What: notify.NeedYou(ids),
 		RunID: last.RunID, At: last.At,
-	}))
+	})
+}
+
+// notifyAs sends m with its task in focus, so the run log files the
+// delivery under that task: a poll's gathered messages go out after its
+// steps, whatever task is in focus then.
+func (e *Engine) notifyAs(ctx context.Context, m notify.Message) {
+	was := e.task
+	if l := e.launchOf(m.TaskID); l != nil {
+		e.focus(l)
+	}
+	e.notified(e.notifier.Notify(ctx, m))
+	e.task = was
 }
 
 // notified logs how each delivery went: sent, held for quiet hours or a

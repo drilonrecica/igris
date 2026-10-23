@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/drilonrecica/igris/internal/hook"
@@ -157,6 +158,10 @@ func (e *Engine) decidePlan(l *launch, c Command) {
 		e.waitOver(state.ReasonPlanApproval)
 		return
 	}
+	// The session waited on this answer, not on the owner: its idle clock
+	// starts again now, so the blocked prompt it shows until its hook
+	// returns isn't an idle wait past needs_input_after.
+	l.ep.since = time.Time{}
 	e.closePlan(l, why)
 }
 

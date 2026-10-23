@@ -15,7 +15,8 @@ import (
 // the counts, wall time, needs-you time, tokens, commits, verify, the
 // skip reasons and `next:` with the commands that follow. It is folded
 // from the run's events as the view sees them, so an attached view that
-// joined late sums what it saw; `igris report` has the whole record.
+// joined late sums what it saw (a question pending when it joined from
+// when it was asked); `igris report` has the whole record.
 
 // summary is what the run's events add up to.
 type summary struct {

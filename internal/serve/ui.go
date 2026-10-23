@@ -332,6 +332,10 @@ type pageView struct {
 // accent, needs, ember, plain or dim.
 type status struct {
 	Word, Line, Tone string
+	// Ran is the clock the line ends with, from Since (the oldest question,
+	// or the run's start); the page ticks it on. Empty for none.
+	Ran   string
+	Since time.Time
 }
 
 // phaseView is a phase of the task list.
@@ -705,11 +709,14 @@ func sheetOf(c Current, csrf string) (questionView, bool) {
 func statusOf(s Snapshot, now time.Time) status {
 	if s.Ended {
 		o := endOutcome(s.End)
-		return status{look.Done.String(), o.Glyph() + " " + o.String(), outcomeTone(o)}
+		return status{Word: look.Done.String(), Line: o.Glyph() + " " + o.String(), Tone: outcomeTone(o)}
 	}
-	elapsed := ""
-	if !s.Started.IsZero() {
-		elapsed = " · " + look.Duration(now.Sub(s.Started))
+	// clock ends st's line with how long since at, when there is an at.
+	clock := func(st status, at time.Time) status {
+		if !at.IsZero() {
+			st.Ran, st.Since = look.Duration(now.Sub(at)), at
+		}
+		return st
 	}
 	var oldest time.Time
 	questions := 0
@@ -735,27 +742,27 @@ func statusOf(s Snapshot, now time.Time) status {
 			needs++
 		}
 	}
-	working := func(line string) status { return status{look.Working.String(), line, ""} }
+	working := func(line string) status { return clock(status{Word: look.Working.String(), Line: line}, s.Started) }
 	switch {
 	case needs > 0:
 		n := needs + questions
-		return status{look.NeedsYou.String(), fmt.Sprintf("%s %s you", look.Count(n, "task", "tasks"), look.Plural(n, "needs", "need")), "needs"}
+		return status{Word: look.NeedsYou.String(), Line: fmt.Sprintf("%s %s you", look.Count(n, "task", "tasks"), look.Plural(n, "needs", "need")), Tone: "needs"}
 	case questions > 0:
-		return status{look.NeedsYou.String(), look.Count(questions, "question", "questions") + " · " + look.Duration(now.Sub(oldest)), "needs"}
+		return clock(status{Word: look.NeedsYou.String(), Line: look.Count(questions, "question", "questions"), Tone: "needs"}, oldest)
 	case s.Paused && s.Holding:
-		return status{look.Paused.String(), "holding" + elapsed, "plain"}
+		return clock(status{Word: look.Paused.String(), Line: "holding", Tone: "plain"}, s.Started)
 	case s.Paused && len(s.Active) == 1:
-		return working("pauses after " + s.Active[0].Task + elapsed)
+		return working("pauses after " + s.Active[0].Task)
 	case s.Paused && len(s.Active) > 1:
-		return working("pauses after these tasks" + elapsed)
+		return working("pauses after these tasks")
 	case s.Paused:
-		return status{look.Paused.String(), "after this task" + elapsed, "plain"}
+		return clock(status{Word: look.Paused.String(), Line: "after this task", Tone: "plain"}, s.Started)
 	case len(s.Active) > 0:
-		return working("nothing needs you" + elapsed)
+		return working("nothing needs you")
 	case s.Run != "":
-		return working("nothing running yet" + elapsed)
+		return working("nothing running yet")
 	}
-	return status{look.Idle.String(), "no run yet", "dim"}
+	return status{Word: look.Idle.String(), Line: "no run yet", Tone: "dim"}
 }
 
 // endOutcome is a run's outcome from run_stopped's detail; an error is a

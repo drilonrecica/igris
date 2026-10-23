@@ -323,6 +323,26 @@ func TestHomeNoColorGolden(t *testing.T) {
 	}
 }
 
+// PHASES is as wide as its rows, also when every phase title is shorter
+// than the four cells a row keeps for it (the V17 gate saw `0/1 n…` for a
+// phase titled `x`).
+func TestHomePhasesFitShortTitles(t *testing.T) {
+	s := homeSnap("ready")
+	s.Plan = plan.Parse("tasks.md", []byte("## A — x\n\n| ID | Task | Deps | Status | Model | Owner |\n|---|---|---|---|---|---|\n| A-1 | **One** — x | — | ready | sonnet | agent |\n"), plan.Options{})
+	s.Issues = report.Issues(s.Plan.Validate(s.Config.Rules("")))
+	st, err := report.Status(s.Plan, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Status = &st
+	for _, w := range []int{120, 50} {
+		view := homeAt(&theme{}, w, 30, homeFixture{snap: s, doctor: homeDoctor, doctorDone: true}).View()
+		if !strings.Contains(view, "0/1 next") {
+			t.Errorf("%d columns: the phase row is cut:\n%s", w, view)
+		}
+	}
+}
+
 // The wide layout needs 100×13; anything smaller is one column.
 func TestHomeLayoutSwitch(t *testing.T) {
 	for _, tc := range []struct {

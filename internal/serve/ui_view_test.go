@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/drilonrecica/igris/internal/engine"
+	"github.com/drilonrecica/igris/internal/look"
 )
 
 // The status word and its companion line: the first thing the page says
@@ -44,8 +45,17 @@ func TestUIStatusWord(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := statusOf(tt.snap, now)
-			if want := (status{tt.word, tt.line, tt.tone}); got != want {
-				t.Errorf("statusOf = %+v; want %+v", got, want)
+			line := got.Line
+			if got.Ran != "" {
+				line += " · " + got.Ran
+			}
+			if got.Word != tt.word || line != tt.line || got.Tone != tt.tone {
+				t.Errorf("statusOf = %+v; want %s, %q, %s", got, tt.word, tt.line, tt.tone)
+			}
+			// The clock the line ends with is a span the script keeps
+			// ticking from Since (seen frozen at the V17 gate).
+			if (got.Ran == "") != got.Since.IsZero() || (got.Ran != "" && got.Ran != look.Duration(now.Sub(got.Since))) {
+				t.Errorf("clock %q since %v", got.Ran, got.Since)
 			}
 		})
 	}

@@ -23,6 +23,16 @@ igris 1.7 gives the terminal UI, the web UI and the command line one design lang
 - **Notifications lead with the status word and glyph** (`! Needs you`, `▲ Overdue`, `✗ Failed`, `✓ Phase done`). High priority is for Needs you only, so `task_overdue` and `rank_mismatch` are normal priority by default (Gotify 5) and `verify_failed_limit` is high. The ntfy commit buttons read `Leave uncommitted` / `Keep working`. The webhook payload, user templates and template fields are frozen and unchanged.
 - **Keys and the mode picker moved** in the TUI; see the upgrade note below.
 
+### Fixed
+
+- **Approving or rejecting a plan in igris no longer raises a false Needs you.** The session's idle clock ran from the moment it showed the plan, so an answer given after `needs_input_after` was followed at once by `Needs you · blocked` and a `needs_input` notification while the session was already going on. Since 1.1.
+- **The web UI's live tail shows the newest lines.** Each card's tail box held the session's last 40 lines scrolled to the top, so a phone saw the oldest of them, often Claude Code's banner. It now follows the end unless you scroll up to read. Since 1.6.
+- **Home notices a run whose igris died without cleaning up** (killed, out of memory) and shows the stale lock, instead of offering Attach to a process that is gone until some file changed.
+- **The side-session dialog in the run view names the right place** (`in a tmux window` on tmux), not `in a herdr tab`, when the view was opened from home or by `igris attach`. Since 1.2.
+- **A Needs-you notification is logged under its task.** In a parallel phase a task's `needs_input` delivery could be filed under another active task in the run log. Since 1.5.
+- A stuck phase's notification counts with its noun (`1 unfinished task`, not `1 unfinished task(s)`), and so does `igris notify test`'s sample.
+- Home's PHASES column no longer cuts its own row (`0/1 n…`) when every phase title is shorter than four characters.
+
 ### Not promised
 
 The TUI's layout, keys and colors, the web UI's pages, and the text of the command line (SPEC §19). Scripts read `--json`.

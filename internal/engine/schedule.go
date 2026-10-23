@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/state"
 )
@@ -263,7 +264,7 @@ func (e *Engine) runPhase(ctx context.Context, id string) (Result, error) {
 				res.Outcome, res.Waiting = Stuck, s.waiting
 				e.emit(Event{Kind: PhaseStuck, Waiting: s.waiting, Detail: waitText(s.waiting)})
 				e.flushTasks(ctx)
-				e.toast(ctx, notifyPhaseStuck, fmt.Sprintf("stuck: %d unfinished task(s), none can start", len(s.waiting)))
+				e.toast(ctx, notifyPhaseStuck, "stuck: "+look.Count(len(s.waiting), "unfinished task", "unfinished tasks")+", none can start")
 				return res, nil
 			case plan.Next:
 				switch {

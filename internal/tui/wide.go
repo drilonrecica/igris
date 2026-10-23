@@ -240,10 +240,8 @@ func (m *model) facts(narrow bool, d factsDrop) string {
 	}
 	switch {
 	case d.noBackend:
-	case m.backend != "":
-		parts = append(parts, m.backend)
 	default:
-		parts = append(parts, m.opts.Backend)
+		parts = append(parts, m.backendName())
 	}
 	if m.servedBy != "" {
 		parts = append(parts, "served by "+m.servedBy)

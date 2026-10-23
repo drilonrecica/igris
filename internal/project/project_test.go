@@ -449,6 +449,41 @@ func TestStampFollowsTheFiles(t *testing.T) {
 	}
 }
 
+// A run's holder that dies without cleaning up (killed, out of memory)
+// changes no file, yet home must see the lock go stale rather than offer
+// Attach to a process that is gone (seen at the V17 gate after a SIGKILL
+// of igris serve).
+func TestStampFollowsTheLockHolder(t *testing.T) {
+	root := newProject(t, "")
+	env, _ := testEnv(nil)
+	svc := NewServices(root, env)
+	holder := exec.Command("sleep", "60")
+	if err := holder.Start(); err != nil {
+		t.Skipf("no sleep to hold the lock: %v", err)
+	}
+	t.Cleanup(func() { _ = holder.Process.Kill(); _ = holder.Wait() })
+	host, err := os.Hostname()
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(root, state.DirName, "igris.lock"), fmt.Sprintf(`{"pid":%d,"host":%q,"started_at":"2026-10-23T04:45:00Z"}`, holder.Process.Pid, host))
+	before := svc.Stamp()
+	if !before.LockAlive {
+		t.Fatal("stamp: the lock's holder runs, LockAlive = false")
+	}
+	if err := holder.Process.Kill(); err != nil {
+		t.Fatal(err)
+	}
+	_ = holder.Wait() // reaped: the PID is gone
+	after := svc.Stamp()
+	if after.Lock != before.Lock {
+		t.Fatal("the lock file changed; the test needs it untouched")
+	}
+	if after == before {
+		t.Error("stamp missed the holder's death")
+	}
+}
+
 func TestServicesStartAndPreview(t *testing.T) {
 	ctx := context.Background()
 	env, _ := testEnv(nil)

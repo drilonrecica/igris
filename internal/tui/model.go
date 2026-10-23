@@ -809,7 +809,7 @@ func (m *model) answered(id string) {
 // sideAt is what a side session opened now can be about (SPEC §15.7): the
 // selected task, else the current one, and the run going in this tree.
 func (m *model) sideAt() sideAt {
-	at := sideAt{place: sessionPlace(m.opts.Backend)}
+	at := sideAt{place: sessionPlace(m.backendName())}
 	if i := m.selected(); i >= 0 {
 		at.task = m.phaseTasks()[i].ID
 	} else if m.cur != nil {
@@ -828,6 +828,15 @@ func (m *model) sideAt() sideAt {
 		}
 	}
 	return at
+}
+
+// backendName is the run's backend: the served run's, else the one this
+// view was given (a view pushed by home has the config's, maybe `auto`).
+func (m *model) backendName() string {
+	if m.backend != "" {
+		return m.backend
+	}
+	return m.opts.Backend
 }
 
 // sessionPlace is what a session opens in on backend: a tmux window or a
