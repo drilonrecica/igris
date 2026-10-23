@@ -1,0 +1,5 @@
+exit: 0
+--- stdout
+done signal recorded for M0-01; no igris run is active in this project, the next `igris arise` applies it
+next: igris arise
+--- stderr

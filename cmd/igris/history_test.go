@@ -114,7 +114,7 @@ func TestHistoryReadOnlyAndUsage(t *testing.T) {
 	out.Reset()
 	// One bad line never hides the rest (SPEC §13).
 	if code := run([]string{"history"}, &out, &errb); code != exitOK ||
-		!strings.Contains(out.String(), "note: 1 unreadable line in runs.jsonl skipped") || !strings.Contains(out.String(), "Run 2026-10-01T09:00:00Z") {
+		!strings.Contains(out.String(), "note: 1 unreadable line in runs.jsonl skipped") || !strings.Contains(out.String(), "Run Oct 01 09:00 · ▲ interrupted") {
 		t.Errorf("a damaged line in the middle: code %d, out %q, err %q", code, out.String(), errb.String())
 	}
 }

@@ -117,7 +117,7 @@ func TestDoctorFailureExitsOne(t *testing.T) {
 	if code != exitFail {
 		t.Fatalf("exit %d, want 1\n%s", code, out)
 	}
-	if !strings.Contains(out, "⨯ fail") || !strings.Contains(out, "next: edit igris.toml") {
+	if !strings.Contains(out, "✗ fail") || !strings.Contains(out, "next: edit igris.toml") || !strings.Contains(out, "✗ doctor: 2 failures · 3 warnings\nnext: edit igris.toml") {
 		t.Errorf("output:\n%s", out)
 	}
 	if _, err := os.Stat(filepath.Join(dir, ".igris")); err == nil {
@@ -135,7 +135,7 @@ func TestDoctorRemovedClaudeCommand(t *testing.T) {
 	code, out, _ := doctorIn(t, dir)
 	// The message has no absolute path in front (found at the
 	// v0.7 gate).
-	if code != exitFail || !strings.Contains(out, "⨯ fail claude.command was removed in 0.7") || strings.Contains(out, dir) || !strings.Contains(out, "next: igris config migrate") {
+	if code != exitFail || !strings.Contains(out, "✗ fail claude.command was removed in 0.7") || strings.Contains(out, dir) || !strings.Contains(out, "next: igris config migrate") {
 		t.Errorf("exit %d:\n%s", code, out)
 	}
 }

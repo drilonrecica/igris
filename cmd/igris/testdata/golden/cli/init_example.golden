@@ -1,0 +1,11 @@
+exit: 0
+--- stdout
+created igris.toml
+ready .igris/
+added .igris/ to .gitignore
+allowed `igris done` in .claude/settings.local.json
+created tasks.md (example plan)
+runs in herdr or tmux; igris reads Claude's state from Claude Code hooks (in herdr, `herdr integration install claude` adds herdr's own)
+
+next: igris check
+--- stderr

@@ -86,14 +86,18 @@ func sendSignal(action, id, note string, stdout, stderr io.Writer) int {
 	if err := dir.WriteSignal(state.Signal{ID: id, Action: action, Note: note}); err != nil {
 		return fail("%v", err)
 	}
-	idle := ""
+	idle, next := "", "igris status"
 	if !adapting && !dir.Running() {
-		idle = "; no igris run is active in this project, the next `igris arise` applies it"
+		idle, next = "; no igris run is active in this project, the next `igris arise` applies it", "igris arise"
 	}
+	o := newOut(stdout)
 	if action == state.ActionSkip {
-		fmt.Fprintf(stdout, "igris: skip signal recorded for %s; the owner confirms it in igris%s\n", id, idle)
+		o.printf("skip signal recorded for %s; the owner confirms it in igris%s", id, idle)
 	} else {
-		fmt.Fprintf(stdout, "igris: done signal recorded for %s%s\n", id, idle)
+		o.printf("done signal recorded for %s%s", id, idle)
+	}
+	if !adapting {
+		o.next(next)
 	}
 	return exitOK
 }

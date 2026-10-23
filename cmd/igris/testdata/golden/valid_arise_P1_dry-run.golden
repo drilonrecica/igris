@@ -2,12 +2,14 @@ exit: 0
 --- stdout
 warning: this is not a git repository: sessions' changes can't be reviewed or undone with git, and commits fail unless commit = "never". Run `git init` first.
 dry run of phase P1: nothing is written and no session starts
-     phase P1: critical path P1-02 → P1-G (2), width 3
-       could run together: P1-02, P1-03, P1-04
-  1. P1-02      sonnet  → model sonnet  mode auto         Flag parsing
-  2. P1-03      opus    → model opus    mode plan → auto  Greeting design
-  3. P1-04      user task: waits for you  Pick a license
-  4. P1-G       sonnet  → model sonnet  mode auto         P1 gate
-     phase P1 complete
-dry run: 3 session(s), 1 user task(s)
+  phase P1: critical path P1-02 → P1-G (2), width 3
+    could run together: P1-02, P1-03, P1-04
+  #  TASK     RANK    MODEL      MODE         TITLE
+  1  · P1-02  sonnet  sonnet     auto         Flag parsing
+  2  · P1-03  opus    opus       plan → auto  Greeting design
+  3  ! P1-04  —       user task  —            Pick a license (waits for you)
+  4  · P1-G   sonnet  sonnet     auto         P1 gate
+  ✓ phase P1 complete
+dry run: 3 sessions, 1 user task
+next: igris arise P1
 --- stderr

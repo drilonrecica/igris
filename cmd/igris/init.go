@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
+	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/project"
+	"github.com/drilonrecica/igris/internal/state"
 )
 
 const claudeSettingsPath = project.ClaudeSettingsPath
@@ -28,12 +31,24 @@ func execInit(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 		starter = f.Value.String()
 	}
 	steps, err := project.Init(context.Background(), root, starter, projectEnv())
+	o := newOut(stdout)
 	for _, s := range steps {
-		fmt.Fprintln(stdout, s.Message)
+		o.println(s.Message)
 	}
 	if err != nil {
 		fmt.Fprintf(stderr, "igris init: %v\n", err)
 		return exitFail
+	}
+	// With a plan the next step is checking it; without one, writing one.
+	cfg, err := config.Load(filepath.Join(root, state.ConfigFile))
+	if err != nil {
+		cfg = config.Default()
+	}
+	o.blank()
+	if _, err := os.Stat(rootPath(root, cfg.Plan)); err == nil {
+		o.next("igris check")
+	} else {
+		o.next("igris draft goal", "igris init --example")
 	}
 	return exitOK
 }

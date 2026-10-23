@@ -1,0 +1,10 @@
+exit: 0
+--- stdout
+kept igris.toml (already exists)
+ready .igris/
+kept .gitignore (already ignores .igris/)
+kept .claude/settings.local.json (`igris done` already allowed)
+runs in herdr or tmux; igris reads Claude's state from Claude Code hooks (in herdr, `herdr integration install claude` adds herdr's own)
+
+next: igris draft goal  ·  igris init --example
+--- stderr

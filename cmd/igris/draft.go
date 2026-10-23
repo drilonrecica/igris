@@ -13,6 +13,7 @@ import (
 	"github.com/drilonrecica/igris/internal/adapt"
 	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/draft"
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/notify"
 	"github.com/drilonrecica/igris/internal/project"
 	"github.com/drilonrecica/igris/internal/state"
@@ -182,13 +183,13 @@ func execDraft(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		for _, a := range res.Extension.Additions {
 			n += len(a.Tasks)
 		}
-		fmt.Fprintf(stdout, "accepted: %d task(s) added to %s; the files it changed are backed up to %s\n", n, planPath, strings.Join(backups, ", "))
+		fmt.Fprintf(stdout, "accepted: %s added to %s; the files it changed are backed up to %s\n", look.Count(n, "task", "tasks"), planPath, strings.Join(backups, ", "))
 		fmt.Fprintf(stdout, "the new ranks are suggestions (%d set, %d left at ?), change them as you like\n", res.Ranks.Set, res.Ranks.Open)
 	} else {
 		fmt.Fprintf(stdout, "accepted: %s written; its ranks are suggestions (%d set, %d left at ?), change them as you like\n", planPath, res.Ranks.Set, res.Ranks.Open)
 	}
 	if len(res.Issues) > 0 {
-		fmt.Fprintf(stdout, "the plan still has %d problem(s); fix them (ranks left at ?), then run `igris check`:\n", len(res.Issues))
+		fmt.Fprintf(stdout, "the plan still has %s; fix them (ranks left at ?), then run `igris check`:\n", look.Count(len(res.Issues), "problem", "problems"))
 		for _, is := range res.Issues {
 			fmt.Fprintf(stdout, "  %s\n", strings.Replace(is.Error(), res.ProposalPath, planPath, 1))
 		}

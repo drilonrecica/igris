@@ -1,0 +1,4 @@
+exit: 1
+--- stdout
+no channel is set up for that: set up [notify.ntfy], [notify.discord], [notify.webhook], [notify.slack] or [notify.gotify] in igris.toml (see the README), or enable the backend toast ([notify.backend] enabled = true, inside herdr or tmux)
+--- stderr

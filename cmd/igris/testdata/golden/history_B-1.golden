@@ -2,12 +2,12 @@ exit: 0
 --- stdout
 note: 1 unreadable line in runs.jsonl skipped
 
-B-1  run 2026-10-03T08:00:00Z  done  (3m01s)
-  started 2026-10-03T08:00:01Z
-  rank sonnet, model sonnet
-  verify passed
+B-1 · run Oct 03 08:00 · ✓ done · 3m01s
+  started Oct 03 08:00 · rank sonnet · model sonnet
+  ✓ verify passed
 
-B-1  run 2026-10-02T10:00:00Z  unfinished
-  started 2026-10-02T10:00:01Z
-  rank sonnet, model sonnet
+B-1 · run Oct 02 10:00 · ▲ unfinished
+  started Oct 02 10:00 · rank sonnet · model sonnet
+
+next: igris report
 --- stderr

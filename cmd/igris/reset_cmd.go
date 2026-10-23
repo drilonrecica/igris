@@ -76,6 +76,7 @@ func execReset(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		return fail("%v", err)
 	case !ok:
 		fmt.Fprintf(stdout, "%s is %s: nothing to reset\n", id, t.Status)
+		newOut(stdout).next("igris status")
 		return exitOK
 	}
 
@@ -107,6 +108,7 @@ func execReset(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stdout, "%s depends on %s and is in progress; reset leaves it as it is\n", d.ID, id)
 		}
 	}
+	newOut(stdout).next("igris status")
 	return exitOK
 }
 

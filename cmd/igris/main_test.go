@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
+	"regexp"
 	"runtime/debug"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/project"
@@ -42,6 +45,11 @@ func TestMain(m *testing.M) {
 		return os.Getenv(k)
 	}
 	interactiveTerm = func() bool { return false } // tests are not on a terminal
+	outTerminal = func(io.Writer) (bool, int) { return false, 0 }
+	// Text output tells local times against now: both fixed, so the
+	// goldens don't depend on where and when they run.
+	time.Local = time.UTC
+	textNow = func() time.Time { return time.Date(2026, 10, 23, 12, 0, 0, 0, time.UTC) }
 	// Nor on GitHub: a test that runs igris update points this at its own
 	// server; anything else is refused.
 	updateAPI = "http://127.0.0.1:1"
@@ -66,7 +74,7 @@ func TestEveryCommandHelp(t *testing.T) {
 			if code := run(args, &out, &errb); code != exitOK {
 				t.Errorf("%v: exit %d", args, code)
 			}
-			if !strings.HasPrefix(out.String(), "Usage:\n  igris "+c.name) || errb.Len() != 0 {
+			if !strings.HasPrefix(out.String(), "Usage\n  igris "+c.name) || errb.Len() != 0 {
 				t.Errorf("%v: stdout %q, stderr %q", args, out.String(), errb.String())
 			}
 		}
@@ -81,17 +89,17 @@ func TestRun(t *testing.T) {
 		wantStdout string
 		wantStderr string
 	}{
-		{"no args prints usage", nil, exitUsage, "", "Usage:"},
-		{"help", []string{"--help"}, exitOK, "Commands:", ""},
-		{"help word", []string{"help"}, exitOK, "Commands:", ""},
+		{"no args prints usage", nil, exitUsage, "", "Usage\n"},
+		{"help", []string{"--help"}, exitOK, "Signal (from a session)", ""},
+		{"help word", []string{"help"}, exitOK, "Plan with AI", ""},
 		{"version", []string{"version"}, exitOK, "igris dev", ""},
 		{"unknown command", []string{"bogus"}, exitUsage, "", "unknown command"},
-		{"check unknown flag", []string{"check", "--nope"}, exitUsage, "", "flag provided but not defined"},
+		{"check unknown flag", []string{"check", "--nope"}, exitUsage, "", "igris check: unknown flag --nope; see `igris check -h`"},
 		{"check missing plan", []string{"check", "--plan", "/nonexistent/p.md"}, exitFail, "", "read plan"},
 		{"check extra arg", []string{"check", "x"}, exitUsage, "", "unexpected argument"},
 		{"phases extra arg", []string{"phases", "x"}, exitUsage, "", "unexpected argument"},
 		{"status two phases", []string{"status", "M0", "M1"}, exitUsage, "", "unexpected argument"},
-		{"arise flags", []string{"arise", "M0", "--through", "M1", "--mode", "plan", "--no-tui", "--dry-run", "--plan-is-not-a-flag"}, exitUsage, "", "flag provided but not defined"},
+		{"arise flags", []string{"arise", "M0", "--through", "M1", "--mode", "plan", "--no-tui", "--dry-run", "--plan-is-not-a-flag"}, exitUsage, "", "unknown flag --plan-is-not-a-flag"},
 		{"arise force-unlock flag", []string{"arise", "--force-unlock", "--mode", "wild"}, exitUsage, "", "invalid --mode"},
 		{"arise help lists force-unlock", []string{"arise", "-h"}, exitOK, "-force-unlock", ""},
 		{"arise bad mode", []string{"arise", "--mode", "wild"}, exitUsage, "", "invalid --mode"},
@@ -111,15 +119,15 @@ func TestRun(t *testing.T) {
 		{"draft bad format", []string{"draft", "import", "x.csv", "--format", "csv"}, exitUsage, "", "invalid --format \"csv\" (want github|linear|jira)"},
 		{"draft format without import", []string{"draft", "goal", "--format", "github"}, exitUsage, "", "--format is only for `igris draft import`"},
 		{"draft help lists the subcommands", []string{"draft", "-h"}, exitOK, "  igris draft import FILE [--format github|linear|jira]", ""},
-		{"subcommand help", []string{"check", "-h"}, exitOK, "Usage:\n  igris check [--plan PATH]", ""},
+		{"subcommand help", []string{"check", "-h"}, exitOK, "Usage\n  igris check [--plan PATH]", ""},
 		// The exit codes SPEC §14 lists for the command line itself.
-		{"help flag", []string{"-h"}, exitOK, "Exit codes: 0 success", ""},
-		{"help command", []string{"help", "check"}, exitOK, "Usage:\n  igris check [--plan PATH]", ""},
+		{"help flag", []string{"-h"}, exitOK, "Exit codes  0 ok · 1 failure · 2 usage error", ""},
+		{"help command", []string{"help", "check"}, exitOK, "Usage\n  igris check [--plan PATH]", ""},
 		{"help unknown command", []string{"help", "nope"}, exitUsage, "", "igris help: unknown command \"nope\""},
-		{"help two commands", []string{"help", "check", "status"}, exitUsage, "", "at most one command"},
+		{"help two commands", []string{"help", "check", "status"}, exitUsage, "", "igris help: unexpected argument \"status\"; name one command"},
 		{"version -v", []string{"-v"}, exitOK, "igris dev", ""},
 		{"version --version", []string{"--version"}, exitOK, "igris dev", ""},
-		{"version extra arg", []string{"version", "x"}, exitUsage, "", "takes no arguments"},
+		{"version extra arg", []string{"version", "x"}, exitUsage, "", "igris version: unexpected argument \"x\""},
 		{"init extra arg", []string{"init", "x"}, exitUsage, "", "unexpected argument"},
 		{"done bad id", []string{"done", "M1 03"}, exitUsage, "", "invalid task ID \"M1 03\""},
 		{"skip bad id", []string{"skip", "../evil", "--reason", "r"}, exitUsage, "", "invalid task ID"},
@@ -185,7 +193,43 @@ func TestVersionOverride(t *testing.T) {
 func TestStderrIsCleaned(t *testing.T) {
 	var out, errb bytes.Buffer
 	run([]string{"history", "-x\x1b]52;c;aGk=\x07\x1b[2J"}, &out, &errb)
-	if strings.ContainsRune(errb.String(), 0x1b) || strings.ContainsRune(errb.String(), 0x07) || !strings.Contains(errb.String(), "flag provided but not defined") {
+	if strings.ContainsRune(errb.String(), 0x1b) || strings.ContainsRune(errb.String(), 0x07) || !strings.Contains(errb.String(), "unknown flag \"--x\\x1b]52;c;aGk\"; see `igris history -h`") {
 		t.Errorf("stderr = %q", errb.String())
+	}
+}
+
+// An unknown command is answered with one line, the closest command when
+// there is one, never the whole help; the help never cites the SPEC
+// (SPEC §14).
+func TestUnknownCommandAndHelp(t *testing.T) {
+	for _, tc := range []struct{ args, want string }{
+		{"stauts", "igris: unknown command \"stauts\"; did you mean status?\n"},
+		{"histroy", "igris: unknown command \"histroy\"; did you mean history?\n"},
+		{"xyzzy", "igris: unknown command \"xyzzy\"; run `igris help`\n"},
+		{"help stauts", "igris help: unknown command \"stauts\"; did you mean status?\n"},
+		{"status --jsn", "igris status: unknown flag --jsn; see `igris status -h`\n"},
+		{"history -n", "igris history: -n needs a value; see `igris history -h`\n"},
+		{"status --plan", "igris status: --plan needs a value; see `igris status -h`\n"},
+		{"history -n x", "igris history: invalid value \"x\" for -n: parse error; see `igris history -h`\n"},
+	} {
+		code, out, errb := runCmd(strings.Fields(tc.args)...)
+		if code != exitUsage || out != "" || errb != tc.want {
+			t.Errorf("igris %s: exit %d, stdout %q, stderr %q; want 2 and %q", tc.args, code, out, errb, tc.want)
+		}
+	}
+	for _, args := range append([][]string{{"help"}}, func() [][]string {
+		var all [][]string
+		for _, c := range commands() {
+			all = append(all, []string{c.name, "-h"})
+		}
+		return all
+	}()...) {
+		_, out, _ := runCmd(args...)
+		if strings.Contains(out, "SPEC") || strings.Contains(out, "§") {
+			t.Errorf("igris %v cites the SPEC:\n%s", args, out)
+		}
+		if regexp.MustCompile(`\n  -[a-z]{2,}`).MatchString(out) {
+			t.Errorf("igris %v writes a flag with one dash:\n%s", args, out)
+		}
 	}
 }

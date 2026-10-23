@@ -125,7 +125,7 @@ func TestBareIgrisWithoutATerminalPrintsHelp(t *testing.T) {
 	if code := run(nil, &out, &errb); code != exitUsage {
 		t.Errorf("exit %d, want %d", code, exitUsage)
 	}
-	if out.Len() != 0 || !strings.HasPrefix(errb.String(), "igris - run a markdown task plan") || !strings.Contains(errb.String(), "Usage:") {
+	if out.Len() != 0 || !strings.HasPrefix(errb.String(), "igris · run a markdown task plan") || !strings.Contains(errb.String(), "Usage\n") {
 		t.Errorf("stdout %q, stderr %q", out.String(), errb.String())
 	}
 	if len(*calls) != 0 {

@@ -1,22 +1,26 @@
 exit: 0
 --- stdout
-A — Foundation: 1/2 finished, next (A-2)
-  ID   STATUS  RANK    OWNER  MODE  WAITS ON
-  A-1  done    sonnet  agent  —     
-  A-2  ready   sonnet  agent  —     
+igris · 001 · tasks.md
 
-B — Core: 0/2 finished, next (B-1)
-  ID   STATUS   RANK    OWNER  MODE  WAITS ON
-  B-1  ready    opus    agent  —     
-  B-2  blocked  sonnet  agent  —     B-1 (ready, phase B)
+A — Foundation · 1/2 · next A-2
+  ID     STATUS  RANK    OWNER  MODE  WAITS ON
+  ✓ A-1  done    sonnet  agent  —
+  · A-2  ready   sonnet  agent  —
 
-C — Docs: 0/2 finished, stuck
-  ID   STATUS   RANK    OWNER  MODE  WAITS ON
-  C-1  blocked  sonnet  agent  —     B-2 (blocked, phase B)
-  C-2  blocked  —       user   —     C-1 (blocked, phase C)
+B — Core · 0/2 · next B-1
+  ID     STATUS   RANK    OWNER  MODE  WAITS ON
+  · B-1  ready    opus    agent  —
+  ⨯ B-2  blocked  sonnet  agent  —     B-1
 
-D — Release: 0/2 finished, stuck
-  ID   STATUS   RANK    OWNER         MODE  WAITS ON
-  D-1  blocked  opus    agent         —     A-2 (ready, phase A), B-1 (ready, phase B), B-2 (blocked, phase B), C-1 (blocked, phase C)
-  D-G  blocked  sonnet  agent + user  —     D-1 (blocked, phase D)
+C — Docs · 0/2 · stuck
+  ID     STATUS   RANK    OWNER  MODE  WAITS ON
+  ⨯ C-1  blocked  sonnet  agent  —     B-2 (phase B)
+  ⨯ C-2  blocked  —       user   —     C-1
+
+D — Release · 0/2 · stuck
+  ID     STATUS   RANK    OWNER         MODE  WAITS ON
+  ⨯ D-1  blocked  opus    agent         —     A-2 (phase A), B-1 (phase B), B-2 (phase B), C-1 (phase C)
+  ⨯ D-G  blocked  sonnet  agent + user  —     D-1
+
+next: igris arise A
 --- stderr

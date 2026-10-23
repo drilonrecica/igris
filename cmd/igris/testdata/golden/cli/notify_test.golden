@@ -1,0 +1,6 @@
+exit: 0
+--- stdout
+EVENT        CHANNEL  RESULT
+needs_input  ntfy     ✓ ok
+next: igris arise
+--- stderr

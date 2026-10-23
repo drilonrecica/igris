@@ -45,7 +45,7 @@ func TestResetDirect(t *testing.T) {
 	}{
 		{
 			name: "in progress", args: []string{"reset", "M0-02"}, code: exitOK,
-			out:    "M0-02: in progress → ready\n",
+			out:    "M0-02: in progress → ready\nnext: igris status\n",
 			plan:   func(s string) string { return strings.Replace(s, "| M0-01 | in progress |", "| M0-01 | ready |", 1) },
 			logged: "in progress",
 		},
@@ -56,14 +56,14 @@ func TestResetDirect(t *testing.T) {
 		{
 			name: "done forced", args: []string{"reset", "--force", "M0-01"}, code: exitOK,
 			out: "M0-01: done → ready\nM0-03: ready → blocked\n" +
-				"M0-02 depends on M0-01 and is in progress; reset leaves it as it is\n",
+				"M0-02 depends on M0-01 and is in progress; reset leaves it as it is\nnext: igris status\n",
 			plan: func(s string) string {
 				return strings.NewReplacer("| — | done |", "| — | ready |", "| M0-01 | ready |", "| M0-01 | blocked |").Replace(s)
 			},
 			logged: "done",
 		},
-		{name: "ready", args: []string{"reset", "M0-03"}, code: exitOK, out: "M0-03 is ready: nothing to reset\n"},
-		{name: "blocked user task", args: []string{"reset", "M0-04", "--force"}, code: exitOK, out: "M0-04 is blocked: nothing to reset\n"},
+		{name: "ready", args: []string{"reset", "M0-03"}, code: exitOK, out: "M0-03 is ready: nothing to reset\nnext: igris status\n"},
+		{name: "blocked user task", args: []string{"reset", "M0-04", "--force"}, code: exitOK, out: "M0-04 is blocked: nothing to reset\nnext: igris status\n"},
 		{name: "unknown task", args: []string{"reset", "M9-99"}, code: exitFail, errText: "is not in"},
 		{name: "bad id", args: []string{"reset", "../x"}, code: exitUsage, errText: "invalid task ID"},
 		{name: "id with a space", args: []string{"reset", "bad id"}, code: exitUsage, errText: `invalid task ID "bad id"`},
@@ -133,7 +133,7 @@ func TestResetInterruptedTask(t *testing.T) {
 	if got := run([]string{"reset", "M0-02"}, &out, &errb); got != exitOK {
 		t.Fatalf("exit = %d, stderr: %s", got, errb.String())
 	}
-	if want := "M0-02: in progress → ready\nM0-02 was the task of the interrupted run; its session may still be open: close it by hand\n"; out.String() != want {
+	if want := "M0-02: in progress → ready\nM0-02 was the task of the interrupted run; its session may still be open: close it by hand\nnext: igris status\n"; out.String() != want {
 		t.Errorf("stdout = %q", out.String())
 	}
 }
@@ -159,7 +159,7 @@ func TestResetDuringARun(t *testing.T) {
 	if got := run([]string{"reset", "M0-01", "--force"}, &out, &errb); got != exitOK {
 		t.Fatalf("exit = %d, stderr: %s", got, errb.String())
 	}
-	if want := "M0-01: reset requested; confirm it in the running igris (if none is running, the next `igris arise` asks)\nM0-02 depends on M0-01 and is in progress; reset leaves it as it is\n"; out.String() != want {
+	if want := "M0-01: reset requested; confirm it in the running igris (if none is running, the next `igris arise` asks)\nM0-02 depends on M0-01 and is in progress; reset leaves it as it is\nnext: igris status\n"; out.String() != want {
 		t.Errorf("stdout = %q", out.String())
 	}
 	s, err := dir.ReadReset("M0-01")

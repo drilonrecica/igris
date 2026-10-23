@@ -1,0 +1,7 @@
+exit: 0
+--- stdout
+Open this URL on the device to pair it; anyone with it controls the run (short of skip-permissions mode):
+  http://100.101.102.103:7777/pair?token=<token>
+or scan it:
+next: igris arise
+--- stderr

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/drilonrecica/igris/internal/config"
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/state"
 	"github.com/drilonrecica/igris/internal/textsafe"
@@ -181,7 +182,7 @@ func doctorPlan(root string, cfg *config.Config, noConfig bool) (*plan.Plan, []R
 	}
 	issues := p.Validate(cfg.Rules(root))
 	if len(issues) == 0 {
-		return p, []Result{{ID: IDPlanValid, Level: OK, Message: fmt.Sprintf("%s is valid (%d phases, %d tasks)", cfg.Plan, len(p.Phases), len(p.Tasks)), File: p.Path}}
+		return p, []Result{{ID: IDPlanValid, Level: OK, Message: fmt.Sprintf("%s is valid (%s, %s)", cfg.Plan, look.Count(len(p.Phases), "phase", "phases"), look.Count(len(p.Tasks), "task", "tasks")), File: p.Path}}
 	}
 	next := "igris adapt"
 	if p.NewerFormat() {

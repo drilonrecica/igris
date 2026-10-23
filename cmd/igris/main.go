@@ -2,11 +2,13 @@
 package main
 
 import (
+	"cmp"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"runtime/debug"
 	"strings"
 
@@ -46,19 +48,61 @@ const (
 	exitUsage = 2
 )
 
-const usageText = `igris - run a markdown task plan through Claude Code sessions
+// usageText is the help (SPEC §14): the commands by what you are doing,
+// each with one line and its main flags.
+const usageText = `igris · run a markdown task plan through Claude Code, one fresh session per task
 
-Usage:
-  igris                                 on a terminal: the home screen; otherwise this help, exit 2
-  igris <command> [flags]
+Usage
+  igris                        the home screen (on a terminal)
+  igris <command> [flags]      ` + "`igris <command> -h`" + ` lists its flags
 
-Commands:
+Start
+  init           create igris.toml, .igris/, the allow rules    --example  --template NAME
+  doctor         check this project and machine, read-only      --json
+
+Inspect
+  check          validate the plan                              --strict  --plan PATH  --json
+  phases         phases, counts and parallelism                 --json
+  status         tasks, the current run, unmet deps             [PHASE]  --json
+  history        past runs, or one task's attempts              [TASK-ID]  -n N  --json
+  report         one run as markdown                            [RUN]  --json
+  usage          tokens and the rank audit                      [RUN | --since D]  --json
+
+Run
+  arise          run or resume with the TUI                     [PHASE]  --through  --mode  …
+  serve          run headless, for attach and the web UI        [PHASE]  --http ADDR:PORT
+  serve token    print the web UI's pairing URL                 --rotate
+  attach         open this project's live run
+  stop           stop the live run (sessions stay open)
+
+Signal (from a session)
+  done ID        the task is finished                           --note TEXT
+  skip ID        the task is skipped                            --reason TEXT
+  reset ID       back to ready or blocked                       --force
+
+Plan with AI
+  draft          write a plan from a goal, a spec or an export  goal | spec | import | extend
+  adapt          convert a plan in another format               --model sonnet|opus
+
+Maintain
+  notify test    send a sample of each notification             --event NAME
+  config migrate drop deprecated settings from igris.toml       --yes
+  update         update igris through its package manager       --check  --yes
+  completion     print a completion script                      bash | zsh | fish
+  help, version
+
+Exit codes  0 ok · 1 failure · 2 usage error
+`
+
+// synopses are the commands' full synopses, which `igris COMMAND -h`
+// prints: a command's line and the lines under it.
+const synopses = `
   init [--example | --template NAME]    create igris.toml, .igris/, .gitignore entry, Claude allow rules;
                                         --template a starter plan (go-cli, library, web-app)
   doctor [--json]                       read-only health check of this project and machine; exit 1 on a failure
   check [--plan PATH] [--json]          validate the plan; exit 0 valid, 1 invalid, 2 usage error
         [--strict]                      also lint the plan; exit 1 on any plan or config warning
-  phases [--plan PATH] [--json]         list phases with task counts per status
+  phases [--plan PATH] [--json]         list phases with task counts per status and their parallelism
   status [PHASE] [--plan PATH] [--json] tasks with status/rank/owner, current run, unmet deps
   history [TASK-ID] [-n N] [--json]     past runs from .igris/runs.jsonl; with a task ID, its attempts
   report [RUN] [--json]                 one run as markdown (or JSON): RUN is 1 (the newest, default), 2, … or a run ID
@@ -94,11 +138,6 @@ Commands:
   update [--check] [--yes]              update igris with the package manager that installed it (asks first);
                                         --check only prints the current and latest versions and the method
   completion bash|zsh|fish              print a shell completion script
-  help [COMMAND]                        this help, or a command's (same as igris COMMAND -h); also -h, --help
-  version                               print the version; also -v, --version
-
-Exit codes: 0 success, 1 failure, 2 usage error (SPEC §14).
-Run "igris <command> -h" for the flags of a command.
 `
 
 // command describes one subcommand. setup registers its flags on fs and
@@ -200,7 +239,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return execHelp(args[1:], stdout, stderr)
 	case "version", "-v", "--version":
 		if len(args) > 1 {
-			fmt.Fprintf(stderr, "igris %s: takes no arguments; see `igris -h`\n", args[0])
+			fmt.Fprintf(stderr, "igris %s: unexpected argument %q; run `igris help`\n", args[0], args[1])
 			return exitUsage
 		}
 		fmt.Fprintf(stdout, "igris %s\n", igrisVersion())
@@ -217,8 +256,53 @@ func run(args []string, stdout, stderr io.Writer) int {
 			return runCommand(c, args[1:], stdout, stderr)
 		}
 	}
-	fmt.Fprintf(stderr, "igris: unknown command %q\n\n%s", args[0], usageText)
+	fmt.Fprintf(stderr, "igris: %s\n", unknownCommand(args[0]))
 	return exitUsage
+}
+
+// unknownCommand answers a command igris doesn't have with the closest
+// one within two edits, not the whole help (SPEC §14).
+func unknownCommand(name string) string {
+	best, dist := "", 3
+	for _, c := range append(commandNames(), "help", "version") {
+		if d := editDistance(name, c); d < dist {
+			best, dist = c, d
+		}
+	}
+	if best == "" {
+		return fmt.Sprintf("unknown command %q; run `igris help`", name)
+	}
+	return fmt.Sprintf("unknown command %q; did you mean %s?", name, best)
+}
+
+func commandNames() []string {
+	var out []string
+	for _, c := range commands() {
+		out = append(out, c.name)
+	}
+	return out
+}
+
+// editDistance is the Levenshtein distance between a and b.
+func editDistance(a, b string) int {
+	ra, rb := []rune(a), []rune(b)
+	prev := make([]int, len(rb)+1)
+	for j := range prev {
+		prev[j] = j
+	}
+	for i := 1; i <= len(ra); i++ {
+		cur := make([]int, len(rb)+1)
+		cur[0] = i
+		for j := 1; j <= len(rb); j++ {
+			cost := 1
+			if ra[i-1] == rb[j-1] {
+				cost = 0
+			}
+			cur[j] = min(prev[j]+1, cur[j-1]+1, prev[j-1]+cost)
+		}
+		prev = cur
+	}
+	return prev[len(rb)]
 }
 
 // cleanWriter cleans what it writes of escape sequences and other control
@@ -242,7 +326,7 @@ func execHelp(args []string, stdout, stderr io.Writer) int {
 		return exitOK
 	}
 	if len(args) != 1 {
-		fmt.Fprintf(stderr, "igris help: name at most one command\n\n%s", usageText)
+		fmt.Fprintf(stderr, "igris help: unexpected argument %q; name one command, e.g. `igris help status`\n", args[1])
 		return exitUsage
 	}
 	name := args[0]
@@ -251,36 +335,23 @@ func execHelp(args []string, stdout, stderr io.Writer) int {
 			return runCommand(c, []string{"-h"}, stdout, stderr)
 		}
 	}
-	fmt.Fprintf(stderr, "igris help: unknown command %q\n\n%s", name, usageText)
+	fmt.Fprintf(stderr, "igris help: %s\n", unknownCommand(name))
 	return exitUsage
-}
-
-// helpRequested says args ask for the command's help: asked-for help goes
-// to stdout, while a usage error's goes to stderr.
-func helpRequested(args []string) bool {
-	for _, a := range args {
-		switch a {
-		case "--":
-			return false
-		case "-h", "-help", "--help":
-			return true
-		}
-	}
-	return false
 }
 
 func runCommand(c command, args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("igris "+c.name, flag.ContinueOnError)
-	fs.SetOutput(stderr)
-	if helpRequested(args) {
-		fs.SetOutput(stdout)
-	}
-	synopsisUsage(fs, c.name)
+	// The flag package's own messages and usage are replaced: a usage
+	// error is one line on stderr, asked-for help goes to stdout.
+	fs.SetOutput(io.Discard)
+	fs.Usage = func() {}
 	validate := c.setup(fs)
 	if err := fs.Parse(reorder(fs, args)); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
+			printCommandHelp(stdout, fs, c.name)
 			return exitOK
 		}
+		fmt.Fprintf(stderr, "igris %s: %s; see `igris %s -h`\n", c.name, flagProblem(err), c.name)
 		return exitUsage
 	}
 	if err := validate(fs.Args()); err != nil {
@@ -288,6 +359,76 @@ func runCommand(c command, args []string, stdout, stderr io.Writer) int {
 		return exitUsage
 	}
 	return c.exec(fs, fs.Args(), stdout, stderr)
+}
+
+// flagNames finds the flag package's "-name" in its error messages.
+var flagNames = regexp.MustCompile(`(^|[ :])-([A-Za-z][A-Za-z0-9-]*)`)
+
+// flagProblem words a flag package error as igris writes flags: "unknown
+// flag --jsn", "--plan needs a value".
+func flagProblem(err error) string {
+	msg := err.Error()
+	if name, ok := strings.CutPrefix(msg, "flag provided but not defined: "); ok {
+		return "unknown flag " + dashed(strings.TrimLeft(name, "-"))
+	}
+	if name, ok := strings.CutPrefix(msg, "flag needs an argument: "); ok {
+		return dashed(strings.TrimLeft(name, "-")) + " needs a value"
+	}
+	msg = strings.Replace(msg, " for flag ", " for ", 1)
+	return flagNames.ReplaceAllStringFunc(msg, func(m string) string {
+		lead, name, _ := strings.Cut(m, "-")
+		return lead + dashed(name)
+	})
+}
+
+// dashed is a flag's name as the help writes it: -n, --plan; quoted when
+// it holds more than a flag name can, so the rest of the line survives.
+func dashed(name string) string {
+	d := "--" + name
+	if len([]rune(name)) == 1 {
+		d = "-" + name
+	}
+	if strings.Trim(name, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.=") != "" {
+		return fmt.Sprintf("%q", d)
+	}
+	return d
+}
+
+// flagArgs name the value each flag takes in the help.
+var flagArgs = map[string]string{
+	"plan": "PATH", "template": "NAME", "event": "NAME", "note": "TEXT", "reason": "TEXT",
+	"mode": "MODE", "through": "PHASE", "only": "ID[,ID...]", "from": "ID", "until": "ID",
+	"n": "N", "parallel": "N", "since": "D", "model": "MODEL", "format": "FORMAT", "http": "ADDR:PORT",
+}
+
+// printCommandHelp is `igris NAME -h`: the command's synopsis, then its
+// flags written --flag.
+func printCommandHelp(w io.Writer, fs *flag.FlagSet, name string) {
+	fmt.Fprintf(w, "Usage\n%s", synopsis(name))
+	var names []string
+	var usages []string
+	fs.VisitAll(func(f *flag.Flag) {
+		n := dashed(f.Name)
+		if !isBool(f) {
+			n += " " + cmp.Or(flagArgs[f.Name], "VALUE")
+		}
+		u := f.Usage
+		if f.DefValue != "" && f.DefValue != "0" && !isBool(f) {
+			u += fmt.Sprintf(" (default %s)", f.DefValue)
+		}
+		names, usages = append(names, n), append(usages, u)
+	})
+	if len(names) == 0 {
+		return
+	}
+	width := 0
+	for _, n := range names {
+		width = max(width, len(n))
+	}
+	fmt.Fprint(w, "\nFlags\n")
+	for i, n := range names {
+		fmt.Fprintf(w, "  %-*s  %s\n", width, n, usages[i])
+	}
 }
 
 // reorder moves flags ahead of positional arguments so that both
@@ -310,7 +451,10 @@ func reorder(fs *flag.FlagSet, args []string) []string {
 		if strings.Contains(name, "=") {
 			continue
 		}
-		if f := fs.Lookup(name); f != nil && !isBool(f) && i+1 < len(args) {
+		if f := fs.Lookup(name); f != nil && !isBool(f) {
+			if i+1 == len(args) { // no value: the parser says so
+				return flags
+			}
 			i++
 			flags = append(flags, args[i])
 		}
@@ -333,24 +477,14 @@ func planFlags(max int) func(*flag.FlagSet) func([]string) error {
 	}
 }
 
-// synopsisUsage makes `igris NAME -h` print the command's lines from
-// usageText, positional arguments included, then its flags.
-func synopsisUsage(fs *flag.FlagSet, name string) {
-	fs.Usage = func() {
-		w := fs.Output()
-		fmt.Fprintf(w, "Usage:\n%s\nFlags:\n", synopsis(name))
-		fs.PrintDefaults()
-	}
-}
-
-// synopsis is the command's entry in usageText, its line and the
-// continuation lines under it, with "igris" in front.
+// synopsis is the command's entry in synopses, its lines and the
+// continuation lines under them, with "igris" in front.
 func synopsis(name string) string {
 	var b strings.Builder
 	in := false
-	for _, l := range strings.Split(usageText, "\n") {
+	for _, l := range strings.Split(synopses, "\n") {
 		switch {
-		case strings.HasPrefix(l, "  "+name+" "):
+		case strings.HasPrefix(l, "  "+name+" ") || l == "  "+name:
 			in = true
 			b.WriteString("  igris " + l[2:] + "\n")
 		case in && strings.HasPrefix(l, "    "):

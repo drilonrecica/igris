@@ -1,0 +1,6 @@
+exit: 0
+--- stdout
+✓ igris 1.1.0 is up to date (the latest release is 1.1.0)
+installed with Homebrew
+next: igris doctor
+--- stderr

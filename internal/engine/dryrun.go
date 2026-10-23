@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/backend/fake"
 	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/config"
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/runner"
@@ -120,8 +122,13 @@ func DryRun(ctx context.Context, o DryRunOptions) (report.DryRun, error) {
 	if err != nil {
 		return r, err
 	}
+	// Drift is one warning however many cells drifted (SPEC §14).
+	var drift []string
 	for _, c := range checks.Problems(checks.Pick(cs, checks.IDDrift)) {
-		warn(fmt.Sprintf("drift: %s (a real run asks you before fixing it)", checks.DriftLine(c)))
+		drift = append(drift, checks.DriftLine(c))
+	}
+	if len(drift) > 0 {
+		warn(fmt.Sprintf("drift: %s (a real run asks you before fixing %s)", strings.Join(drift, ", "), look.Plural(len(drift), "it", "them")))
 	}
 
 	tmp, err := os.MkdirTemp("", "igris-dry-run-*")

@@ -267,7 +267,7 @@ It keeps every task, ID, description, dependency, status and model; it only rest
 
 - **Preview first:** `igris arise M0 --dry-run` shows the launch order with each task's model, mode and verify profile (and whether task hooks would run), without starting anything or writing a byte.
 - **Without the TUI:** `igris arise M0 --no-tui` prints plain log lines and reads your answers from stdin: `y`/`n`, `reset yes|no` for a reset request, `done [note]`, `skip <reason>`, `retry [continue|fresh]`, `pause`, `stop`, `mode [task] <m>`, `help`.
-- **Resume:** quitting igris leaves the session running. `igris arise` with no phase picks up exactly where it left off: it reattaches to the running session, or, if that's gone, lets you continue its conversation or start a fresh session that is told to check the work already in the tree. `igris status` keeps showing that resume state (`Lock none`, the task it was on).
+- **Resume:** quitting igris leaves the session running. `igris arise` with no phase picks up exactly where it left off: it reattaches to the running session, or, if that's gone, lets you continue its conversation or start a fresh session that is told to check the work already in the tree. `igris status` keeps showing that resume state (`▲ Interrupted · M2-02`, the task it was on).
 - **A stale lock:** if a crashed run left its lock behind, igris says so; `igris arise --force-unlock` clears it.
 - **Before a run starts,** igris warns if `ANTHROPIC_API_KEY` is set (it asks you to confirm), if the project isn't a git repository, or if the tree has uncommitted changes. If `igris.toml` changed during the last run (a session can edit it; that run kept the configuration it started with), igris asks you to review and confirm the file before a run uses it.
 
@@ -550,6 +550,8 @@ template = "{{.At.Format \"15:04\"}} {{.TaskID}} {{.What}}"
 | `igris help [COMMAND]` | The help, or one command's (`igris COMMAND -h` is the same). |
 | `igris version` | Prints the version (`-v` and `--version` too). |
 
+**Text output** (since 1.7) speaks the TUI's language ([`docs/design.md`](docs/design.md)): `status`, `history`, `phases` and `--dry-run` mark tasks with the same glyphs (`✓` done, `●` running, `!` needs you, `·` ready, `⨯` blocked, `–` skipped, `◌` waiting), `doctor` its checks with `✓`, `▲` and `✗`; tables have one style and, on a terminal, fit its width; times are local; and every success or empty result ends with a `next:` line naming the command to run next (bare, so you can copy it). Colors only on a terminal, and never with `NO_COLOR` set or `TERM=dumb`; the text is otherwise the same. `igris help` groups the commands by what you are doing, a mistyped command gets `did you mean status?`, and a bad flag gets one line, ``igris status: unknown flag --jsn; see `igris status -h` ``.
+
 `check`, `phases` and `status` take `--plan PATH` (default: `plan` in `igris.toml`, else `tasks.md`), and they, `doctor`, `history`, `report` and `usage` take `--json`. Each `--json` output is one object starting with `"v": 1`; its schema is in [`docs/json/`](docs/json/), and fields may be added but never removed or changed in 1.x. `igris <command> -h` lists a command's flags.
 
 **Exit codes**: `0` success (also when you stop a run or an adapt), `1` failure, `2` usage error (an unknown flag, a missing or malformed argument). `3`–`9` are reserved, so test for non-zero rather than for `1`. What exits `1` for each command is listed in [SPEC §14](SPEC.md#14-cli).
@@ -573,7 +575,7 @@ They read your plan without changing it.
 
   Done and skipped tasks aren't linted. Drift, ignored columns and config warnings fail it too; machine warnings (the igris in `PATH`, Claude Code or backend versions, `ANTHROPIC_API_KEY`, an `igris.toml` in a parent folder) are printed but never do, so it runs without Claude Code installed. With `--json` the document gets `"strict": true` and each lint warning a `"lint"` name. Plain `check` never shows these hints.
 - **`phases`** lists task counts per phase.
-- **`status [PHASE]`** lists tasks with rank, owner and what each is waiting on, under a short "Run" block (phases, the slice of an `--only`/`--from`/`--until` run, current task, mode, since, session, lock, pending signals) when a run exists in the project (`--json`: a `run` object, absent when there is none, with `selection` for a sliced run). The run is read from `.igris/` of the project root found upward from the current folder; an unreadable `state.json` is reported there, not as a failure. A task's duration includes the time it waited for you, so it isn't a measure of agent time.
+- **`status [PHASE]`** lists tasks with rank, owner and what each is waiting on, under a short "Run" block when a run exists in the project: its first line is the status word and what it is about (`● Working · M2-02 Lock file · opus · mode plan · since 09:41 · pid 4211 on this host`, `! Needs you · M2-02 · commit?`, `▲ Interrupted · M2-02`; read from the live run over its socket when one answers), then the phases, the slice of an `--only`/`--from`/`--until` run, the start, the session and pending signals (`--json`: a `run` object, absent when there is none, with `selection` for a sliced run). The run is read from `.igris/` of the project root found upward from the current folder; an unreadable `state.json` is reported there, not as a failure. A task's duration includes the time it waited for you, so it isn't a measure of agent time.
 
 </details>
 
@@ -589,7 +591,7 @@ They read your plan without changing it.
 - the modes of `.igris/`, a stale or foreign lock, a project under `/mnt/` (WSL);
 - whether a notification channel is set up (nothing is sent; `igris notify test` sends).
 
-Each line is `ok`, `warn` or `fail`; a problem is followed by the command that fixes it. It exits 1 only if some check is `fail`, works outside a project, and `--json` prints them as one object (`{"v": 1, "checks": [...]}`). Not running inside herdr or tmux is a `warn` here, since you usually run `doctor` from a plain shell.
+Each line is `✓ ok`, `▲ warn` or `✗ fail`; a problem is followed by the command that fixes it, and a summary closes the list (`▲ doctor: 2 warnings`, `✗ doctor: 1 failure · 2 warnings`) with `next:` naming the first fix. It exits 1 only if some check is `fail`, works outside a project, and `--json` prints them as one object (`{"v": 1, "checks": [...]}`). Not running inside herdr or tmux is a `warn` here, since you usually run `doctor` from a plain shell.
 
 </details>
 
@@ -601,7 +603,7 @@ Each line is `ok`, `warn` or `fail`; a problem is followed by the command that f
 **`igris report [RUN] [--json]`** prints one run as markdown, to paste into a PR description or a journal:
 
 - the run's ID, start, end and how it ended, its phases and slice, the counts (done, skipped, unfinished, commits) and how long igris waited on you (*needs you*);
-- per phase, a table with each task's result, duration, attempts (retries and resumes count), verify results (`fast ✗ ✓`: the profile, one ✗ per failure, ✓ per pass), short commit SHA and needs-you time; a task that ran on a model its rank doesn't resolve to is marked `⚠ rank` (red on a terminal; `audit` in `--json`);
+- per phase, a table with each task's result, duration, attempts (retries and resumes count), verify results (`fast ✗ ✓`: the profile, one ✗ per failure, ✓ per pass), short commit SHA and needs-you time; a task that ran on a model its rank doesn't resolve to is marked `▲ rank` (Ember on a terminal; `audit` in `--json`);
 - the done notes and skip reasons, and a `claude --resume <uuid>` line per agent session you can reopen (run it in the project root).
 
 `RUN` is `1` (the newest run, the default), `2` for the one before, and so on, or a run ID from `igris history`. Needs-you time counts only while igris waited on you: an idle wait ends when the session runs `igris done`, and an overdue task or the verify limit stops counting once the agent works again. Text from the log is escaped in the markdown, so a task title or note can't add links or formatting. `--json` prints the same as one object. It exits 1 when there is no such run, and 2 when `RUN` is neither a number nor a run ID.

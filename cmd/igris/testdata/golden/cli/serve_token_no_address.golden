@@ -1,0 +1,8 @@
+exit: 0
+--- stdout
+the token was replaced: every paired device must pair again
+Open this URL on the device to pair it; anyone with it controls the run (short of skip-permissions mode):
+  http://ADDR:PORT/pair?token=<token>
+set [serve] http in igris.toml (e.g. http = "127.0.0.1:7777" for ssh -L, or this machine's Tailscale address) and put it in place of ADDR:PORT
+next: igris serve token
+--- stderr

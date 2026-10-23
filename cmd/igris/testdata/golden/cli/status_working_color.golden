@@ -1,0 +1,17 @@
+exit: 0
+--- stdout
+igris · 001 · tasks.md
+
+Run      [38;2;60;200;255m● Working[0m · M1-02 Lock file · opus · mode plan · since 09:41 · pid <pid> on this host
+Phases   M1
+Started  09:30
+Session  tmux %3
+
+M1 — Basics · 1/3 · next M1-02
+  ID       STATUS       RANK    OWNER  MODE  WAITS ON
+  [38;2;60;200;255m✓[0m M1-01  done         sonnet  agent  —
+  [38;2;60;200;255m●[0m M1-02  in progress  opus    agent  —
+  · M1-03  ready        —       user   —
+
+next: igris history
+--- stderr

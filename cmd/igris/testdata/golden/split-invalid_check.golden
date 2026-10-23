@@ -9,5 +9,6 @@ tasks.md:11: an include needs plan format 2; add <!-- igris:format 2 --> on a li
 tasks.md:11: include "../outside.md" has a .. element; included files must stay inside the project
 tasks.md:17: C-1 depends on unknown task B-9; check the ID or remove it from Deps
 note: no igris.toml here; using the defaults (`igris init` creates one)
-tasks.md: 8 problem(s); fix them (or run `igris adapt`) and run `igris check` again
+tasks.md: 8 problems; fix them (or run `igris adapt`) and run `igris check` again
+next: igris check
 --- stderr

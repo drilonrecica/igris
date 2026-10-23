@@ -1,18 +1,18 @@
 exit: 0
 --- stdout
-PHASE     TITLE       READY  BLOCKED  IN PROGRESS  DONE  SKIPPED  TOTAL
-F1        Foundation  0      2        0            12    0        14
-F2        Storage     0      2        0            12    0        14
-F3        Ingest      2      6        1            4     1        14
-Phase-4   Index       1      13       0            0     0        14
-F5        Query       1      13       0            0     0        14
-F6        Auth        1      13       0            0     0        14
-F7        API         1      13       0            0     0        14
-Phase-8   Workers     1      13       0            0     0        14
-F9        Billing     1      13       0            0     0        14
-F10       Reports     1      13       0            0     0        14
-F11       Admin       1      13       0            0     0        14
-Phase-12  Release     1      13       0            0     0        14
+PHASE       TITLE       READY  BLOCKED  IN PROGRESS  DONE  SKIPPED  TOTAL
+◌ F1        Foundation  0      2        0            12    0        14
+◌ F2        Storage     0      2        0            12    0        14
+● F3        Ingest      2      6        1            4     1        14
+· Phase-4   Index       1      13       0            0     0        14
+· F5        Query       1      13       0            0     0        14
+· F6        Auth        1      13       0            0     0        14
+· F7        API         1      13       0            0     0        14
+· Phase-8   Workers     1      13       0            0     0        14
+· F9        Billing     1      13       0            0     0        14
+· F10       Reports     1      13       0            0     0        14
+· F11       Admin       1      13       0            0     0        14
+· Phase-12  Release     1      13       0            0     0        14
 
 F1: critical path F1-13 → F1-G (2), width 1
 F2: critical path F2-13 → F2-G (2), width 1
@@ -54,4 +54,6 @@ Phase-12: critical path Phase-12-01 → Phase-12-02 → Phase-12-03 → Phase-12
     together: Phase-12-04, Phase-12-07, Phase-12-10, Phase-12-13
     together: Phase-12-05, Phase-12-08
     together: Phase-12-06, Phase-12-09
+
+next: igris arise F1
 --- stderr

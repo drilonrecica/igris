@@ -308,8 +308,8 @@ func TestUpdated(t *testing.T) {
 		{"/usr/local/bin/igris", "1.2.0", "Updated: igris in PATH is now 1.2.0."},
 		{"/usr/local/bin/igris", "v1.2.0", "Updated: igris in PATH is now v1.2.0."},
 		{"/usr/local/bin/igris", "1.1.0", "Updated to 1.2.0, but igris in PATH (/usr/local/bin/igris) is 1.1.0: put the updated igris first in PATH."},
-		{"/usr/local/bin/igris", "", "Updated to 1.2.0, but /usr/local/bin/igris didn't print its version: run igris version."},
-		{"", "", "Updated to 1.2.0, but igris is not in PATH: put it in PATH so sessions can run igris done."},
+		{"/usr/local/bin/igris", "", "Updated to 1.2.0, but /usr/local/bin/igris didn't print its version: run `igris version`."},
+		{"", "", "Updated to 1.2.0, but igris is not in PATH: put it in PATH so sessions can run `igris done`."},
 	}
 	for _, tc := range tests {
 		if got := Updated("1.2.0", tc.inPath, tc.version); got != tc.want {

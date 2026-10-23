@@ -166,7 +166,7 @@ func initStarterPlan(root string, data []byte, what string) (string, error) {
 	if !isTemplate {
 		return "created " + cfg.Plan + " (" + what + ")", nil
 	}
-	msg := "created " + cfg.Plan + " from the " + name + " template; its ranks are suggestions: review the Model column, then run igris check"
+	msg := "created " + cfg.Plan + " from the " + name + " template; its ranks are suggestions: review the Model column, then run `igris check`"
 	if cmd := verifyHints[name]; cmd != "" {
 		msg += ". Set [run] verify in igris.toml to your checks (" + cmd + ")"
 	} else {

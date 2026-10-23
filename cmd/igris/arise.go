@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"cmp"
 	"context"
 	"errors"
 	"flag"
@@ -19,6 +18,7 @@ import (
 	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/engine"
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/project"
 	"github.com/drilonrecica/igris/internal/report"
@@ -239,7 +239,8 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		var res engine.Result
 		var err error
 		if f.noTUI {
-			res, err = runOnce(ctx, l.Options(conf, func(ev engine.Event) { printEvent(out, ev) }), f.lines, out)
+			start := newRunStart(proj, f)
+			res, err = runOnce(ctx, l.Options(conf, func(ev engine.Event) { printEvent(out, ev, start) }), f.lines, out)
 		} else {
 			code, started, serr := runServed(ctx, proj, l, conf, out, stderr)
 			if started {
@@ -667,11 +668,70 @@ func parseCommand(line string) (engine.Command, commandAction, error) {
 	return engine.Command{}, actNone, fmt.Errorf("unknown command %q; type help", word)
 }
 
-// printEvent writes ev as timestamped plain log lines.
-func printEvent(out io.Writer, ev engine.Event) {
-	for _, line := range formatEvent(ev) {
-		fmt.Fprintf(out, "%s %s\n", ev.At.Local().Format("15:04:05"), line)
+// printEvent writes ev as plain log lines stamped with the local time.
+func printEvent(out io.Writer, ev engine.Event, start runStart) {
+	logLines(out, ev, formatEvent(ev), start)
+}
+
+// runStart is what the run's first log line adds to its scope: how many
+// tasks it has to do and its mode (SPEC §14).
+type runStart struct {
+	proj *project.Project
+	mode string // "" when the flags don't say, as for a resumed run
+}
+
+func newRunStart(proj *project.Project, f ariseFlags) runStart {
+	return runStart{proj: proj, mode: runMode(f, proj.Cfg)}
+}
+
+// tasks counts the run's tasks: its slice's, else the unfinished tasks
+// of its phases; -1 when the plan can't be read.
+func (r runStart) tasks(ev engine.Event) int {
+	if len(ev.Slice) > 0 {
+		return len(ev.Slice)
 	}
+	p, err := plan.Load(r.proj.PlanPath, r.proj.Cfg.PlanOptions(r.proj.Root))
+	if err != nil {
+		return -1
+	}
+	scope, _, _ := strings.Cut(strings.TrimPrefix(ev.Detail, "phase "), "; ")
+	n := 0
+	for _, id := range strings.Split(scope, ", ") {
+		if ph := p.Phase(id); ph != nil {
+			for _, t := range ph.Tasks {
+				if t.Status != plan.Done && t.Status != plan.Skipped {
+					n++
+				}
+			}
+		}
+	}
+	return n
+}
+
+// logLines writes an event's lines stamped with the local time (SPEC §14):
+// the run's first line is "Arise. phase M1 · 7 tasks · mode plan".
+func logLines(out io.Writer, ev engine.Event, lines []string, start runStart) {
+	if ev.Kind == engine.RunStarted && len(lines) > 0 && start.proj != nil {
+		if n := start.tasks(ev); n >= 0 {
+			lines[0] += " · " + look.Count(n, "task", "tasks")
+		}
+		if start.mode != "" {
+			lines[0] += " · mode " + start.mode
+		}
+	}
+	for _, line := range lines {
+		fmt.Fprintf(out, "%s %s\n", look.ClockSeconds(ev.At.Local()), line)
+	}
+}
+
+// runMode is the mode a run starts in, as far as the flags tell: --mode,
+// else igris.toml's for a new run; "" for a resumed run, which keeps the
+// mode it had.
+func runMode(f ariseFlags, cfg *config.Config) string {
+	if f.mode != "" || f.phase == "" {
+		return f.mode
+	}
+	return cfg.DefaultMode
 }
 
 // formatEvent renders ev for the plain log. Most events are one line.
@@ -679,7 +739,8 @@ func formatEvent(ev engine.Event) []string {
 	id := ev.Task
 	switch ev.Kind {
 	case engine.RunStarted:
-		return []string{"run started: " + ev.Detail}
+		// "phase A; only A-2" reads "Arise. phase A · only A-2".
+		return []string{"Arise. " + strings.Replace(ev.Detail, "; ", " · ", 1)}
 	case engine.WorktreeReady, engine.WorktreeLeft:
 		return []string{ev.Detail}
 	case engine.PhaseStarted:
@@ -695,11 +756,11 @@ func formatEvent(ev engine.Event) []string {
 		return []string{id + " session open" + yoloBadge(ev.Mode)}
 	case engine.YourTurn:
 		return []string{
-			id + " YOUR TURN: " + ev.Detail,
+			look.GlyphNeedsYou + " " + id + " your turn: " + ev.Detail,
 			"  do it outside igris (no session), then type `done [note]` or `skip <reason>` (or run `igris done " + id + "` anywhere in the project)",
 		}
 	case engine.NeedsYou:
-		return []string{id + " NEEDS YOU: " + ev.Detail}
+		return []string{look.GlyphNeedsYou + " " + id + " needs you: " + ev.Detail}
 	case engine.NeedsYouClear:
 		return []string{id + " is working again"}
 	case engine.AgentWaiting:
@@ -709,11 +770,11 @@ func formatEvent(ev engine.Event) []string {
 	case engine.Nudged:
 		return []string{id + " stopped without igris done; igris reminded it once"}
 	case engine.TaskOverdue:
-		return []string{id + " OVERDUE: " + ev.Detail + "; its session keeps running"}
+		return []string{look.GlyphWarn + " " + id + " overdue: " + ev.Detail + "; its session keeps running"}
 	case engine.RankMismatch:
-		return []string{id + " RANK MISMATCH: " + ev.Detail + "; its session keeps running"}
+		return []string{look.GlyphWarn + " " + id + " rank mismatch: " + ev.Detail + "; its session keeps running"}
 	case engine.SessionLost:
-		return []string{id + " SESSION LOST: " + ev.Detail}
+		return []string{look.GlyphNeedsYou + " " + id + " session lost: " + ev.Detail}
 	case engine.Asked:
 		switch ev.Question {
 		case engine.QuestionSessionLost:
@@ -766,7 +827,7 @@ func formatEvent(ev engine.Event) []string {
 	case engine.PhaseDone:
 		return []string{"phase " + ev.Phase + " complete"}
 	case engine.PhaseStuck:
-		lines := []string{"phase " + ev.Phase + " is STUCK: unfinished tasks, none can start"}
+		lines := []string{look.GlyphWarn + " phase " + ev.Phase + " is stuck: unfinished tasks, none can start"}
 		for _, w := range ev.Waiting {
 			lines = append(lines, "  "+w.String())
 		}
@@ -830,22 +891,31 @@ func yoloBadge(mode string) string {
 // which task would launch with which model and mode (SPEC §14).
 func dryRun(p *project.Project, req report.RunRequest, out, stderr io.Writer) int {
 	r, err := p.DryRun(context.Background(), req)
-	printDryRun(out, r)
+	o := newOut(out)
+	printDryRun(o, r)
 	if err != nil {
 		fmt.Fprintf(stderr, "igris arise --dry-run: %v\n", err)
 		return exitFail
 	}
-	fmt.Fprintf(out, "dry run: %d session(s), %d user task(s)\n", r.Sessions, r.Users)
+	o.printf("dry run: %s, %s", look.Count(r.Sessions, "session", "sessions"), look.Count(r.Users, "user task", "user tasks"))
+	next := "igris arise"
+	if req.Phase != "" {
+		next += " " + req.Phase
+		if req.Through != "" {
+			next += " --through " + req.Through
+		}
+	}
+	o.next(next)
 	return exitOK
 }
 
 // printDryRun renders a dry run, or the part of it found before it failed.
-func printDryRun(out io.Writer, r report.DryRun) {
+func printDryRun(o textOut, r report.DryRun) {
 	if r.Interrupted != "" {
-		fmt.Fprintf(out, "note: the last run stopped during %s; a real `igris arise` picks it up first\n", r.Interrupted)
+		o.printf("note: the last run stopped during %s; a real `igris arise` picks it up first", r.Interrupted)
 	}
 	for _, w := range r.Warnings {
-		fmt.Fprintf(out, "warning: %s\n", w)
+		o.warnf("%s", w)
 	}
 	if r.Scope == "" {
 		return
@@ -854,20 +924,20 @@ func printDryRun(out io.Writer, r report.DryRun) {
 	if r.Slice != "" {
 		scope += "; " + r.Slice
 	}
-	fmt.Fprintf(out, "dry run of phase %s: nothing is written and no session starts\n", scope)
+	o.printf("dry run of phase %s: nothing is written and no session starts", scope)
 	if r.Worktree != "" {
-		fmt.Fprintln(out, r.Worktree)
+		o.println(r.Worktree)
 	}
 	if len(r.Hooks) > 0 {
-		fmt.Fprintf(out, "task hooks %s would run around each agent session; the dry run runs none\n", strings.Join(r.Hooks, " and "))
+		o.printf("task hooks %s would run around each agent session; the dry run runs none", strings.Join(r.Hooks, " and "))
 	}
 	for _, ph := range r.Parallelism {
 		if ph.Width == 0 {
 			continue
 		}
-		fmt.Fprintf(out, "     phase %s: %s\n", ph.Phase, parallelSummary(ph.Parallelism))
+		o.println(o.fit(fmt.Sprintf("  phase %s: %s", ph.Phase, parallelSummary(ph.Parallelism))))
 		for _, set := range ph.Together {
-			fmt.Fprintf(out, "       could run together: %s\n", strings.Join(set, ", "))
+			o.println(o.fit("    could run together: " + strings.Join(set, ", ")))
 		}
 	}
 	// The verify column is shown only when some task has a profile or none.
@@ -875,38 +945,41 @@ func printDryRun(out io.Writer, r report.DryRun) {
 	for _, s := range r.Steps {
 		verifies = verifies || s.Verify != ""
 	}
-	// The tasks a parallel phase starts together are one numbered step
-	// (SPEC §14): the number once, the others under it.
-	lastN := 0
-	number := func(n int) string {
-		if n == lastN {
-			return "    "
+	header := []string{"#", "TASK", "RANK", "MODEL", "MODE"}
+	if verifies {
+		header = append(header, "VERIFY")
+	}
+	tb := &look.Table{Indent: "  ", Header: append(header, "TITLE")}
+	// The tasks a parallel phase starts together share their step's
+	// number (SPEC §14).
+	row := func(s report.DryStep, glyph string, sev look.Severity, model, mode, title string) {
+		cells := []look.Cell{look.TextCell(fmt.Sprint(s.N)), look.Mark(sev, glyph, s.Task), look.TextCell(s.Rank), look.TextCell(model), look.TextCell(mode)}
+		if verifies {
+			cells = append(cells, look.TextCell(s.Verify))
 		}
-		lastN = n
-		return fmt.Sprintf("%3d.", n)
+		tb.Row(append(cells, look.TextCell(title))...)
 	}
 	for _, s := range r.Steps {
 		switch s.Kind {
 		case report.StepSession:
-			how := ""
+			title := s.Title + yoloBadge(s.Mode)
 			if s.Resumed {
-				how = "  (resumed: fresh session)"
+				title += " (resumed: fresh session)"
 			}
-			verify := ""
-			if verifies {
-				verify = fmt.Sprintf("verify %-7s ", cmp.Or(s.Verify, "—"))
-			}
-			fmt.Fprintf(out, "%s %-10s %-7s → model %-7s mode %-12s %s%s%s%s\n", number(s.N), s.Task, s.Rank, s.Model, s.ModeText(), verify, s.Title, yoloBadge(s.Mode), how)
+			row(s, look.GlyphReady, look.Plain, s.Model, s.ModeText(), title)
 		case report.StepUser:
-			fmt.Fprintf(out, "%s %-10s user task: waits for you  %s\n", number(s.N), s.Task, s.Title)
+			row(s, look.GlyphNeedsYou, look.Needs, "user task", "", s.Title+" (waits for you)")
 		case report.StepPhaseDone:
-			fmt.Fprintf(out, "     phase %s complete\n", s.Phase)
+			tb.Line(look.Mark(look.Accent, look.GlyphDone, "phase "+s.Phase+" complete"))
 		case report.StepWarning:
-			fmt.Fprintf(out, "warning: %s\n", s.Lines[0])
+			tb.Line(look.Mark(look.Warn, look.GlyphWarn, s.Lines[0]))
 		case report.StepNote:
 			for _, line := range s.Lines {
-				fmt.Fprintln(out, "     "+line)
+				tb.Line(look.TextCell(line))
 			}
 		}
+	}
+	if tb.Len() > 0 {
+		o.table(tb)
 	}
 }

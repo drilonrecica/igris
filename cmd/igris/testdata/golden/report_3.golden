@@ -2,7 +2,7 @@ exit: 0
 --- stdout
 # igris report · demo
 
-Run 2026-09-30T09:00:00Z → — · interrupted
+Run Sep 30 09:00 → — · interrupted
 Phase A
 1 done · 0 skipped · 1 unfinished · 1 commit
 

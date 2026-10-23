@@ -10,13 +10,14 @@ import (
 	"io"
 	"os"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/config"
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/project"
 	"github.com/drilonrecica/igris/internal/report"
+	"github.com/drilonrecica/igris/internal/serve"
 	"github.com/drilonrecica/igris/internal/state"
 )
 
@@ -119,35 +120,7 @@ func execCheck(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	if jsonFlag(fs) {
 		writeJSON(stdout, r)
 	} else {
-		for _, is := range r.Issues {
-			fmt.Fprintln(stdout, is)
-		}
-		for _, w := range r.Warnings {
-			switch {
-			case w.File == "":
-				fmt.Fprintf(stdout, "warning: %s\n", w.Message)
-				continue
-			case w.Line == 0:
-				fmt.Fprintf(stdout, "warning: %s: %s\n", w.File, w.Message)
-				continue
-			}
-			fmt.Fprintf(stdout, "warning: %s:%d: %s\n", w.File, w.Line, w.Message)
-		}
-		for _, c := range checks.Pick(cs, checks.IDProject) {
-			if l.noConfig && c.Level == checks.OK { // no igris.toml: a note, not a warning
-				fmt.Fprintf(stdout, "note: %s\n", c.Message)
-			}
-		}
-		switch {
-		case l.plan.NewerFormat():
-			fmt.Fprintf(stdout, "%s: written for a newer igris; upgrade igris and run `igris check` again\n", r.Plan)
-		case !r.Valid:
-			fmt.Fprintf(stdout, "%s: %d problem(s); fix them (or run `igris adapt`) and run `igris check` again\n", r.Plan, len(r.Issues))
-		case strictFail:
-			fmt.Fprintf(stdout, "%s: %d warning(s) under --strict; fix them and run igris check --strict again\n", r.Plan, r.Failing)
-		default:
-			fmt.Fprintf(stdout, "%s: OK (%d phases, %d tasks, %d warnings)\n", r.Plan, r.Phases, r.Tasks, len(r.Warnings))
-		}
+		printCheck(newOut(stdout), r, cs, l, strictFail)
 	}
 	if !r.Valid || strictFail {
 		return exitFail
@@ -168,21 +141,7 @@ func execPhases(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 		writeJSON(stdout, r)
 		return exitOK
 	}
-	tw := tabwriter.NewWriter(stdout, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(tw, "PHASE\tTITLE\tREADY\tBLOCKED\tIN PROGRESS\tDONE\tSKIPPED\tTOTAL")
-	for _, ph := range r.Phases {
-		c := ph.Counts
-		fmt.Fprintf(tw, "%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\n", ph.ID, ph.Title,
-			c[report.CountKey(plan.Ready)], c[report.CountKey(plan.Blocked)], c[report.CountKey(plan.InProgress)],
-			c[report.CountKey(plan.Done)], c[report.CountKey(plan.Skipped)], ph.Total)
-	}
-	_ = tw.Flush()
-	if lines := parallelLines(r.Phases); len(lines) > 0 {
-		fmt.Fprintln(stdout)
-		for _, line := range lines {
-			fmt.Fprintln(stdout, line)
-		}
-	}
+	printPhases(newOut(stdout), r)
 	return exitOK
 }
 
@@ -226,20 +185,15 @@ func execStatus(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		return exitFail
 	}
 	r.Run = currentRun()
+	var live *serve.Snapshot
+	if r.Run != nil && r.Run.Lock == report.LockHere {
+		live, _ = peekRun(projectRoot())
+	}
 	if jsonFlag(fs) {
 		writeJSON(stdout, r)
 		return exitOK
 	}
-	if r.Run != nil {
-		printRun(stdout, r.Run)
-		fmt.Fprintln(stdout)
-	}
-	for i, ph := range r.Phases {
-		if i > 0 {
-			fmt.Fprintln(stdout)
-		}
-		printPhaseStatus(stdout, ph, r.Optional)
-	}
+	printStatus(newOut(stdout), r, l.plan, projectRoot(), live)
 	return exitOK
 }
 
@@ -259,93 +213,94 @@ func currentRun() *report.RunInfo {
 	return project.RunInfo(root)
 }
 
-func printRun(w io.Writer, r *report.RunInfo) {
-	fmt.Fprintln(w, "Run")
-	row := func(label, value string) {
-		if value != "" {
-			fmt.Fprintf(w, "  %-8s %s\n", label, value)
-		}
+// projectRoot is the project root found from the working directory, or
+// the working directory without one.
+func projectRoot() string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "."
 	}
-	if r.Unreadable != "" {
-		row("State", r.Unreadable)
-	} else {
-		phases := strings.Join(r.Phases, ", ")
-		if r.Through != "" {
-			phases += " (through " + r.Through + ")"
-		}
-		row("Phases", phases)
-		if r.Selection != nil {
-			row("Slice", r.Selection.String())
-		}
-		row("Started", r.StartedAt)
-		task := r.Task
-		if task == "" {
-			task = "between tasks"
-		}
-		row("Task", task)
-		row("Mode", r.Mode)
-		row("Since", r.Since)
-		row("Session", r.Session)
+	if root, err := state.FindRoot(cwd); err == nil {
+		return root
 	}
-	lock := r.Lock
-	if r.LockDetail != "" {
-		lock += " (" + r.LockDetail + ")"
-	}
-	row("Lock", lock)
-	signals := make([]string, 0, len(r.Signals)+1)
-	for _, s := range r.Signals {
-		signals = append(signals, s.String())
-	}
-	if r.SignalsUnreadable > 0 {
-		signals = append(signals, fmt.Sprintf("%d unreadable", r.SignalsUnreadable))
-	}
-	row("Signals", strings.Join(signals, ", "))
+	return cwd
 }
 
-func printPhaseStatus(w io.Writer, r report.PhaseStatus, opt report.Optional) {
-	satisfied := r.Counts[report.CountKey(plan.Done)] + r.Counts[report.CountKey(plan.Skipped)]
-	name := r.ID
-	if r.Title != "" {
-		name += " — " + r.Title
+// printCheck writes check's problems and warnings, then its summary line
+// and next (SPEC §14).
+func printCheck(o textOut, r report.CheckReport, cs []checks.Result, l *loaded, strictFail bool) {
+	for _, is := range r.Issues {
+		o.println(is.String())
 	}
-	fmt.Fprintf(w, "%s: %d/%d finished, %s", name, satisfied, r.Total, r.Outcome)
-	if r.Next != "" {
-		fmt.Fprintf(w, " (%s)", r.Next)
-	}
-	fmt.Fprintln(w)
-	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
-	// The optional columns are shown only when some task of the plan sets
-	// them (SPEC §14).
-	header := "  ID\tSTATUS\tRANK\tOWNER\tMODE\t"
-	optional := func(t report.Task) string {
-		var b strings.Builder
-		if opt.Verify {
-			b.WriteString(cmp.Or(t.Verify, "—") + "\t")
+	for _, w := range r.Warnings {
+		switch {
+		case w.File == "":
+			o.warnf("%s", w.Message)
+		case w.Line == 0:
+			o.warnf("%s: %s", w.File, w.Message)
+		default:
+			o.warnf("%s:%d: %s", w.File, w.Line, w.Message)
 		}
-		if opt.Timeout {
-			b.WriteString(cmp.Or(t.Timeout, "—") + "\t")
+	}
+	for _, c := range checks.Pick(cs, checks.IDProject) {
+		if l.noConfig && c.Level == checks.OK { // no igris.toml: a note, not a warning
+			o.printf("note: %s", c.Message)
 		}
-		if opt.Context {
-			b.WriteString(cmp.Or(strings.Join(t.Context, ", "), "—") + "\t")
+	}
+	warnings := look.Count(len(r.Warnings), "warning", "warnings")
+	switch {
+	case l.plan.NewerFormat():
+		o.printf("%s: written for a newer igris; upgrade igris and run `igris check` again", r.Plan)
+		o.next("igris update")
+	case !r.Valid:
+		o.printf("%s: %s; fix them (or run `igris adapt`) and run `igris check` again", r.Plan, look.Count(len(r.Issues), "problem", "problems"))
+		o.next("igris check")
+	case strictFail:
+		o.printf("%s: %s under --strict; fix them and run `igris check --strict` again", r.Plan, look.Count(r.Failing, "warning", "warnings"))
+		o.next("igris check --strict")
+	default:
+		o.printf("%s: %s (%s, %s, %s)", r.Plan, o.paint(look.Accent, "OK"), look.Count(r.Phases, "phase", "phases"), look.Count(r.Tasks, "task", "tasks"), warnings)
+		o.next("igris status")
+	}
+}
+
+// printPhases writes the phases' table, their parallelism and next.
+func printPhases(o textOut, r report.PhasesReport) {
+	tb := &look.Table{Header: []string{"PHASE", "TITLE", "READY", "BLOCKED", "IN PROGRESS", "DONE", "SKIPPED", "TOTAL"}}
+	next := ""
+	for _, ph := range r.Phases {
+		c := ph.Counts
+		count := func(s plan.Status) look.Cell { return look.TextCell(fmt.Sprint(c[report.CountKey(s)])) }
+		glyph, sev := phaseMark(ph.Phase)
+		if next == "" && glyph != look.GlyphDone {
+			next = "igris arise " + ph.ID
 		}
-		return b.String()
+		tb.Row(look.Mark(sev, glyph, ph.ID), look.TextCell(ph.Title), count(plan.Ready), count(plan.Blocked),
+			count(plan.InProgress), count(plan.Done), count(plan.Skipped), look.TextCell(fmt.Sprint(ph.Total)))
 	}
-	if opt.Verify {
-		header += "VERIFY\t"
-	}
-	if opt.Timeout {
-		header += "TIMEOUT\t"
-	}
-	if opt.Context {
-		header += "CONTEXT\t"
-	}
-	fmt.Fprintln(tw, header+"WAITS ON")
-	for _, t := range r.Tasks {
-		waits := make([]string, len(t.WaitsOn))
-		for i, x := range t.WaitsOn {
-			waits[i] = fmt.Sprintf("%s (%s, phase %s)", x.ID, x.Status, x.Phase)
+	o.table(tb)
+	if lines := parallelLines(r.Phases); len(lines) > 0 {
+		o.blank()
+		for _, line := range lines {
+			o.println(o.fit(line))
 		}
-		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s%s\n", t.ID, t.Status, cmp.Or(t.Rank, "—"), t.Owner, cmp.Or(t.Mode, "—"), optional(t), strings.Join(waits, ", "))
 	}
-	_ = tw.Flush()
+	o.blank()
+	o.next(cmp.Or(next, "igris history"))
+}
+
+// phaseMark is a phase's glyph from its counts: done when every task is
+// finished, running with a task in progress, ready with one to start,
+// waiting on other phases otherwise.
+func phaseMark(ph report.Phase) (string, look.Severity) {
+	c := func(s plan.Status) int { return ph.Counts[report.CountKey(s)] }
+	switch {
+	case c(plan.Done)+c(plan.Skipped) == ph.Total:
+		return look.GlyphDone, look.Accent
+	case c(plan.InProgress) > 0:
+		return look.GlyphRunning, look.Accent
+	case c(plan.Ready) > 0:
+		return look.GlyphReady, look.Plain
+	}
+	return look.GlyphWaiting, look.Plain
 }

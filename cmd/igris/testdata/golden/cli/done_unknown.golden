@@ -1,0 +1,4 @@
+exit: 1
+--- stdout
+--- stderr
+igris done: task "M9-01" is not in <dir>/tasks.md; check the ID with `igris status`

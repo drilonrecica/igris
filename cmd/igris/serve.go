@@ -17,6 +17,7 @@ import (
 	"github.com/drilonrecica/igris/internal/backend/tmux"
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/engine"
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/notify"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/project"
@@ -186,7 +187,7 @@ func execServe(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		Sender: host, Tail: host.tail,
 		Plan: func() (*plan.Plan, error) { return plan.Load(proj.PlanPath, proj.Cfg.PlanOptions(proj.Root)) },
 		Logf: func(format string, a ...any) {
-			fmt.Fprintf(out, "%s %s\n", time.Now().Format("15:04:05"), fmt.Sprintf(format, a...))
+			fmt.Fprintf(out, "%s %s\n", look.ClockSeconds(time.Now()), fmt.Sprintf(format, a...))
 		},
 	})
 	go func() {
@@ -245,10 +246,9 @@ func execServe(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		}
 	}
 	for {
+		start := newRunStart(proj, f)
 		opts := l.Options(conf, func(ev engine.Event) {
-			for _, line := range formatServed(ev) {
-				fmt.Fprintf(out, "%s %s\n", ev.At.Local().Format("15:04:05"), line)
-			}
+			logLines(out, ev, formatServed(ev), start)
 			srv.Publish(ev)
 			host.saw(ev)
 		})
@@ -265,7 +265,7 @@ func execServe(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 			// SPEC §7.3: the phrase is typed, and only a terminal can.
 			// The engine's error names the task; its advice is arise's.
 			what := strings.TrimSuffix(err.Error(), ": "+engine.ErrYoloUnconfirmed.Error())
-			return fail("%s: skip-permissions mode needs the typed phrase %q, and stdin is not a terminal to type it on; nothing was started (run igris serve in a terminal, or start the run with igris arise)", what, engine.YoloPhrase)
+			return fail("%s: skip-permissions mode needs the typed phrase %q, and stdin is not a terminal to type it on; nothing was started (run `igris serve` in a terminal, or start the run with `igris arise`)", what, engine.YoloPhrase)
 		}
 		if asked, refusal := askStartUp(err, &conf, out, ask, !f.worktree && !proj.Cfg.Run.WorktreeOn()); asked {
 			if refusal != "" {
@@ -299,7 +299,7 @@ func formatServed(ev engine.Event) []string {
 		return []string{"? " + ev.Detail, "  " + attach}
 	case engine.YourTurn:
 		return []string{
-			ev.Task + " YOUR TURN: " + ev.Detail,
+			look.GlyphNeedsYou + " " + ev.Task + " your turn: " + ev.Detail,
 			"  do it outside igris (no session), then run `igris done " + ev.Task + "` anywhere in the project (or " + attach + ")",
 		}
 	case engine.PauseOn:
@@ -421,6 +421,7 @@ func execStop(_ *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	}
 	waitLockFree(ctx, proj.Root)
 	fmt.Fprintln(stdout, "the run stopped; its sessions stay open")
+	newOut(stdout).next("igris status")
 	return exitOK
 }
 
@@ -475,7 +476,7 @@ func listenWeb(d *state.Dir, cfg config.Serve, flagAddr string, public bool, out
 		fmt.Fprintf(out, "warning: the HTTP listener on %s is reachable beyond loopback and Tailscale; only the token and TLS guard it\n", l.Addr())
 	}
 	if created {
-		fmt.Fprintln(out, "no device is paired yet; run igris serve token to pair one")
+		fmt.Fprintln(out, "no device is paired yet; `igris serve token` pairs one")
 	}
 	return l, nil
 }
@@ -527,11 +528,14 @@ func execServeToken(rotate bool, stdout, stderr io.Writer) int {
 	fmt.Fprintln(stdout, "Open this URL on the device to pair it; anyone with it controls the run (short of skip-permissions mode):")
 	url := fmt.Sprintf("%s%s?token=%s", base, serve.PathPair, tok)
 	fmt.Fprintf(stdout, "  %s\n", url)
+	o := newOut(stdout)
 	if note != "" {
-		fmt.Fprintln(stdout, note)
+		o.println(note)
+		o.next("igris serve token")
 		return exitOK // the URL needs editing first: a code of it would pair nothing
 	}
 	printQR(stdout, url)
+	o.next("igris arise")
 	return exitOK
 }
 

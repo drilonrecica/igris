@@ -1,12 +1,14 @@
 package main
 
 import (
+	"cmp"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/project"
@@ -68,24 +70,33 @@ func execReport(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 	if jsonFlag(fs) {
 		writeJSON(stdout, r)
 	} else {
-		printReport(stdout, r, colorOn(stdout))
+		o := newOut(stdout)
+		printReport(o, r)
+		// The markdown is pasted into PRs and journals: next only on a
+		// terminal, so a piped report stays the report.
+		if term, _ := outTerminal(stdout); term {
+			o.blank()
+			o.next("igris usage " + cmp.Or(r.Run, "1"))
+		}
 	}
 	return exitOK
 }
 
 // rankMark is the result cell's mark of a task that ran on a model its rank
-// doesn't resolve to (SPEC §6.9, §14).
-const rankMark = "⚠ rank"
+// doesn't resolve to (SPEC §6.9, §14): the one wording of a rank mismatch
+// is "rank mismatch", and "▲ rank" where there is little room.
+const rankMark = look.GlyphWarn + " rank"
 
 // printReport writes the run as markdown, for a PR description or a
-// journal. Every value the log doesn't record is "—". color paints the rank
-// mark red, on a terminal.
-func printReport(w io.Writer, r report.Report, color bool) {
+// journal. Every value the log doesn't record is "—". On a terminal with
+// colors the rank mark is drawn in Ember.
+func printReport(o textOut, r report.Report) {
+	w := o.w
 	fmt.Fprintf(w, "# igris report · %s\n\n", md(r.Project))
 	if r.Note != "" {
 		fmt.Fprintf(w, "note: %s\n\n", r.Note)
 	}
-	fmt.Fprintf(w, "Run %s%s → %s", r.Run+sep(r.Run, " · "), r.StartedAt, dash(r.EndedAt))
+	fmt.Fprintf(w, "Run %s%s", r.Run+sep(r.Run, " · "), runSpan(r.StartedAt, r.EndedAt))
 	if r.DurationS > 0 {
 		fmt.Fprintf(w, " (%s)", fmtSeconds(r.DurationS))
 	}
@@ -126,11 +137,7 @@ func printReport(w io.Writer, r report.Report, color bool) {
 			}
 			result := t.Result
 			if t.RankMismatch() {
-				mark := rankMark
-				if color {
-					mark = "\x1b[31m" + mark + "\x1b[0m"
-				}
-				result += " " + mark
+				result += " " + o.paint(look.Warn, rankMark)
 			}
 			fmt.Fprintf(w, "| %s | %s | %s | %s | %s | %s | %s | %s |\n",
 				cell(strings.TrimSpace(t.ID+" "+t.Title)), result, dash(fmtSeconds(t.DurationS)), dash(attempts), tokensCell(t.Usage),
@@ -154,6 +161,27 @@ func printReport(w io.Writer, r report.Report, color bool) {
 		errs = append(errs, "- "+md(e))
 	}
 	printList(w, "Errors", errs)
+}
+
+// runSpan is a run's start and end, local (SPEC §14): "Oct 08 09:15 →
+// 11:02", the end's date only when it is another day's; "—" for what the
+// log doesn't say.
+func runSpan(started, ended string) string {
+	start, err := time.Parse(time.RFC3339, started)
+	if err != nil {
+		return dash(started) + " → " + dash(ended)
+	}
+	start = start.Local()
+	out := look.Date(start, textNow()) + " → "
+	end, err := time.Parse(time.RFC3339, ended)
+	if err != nil {
+		return out + dash(ended)
+	}
+	end = end.Local()
+	if end.YearDay() == start.YearDay() && end.Year() == start.Year() {
+		return out + look.Clock(end)
+	}
+	return out + look.Date(end, textNow())
 }
 
 func printList(w io.Writer, title string, lines []string) {

@@ -3,12 +3,14 @@ exit: 0
 warning: <dir>/tasks.md:18: B-2 names B-1, which comes before it in parallel phase B, but neither depends on the other, so they may run at the same time; add B-1 to its Deps if it must finish first
 warning: this is not a git repository: sessions' changes can't be reviewed or undone with git, and commits fail unless commit = "never". Run `git init` first.
 dry run of phase B: nothing is written and no session starts
-     phase B: critical path B-1 → B-G (2), width 3
-       could run together: B-1, B-2, B-3
-  1. B-1        sonnet  → model sonnet  mode auto         Schema
-     B-3        opus    → model opus    mode auto         Client
-  2. B-2        sonnet  → model sonnet  mode auto         Store
-  3. B-G        sonnet  → model sonnet  mode auto         Gate
-     phase B complete
-dry run: 4 session(s), 0 user task(s)
+  phase B: critical path B-1 → B-G (2), width 3
+    could run together: B-1, B-2, B-3
+  #  TASK   RANK    MODEL   MODE  TITLE
+  1  · B-1  sonnet  sonnet  auto  Schema
+  1  · B-3  opus    opus    auto  Client
+  2  · B-2  sonnet  sonnet  auto  Store
+  3  · B-G  sonnet  sonnet  auto  Gate
+  ✓ phase B complete
+dry run: 4 sessions, 0 user tasks
+next: igris arise B
 --- stderr

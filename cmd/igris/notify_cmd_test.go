@@ -94,7 +94,7 @@ func TestNotifyTestReportsFailuresAndMissingChannels(t *testing.T) {
 	if code := run([]string{"notify", "test", "--event", "needs_input"}, &out, &errb); code != exitFail {
 		t.Errorf("exit %d, want %d for a failing channel", code, exitFail)
 	}
-	if !strings.Contains(out.String(), "FAILED") || !strings.Contains(out.String(), "500") || strings.Count(out.String(), "\n") != 1 {
+	if !strings.Contains(out.String(), "FAILED") || !strings.Contains(out.String(), "500") || strings.Count(out.String(), "FAILED") != 1 || !strings.HasPrefix(out.String(), "EVENT") {
 		t.Errorf("output = %q, want one FAILED line with the status", out.String())
 	}
 

@@ -1,15 +1,15 @@
 exit: 0
 --- stdout
 warning: this is not a git repository: sessions' changes can't be reviewed or undone with git, and commits fail unless commit = "never". Run `git init` first.
-warning: drift: A-2: blocked → ready (a real run asks you before fixing it)
-warning: drift: A-3: ready → blocked (a real run asks you before fixing it)
-warning: drift: B-2: ready → blocked (a real run asks you before fixing it)
+warning: drift: A-2: blocked → ready, A-3: ready → blocked, B-2: ready → blocked (a real run asks you before fixing them)
 dry run of phase A: nothing is written and no session starts
-     phase A: critical path A-2 → A-3 (2), width 2
-       could run together: A-2, A-4
-  1. A-2        sonnet  → model sonnet  mode auto         Next
-  2. A-3        opus    → model opus    mode plan → auto  Later
-  3. A-4        user task: waits for you  Yours
-     phase A complete
-dry run: 2 session(s), 1 user task(s)
+  phase A: critical path A-2 → A-3 (2), width 2
+    could run together: A-2, A-4
+  #  TASK   RANK    MODEL      MODE         TITLE
+  1  · A-2  sonnet  sonnet     auto         Next
+  2  · A-3  opus    opus       plan → auto  Later
+  3  ! A-4  —       user task  —            Yours (waits for you)
+  ✓ phase A complete
+dry run: 2 sessions, 1 user task
+next: igris arise A
 --- stderr

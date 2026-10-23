@@ -1,0 +1,24 @@
+exit: 1
+--- stdout
+[38;2;60;200;255m✓ ok  [0m igris in PATH is this igris
+[38;2;60;200;255m✓ ok  [0m Claude Code 2.1.292
+[38;2;60;200;255m✓ ok  [0m ANTHROPIC_API_KEY is not set
+[38;2;255;176;0m▲ warn[0m igris must run inside a herdr pane or a tmux session (backend = "auto" found neither HERDR_WORKSPACE_ID nor TMUX); start herdr or tmux and run igris there, or set backend in igris.toml
+       next: run igris inside a herdr pane or a tmux session
+[38;2;255;176;0m▲ warn[0m this is not a git repository: sessions' changes can't be reviewed or undone with git, and commits fail unless commit = "never". Run `git init` first.
+       next: git init
+[38;2;60;200;255m✓ ok  [0m igris.toml is valid
+[38;2;60;200;255m✓ ok  [0m no ignored settings
+[1;38;2;255;176;0m✗ fail[0m tasks.md:6: duplicate task ID M1-02 (first at line 5); task IDs must be unique across the plan
+       next: igris adapt
+[1;38;2;255;176;0m✗ fail[0m tasks.md:6: M1-02 depends on unknown task M1-01; check the ID or remove it from Deps
+       next: igris adapt
+[38;2;60;200;255m✓ ok  [0m `igris done` is allowed and `igris skip` is not
+[38;2;60;200;255m✓ ok  [0m .igris/ is 0700 and its files 0600
+[38;2;60;200;255m✓ ok  [0m no run lock
+[38;2;60;200;255m✓ ok  [0m the project is not under /mnt/
+[38;2;60;200;255m✓ ok  [0m notification channels: backend toast (igris notify test sends a sample)
+
+[1;38;2;255;176;0m✗[0m doctor: 2 failures · 2 warnings
+next: igris adapt
+--- stderr

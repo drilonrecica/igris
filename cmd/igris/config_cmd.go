@@ -55,6 +55,7 @@ func execConfig(flags *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	data, err := os.ReadFile(path) //nolint:gosec // the project's own config
 	if errors.Is(err, fs.ErrNotExist) {
 		fmt.Fprintf(stdout, "no %s here; nothing to migrate\n", state.ConfigFile)
+		newOut(stdout).next("igris init")
 		return exitOK
 	}
 	if err != nil {
@@ -66,6 +67,7 @@ func execConfig(flags *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	}
 	if len(changes) == 0 {
 		fmt.Fprintf(stdout, "%s: nothing to migrate\n", state.ConfigFile)
+		newOut(stdout).next("igris check")
 		return exitOK
 	}
 	for _, c := range changes {
@@ -88,6 +90,7 @@ func execConfig(flags *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 		return fail("%v", err)
 	}
 	fmt.Fprintf(stdout, "migrated %s (backup: %s)\n", state.ConfigFile, backup)
+	newOut(stdout).next("igris check")
 	return exitOK
 }
 

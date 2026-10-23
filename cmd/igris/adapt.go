@@ -12,6 +12,7 @@ import (
 	"github.com/drilonrecica/igris/internal/adapt"
 	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/engine"
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/notify"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/state"
@@ -124,7 +125,7 @@ func execAdapt(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	}
 	fmt.Fprintf(stdout, "accepted: %s replaced; the original is backed up to %s\n", planPath, backup)
 	if len(res.Issues) > 0 {
-		fmt.Fprintf(stdout, "the plan still has %d problem(s); fix them (models left at ?), then run `igris check`:\n", len(res.Issues))
+		fmt.Fprintf(stdout, "the plan still has %s; fix them (models left at ?), then run `igris check`:\n", look.Count(len(res.Issues), "problem", "problems"))
 		for _, is := range res.Issues {
 			fmt.Fprintf(stdout, "  %s\n", strings.Replace(is.Error(), res.ProposalPath, planPath, 1))
 		}

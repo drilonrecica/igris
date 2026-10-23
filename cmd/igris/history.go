@@ -1,12 +1,12 @@
 package main
 
 import (
+	"cmp"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	"github.com/drilonrecica/igris/internal/look"
@@ -69,90 +69,143 @@ func execHistory(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int 
 }
 
 func printHistory(w io.Writer, h report.History) {
+	o := newOut(w)
 	if len(h.Runs) == 0 {
-		fmt.Fprintln(w, "no runs recorded yet")
+		o.println("no runs recorded yet")
+		o.next("igris status")
 		return
 	}
-	printNote(w, h.Note)
+	printNote(o, h.Note)
 	for i, r := range h.Runs {
 		if i > 0 {
-			fmt.Fprintln(w)
+			o.blank()
 		}
 		// The run ID, when the log has one, is what `igris report` takes.
-		phases := ""
+		head := []string{"Run " + cmp.Or(r.Run, when(r.StartedAt))}
+		if r.Run != "" {
+			head = append(head, when(r.StartedAt))
+		}
 		if len(r.Phases) > 0 {
-			phases = "  phase " + strings.Join(r.Phases, ", ")
+			head = append(head, look.Plural(len(r.Phases), "phase ", "phases ")+strings.Join(r.Phases, ", "))
 		}
-		fmt.Fprintf(w, "Run %s%s%s  %s", r.StartedAt, spaced(r.Run), phases, r.End)
+		glyph, sev := endMark(r.End)
+		end := look.Mark(sev, glyph, r.End).Draw(o.painter())
 		if r.DurationS > 0 {
-			fmt.Fprintf(w, "  (%s)", fmtSeconds(r.DurationS))
+			end += " · " + fmtSeconds(r.DurationS)
 		}
-		fmt.Fprintf(w, "\n  %d done, %d skipped\n", r.Done, r.Skipped)
-		tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
-		for _, t := range r.Tasks {
-			fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s\n", t.ID, t.Result, dash(t.Rank), dash(t.Model), dash(fmtSeconds(t.DurationS)), verifyText(t))
+		o.println(strings.Join(head, " · ") + " · " + end)
+		o.printf("%d done · %d skipped", r.Done, r.Skipped)
+		if len(r.Tasks) > 0 {
+			tb := &look.Table{Indent: "  ", Header: []string{"TASK", "RESULT", "RANK", "MODEL", "DURATION", "VERIFY"}}
+			for _, t := range r.Tasks {
+				glyph, sev := resultMark(t.Result)
+				tb.Row(look.Mark(sev, glyph, t.ID), look.TextCell(t.Result), look.TextCell(t.Rank), look.TextCell(t.Model),
+					look.TextCell(fmtSeconds(t.DurationS)), look.TextCell(verifyText(t)))
+			}
+			o.table(tb)
 		}
-		_ = tw.Flush()
 		for _, c := range r.Commits {
-			fmt.Fprintf(w, "  commit: %s\n", c)
+			o.println(o.fit("  commit: " + c))
 		}
 		for _, e := range r.Errors {
-			fmt.Fprintf(w, "  error: %s\n", e)
+			o.println(o.fit("  " + look.Mark(look.Fail, look.GlyphFail, "error: "+e).Draw(o.painter())))
 		}
 	}
+	o.blank()
+	o.next("igris report")
+}
+
+// endMark is the glyph of how a run ended and how it is drawn.
+func endMark(end string) (string, look.Severity) {
+	switch end {
+	case report.EndRunning:
+		return look.GlyphRunning, look.Accent
+	case report.EndInterrupted:
+		return look.GlyphWarn, look.Warn
+	}
+	o := endedOutcome(end)
+	return o.Glyph(), o.Severity()
+}
+
+// resultMark is the glyph of a task's result in a run: done, skipped,
+// running, or unfinished when its run ended without one.
+func resultMark(result string) (string, look.Severity) {
+	switch result {
+	case "done":
+		return look.GlyphDone, look.Accent
+	case "skipped":
+		return look.GlyphSkipped, look.Plain
+	case "running":
+		return look.GlyphRunning, look.Accent
+	}
+	return look.GlyphWarn, look.Warn
 }
 
 func printTaskHistory(w io.Writer, h report.TaskHistory) {
+	o := newOut(w)
 	if len(h.Attempts) == 0 {
-		fmt.Fprintf(w, "no attempts of %s recorded\n", h.Task)
+		o.printf("no attempts of %s recorded", h.Task)
+		o.next("igris status")
 		return
 	}
-	printNote(w, h.Note)
+	printNote(o, h.Note)
 	for i, a := range h.Attempts {
 		if i > 0 {
-			fmt.Fprintln(w)
+			o.blank()
 		}
-		fmt.Fprintf(w, "%s  run %s%s  %s", h.Task, a.RunStartedAt, spaced(a.Run), a.Result)
+		head := []string{h.Task, "run " + cmp.Or(a.Run, when(a.RunStartedAt))}
+		glyph, sev := resultMark(a.Result)
+		res := look.Mark(sev, glyph, a.Result).Draw(o.painter())
 		if a.DurationS > 0 {
-			fmt.Fprintf(w, "  (%s)", fmtSeconds(a.DurationS))
+			res += " · " + fmtSeconds(a.DurationS)
 		}
-		fmt.Fprintln(w)
+		o.println(strings.Join(head, " · ") + " · " + res)
+		var about []string
 		if a.StartedAt != "" {
-			fmt.Fprintf(w, "  started %s\n", a.StartedAt)
+			about = append(about, "started "+when(a.StartedAt))
 		}
-		if a.Rank != "" || a.Model != "" {
-			fmt.Fprintf(w, "  rank %s, model %s\n", dash(a.Rank), dash(a.Model))
+		if a.Rank != "" {
+			about = append(about, "rank "+a.Rank)
+		}
+		if a.Model != "" {
+			about = append(about, "model "+a.Model)
+		}
+		if len(about) > 0 {
+			o.println(o.fit("  " + strings.Join(about, " · ")))
 		}
 		if a.Note != "" {
-			fmt.Fprintf(w, "  note: %s\n", a.Note)
+			o.println(o.fit("  note: " + a.Note))
 		}
 		for _, v := range a.Verify {
-			fmt.Fprintf(w, "  verify %s\n", v)
+			glyph, sev := look.GlyphDone, look.Accent
+			if strings.HasPrefix(v, "failed") {
+				glyph, sev = look.GlyphFail, look.Fail
+			}
+			o.println(o.fit("  " + look.Mark(sev, glyph, "verify "+v).Draw(o.painter())))
 		}
 	}
+	o.blank()
+	if run := h.Attempts[0].Run; run != "" {
+		o.next("igris report " + run)
+		return
+	}
+	o.next("igris report")
 }
 
 // printNote prints a note about the log (a newer igris wrote some of it)
 // ahead of the runs.
-func printNote(w io.Writer, note string) {
+func printNote(o textOut, note string) {
 	if note != "" {
-		fmt.Fprintf(w, "note: %s\n\n", note)
+		o.printf("note: %s", note)
+		o.blank()
 	}
-}
-
-// spaced is " s", or "" for an empty s.
-func spaced(s string) string {
-	if s == "" {
-		return ""
-	}
-	return " " + s
 }
 
 func verifyText(t report.TaskRun) string {
 	if t.VerifyFailed == 0 && t.VerifyPassed == 0 {
 		return ""
 	}
-	return fmt.Sprintf("verify %d failed, %d passed", t.VerifyFailed, t.VerifyPassed)
+	return fmt.Sprintf("%d failed · %d passed", t.VerifyFailed, t.VerifyPassed)
 }
 
 func dash(s string) string {
@@ -169,11 +222,4 @@ func fmtSeconds(s int) string {
 		return ""
 	}
 	return look.Duration(time.Duration(s) * time.Second)
-}
-
-// colorOn reports whether w gets colors: a terminal, NO_COLOR unset and
-// TERM not dumb (SPEC §14).
-func colorOn(w io.Writer) bool {
-	f, _ := w.(*os.File)
-	return look.ColorOn(look.Terminal(f), os.Getenv)
 }

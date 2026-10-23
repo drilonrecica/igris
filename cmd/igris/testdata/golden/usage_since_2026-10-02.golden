@@ -3,9 +3,11 @@ exit: 0
 igris usage · demo
 
 Run
-  20261002-100000-00ff · 2026-10-02T10:00:00Z · interrupted
+  20261002-100000-00ff · Oct 02 10:00 · interrupted
 
 No usage was recorded: the runs were made before igris 1.1, or with [usage] enabled = false.
 
 Quota: quota unavailable
+
+next: igris report
 --- stderr

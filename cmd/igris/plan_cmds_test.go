@@ -57,7 +57,7 @@ func TestCheck(t *testing.T) {
 	}
 
 	code, out, _ = runCmd("check", "--plan", invalidPlan)
-	if code != exitFail || !strings.Contains(out, "dependency cycle a → b → a") || !strings.Contains(out, "1 problem(s)") {
+	if code != exitFail || !strings.Contains(out, "dependency cycle a → b → a") || !strings.Contains(out, "1 problem;") {
 		t.Errorf("invalid plan: code %d, out: %s", code, out)
 	}
 }
@@ -118,7 +118,7 @@ func TestCheckWarnsAboutIgnoredDepsColumn(t *testing.T) {
 	}
 	want := `tasks.md:3: column "Depends" looks like dependencies`
 	code, out, _ := runCmd("check")
-	if code != exitOK || !strings.Contains(out, "warning: "+want) || !strings.Contains(out, "OK (1 phases, 2 tasks, 2 warnings)") {
+	if code != exitOK || !strings.Contains(out, "warning: "+want) || !strings.Contains(out, "OK (1 phase, 2 tasks, 2 warnings)") {
 		t.Errorf("code %d, out:\n%s", code, out)
 	}
 	code, out, _ = runCmd("check", "--json")
@@ -164,7 +164,7 @@ func TestPhases(t *testing.T) {
 	if !strings.Contains(par, "F3: critical path F3-07 → F3-08 → F3-09 → F3-11 → F3-12 → F3-G (6), width 4\n    together: F3-06, F3-07, F3-10, F3-13") {
 		t.Errorf("parallelism block = %q", par)
 	}
-	if f := strings.Fields(lines[3]); strings.Join(f, " ") != "F3 Ingest 2 6 1 4 1 14" {
+	if f := strings.Fields(lines[3]); strings.Join(f, " ") != "● F3 Ingest 2 6 1 4 1 14" {
 		t.Errorf("F3 row = %q", lines[3])
 	}
 
@@ -203,7 +203,7 @@ func TestStatusUntitledPhase(t *testing.T) {
 		t.Fatal(err)
 	}
 	code, out, _ := runCmd("status")
-	if code != exitOK || !strings.HasPrefix(out, "Overview: 0/1 finished, next (a)\n") {
+	if code != exitOK || !strings.Contains(out, "\nOverview · 0/1 · next a\n") {
 		t.Errorf("code %d, out:\n%s", code, out)
 	}
 }
@@ -214,7 +214,7 @@ func TestStatus(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("code = %d", code)
 	}
-	if !strings.Contains(out, "F3 — Ingest: 5/14 finished, next (F3-06)") {
+	if !strings.Contains(out, "F3 — Ingest · 5/14 · next F3-06") {
 		t.Errorf("header missing:\n%s", out)
 	}
 	if strings.Contains(out, "F2 — ") {
@@ -222,7 +222,7 @@ func TestStatus(t *testing.T) {
 	}
 
 	_, out, _ = runCmd("status", "Phase-4", "--plan", largePlan)
-	if !strings.Contains(out, "stuck") || !strings.Contains(out, "F3-G (blocked, phase F3)") {
+	if !strings.Contains(out, "stuck") || !strings.Contains(out, "F3-G (phase F3)") {
 		t.Errorf("stuck phase should name what it waits on:\n%s", out)
 	}
 
@@ -304,7 +304,7 @@ func TestCheckWarnsAboutVersions(t *testing.T) {
 	for _, want := range []string{
 		"warning: claude not found in PATH; igris arise needs Claude Code",
 		"warning: herdr 1.0.0 is a newer major version",
-		"OK (1 phases, 1 tasks, 2 warnings)",
+		"OK (1 phase, 1 task, 2 warnings)",
 	} {
 		if code != exitOK || !strings.Contains(out, want) {
 			t.Errorf("code %d, output missing %q:\n%s", code, want, out)
@@ -362,7 +362,7 @@ func TestCheckWarnsAboutAPIKey(t *testing.T) {
 		return ""
 	}
 	code, out, _ := runCmd("check")
-	if code != exitOK || !strings.Contains(out, "warning: ANTHROPIC_API_KEY is set") || !strings.Contains(out, "1 warnings") || strings.Contains(out, "sk-secret") {
+	if code != exitOK || !strings.Contains(out, "warning: ANTHROPIC_API_KEY is set") || !strings.Contains(out, "1 warning)") || strings.Contains(out, "sk-secret") {
 		t.Errorf("code %d, out:\n%s", code, out)
 	}
 	code, out, _ = runCmd("check", "--json")
@@ -450,7 +450,7 @@ func TestStatusNoRun(t *testing.T) {
 	dir := inDir(t)
 	writeRunState(t, dir, "signals/.keep", "")
 	_, out, _ := runCmd("status", "--plan", largePlan)
-	if strings.Contains(out, "Run\n") {
+	if strings.Contains(out, "\nRun ") {
 		t.Errorf("no run, but a Run block:\n%s", out)
 	}
 	_, out, _ = runCmd("status", "--json", "--plan", largePlan)
@@ -467,12 +467,12 @@ func TestStatusCurrentRun(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("code = %d", code)
 	}
-	for _, want := range []string{"Run\n", "F1, F2", "F1-13", "auto", "2026-10-07T09:31:00Z", "herdr t1 p2", "Lock     none", "F1-13 done"} {
+	for _, want := range []string{"\nRun      ▲ Interrupted · F1-13 Task F1-13\n", "\nPhases   F1, F2\n", "\nStarted  Oct 07 09:30\n", "\nSession  herdr t1 p2\n", "\nSignals  F1-13 done\n", "\nnext: igris arise\n"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q:\n%s", want, out)
 		}
 	}
-	if strings.Index(out, "Run\n") > strings.Index(out, "F1 — ") {
+	if strings.Index(out, "\nRun ") > strings.Index(out, "F1 — ") {
 		t.Errorf("Run block should come above the phase table:\n%s", out)
 	}
 
@@ -498,7 +498,7 @@ func TestStatusSlicedRun(t *testing.T) {
 	dir := inDir(t)
 	writeRunState(t, dir, "state.json", `{"version":2,"started_at":"2026-10-07T09:30:00Z","phases":["F1"],"selection":{"only":["F1-13","F1-14"]},"config_hash":"h"}`)
 	_, out, _ := runCmd("status", "--plan", largePlan)
-	if !strings.Contains(out, "  Slice    only F1-13, F1-14\n") {
+	if !strings.Contains(out, "\nSlice    only F1-13, F1-14\n") {
 		t.Errorf("no Slice row:\n%s", out)
 	}
 	_, out, _ = runCmd("status", "--json", "--plan", largePlan)
@@ -565,7 +565,7 @@ func TestCheckVerifyProfiles(t *testing.T) {
 	for _, w := range []string{
 		"warning: tasks.md:6: M1-02: user tasks have no session, so its Verify is ignored; clear the cell",
 		"warning: igris.toml: [phases.M9] names no phase of tasks.md; fix the phase ID or remove the table",
-		"OK (1 phases, 2 tasks, 2 warnings)",
+		"OK (1 phase, 2 tasks, 2 warnings)",
 	} {
 		if code != exitOK || !strings.Contains(out, w) {
 			t.Errorf("code %d, output lacks %q:\n%s", code, w, out)
@@ -603,7 +603,7 @@ func TestStatusOptionalColumns(t *testing.T) {
 	write("## M1\n\n| ID | Status | Model | Verify | Timeout | Context |\n|---|---|---|---|---|---|\n| a | ready | sonnet | fast | | |\n" +
 		"\n## M2\n\n| ID | Status | Model | Context |\n|---|---|---|---|\n| b | ready | sonnet | `x.go`, y/ |\n")
 	code, out, _ := runCmd("status", "m1")
-	if code != exitOK || !strings.Contains(out, "  ID  STATUS  RANK    OWNER  MODE  VERIFY  CONTEXT  WAITS ON\n  a   ready   sonnet  agent  —     fast    —") || strings.Contains(out, "TIMEOUT") {
+	if code != exitOK || !strings.Contains(out, "  ID   STATUS  RANK    OWNER  MODE  VERIFY  CONTEXT  WAITS ON\n  · a  ready   sonnet  agent  —     fast    —\n") || strings.Contains(out, "TIMEOUT") {
 		t.Errorf("code %d:\n%s", code, out)
 	}
 	_, out, _ = runCmd("status", "--json")

@@ -1,0 +1,5 @@
+exit: 0
+--- stdout
+skip signal recorded for M0-01; the owner confirms it in igris; no igris run is active in this project, the next `igris arise` applies it
+next: igris arise
+--- stderr

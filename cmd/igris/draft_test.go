@@ -242,7 +242,7 @@ func TestDraftCommandAcceptWithOpenRanks(t *testing.T) {
 		t.Errorf("review = %+v", shown)
 	}
 	plan := filepath.Join(root, "tasks.md")
-	if !strings.Contains(out.String(), "still has 1 problem(s)") || !strings.Contains(out.String(), plan+":9: M0-02: model not set yet") {
+	if !strings.Contains(out.String(), "still has 1 problem") || !strings.Contains(out.String(), plan+":9: M0-02: model not set yet") {
 		t.Errorf("stdout = %s, want the problems against the plan", out.String())
 	}
 	if got := run([]string{"check"}, &out, &errb); got != exitFail {
@@ -594,7 +594,7 @@ func TestDraftCommandExtend(t *testing.T) {
 		t.Errorf("prompts = %q", p)
 	}
 	backup := filepath.Join(root, ".igris", "draft", "tasks.20261021-120000.bak.md")
-	for _, want := range []string{"accepted: 1 task(s) added to " + plan + "; the files it changed are backed up to " + backup, "the new ranks are suggestions (1 set, 0 left at ?)"} {
+	for _, want := range []string{"accepted: 1 task added to " + plan + "; the files it changed are backed up to " + backup, "the new ranks are suggestions (1 set, 0 left at ?)"} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("stdout missing %q:\n%s", want, out.String())
 		}

@@ -144,7 +144,7 @@ func TestDoneDraftNeedsNoPlan(t *testing.T) {
 	if got := run([]string{"done", "DRAFT", "--note", "drafted"}, &out, &errb); got != exitOK {
 		t.Fatalf("done DRAFT exit = %d, stderr: %s", got, errb.String())
 	}
-	if out.String() != "igris: done signal recorded for DRAFT\n" {
+	if out.String() != "done signal recorded for DRAFT\n" {
 		t.Errorf("stdout = %q", out.String())
 	}
 	d, err := state.Open(root, state.Options{})
@@ -175,7 +175,7 @@ func TestDoneDuringARun(t *testing.T) {
 	if got := run([]string{"done", "M0-01"}, &out, &errb); got != exitOK {
 		t.Fatalf("exit = %d, stderr: %s", got, errb.String())
 	}
-	if out.String() != "igris: done signal recorded for M0-01\n" {
+	if out.String() != "done signal recorded for M0-01\nnext: igris status\n" {
 		t.Errorf("stdout = %q", out.String())
 	}
 }

@@ -3,34 +3,35 @@ exit: 0
 igris usage · demo
 
 Run
-  20261001-090000-3fa2 · 2026-10-01T09:00:00Z · stopped
+  20261001-090000-3fa2 · Oct 01 09:00 · stopped
 
 Totals · 2 attempts · in 152k · out 3k
   input 15 · cache read 140k · cache write 12k · output 3k · 18 responses
   note: 1 attempt without readable usage left out (audit: unavailable)
 
 By task
-  Task   Attempts  In    Out  Subagents  Models                              Audit
-  M1-03  2         152k  3k   —          claude-sonnet-5-5, claude-opus-5-5  mismatch
+  TASK   ATTEMPTS  IN    OUT  SUBAGENTS  MODELS                              AUDIT
+  M1-03  2         152k  3k   —          claude-sonnet-5-5, claude-opus-5-5  ▲ rank
   M2-01  0         —     —    —          —                                   unavailable
 
 By model
-  Model              Attempts  In    Out  Subagents
+  MODEL              ATTEMPTS  IN    OUT  SUBAGENTS
   claude-sonnet-5-5  2         152k  3k   —
   claude-opus-5-5    1         98k   2k   —
   an attempt that ran on several models is counted under each, so rows can add up to more than the totals
 
 By rank
-  Rank    Attempts  In    Out  Subagents
+  RANK    ATTEMPTS  IN    OUT  SUBAGENTS
   sonnet  2         152k  3k   —
 
 Top 5 by in + out
   1. M1-03 · 155k
 
 Rank audit · 1 ok · 0 unchecked · 1 unavailable · 1 mismatch
-  ⚠ 20261001-090000-3fa2 M1-03 ran on claude-sonnet-5-5, claude-opus-5-5, not its rank sonnet
+  ▲ rank mismatch: 20261001-090000-3fa2 M1-03 ran on claude-sonnet-5-5, claude-opus-5-5, not its rank sonnet
 
 Quota: quota unavailable
 
 Tokens recorded in the session transcripts, not a bill.
+next: igris report
 --- stderr

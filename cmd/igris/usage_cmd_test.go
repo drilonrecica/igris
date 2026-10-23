@@ -102,7 +102,7 @@ func TestUsageQuotaLine(t *testing.T) {
 	if code := run([]string{"usage"}, &out, &errb); code != exitOK {
 		t.Fatalf("code %d, err %q", code, errb.String())
 	}
-	want := "Quota: 5h 4% (resets 2026-10-20 15:00) · 7d 52% (resets 2026-10-25 09:30) · recorded 2026-10-20 12:00\n"
+	want := "Quota: 5h 4% (resets Oct 20 15:00) · 7d 52% (resets Oct 25 09:30) · recorded Oct 20 12:00\n"
 	if !strings.Contains(out.String(), want) {
 		t.Errorf("out %q lacks %q", out.String(), want)
 	}

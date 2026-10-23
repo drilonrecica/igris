@@ -66,12 +66,12 @@ func TestDryRunParallelPhase(t *testing.T) {
 	}
 	got := out.String()
 	want := []string{
-		"  1. A-1        sonnet  → model sonnet  mode auto         verify default One",
-		"     A-3        opus    → model opus    mode auto         verify default Three",
-		"  2. A-2        sonnet  → model sonnet  mode auto         verify default Two",
-		"  3. A-4        user task: waits for you  Four",
-		"     phase A complete",
-		"dry run: 3 session(s), 1 user task(s)",
+		"  1  · A-1  sonnet  sonnet     auto  default  One",
+		"  1  · A-3  opus    opus       auto  default  Three",
+		"  2  · A-2  sonnet  sonnet     auto  default  Two",
+		"  3  ! A-4  —       user task  —     —        Four (waits for you)",
+		"  ✓ phase A complete",
+		"dry run: 3 sessions, 1 user task",
 	}
 	last := -1
 	for _, w := range want {
@@ -87,7 +87,7 @@ func TestDryRunParallelPhase(t *testing.T) {
 	if code := run([]string{"arise", "A", "--dry-run", "--parallel", "1"}, &out, &errb); code != exitOK {
 		t.Fatalf("exit %d, stderr: %s", code, errb.String())
 	}
-	if got := out.String(); !strings.Contains(got, "  1. A-1 ") || !strings.Contains(got, "  2. A-2 ") || !strings.Contains(got, "  3. A-3 ") || !strings.Contains(got, "  4. A-4 ") {
+	if got := out.String(); !strings.Contains(got, "  1  · A-1 ") || !strings.Contains(got, "  2  · A-2 ") || !strings.Contains(got, "  3  · A-3 ") || !strings.Contains(got, "  4  ! A-4 ") {
 		t.Errorf("--parallel 1 output:\n%s", got)
 	}
 }

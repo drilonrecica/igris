@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime/debug"
 
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/project"
 	"github.com/drilonrecica/igris/internal/textsafe"
 	upd "github.com/drilonrecica/igris/internal/update" // "update" is the tests' -update flag
@@ -65,15 +66,18 @@ func execUpdate(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 		return fail("%v", err)
 	}
 	current := textsafe.Line(c.Current)
+	o := newOut(stdout)
 	switch c.Status {
 	case upd.Dev:
 		fmt.Fprintf(stdout, "igris %s is a development build, which igris doesn't update; the latest release is %s\n%s\n", current, c.Latest, c.URL())
+		o.next("igris doctor")
 		return exitOK
 	case upd.UpToDate:
-		fmt.Fprintf(stdout, "igris %s is up to date (the latest release is %s)\n", current, c.Latest)
+		fmt.Fprintf(stdout, "%s igris %s is up to date (the latest release is %s)\n", o.paint(look.Accent, look.GlyphDone), current, c.Latest)
 		if fs.Lookup("check").Value.String() == "true" {
 			fmt.Fprintf(stdout, "installed with %s\n", upd.Detect(env.Build))
 		}
+		o.next("igris doctor")
 		return exitOK
 	}
 	in := c.Install
@@ -84,10 +88,12 @@ func execUpdate(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stdout, "  %s\n", s)
 		}
 		fmt.Fprintln(stdout, `The ssh-keygen line must print Good "file" signature for igris.`)
+		o.next("igris version")
 		return exitOK
 	}
 	fmt.Fprintf(stdout, "update runs: %s\n", in.Command())
 	if fs.Lookup("check").Value.String() == "true" {
+		o.next("igris update")
 		return exitOK
 	}
 	if fs.Lookup("yes").Value.String() != "true" {
@@ -102,6 +108,7 @@ func execUpdate(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 			return fail("no answer; nothing changed (pass --yes to update without asking)")
 		case answer != "y" && answer != "yes":
 			fmt.Fprintln(stdout, "nothing changed")
+			o.next("igris update")
 			return exitOK
 		}
 	}
@@ -121,6 +128,7 @@ func execUpdate(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 		return fail("%v", res.Err)
 	}
 	fmt.Fprintln(stdout, textsafe.Line(res.Message))
-	fmt.Fprintln(stdout, "Runs going on keep going; their sessions now run the new igris for igris done.")
+	fmt.Fprintln(stdout, "Runs going on keep going; their sessions now run the new igris for `igris done`.")
+	o.next("igris doctor")
 	return exitOK
 }

@@ -1,0 +1,17 @@
+exit: 0
+--- stdout
+igris · 001 · tasks.md
+
+Run      ! Needs you · M1-02 · commit?
+Phases   M1
+Started  09:30
+Session  tmux %3
+
+M1 — Basics · 1/3 · next M1-02
+  ID       STATUS       RANK    OWNER  MODE  WAITS ON
+  ✓ M1-01  done         sonnet  agent  —
+  ! M1-02  in progress  opus    agent  —
+  · M1-03  ready        —       user   —
+
+next: igris attach
+--- stderr

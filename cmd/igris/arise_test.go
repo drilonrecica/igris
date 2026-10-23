@@ -90,7 +90,7 @@ func TestFormatEvent(t *testing.T) {
 		{engine.Event{Kind: engine.Asked, Question: engine.QuestionSessionLost, Detail: "gone"}, "? gone\n  type `retry continue`, `retry fresh`, `done [note]`, `skip <reason>` or `stop`"},
 		{engine.Event{Kind: engine.TaskDone, Task: "A-1"}, "A-1 done"},
 		{engine.Event{Kind: engine.TaskSkipped, Task: "A-1", Detail: "why"}, "A-1 skipped · why"},
-		{engine.Event{Kind: engine.TaskOverdue, Task: "A-1", Detail: "running longer than its Timeout 45m"}, "A-1 OVERDUE: running longer than its Timeout 45m; its session keeps running"},
+		{engine.Event{Kind: engine.TaskOverdue, Task: "A-1", Detail: "running longer than its Timeout 45m"}, "▲ A-1 overdue: running longer than its Timeout 45m; its session keeps running"},
 		{engine.Event{Kind: engine.TaskReset, Task: "A-1", Detail: "A-1: in progress → ready"}, "reset A-1: in progress → ready"},
 		{engine.Event{Kind: engine.Warning, Detail: "hm"}, "warning: hm"},
 		{engine.Event{Kind: engine.Asked, Question: engine.QuestionConfirmReset, Task: "A-1", Detail: "reset A-1 (done) to ready/blocked?"}, "? reset A-1 (done) to ready/blocked?\n  type `reset yes A-1` or `reset no A-1`"},
@@ -178,9 +178,9 @@ func TestDryRunPlanModes(t *testing.T) {
 		t.Fatalf("exit %d, stderr: %s", code, errb.String())
 	}
 	for _, w := range []string{
-		"  1. A-1        sonnet  → model sonnet  mode plan → accept verify default One",
-		"  2. A-2        sonnet  → model sonnet  mode plan:default verify default Two",
-		"  3. A-3        sonnet  → model sonnet  mode plan:yolo    verify default Three [SKIP PERMISSIONS]",
+		"  1  · A-1  sonnet  sonnet  plan → accept  default  One",
+		"  2  · A-2  sonnet  sonnet  plan:default   default  Two",
+		"  3  · A-3  sonnet  sonnet  plan:yolo      default  Three [SKIP PERMISSIONS]",
 	} {
 		if !strings.Contains(out.String(), w) {
 			t.Errorf("output lacks %q:\n%s", w, out.String())
@@ -207,14 +207,14 @@ func TestDryRun(t *testing.T) {
 		"warning: igris.toml: notify.webhook.url uses http://",
 		"warning: drift: A-3: ready → blocked",
 		"dry run of phase A through B",
-		"  1. A-0        opus    → model opus    mode auto         verify default Half done  (resumed: fresh session)",
-		"  2. A-1        sonnet  → model sonnet  mode plan → auto  verify default One",
-		"  3. A-2        user task: waits for you  Buy a domain",
-		"  4. A-3        fable   → model fable   mode yolo         verify default Gate [SKIP PERMISSIONS]",
-		"     phase A complete",
-		"  5. B-1        sonnet  → model sonnet  mode auto         verify default Later",
-		"     phase B complete",
-		"dry run: 4 session(s), 1 user task(s)",
+		"  1  · A-0  opus    opus       auto         default  Half done (resumed: fresh session)",
+		"  2  · A-1  sonnet  sonnet     plan → auto  default  One",
+		"  3  ! A-2  —       user task  —            —        Buy a domain (waits for you)",
+		"  4  · A-3  fable   fable      yolo         default  Gate [SKIP PERMISSIONS]",
+		"  ✓ phase A complete",
+		"  5  · B-1  sonnet  sonnet     auto         default  Later",
+		"  ✓ phase B complete",
+		"dry run: 4 sessions, 1 user task",
 	}
 	last := -1
 	for _, w := range want {
@@ -361,7 +361,7 @@ func TestDryRunResumesTheLastRunsPhases(t *testing.T) {
 	if code := run([]string{"arise", "--dry-run"}, &out, &errb); code != exitOK {
 		t.Fatalf("exit %d, stderr: %s", code, errb.String())
 	}
-	for _, w := range []string{"note: the last run stopped during B-1", "dry run of phase B:", "phase B is STUCK"} {
+	for _, w := range []string{"note: the last run stopped during B-1", "dry run of phase B:", "phase B is stuck"} {
 		if !strings.Contains(out.String(), w) {
 			t.Errorf("output lacks %q:\n%s", w, out.String())
 		}
@@ -578,7 +578,7 @@ func TestAriseNoTUI(t *testing.T) {
 		replies: [][2]string{
 			{"A-1 session open", "bogus"},
 			{"? commit the changes of A-1", "y"},
-			{"A-2 YOUR TURN", "done bought it"},
+			{"A-2 your turn", "done bought it"},
 		},
 	}.run(t)
 	if code != exitOK {
@@ -586,12 +586,12 @@ func TestAriseNoTUI(t *testing.T) {
 	}
 	for _, w := range []string{
 		"warning: the working tree has uncommitted changes",
-		"run started: phase A",
+		" Arise. phase A · 2 tasks · mode auto\n",
 		"A-1 started (sonnet → sonnet, mode auto) · One",
 		`unknown command "bogus"; type help`,
 		"A-1 committed: A-1: One",
 		"A-1 done · did A-1",
-		"A-2 YOUR TURN: **Buy a domain**",
+		"! A-2 your turn: **Buy a domain**",
 		"  do it outside igris (no session), then type `done [note]` or `skip <reason>`",
 		"A-2 done · bought it",
 		"phase A complete",
@@ -623,7 +623,7 @@ func TestAriseStartUpConfirmations(t *testing.T) {
 	}{
 		{
 			name:       "api key confirmed",
-			r:          noTUIRun{apiKey: "sk-x", replies: [][2]string{{"Start the run anyway?", "y"}, {"A-2 YOUR TURN", "done"}}},
+			r:          noTUIRun{apiKey: "sk-x", replies: [][2]string{{"Start the run anyway?", "y"}, {"A-2 your turn", "done"}}},
 			wantCode:   exitOK,
 			wantOut:    []string{"warning: ANTHROPIC_API_KEY is set"},
 			wantStatus: "A-1=done A-2=done",
@@ -637,7 +637,7 @@ func TestAriseStartUpConfirmations(t *testing.T) {
 		},
 		{
 			name:       "config changed during the last run, confirmed",
-			r:          noTUIRun{before: staleConfigRun, replies: [][2]string{{"Use the changed igris.toml?", "y"}, {"A-2 YOUR TURN", "done"}}},
+			r:          noTUIRun{before: staleConfigRun, replies: [][2]string{{"Use the changed igris.toml?", "y"}, {"A-2 your turn", "done"}}},
 			wantCode:   exitOK,
 			wantOut:    []string{"warning: igris.toml changed during the last run", "a session may have edited it"},
 			wantStatus: "A-1=done A-2=done",
@@ -681,7 +681,7 @@ func TestAriseStartUpConfirmations(t *testing.T) {
 			r: noTUIRun{
 				gitFn:   func(runner.Cmd) (runner.Result, error) { return runner.Result{ExitCode: 128}, nil },
 				toml:    "[run]\ncommit = \"never\"\n",
-				replies: [][2]string{{"A-2 YOUR TURN", "done"}},
+				replies: [][2]string{{"A-2 your turn", "done"}},
 			},
 			wantCode:   exitOK,
 			wantOut:    []string{"warning: this is not a git repository"},
@@ -868,7 +868,7 @@ func TestAriseExitCodes(t *testing.T) {
 			"| A-1 | **Waits** | B-1 | blocked | sonnet | agent |\n\n## B\n\n| ID | Task | Deps | Status | Model | Owner |\n|---|---|---|---|---|---|\n" +
 			"| B-1 | **Later** | — | ready | sonnet | agent |\n"})
 		var out, errb bytes.Buffer
-		if code := run([]string{"arise", "A", "--dry-run"}, &out, &errb); code != exitOK || !strings.Contains(out.String(), "STUCK") {
+		if code := run([]string{"arise", "A", "--dry-run"}, &out, &errb); code != exitOK || !strings.Contains(out.String(), "▲ phase A is stuck") {
 			t.Errorf("exit %d, want 0; output:\n%s%s", code, out.String(), errb.String())
 		}
 	})
@@ -970,7 +970,7 @@ func TestAriseNoTUITaskModeOnUserTask(t *testing.T) {
 	code, got, _ := noTUIRun{
 		args: []string{"A", "--no-tui"},
 		replies: [][2]string{
-			{"A-2 YOUR TURN", "mode A-2 plan"},
+			{"A-2 your turn", "mode A-2 plan"},
 			{"A-2 is a user task; it has no session", "done"},
 		},
 	}.run(t)
@@ -997,8 +997,8 @@ func TestDryRunShowsVerifyNone(t *testing.T) {
 		t.Fatalf("exit %d, stderr: %s", code, errb.String())
 	}
 	for _, w := range []string{
-		"  1. A-1        sonnet  → model sonnet  mode auto         verify none    One",
-		"  2. A-2        sonnet  → model sonnet  mode auto         verify —       Two",
+		"  1  · A-1  sonnet  sonnet  auto  none    One",
+		"  2  · A-2  sonnet  sonnet  auto  —       Two",
 	} {
 		if !strings.Contains(out.String(), w) {
 			t.Errorf("output lacks %q:\n%s", w, out.String())
@@ -1018,9 +1018,9 @@ func TestDryRunShowsVerifyProfiles(t *testing.T) {
 		t.Fatalf("exit %d, stderr: %s", code, errb.String())
 	}
 	for _, w := range []string{
-		"  1. A-1        sonnet  → model sonnet  mode auto         verify fast    One",
-		"  2. A-2        opus    → model opus    mode auto         verify none    Two",
-		"  3. A-3        sonnet  → model sonnet  mode auto         verify slow    Three",
+		"  1  · A-1  sonnet  sonnet  auto  fast    One",
+		"  2  · A-2  opus    opus    auto  none    Two",
+		"  3  · A-3  sonnet  sonnet  auto  slow    Three",
 	} {
 		if !strings.Contains(out.String(), w) {
 			t.Errorf("output lacks %q:\n%s", w, out.String())

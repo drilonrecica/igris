@@ -16,4 +16,5 @@ warning: tasks.md:224: F11-01 is ready but waits on F10-G; igris will set it to 
 warning: tasks.md:243: Phase-12-01 is ready but waits on F11-G; igris will set it to blocked
 note: no igris.toml here; using the defaults (`igris init` creates one)
 tasks.md: OK (12 phases, 168 tasks, 14 warnings)
+next: igris status
 --- stderr

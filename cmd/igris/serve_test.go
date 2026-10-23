@@ -66,7 +66,7 @@ func TestServe(t *testing.T) {
 	}
 	for _, w := range []string{
 		"serving the run on " + state.SocketPath(root),
-		"run started: phase A",
+		"Arise. phase A",
 		"A-1 done · did A-1",
 		"run stopped: completed",
 	} {
@@ -91,7 +91,7 @@ func TestFormatServed(t *testing.T) {
 		{engine.Event{Kind: engine.Asked, Question: engine.QuestionSessionLost, Detail: "gone"}, "? gone\n  answer in `igris attach`"},
 		{engine.Event{Kind: engine.Asked, Question: engine.QuestionHookFailed, Detail: "failed"}, "? failed\n  answer in `igris attach`"},
 		{engine.Event{Kind: engine.Asked, Question: engine.QuestionConfirmReset, Task: "A-1", Detail: "reset A-1 (done) to ready/blocked?"}, "? reset A-1 (done) to ready/blocked?\n  answer in `igris attach`"},
-		{engine.Event{Kind: engine.YourTurn, Task: "A-2", Detail: "Buy"}, "A-2 YOUR TURN: Buy\n  do it outside igris (no session), then run `igris done A-2` anywhere in the project (or answer in `igris attach`)"},
+		{engine.Event{Kind: engine.YourTurn, Task: "A-2", Detail: "Buy"}, "! A-2 your turn: Buy\n  do it outside igris (no session), then run `igris done A-2` anywhere in the project (or answer in `igris attach`)"},
 		{engine.Event{Kind: engine.PauseOn}, "pause after task: on"},
 		{engine.Event{Kind: engine.Paused, Task: "A-2"}, "paused before A-2; Pause in `igris attach` continues"},
 		// Everything else is --no-tui's line.

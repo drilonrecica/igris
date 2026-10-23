@@ -4,7 +4,7 @@ exit: 0
 
 note: runs.jsonl has lines from a newer igris (v2); some details may be missing
 
-Run 20261002-100000-00ff · 2026-10-02T10:00:00Z → — · interrupted
+Run 20261002-100000-00ff · Oct 02 10:00 → — · interrupted
 Phase A
 0 done · 0 skipped · 1 unfinished · 0 commits · needs you 0s
 

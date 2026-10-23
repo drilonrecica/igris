@@ -31,7 +31,7 @@ func TestCheckStrictLintFixtures(t *testing.T) {
 			path := lintFixture(c.file)
 			code, out, _ := runCmd("check", "--strict", "--plan", path)
 			warning := fmt.Sprintf("warning: %s:%s: %s\n", path, c.line, c.msg)
-			summary := fmt.Sprintf("%s: 1 warning(s) under --strict; fix them and run igris check --strict again\n", path)
+			summary := fmt.Sprintf("%s: 1 warning under --strict; fix them and run `igris check --strict` again\nnext: igris check --strict\n", path)
 			if code != exitFail || strings.Count(out, "warning: ") != 1 || !strings.Contains(out, warning) || !strings.HasSuffix(out, summary) {
 				t.Errorf("--strict: code %d, out:\n%s\nwant:\n%s%s", code, out, warning, summary)
 			}
@@ -61,7 +61,7 @@ func TestCheckStrictWarningKinds(t *testing.T) {
 	withVersions(t, "", "herdr 1.0.0\n")
 	clean := lintFixture("clean.md")
 	code, out, _ := runCmd("check", "--strict", "--plan", clean)
-	if code != exitOK || !strings.Contains(out, "warning: claude not found") || !strings.Contains(out, "ANTHROPIC_API_KEY") || !strings.Contains(out, "OK (1 phases, 5 tasks, 3 warnings)") {
+	if code != exitOK || !strings.Contains(out, "warning: claude not found") || !strings.Contains(out, "ANTHROPIC_API_KEY") || !strings.Contains(out, "OK (1 phase, 5 tasks, 3 warnings)") {
 		t.Errorf("machine warnings: code %d, out:\n%s", code, out)
 	}
 
@@ -69,7 +69,7 @@ func TestCheckStrictWarningKinds(t *testing.T) {
 	ariseGetenv = func(string) string { return "" }
 	withVersions(t, "2.1.292 (Claude Code)\n", "herdr 0.9.1\n")
 	code, out, _ = runCmd("check", "--strict", "--plan", largePlan)
-	if code != exitFail || !strings.Contains(out, "warning(s) under --strict; fix them and run igris check --strict again") {
+	if code != exitFail || !strings.Contains(out, "warnings under --strict; fix them and run `igris check --strict` again") {
 		t.Errorf("drift: code %d, out:\n%s", code, out)
 	}
 	// A deprecated or ignored config setting is one too.
@@ -78,7 +78,7 @@ func TestCheckStrictWarningKinds(t *testing.T) {
 		t.Fatal(err)
 	}
 	code, out, _ = runCmd("check", "--strict", "--plan", clean)
-	if code != exitFail || !strings.Contains(out, "[phases.Z9] names no phase") || !strings.Contains(out, ": 1 warning(s) under --strict") {
+	if code != exitFail || !strings.Contains(out, "[phases.Z9] names no phase") || !strings.Contains(out, ": 1 warning under --strict") {
 		t.Errorf("config warning: code %d, out:\n%s", code, out)
 	}
 }

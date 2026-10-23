@@ -1,0 +1,5 @@
+exit: 1
+--- stdout
+EVENT       CHANNEL  RESULT
+phase_done  ntfy     ✗ FAILED: ntfy: server answered 500 Internal Server Error
+--- stderr

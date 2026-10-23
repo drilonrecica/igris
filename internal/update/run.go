@@ -86,9 +86,9 @@ func tail(out string) []string {
 func Updated(latest, inPath, pathVersion string) string {
 	switch {
 	case inPath == "":
-		return "Updated to " + latest + ", but igris is not in PATH: put it in PATH so sessions can run igris done."
+		return "Updated to " + latest + ", but igris is not in PATH: put it in PATH so sessions can run `igris done`."
 	case pathVersion == "":
-		return "Updated to " + latest + ", but " + inPath + " didn't print its version: run igris version."
+		return "Updated to " + latest + ", but " + inPath + " didn't print its version: run `igris version`."
 	case Compare(pathVersion, latest) != 0:
 		return "Updated to " + latest + ", but igris in PATH (" + inPath + ") is " + pathVersion + ": put the updated igris first in PATH."
 	}

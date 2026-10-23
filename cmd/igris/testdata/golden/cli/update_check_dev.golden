@@ -1,0 +1,6 @@
+exit: 0
+--- stdout
+igris dev is a development build, which igris doesn't update; the latest release is 1.2.0
+https://github.com/drilonrecica/igris/releases/tag/v1.2.0
+next: igris doctor
+--- stderr

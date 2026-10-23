@@ -85,7 +85,7 @@ func TestAriseNoTUINotRun(t *testing.T) {
 		t.Fatalf("exit %d; output:\n%s", code, got)
 	}
 	for _, w := range []string{
-		"run started: phase A; only A-2",
+		"Arise. phase A · only A-2 · 1 task",
 		"phase A started",
 		"not run: A-2 waits on A-1 (ready, phase A)",
 		"run stopped: completed",
@@ -120,10 +120,10 @@ func TestDryRunWalksTheSlice(t *testing.T) {
 	got := out.String()
 	want := []string{
 		"dry run of phase A through B; only A-0, A-1, B-1: nothing is written and no session starts",
-		"  1. A-0        opus    → model opus    mode auto         Half done  (resumed: fresh session)",
-		"  2. A-1        sonnet  → model sonnet  mode plan → auto  One",
-		"     not run: B-1 waits on A-3 (blocked, phase A)",
-		"dry run: 2 session(s), 0 user task(s)",
+		"  1  · A-0  opus    opus    auto         Half done (resumed: fresh session)",
+		"  2  · A-1  sonnet  sonnet  plan → auto  One",
+		"  not run: B-1 waits on A-3 (blocked, phase A)",
+		"dry run: 2 sessions, 0 user tasks",
 	}
 	last := -1
 	for _, w := range want {

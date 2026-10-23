@@ -167,7 +167,7 @@ func TestAdaptCommandAcceptWithOpenModels(t *testing.T) {
 		t.Errorf("review issues = %v", shown.Issues)
 	}
 	plan := filepath.Join(root, "tasks.md")
-	if !strings.Contains(out.String(), "still has 1 problem(s)") || !strings.Contains(out.String(), plan+":5: W-1: model not set yet") {
+	if !strings.Contains(out.String(), "still has 1 problem;") || !strings.Contains(out.String(), plan+":5: W-1: model not set yet") {
 		t.Errorf("stdout = %s, want the problems against the plan", out.String())
 	}
 	if got := run([]string{"check"}, &out, &errb); got != exitFail {

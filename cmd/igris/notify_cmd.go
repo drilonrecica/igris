@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/notify"
 	"github.com/drilonrecica/igris/internal/project"
 )
@@ -40,12 +41,14 @@ func execNotify(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return fail("%v", err)
 	}
+	o := newOut(stdout)
 	if skipped != nil {
-		fmt.Fprintf(stdout, "backend: skipped (%v)\n", skipped)
+		o.println(o.mark(look.Plain, look.GlyphSkipped, fmt.Sprintf("backend toast skipped (%v)", skipped)))
 	}
-	if !sendTestMessages(ctx, router, proj.Name(), only, stdout) {
+	if !sendTestMessages(ctx, router, proj.Name(), only, o) {
 		return exitFail
 	}
+	o.next("igris arise")
 	return exitOK
 }
 
@@ -61,26 +64,27 @@ func isEvent(e notify.Event) bool {
 // sendTestMessages sends one sample message per event that some channel
 // wants (or just only) and prints how each delivery went. It reports whether
 // something was sent and nothing failed.
-func sendTestMessages(ctx context.Context, r *notify.Router, name string, only notify.Event, out io.Writer) bool {
-	ok, sent := true, 0
+func sendTestMessages(ctx context.Context, r *notify.Router, name string, only notify.Event, o textOut) bool {
+	ok := true
+	tb := &look.Table{Header: []string{"EVENT", "CHANNEL", "RESULT"}}
 	for _, m := range project.TestMessages(r, name, only) {
 		for _, res := range r.Notify(ctx, m) {
-			sent++
+			result := look.Cell{Text: look.GlyphDone + " ok", Sev: look.Accent}
 			if res.Err != nil {
 				ok = false
-				fmt.Fprintf(out, "%-20s %-8s FAILED: %v\n", m.Event, res.Channel, res.Err)
-				continue
+				result = look.Cell{Text: fmt.Sprintf("%s FAILED: %v", look.GlyphFail, res.Err), Sev: look.Fail, Span: len(look.GlyphFail + " FAILED")}
 			}
-			fmt.Fprintf(out, "%-20s %-8s ok\n", m.Event, res.Channel)
+			tb.Row(look.TextCell(string(m.Event)), look.TextCell(res.Channel), result)
 		}
 	}
-	if sent == 0 {
+	if tb.Len() == 0 {
 		if only != "" && r.HasChannels() {
-			fmt.Fprintln(out, project.NoChannelSends(only))
+			o.println(project.NoChannelSends(only))
 		} else {
-			fmt.Fprintln(out, project.NoChannels)
+			o.println(project.NoChannels)
 		}
 		return false
 	}
+	o.table(tb)
 	return ok
 }
