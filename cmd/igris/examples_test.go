@@ -90,7 +90,9 @@ func TestDemoPlan(t *testing.T) {
 	if got := p.Readiness(); len(got) != 0 {
 		t.Errorf("docs/demo/tasks.md has Status cells out of sync with Deps: %v", got)
 	}
-	if p.Phase("D1") == nil {
+	if ph := p.Phase("D1"); ph == nil {
 		t.Error("docs/demo/tasks.md has no phase D1 (demo.tape runs it)")
+	} else if !ph.Parallel {
+		t.Error("docs/demo/tasks.md: phase D1 isn't parallel (demo.tape records two active tasks)")
 	}
 }

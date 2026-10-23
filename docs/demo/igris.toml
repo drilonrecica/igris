@@ -5,8 +5,10 @@ plan = "tasks.md"
 needs_input_after = "20s"
 
 [run]
-verify = "sh hello.sh"
-commit = "auto"                   # no commit dialog in the recording
+# Each task works in its own worktree and writes one script: run whatever
+# scripts are there (none written fails too).
+verify = 'for f in *.sh; do sh "$f" || exit 1; done'
+commit = "ask"                    # the question answered on camera
 
 [tui]
 theme = "dark"                    # same colors in every recording
