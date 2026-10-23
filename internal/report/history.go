@@ -23,6 +23,19 @@ const (
 	ResultRunning  = "running"    // the run is still going and the task has no result yet
 )
 
+// Interrupted says the run recorded in state.json ended without ending
+// itself (SPEC §15.4): the newest run of recent (newest first, from
+// NewHistory) has no run_stopped, as EndInterrupted says. One that ended
+// with run_stopped (an `igris stop` mid-task among them) only stopped.
+// With no run in the log igris can't tell, and a task left in progress
+// counts as interrupted.
+func Interrupted(run *RunInfo, recent []HistoryRun) bool {
+	if len(recent) == 0 {
+		return run != nil && run.Task != ""
+	}
+	return recent[0].End == EndInterrupted
+}
+
 // HistoryInput is what NewHistory and NewTaskHistory read.
 type HistoryInput struct {
 	Events []state.Event // from state.PeekLog, oldest first

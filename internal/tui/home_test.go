@@ -190,6 +190,14 @@ var homeStates = []struct {
 			Tasks: []report.TaskRun{{ID: "M2-01", Result: report.ResultDone}, {ID: "M2-02", Result: report.ResultOpen}}}}, s.Recent...)
 		return homeFixture{snap: s, doctor: homeDoctor, doctorDone: true}
 	}},
+	{"stopped_task", func() homeFixture {
+		// igris stop mid-task: the newest run of the log ended with
+		// run_stopped (homeRecent's "stopped"), so the card is STOPPED, not
+		// Interrupted.
+		s := homeSnap("in progress")
+		s.Run = homeRun("M2-02", homeNow.Add(-2*time.Hour))
+		return homeFixture{snap: s, doctor: homeDoctor, doctorDone: true}
+	}},
 	{"stopped", func() homeFixture {
 		s := homeSnap("ready")
 		s.Run = homeRun("", time.Time{})
@@ -383,6 +391,7 @@ func TestHomeButtonsOnlyWhenTheyApply(t *testing.T) {
 		"plan_invalid_no_herdr": "Check Doctor Edit plan Settings Notify Updates ? Quit",
 		"config_invalid":        "Settings Preview Check Doctor History Edit plan Notify Updates ? Quit",
 		"interrupted":           "Resume… Preview Check Draft… Doctor History Edit plan Settings Notify Updates ? Quit",
+		"stopped_task":          "Resume… Preview Check Draft… Doctor History Edit plan Settings Notify Updates ? Quit",
 		"stopped":               "Resume… Preview Check Draft… Doctor History Edit plan Settings Notify Updates ? Quit",
 		"last_run_complete":     "Arise… Preview Check Draft… Doctor History Edit plan Settings Notify Updates ? Quit",
 		"running_elsewhere":     "Open session Preview Check Doctor History Edit plan Settings Notify Updates ? Quit",
@@ -434,6 +443,51 @@ func TestHomeLastRunComplete(t *testing.T) {
 				if v := m.View(); !strings.Contains(v, tc.wantInView) {
 					t.Errorf("view lacks %q:\n%s", tc.wantInView, v)
 				}
+			}
+		})
+	}
+}
+
+// A run to resume is STOPPED, Idle in the header, when the log's newest
+// run ended with run_stopped, mid-task or between tasks; ▲ Interrupted
+// when it has none, and with a task in progress when there is no log
+// (SPEC §15.4, §15.6).
+func TestHomeStoppedOrInterrupted(t *testing.T) {
+	stopped := report.HistoryRun{StartedAt: "2026-10-07T07:12:00Z", Phases: []string{"M2", "M3"}, End: "stopped"}
+	died := stopped
+	died.End = report.EndInterrupted
+	for _, tc := range []struct {
+		name   string
+		task   string
+		recent []report.HistoryRun
+		kind   nowKind
+		word   string
+		head   string
+	}{
+		{"stop mid-task", "M2-02", []report.HistoryRun{stopped}, nowStopped, "Idle", "STOPPED · last run M2 through M3"},
+		{"killed mid-task", "M2-02", []report.HistoryRun{died}, nowInterrupted, "▲ Interrupted", "▲ Interrupted · last run M2 through M3"},
+		{"no log, mid-task", "M2-02", nil, nowInterrupted, "▲ Interrupted", "▲ Interrupted · last run M2 through M3"},
+		{"stop between tasks", "", []report.HistoryRun{stopped}, nowStopped, "Idle", "STOPPED · last run M2 through M3"},
+		{"killed between tasks", "", []report.HistoryRun{died}, nowInterrupted, "▲ Interrupted", "▲ Interrupted · last run M2 through M3"},
+		{"no log, between tasks", "", nil, nowStopped, "Idle", "STOPPED · last run M2 through M3"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := homeSnap("in progress")
+			s.Run = homeRun(tc.task, homeNow.Add(-2*time.Hour))
+			s.Recent = tc.recent
+			m := homeAt(&theme{}, 120, 40, homeFixture{snap: s, doctor: homeDoctor, doctorDone: true})
+			if m.kind() != tc.kind {
+				t.Errorf("kind %v, want %v", m.kind(), tc.kind)
+			}
+			if word, _ := m.stateWord(); word != tc.word {
+				t.Errorf("header word %q, want %q", word, tc.word)
+			}
+			card := strings.Join(m.cardLines(80), "\n")
+			if !strings.HasPrefix(card, tc.head) {
+				t.Errorf("card doesn't start with %q:\n%s", tc.head, card)
+			}
+			if tc.task != "" && !strings.Contains(card, "Resume picks "+tc.task+" up first") {
+				t.Errorf("card doesn't name the task to resume:\n%s", card)
 			}
 		})
 	}

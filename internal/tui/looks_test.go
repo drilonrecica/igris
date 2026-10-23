@@ -329,7 +329,7 @@ func TestColorGoldens(t *testing.T) {
 		}},
 	}
 	for _, st := range homeStates {
-		if st.name != "interrupted" && st.name != "ready" {
+		if st.name != "interrupted" && st.name != "stopped_task" && st.name != "ready" {
 			continue
 		}
 		cases = append(cases, struct {

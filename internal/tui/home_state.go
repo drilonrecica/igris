@@ -32,8 +32,8 @@ const (
 	nowPlanInvalid // invalid or unreadable
 	nowStaleLock   // a stale or unreadable lock file
 	nowRemoteLock
-	nowInterrupted // state.json has a current task
-	nowStopped     // state.json has phases but no current task
+	nowInterrupted // a run to resume whose igris ended without ending itself
+	nowStopped     // a run to resume that stopped itself (igris stop)
 	nowReady
 )
 
@@ -58,9 +58,9 @@ func (m *homeScreen) kind() nowKind {
 		return nowStaleLock
 	case s.Lock.Remote:
 		return nowRemoteLock
-	case s.Run != nil && s.Run.Task != "":
+	case m.resumable() && report.Interrupted(s.Run, s.Recent):
 		return nowInterrupted
-	case s.Run != nil && len(s.Run.Phases) > 0 && !m.lastRunComplete():
+	case m.resumable():
 		return nowStopped
 	}
 	return nowReady
@@ -631,19 +631,22 @@ func (m *homeScreen) ariseLabel() string {
 	return "Arise"
 }
 
+// interruptedCard is the card of a run to resume: STOPPED, in idle words,
+// when it stopped itself (igris stop, mid-task or between tasks), ▲
+// Interrupted when its igris ended without stopping it (SPEC §15.6).
 func (m *homeScreen) interruptedCard(w int) []string {
 	r := m.snap.Run
-	word, at := "STOPPED", r.StartedAt
+	at := r.StartedAt
 	if r.Task != "" {
-		word, at = look.Interrupted.Label(), r.Since
+		at = r.Since
+	}
+	word, l := "STOPPED", lookTitle
+	if m.kind() == nowInterrupted {
+		word, l = look.Interrupted.Label(), lookWarn // Interrupted is a warning: Ember
 	}
 	head := word + " · last run " + rangeText(r.Phases, r.Through)
 	if t, err := time.Parse(time.RFC3339, at); err == nil {
 		head += " · " + shortSince(m.now(), t) + " ago"
-	}
-	l := lookTitle
-	if r.Task != "" {
-		l = lookWarn // Interrupted is a warning: Ember
 	}
 	out := []string{m.th.paint(l, fit(head, w))}
 	out = append(out, m.runLines(w)...)

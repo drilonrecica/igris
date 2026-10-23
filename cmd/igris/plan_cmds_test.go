@@ -493,6 +493,39 @@ func TestStatusCurrentRun(t *testing.T) {
 	}
 }
 
+// A run that stopped itself (its run_stopped is in the log) is Idle, with
+// its outcome and the task to resume; one whose log has no run_stopped is
+// ▲ Interrupted (SPEC §14, §15.4). --json is the same either way.
+func TestStatusStoppedOrInterrupted(t *testing.T) {
+	const started = `{"at":"2026-10-07T09:30:00Z","run":"r1","type":"run_started","detail":"phase F1, F2"}` + "\n" +
+		`{"at":"2026-10-07T09:31:00Z","run":"r1","type":"task_started","task":"F1-13"}` + "\n"
+	const stopped = started + `{"at":"2026-10-07T09:40:00Z","run":"r1","type":"run_stopped","detail":"stopped"}` + "\n"
+	for _, tc := range []struct {
+		name, state, log, line, next string
+	}{
+		{"stop mid-task", runStateJSON, stopped, "\nRun      Idle · stopped · F1-13 Task F1-13\n", "\nnext: igris arise\n"},
+		{"killed mid-task", runStateJSON, started, "\nRun      ▲ Interrupted · F1-13 Task F1-13\n", "\nnext: igris arise\n"},
+		{"stop between tasks", `{"version":1,"started_at":"2026-10-07T09:30:00Z","phases":["F1","F2"],"config_hash":"h"}`, stopped, "\nRun      Idle · stopped\n", "\nnext: igris arise F1\n"},
+		{"killed between tasks", `{"version":1,"started_at":"2026-10-07T09:30:00Z","phases":["F1","F2"],"config_hash":"h"}`, started, "\nRun      ▲ Interrupted · between tasks\n", "\nnext: igris arise\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := inDir(t)
+			writeRunState(t, dir, "state.json", tc.state)
+			writeRunState(t, dir, "runs.jsonl", tc.log)
+			_, out, _ := runCmd("status", "--plan", largePlan)
+			for _, want := range []string{tc.line, tc.next} {
+				if !strings.Contains(out, want) {
+					t.Errorf("missing %q:\n%s", want, out)
+				}
+			}
+			_, js, _ := runCmd("status", "--json", "--plan", largePlan)
+			if strings.Contains(js, "Interrupted") || strings.Contains(js, "Idle") || strings.Contains(js, "stopped") {
+				t.Errorf("--json changed:\n%s", js)
+			}
+		})
+	}
+}
+
 // A sliced run shows its slice: a Slice row, a "selection" object.
 func TestStatusSlicedRun(t *testing.T) {
 	dir := inDir(t)

@@ -189,3 +189,29 @@ func TestHistoryGroupsByRunID(t *testing.T) {
 		t.Errorf("note = %q", got)
 	}
 }
+
+// A run stopped itself when the log's newest run has its run_stopped,
+// whatever the detail; without one it was interrupted. With no run in the
+// log, a task in progress counts as interrupted (SPEC §15.4).
+func TestInterrupted(t *testing.T) {
+	task := &RunInfo{Task: "A-01"}
+	between := &RunInfo{Phases: []string{"A"}}
+	for _, tc := range []struct {
+		name   string
+		run    *RunInfo
+		recent []HistoryRun
+		want   bool
+	}{
+		{"stopped mid-task", task, []HistoryRun{{End: "stopped"}, {End: EndInterrupted}}, false},
+		{"error mid-task", task, []HistoryRun{{End: "error"}}, false},
+		{"killed mid-task", task, []HistoryRun{{End: EndInterrupted}, {End: "stopped"}}, true},
+		{"killed between tasks", between, []HistoryRun{{End: EndInterrupted}}, true},
+		{"no log, mid-task", task, nil, true},
+		{"no log, between tasks", between, nil, false},
+		{"no run", nil, nil, false},
+	} {
+		if got := Interrupted(tc.run, tc.recent); got != tc.want {
+			t.Errorf("%s: Interrupted = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}

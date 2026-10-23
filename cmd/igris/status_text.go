@@ -10,6 +10,7 @@ import (
 
 	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/plan"
+	"github.com/drilonrecica/igris/internal/project"
 	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/serve"
 	"github.com/drilonrecica/igris/internal/textsafe"
@@ -45,6 +46,17 @@ var peekRun = func(root string) (*serve.Snapshot, bool) {
 		return nil, false
 	}
 	return &s, true
+}
+
+// lastRuns are the newest runs of the log at root, newest first; nil when
+// it can't be read. `status` reads them to tell a run that stopped itself
+// from an interrupted one (report.Interrupted).
+func lastRuns(root string) []report.HistoryRun {
+	in, err := project.HistoryInput(root, 1)
+	if err != nil {
+		return nil
+	}
+	return report.NewHistory(in).Runs
 }
 
 // runLine is the status word of the run, with its glyph, and what it is
@@ -169,15 +181,32 @@ func taskAbout(p *plan.Plan, id, rank, mode, since string) []string {
 	return out
 }
 
-// stateLine reads the status word from state.json and the lock, when no
-// run answers on the socket.
-func stateLine(r *report.RunInfo, p *plan.Plan) runLine {
+// stateLine reads the status word from state.json, the lock and the
+// newest runs of the log (recent), when no run answers on the socket: Idle
+// for a run that stopped itself, with its outcome and the task to resume,
+// ▲ Interrupted for one whose igris ended without stopping it.
+func stateLine(r *report.RunInfo, p *plan.Plan, recent []report.HistoryRun) runLine {
 	about := taskAbout(p, r.Task, "", r.Mode, when(r.Since))
 	switch r.Lock {
 	case report.LockHere:
 		return runLine{word: look.Working, label: look.Working.Label(), sev: look.Working.Severity(), about: append(about, r.LockDetail+" on this host"), next: "igris history"}
 	case report.LockElsewhere:
 		return runLine{word: look.Working, label: look.Working.Label(), sev: look.Working.Severity(), about: append(about, r.LockDetail), next: "igris history"}
+	case report.LockNone:
+		if report.Interrupted(r, recent) {
+			break
+		}
+		l := runLine{word: look.Idle, label: look.Idle.Label(), sev: look.Idle.Severity(), about: about[:1]}
+		if len(recent) > 0 {
+			l.about = []string{endedOutcome(recent[0].End).String()}
+			if r.Task != "" {
+				l.about = append(l.about, about[0])
+			}
+		}
+		if r.Task != "" {
+			l.next = "igris arise" // resumes the task first
+		}
+		return l
 	}
 	l := runLine{word: look.Interrupted, label: look.Interrupted.Label(), sev: look.Interrupted.Severity(), about: about[:1], next: "igris arise"}
 	if r.Lock == report.LockStale {
@@ -197,7 +226,11 @@ func printStatus(o textOut, r report.StatusReport, p *plan.Plan, root string, li
 	}
 	if r.Run != nil {
 		o.blank()
-		line = printRun(o, r.Run, line, p)
+		var recent []report.HistoryRun
+		if line == nil {
+			recent = lastRuns(root)
+		}
+		line = printRun(o, r.Run, line, p, recent)
 	}
 	for _, ph := range r.Phases {
 		o.blank()
@@ -229,8 +262,9 @@ func statusNext(r report.StatusReport, line *runLine) string {
 }
 
 // printRun writes the Run block: the status line, then the rows that say
-// more. It returns the line it showed.
-func printRun(o textOut, r *report.RunInfo, line *runLine, p *plan.Plan) *runLine {
+// more. It returns the line it showed. recent are the log's newest runs,
+// for a line read from state.json.
+func printRun(o textOut, r *report.RunInfo, line *runLine, p *plan.Plan, recent []report.HistoryRun) *runLine {
 	row := func(label, value string) {
 		if value != "" {
 			o.println(o.fit(fmt.Sprintf("%-8s %s", label, value)))
@@ -243,7 +277,7 @@ func printRun(o textOut, r *report.RunInfo, line *runLine, p *plan.Plan) *runLin
 	case r.Lock == report.LockUnreadable:
 		line = &runLine{label: look.GlyphWarn + " lock unreadable", sev: look.Warn, about: []string{r.LockDetail}, next: "igris doctor"}
 	default:
-		l := stateLine(r, p)
+		l := stateLine(r, p, recent)
 		line = &l
 	}
 	head := look.Cell{Text: line.String(), Sev: line.sev, Span: len(line.label)}
