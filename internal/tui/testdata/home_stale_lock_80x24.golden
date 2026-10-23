@@ -1,5 +1,5 @@
-igris · sinjal · herdr ✓                                              STALE LOCK
-── NOW ─────────────────────────────────────────────────────────────────────────
+igris · sinjal · herdr ✓                                                    Idle
+────────────────────────────────────────────────────────────────────────────────
 LAST RUN DID NOT CLEAN UP (pid 4242 gone)
 ● M2-02  Lock file              opus · mode plan
 session: herdr tab-3 (Resume reattaches if it is still open)
@@ -20,5 +20,5 @@ Resume asks before clearing the lock.
 Oct 06 21:10  M2  3 done · 1 skipped · stopped
 Oct 05 18:02  M1  6 done · completed
 
-[›Resume…‹] [Preview] [Check] [Draft…] [Doctor] [History] [Edit plan] [Settings]
-[Notify] [Updates] [?] [Quit]
+[›a Resume…‹] [v Preview] [c Check] [D Draft…] [i Doctor] [h History]
+[e Edit plan] [, Settings] [n Notify] [u Updates] [?] [q Quit]

@@ -402,8 +402,9 @@ func (d *dialog) render(th *theme, w, h int) ([]string, zones) {
 			detail = wrapPre(text, inner)
 		}
 		// Borders, the title, a blank line before the detail and before the
-		// options, the field and the blank line after it.
-		room := h - 2 - len(title) - 2 - optLines
+		// options, the field and the blank line after it, and the blank
+		// line and the key hint after the options.
+		room := h - 2 - len(title) - 2 - optLines - 2
 		if len(input) > 0 {
 			room -= len(input) + 1
 		}
@@ -453,6 +454,8 @@ func (d *dialog) render(th *theme, w, h int) ([]string, zones) {
 			add(lookPlain, lines...)
 		}
 	}
+	add(lookPlain, "")
+	add(lookDim, fit(d.hint(), inner))
 	width := 0
 	for _, l := range body {
 		width = max(width, textWidth(l))
@@ -473,6 +476,47 @@ func (d *dialog) render(th *theme, w, h int) ([]string, zones) {
 		z.list[i].r.w = width + 4
 	}
 	return out, z
+}
+
+// hint is the dialog's last line, its keys (SPEC §15.5): what enter does,
+// that a number picks an option, and what esc does: the non-destructive
+// choice it picks, or "keep asking" for a question that stays pending.
+func (d *dialog) hint() string {
+	esc := "close"
+	switch {
+	case d.question != "" && d.cancel == actClose:
+		esc = "keep asking"
+	default:
+		for _, o := range d.options {
+			if o.act == d.cancel {
+				esc = lowerFirst(strings.TrimSuffix(o.label, "…"))
+			}
+		}
+	}
+	if d.inField {
+		enter := "next"
+		for _, o := range d.options {
+			if d.submit != actNone && o.act == d.submit {
+				enter = lowerFirst(strings.TrimSuffix(o.label, "…"))
+			}
+		}
+		return "type · enter " + enter + " · esc " + esc
+	}
+	parts := []string{"enter choose"}
+	if n := min(len(d.options), 9); n >= 2 {
+		parts = append(parts, "1–"+strconv.Itoa(n)+" pick")
+	}
+	return strings.Join(append(parts, "esc "+esc), " · ")
+}
+
+// lowerFirst lowers the first letter of s, for a label used mid-sentence;
+// an ID or an acronym (a capital second letter) keeps its case.
+func lowerFirst(s string) string {
+	r := []rune(s)
+	if len(r) == 0 || len(r) > 1 && r[1] >= 'A' && r[1] <= 'Z' {
+		return s
+	}
+	return strings.ToLower(string(r[:1])) + string(r[1:])
 }
 
 // fieldLine draws the text field in w cells: its label, the end of its

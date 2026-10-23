@@ -178,7 +178,7 @@ func TestEventsDriveTheCurrentTask(t *testing.T) {
 	hs.now = t0.Add(4*time.Minute + 12*time.Second)
 	hs.events(engine.Event{Kind: engine.NeedsYou, Task: "M0-03", Detail: "idle", At: t0.Add(3*time.Minute + 27*time.Second)})
 	view := hs.m.View()
-	for _, want := range []string{"igris · sinjal · phase M0 · mode: plan · herdr", "M0-03 Makefile", "4m12s", "NEEDS YOU (idle 45s)", "M0-03 needs you: idle", "[›Open session‹]"} {
+	for _, want := range []string{"igris · sinjal · phase M0 · mode: plan · herdr", "! Needs you", "M0-03 Makefile", "4m12s", "NEEDS YOU (idle 45s)", "M0-03 needs you: idle", "[›o Open session‹]"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("view lacks %q:\n%s", want, view)
 		}
@@ -187,7 +187,7 @@ func TestEventsDriveTheCurrentTask(t *testing.T) {
 	if hs.m.cur != nil {
 		t.Errorf("current task kept after done: %+v", hs.m.cur)
 	}
-	if v := hs.m.View(); !strings.Contains(v, "no task running") || strings.Contains(v, "[Done]") || strings.Contains(v, "[Open session]") {
+	if v := hs.m.View(); !strings.Contains(v, "no task running") || strings.Contains(v, "[d Done]") || strings.Contains(v, "[o Open session]") {
 		t.Errorf("bar or card shows actions that do nothing:\n%s", v)
 	}
 }
@@ -218,7 +218,7 @@ func TestShortcutKeysSendCommands(t *testing.T) {
 		t.Fatalf("sent %+v, want one pause", got)
 	}
 	hs.events(started("M0-03"), opened("M0-03"), engine.Event{Kind: engine.PauseOn})
-	if !strings.Contains(hs.m.View(), "[Resume]") {
+	if !strings.Contains(hs.m.View(), "[p Resume]") {
 		t.Errorf("pause button doesn't show the state:\n%s", hs.m.View())
 	}
 	hs.key("d")
@@ -395,7 +395,7 @@ func TestRunEnd(t *testing.T) {
 	hs.events(started("M0-03"), engine.Event{Kind: engine.RunStopped, Detail: "completed"})
 	hs.m.Update(batch{ended: true})
 	v := hs.m.View()
-	if !strings.Contains(v, "the run stopped: completed — press q to quit") || strings.Contains(v, "[Pause]") || strings.Contains(v, "[Done]") {
+	if !strings.Contains(v, "the run stopped: completed — press q to quit") || strings.Contains(v, "[p Pause]") || strings.Contains(v, "[d Done]") {
 		t.Errorf("end not shown:\n%s", v)
 	}
 }

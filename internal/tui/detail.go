@@ -7,7 +7,7 @@ import (
 // detailPage shows task id in full (SPEC §15.3). It reads the plan as last
 // loaded each time it is drawn.
 func (m *model) detailPage(id string) *page {
-	return &page{title: id + " · esc closes", body: func(w int) []string { return m.rows().detail(id, w) }}
+	return &page{title: id, body: func(w int) []string { return m.rows().detail(id, w) }}
 }
 
 // fields lays facts out as "Name   value" with the values aligned and
@@ -35,7 +35,7 @@ func fields(th *theme, facts []fact, w int) []string {
 
 // logPage shows the whole log kept in memory, newest at the bottom.
 func (m *model) logPage() *page {
-	return &page{title: "Log · esc closes", top: maxTop, body: func(w int) []string {
+	return &page{title: "Log", top: maxTop, body: func(w int) []string {
 		var out []string
 		for _, e := range m.log {
 			at := e.at.In(m.loc).Format("15:04") + " "

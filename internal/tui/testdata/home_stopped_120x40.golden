@@ -1,13 +1,13 @@
-igris · sinjal · tasks.md · herdr ✓ · mode auto                                                                  STOPPED
-─ PHASES ──────────────────────────────────────────────────┬─ NOW ──────────────────────────────────────────────────────
-  ✓ M0  Foundations                   ██████████ 3/3 done  │ STOPPED · last run M2 through M3 · 2h ago                  
-  ✓ M1  Plan parser                   ██████████ 2/2 done  │ Resume continues M2 through M3.                            
-› · M2  Config & state                ██░░░░░░░░ 1/4 next  ├─ HEALTH ───────────────────────────────────────────────────
-  ⨯ M3  Engine                        ░░░░░░░░░░ 0/3 wait  │ ✓ plan valid · 5 phases · 14 tasks                         
-  ⨯ M4  TUI                           ░░░░░░░░░░ 0/2 wait  │ ! doctor: 1 warning — uncommitted changes                  
-                                                           ├─ RECENT ───────────────────────────────────────────────────
-                                                           │ Oct 06 21:10  M2  3 done · 1 skipped · stopped             
-                                                           │ Oct 05 18:02  M1  6 done · completed                       
+igris · sinjal · tasks.md · herdr ✓ · mode auto                                                                     Idle
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+PHASES                                                     │ STOPPED · last run M2 through M3 · 2h ago
+  ✓ M0  Foundations                   ██████████ 3/3 done  │ Resume continues M2 through M3.
+  ✓ M1  Plan parser                   ██████████ 2/2 done  │ ── HEALTH ─────────────────────────────────────────────────
+› · M2  Config & state                ██░░░░░░░░ 1/4 next  │ ✓ plan valid · 5 phases · 14 tasks
+  ⨯ M3  Engine                        ░░░░░░░░░░ 0/3 wait  │ ! doctor: 1 warning — uncommitted changes
+  ⨯ M4  TUI                           ░░░░░░░░░░ 0/2 wait  │ ── RECENT ─────────────────────────────────────────────────
+                                                           │ Oct 06 21:10  M2  3 done · 1 skipped · stopped
+                                                           │ Oct 05 18:02  M1  6 done · completed
                                                            │
                                                            │
                                                            │
@@ -35,6 +35,6 @@ igris · sinjal · tasks.md · herdr ✓ · mode auto                           
                                                            │
                                                            │
                                                            │
-───────────────────────────────────────────────────────────┴────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-[›Resume…‹] [Preview] [Check] [Draft…] [Doctor] [History] [Edit plan] [Settings] [Notify] [Updates] [?] [Quit]
+[›a Resume…‹] [v Preview] [c Check] [D Draft…] [i Doctor] [h History] [e Edit plan] [, Settings] [More…] [?] [q Quit]

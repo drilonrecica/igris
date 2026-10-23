@@ -1,18 +1,17 @@
-igris · sinjal · tasks.md · herdr ✓ · mode auto                                                        RUNNING ELSEWHERE
+igris · sinjal · tasks.md · herdr ✓ · mode auto                                                                ● Working
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-
-
-
-
-
-
-
-
-
-
-
+PHASES                                                     │ RUNNING in another igris · pid 4242 on this host · since
+  ✓ M0  Foundations                   ██████████ 3/3 done  │ 09:12
+  ✓ M1  Plan parser                   ██████████ 2/2 done  │ ● M2-02  Lock file              opus · mode plan · 14m
+› ● M2  Config & state                ██░░░░░░░░ 1/4 next  │ recent: M2-01 done · M2-02 running
+  ⨯ M3  Engine                        ░░░░░░░░░░ 0/3 wait  │ This screen only watches. Use that terminal to control the
+  ⨯ M4  TUI                           ░░░░░░░░░░ 0/2 wait  │ run.
+                                                           │ ── HEALTH ─────────────────────────────────────────────────
+                                                           │ ✓ plan valid · 5 phases · 14 tasks
+                                                           │ ! doctor: 1 warning — uncommitted changes
+                                                           │ ── RECENT ─────────────────────────────────────────────────
               ╭──────────────────────────────────────────────────────────────────────────────────────────╮
-              │ igris 1.2.0 is out                                                                       │
+              │ igris 1.2.0 is out                                                                       │d
               │                                                                                          │
               │ 1.1.0 → 1.2.0 · installed with Homebrew                                                  │
               │ Update after the run ends: a run holds this project. The update runs:                    │
@@ -22,19 +21,20 @@ igris · sinjal · tasks.md · herdr ✓ · mode auto                           
               │ https://github.com/drilonrecica/igris/releases/tag/v1.2.0                                │
               │                                                                                          │
               │ › 1. Close                                                                               │
+              │                                                                                          │
+              │ enter choose · esc close                                                                 │
               ╰──────────────────────────────────────────────────────────────────────────────────────────╯
-
-
-
-
-
-
-
-
-
-
-
-
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-[Open session] [Preview] [Check] [Doctor] [History] [Edit plan] [Settings] [Notify] [Updates] [?] [Quit]
+[o Open] [v Preview] [c Check] [i Doctor] [h History] [e Edit] [, Settings] [n Notify] [u Updates] [?] [q Quit]

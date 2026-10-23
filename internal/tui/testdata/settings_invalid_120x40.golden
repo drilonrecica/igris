@@ -1,4 +1,4 @@
-Settings · igris.toml · e edits
+igris · sinjal · Settings · igris.toml                                                                              Idle
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 /src/sinjal/igris.toml
 
@@ -36,5 +36,5 @@ commit_message      = "{{.ID}}: {{.Title}}" · default
 prompt_template     = "" · default
 worktree            = false · default
 
-[verify]
-[Edit igris.toml] [Doctor] [Close]
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[e Edit igris.toml] [i Doctor] [q Back]

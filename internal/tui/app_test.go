@@ -88,7 +88,7 @@ func finalApp(t *testing.T, tm *teatest.TestModel) *appModel {
 func TestAppOpensHomeAndReadsTheProject(t *testing.T) {
 	svc := &fakeServices{}
 	tm := appProgram(t, svc, 80, 24)
-	seen(t, tm, "igris · sinjal", "[›Doctor‹]", "[Quit]")
+	seen(t, tm, "igris · sinjal", "[›i Doctor‹]", "[q Quit]")
 	key(tm, "q")
 	a := finalApp(t, tm)
 	if len(a.stack) != 1 {
@@ -118,7 +118,7 @@ func TestAppQuits(t *testing.T) {
 			case "ctrl+c":
 				tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 			case "click Quit":
-				click(tm, textWidth("[›Doctor‹] [Settings] [Updates] [?] ")+1, 23)
+				click(tm, textWidth("[›i Doctor‹] [, Settings] [u Updates] [?] ")+1, 23)
 			default:
 				key(tm, k)
 			}
@@ -131,7 +131,7 @@ func TestAppCtrlCQuitsFromAPushedScreen(t *testing.T) {
 	tm := appProgram(t, &fakeServices{}, 80, 24)
 	seen(t, tm, "igris · sinjal")
 	key(tm, "?")
-	seen(t, tm, "Help · esc closes")
+	seen(t, tm, "igris · sinjal · Help")
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	if a := finalApp(t, tm); len(a.stack) != 2 {
 		t.Errorf("stack has %d screens, want home and help", len(a.stack))
@@ -139,10 +139,10 @@ func TestAppCtrlCQuitsFromAPushedScreen(t *testing.T) {
 }
 
 func TestAppHelp(t *testing.T) {
-	tm := appProgram(t, &fakeServices{}, 80, 34)
+	tm := appProgram(t, &fakeServices{}, 80, 36)
 	seen(t, tm, "igris · sinjal")
 	key(tm, "?")
-	seen(t, tm, "Help · esc closes", "quit igris", "Focus", "quit igris from anywhere")
+	seen(t, tm, "igris · sinjal · Help", "quit igris", "Focus", "quit igris from anywhere")
 	key(tm, "esc")
 	key(tm, "q") // handled after esc, so it quits from home
 	if a := finalApp(t, tm); len(a.stack) != 1 {
@@ -151,7 +151,7 @@ func TestAppHelp(t *testing.T) {
 }
 
 func TestAppHelpListsTheTopScreensKeys(t *testing.T) {
-	a := testApp(&fakeServices{}, 80, 34)
+	a := testApp(&fakeServices{}, 80, 36)
 	drive(a, func() tea.Msg { return helpMsg{} })
 	v := a.View()
 	for _, want := range []string{"?  Help — this page", "q  Quit — quit igris", "ctrl+c"} {

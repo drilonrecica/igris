@@ -632,7 +632,7 @@ What's on it:
 - **PHASES** lists every phase with a glyph, a progress bar, `done/total` and a word: `done`, `next`, `wait` (its remaining tasks depend on other phases) or `stuck`.
 - **NOW** shows one card for the state igris is in (get started, plan invalid, ready with the next two tasks and their ranks, interrupted or stopped with what Resume picks up, running in another igris (read-only), a stale or remote lock) and names the action that fits.
 - **HEALTH** has the check result and the doctor summary; **RECENT** the last runs.
-- **The action bar** shows only the buttons that apply. `tab` moves between the phases, the bar and the HEALTH/RECENT lines; a click selects a phase (a second click opens it) or opens a line's page.
+- **The action bar** shows only the buttons that apply, each with its key (`[a Arise…]`, since 1.7); it is the key-hint footer of every screen, and every page ends its bar with `[q Back]`. `tab` moves between the phases, the bar and the HEALTH/RECENT lines; a click selects a phase (a second click opens it) or opens a line's page. Since 1.7 the screen is open (a header with the wordmark and the status word, rules between the sections, no outer frame; only task cards and dialogs are boxed) and a dialog floats over the dimmed screen on a wide terminal, so what it asks about stays visible; its last line is its key hint.
 
 | Key | Opens | What you get |
 |---|---|---|
@@ -694,7 +694,7 @@ Every action is a button you can click or tap, reach with `tab` and the arrow ke
 | `q` | Since 1.4 asks **Detach** (the run goes on in `igris serve`; `igris attach` shows it again) · Stop run · Cancel. Before 1.4, quit the TUI; sessions keep running and `igris arise` resumes |
 | `?` | Help |
 
-`tab` moves between the task list, the action bar and the log; the arrow keys (or `j`/`k`) move within them; `enter` or `space` activates; `1`…`9` pick a dialog option; `esc` closes a dialog or page with its safe choice. Dialogs open on the safe choice. Click a task, the card's title or **[t] Details** to see a task in full; `enter` on the log opens the whole log, scrollable with the wheel or the keys.
+`tab` moves between the task list, the action bar and the log; the arrow keys (or `j`/`k`) move within them; `enter` or `space` activates; `1`…`9` pick a dialog option; `esc` closes a dialog or page with its safe choice, and since 1.7 `q` closes a page too (its bar says `[q Back]`). Dialogs open on the safe choice. Click a task, the card's title or **[t] Details** to see a task in full; `enter` on the log opens the whole log, scrollable with the wheel or the keys. Since 1.7 the bar's buttons carry their keys (`[o Open session]`), shorten to their verb (`[o Open]`) before they fold into `More…` on a narrow terminal, the header ends with the status word (`● Working`, `! Needs you`, `Paused`, `Done`), and a dialog floats over the dimmed screen on a wide terminal.
 
 With `igris arise PHASE`, the start-up questions (an API key in the environment, plan drift, an `igris.toml` that changed during the last run, skip-permissions confirmation) are plain prompts before the TUI opens.
 

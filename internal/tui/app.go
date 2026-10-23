@@ -507,7 +507,13 @@ func (a *appModel) helpPage() tea.Model {
 		}
 	}
 	th := a.th
-	return newPageScreen(th, &page{title: "Help · esc closes", body: func(w int) []string {
+	project := ""
+	if len(a.stack) > 0 {
+		if h, ok := a.stack[0].(*homeScreen); ok {
+			project = h.project()
+		}
+	}
+	return newPageScreen(th, &page{title: "Help", project: project, body: func(w int) []string {
 		out := wrap("Actions: click a button, focus it and press enter, or press its key.", w)
 		out = append(out, helpTable(th, keys, w)...)
 		out = append(out, "", th.paint(lookTitle, "Focus"))

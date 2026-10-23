@@ -222,10 +222,10 @@ func TestHoverInProgram(t *testing.T) {
 	same := testApp(&fakeServices{}, 80, 24)
 	same.View()
 	q := zoneRect(t, same.stack[0].(*homeScreen).zones, isAct(actQuit))
-	seen(t, tm, "[Quit]")
+	seen(t, tm, "[q Quit]")
 	tm.Send(motion(q.x+1, q.y))
 	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
-		return bytes.Contains(out, []byte(ul+"[Quit]"+noUL))
+		return bytes.Contains(out, []byte(ul+"[q Quit]"+noUL))
 	}, teatest.WithDuration(waitFor))
 	key(tm, "q")
 	if _, ok := unwrap(tm.FinalModel(t, teatest.WithFinalTimeout(waitFor))).(*appModel); !ok {

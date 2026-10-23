@@ -1,4 +1,4 @@
-Settings · igris.toml · e edits
+igris · sinjal · Settings · igris.toml                                                                              Idle
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 /src/sinjal/igris.toml
 
@@ -36,5 +36,5 @@ worktree            = false · default
 
 [adapt]
 model = "sonnet" · default
-
-[Edit igris.toml] [Doctor] [Close]
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[e Edit igris.toml] [i Doctor] [q Back]

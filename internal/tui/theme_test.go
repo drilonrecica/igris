@@ -140,7 +140,7 @@ func TestNoColorKeepsTheMarkers(t *testing.T) {
 	hs := newHarness(t, 120, 30)
 	hs.events(started("M0-03"), opened("M0-03"))
 	hs.m.th = noColorTheme(t)
-	if v := hs.m.View(); !strings.Contains(v, "\x1b[1;7m[›Open session‹]"+sgrReset) {
+	if v := hs.m.View(); !strings.Contains(v, "\x1b[1;7m[›o Open session‹]"+sgrReset) {
 		t.Errorf("the focused button isn't in reverse video under NO_COLOR:\n%q", v)
 	}
 }
@@ -163,7 +163,8 @@ func TestFocusIsMarkedWithoutColor(t *testing.T) {
 			hs.withPlan(demoPlan)
 			hs.events(started("M0-03"), opened("M0-03"))
 			hs.m.th = colorTheme(t, true, nil)
-			if v := hs.m.View(); !strings.Contains(v, focus+"[›Open session‹]"+sgrReset) {
+			// Narrow, the bar has room for the verb only.
+			if v := hs.m.View(); !strings.Contains(v, focus+"[›o Open session‹]"+sgrReset) && !strings.Contains(v, focus+"[›o Open‹]"+sgrReset) {
 				t.Errorf("focused button:\n%q", v)
 			}
 			hs.key("shift+tab")
@@ -204,7 +205,7 @@ func TestButtonStates(t *testing.T) {
 	hs.events(started("M0-03"), opened("M0-03"))
 	hs.m.th = th
 	hs.key("x")
-	if v := hs.m.View(); !strings.Contains(v, "\x1b[2m[Open session]"+sgrReset) || strings.Contains(v, "[›") {
+	if v := hs.m.View(); !strings.Contains(v, "\x1b[2m[o Open session]"+sgrReset) || strings.Contains(v, "[›") {
 		t.Errorf("bar under a dialog:\n%q", v)
 	}
 }

@@ -1,5 +1,5 @@
-igris · sinjal · herdr ✓            CONFIG INVALID
-── NOW ───────────────────────────────────────────
+igris · sinjal · herdr ✓                      Idle
+──────────────────────────────────────────────────
 CONFIG INVALID · igris.toml · 2 problems
 igris.toml:3: default_mode: unknown mode "fast"
 igris.toml:9: notify.ntfy.events: unknown event "…
@@ -16,5 +16,5 @@ from Settings.
 ── RECENT ────────────────────────────────────────
 Oct 06 21:10  M2  3 done · 1 skipped · stopped
 
-[›Settings‹] [Preview] [Check] [Doctor] [History]
-[Edit plan] [Notify] [Updates] [?] [Quit]
+[›, Settings‹] [v Preview] [c Check] [i Doctor]
+[h History] [e Edit plan] [More…] [?] [q Quit]

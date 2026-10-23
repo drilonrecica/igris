@@ -113,14 +113,14 @@ func (s *phaseScreen) helpKeys() []helpEntry {
 	}
 }
 
-func (s *phaseScreen) buttons() []pageButton {
-	var out []pageButton
+func (s *phaseScreen) buttons() []button {
+	var out []button
 	if s.home.offers(actArise) {
-		out = append(out, pageButton{"Arise this phase…", "Arise", actArise})
+		out = append(out, button{"Arise this phase…", "Arise…", "a", actArise})
 	}
-	out = append(out, pageButton{"Preview this phase", "Preview", actPreview})
+	out = append(out, button{"Preview this phase", "Preview", "v", actPreview})
 	if s.home.offers(actEdit) {
-		out = append(out, pageButton{"Edit plan", "Edit", actEdit})
+		out = append(out, button{"Edit plan", "Edit", "e", actEdit})
 	}
 	return out
 }
@@ -189,7 +189,9 @@ func (s *phaseScreen) act(a action) tea.Cmd {
 			return pop(ariseMsg{report.RunRequest{Phase: s.id}})
 		}
 	case actPreview:
-		return push(newPreview(h.ctx, h.svc, h.th, report.RunRequest{Phase: s.id}))
+		p := newPreview(h.ctx, h.svc, h.th, report.RunRequest{Phase: s.id})
+		h.pageHead(p.p)
+		return push(p)
 	case actEdit:
 		if h.offers(actEdit) {
 			return pop(doMsg{actEdit})
@@ -211,11 +213,12 @@ func (s *phaseScreen) title() string {
 	if ph := s.status(); ph != nil && ph.Title != "" {
 		t += " · " + ph.Title
 	}
-	return t + " · esc closes"
+	return t
 }
 
 func (s *phaseScreen) View() string {
 	s.p.title = s.title()
+	s.home.pageHead(s.p)
 	s.p.buttons = s.buttons()
 	lines, z := s.p.render(s.home.th, s.w, s.h)
 	s.zones = z
@@ -324,7 +327,7 @@ func newTaskScreen(home *homeScreen, id string) *taskScreen {
 	s := &taskScreen{home: home, id: id, w: 80, h: 24}
 	s.p = &page{
 		body:    s.body,
-		buttons: []pageButton{{"Copy ID", "Copy", actCopy}},
+		buttons: []button{{"Copy ID", "Copy", "y", actCopy}},
 	}
 	return s
 }
@@ -397,7 +400,8 @@ func (s *taskScreen) View() string {
 	if s.notice != "" {
 		title += " · " + s.notice
 	}
-	s.p.title = title + " · esc closes"
+	s.p.title = title
+	s.home.pageHead(s.p)
 	lines, z := s.p.render(s.home.th, s.w, s.h)
 	s.zones = z
 	return strings.Join(lines, "\n")
@@ -510,15 +514,15 @@ func (s *checkScreen) helpKeys() []helpEntry {
 	}
 }
 
-func (s *checkScreen) buttons() []pageButton {
-	var out []pageButton
+func (s *checkScreen) buttons() []button {
+	var out []button
 	if s.home.offers(actEdit) {
-		out = append(out, pageButton{"Edit plan", "Edit", actEdit})
+		out = append(out, button{"Edit plan", "Edit", "e", actEdit})
 	}
 	if s.home.offers(actAdapt) {
-		out = append(out, pageButton{"Adapt", "", actAdapt})
+		out = append(out, button{label: "Adapt", key: "A", act: actAdapt})
 	}
-	return append(out, pageButton{"Check again", "Again", actCheck})
+	return append(out, button{"Check again", "Again", "c", actCheck})
 }
 
 func (s *checkScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -576,8 +580,9 @@ func (s *checkScreen) View() string {
 	if s.notice != "" {
 		title += " · " + s.notice
 	}
-	s.p.title = title + " · c checks again"
+	s.p.title = title
 	s.p.buttons = s.buttons()
+	s.home.pageHead(s.p)
 	lines, z := s.p.render(s.home.th, s.w, s.h)
 	s.zones = z
 	return strings.Join(lines, "\n")

@@ -107,7 +107,7 @@ type model struct {
 	// autoTaskTop is where following the current task put the list in the
 	// last frame; scrolling starts from there.
 	autoTaskTop int
-	folded      []option // actions behind the bar's More… in the last frame
+	folded      []button // actions behind the bar's More… in the last frame
 	loc         *time.Location
 
 	focus area
@@ -298,6 +298,13 @@ func (m *model) key(msg tea.KeyMsg) tea.Cmd {
 	if k == "ctrl+c" {
 		return m.activate(actDetach) // leaves at once: an attached run goes on
 	}
+	if m.page != nil && m.dialog == nil {
+		// q leaves the screen it is on (SPEC §15.5): the page, here.
+		if k == "q" || m.page.key(k) {
+			m.page = nil
+		}
+		return nil
+	}
 	if k == "q" && (m.dialog == nil || !m.dialog.inField) {
 		return m.activate(actQuit)
 	}
@@ -310,12 +317,6 @@ func (m *model) key(msg tea.KeyMsg) tea.Cmd {
 		}
 		a, _ := m.dialog.key(msg)
 		return m.pick(a)
-	}
-	if m.page != nil {
-		if m.page.key(k) {
-			m.page = nil
-		}
-		return nil
 	}
 	switch k {
 	case "tab", "shift+tab":

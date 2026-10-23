@@ -272,9 +272,10 @@ func (s *notifyScreen) View() string {
 	s.p.buttons = nil
 	s.p.closeLabel = "Cancel"
 	if s.ended {
-		s.p.buttons = []pageButton{{"Send again", "Again", actNotify}}
+		s.p.buttons = []button{{"Send again", "Again", "n", actNotify}}
 		s.p.closeLabel = ""
 	}
+	s.home.pageHead(s.p)
 	lines, z := s.p.render(s.home.th, s.w, s.h)
 	s.zones = z
 	return strings.Join(lines, "\n")

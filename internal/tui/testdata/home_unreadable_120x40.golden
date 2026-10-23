@@ -1,12 +1,12 @@
-igris · herdr ✓                                                                                               UNREADABLE
-─ PHASES ──────────────────────────────────────────────────┬─ NOW ──────────────────────────────────────────────────────
-the project can't be read                                  │ could not read the project: permission denied              
-                                                           │ Doctor may say why.                                        
-                                                           ├─ HEALTH ───────────────────────────────────────────────────
-                                                           │ · plan …                                                   
-                                                           │ ! doctor: 1 warning — uncommitted changes                  
-                                                           ├─ RECENT ───────────────────────────────────────────────────
-                                                           │ no runs yet                                                
+igris · herdr ✓                                                                                                     Idle
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+PHASES                                                     │ could not read the project: permission denied
+the project can't be read                                  │ Doctor may say why.
+                                                           │ ── HEALTH ─────────────────────────────────────────────────
+                                                           │ · plan …
+                                                           │ ! doctor: 1 warning — uncommitted changes
+                                                           │ ── RECENT ─────────────────────────────────────────────────
+                                                           │ no runs yet
                                                            │
                                                            │
                                                            │
@@ -35,6 +35,6 @@ the project can't be read                                  │ could not read th
                                                            │
                                                            │
                                                            │
-───────────────────────────────────────────────────────────┴────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-[›Doctor‹] [Settings] [Updates] [?] [Quit]
+[›i Doctor‹] [, Settings] [u Updates] [?] [q Quit]

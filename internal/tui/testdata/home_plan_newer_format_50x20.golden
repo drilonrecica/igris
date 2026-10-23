@@ -1,5 +1,5 @@
-igris · sinjal · herdr ✓              PLAN INVALID
-── NOW ───────────────────────────────────────────
+igris · sinjal · herdr ✓                      Idle
+──────────────────────────────────────────────────
 PLAN INVALID · tasks.md · 1 problem
 tasks.md:1: plan format 4 needs a newer igris (th…
 ── PHASES ────────────────────────────────────────
@@ -16,5 +16,5 @@ plan invalid — Check shows the problems
 ── RECENT ────────────────────────────────────────
 no runs yet
 
-[›Check‹] [Doctor] [Edit plan] [Settings] [Notify]
-[Updates] [?] [Quit]
+[›c Check‹] [i Doctor] [e Edit plan] [, Settings]
+[n Notify] [u Updates] [?] [q Quit]

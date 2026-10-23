@@ -109,8 +109,8 @@ func TestProgramBothLayouts(t *testing.T) {
 		w, h int
 		want []string
 	}{
-		{"wide", 120, 30, []string{"TASKS", "CURRENT", "LOG", "M0-03 Makefile"}},
-		{"narrow", 50, 20, []string{"M0-03 Makefile", "[Pause]"}},
+		{"wide", 120, 30, []string{"TASKS", "│ ┌─ M0-03", "LOG", "M0-03 Makefile"}},
+		{"narrow", 50, 20, []string{"M0-03 Makefile", "[p Pause]"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -124,14 +124,14 @@ func TestProgramBothLayouts(t *testing.T) {
 
 func TestProgramResizeSwitchesLayout(t *testing.T) {
 	tm, _ := program(t, 120, 30, started("M0-03"), opened("M0-03"))
-	seen(t, tm, "│ CURRENT")
+	seen(t, tm, "│ ┌─ M0-03")
 	tm.Send(tea.WindowSizeMsg{Width: 50, Height: 20})
 	key(tm, "q")
 	m := finished(t, tm)
 	if m.width != 50 || m.height != 20 {
 		t.Fatalf("size %dx%d, want 50x20", m.width, m.height)
 	}
-	if v := m.View(); strings.Contains(v, "│") || !strings.Contains(v, "M0-03 Makefile") {
+	if v := m.View(); m.wide() || !strings.Contains(v, "M0-03 Makefile") {
 		t.Errorf("not the narrow layout after the resize:\n%s", v)
 	}
 }
@@ -218,13 +218,13 @@ func TestProgramClicks(t *testing.T) {
 
 func TestProgramFocusOrder(t *testing.T) {
 	tm, _ := program(t, 120, 30, started("M0-03"), opened("M0-03"))
-	seen(t, tm, "[›Open session‹]")
+	seen(t, tm, "[›o Open session‹]")
 	key(tm, "tab")
 	seen(t, tm, "› LOG")
 	key(tm, "tab")
 	seen(t, tm, "› TASKS")
 	key(tm, "tab")
-	seen(t, tm, "[›Open session‹]")
+	seen(t, tm, "[›o Open session‹]")
 	key(tm, "q")
 	if m := finished(t, tm); m.focus != focusBar {
 		t.Errorf("three tabs left the focus on %v, want the bar", m.focus)

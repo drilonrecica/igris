@@ -6,27 +6,24 @@ import (
 	"strings"
 )
 
-// page is a scrollable text view drawn over the panes: the help, a task's
-// details, the whole log. Like a dialog it is modal; unlike one it offers
-// nothing to pick.
+// page is a scrollable text view drawn as an open screen of its own
+// (SPEC §15.1): the help, a task's details, the whole log, home's pages.
+// Like a dialog it is modal; unlike one it offers nothing to pick but its
+// bar's buttons.
 type page struct {
 	title string
-	body  func(w int) []string // the text, laid out for w cells
-	// buttons stand left of Close in the footer; the screen holding the
-	// page acts on their zones.
-	buttons []pageButton
-	// closeLabel names the footer's last button (actClose); "" is Close.
+	// project and status fill the header: the wordmark, the project, the
+	// title, and the status word, painted, at the right ("" for none).
+	project, status string
+	body            func(w int) []string // the text, laid out for w cells
+	// buttons stand left of Back in the bar; the screen holding the page
+	// acts on their zones.
+	buttons []button
+	// closeLabel names the bar's last button (actClose); "" is Back.
 	closeLabel string
 	top        int // first body line shown; clamped when drawn
 	rows       int // body lines shown in the last frame
 	total      int // body lines in the last frame
-}
-
-// pageButton is a footer button of a page.
-type pageButton struct {
-	label string
-	short string // used when the labels don't fit w; "" keeps label
-	act   action
 }
 
 // key handles a key press and reports whether it closes the page.
@@ -68,48 +65,45 @@ func (p *page) clamp() {
 	}
 }
 
-// render draws the page in exactly h lines of at most w cells: the title,
-// a rule, the body and a footer with the Close button. Zones are relative
-// to the top-left corner.
+// pageChrome is what the page's chrome takes: the header, its rule, the
+// rule over the bar and the bar.
+const pageChrome = 4
+
+// render draws the page in exactly h lines of at most w cells: the
+// header, a rule, the body, a rule and the bar with the page's buttons
+// and Back, each with its key. Zones are relative to the top-left corner.
 func (p *page) render(th *theme, w, h int) ([]string, zones) {
 	var z zones
-	if h < 3 {
+	// The title is what the page is about and is never cut for the status
+	// word: the word goes first when the width runs out.
+	facts := strings.TrimPrefix(p.project+" · "+p.title, " · ")
+	status := p.status
+	if textWidth(facts) > headerRoom(w, status) {
+		status = ""
+	}
+	head := th.header(w, facts, status)
+	if h < pageChrome+1 {
 		z.add(rect{0, 0, w, h}, target{region: regionPage})
-		return []string{th.paint(lookTitle, fit(p.title, w))}[:min(h, 1)], z
+		return []string{head}[:min(h, 1)], z
 	}
 	body := p.body(w)
-	p.rows, p.total = h-3, len(body)
+	p.rows, p.total = h-pageChrome, len(body)
 	rows := p.rows
 	p.clamp()
-	out := []string{th.paint(lookTitle, fit(p.title, w)), th.paint(lookFrame, strings.Repeat("─", w))}
+	out := []string{head, th.rule(w, "")}
 	z.add(rect{0, 2, w, rows}, target{region: regionPage})
 	for i := range rows {
 		out = append(out, fit(line(body, p.top+i), w))
 	}
-	foot, x := "", 0
+	out = append(out, th.rule(w, ""))
 	closeLabel := p.closeLabel
 	if closeLabel == "" {
-		closeLabel = "Close"
+		closeLabel = "Back"
 	}
-	btns := append(slices.Clone(p.buttons), pageButton{label: closeLabel, act: actClose})
-	short := false
-	if n := len(btns) - 1; n > 0 {
-		for _, b := range btns {
-			n += textWidth(th.button(b.label, btnNormal))
-		}
-		short = n > w
-	}
-	for _, b := range btns {
-		label := b.label
-		if short && b.short != "" {
-			label = b.short
-		}
-		btn := th.button(label, btnNormal)
-		z.add(rect{x, h - 1, min(textWidth(btn), max(w-x, 0)), 1}, target{act: b.act})
-		foot += btn + " "
-		x += textWidth(btn) + 1
-	}
-	foot = strings.TrimSuffix(foot, " ")
+	btns := append(slices.Clone(p.buttons), button{label: closeLabel, key: "q", act: actClose})
+	bar := layoutBar(th, btns, w, 1, actNone, false, nil)
+	bar.barZones(&z, h-1, false)
+	foot := bar.text[0]
 	if len(body) > rows && len(p.buttons) == 0 {
 		foot += th.paint(lookDim, fmt.Sprintf("  %d–%d of %d · ↑↓ scroll", p.top+1, min(p.top+rows, len(body)), len(body)))
 	}
@@ -123,7 +117,7 @@ func helpPage(th *theme, attached bool) *page {
 	if attached {
 		actions = attachedHelp()
 	}
-	return &page{title: "Help · esc closes", body: func(w int) []string {
+	return &page{title: "Help", body: func(w int) []string {
 		out := wrap("Actions: click a button, focus it and press enter, or press its key.", w)
 		out = append(out, helpTable(th, actions, w)...)
 		out = append(out, "", th.paint(lookTitle, "Focus"))

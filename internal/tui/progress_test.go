@@ -43,7 +43,7 @@ func TestProgressText(t *testing.T) {
 	if got := hs.m.progressText(progressFull, wideProgressBar); got != "" {
 		t.Errorf("no slice tasks in the phase: %q", got)
 	}
-	if top := hs.m.topRule(120); strings.Contains(top, "/") || !strings.Contains(top, "phase M0 · mode") {
+	if top := hs.m.header(120); strings.Contains(top, "/") || !strings.Contains(top, "phase M0 · mode") {
 		t.Errorf("header with no progress: %q", top)
 	}
 	// A new run without a slice counts the whole phase again.
@@ -60,17 +60,16 @@ func TestProgressGivesWayToWidth(t *testing.T) {
 		want, gone string
 	}{
 		{100, "3/7 · 42% ████░░░░░░", ""},
-		{58, "· 3/7 · 42% ·", "█"},
-		{51, "· 3/7 · mode", "%"},
+		{66, "· 3/7 · 42% ·", "█"},
+		{60, "· 3/7 · mode", "%"},
+		{54, "· 3/7 · mode", "herdr"},
+		{44, "sinjal · M0 · 3/7", "mode"},
 	} {
 		hs := newHarness(t, tc.w, 24)
 		hs.withPlan(demoPlan)
 		hs.events(engine.Event{Kind: engine.RunStarted, Phase: "M0", Detail: "phase M0"})
-		top := hs.m.topRule(tc.w)
-		if tc.w < 100 {
-			top = hs.m.statusBar(tc.w)
-		}
-		if !strings.Contains(top, tc.want) || (tc.gone != "" && strings.Contains(top, tc.gone)) || textWidth(top) > tc.w {
+		top := hs.m.header(tc.w)
+		if !strings.Contains(top, tc.want) || (tc.gone != "" && strings.Contains(top, tc.gone)) || textWidth(top) > tc.w || !strings.HasSuffix(top, "● Working") {
 			t.Errorf("%d columns: %q, want %q without %q", tc.w, top, tc.want, tc.gone)
 		}
 	}
@@ -136,7 +135,12 @@ func TestProgramShowsProgressAndETA(t *testing.T) {
 			RankDurations: map[string][]time.Duration{"sonnet": {5 * time.Minute, 6 * time.Minute, 7 * time.Minute}},
 		})
 		tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(size[0], size[1]))
-		seen(t, tm, "slice 1/2 · 50%", "2m0s · ≈ 4m left")
+		// Narrow, the percentage gives way to the status word (SPEC §15.1).
+		want := "slice 1/2 · 50%"
+		if size[0] < 100 {
+			want = "slice 1/2 · mode"
+		}
+		seen(t, tm, want, "2m0s · ≈ 4m left")
 		_ = tm.Quit()
 	}
 }

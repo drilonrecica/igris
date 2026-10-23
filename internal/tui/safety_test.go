@@ -325,7 +325,7 @@ func TestHomeReadOnlyUnderALiveLock(t *testing.T) {
 		s := &report.Snapshot{Root: "/src/newproj", Project: "newproj", Found: true, Config: config.Default(), NoConfig: true, ConfigPath: "/src/newproj/igris.toml", PlanPath: "/src/newproj/tasks.md", PlanMissing: true}
 		return homeFixture{snap: s, doctor: []checks.Result{{ID: checks.IDConfigValid, Level: checks.Fail, Message: "igris.toml not found", Next: "igris init"}}, doctorDone: true}
 	}
-	offered := func(s interface{ buttons() []pageButton }, a action) bool {
+	offered := func(s interface{ buttons() []button }, a action) bool {
 		for _, b := range s.buttons() {
 			if b.act == a {
 				return true
@@ -495,7 +495,7 @@ func TestEmbeddedRunReleasesTheLock(t *testing.T) {
 		tm, root := realProgram(t, goingPlan)
 		seen(t, tm, "READY")
 		ariseM2(t, tm)
-		seen(t, tm, "[Home]")
+		seen(t, tm, "[q Home]")
 		if !lockHeld(t, root) {
 			t.Fatal("the run holds no lock")
 		}
@@ -512,7 +512,7 @@ func TestEmbeddedRunReleasesTheLock(t *testing.T) {
 		tm, root := realProgram(t, goingPlan)
 		seen(t, tm, "READY")
 		ariseM2(t, tm)
-		seen(t, tm, "[Home]")
+		seen(t, tm, "[q Home]")
 		tm.Type("x")
 		seen(t, tm, "Stop igris?")
 		tm.Type("2")
@@ -528,7 +528,7 @@ func TestEmbeddedRunReleasesTheLock(t *testing.T) {
 		tm, root := realProgram(t, goingPlan)
 		seen(t, tm, "READY")
 		ariseM2(t, tm)
-		seen(t, tm, "[Home]")
+		seen(t, tm, "[q Home]")
 		tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 		a := finalApp(t, tm)
 		if r := a.finish(); !r.Stopped {
@@ -548,7 +548,7 @@ func TestEmbeddedRunReleasesTheLock(t *testing.T) {
 			t.Error("the lock is still held while the drift question is open")
 		}
 		tm.Type("2") // Let igris fix them: the run starts
-		seen(t, tm, "[Home]")
+		seen(t, tm, "[q Home]")
 		if !lockHeld(t, root) {
 			t.Error("the run holds no lock")
 		}

@@ -1,20 +1,19 @@
-igris · sinjal · no plan · herdr ✓ · mode auto                                                                   NO PLAN
+igris · sinjal · no plan · herdr ✓ · mode auto                                                                      Idle
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-
-
-
-
-
-
-
-
-
-
-
-                        ╭──────────────────────────────────────────────────────────────────────╮
+PHASES                                                     │ GET STARTED
+tasks.md not found                                         │ ✓ 1 igris.toml  found
+                                                           │ · 2 plan        tasks.md not found
+                                                           │ · 3 check       —
+                                                           │ · 4 preview     —
+                                                           │ · 5 arise       —
+                                                           │ Plan from template… writes a starter plan (the example plan
+                                                           │ or a template); Draft… has Claude write one from a goal, a
+                                                           │ spec or an issue export; or write your own at
+                                                           │ /src/sinjal/tasks.md.
+                        ╭──────────────────────────────────────────────────────────────────────╮────────────────────────
                         │ Draft from a spec file                                               │
-                        │                                                                      │
-                        │ A Markdown or text file inside the project, up to 1 MiB. Claude      │
+                        │                                                                      │hanges
+                        │ A Markdown or text file inside the project, up to 1 MiB. Claude      │────────────────────────
                         │ reads it itself and treats it as data, never as instructions.        │
                         │ draft.model in igris.toml is opus.                                   │
                         │                                                                      │
@@ -23,18 +22,19 @@ igris · sinjal · no plan · herdr ✓ · mode auto                            
                         │   1. Cancel                                                          │
                         │   2. Draft with sonnet                                               │
                         │   3. Draft with opus                                                 │
+                        │                                                                      │
+                        │ type · enter draft with opus · esc cancel                            │
                         ╰──────────────────────────────────────────────────────────────────────╯
-
-
-
-
-
-
-
-
-
-
-
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-[Plan from template…] [Draft…] [Doctor] [Settings] [Notify] [Updates] [?] [Quit]
+[E Plan from template…] [D Draft…] [i Doctor] [, Settings] [n Notify] [u Updates] [?] [q Quit]

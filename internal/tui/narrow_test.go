@@ -39,7 +39,7 @@ func TestNarrowFitsSmallScreens(t *testing.T) {
 				hs.events(engine.Event{Kind: engine.Warning, Detail: strings.Repeat("a long warning ", 8)})
 			}
 			view := hs.m.View()
-			if strings.HasPrefix(view, "┌") {
+			if hs.m.wide() {
 				t.Fatalf("%v %s: wide layout on a small screen", size, st.name)
 			}
 			checkFits(t, view, size[0], size[1])
@@ -55,7 +55,7 @@ func TestNarrowShowsWhatMatters(t *testing.T) {
 		hs.events(engine.Event{Kind: engine.Warning, Detail: fmt.Sprintf("log %d", i)})
 	}
 	v := hs.m.View()
-	for _, want := range []string{"M0-03 Makefile", "● M0-03 sonnet", "⨯ M0-13 sonnet", "log 2", "log 3", "log 4", "[›Open session‹]", "[Done]"} {
+	for _, want := range []string{"M0-03 Makefile", "● M0-03 sonnet", "⨯ M0-13 sonnet", "log 2", "log 3", "log 4", "[›o Open‹]", "[d Done]"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("view lacks %q:\n%s", want, v)
 		}
@@ -77,7 +77,7 @@ func TestNarrowFoldsIntoMore(t *testing.T) {
 	hs.withPlan(demoPlan)
 	hs.events(started("M0-03"), opened("M0-03"))
 	v := hs.m.View()
-	if !strings.Contains(v, "[More…]") || strings.Contains(v, "[Pause]") {
+	if !strings.Contains(v, "[More…]") || strings.Contains(v, "[p Pause]") {
 		t.Fatalf("bar not folded:\n%s", v)
 	}
 	hs.click(isAct(actMore))
@@ -104,8 +104,8 @@ func TestNarrowFoldsIntoMore(t *testing.T) {
 	}
 }
 
-func TestFitBar(t *testing.T) {
-	btns := []option{{"Open session", actOpen}, {"Pause", actPause}, {"Done", actDone}, {"Quit", actQuit}}
+func TestLayoutBar(t *testing.T) {
+	btns := []button{{"Open session", "Open", "o", actOpen}, {label: "Pause", key: "p", act: actPause}, {label: "Done", key: "d", act: actDone}, {key: "?", act: actHelp}, {label: "Quit", key: "q", act: actQuit}}
 	labels := func(l barLayout) [][]string {
 		var out [][]string
 		for _, r := range l.rows {
@@ -122,12 +122,17 @@ func TestFitBar(t *testing.T) {
 		rows   [][]string
 		folded int
 	}{
-		{50, [][]string{{"[Open session]", "[Pause]", "[Done]", "[Quit]"}}, 0},
-		{24, [][]string{{"[Open session]", "[Pause]"}, {"[Done]", "[Quit]"}}, 0},
-		{16, [][]string{{"[Open session]"}, {"[Done]", "[More…]"}}, 2},
+		// Everything fits with the full labels.
+		{60, [][]string{{"[o Open session]", "[p Pause]", "[d Done]", "[?]", "[q Quit]"}}, 0},
+		// Two rows hold the full labels.
+		{30, [][]string{{"[o Open session]", "[p Pause]"}, {"[d Done]", "[?]", "[q Quit]"}}, 0},
+		// The verbs fit where the labels don't.
+		{22, [][]string{{"[o Open]", "[p Pause]"}, {"[d Done]", "[?]", "[q Quit]"}}, 0},
+		// Folding: More… goes before ? and Quit, which never fold.
+		{16, [][]string{{"[o Open]", "[More…]"}, {"[?]", "[q Quit]"}}, 2},
 	}
 	for _, tt := range tests {
-		l := fitBar(&theme{}, btns, tt.w, barRows, actNone)
+		l := layoutBar(&theme{}, btns, tt.w, barRows, actNone, false, []action{actPause, actDone, actOpen})
 		if got := labels(l); !reflect.DeepEqual(got, tt.rows) || len(l.folded) != tt.folded {
 			t.Errorf("w=%d: rows %q folded %d, want %q %d", tt.w, got, len(l.folded), tt.rows, tt.folded)
 		}
@@ -141,6 +146,14 @@ func TestFitBar(t *testing.T) {
 				t.Errorf("w=%d: row %q too wide", tt.w, l.text[i])
 			}
 		}
+	}
+	// The focused button is marked; under a dialog every button is
+	// inactive and none is marked.
+	if l := layoutBar(&theme{}, btns, 60, 1, actDone, false, nil); l.text[0] != "[o Open session] [p Pause] [›d Done‹] [?] [q Quit]" {
+		t.Errorf("focused bar = %q", l.text[0])
+	}
+	if l := layoutBar(&theme{}, btns, 60, 1, actDone, true, nil); strings.Contains(l.text[0], "›") {
+		t.Errorf("modal bar marks a button: %q", l.text[0])
 	}
 }
 
@@ -194,11 +207,20 @@ func TestClicksLandWhereTheTextIs(t *testing.T) {
 			if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdAnswer, Task: "M0-03"}) {
 				t.Fatalf("dialog option: sent %+v", got)
 			}
-			hs.clickText("[Done]")
-			if got := hs.s.take(); len(got) != 1 || got[0].Kind != engine.CmdDone {
-				t.Fatalf("bar: sent %+v", got)
+			if size[0] >= 50 {
+				hs.clickText("[d Done]")
+				if got := hs.s.take(); len(got) != 1 || got[0].Kind != engine.CmdDone {
+					t.Fatalf("bar: sent %+v", got)
+				}
+			} else {
+				// Too narrow for Done on the bar: it is behind More….
+				hs.clickText("[More…]")
+				if hs.m.dialog == nil || !hasOption(hs.m.dialog, actDone) {
+					t.Fatalf("More… doesn't offer Done:\n%s", hs.m.View())
+				}
+				hs.key("esc")
 			}
-			hs.clickText("[o] Open session")
+			hs.clickText("[o] Open se")
 			if len(hs.focus) != 1 {
 				t.Fatal("card button: not focused")
 			}

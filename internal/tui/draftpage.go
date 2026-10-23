@@ -446,13 +446,14 @@ func (s *draftScreen) View() string {
 	s.p.closeLabel = ""
 	if s.running() {
 		if s.ref != nil {
-			s.p.buttons = []pageButton{{"Open session", "Open", actOpen}}
+			s.p.buttons = []button{{"Open session", "Open", "o", actOpen}}
 		}
 		s.p.closeLabel = "Cancel"
 	}
 	if s.follow {
 		s.p.top = maxTop
 	}
+	s.home.pageHead(s.p)
 	lines, z := s.p.render(s.home.th, s.w, s.h)
 	s.zones = z
 	return strings.Join(lines, "\n")

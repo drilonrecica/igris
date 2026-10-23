@@ -558,7 +558,7 @@ func TestEmbeddedRunLeave(t *testing.T) {
 	tm, _ := launchProgram(t, st)
 	seen(t, tm, "READY")
 	ariseM2(t, tm)
-	seen(t, tm, "[Home]")
+	seen(t, tm, "[q Home]")
 	tm.Type("q") // Home: the engine stops, the session keeps running
 	seen(t, tm, "igris stopped; a running session keeps running")
 	tm.Type("q")
@@ -576,7 +576,7 @@ func TestEmbeddedRunStopReturnsHome(t *testing.T) {
 	tm, _ := launchProgram(t, st)
 	seen(t, tm, "READY")
 	ariseM2(t, tm)
-	seen(t, tm, "[Home]")
+	seen(t, tm, "[q Home]")
 	tm.Type("x")
 	seen(t, tm, "Stop igris?")
 	tm.Type("2")
@@ -611,7 +611,7 @@ func TestEmbeddedRunQuitStopsAndWaits(t *testing.T) {
 	tm, _ := launchProgram(t, st)
 	seen(t, tm, "READY")
 	ariseM2(t, tm)
-	seen(t, tm, "[Home]")
+	seen(t, tm, "[q Home]")
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	a := finalApp(t, tm)
 	r := a.finish() // waits for the engine: the lock is released

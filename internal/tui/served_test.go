@@ -129,7 +129,7 @@ func TestHomeAttachHomeDetaches(t *testing.T) {
 	ar := &attachedRuns{}
 	tm, svc := servedProgram(t, ar)
 	tm.Type("t")
-	seen(t, tm, "[Home]", "phase M2")
+	seen(t, tm, "[q Home]", "phase M2")
 	tm.Type("q")
 	seen(t, tm, "Leave the run view?")
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter}) // Home, focused
@@ -156,7 +156,7 @@ func TestHomeAttachStopRun(t *testing.T) {
 	ar := &attachedRuns{}
 	tm, _ := servedProgram(t, ar)
 	tm.Type("t")
-	seen(t, tm, "[Home]")
+	seen(t, tm, "[q Home]")
 	tm.Type("q")
 	seen(t, tm, "Leave the run view?")
 	tm.Type("2") // Stop run
@@ -174,7 +174,7 @@ func TestHomeAttachQuitDetaches(t *testing.T) {
 	ar := &attachedRuns{}
 	tm, _ := servedProgram(t, ar)
 	tm.Type("t")
-	seen(t, tm, "[Home]")
+	seen(t, tm, "[q Home]")
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	a := finalApp(t, tm)
 	if r := a.finish(); !r.Detached || r.Stopped {
@@ -207,7 +207,7 @@ func TestHomeAriseServedQuitDetaches(t *testing.T) {
 	tm := appProgram(t, svc, 120, 40)
 	seen(t, tm, "READY")
 	ariseM2(t, tm)
-	seen(t, tm, "[Home]", "phase M2")
+	seen(t, tm, "[q Home]", "phase M2")
 	tm.Type("q")
 	seen(t, tm, "Leave the run view?")
 	tm.Type("3") // Cancel: stay

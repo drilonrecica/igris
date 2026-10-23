@@ -165,11 +165,13 @@ func TestTailRightAligned(t *testing.T) {
 func TestTailGivesWayToTheCard(t *testing.T) {
 	hs := cardHarness(t, 120, 40, "M0-03")
 	hs.withTail(sampleTail...)
-	full := hs.m.renderCard(50, 0, 0, -1, false)
-	for rows := len(full); rows >= 5; rows-- {
-		card := hs.m.renderCard(50, 0, 0, rows, false)
+	// The card is boxed: its title is on the top border, the buttons stay
+	// on the last body row above the bottom border.
+	full := hs.m.drawCard(hs.m.cur, 0, 0, 54, -1)
+	for rows := len(full); rows >= 7; rows-- {
+		card := hs.m.drawCard(hs.m.cur, 0, 0, 54, rows)
 		text := strings.Join(card, "\n")
-		if len(card) > rows || !strings.Contains(card[0], "M0-03") || !strings.Contains(card[len(card)-1], "[t] Details") {
+		if len(card) > rows || !strings.Contains(card[0], "M0-03") || !strings.Contains(card[len(card)-2], "[t] Details") {
 			t.Fatalf("%d rows:\n%s", rows, text)
 		}
 		hasText := strings.Contains(text, "this sentence")
@@ -178,7 +180,7 @@ func TestTailGivesWayToTheCard(t *testing.T) {
 			t.Errorf("%d rows: the text stayed and the tail went:\n%s", rows, text)
 		}
 	}
-	short := strings.Join(hs.m.renderCard(50, 0, 0, 7, false), "\n")
+	short := strings.Join(hs.m.drawCard(hs.m.cur, 0, 0, 54, 9), "\n")
 	if strings.Contains(short, "this sentence") || !strings.Contains(short, "Thinking") || strings.Contains(short, "earlier line two") {
 		t.Errorf("7 rows: want the newest tail lines and no text:\n%s", short)
 	}

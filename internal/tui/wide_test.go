@@ -142,12 +142,12 @@ var layoutStates = []struct {
 func TestWideLayoutGolden(t *testing.T) {
 	for _, st := range layoutStates {
 		t.Run(st.name, func(t *testing.T) {
-			hs := newHarness(t, 120, 30)
+			hs := newHarness(t, 120, 40)
 			hs.m.loc = time.UTC
 			hs.withPlan(demoPlan)
 			st.setup(hs)
 			view := hs.m.View()
-			checkFits(t, view, 120, 30)
+			checkFits(t, view, 120, 40)
 			golden(t, "wide_"+st.name, view)
 		})
 	}
@@ -159,7 +159,7 @@ func TestWideLayoutFitsAtItsLimits(t *testing.T) {
 			hs := newHarness(t, size[0], size[1])
 			hs.withPlan(demoPlan)
 			st.setup(hs)
-			if !strings.HasPrefix(hs.m.View(), "┌ igris · sinjal") {
+			if !strings.HasPrefix(hs.m.View(), "igris · sinjal") || !hs.m.wide() {
 				t.Fatalf("%v %s: not the wide layout", size, st.name)
 			}
 			checkFits(t, hs.m.View(), size[0], size[1])

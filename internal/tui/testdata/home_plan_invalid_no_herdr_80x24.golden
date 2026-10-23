@@ -1,5 +1,5 @@
-igris · sinjal · herdr ⨯                                            PLAN INVALID
-── NOW ─────────────────────────────────────────────────────────────────────────
+igris · sinjal · herdr ⨯                                                    Idle
+────────────────────────────────────────────────────────────────────────────────
 PLAN INVALID · tasks.md · 4 problems
 tasks.md:5: M9-02 depends on unknown task M9-01; check the ID or remove it from…
 tasks.md:6: M9-03: unknown status "wip" (did you mean in progress?); use ready,…
@@ -14,11 +14,11 @@ plan invalid — Check shows the problems
 
 
 
-
 ── HEALTH ──────────────────────────────────────────────────────────────────────
 ⨯ plan invalid · 4 problems
 ! doctor: 1 warning — uncommitted changes
 ── RECENT ──────────────────────────────────────────────────────────────────────
 no runs yet
 
-[›Check‹] [Doctor] [Edit plan] [Settings] [Notify] [Updates] [?] [Quit]
+[›c Check‹] [i Doctor] [e Edit plan] [, Settings] [n Notify] [u Updates] [?]
+[q Quit]

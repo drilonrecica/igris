@@ -1,14 +1,13 @@
-igris · sinjal · tasks.md · herdr ✓ · mode auto                                                                     idle
+igris · sinjal · tasks.md · herdr ✓ · mode auto                                                                     Idle
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-
-
-
-
-
-
-
+PHASES                                                     │ READY · phase M2 Config & state
+  ✓ M0  Foundations                   ██████████ 3/3 done  │ next  · M2-02  Lock file                             opus
+  ✓ M1  Plan parser                   ██████████ 2/2 done  │ then  · M2-03  State file                            sonnet
+› · M2  Config & state                ██░░░░░░░░ 1/4 next  │ 3 left · 2 wait on M2-02
+  ⨯ M3  Engine                        ░░░░░░░░░░ 0/3 wait  │ ── HEALTH ─────────────────────────────────────────────────
+  ⨯ M4  TUI                           ░░░░░░░░░░ 0/2 wait  │ ✓ plan valid · 5 phases · 14 tasks
           ╭─────────────────────────────────────────────────────────────────────────────────────────────────╮
-          │ igris 1.2.0 is out                                                                              │
+          │ igris 1.2.0 is out                                                                              │───────────
           │                                                                                                 │
           │ 1.1.0 → 1.2.0 · igris can't tell how it was installed, so it runs nothing.                      │
           │ https://github.com/drilonrecica/igris/releases/tag/v1.2.0                                       │
@@ -27,14 +26,15 @@ igris · sinjal · tasks.md · herdr ✓ · mode auto                           
           │                                                                                                 │
           │ › 1. Copy steps (y)                                                                             │
           │   2. Close                                                                                      │
+          │                                                                                                 │
+          │ enter choose · 1–2 pick · esc close                                                             │
           ╰─────────────────────────────────────────────────────────────────────────────────────────────────╯
-
-
-
-
-
-
-
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-[Arise…] [Preview] [Check] [Draft…] [Doctor] [History] [Edit plan] [Settings] [Notify] [Updates] [?] [Quit]
+[a Arise…] [v Preview] [c Check] [D Draft…] [i Doctor] [h History] [e Edit] [, Settings] [n Notify] [More…] [?] [q Quit]

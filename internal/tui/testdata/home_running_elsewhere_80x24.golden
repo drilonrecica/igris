@@ -1,5 +1,5 @@
-igris · sinjal · herdr ✓                                       RUNNING ELSEWHERE
-── NOW ─────────────────────────────────────────────────────────────────────────
+igris · sinjal · herdr ✓                                               ● Working
+────────────────────────────────────────────────────────────────────────────────
 RUNNING in another igris · pid 4242 on this host · since 09:12
 ● M2-02  Lock file              opus · mode plan · 14m
 recent: M2-01 done · M2-02 running
@@ -20,5 +20,5 @@ This screen only watches. Use that terminal to control the run.
 Oct 07 09:12  M2, M3  1 done · running
 Oct 06 21:10  M2  3 done · 1 skipped · stopped
 
-[›Open session‹] [Preview] [Check] [Doctor] [History] [Edit plan] [Settings]
-[Notify] [Updates] [?] [Quit]
+[›o Open session‹] [v Preview] [c Check] [i Doctor] [h History] [e Edit plan]
+[, Settings] [n Notify] [u Updates] [?] [q Quit]

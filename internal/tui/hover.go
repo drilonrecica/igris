@@ -59,7 +59,7 @@ func inDialog(t target) bool { return t.act == actOption || t.act == actField }
 // owner maps body lines to what they show, -1 for none (the phase, doctor
 // and history pages).
 func rowAt(p *page, owner []int, w, x, y int) (rect, bool) {
-	i := y - 2 // under the title and its rule
+	i := y - 2 // under the header and its rule
 	if x < 0 || x >= w || i < 0 || i >= p.rows || p.top+i >= len(owner) || owner[p.top+i] < 0 {
 		return rect{}, false
 	}

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/drilonrecica/igris/internal/checks"
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/side"
@@ -65,33 +66,33 @@ func (m *homeScreen) kind() nowKind {
 	return nowReady
 }
 
-// stateWord is the run state the header shows on the right, and its look.
+// stateWord is the status word the header shows on the right (SPEC
+// §15.4), and its look: Idle while no run goes here (the card says why),
+// Interrupted when the last run ended without ending itself, Working for
+// a run served here.
 func (m *homeScreen) stateWord() (string, tone) {
 	switch m.kind() {
-	case nowLoading:
-		return "reading…", lookDim
-	case nowUnreadable:
-		return "UNREADABLE", lookAlert
-	case nowGetStarted:
-		return "GET STARTED", lookTitle
 	case nowRunningElsewhere:
-		return "RUNNING ELSEWHERE", lookAlert
-	case nowConfigInvalid:
-		return "CONFIG INVALID", lookAlert
-	case nowPlanMissing:
-		return "NO PLAN", lookTitle
-	case nowPlanInvalid:
-		return "PLAN INVALID", lookAlert
-	case nowStaleLock:
-		return "STALE LOCK", lookTitle
-	case nowRemoteLock:
-		return "LOCKED", lookTitle
+		return look.Working.Label(), lookAccentBold
 	case nowInterrupted:
-		return "INTERRUPTED", lookAlert
-	case nowStopped:
-		return "STOPPED", lookTitle
+		return look.Interrupted.Label(), lookWarn
 	}
-	return "idle", lookDim
+	return look.Idle.String(), lookDim
+}
+
+// pageHead fills p's header with the project and the status word, as
+// home shows them (SPEC §15.1).
+func (m *homeScreen) pageHead(p *page) {
+	word, l := m.stateWord()
+	p.project, p.status = m.project(), m.th.paint(l, word)
+}
+
+// project is the project's name, "" until the first read is back.
+func (m *homeScreen) project() string {
+	if m.snap == nil {
+		return ""
+	}
+	return m.snap.Project
 }
 
 // Facts about the snapshot the rules below share.
@@ -195,13 +196,14 @@ func (m *homeScreen) planName() string {
 func (m *homeScreen) planPath() string { return textsafe.Line(m.snap.PlanPath) }
 
 // buttons are the actions the bar offers right now (SPEC §15.6, "shown
-// when"), the state's own action first.
-func (m *homeScreen) buttons() []option {
+// when"), each with its key, the state's own action first and ? and Quit
+// last.
+func (m *homeScreen) buttons() []button {
 	s, k := m.snap, m.kind()
-	var out []option
-	add := func(when bool, label string, a action) {
+	var out []button
+	add := func(when bool, b button) {
 		if when {
-			out = append(out, option{label, a})
+			out = append(out, b)
 		}
 	}
 	found := s != nil
@@ -210,27 +212,27 @@ func (m *homeScreen) buttons() []option {
 	if m.resumable() {
 		arise = "Resume…"
 	}
-	add(found && len(s.ConfigProblems) == 0 && !s.NoConfig && m.planValid() && m.herdr() && !live, arise, actArise)
-	add(live && s.Served && m.run == nil, "Attach", actAttach)
-	add(live && s.Run != nil && s.Run.Session != "", "Open session", actOpen)
-	add(m.planValid(), "Preview", actPreview)
-	add(m.planFile(), "Check", actCheck)
+	add(found && len(s.ConfigProblems) == 0 && !s.NoConfig && m.planValid() && m.herdr() && !live, button{label: arise, key: "a", act: actArise})
+	add(live && s.Served && m.run == nil, button{label: "Attach", key: "t", act: actAttach})
+	add(live && s.Run != nil && s.Run.Session != "", button{"Open session", "Open", "o", actOpen})
+	add(m.planValid(), button{label: "Preview", key: "v", act: actPreview})
+	add(m.planFile(), button{label: "Check", key: "c", act: actCheck})
 	// A plan from a newer igris needs an upgrade, not a conversion.
 	newer := m.snap != nil && m.snap.Plan != nil && m.snap.Plan.NewerFormat()
-	add(m.planFile() && !m.planValid() && !newer && m.herdr() && !live, "Adapt", actAdapt)
-	add(m.canDraft() && !live, "Draft…", actDraft)
-	add(true, "Doctor", actDoctor)
-	add(found && (len(s.Recent) > 0 || s.Stamp.Log.Exists), "History", actHistory)
-	add(m.planFile(), "Edit plan", actEdit)
-	add(true, "Settings", actSettings)
-	add(m.channels(), "Notify", actNotify)
+	add(m.planFile() && !m.planValid() && !newer && m.herdr() && !live, button{label: "Adapt", key: "A", act: actAdapt})
+	add(m.canDraft() && !live, button{label: "Draft…", key: "D", act: actDraft})
+	add(true, button{label: "Doctor", key: "i", act: actDoctor})
+	add(found && (len(s.Recent) > 0 || s.Stamp.Log.Exists), button{label: "History", key: "h", act: actHistory})
+	add(m.planFile(), button{"Edit plan", "Edit", "e", actEdit})
+	add(true, button{label: "Settings", key: ",", act: actSettings})
+	add(m.channels(), button{label: "Notify", key: "n", act: actNotify})
 	// Side sessions need a reachable backend, or one open to look at; they
 	// never touch the plan, so a read-only home offers them too.
-	add(found && m.side != nil && (m.herdr() || m.side.count() > 0), "Side…", actSide)
-	add(found && s.NoConfig && !live, "Init", actInit)
-	add(found && !s.NoConfig && len(s.ConfigProblems) == 0 && s.PlanMissing && !live, "Plan from template…", actExample)
-	add(true, "Updates", actUpdate)
-	out = append(out, option{"?", actHelp}, option{"Quit", actQuit})
+	add(found && m.side != nil && (m.herdr() || m.side.count() > 0), button{label: "Side…", key: "S", act: actSide})
+	add(found && s.NoConfig && !live, button{label: "Init", key: "I", act: actInit})
+	add(found && !s.NoConfig && len(s.ConfigProblems) == 0 && s.PlanMissing && !live, button{"Plan from template…", "Template…", "E", actExample})
+	add(true, button{label: "Updates", key: "u", act: actUpdate})
+	out = append(out, button{key: "?", act: actHelp}, button{label: "Quit", key: "q", act: actQuit})
 
 	// The state's own action goes first: it is the one enter runs.
 	first := actNone
@@ -253,7 +255,7 @@ func (m *homeScreen) buttons() []option {
 	}
 	for i, b := range out {
 		if b.act == first && i > 0 {
-			out = append([]option{b}, append(out[:i:i], out[i+1:]...)...)
+			out = append([]button{b}, append(out[:i:i], out[i+1:]...)...)
 			break
 		}
 	}
@@ -262,7 +264,7 @@ func (m *homeScreen) buttons() []option {
 
 // homeFold lists the actions the bar folds into More… first when it
 // doesn't fit; the first button (the state's own action) is never folded.
-var homeFold = []action{actUpdate, actSide, actNotify, actSettings, actEdit, actHistory, actDoctor, actAdapt, actDraft, actInit, actExample, actCheck, actPreview, actOpen, actHelp, actArise, actAttach}
+var homeFold = []action{actUpdate, actSide, actNotify, actSettings, actEdit, actHistory, actDoctor, actAdapt, actDraft, actInit, actExample, actCheck, actPreview, actOpen, actArise, actAttach}
 
 // phaseRow is one PHASES row, ready to lay out.
 type phaseRow struct {
@@ -807,10 +809,10 @@ func (m *homeScreen) recentLines() []homeLine {
 	return out
 }
 
-// header is the header's left part: project, plan file, backend and mode
-// (wide), or project and backend (narrow).
+// header is the header's facts after the wordmark: project, plan file,
+// backend and mode (wide), or project and backend (narrow).
 func (m *homeScreen) header(wide bool) string {
-	parts := []string{m.th.paint(lookAccentBold, "igris")}
+	var parts []string
 	s := m.snap
 	if s != nil {
 		parts = append(parts, s.Project)

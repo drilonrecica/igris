@@ -20,13 +20,14 @@ type tone int
 const (
 	lookPlain      tone = iota
 	lookAccent          // the working color: running, done, borders of dialogs
-	lookAccentBold      // the app title, the focused region, what wants a click
+	lookAccentBold      // the Working status word, the focused region, what wants a click
 	lookAlert           // needs the owner; skip permissions
 	lookWarn            // running low: the subscription quota from 80%
 	lookFrame           // box lines and rules
 	lookTitle           // titles and what matters now
 	lookDim             // finished or unavailable; secondary text
 	lookFocus           // the focused element: reverse video
+	lookBrand           // the wordmark's red i: plume, bold; the brand mark is not a status
 	lookCount
 )
 
@@ -77,6 +78,7 @@ func newTheme(r *lipgloss.Renderer, dark bool, rankColors map[string]string) *th
 		lookTitle:      {attrs: sgrBold},
 		lookDim:        {attrs: sgrFaint},
 		lookFocus:      {attrs: sgrBold + ";" + sgrReverse},
+		lookBrand:      {color: alertShade.Pick(dark), attrs: sgrBold},
 	}
 	for _, r := range look.Ranks {
 		th.ranks[r.Rank] = r.Pick(dark)

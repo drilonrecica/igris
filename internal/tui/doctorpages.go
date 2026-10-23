@@ -113,24 +113,24 @@ func (s *doctorScreen) rowActions(r checks.Result) []action {
 	return out
 }
 
-var doctorActionButtons = map[action]pageButton{
-	actEditConfig: {"Edit config", "Edit", actEditConfig},
-	actInit:       {"Init", "", actInit},
-	actCheck:      {"Check", "", actCheck},
-	actAdapt:      {"Adapt", "", actAdapt},
+var doctorActionButtons = map[action]button{
+	actEditConfig: {"Edit config", "Edit", "e", actEditConfig},
+	actInit:       {label: "Init", key: "I", act: actInit},
+	actCheck:      {label: "Check", key: "c", act: actCheck},
+	actAdapt:      {label: "Adapt", key: "A", act: actAdapt},
 }
 
-func (s *doctorScreen) buttons() []pageButton {
-	var out []pageButton
+func (s *doctorScreen) buttons() []button {
+	var out []button
 	if r, ok := s.selected(); ok {
 		for _, a := range s.rowActions(r) {
 			out = append(out, doctorActionButtons[a])
 		}
 		if r.Next != "" {
-			out = append(out, pageButton{"Copy fix command", "Copy", actCopy})
+			out = append(out, button{"Copy fix command", "Copy", "y", actCopy})
 		}
 	}
-	return append(out, pageButton{"Run again", "Again", actDoctor})
+	return append(out, button{"Run again", "Again", "i", actDoctor})
 }
 
 func (s *doctorScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -214,8 +214,9 @@ func (s *doctorScreen) View() string {
 	if s.notice != "" {
 		title += " · " + s.notice
 	}
-	s.p.title = title + " · i runs again"
+	s.p.title = title
 	s.p.buttons = s.buttons()
+	s.home.pageHead(s.p)
 	lines, z := s.p.render(s.home.th, s.w, s.h)
 	s.zones = z
 	return strings.Join(lines, "\n")
@@ -524,12 +525,11 @@ func (s *historyScreen) View() string {
 			title += " · " + t.ID
 		}
 	}
-	if s.level > 0 {
-		title += " · esc goes back"
-	} else {
-		title += " · enter opens · esc closes"
+	if s.level == 0 {
+		title += " · enter opens"
 	}
 	s.p.title = title
+	s.home.pageHead(s.p)
 	lines, z := s.p.render(s.home.th, s.w, s.h)
 	s.zones = z
 	return strings.Join(lines, "\n")

@@ -11,11 +11,11 @@ import (
 )
 
 // Several active tasks (SPEC §15.1, a parallel phase): one card per active
-// task in plan order, one of them selected. Wide, the CURRENT column
-// stacks the cards, the selected one with a heavier border; narrow, a
-// switcher line sits over the selected card. A new card is never
-// selected by itself; when the selected task ends, the next card in plan
-// order is.
+// task in plan order, one of them selected. Wide, the right column stacks
+// the cards, the selected one with a heavier border; narrow, a switcher
+// line sits over the selected card. A new card is never selected by
+// itself; when the selected task ends, the next card in plan order is.
+// Every card is boxed, its head on the top border (SPEC §15.1).
 
 // card is active task id's card, or nil.
 func (m *model) card(id string) *current {
@@ -167,14 +167,17 @@ var (
 	selectedBox = [6]string{"┏", "━", "┓", "┃", "┗", "┛"}
 )
 
+// cardInner is the text width inside a card box w cells wide: "│ " +
+// text + " │".
+func cardInner(w int) int { return max(w-4, 1) }
+
 // cardsView stacks the cards in rows lines of w cells drawn at (x, y),
-// each in a box with its head on the top border, and records their zones:
-// the selected card's buttons and title, and every other card as one
-// target that selects it. The cards share the height: each gets what it
-// needs while that fits, else an even share, the rest going to the first
-// that want more; the task text gives way first, then the tail.
+// each in its box, and records their zones. The cards share the height:
+// each gets what it needs while that fits, else an even share, the rest
+// going to the first that want more; the task text gives way first, then
+// the tail.
 func (m *model) cardsView(x, y, w, rows int) []string {
-	inner := max(w-4, 1) // "│ " + text + " │"
+	inner := cardInner(w)
 	need := make([]int, len(m.cards))
 	for i, c := range m.cards {
 		need[i] = len(m.cardBody(c, inner, 0, 0, -1, false, true))
@@ -185,42 +188,48 @@ func (m *model) cardsView(x, y, w, rows int) []string {
 		if give[i] <= 0 {
 			continue
 		}
-		box := cardBox
-		if c == m.cur {
-			box = selectedBox
-		}
-		top := y + len(out)
-		bodyRows := max(give[i]-2, 0)
-		body := m.cardBody(c, inner, x+2, top+1, bodyRows, c == m.cur, true)
-		title := fit(m.cardTitle(c), max(inner-2, 1))
-		tone := lookTitle
-		if c == m.cur {
-			tone = lookAccentBold
-		}
-		fill := max(w-2-1-textWidth(title)-2, 0) // corner, "─ ", title, " ", fill, corner
-		out = append(out, m.th.paint(lookFrame, box[0]+box[1])+" "+m.th.paint(tone, title)+" "+m.th.paint(lookFrame, strings.Repeat(box[1], fill)+box[2]))
-		if c == m.cur {
-			m.zones.add(rect{x + 3, top, textWidth(title), 1}, target{act: actDetails})
-		}
-		side := m.th.paint(lookFrame, box[3])
-		for j := range bodyRows {
-			out = append(out, side+" "+pad(line(body, j), inner)+" "+side)
-		}
-		if give[i] >= 2 {
-			out = append(out, m.th.paint(lookFrame, box[4]+strings.Repeat(box[1], max(w-2, 0))+box[5]))
-		}
-		if c != m.cur && !m.modal() {
-			m.zones.add(rect{x, top, w, give[i]}, target{act: actCardPick, option: i})
-		}
+		out = append(out, m.drawCard(c, x, y+len(out), w, give[i])...)
 	}
 	return out
+}
+
+// drawCard draws c's card in a box at (x, y), rows lines (borders
+// included) of w cells, its head on the top border, and records its
+// zones: the selected card's buttons and title, another card as one
+// target that selects it. The selected card among several has the heavy
+// border (SPEC §15.1).
+func (m *model) drawCard(c *current, x, y, w, rows int) []string {
+	inner := cardInner(w)
+	box, tone := cardBox, lookTitle
+	if m.multi() && c == m.cur {
+		box, tone = selectedBox, lookAccentBold
+	}
+	bodyRows := max(rows-2, 0)
+	body := m.cardBody(c, inner, x+2, y+1, bodyRows, c == m.cur, true)
+	title := fit(m.cardTitle(c), max(inner-2, 1))
+	fill := max(w-2-1-textWidth(title)-2, 0) // corner, "─ ", title, " ", fill, corner
+	out := []string{m.th.paint(lookFrame, box[0]+box[1]) + " " + m.th.paint(tone, title) + " " + m.th.paint(lookFrame, strings.Repeat(box[1], fill)+box[2])}
+	if c == m.cur && !m.modal() {
+		m.zones.add(rect{x + 3, y, textWidth(title), 1}, target{act: actDetails})
+	}
+	side := m.th.paint(lookFrame, box[3])
+	for j := range bodyRows {
+		out = append(out, side+" "+pad(line(body, j), inner)+" "+side)
+	}
+	if rows >= 2 {
+		out = append(out, m.th.paint(lookFrame, box[4]+strings.Repeat(box[1], max(w-2, 0))+box[5]))
+	}
+	if c != m.cur && !m.modal() {
+		m.zones.add(rect{x, y, w, rows}, target{act: actCardPick, option: slices.Index(m.cards, c)})
+	}
+	return out[:min(len(out), max(rows, 0))]
 }
 
 // cardsNeed is how many rows the stacked cards want, borders included.
 func (m *model) cardsNeed(w int) int {
 	n := 0
 	for _, c := range m.cards {
-		n += 2 + len(m.cardBody(c, max(w-4, 1), 0, 0, -1, false, true))
+		n += 2 + len(m.cardBody(c, cardInner(w), 0, 0, -1, false, true))
 	}
 	return n
 }

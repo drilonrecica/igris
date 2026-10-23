@@ -51,14 +51,14 @@ func (s *settingsScreen) helpKeys() []helpEntry {
 	}
 }
 
-func (s *settingsScreen) buttons() []pageButton {
-	out := []pageButton{}
+func (s *settingsScreen) buttons() []button {
+	out := []button{}
 	if s.home.snap != nil {
-		out = append(out, pageButton{"Edit igris.toml", "Edit", actEditConfig})
+		out = append(out, button{"Edit igris.toml", "Edit", "e", actEditConfig})
 	}
-	out = append(out, pageButton{"Doctor", "", actDoctor})
+	out = append(out, button{label: "Doctor", key: "i", act: actDoctor})
 	if s.home.offers(actInit) {
-		out = append(out, pageButton{"Init", "", actInit})
+		out = append(out, button{label: "Init", key: "I", act: actInit})
 	}
 	return out
 }
@@ -123,8 +123,9 @@ func (s *settingsScreen) View() string {
 	if s.notice != "" {
 		title += " · " + s.notice
 	}
-	s.p.title = title + " · e edits"
+	s.p.title = title
 	s.p.buttons = s.buttons()
+	s.home.pageHead(s.p)
 	lines, z := s.p.render(s.home.th, s.w, s.h)
 	s.zones = z
 	return strings.Join(lines, "\n")

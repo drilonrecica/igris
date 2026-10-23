@@ -214,7 +214,7 @@ func TestDraftGoalAccept(t *testing.T) {
 		t.Fatalf("the review didn't replace the progress screen: %d screens, top %T", len(a.stack), top(a))
 	}
 	v := rv.View()
-	for _, want := range []string{"igris draft · review tasks.md", "ranks are suggestions: 3 set, 1 left at ?", "W-2"} {
+	for _, want := range []string{"igris · draft · review tasks.md", "ranks are suggestions: 3 set, 1 left at ?", "W-2"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("review lacks %q:\n%s", want, v)
 		}
@@ -377,7 +377,7 @@ func TestDraftOpenSessionAndCancel(t *testing.T) {
 	svc := &fakeServices{draft: workingDraft}
 	s, home := draftProgress(t, svc, 80, 24)
 	v := s.View()
-	for _, want := range []string{"Draft · from a goal · opus · working…", "draft session started (opus)", "[Open session]", "[Cancel]"} {
+	for _, want := range []string{"Draft · from a goal · opus · working…", "draft session started (opus)", "[o Open session]", "[q Cancel]"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("view lacks %q:\n%s", want, v)
 		}
@@ -412,7 +412,7 @@ func TestDraftOpenSessionAndCancel(t *testing.T) {
 
 func TestDraftOpenSessionFails(t *testing.T) {
 	svc := &fakeServices{draft: workingDraft, focusErr: errors.New("session is gone")}
-	s, _ := draftProgress(t, svc, 80, 24)
+	s, _ := draftProgress(t, svc, 100, 24)
 	_, cmd := s.Update(adaptKey("o"))
 	s.Update(cmd().(asyncReq).fn())
 	if v := s.View(); !strings.Contains(v, "open session: session is gone") {

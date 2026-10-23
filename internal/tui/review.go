@@ -210,27 +210,21 @@ func (r *review) finish(accepted bool) tea.Cmd {
 func (r *review) View() string {
 	r.zones.reset()
 	w, h := max(r.width, 20), max(r.height, 6)
-	if r.dialog != nil {
-		box, z := r.dialog.render(r.th, w, h)
-		r.zones.merge(z, 0, 0)
-		for i := range box {
-			box[i] = fit(box[i], w)
-		}
-		return strings.Join(box[:min(len(box), h)], "\n")
-	}
-
 	command := r.o.Command
 	if command == "" {
 		command = "igris adapt"
 	}
+	// An open screen (SPEC §15.1): the header names the review, then the
+	// validation result and the note, a rule, the changes, a rule and the
+	// bar.
 	out := []string{
-		fit(r.th.paint(lookTitle, command+" · review "+r.o.PlanPath)+r.th.paint(lookDim, " · "+r.o.Review.Summary()), w),
+		r.th.header(w, strings.TrimPrefix(command, "igris ")+" · review "+r.o.PlanPath+r.th.paint(lookDim, " · "+r.o.Review.Summary()), ""),
 		fit(r.status(), w),
 	}
 	if r.o.Note != "" {
 		out = append(out, fit(r.th.paint(lookDim, clean(r.o.Note)), w))
 	}
-	out = append(out, r.th.paint(lookFrame, strings.Repeat("─", w)))
+	out = append(out, r.th.rule(w, ""))
 	if r.bodyW != w {
 		r.body, r.bodyW = r.layout(w), w
 	}
@@ -240,18 +234,27 @@ func (r *review) View() string {
 	for i := range rows {
 		out = append(out, line(r.body, r.view.top+i))
 	}
-	out = append(out, r.th.paint(lookFrame, strings.Repeat("─", w)))
+	out = append(out, r.th.rule(w, ""))
 
-	bar := layoutBar(r.th, []option{{"Reject", actReject}, {"Accept", actAccept}}, w, r.focus)
-	row := bar.rows[0]
-	for _, b := range row {
-		r.zones.add(rect{b.x, h - 1, textWidth(b.text), 1}, target{act: b.act})
-	}
+	modal := r.dialog != nil
+	bar := layoutBar(r.th, []button{{label: "Reject", key: "r", act: actReject}, {label: "Accept", key: "a", act: actAccept}}, w, 1, r.focus, modal, nil)
+	bar.barZones(&r.zones, h-1, modal)
 	foot := bar.text[0]
 	if len(r.body) > rows {
 		foot += r.th.paint(lookDim, fmt.Sprintf("  %d–%d of %d · ↑↓ scroll", r.view.top+1, min(r.view.top+rows, len(r.body)), len(r.body)))
 	}
 	out = append(out, fit(foot, w))
+	if modal {
+		// The confirmation floats over the dimmed review when there is
+		// room, else it takes the screen (SPEC §15.5).
+		var z zones
+		if w >= wideWidth {
+			out, z = r.th.floatDialog(out, r.dialog, w, 2, h-chromeRows)
+		} else {
+			out, z = r.th.fullScreenDialog(r.dialog, w, h)
+		}
+		r.zones.merge(z, 0, 0)
+	}
 	return strings.Join(out, "\n")
 }
 

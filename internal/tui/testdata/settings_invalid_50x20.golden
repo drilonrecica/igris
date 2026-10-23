@@ -1,4 +1,4 @@
-Settings · igris.toml · e edits
+igris · sinjal · Settings · igris.toml        Idle
 ──────────────────────────────────────────────────
 /src/sinjal/igris.toml
 
@@ -16,5 +16,5 @@ backend           = "auto" · default
 default_mode      = "auto" · default
 needs_input_after = "30s" · default
 waiting_limit     = "30m" · default
-nudge             = true · default
-[Edit igris.toml] [Doctor] [Close]
+──────────────────────────────────────────────────
+[e Edit igris.toml] [i Doctor] [q Back]

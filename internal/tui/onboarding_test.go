@@ -65,11 +65,11 @@ func TestOnboardingFirstRunReachesArise(t *testing.T) {
 	svc.initSteps = initSteps
 	tm := appProgram(t, svc, 120, 40)
 
-	seen(t, tm, "GET STARTED", "⨯ 1 igris.toml", "[›Init‹]")
+	seen(t, tm, "GET STARTED", "⨯ 1 igris.toml", "[›I Init‹]")
 	tm.Type("I")
 	seen(t, tm, ".gitignore", ".claude/settings.local.json", "1. Create files")
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
-	seen(t, tm, "Init · done", "created igris.toml", "added .igris/ to .gitignore", "herdr", "[Plan from template…]")
+	seen(t, tm, "Init · done", "created igris.toml", "added .igris/ to .gitignore", "herdr", "[E Plan from template…]")
 	if n := svc.called("Init"); n != 1 {
 		t.Fatalf("Init called %d times, want 1", n)
 	}
@@ -89,11 +89,11 @@ func TestOnboardingFirstRunReachesArise(t *testing.T) {
 	seen(t, tm, "READY", "init: created tasks.md (example plan)")
 
 	tm.Type("c")
-	seen(t, tm, "c checks again")
+	seen(t, tm, "igris · sinjal · Check", "[c Check again]")
 	tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
-	seen(t, tm, "[Notify]")
+	seen(t, tm, "[n Notify]")
 	tm.Type("v")
-	seen(t, tm, "v runs again")
+	seen(t, tm, "igris · sinjal · Preview", "[v Preview again]")
 	tm.Type("a")
 	seen(t, tm, "Which phase to run.") // the wizard, over home
 	for range 3 {                      // phase, through, mode
@@ -101,7 +101,7 @@ func TestOnboardingFirstRunReachesArise(t *testing.T) {
 	}
 	seen(t, tm, "Arise M2 · mode as planned")
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
-	seen(t, tm, "[Home]")
+	seen(t, tm, "[q Home]")
 	if st.count() != 1 {
 		t.Errorf("Start called %d times, want 1", st.count())
 	}
@@ -178,7 +178,7 @@ func TestPlanFromTemplatePicker(t *testing.T) {
 	svc.onInit = func(starter string) { got = starter }
 	tm := appProgram(t, svc, 120, 40)
 
-	seen(t, tm, "[›Plan from template…‹]")
+	seen(t, tm, "[›E Plan from template…‹]")
 	tm.Type("E")
 	seen(t, tm, "1. Example", "2. go-cli", "3. library", "4. web-app")
 	tm.Send(tea.KeyMsg{Type: tea.KeyDown})

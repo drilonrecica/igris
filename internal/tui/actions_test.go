@@ -229,7 +229,7 @@ func TestFocusMovesAndActivates(t *testing.T) {
 	hs := newHarness(t, 120, 30)
 	hs.withPlan(demoPlan)
 	hs.events(started("M0-03"), opened("M0-03"))
-	if v := hs.m.View(); !strings.Contains(v, "[›Open session‹] [Mode]") {
+	if v := hs.m.View(); !strings.Contains(v, "[›o Open session‹] [m Mode]") {
 		t.Fatalf("first bar button not focused:\n%s", v)
 	}
 	hs.keys("right", "right", "right", "enter") // Mode, Task mode, Pause
@@ -237,7 +237,7 @@ func TestFocusMovesAndActivates(t *testing.T) {
 		t.Fatalf("enter on Pause sent %+v", got)
 	}
 	hs.keys("left", "left", "left", "left") // wraps around to Quit
-	if v := hs.m.View(); !strings.Contains(v, "[›Quit‹]") {
+	if v := hs.m.View(); !strings.Contains(v, "[›q Quit‹]") {
 		t.Fatalf("left doesn't wrap:\n%s", v)
 	}
 	if _, ok := hs.key(" ").(tea.QuitMsg); !ok {
@@ -283,11 +283,11 @@ func TestFocusSurvivesButtonChanges(t *testing.T) {
 	hs.m.View()
 	hs.keys("right", "right") // Mode, Pause, Done
 	hs.events(opened("M0-03"))
-	if v := hs.m.View(); !strings.Contains(v, "[›Done‹]") {
+	if v := hs.m.View(); !strings.Contains(v, "[›d Done‹]") {
 		t.Errorf("focus moved off Done when Open session appeared:\n%s", v)
 	}
 	hs.events(engine.Event{Kind: engine.TaskDone, Task: "M0-03"})
-	if v := hs.m.View(); !strings.Contains(v, "[›Mode‹]") {
+	if v := hs.m.View(); !strings.Contains(v, "[›m Mode‹]") {
 		t.Errorf("focus not back on the first button once Done went:\n%s", v)
 	}
 }
@@ -297,7 +297,7 @@ func TestNarrowBarFocus(t *testing.T) {
 	hs.withPlan(demoPlan)
 	hs.events(started("M0-03"), opened("M0-03"))
 	hs.m.View()
-	hs.keys("right", "right") // Open session, Done, More…
+	hs.keys("right") // Open session, then More… (Done is behind it at this width)
 	if v := hs.m.View(); hs.focusedButtonIs(actMore) && !strings.Contains(v, "[›More…‹]") {
 		t.Fatalf("More… not marked:\n%s", v)
 	}
@@ -351,7 +351,7 @@ func TestHelpPage(t *testing.T) {
 		}
 		v := hs.m.View()
 		checkFits(t, v, size[0], size[1])
-		if !strings.Contains(v, "Help") || !strings.Contains(v, "[Close]") {
+		if !strings.Contains(v, "Help") || !strings.Contains(v, "[q Back]") {
 			t.Fatalf("%v: help not drawn:\n%s", size, v)
 		}
 		// The page is modal: shortcut keys don't act under it.

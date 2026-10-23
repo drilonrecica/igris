@@ -1,4 +1,4 @@
-Notify test · 1 failure
+igris · sinjal · Notify test · 1 failure                                    Idle
 ────────────────────────────────────────────────────────────────────────────────
   needs_input  ntfy         ✓ ok
   needs_input  discord      ⨯ FAILED: discord answered 400 Bad Request
@@ -20,5 +20,5 @@ Notify test · 1 failure
 
 
 
-
-[Send again] [Close]
+────────────────────────────────────────────────────────────────────────────────
+[n Send again] [q Back]

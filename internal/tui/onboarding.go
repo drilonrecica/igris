@@ -186,15 +186,15 @@ func (s *initScreen) helpKeys() []helpEntry {
 	}
 }
 
-func (s *initScreen) buttons() []pageButton {
-	var out []pageButton
+func (s *initScreen) buttons() []button {
+	var out []button
 	if s.home.offers(actExample) {
-		out = append(out, pageButton{"Plan from template…", "Template", actExample})
+		out = append(out, button{"Plan from template…", "Template…", "E", actExample})
 	}
 	if s.home.offers(actCheck) {
-		out = append(out, pageButton{"Check", "", actCheck})
+		out = append(out, button{label: "Check", key: "c", act: actCheck})
 	}
-	return append(out, pageButton{"Doctor", "", actDoctor})
+	return append(out, button{label: "Doctor", key: "i", act: actDoctor})
 }
 
 // act hands a to home, which does the ones that leave this page.
@@ -244,6 +244,7 @@ func (s *initScreen) View() string {
 	}
 	s.p.title = title
 	s.p.buttons = s.buttons()
+	s.home.pageHead(s.p)
 	lines, z := s.p.render(s.home.th, s.w, s.h)
 	s.zones = z
 	return strings.Join(lines, "\n")

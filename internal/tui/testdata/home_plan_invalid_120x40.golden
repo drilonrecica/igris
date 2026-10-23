@@ -1,15 +1,15 @@
-igris · sinjal · tasks.md · herdr ✓ · mode auto                                                             PLAN INVALID
-─ PHASES ──────────────────────────────────────────────────┬─ NOW ──────────────────────────────────────────────────────
-plan invalid — Check shows the problems                    │ PLAN INVALID · tasks.md · 4 problems                       
-                                                           │ tasks.md:5: M9-02 depends on unknown task M9-01; check the…
+igris · sinjal · tasks.md · herdr ✓ · mode auto                                                                     Idle
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+PHASES                                                     │ PLAN INVALID · tasks.md · 4 problems
+plan invalid — Check shows the problems                    │ tasks.md:5: M9-02 depends on unknown task M9-01; check the…
                                                            │ tasks.md:6: M9-03: unknown status "wip" (did you mean in p…
                                                            │ tasks.md:7: M9-04: unknown model rank "gpt"; add it to [mo…
-                                                           │ … 1 more — Check shows all                                 
-                                                           ├─ HEALTH ───────────────────────────────────────────────────
-                                                           │ ⨯ plan invalid · 4 problems                                
-                                                           │ ! doctor: 1 warning — uncommitted changes                  
-                                                           ├─ RECENT ───────────────────────────────────────────────────
-                                                           │ no runs yet                                                
+                                                           │ … 1 more — Check shows all
+                                                           │ ── HEALTH ─────────────────────────────────────────────────
+                                                           │ ⨯ plan invalid · 4 problems
+                                                           │ ! doctor: 1 warning — uncommitted changes
+                                                           │ ── RECENT ─────────────────────────────────────────────────
+                                                           │ no runs yet
                                                            │
                                                            │
                                                            │
@@ -35,6 +35,6 @@ plan invalid — Check shows the problems                    │ PLAN INVALID ·
                                                            │
                                                            │
                                                            │
-───────────────────────────────────────────────────────────┴────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-[›Check‹] [Adapt] [Doctor] [Edit plan] [Settings] [Notify] [Updates] [?] [Quit]
+[›c Check‹] [A Adapt] [i Doctor] [e Edit plan] [, Settings] [n Notify] [u Updates] [?] [q Quit]

@@ -182,7 +182,7 @@ func TestDoctorPageRowActions(t *testing.T) {
 	// The allow-rule row: Init, which home does not offer while igris.toml
 	// exists, so the button is absent too.
 	press(a, "i", "down")
-	if v := a.View(); strings.Contains(v, "[Init]") {
+	if v := a.View(); strings.Contains(v, "[I Init]") {
 		t.Errorf("Init offered where home doesn't:\n%s", v)
 	}
 }

@@ -122,7 +122,7 @@ func TestAttachedLayoutGoldens(t *testing.T) {
 	sizes := []struct {
 		w, h   int
 		prefix string
-	}{{120, 30, "wide_"}, {50, 20, "narrow_50x20_"}, {80, 24, "narrow_80x24_"}}
+	}{{120, 40, "wide_"}, {50, 20, "narrow_50x20_"}, {80, 24, "narrow_80x24_"}}
 	for _, sz := range sizes {
 		for _, st := range layoutStates {
 			t.Run(sz.prefix+st.name, func(t *testing.T) {
@@ -143,7 +143,7 @@ func TestAttachedSnapshotGoldens(t *testing.T) {
 	sizes := []struct {
 		w, h   int
 		prefix string
-	}{{120, 30, "wide_"}, {50, 20, "narrow_50x20_"}, {80, 24, "narrow_80x24_"}}
+	}{{120, 40, "wide_"}, {50, 20, "narrow_50x20_"}, {80, 24, "narrow_80x24_"}}
 	for _, sz := range sizes {
 		for _, st := range layoutStates {
 			if st.name == "question_closed" {

@@ -1,15 +1,15 @@
-igris · sinjal · M0 · 3/7 · 42% ███░░░ · mode: plan · herdr
-── CURRENT ─────────────────────────────────────────────────────────────────────
-M0-03 Makefile
-rank sonnet → model sonnet
-mode plan · 0s
-state: WAITING FOR YOUR ANSWER
-fmt, lint, test
-[o] Open session  [t] Details  [Answer…]
+igris · sinjal · M0 · 3/7 · 42% ███░░░ · mode: plan · herdr          ! Needs you
+────────────────────────────────────────────────────────────────────────────────
+┌─ M0-03 Makefile ─────────────────────────────────────────────────────────────┐
+│ rank sonnet → model sonnet                                                   │
+│ mode plan · 0s                                                               │
+│ state: WAITING FOR YOUR ANSWER                                               │
+│ fmt, lint, test                                                              │
+│ [o] Open session  [t] Details  [Answer…]                                     │
+└──────────────────────────────────────────────────────────────────────────────┘
 ── TASKS ───────────────────────────────────────────────────────────────────────
  ✓ M0-01 sonnet  ✓ M0-02 sonnet  ! M0-03 sonnet  · M0-04 opus    · M0-05 user
  ⨯ M0-13 sonnet  – M0-14 haiku
-
 
 
 
@@ -20,5 +20,5 @@ fmt, lint, test
 09:41 M0-03 started (sonnet → sonnet, plan) · Makefile
 09:41 M0-03 session open
 09:41 ? the session of M0-03 is gone
-[›Answer…‹] [Open session] [Mode] [Task mode] [Pause] [Done] [Retry] [Skip]
-[Stop] [?] [Quit]
+[›Answer…‹] [o Open session] [m Mode] [M Task mode] [p Pause] [d Done]
+[r Retry…] [s Skip…] [x Stop…] [?] [q Quit]

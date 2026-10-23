@@ -154,7 +154,7 @@ func TestReviewView(t *testing.T) {
 		"⨯ p.md:5: W-1: model not set yet",
 		"- | Key | What | State | LLM |",
 		"+ | ID | Task | Status | Model |",
-		"[›Reject‹]", "[Accept]",
+		"[›r Reject‹]", "[a Accept]",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("view missing %q:\n%s", want, out)
@@ -184,7 +184,7 @@ func TestReviewDraft(t *testing.T) {
 	if len(lines) != 20 {
 		t.Errorf("%d lines, want exactly the 20 of the terminal", len(lines))
 	}
-	if !strings.HasPrefix(lines[0], "igris draft · review tasks.md · +5 −0 lines") || !strings.HasPrefix(lines[2], "ranks are suggestions: 3 set, 1 left at ?") {
+	if !strings.HasPrefix(lines[0], "igris · draft · review tasks.md · +5 −0 lines") || !strings.HasPrefix(lines[2], "ranks are suggestions: 3 set, 1 left at ?") {
 		t.Errorf("header:\n%s", strings.Join(lines[:4], "\n"))
 	}
 	if strings.Contains(out, "\x1b[2J") {
@@ -310,7 +310,7 @@ func TestReviewNoColorKeepsMarkers(t *testing.T) {
 	rh := newReviewHarness(t, 80, 20, reviewOpts("x"))
 	rh.r.th = noColorTheme(t)
 	out := strip(rh.r.View())
-	for _, want := range []string{"⨯ the proposal", "- # Widgets", "+ ## W — Widgets", "[›Reject‹]"} {
+	for _, want := range []string{"⨯ the proposal", "- # Widgets", "+ ## W — Widgets", "[›r Reject‹]"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("NO_COLOR view missing %q:\n%s", want, out)
 		}
@@ -319,7 +319,7 @@ func TestReviewNoColorKeepsMarkers(t *testing.T) {
 
 func TestReviewProgram(t *testing.T) {
 	tm := teatest.NewTestModel(t, newReview(reviewOpts()), teatest.WithInitialTermSize(80, 24))
-	seen(t, tm, "✓ the proposal passes", "[Accept]")
+	seen(t, tm, "✓ the proposal passes", "[a Accept]")
 	tm.Send(keyMsg("tab"))
 	tm.Send(keyMsg("enter"))
 	final := tm.FinalModel(t, teatest.WithFinalTimeout(waitFor)).(*review)

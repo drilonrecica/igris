@@ -56,7 +56,7 @@ type homeScreen struct {
 	// follows the state's own action (the first button).
 	barMoved bool
 	bar      []action
-	folded   []option // the actions behind More… in the last frame
+	folded   []button // the actions behind More… in the last frame
 	lines    []homeLine
 	dialog   *dialog // More…, or the wizard's open question
 
@@ -704,7 +704,9 @@ func (m *homeScreen) previewRequest() report.RunRequest {
 
 // openPreview pushes the dry run page for req over home.
 func (m *homeScreen) openPreview(req report.RunRequest) tea.Cmd {
-	return push(newPreview(m.ctx, m.svc, m.th, req))
+	s := newPreview(m.ctx, m.svc, m.th, req)
+	m.pageHead(s.p)
+	return push(s)
 }
 
 // notYet says on the status line that name's page isn't in this build:

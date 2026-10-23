@@ -56,6 +56,38 @@ func fit(s string, w int) string {
 	return b.String()
 }
 
+// cells returns the cells from..to-1 of a drawn line, its styles kept:
+// every SGR sequence is passed through, so what follows keeps its look,
+// and the result ends in a reset when it holds any. A wide grapheme cut by
+// an edge becomes spaces for the cells inside. A line shorter than to is
+// not padded.
+func cells(s string, from, to int) string {
+	var b strings.Builder
+	col, styled := 0, false
+	for i := 0; i < len(s); {
+		if n := sgrLen(s[i:]); n > 0 {
+			b.WriteString(s[i : i+n])
+			styled = true
+			i += n
+			continue
+		}
+		g, _, gw, _ := uniseg.FirstGraphemeClusterInString(s[i:], -1)
+		i += len(g)
+		switch {
+		case col+gw <= from, col >= to:
+		case col >= from && col+gw <= to:
+			b.WriteString(g)
+		default:
+			b.WriteString(strings.Repeat(" ", min(col+gw, to)-max(col, from)))
+		}
+		col += gw
+	}
+	if styled {
+		b.WriteString(sgrReset)
+	}
+	return b.String()
+}
+
 // sgrLen is the length of the escape sequence s starts with ("\x1b[1;7m"),
 // or 0 if it starts with none.
 func sgrLen(s string) int {

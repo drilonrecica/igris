@@ -319,7 +319,7 @@ func TestHomeLayoutSwitch(t *testing.T) {
 	}{{100, 13, true}, {99, 13, false}, {100, 12, false}, {120, 40, true}, {60, 20, false}} {
 		view := readyHome(tc.w, tc.h).View()
 		checkFits(t, view, tc.w, tc.h)
-		if got := strings.Contains(view, "┬"); got != tc.wide {
+		if got := strings.Contains(view, "│"); got != tc.wide {
 			t.Errorf("%dx%d: wide = %v, want %v", tc.w, tc.h, got, tc.wide)
 		}
 	}
@@ -363,6 +363,10 @@ func TestHomeButtonsOnlyWhenTheyApply(t *testing.T) {
 		m := homeAt(&theme{}, 120, 40, st.fix())
 		var labels []string
 		for _, b := range m.buttons() {
+			if b.label == "" {
+				labels = append(labels, b.key) // [?]
+				continue
+			}
 			labels = append(labels, b.label)
 		}
 		if got := strings.Join(labels, " "); got != want[st.name] {
@@ -409,7 +413,7 @@ func TestHomeFocusRegions(t *testing.T) {
 	if m.focus != homeBar || m.selectedPhase() != "M2" {
 		t.Fatalf("start: focus %v, phase %q; want the bar and M2", m.focus, m.selectedPhase())
 	}
-	if v := m.View(); !strings.Contains(v, "[›Arise…‹]") {
+	if v := m.View(); !strings.Contains(v, "[›a Arise…‹]") {
 		t.Errorf("the default action isn't focused:\n%s", v)
 	}
 	press := func(k string) { m.Update(keyMsg(k)) }
@@ -443,12 +447,12 @@ func TestHomeFocusRegions(t *testing.T) {
 		t.Errorf("back on the bar: focus %v", m.focus)
 	}
 	press("right")
-	if v := m.View(); !strings.Contains(v, "[›Preview‹]") {
+	if v := m.View(); !strings.Contains(v, "[›v Preview‹]") {
 		t.Errorf("right doesn't move along the bar:\n%s", v)
 	}
 	press("left")
 	press("left")
-	if v := m.View(); !strings.Contains(v, "[›Quit‹]") {
+	if v := m.View(); !strings.Contains(v, "[›q Quit‹]") {
 		t.Errorf("left doesn't wrap around the bar:\n%s", v)
 	}
 }
@@ -627,10 +631,10 @@ func TestHomePhasesScroll(t *testing.T) {
 func TestHomeMoreFolds(t *testing.T) {
 	m := readyHome(44, 20)
 	v := m.View()
-	if !strings.Contains(v, "[More…]") || !strings.Contains(v, "[›Arise…‹]") || !strings.Contains(v, "[Quit]") {
+	if !strings.Contains(v, "[More…]") || !strings.Contains(v, "[›a Arise…‹]") || !strings.Contains(v, "[q Quit]") {
 		t.Fatalf("want Arise…, More… and Quit on the bar:\n%s", v)
 	}
-	if strings.Contains(v, "[Settings]") {
+	if strings.Contains(v, "[, Settings]") {
 		t.Fatalf("Settings should be folded:\n%s", v)
 	}
 	_, cmd := m.Update(keyMsg(","))
@@ -714,17 +718,17 @@ func TestHomeHelpKeys(t *testing.T) {
 func TestHomeFocusFollowsTheDefaultAction(t *testing.T) {
 	m := newHome(context.Background(), &fakeServices{}, &theme{})
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
-	if v := m.View(); !strings.Contains(v, "[›Doctor‹]") {
+	if v := m.View(); !strings.Contains(v, "[›i Doctor‹]") {
 		t.Fatalf("while reading, Doctor should be focused:\n%s", v)
 	}
 	m.Update(snapshotMsg{homeSnap("ready"), nil})
 	m.Update(backendMsg{nil})
-	if v := m.View(); !strings.Contains(v, "[›Arise…‹]") {
+	if v := m.View(); !strings.Contains(v, "[›a Arise…‹]") {
 		t.Errorf("once ready, Arise… should be focused:\n%s", v)
 	}
 	m.Update(keyMsg("right"))
 	m.Update(snapshotMsg{homeSnap("ready"), nil})
-	if v := m.View(); !strings.Contains(v, "[›Preview‹]") {
+	if v := m.View(); !strings.Contains(v, "[›v Preview‹]") {
 		t.Errorf("after moving, a refresh shouldn't move the focus back:\n%s", v)
 	}
 }

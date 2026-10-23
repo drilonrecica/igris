@@ -195,7 +195,7 @@ func TestUpdateRunsOnAfterClose(t *testing.T) {
 
 	m = updateHome(120, 40, "ready", updateTarget{step: updRunning, check: brewCheck})
 	m.Update(keyMsg("esc"))
-	m.dialog = moreDialog([]option{{"Settings", actSettings}})
+	m.dialog = moreDialog([]button{{label: "Settings", key: ",", act: actSettings}})
 	m.Update(updateDoneMsg{update.Result{Message: "Updated: igris in PATH is now 1.2.0."}})
 	if m.updating != nil || !strings.Contains(m.status, "Updated: igris in PATH is now 1.2.0.") {
 		t.Errorf("result with another dialog open: updating %v, status %q", m.updating != nil, m.status)

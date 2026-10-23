@@ -1,5 +1,5 @@
-igris · sinjal · herdr ✓               INTERRUPTED
-── NOW ───────────────────────────────────────────
+igris · sinjal · herdr ✓             ▲ Interrupted
+──────────────────────────────────────────────────
 INTERRUPTED · last run M2 through M3 · 2h ago
 ● M2-02  Lock file              opus · mode plan
 session: herdr tab-3 (Resume reattaches if it is
@@ -16,5 +16,5 @@ through M3.
 ── RECENT ────────────────────────────────────────
 Oct 07 07:12  M2, M3  1 done · interrupted
 
-[›Resume…‹] [Preview] [Check] [Draft…] [Doctor]
-[History] [Edit plan] [?] [Quit] [More…]
+[›a Resume…‹] [v Preview] [c Check] [D Draft…]
+[i Doctor] [h History] [More…] [?] [q Quit]

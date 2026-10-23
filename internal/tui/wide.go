@@ -14,74 +14,59 @@ import (
 	"github.com/drilonrecica/igris/internal/usage"
 )
 
-// The wide layout (SPEC §15.1), drawn with box characters so every cell's
-// position is known for the hit map:
+// The wide layout (SPEC §15.1), an open screen (chrome.go): the header
+// and its rule, TASKS beside the cards, divided by one line, the LOG rule,
+// the log, a rule and the action bar.
 //
-//	┌ igris · sinjal ───── phase M0 · mode: plan · herdr ┐
-//	│ TASKS                  │ CURRENT                   │  panes
-//	├─ LOG ──────────────────┴───────────────────────────┤
-//	│ 09:41 M0-02 done                                   │  log
-//	├────────────────────────────────────────────────────┤
-//	│ [Open session] [Pause] [Done] [Quit]               │  action bar
-//	└────────────────────────────────────────────────────┘
+//	igris · sinjal      phase M0 · 3/7 · 42% ████░░░░░░ · mode plan · herdr    ● Working
+//	──────────────────────────────────────────────────────────────────────────────────
+//	TASKS                          │ ┌─ M0-03  Makefile ─────────────────────────────┐
+//	 ✓ M0-01  Go module     sonnet │ │ rank sonnet → model sonnet                    │
+//	── LOG ───────────────────────────────────────────────────────────────────────────
+//	09:41 M0-02 done
+//	──────────────────────────────────────────────────────────────────────────────────
+//	[o Open session] [m Mode] [p Pause] [d Done] [?] [q Home]
 
-// wideMinHeight is the least height the wide layout needs: chrome, the
-// pane headers plus three rows, and three log lines.
+// wideMinHeight is the least height the wide layout needs: the chrome,
+// the TASKS title plus three rows, and three log lines.
 const wideMinHeight = 13
 
 // wideMultiLog is the least the log keeps when several cards want the
 // height (SPEC §15.1).
 const wideMultiLog = 6
 
-func (m *model) wideView() string {
-	w, h := m.width, m.height
-	inner := w - 4    // "│ " + text + " │"
-	lw := (w - 7) / 2 // "│ " + left + " │ " + right + " │"
-	rw := w - 7 - lw  // right pane
-	avail := h - 5    // panes + log, without the 4 rules and the bar
+// chromeRows is what the open screen's chrome takes: the header, its
+// rule, the rule over the bar and the bar.
+const chromeRows = 4
+
+// wideScreen draws the wide layout's h lines of w cells and records its
+// zones; a page or a dialog is drawn over it by View.
+func (m *model) wideScreen(w, h int) []string {
+	lw := (w - 3) / 2 // the left column; " │ " then the right one
+	rw := columnsRight(lw, w)
+	avail := h - chromeRows - 1 // the panes and the log, without the LOG rule
 	most := avail * 55 / 100
 	if m.multi() {
 		most = max(most, avail-wideMultiLog) // several cards: the log keeps a few lines
 	}
-	paneRows := min(max(m.paneNeed(lw, rw), 4), most) // incl. the pane titles
+	paneRows := min(max(m.paneNeed(lw, rw), 4), most) // incl. the TASKS title
 	logRows := avail - paneRows
 
-	v := m.th.paint(lookFrame, "│")
-	var out []string
-	out = append(out, m.topRule(w))
-	switch body := paneRows + 1 + logRows; { // the panes, their rule and the log
-	case m.dialog != nil:
-		out = append(out, m.dialogBody(len(out), w, body)...)
-	case m.page != nil:
-		out = append(out, m.pageBody(len(out), w, body)...)
-	default:
-		m.zones.add(rect{2, len(out) + 1, lw, paneRows - 1}, target{region: regionTasks})
-		left := m.taskPane(2, len(out)+1, lw, paneRows-1)
-		right := m.cardPane(lw+5, len(out)+1, rw, paneRows-1)
-		out = append(out, v+" "+pad(m.areaTitle("TASKS", focusTasks), lw)+" "+v+" "+pad(m.th.paint(lookTitle, "CURRENT"), rw)+" "+v)
-		for i := range paneRows - 1 {
-			out = append(out, v+" "+pad(line(left, i), lw)+" "+v+" "+pad(line(right, i), rw)+" "+v)
-		}
-		out = append(out, m.logRule(lw, rw))
-		m.zones.add(rect{2, len(out), inner, logRows}, target{region: regionLog})
-		logs := m.logView(logRows)
-		for i := range logRows {
-			out = append(out, v+" "+pad(fit(line(logs, i), inner), inner)+" "+v)
-		}
+	out := []string{m.header(w), m.th.rule(w, "")}
+	m.zones.add(rect{0, len(out) + 1, lw, paneRows - 1}, target{region: regionTasks})
+	left := append([]string{m.areaTitle("TASKS", focusTasks)}, m.taskPane(0, len(out)+1, lw, paneRows-1)...)
+	right := m.cardPane(lw+3, len(out), rw, paneRows)
+	out = append(out, m.th.columns(left, right, lw, w, paneRows, func(int) bool { return true })...)
+	out = append(out, m.th.rule(w, m.areaTitle("LOG", focusLog)))
+	m.zones.add(rect{0, len(out), w, logRows}, target{region: regionLog})
+	logs := m.logView(logRows)
+	for i := range logRows {
+		out = append(out, fit(line(logs, i), w))
 	}
-	out = append(out, m.th.paint(lookFrame, "├"+strings.Repeat("─", w-2)+"┤"))
-	out = append(out, v+" "+pad(m.barAt(2, len(out), inner), inner)+" "+v)
-	out = append(out, m.th.paint(lookFrame, "└"+strings.Repeat("─", w-2)+"┘"))
-	return strings.Join(out, "\n")
-}
-
-// logRule is the rule between the panes and the log; it carries the log's
-// title: "├─ LOG ────┴────┤".
-func (m *model) logRule(lw, rw int) string {
-	title := m.areaTitle("LOG", focusLog)
-	rest := []rune(strings.Repeat("─", lw+2) + "┴" + strings.Repeat("─", rw+2) + "┤")
-	used := 1 + 1 + textWidth(title) + 1 // "─ " + title + " "
-	return m.th.paint(lookFrame, "├─") + " " + title + " " + m.th.paint(lookFrame, string(rest[used:]))
+	out = append(out, m.th.rule(w, ""))
+	bar := m.fitBar(w, 1)
+	bar.barZones(&m.zones, len(out), m.modal())
+	return append(out, bar.text...)
 }
 
 // line returns lines[i], or "" past the end.
@@ -92,28 +77,42 @@ func line(lines []string, i int) string {
 	return ""
 }
 
-// topRule is the top border with the title on the left and the run's
-// facts on the right.
-func (m *model) topRule(w int) string {
-	title := " " + m.th.paint(lookAccentBold, "igris") + " · " + m.opts.Project + " "
+// header is the run view's header line (SPEC §15.1): the project, the
+// run's facts and the status word at the right. The side count goes
+// first when the width runs out, then the quota, then the progress bar
+// and the percentage; the project, the phase and the word never drop.
+func (m *model) header(w int) string {
+	status := m.statusText()
+	narrow := !m.wide()
 	facts := ""
-	// The side count goes first when the width runs out, then the quota,
-	// before the progress bar is shortened (SPEC §15.1).
-fit:
-	for level := range progressLevels {
-		for extras := factsAll; extras >= factsNone; extras-- {
-			facts = " " + m.facts(false, level, extras) + " "
-			if w-2-textWidth(title)-textWidth(facts) >= 1 {
-				break fit
-			}
+	for _, d := range factsDrops {
+		if facts = m.facts(narrow, d); textWidth(m.opts.Project+" · "+facts) <= headerRoom(w, status) {
+			break
 		}
 	}
-	fill := w - 2 - textWidth(title) - textWidth(facts)
-	if fill < 1 {
-		facts = " " + fit(strings.TrimSpace(facts), max(w-4-textWidth(title)-1, 0)) + " "
-		fill = max(w-2-textWidth(title)-textWidth(facts), 0)
-	}
-	return fit(m.th.paint(lookFrame, "┌")+title+m.th.paint(lookFrame, strings.Repeat("─", fill))+facts+m.th.paint(lookFrame, "┐"), w)
+	return m.th.header(w, m.opts.Project+" · "+facts, status)
+}
+
+// factsDrop says which of the header's facts to leave out: how much of
+// the progress to show (progressLevels), which of the quota and the side
+// count to add, and whether the backend and the mode go.
+type factsDrop struct {
+	level, extras int
+	noBackend     bool
+	noMode        bool
+}
+
+// factsDrops is the order the header drops its facts in when the width
+// runs out (SPEC §15.1): side sessions, the quota, the progress bar, the
+// percentage, the backend, the mode. The project and the phase never go.
+var factsDrops = []factsDrop{
+	{progressFull, factsAll, false, false},
+	{progressFull, factsQuota, false, false},
+	{progressFull, factsNone, false, false},
+	{progressNoBar, factsNone, false, false},
+	{progressCount, factsNone, false, false},
+	{progressCount, factsNone, true, false},
+	{progressCount, factsNone, true, true},
 }
 
 // The header's facts that go when the width runs out, in this order
@@ -125,11 +124,11 @@ const (
 )
 
 // facts are the header's run facts: phase and its progress, mode,
-// backend, side sessions, pause. The narrow status bar has the shorter bar
-// and, next to the progress, the phase without "phase"; level says how
-// much of the progress to show, extras which of the quota and the side
-// count to add.
-func (m *model) facts(narrow bool, level, extras int) string {
+// backend, side sessions, the quota. The narrow header has the shorter
+// bar and, next to the progress, the phase without "phase"; d says what
+// to leave out.
+func (m *model) facts(narrow bool, d factsDrop) string {
+	level, extras := d.level, d.extras
 	var parts []string
 	if m.phase != "" {
 		cells := wideProgressBar
@@ -153,16 +152,18 @@ func (m *model) facts(narrow bool, level, extras int) string {
 			parts = append(parts, m.th.paint(lookAlert, "needs you: "+strings.Join(ids, ", ")))
 		}
 	}
-	if m.mode != "" {
+	if m.mode != "" && !d.noMode {
 		parts = append(parts, m.th.marks("mode: "+m.mode+badge(m.mode)))
 	}
 	if !engine.SkipsPermissions(m.mode) && slices.ContainsFunc(m.cards, func(c *current) bool { return engine.SkipsPermissions(c.mode) }) {
 		// The run mode isn't yolo but a session is (SPEC §7.3).
 		parts = append(parts, m.th.paint(lookAlert, "SKIP PERMISSIONS"))
 	}
-	if m.backend != "" {
+	switch {
+	case d.noBackend:
+	case m.backend != "":
 		parts = append(parts, m.backend)
-	} else {
+	default:
 		parts = append(parts, m.opts.Backend)
 	}
 	if m.servedBy != "" {
@@ -176,9 +177,6 @@ func (m *model) facts(narrow bool, level, extras int) string {
 	}
 	if q := m.quotaText(); extras >= factsQuota && q != "" {
 		parts = append(parts, q)
-	}
-	if m.paused {
-		parts = append(parts, m.th.paint(lookTitle, "PAUSE AFTER TASK"))
 	}
 	if m.notice != "" {
 		parts = append(parts, m.th.paint(lookAccent, m.notice))
@@ -231,30 +229,36 @@ func (m *model) listSel() int {
 	return m.selected()
 }
 
-// paneNeed is how many rows the panes want, titles included.
+// paneNeed is how many rows the panes want: the TASKS title and its rows,
+// or the cards.
 func (m *model) paneNeed(lw, rw int) int {
 	tasks, _, _ := m.taskLines(lw)
-	right := len(m.cardLines(rw, 0, 0, false))
-	if m.multi() {
-		right = m.cardsNeed(rw)
-	}
-	return 1 + max(len(tasks), right)
+	return max(1+len(tasks), m.cardNeed(rw))
 }
 
-// cardPane renders the CURRENT pane at (x, y), rows lines of w cells, and
-// records its zones: the selected card when narrow or alone, every card
-// stacked when wide with several (SPEC §15.1).
+// cardPane renders the cards at (x, y), rows lines of w cells, and
+// records their zones: every card stacked when wide (SPEC §15.1), the
+// selected card alone when narrow; without a task, or once the run has
+// ended, the words that say so.
 func (m *model) cardPane(x, y, w, rows int) []string {
-	if m.multi() && m.wide() && !m.ended {
+	switch {
+	case m.cur == nil || m.ended:
+		return m.renderCard(w, rows)
+	case m.wide():
 		return m.cardsView(x, y, w, rows)
 	}
-	return m.renderCard(w, x, y, rows, true)
+	return m.drawCard(m.cur, x, y, w, rows)
 }
 
-// cardLines renders the whole card, its full text included; with record
-// set, its zones are recorded for a card drawn at (x, y).
-func (m *model) cardLines(w, x, y int, record bool) []string {
-	return m.renderCard(w, x, y, -1, record)
+// cardNeed is how many rows cardPane wants for w cells.
+func (m *model) cardNeed(w int) int {
+	switch {
+	case m.cur == nil || m.ended:
+		return len(m.renderCard(w, -1))
+	case m.wide():
+		return m.cardsNeed(w)
+	}
+	return 2 + len(m.cardBody(m.cur, cardInner(w), 0, 0, -1, false, true))
 }
 
 // yourTurnText follows YOUR TURN: a user task is the owner's own work,
@@ -267,9 +271,9 @@ const openHint = " — o opens the session"
 // moreText ends the task text when the card cut it.
 const moreText = " … t: details"
 
-// renderCard lays the selected card out in at most rows lines (all of them
-// when rows < 0), or says why there is none.
-func (m *model) renderCard(w, x, y, rows int, record bool) []string {
+// renderCard says why there is no card: the run is over, or no task runs;
+// at most rows lines (all of them when rows < 0).
+func (m *model) renderCard(w, rows int) []string {
 	var lines []string
 	switch {
 	case m.ended:
@@ -279,18 +283,15 @@ func (m *model) renderCard(w, x, y, rows int, record bool) []string {
 		} else {
 			lines = wrap(m.endText+" — press q to quit", w)
 		}
-	case m.cur == nil && m.holding:
+	case m.holding:
 		lines = []string{"paused before the next task", "press p to continue"}
-	case m.cur == nil:
+	default:
 		lines = []string{"no task running"}
 	}
-	if m.cur == nil || m.ended {
-		if rows >= 0 && len(lines) > rows {
-			lines = lines[:rows]
-		}
-		return lines
+	if rows >= 0 && len(lines) > rows {
+		lines = lines[:rows]
 	}
-	return m.cardBody(m.cur, w, x, y, rows, record, false)
+	return lines
 }
 
 // cardBody lays c's card out in at most rows lines (all of them when
@@ -463,71 +464,29 @@ func (m *model) cardButtons(c *current, btns []option, w int) ([]string, []zone)
 	return lines, zs
 }
 
-// pageBody fills rows lines below row y with the open page and records
-// its zones.
-func (m *model) pageBody(y, w, rows int) []string {
-	inner := w - 4
-	lines, z := m.page.render(m.th, inner, rows)
-	m.zones.merge(z, 2, y)
-	v := m.th.paint(lookFrame, "│")
-	out := make([]string, 0, rows)
-	for _, l := range lines {
-		out = append(out, v+" "+pad(l, inner)+" "+v)
-	}
-	return out
-}
-
-// dialogBody fills rows lines below row y with the open dialog, centered,
-// and records its options.
-func (m *model) dialogBody(y, w, rows int) []string {
-	width := 72
-	if m.dialog.wide {
-		width = 100
-	}
-	box, z := m.dialog.render(m.th, min(w-4, width), rows)
-	top := max((rows-len(box))/2, 0)
-	left := max((w-textWidth(box[0]))/2, 1)
-	m.zones.merge(z, left, y+top)
-	v := m.th.paint(lookFrame, "│")
-	out := make([]string, 0, rows)
-	for i := range rows {
-		l := ""
-		if i >= top && i-top < len(box) {
-			l = strings.Repeat(" ", left-1) + box[i-top]
-		}
-		out = append(out, v+pad(fit(l, w-2), w-2)+v)
-	}
-	return out
-}
-
-// barAt draws the action bar at (x, y), at most w cells, and records its
-// buttons.
-func (m *model) barAt(x, y, w int) string {
+// fitBar lays the bar out in at most rows rows of w cells, records its
+// buttons and marks the focused one. The focus moves to the first button
+// when its button was folded away or is gone.
+func (m *model) fitBar(w, rows int) barLayout {
 	btns := m.buttons()
-	m.bar = m.bar[:0]
-	for _, o := range btns {
-		m.bar = append(m.bar, o.act)
-	}
 	mark := actNone
 	if m.barFocused() {
-		mark = m.focusedButton()
+		mark = m.barFocus
 	}
-	var b strings.Builder
-	m.bar = m.bar[:0]
-	for _, o := range btns {
-		label := m.th.button(o.label, barState(o.act, mark, m.modal()))
-		lw := textWidth(label)
-		if textWidth(b.String())+lw > w {
-			break
-		}
-		if !m.modal() {
-			m.zones.add(rect{x + textWidth(b.String()), y, lw, 1}, target{act: o.act})
-		}
-		m.bar = append(m.bar, o.act)
-		b.WriteString(label + " ")
+	l := layoutBar(m.th, btns, w, rows, mark, m.modal(), foldOrder)
+	if m.barFocused() && !l.has(mark) && len(l.rows) > 0 && len(l.rows[0]) > 0 {
+		mark = l.rows[0][0].act
+		l = layoutBar(m.th, btns, w, rows, mark, m.modal(), foldOrder)
 	}
-	return strings.TrimRight(b.String(), " ")
+	m.bar = append(m.bar[:0], l.acts()...)
+	m.folded = l.folded
+	return l
 }
+
+// foldOrder lists the actions the bar folds into More… first when it
+// doesn't fit (SPEC §15.2); actions not listed are never folded: Answer…,
+// Open session, Done, ? and Home always show.
+var foldOrder = []action{actTaskMode, actSide, actStopAsk, actRetry, actSkip, actPause, actMode}
 
 // tokensLine is the card's usage counter (SPEC §15.1): `tokens 2.3M in ·
 // 41k out · claude-sonnet-5-5`, `2.3M/41k` in the narrow layout, `usage

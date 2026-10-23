@@ -6,9 +6,7 @@
 │ tasks.md until you accept it in the review.    │
 │                                                │
 │ warning: ANTHROPIC_API_KEY is set: Claude Code │
-│ would bill the API instead of your             │
-│ subscription login. Unset it unless that is    │
-│ what you want.                                 │
+│ would bill the API instead of your …           │
 │                                                │
 │ › 1. From a goal — Claude interviews you, then │
 │      plans                                     │
@@ -17,4 +15,6 @@
 │   3. Import an export… — GitHub, Linear or     │
 │      Jira issues                               │
 │   4. Cancel                                    │
+│                                                │
+│ enter choose · 1–4 pick · esc cancel           │
 ╰────────────────────────────────────────────────╯

@@ -44,11 +44,11 @@ type previewMsg struct {
 func newPreview(ctx context.Context, svc Services, th *theme, req report.RunRequest) *previewScreen {
 	s := &previewScreen{ctx: ctx, svc: svc, th: th, w: 80, h: 24, req: req}
 	s.p = &page{
-		title: "Preview · " + s.scope() + " · v runs again",
+		title: "Preview · " + s.scope(),
 		body:  s.body,
-		buttons: []pageButton{
-			{"Arise with these settings", "Arise", actAriseWith},
-			{"Preview again", "Again", actPreview},
+		buttons: []button{
+			{"Arise with these settings", "Arise…", "a", actAriseWith},
+			{"Preview again", "Again", "v", actPreview},
 		},
 	}
 	return s
@@ -102,7 +102,7 @@ func (s *previewScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		s.w, s.h = msg.Width, msg.Height
 	case previewMsg:
 		s.loading, s.res, s.err = false, msg.res, msg.err
-		s.p.title = "Preview · " + s.scope() + " · v runs again"
+		s.p.title = "Preview · " + s.scope()
 	case tea.KeyMsg:
 		switch k := msg.String(); k {
 		case "v":

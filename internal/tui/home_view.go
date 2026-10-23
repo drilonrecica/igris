@@ -6,20 +6,21 @@ import (
 	"github.com/drilonrecica/igris/internal/plan"
 )
 
-// The home layouts (SPEC §15.6). Wide (≥ 100×13) puts PHASES left and the
-// NOW card, HEALTH and RECENT right:
+// The home layouts (SPEC §15.6), open screens (chrome.go). Wide
+// (≥ 100×13) puts PHASES left and the NOW card, HEALTH and RECENT right:
 //
-//	igris · sinjal · tasks.md · herdr ✓ · mode default              idle
-//	─ PHASES ──────────────────────┬─ NOW ───────────────────────────────
-//	  ✓ M0  Foundations  ██████████ 3/3 done │ READY · phase M2 …
-//	                                         ├─ HEALTH ────────────────────
-//	                                         ├─ RECENT ────────────────────
-//	───────────────────────────────┴─────────────────────────────────────
-//	✓ status line                                                   09:41
-//	[›Arise…‹] [Preview] …
+//	igris · sinjal · tasks.md · herdr ✓ · mode auto                          Idle
+//	──────────────────────────────────────────────────────────────────────────────
+//	PHASES                                  │ READY · phase M2  Config & state
+//	 ✓ M0  Foundations  ██████████ 3/3 done │ next  · M2-02  Lock file       opus
+//	                                        │ ── HEALTH ─────────────────────────
+//	                                        │ ── RECENT ─────────────────────────
+//	──────────────────────────────────────────────────────────────────────────────
+//	✓ status line                                                           09:41
+//	[›a Arise…‹] [v Preview] … [?] [q Quit]
 //
-// Narrow is one column: NOW, PHASES, HEALTH, RECENT, the status line and
-// the bar, which folds into More… when it needs more than two rows.
+// Narrow is one column: the card, PHASES, HEALTH, RECENT, the status line
+// and the bar, which folds into More… when it needs more than two rows.
 
 // homeWideH is the least height the wide layout needs.
 const homeWideH = 13
@@ -31,12 +32,15 @@ const (
 	homeBarsFrom = 60
 )
 
-// View draws the screen, exactly h lines, and records its zones.
+// View draws the screen, exactly h lines, and records its zones; a dialog
+// floats over the dimmed screen when wide and takes the whole screen when
+// narrow (SPEC §15.5).
 func (m *homeScreen) View() string {
 	m.zones.reset()
 	w, h := max(m.w, 10), max(m.h, 3)
 	var out []string
-	if w >= wideWidth && h >= homeWideH {
+	wide := w >= wideWidth && h >= homeWideH
+	if wide {
 		out = m.wideHome(w, h)
 	} else {
 		out = m.narrowHome(w, h)
@@ -44,23 +48,29 @@ func (m *homeScreen) View() string {
 	for len(out) < h {
 		out = append(out, "")
 	}
-	return strings.Join(out[:h], "\n")
+	out = out[:h]
+	if m.dialog != nil {
+		m.zones.reset() // what is under the dialog takes no clicks
+		var z zones
+		if wide {
+			out, z = m.th.floatDialog(out, m.dialog, w, 2, h-chromeRows-1)
+		} else {
+			out, z = m.th.fullScreenDialog(m.dialog, w, h)
+		}
+		m.zones.merge(z, 0, 0)
+	}
+	return strings.Join(out, "\n")
 }
 
-// modal reports whether the More… dialog holds the focus.
+// modal reports whether a dialog holds the focus.
 func (m *homeScreen) modal() bool { return m.dialog != nil }
 
-// headerLine is the header: the facts on the left, the run state on the
-// right.
+// headerLine is the header: the wordmark, the project, the plan file, the
+// backend and the mode (narrow: the project and the backend), the status
+// word at the right.
 func (m *homeScreen) headerLine(w int, wide bool) string {
 	word, l := m.stateWord()
-	left := m.header(wide)
-	room := w - textWidth(word) - 2
-	if room < 8 {
-		return fit(left, w)
-	}
-	left = fit(left, room)
-	return left + strings.Repeat(" ", w-textWidth(left)-textWidth(word)) + m.th.paint(l, word)
+	return m.th.header(w, m.header(wide), m.th.paint(l, word))
 }
 
 // regionTitle is a region's title, marked while it has the focus.
@@ -69,13 +79,6 @@ func (m *homeScreen) regionTitle(name string, focused bool) string {
 		return m.th.paint(lookAccentBold, "› "+name)
 	}
 	return m.th.paint(lookTitle, name)
-}
-
-// rule is a section rule with its title: "── NOW ─────" (narrow) or
-// "├─ HEALTH ───" (wide, right column) with the given lead.
-func (m *homeScreen) rule(lead, title string, w int) string {
-	fill := max(w-textWidth(lead)-1-textWidth(title)-1, 0)
-	return fit(m.th.paint(lookFrame, lead)+" "+title+" "+m.th.paint(lookFrame, strings.Repeat("─", fill)), w)
 }
 
 // phaseLines are the PHASES rows w cells wide, the selected one marked
@@ -232,10 +235,10 @@ func (m *homeScreen) statusLine(w int) string {
 	return text + strings.Repeat(" ", max(w-textWidth(text)-textWidth(at), 1)) + m.th.paint(lookDim, at)
 }
 
-// barLayout lays the bar out in at most rows rows, w cells, records which
+// fitBar lays the bar out in at most rows rows, w cells, records which
 // buttons are on it and marks the focused one. The state's own action
 // (the first button) is never folded into More….
-func (m *homeScreen) barLayout(w, rows int) barLayout {
+func (m *homeScreen) fitBar(w, rows int) barLayout {
 	btns := m.buttons()
 	order := make([]action, 0, len(homeFold))
 	for _, a := range homeFold {
@@ -250,145 +253,55 @@ func (m *homeScreen) barLayout(w, rows int) barLayout {
 			mark = m.focusedButton()
 		}
 	}
-	l := fitBarOrder(m.th, btns, w, rows, mark, order)
+	l := layoutBar(m.th, btns, w, rows, mark, m.modal(), order)
 	if mark != actNone && !l.has(mark) {
 		mark = l.rows[0][0].act
-		l = fitBarOrder(m.th, btns, w, rows, mark, order)
+		l = layoutBar(m.th, btns, w, rows, mark, m.modal(), order)
 	}
-	m.bar = m.bar[:0]
-	for _, row := range l.rows {
-		for _, p := range row {
-			m.bar = append(m.bar, p.act)
-		}
-	}
-	if m.focus == homeBar {
-		m.barFocus = mark
+	m.bar = append(m.bar[:0], l.acts()...)
+	if m.focus == homeBar && !m.modal() {
+		m.barFocus = mark // under a dialog the focus stays where it was
 	}
 	m.folded = l.folded
-	if m.modal() {
-		// Under the dialog the buttons are drawn inactive and take no clicks.
-		labels := map[action]string{}
-		for _, b := range btns {
-			labels[b.act] = b.label
-		}
-		labels[actMore] = "More…"
-		for i, row := range l.rows {
-			var b strings.Builder
-			for _, p := range row {
-				b.WriteString(pad("", p.x-textWidth(b.String())))
-				b.WriteString(m.th.button(labels[p.act], btnInactive))
-			}
-			l.text[i] = b.String()
-		}
-	}
 	return l
 }
 
-// barRowsAt draws the laid-out bar from row y on, recording its buttons.
-func (m *homeScreen) barRowsAt(l barLayout, y int) []string {
-	out := make([]string, 0, len(l.rows))
-	for i, row := range l.rows {
-		if !m.modal() {
-			for _, b := range row {
-				m.zones.add(rect{b.x, y + i, textWidth(b.text), 1}, target{act: b.act})
-			}
-		}
-		out = append(out, l.text[i])
-	}
-	return out
-}
-
 func (m *homeScreen) wideHome(w, h int) []string {
-	lw := (w - 1) / 2 // left text, then "│", then the right column
-	rw := w - 1 - lw
-	body := h - 5 // header, two rules, the status line and the bar
-	bar := m.barLayout(w, 1)
-	v := m.th.paint(lookFrame, "│")
+	lw := (w - 3) / 2 // the left column; " │ " then the right one
+	rw := columnsRight(lw, w)
+	body := h - chromeRows - 1 // without the status line
+	bar := m.fitBar(w, 1)
 
-	out := []string{m.headerLine(w, true)}
-	if m.modal() {
-		out = append(out, m.th.paint(lookFrame, strings.Repeat("─", w)))
-		out = append(out, m.dialogRows(0, len(out), w, body)...)
-	} else {
-		// The right column: the card, HEALTH and RECENT, each as long as
-		// the budget allows; the card comes first.
-		health, recent := m.healthLines(), m.recentLines()
-		m.lines = append(append([]homeLine{}, health...), recent...)
-		card := m.cardLines(rw - 1)
-		cardRows := min(len(card), max(body-2-len(health)-1, 1))
-		recentRows := min(len(recent), 3, max(body-cardRows-2-len(health), 0))
-		healthRows := min(len(health), max(body-cardRows-2-recentRows, 0))
+	out := []string{m.headerLine(w, true), m.th.rule(w, "")}
+	// The right column: the card, HEALTH and RECENT, each as long as the
+	// budget allows; the card comes first.
+	health, recent := m.healthLines(), m.recentLines()
+	m.lines = append(append([]homeLine{}, health...), recent...)
+	card := m.cardLines(rw)
+	cardRows := min(len(card), max(body-2-len(health)-1, 1))
+	recentRows := min(len(recent), 3, max(body-cardRows-2-len(health), 0))
+	healthRows := min(len(health), max(body-cardRows-2-recentRows, 0))
 
-		phasesFocused := m.focus == homePhases
-		out = append(out, m.rule("─", m.regionTitle("PHASES", phasesFocused), lw)+m.th.paint(lookFrame, "┬")+m.rule("─", m.th.paint(lookTitle, "NOW"), rw))
-		left := m.phasePane(0, len(out), lw-1, body, w >= homeBarsFrom)
-		var right []string
-		for _, l := range card[:cardRows] {
-			right = append(right, v+" "+pad(l, rw-1))
-		}
-		linesFocused := m.focus == homeLines
-		y := len(out) + len(right) + 1
-		right = append(right, m.rule("├─", m.regionTitle("HEALTH", linesFocused && m.lineSel < len(health)), rw+1))
-		for _, l := range m.lineRows(0, health[:healthRows], lw+2, y, rw-1) {
-			right = append(right, v+" "+pad(l, rw-1))
-		}
-		y = len(out) + len(right) + 1
-		right = append(right, m.rule("├─", m.regionTitle("RECENT", linesFocused && m.lineSel >= len(health)), rw+1))
-		for _, l := range m.lineRows(len(health), recent[:recentRows], lw+2, y, rw-1) {
-			right = append(right, v+" "+pad(l, rw-1))
-		}
-		for i := range body {
-			r := line(right, i)
-			if r == "" {
-				r = v
-			}
-			out = append(out, pad(line(left, i), lw)+r)
-		}
-	}
-	join := "┴"
-	if m.modal() {
-		join = "─" // no columns under the dialog
-	}
-	out = append(out, m.th.paint(lookFrame, strings.Repeat("─", lw)+join+strings.Repeat("─", rw)))
+	left := append([]string{m.regionTitle("PHASES", m.focus == homePhases)}, m.phasePane(0, len(out)+1, lw, body-1, w >= homeBarsFrom)...)
+	linesFocused := m.focus == homeLines
+	right := append([]string{}, card[:cardRows]...)
+	x := lw + 3
+	right = append(right, m.th.rule(rw, m.regionTitle("HEALTH", linesFocused && m.lineSel < len(health))))
+	right = append(right, m.lineRows(0, health[:healthRows], x, len(out)+len(right), rw)...)
+	right = append(right, m.th.rule(rw, m.regionTitle("RECENT", linesFocused && m.lineSel >= len(health))))
+	right = append(right, m.lineRows(len(health), recent[:recentRows], x, len(out)+len(right), rw)...)
+	out = append(out, m.th.columns(left, right, lw, w, body, func(int) bool { return true })...)
+	out = append(out, m.th.rule(w, ""))
 	out = append(out, m.statusLine(w))
-	return append(out, m.barRowsAt(bar, len(out))...)
-}
-
-// dialogRows fills rows lines below row y with the More… dialog, centered,
-// and records its options.
-func (m *homeScreen) dialogRows(x, y, w, rows int) []string {
-	width := 72
-	if m.dialog.wide {
-		width = 100 // a side session's first prompt
-	}
-	box, z := m.dialog.render(m.th, min(w-2, width), rows)
-	top := max((rows-len(box))/2, 0)
-	left := max((w-textWidth(box[0]))/2, 0)
-	m.zones.merge(z, x+left, y+top)
-	out := make([]string, 0, rows)
-	for i := range rows {
-		l := ""
-		if i >= top && i-top < len(box) {
-			l = strings.Repeat(" ", left) + box[i-top]
-		}
-		out = append(out, fit(l, w))
-	}
-	return out
+	bar.barZones(&m.zones, len(out), m.modal())
+	return append(out, bar.text...)
 }
 
 func (m *homeScreen) narrowHome(w, h int) []string {
-	if m.modal() {
-		box, z := m.dialog.render(m.th, w, h)
-		m.zones.merge(z, 0, 0)
-		for i := range box {
-			box[i] = fit(box[i], w)
-		}
-		return box[:min(len(box), h)]
-	}
-	bar := m.barLayout(w, barRows)
-	// The header, four rules, the status line and the bar are fixed; the
-	// card, the phases and the lines share the rest.
-	rest := max(h-1-4-1-len(bar.rows), 0)
+	bar := m.fitBar(w, barRows)
+	// The header, its rule, three section rules, the status line and the
+	// bar are fixed; the card, the phases and the lines share the rest.
+	rest := max(h-2-3-1-len(bar.rows), 0)
 	health, recent := m.healthLines(), m.recentLines()
 	m.lines = append(append([]homeLine{}, health...), recent...)
 	small := rest < 14
@@ -400,29 +313,29 @@ func (m *homeScreen) narrowHome(w, h int) []string {
 	cardRows := min(len(card), max(rest-healthRows-recentRows-3, 2))
 	phaseRows := max(rest-cardRows-healthRows-recentRows, 0)
 
-	out := []string{m.headerLine(w, false)}
-	out = append(out, m.rule("──", m.th.paint(lookTitle, "NOW"), w))
+	out := []string{m.headerLine(w, false), m.th.rule(w, "")}
 	out = append(out, card[:cardRows]...)
-	out = append(out, m.rule("──", m.regionTitle("PHASES", m.focus == homePhases), w))
+	out = append(out, m.th.rule(w, m.regionTitle("PHASES", m.focus == homePhases)))
 	phases := m.phasePane(0, len(out), w, phaseRows, w >= homeBarsFrom)
 	out = append(out, phases...)
 	for range phaseRows - len(phases) {
 		out = append(out, "")
 	}
 	linesFocused := m.focus == homeLines
-	out = append(out, m.rule("──", m.regionTitle("HEALTH", linesFocused && m.lineSel < len(health)), w))
+	out = append(out, m.th.rule(w, m.regionTitle("HEALTH", linesFocused && m.lineSel < len(health))))
 	if small {
 		out = append(out, m.joinedLines(0, health, len(out), w))
 	} else {
 		out = append(out, m.lineRows(0, health, 0, len(out), w)...)
 	}
-	out = append(out, m.rule("──", m.regionTitle("RECENT", linesFocused && m.lineSel >= len(health)), w))
+	out = append(out, m.th.rule(w, m.regionTitle("RECENT", linesFocused && m.lineSel >= len(health))))
 	out = append(out, m.lineRows(len(health), recent[:recentRows], 0, len(out), w)...)
 	for len(out) < h-1-len(bar.rows) {
 		out = append(out, "")
 	}
 	out = append(out, m.statusLine(w))
-	return append(out, m.barRowsAt(bar, len(out))...)
+	bar.barZones(&m.zones, len(out), m.modal())
+	return append(out, bar.text...)
 }
 
 // joinedLines draws lines side by side on one row at y, w cells, each its

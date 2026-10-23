@@ -1,9 +1,11 @@
-╭────────────────────────────────────────╮
-│ Commit M0-03?                          │
-│                                        │
-│ commit the changes of M0-03 as "M0-03: │
-│ Makefile"?                             │
-│                                        │
-│ › 1. Commit                            │
-│   2. Leave uncommitted                 │
-╰────────────────────────────────────────╯
+╭───────────────────────────────────────────╮
+│ Commit M0-03?                             │
+│                                           │
+│ commit the changes of M0-03 as "M0-03:    │
+│ Makefile"?                                │
+│                                           │
+│ › 1. Commit                               │
+│   2. Leave uncommitted                    │
+│                                           │
+│ enter choose · 1–2 pick · esc keep asking │
+╰───────────────────────────────────────────╯

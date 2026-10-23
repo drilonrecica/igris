@@ -1,17 +1,16 @@
-igris · sinjal · tasks.md · herdr ✓ · mode auto                                                             PLAN INVALID
+igris · sinjal · tasks.md · herdr ✓ · mode auto                                                                     Idle
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-
-
-
-
-
-
-
-
-
-
-                        ╭──────────────────────────────────────────────────────────────────────╮
-                        │ Adapt tasks.md?                                                      │
+PHASES                                                     │ PLAN INVALID · tasks.md · 4 problems
+plan invalid — Check shows the problems                    │ tasks.md:5: M9-02 depends on unknown task M9-01; check the…
+                                                           │ tasks.md:6: M9-03: unknown status "wip" (did you mean in p…
+                                                           │ tasks.md:7: M9-04: unknown model rank "gpt"; add it to [mo…
+                                                           │ … 1 more — Check shows all
+                                                           │ ── HEALTH ─────────────────────────────────────────────────
+                                                           │ ⨯ plan invalid · 4 problems
+                                                           │ ! doctor: 3 warnings — unknown key tui.moose
+                                                           │ ── RECENT ─────────────────────────────────────────────────
+                        ╭──────────────────────────────────────────────────────────────────────╮d · stopped
+                        │ Adapt tasks.md?                                                      │d
                         │                                                                      │
                         │ Adapt starts Claude in a herdr tab to propose a canonical plan for   │
                         │ tasks.md in .igris/adapt/; nothing changes until you accept it in    │
@@ -24,17 +23,18 @@ igris · sinjal · tasks.md · herdr ✓ · mode auto                           
                         │ › 1. Cancel                                                          │
                         │   2. Adapt with sonnet                                               │
                         │   3. Adapt with opus                                                 │
+                        │                                                                      │
+                        │ enter choose · 1–3 pick · esc cancel                                 │
                         ╰──────────────────────────────────────────────────────────────────────╯
-
-
-
-
-
-
-
-
-
-
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
+                                                           │
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-[Check] [Adapt] [Doctor] [History] [Edit plan] [Settings] [Notify] [Updates] [?] [Quit]
+[c Check] [A Adapt] [i Doctor] [h History] [e Edit plan] [, Settings] [n Notify] [u Updates] [?] [q Quit]

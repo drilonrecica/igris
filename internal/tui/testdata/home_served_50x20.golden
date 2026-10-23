@@ -1,5 +1,5 @@
-igris · sinjal · herdr ✓         RUNNING ELSEWHERE
-── NOW ───────────────────────────────────────────
+igris · sinjal · herdr ✓                 ● Working
+──────────────────────────────────────────────────
 RUNNING in igris serve · pid 4242 on this host ·
 since 09:12
 ● M2-02  Lock file          opus · mode plan · 14m
@@ -16,5 +16,5 @@ run view and controls it.
 ── RECENT ────────────────────────────────────────
 Oct 07 09:12  M2, M3  1 done · running
 
-[›Attach‹] [Open session] [Preview] [Check]
-[Doctor] [History] [Edit plan] [?] [Quit] [More…]
+[›t Attach‹] [o Open] [v Preview] [c Check]
+[i Doctor] [h History] [More…] [?] [q Quit]

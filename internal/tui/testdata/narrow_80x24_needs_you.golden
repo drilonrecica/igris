@@ -1,16 +1,16 @@
-igris · sinjal · M0 · 3/7 · 42% ███░░░ · mode: plan · herdr
-── CURRENT ─────────────────────────────────────────────────────────────────────
-M0-03 Makefile
-rank sonnet → model sonnet
-mode plan · 4m12s
-state: NEEDS YOU (idle 45s) — o opens the session
-the session is idle without a signal
-fmt, lint, test
-[o] Open session  [t] Details
+igris · sinjal · M0 · 3/7 · 42% ███░░░ · mode: plan · herdr          ! Needs you
+────────────────────────────────────────────────────────────────────────────────
+┌─ M0-03 Makefile ─────────────────────────────────────────────────────────────┐
+│ rank sonnet → model sonnet                                                   │
+│ mode plan · 4m12s                                                            │
+│ state: NEEDS YOU (idle 45s) — o opens the session                            │
+│ the session is idle without a signal                                         │
+│ fmt, lint, test                                                              │
+│ [o] Open session  [t] Details                                                │
+└──────────────────────────────────────────────────────────────────────────────┘
 ── TASKS ───────────────────────────────────────────────────────────────────────
  ✓ M0-01 sonnet  ✓ M0-02 sonnet  ! M0-03 sonnet  · M0-04 opus    · M0-05 user
  ⨯ M0-13 sonnet  – M0-14 haiku
-
 
 
 
@@ -20,5 +20,5 @@ fmt, lint, test
 09:41 M0-03 started (sonnet → sonnet, plan) · Makefile
 09:41 M0-03 session open
 09:44 M0-03 needs you: the session is idle without a signal
-[›Open session‹] [Mode] [Task mode] [Pause] [Done] [Retry] [Skip] [Stop] [?]
-[Quit]
+[›o Open session‹] [m Mode] [M Task mode] [p Pause] [d Done] [r Retry…]
+[s Skip…] [x Stop…] [?] [q Quit]

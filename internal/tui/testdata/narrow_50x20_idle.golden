@@ -1,5 +1,5 @@
-igris · sinjal · M0 · 3/7 · mode: plan · herdr
-── CURRENT ───────────────────────────────────────
+igris · sinjal · M0 · 3/7 · mode: plan   ● Working
+──────────────────────────────────────────────────
 no task running
 ── TASKS ─────────────────────────────────────────
  ✓ M0-01 sonnet  ✓ M0-02 sonnet  ● M0-03 sonnet
@@ -12,9 +12,9 @@ no task running
 
 
 
-
 ── LOG ───────────────────────────────────────────
 09:41 run started: phase M0
 09:41 phase M0 started
 
-[›Mode‹] [Task mode] [Pause] [Stop] [?] [Quit]
+[›m Mode‹] [M Task mode] [p Pause] [x Stop…] [?]
+[q Quit]

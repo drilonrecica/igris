@@ -1,4 +1,4 @@
-Check · c checks again
+igris · sinjal · Check                        Idle
 ──────────────────────────────────────────────────
 ⨯ plan invalid · 4 problems
 
@@ -16,5 +16,5 @@ progress, done or skipped
 
 3 warnings
 ! igris.toml:4: unknown key tui.moose
-! tasks.md:21: M2-03 has a Status cell that reads
-[Edit plan] [Adapt] [Check again] [Close]
+──────────────────────────────────────────────────
+[e Edit plan] [A Adapt] [c Check again] [q Back]

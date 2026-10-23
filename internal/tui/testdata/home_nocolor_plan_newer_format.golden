@@ -1,12 +1,12 @@
-[1migris[0m · sinjal · tasks.md · herdr ✓ · mode auto                                                             [1mPLAN INVALID[0m
-─ [1mPHASES[0m ──────────────────────────────────────────────────┬─ [1mNOW[0m ──────────────────────────────────────────────────────
-[2mplan invalid — Check shows the problems[0m                    │ [1mPLAN INVALID · tasks.md · 1 problem[0m                        
-                                                           │ tasks.md:1: plan format 4 needs a newer igris (this igris …
-                                                           ├─ [1mHEALTH[0m ───────────────────────────────────────────────────
-                                                           │ [1m⨯ plan invalid · 1 problem[0m                                 
-                                                           │ [1m! doctor: 1 warning — uncommitted changes[0m                  
-                                                           ├─ [1mRECENT[0m ───────────────────────────────────────────────────
-                                                           │ [2mno runs yet[0m                                                
+[1migr[0m[1mi[0m[1ms[0m · sinjal · tasks.md · herdr ✓ · mode auto                                                                     [2mIdle[0m
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[1mPHASES[0m                                                     │ [1mPLAN INVALID · tasks.md · 1 problem[0m
+[2mplan invalid — Check shows the problems[0m                    │ tasks.md:1: plan format 4 needs a newer igris (this igris …
+                                                           │ ── [1mHEALTH[0m ─────────────────────────────────────────────────
+                                                           │ [1m⨯ plan invalid · 1 problem[0m
+                                                           │ [1m! doctor: 1 warning — uncommitted changes[0m
+                                                           │ ── [1mRECENT[0m ─────────────────────────────────────────────────
+                                                           │ [2mno runs yet[0m
                                                            │
                                                            │
                                                            │
@@ -35,6 +35,6 @@
                                                            │
                                                            │
                                                            │
-───────────────────────────────────────────────────────────┴────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-[1;7m[›Check‹][0m [Doctor] [Edit plan] [Settings] [Notify] [Updates] [?] [Quit]
+[1;7m[›c Check‹][0m [i Doctor] [e Edit plan] [, Settings] [n Notify] [u Updates] [?] [q Quit]

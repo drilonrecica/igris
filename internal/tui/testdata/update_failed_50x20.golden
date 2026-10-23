@@ -12,9 +12,9 @@
 │   revision v1.2.0: unknown revision v1.2.0     │
 │                                                │
 │ The Go checksum database can lag a new tag by  │
-│ about 30 minutes. Try again later, or now      │
-│ with: GOPROXY=direct                           │
-│ GONOSUMDB=github.com/drilonrecica/igris …      │
+│ about 30 minutes. Try again later, or now …    │
 │                                                │
 │ › 1. Close                                     │
+│                                                │
+│ enter choose · esc close                       │
 ╰────────────────────────────────────────────────╯

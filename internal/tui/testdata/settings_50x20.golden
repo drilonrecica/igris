@@ -1,4 +1,4 @@
-Settings · igris.toml · e edits
+igris · sinjal · Settings · igris.toml        Idle
 ──────────────────────────────────────────────────
 /src/sinjal/igris.toml
 
@@ -16,5 +16,5 @@ nudge             = true · default
 poll_interval     = "2s" · default
 
 [models]
-fable  = "fable" · default
-[Edit igris.toml] [Doctor] [Close]
+──────────────────────────────────────────────────
+[e Edit igris.toml] [i Doctor] [q Back]

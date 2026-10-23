@@ -1,5 +1,5 @@
-igris · sinjal · herdr ✓                                                    idle
-── NOW ─────────────────────────────────────────────────────────────────────────
+igris · sinjal · herdr ✓                                                    Idle
+────────────────────────────────────────────────────────────────────────────────
 READY · phase M2 Config & state
 next  · M2-02  Lock file                                                  opus
 then  · M2-03  State file                                                 sonnet
@@ -20,5 +20,5 @@ last run M0, M1 completed
 Oct 06 21:10  M2  3 done · 1 skipped · stopped
 Oct 05 18:02  M1  6 done · completed
 
-[›Arise…‹] [Preview] [Check] [Draft…] [Doctor] [History] [Edit plan] [Settings]
-[Notify] [Updates] [?] [Quit]
+[›a Arise…‹] [v Preview] [c Check] [D Draft…] [i Doctor] [h History]
+[e Edit plan] [, Settings] [n Notify] [u Updates] [?] [q Quit]
