@@ -85,20 +85,22 @@ func TestReviewDecisions(t *testing.T) {
 		accepted bool
 	}{
 		{"enter rejects by default", nil, []string{"enter"}, true, false},
-		{"a accepts a valid proposal", nil, []string{"a"}, true, true},
+		{"A accepts a valid proposal", nil, []string{"A"}, true, true},
 		{"tab then enter accepts", nil, []string{"tab", "enter"}, true, true},
 		{"right then left keeps reject", nil, []string{"right", "left", "enter"}, true, false},
-		{"r rejects", nil, []string{"r"}, true, false},
+		{"x rejects", nil, []string{"x"}, true, false},
 		{"esc rejects", nil, []string{"esc"}, true, false},
 		{"q rejects", nil, []string{"q"}, true, false},
 		{"ctrl+c rejects", nil, []string{"ctrl+c"}, true, false},
 		{"scrolling decides nothing", nil, []string{"down", "pgdown", "end", "home", "up"}, false, false},
-		{"invalid: a asks first", []string{"x"}, []string{"a"}, false, false},
-		{"invalid: the dialog starts on keep reviewing", []string{"x"}, []string{"a", "enter", "enter"}, true, false},
-		{"invalid: replace anyway", []string{"x"}, []string{"a", "down", "enter"}, true, true},
-		{"invalid: option number", []string{"x"}, []string{"a", "2"}, true, true},
-		{"invalid: esc backs out of the dialog", []string{"x"}, []string{"a", "esc"}, false, false},
-		{"invalid: ctrl+c in the dialog rejects", []string{"x"}, []string{"a", "ctrl+c"}, true, false},
+		// Before 1.7 a accepted, r rejected and h/l moved the focus (§15.5).
+		{"a, r, h and l are not bound", nil, []string{"a", "r", "h", "l", "enter"}, true, false},
+		{"invalid: A asks first", []string{"x"}, []string{"A"}, false, false},
+		{"invalid: the dialog starts on keep reviewing", []string{"x"}, []string{"A", "enter", "enter"}, true, false},
+		{"invalid: replace anyway", []string{"x"}, []string{"A", "down", "enter"}, true, true},
+		{"invalid: option number", []string{"x"}, []string{"A", "2"}, true, true},
+		{"invalid: esc backs out of the dialog", []string{"x"}, []string{"A", "esc"}, false, false},
+		{"invalid: ctrl+c in the dialog rejects", []string{"x"}, []string{"A", "ctrl+c"}, true, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -154,7 +156,7 @@ func TestReviewView(t *testing.T) {
 		"✗ p.md:5: W-1: model not set yet",
 		"- | Key | What | State | LLM |",
 		"+ | ID | Task | Status | Model |",
-		"[›r Reject‹]", "[a Accept]",
+		"[›x Reject‹]", "[A Accept]",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("view missing %q:\n%s", want, out)
@@ -190,7 +192,7 @@ func TestReviewDraft(t *testing.T) {
 	if strings.Contains(out, "\x1b[2J") {
 		t.Error("the note's escape sequence reached the terminal")
 	}
-	rh.keys("a")
+	rh.keys("A")
 	if rh.r.dialog == nil || rh.r.dialog.title != "Write the plan anyway?" || rh.r.dialog.options[1].label != "Write anyway" {
 		t.Fatalf("dialog = %+v", rh.r.dialog)
 	}
@@ -234,7 +236,7 @@ func TestReviewDraftExtend(t *testing.T) {
 	if strings.Contains(out, "\x1b[2J") {
 		t.Error("a note's escape sequence reached the terminal")
 	}
-	rh.keys("a")
+	rh.keys("A")
 	if rh.r.dialog == nil || rh.r.dialog.title != "Extend the plan anyway?" || rh.r.dialog.options[1].label != "Extend anyway" {
 		t.Fatalf("dialog = %+v", rh.r.dialog)
 	}
@@ -310,7 +312,7 @@ func TestReviewNoColorKeepsMarkers(t *testing.T) {
 	rh := newReviewHarness(t, 80, 20, reviewOpts("x"))
 	rh.r.th = noColorTheme(t)
 	out := strip(rh.r.View())
-	for _, want := range []string{"✗ the proposal", "- # Widgets", "+ ## W — Widgets", "[›r Reject‹]"} {
+	for _, want := range []string{"✗ the proposal", "- # Widgets", "+ ## W — Widgets", "[›x Reject‹]"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("NO_COLOR view missing %q:\n%s", want, out)
 		}
@@ -319,7 +321,7 @@ func TestReviewNoColorKeepsMarkers(t *testing.T) {
 
 func TestReviewProgram(t *testing.T) {
 	tm := teatest.NewTestModel(t, newReview(reviewOpts()), teatest.WithInitialTermSize(80, 24))
-	seen(t, tm, "✓ the proposal passes", "[a Accept]")
+	seen(t, tm, "✓ the proposal passes", "[A Accept]")
 	tm.Send(keyMsg("tab"))
 	tm.Send(keyMsg("enter"))
 	final := tm.FinalModel(t, teatest.WithFinalTimeout(waitFor)).(*review)
@@ -427,7 +429,7 @@ func TestReviewTablesUnchanged(t *testing.T) {
 
 func TestReviewTablesDecisions(t *testing.T) {
 	rh := newReviewHarness(t, 100, 30, tableReview(t))
-	rh.keys("end", "a")
+	rh.keys("end", "A")
 	if rh.quit || rh.r.dialog == nil {
 		t.Fatal("Accept on an invalid proposal must ask first")
 	}
@@ -448,7 +450,7 @@ func TestReviewDoneHook(t *testing.T) {
 		name string
 		key  string
 		want bool
-	}{{"accept", "a", true}, {"reject", "r", false}} {
+	}{{"accept", "A", true}, {"reject", "x", false}} {
 		t.Run(tt.name, func(t *testing.T) {
 			o := reviewOpts()
 			o.Done = func(accepted bool) tea.Msg { return doneMsg{accepted} }

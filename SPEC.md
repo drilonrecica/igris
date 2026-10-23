@@ -1219,7 +1219,7 @@ Modelled on Claude Code's choice prompts and herdr's clickable UI.
   | Skip (`s`) | text field for the reason · Skip (it says the session is closed only when one is open) · **Cancel** |
 
   Options can be picked by click, by `↑/↓` + `enter`, or by their number (`1`…`9`). `esc` closes a dialog with its non-destructive choice (cancel / keep) where it has one. A question that must be answered (the session-lost, hook-failed, integration, commit, reset and plan approval questions) has no Cancel: `esc` closes the dialog, its hint says `esc keep asking`, the question stays pending until answered, and the dialog reopens from `Answer…` (a reset request first). Answering a reset request brings back the question it covered. Destructive choices (skip, stop) are never the default.
-- **The mode picker** (`m`, `M` and the start-run wizard's Mode step, §15.6; since 1.7) lists plan · auto · accept · manual · default, then **More modes…**, which adds plan:default · plan:accept · plan:auto · yolo `[SKIP PERMISSIONS]` · plan:yolo `[SKIP PERMISSIONS]`. No mode is removed; the wizard puts **As planned** first. The current mode is focused.
+- **The mode picker** (`m`, `M` and the start-run wizard's Mode step, §15.6; since 1.7) lists plan · auto · accept · manual · default, then **More modes…**, which adds plan:default · plan:accept · plan:auto · yolo `[SKIP PERMISSIONS]` · plan:yolo `[SKIP PERMISSIONS]`. No mode is removed; the wizard puts **As planned** first. The current mode is focused; when it is one of the modes More modes… adds, the picker opens with every mode listed. More modes… picks nothing: it lists the rest of the modes in its place and focuses the first of them.
 - **Skip permissions** (§7.3) is never a single click or key: picking `yolo` or `plan:yolo` in a mode list opens a text field that only accepts the typed phrase `skip permissions`.
 - `--no-tui` (§14) remains the plain stdin interface with the same actions as typed commands.
 - **One key map** (since 1.7). A key means the same thing on every screen; a capital is the rarer sibling of its lowercase, and the help (`?`) lists every binding, these included. Each button shows its key.
@@ -1289,8 +1289,8 @@ A header (the wordmark, the project, the plan file, the backend's name — `herd
 
 | Page | Key | Shows | Actions |
 |---|---|---|---|
-| Phase detail | `enter` / second click on a phase | that phase's task rows (as in the run view), the §5.1 outcome, counts | Arise this phase…, Preview this phase, Edit plan |
-| Task detail | `enter` on a task | the run view's detail page (one layout: the title, the task's text without it, the facts) plus the task's last attempts from history under `── LAST ATTEMPTS ──` | Copy ID (`y`) |
+| Phase detail | `enter` / `t` (since 1.7) / second click on a phase | that phase's task rows (as in the run view), the §5.1 outcome, counts | Arise this phase…, Preview this phase, Edit plan |
+| Task detail | `enter` or `t` (since 1.7) on a task | the run view's detail page (one layout: the title, the task's text without it, the facts) plus the task's last attempts from history under `── LAST ATTEMPTS ──` | Copy ID (`y`) |
 | Check | `c` | `check`'s problems, then its warnings | Edit plan, Adapt (when invalid) |
 | Doctor | `i` | `doctor`'s rows (§14); the selected row shows its next step | the row's safe home equivalent (Edit igris.toml, Init, Check, Adapt), Copy fix command (`y`) |
 | History | `h` | `history`'s runs; `enter` drills into a run's tasks and a task's attempts | — (read-only) |

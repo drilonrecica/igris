@@ -199,13 +199,13 @@ func TestDraftGoalAccept(t *testing.T) {
 	if d == nil || d.input != nil {
 		t.Fatalf("the goal dialog = %+v, want a model choice without a field", d)
 	}
-	if got := strings.Join(labels(d), " · "); got != "Cancel · Draft with sonnet · Draft with opus" {
+	if got := strings.Join(labels(d), " · "); got != "Draft with sonnet · Draft with opus · Cancel" {
 		t.Errorf("options = %s", got)
 	}
 	if !strings.Contains(d.detail, "draft.model in igris.toml is opus") {
 		t.Errorf("detail = %q", d.detail)
 	}
-	press(a, "3")
+	press(a, "2")
 	if len(svc.drafted) != 1 || svc.drafted[0] != (DraftRequest{Source: draft.Goal, Model: "opus"}) {
 		t.Fatalf("draft ran with %+v", svc.drafted)
 	}
@@ -219,7 +219,7 @@ func TestDraftGoalAccept(t *testing.T) {
 			t.Errorf("review lacks %q:\n%s", want, v)
 		}
 	}
-	press(a, "a") // the proposal doesn't pass check: asks again
+	press(a, "A") // the proposal doesn't pass check: asks again
 	if rv.dialog == nil || svc.called("AcceptDraft") != 0 {
 		t.Fatal("accepting a proposal with problems didn't ask again")
 	}
@@ -237,7 +237,7 @@ func TestDraftGoalAccept(t *testing.T) {
 func TestDraftReject(t *testing.T) {
 	svc := &fakeServices{draft: finishedDraft(draftResult(), nil)}
 	a, home := draftApp(t, svc, newPlanSnap(false))
-	press(a, "D", "1", "2", "r")
+	press(a, "D", "1", "1", "x")
 	if len(a.stack) != 1 || svc.called("AcceptDraft") != 0 || svc.called("Draft goal sonnet") != 1 {
 		t.Fatalf("reject: %d screens, accepted %d times", len(a.stack), svc.called("AcceptDraft"))
 	}
@@ -251,7 +251,7 @@ func TestDraftAcceptFails(t *testing.T) {
 	res.Issues = nil
 	svc := &fakeServices{draft: finishedDraft(res, nil), draftErr: errors.New("not writing tasks.md: a file appeared there after the review")}
 	a, home := draftApp(t, svc, newPlanSnap(false))
-	press(a, "D", "1", "2", "a")
+	press(a, "D", "1", "1", "A")
 	if len(a.stack) != 1 || svc.called("AcceptDraft") != 1 || home.status != "draft: not writing tasks.md: a file appeared there after the review" {
 		t.Errorf("%d screens, status %q", len(a.stack), home.status)
 	}
@@ -297,7 +297,7 @@ func TestDraftImportAndExtendRequests(t *testing.T) {
 	if d := home.dialog; d == nil || d.input == nil || d.input.label != "Request (optional): " {
 		t.Fatalf("the extend dialog = %+v", d)
 	}
-	press(a, "a phase for the release", "down", "3") // down to the options: Draft with opus
+	press(a, "a phase for the release", "down", "2") // down to the options: Draft with opus
 	if len(svc.drafted) != 1 || svc.drafted[0] != (DraftRequest{Source: draft.Extend, Model: "opus", Text: "a phase for the release"}) {
 		t.Fatalf("extend ran with %+v", svc.drafted)
 	}
@@ -308,7 +308,7 @@ func TestDraftImportAndExtendRequests(t *testing.T) {
 	if v := rv.View(); !strings.Contains(v, "M2-05") || !strings.Contains(v, "ranks are suggestions: 2 set, 0 left at ?") {
 		t.Errorf("review:\n%s", v)
 	}
-	press(a, "a")
+	press(a, "A")
 	for _, want := range []string{"draft accepted: 2 tasks added to tasks.md", "backed up to .igris/draft/tasks.md.20261022-120000.bak.md", "ranks are suggestions (2 set, 0 left at ?)"} {
 		if !strings.Contains(home.status, want) {
 			t.Errorf("status %q lacks %q", home.status, want)

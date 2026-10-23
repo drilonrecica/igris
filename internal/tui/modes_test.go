@@ -14,10 +14,11 @@ func TestModePicker(t *testing.T) {
 		click int // option to click, when keys is empty
 		want  string
 	}{
-		{name: "number", keys: []string{"2"}, want: "accept"},
-		{name: "arrows", keys: []string{"up", "enter"}, want: "auto"}, // from plan, the current one
-		{name: "k and space", keys: []string{"k", "k", "k", " "}, want: "default"},
-		{name: "click", click: 2, want: "auto"},
+		{name: "number", keys: []string{"3"}, want: "accept"},
+		{name: "arrows", keys: []string{"down", "enter"}, want: "auto"}, // from plan, the current one
+		{name: "k and space", keys: []string{"k", "k", " "}, want: "default"},
+		{name: "click", click: 1, want: "auto"},
+		{name: "more modes", keys: []string{"6", "8"}, want: "plan:auto"},
 		{name: "esc", keys: []string{"esc"}},
 	}
 	for _, tt := range tests {
@@ -54,16 +55,17 @@ func TestYoloNeedsTheTypedPhrase(t *testing.T) {
 		sent bool
 	}{
 		{name: "enter twice cancels", keys: []string{"enter", "enter"}},
-		{name: "nothing typed", keys: []string{"enter", "2"}},
-		{name: "wrong phrase", keys: append(typing("skip"), "enter", "2")},
+		{name: "nothing typed", keys: []string{"enter", "1"}},
+		{name: "wrong phrase", keys: append(typing("skip"), "enter", "1")},
 		{name: "phrase then esc", keys: append(typing("skip permissions"), "esc")},
-		{name: "phrase then cancel", keys: append(typing("skip permissions"), "enter", "1")},
-		{name: "phrase then confirm", keys: append(typing("skip permissions"), "enter", "2"), sent: true},
+		{name: "phrase then cancel", keys: append(typing("skip permissions"), "enter", "2")},
+		{name: "phrase then enter cancels", keys: append(typing("skip permissions"), "enter", "enter")},
+		{name: "phrase then confirm", keys: append(typing("skip permissions"), "enter", "1"), sent: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			hs := newHarness(t, 80, 24)
-			hs.keys("m", "5")
+			hs.keys("m", "6", "9") // More modes…, yolo
 			if len(hs.s.take()) != 0 || hs.m.dialog == nil || hs.m.dialog.input == nil || !hs.m.dialog.inField {
 				t.Fatalf("picking yolo didn't ask for the phrase: %+v", hs.m.dialog)
 			}
@@ -83,11 +85,12 @@ func TestYoloNeedsTheTypedPhrase(t *testing.T) {
 func TestYoloIsNeverOneClick(t *testing.T) {
 	hs := newHarness(t, 80, 24)
 	hs.click(isAct(actMode))
-	hs.click(isOption(4))
+	hs.click(isOption(5)) // More modes…
+	hs.click(isOption(8)) // yolo
 	if got := hs.s.take(); len(got) != 0 {
 		t.Fatalf("one click on yolo sent %+v", got)
 	}
-	hs.click(isOption(1)) // Skip permissions, with nothing typed
+	hs.click(isOption(0)) // Skip permissions, with nothing typed
 	if got := hs.s.take(); len(got) != 0 || hs.m.dialog == nil || !strings.Contains(hs.m.View(), "Type exactly: skip permissions") {
 		t.Fatalf("confirm without the phrase sent %+v:\n%s", got, hs.m.View())
 	}
@@ -110,7 +113,7 @@ func TestTaskModePicker(t *testing.T) {
 	if d == nil || d.title != "Mode for M0-04's next session" {
 		t.Fatalf("M opened %+v", d)
 	}
-	hs.key("3")
+	hs.key("2")
 	if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdTaskMode, Task: "M0-04", Text: "auto"}) {
 		t.Fatalf("sent %+v", got)
 	}
@@ -125,9 +128,9 @@ func TestTaskModePicker(t *testing.T) {
 	if d := hs.m.dialog; d.options[d.selected].act != actModeAuto {
 		t.Errorf("picker doesn't start on the override")
 	}
-	hs.keys("5")
+	hs.keys("6", "9")
 	hs.keys(typing("skip permissions")...)
-	hs.keys("enter", "2")
+	hs.keys("enter", "1")
 	if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdTaskMode, Task: "M0-04", Text: "yolo", Yes: true}) {
 		t.Fatalf("sent %+v", got)
 	}
@@ -168,24 +171,24 @@ func typing(s string) []string {
 // modes are one pick.
 func TestPlanModesInThePicker(t *testing.T) {
 	hs := newHarness(t, 80, 24)
-	hs.keys("m", "6")
+	hs.keys("m", "4")
 	if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdMode, Text: "manual"}) {
 		t.Fatalf("sent %+v, want manual", got)
 	}
-	hs.keys("m", "9")
+	hs.keys("m", "6", "8")
 	if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdMode, Text: "plan:auto"}) {
 		t.Fatalf("sent %+v, want plan:auto", got)
 	}
-	// plan:yolo is the tenth, past the number keys: one down from the
-	// current plan:auto.
+	// plan:yolo is the tenth, past the number keys: the current plan:auto
+	// opens the picker with every mode, two up from plan:yolo.
 	hs.events(engine.Event{Kind: engine.ModeChanged, Detail: "plan:auto"})
-	hs.keys("m", "down", "enter")
+	hs.keys("m", "down", "down", "enter")
 	d := hs.m.dialog
 	if len(hs.s.take()) != 0 || d == nil || d.input == nil || !strings.Contains(d.detail, "once you approve the plan in igris") {
 		t.Fatalf("picking plan:yolo didn't ask for the phrase: %+v", d)
 	}
 	hs.keys(typing("skip permissions")...)
-	hs.keys("enter", "2")
+	hs.keys("enter", "1")
 	if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdMode, Text: "plan:yolo", Yes: true}) {
 		t.Errorf("sent %+v, want confirmed plan:yolo", got)
 	}

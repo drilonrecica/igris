@@ -273,12 +273,13 @@ func (m *homeScreen) modeStep() tea.Cmd {
 		options: []option{{"As planned (Mode column, then default_mode: " + def + ")", actWizPlanned}},
 		cancel:  actClose,
 	}
-	for _, md := range modeActs {
-		if md.mode == l.req.Mode {
-			d.selected = len(d.options)
-		}
-		d.options = append(d.options, option{md.label, md.act})
+	// The mode picker after As planned (SPEC §15.6): the one picked
+	// before (--mode) starts selected.
+	modes, sel := modeOptions(l.req.Mode)
+	if sel >= 0 {
+		d.selected = len(d.options) + sel
 	}
+	d.options = append(d.options, modes...)
 	m.dialog = d
 	return nil
 }
@@ -363,7 +364,7 @@ func (m *homeScreen) summary() string {
 }
 
 // nextConfirm asks about the next start-up warning that needs a yes, Cancel
-// first as in arise; once none is left, the run starts.
+// the default as in arise; once none is left, the run starts.
 func (m *homeScreen) nextConfirm() tea.Cmd {
 	l := m.launch
 	for ; l.confirm < len(l.pre.Warnings); l.confirm++ {
@@ -372,12 +373,7 @@ func (m *homeScreen) nextConfirm() tea.Cmd {
 			continue
 		}
 		l.step = wizConfirm
-		m.dialog = &dialog{
-			title:   "Start the run anyway?",
-			detail:  "warning: " + w.String(),
-			options: []option{{"Cancel", actClose}, {"Start anyway", actWizConfirm}},
-			cancel:  actClose,
-		}
+		m.dialog = confirmDialog("Start the run anyway?", "warning: "+w.String(), "Start anyway", actWizConfirm)
 		return nil
 	}
 	return m.start()
@@ -556,21 +552,13 @@ func (m *homeScreen) launchFailed(msg launchFailedMsg) tea.Cmd {
 			lines = append(lines, "· "+textsafe.Line(c.String()))
 		}
 		l.step = wizDrift
-		m.dialog = &dialog{
-			title:   "Let igris fix them?",
-			detail:  strings.Join(lines, "\n"),
-			options: []option{{"Cancel", actClose}, {"Let igris fix them", actWizConfirm}},
-			cancel:  actClose,
-		}
+		m.dialog = confirmDialog("Let igris fix them?", strings.Join(lines, "\n"), "Let igris fix them", actWizConfirm)
 	case errors.Is(err, engine.ErrConfigUnconfirmed) && !l.conf.Config:
 		// SPEC §13: a session can edit igris.toml; the owner looks first.
 		l.step = wizConfig
-		m.dialog = &dialog{
-			title:   "Use the changed igris.toml?",
-			detail:  "igris.toml changed during the last run, which kept the configuration it started with; a session may have edited it. Review it (git diff igris.toml) before this run uses it.",
-			options: []option{{"Cancel", actClose}, {"Use it", actWizConfirm}},
-			cancel:  actClose,
-		}
+		m.dialog = confirmDialog("Use the changed igris.toml?",
+			"igris.toml changed during the last run, which kept the configuration it started with; a session may have edited it. Review it (git diff igris.toml) before this run uses it.",
+			"Use it", actWizConfirm)
 	case errors.Is(err, engine.ErrYoloUnconfirmed) && !l.conf.Yolo:
 		// SPEC §7.3: typed confirmation, every run.
 		l.step = wizYoloLaunch
@@ -601,12 +589,7 @@ func (m *homeScreen) launchFailed(msg launchFailedMsg) tea.Cmd {
 
 // unlockDialog asks before clearing a lock (--force-unlock).
 func unlockDialog(why string) *dialog {
-	return &dialog{
-		title:   "Clear the lock and start?",
-		detail:  why + " Clearing it is what `igris arise --force-unlock` does.",
-		options: []option{{"Cancel", actClose}, {"Clear the lock and start", actWizConfirm}},
-		cancel:  actClose,
-	}
+	return confirmDialog("Clear the lock and start?", why+" Clearing it is what `igris arise --force-unlock` does.", "Clear the lock and start", actWizConfirm)
 }
 
 // wizardPick runs what the owner picked in the wizard's dialog.

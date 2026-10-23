@@ -93,7 +93,7 @@ func TestAdaptDialog(t *testing.T) {
 		if d == nil || !home.adapting {
 			t.Fatal("A didn't open the adapt dialog")
 		}
-		if got := strings.Join(labels(d), " · "); got != "Cancel · Adapt with sonnet · Adapt with opus" {
+		if got := strings.Join(labels(d), " · "); got != "Adapt with sonnet · Adapt with opus · Cancel" {
 			t.Errorf("options = %s", got)
 		}
 		if !strings.Contains(d.detail, "nothing changes until you accept") || !strings.Contains(d.detail, "adapt.model in igris.toml is sonnet") {
@@ -125,7 +125,7 @@ func TestAdaptHiddenWithoutHerdr(t *testing.T) {
 func TestAdaptAccept(t *testing.T) {
 	svc := &fakeServices{adapt: finishedAdapt(adaptResult(), nil), backup: "/src/sinjal/.igris/adapt/tasks.20261007-094100.bak.md"}
 	a, home := adaptApp(t, svc, false)
-	press(a, "A", "3")
+	press(a, "A", "2")
 	if svc.called("Adapt opus") != 1 {
 		t.Fatalf("adapt ran %d times with opus", svc.called("Adapt opus"))
 	}
@@ -139,7 +139,7 @@ func TestAdaptAccept(t *testing.T) {
 	if v := a.View(); !strings.Contains(v, "W-1") || !strings.Contains(v, "unknown model rank") {
 		t.Errorf("review view:\n%s", v)
 	}
-	press(a, "a") // the proposal doesn't pass check: asks again
+	press(a, "A") // the proposal doesn't pass check: asks again
 	if rv.dialog == nil || svc.called("AcceptAdapt") != 0 {
 		t.Fatal("accepting a proposal with problems didn't ask again")
 	}
@@ -159,7 +159,7 @@ func TestAdaptAcceptFails(t *testing.T) {
 	res.Issues = nil
 	svc := &fakeServices{adapt: finishedAdapt(res, nil), acceptErr: errors.New("tasks.md changed since it was read; the plan is unchanged")}
 	a, home := adaptApp(t, svc, false)
-	press(a, "A", "2", "a")
+	press(a, "A", "1", "A")
 	if len(a.stack) != 1 || svc.called("AcceptAdapt") != 1 || home.status != "adapt: tasks.md changed since it was read; the plan is unchanged" {
 		t.Errorf("%d screens, status %q", len(a.stack), home.status)
 	}
@@ -168,7 +168,7 @@ func TestAdaptAcceptFails(t *testing.T) {
 func TestAdaptReject(t *testing.T) {
 	svc := &fakeServices{adapt: finishedAdapt(adaptResult(), nil)}
 	a, home := adaptApp(t, svc, false)
-	press(a, "A", "2", "r")
+	press(a, "A", "1", "x")
 	if len(a.stack) != 1 || svc.called("AcceptAdapt") != 0 || svc.called("Adapt sonnet") != 1 {
 		t.Fatalf("reject: %d screens, accepted %d times", len(a.stack), svc.called("AcceptAdapt"))
 	}
@@ -180,7 +180,7 @@ func TestAdaptReject(t *testing.T) {
 func TestAdaptAlreadyValid(t *testing.T) {
 	svc := &fakeServices{adapt: finishedAdapt(nil, adapt.ErrAlreadyValid)}
 	a, home := adaptApp(t, svc, false)
-	press(a, "A", "2")
+	press(a, "A", "1")
 	if len(a.stack) != 1 || home.status != "tasks.md passes check; nothing to adapt" {
 		t.Errorf("%d screens, status %q", len(a.stack), home.status)
 	}
@@ -189,7 +189,7 @@ func TestAdaptAlreadyValid(t *testing.T) {
 func TestAdaptFailureStaysToBeRead(t *testing.T) {
 	svc := &fakeServices{adapt: finishedAdapt(nil, errors.New("the adapt session ended without `igris done ADAPT`; run `igris adapt` again"))}
 	a, home := adaptApp(t, svc, false)
-	press(a, "A", "2")
+	press(a, "A", "1")
 	s, ok := top(a).(*adaptScreen)
 	if !ok {
 		t.Fatalf("top is %T, want the progress screen", top(a))

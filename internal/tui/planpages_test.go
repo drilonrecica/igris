@@ -356,3 +356,21 @@ func TestCheckPageDrawsWarningsInOrder(t *testing.T) {
 		t.Errorf("warnings missing or out of check's order:\n%s", v)
 	}
 }
+
+// t is Details on every screen (SPEC §15.5, since 1.7): on home the
+// selected phase's page, on that page the selected task's.
+func TestTIsDetails(t *testing.T) {
+	a, _ := planApp(t, readyFix())
+	press(a, "t")
+	if _, ok := top(a).(*phaseScreen); !ok || len(a.stack) != 2 {
+		t.Fatalf("t on home: %d screens, top %T; want the phase page", len(a.stack), top(a))
+	}
+	press(a, "t")
+	if _, ok := top(a).(*taskScreen); !ok || len(a.stack) != 3 {
+		t.Fatalf("t on the phase page: %d screens, top %T; want the task page", len(a.stack), top(a))
+	}
+	press(a, "q", "q")
+	if len(a.stack) != 1 {
+		t.Errorf("q twice left %d screens, want home", len(a.stack))
+	}
+}

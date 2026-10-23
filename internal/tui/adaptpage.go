@@ -76,10 +76,11 @@ func (m *homeScreen) openAdapt() tea.Cmd {
 		detail += "\n\nwarning: " + checks.APIKeyWarning
 	}
 	d := &dialog{title: "Adapt " + m.planName() + "?", detail: detail, cancel: actClose}
-	d.options = []option{{"Cancel", actClose}}
 	for _, am := range adaptModels {
 		d.options = append(d.options, option{"Adapt with " + am.model, am.act})
 	}
+	d.options = append(d.options, option{"Cancel", actClose})
+	d.selected = len(d.options) - 1 // Cancel is the default (SPEC §15.6)
 	m.adapting, m.dialog = true, d
 	return nil
 }

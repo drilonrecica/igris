@@ -19,8 +19,8 @@ PHASES                                      │ READY · phase M2 Config & state
                         │ · M2-04: ready → blocked                                             │
                         │ · M3-01: ready → blocked                                             │
                         │                                                                      │
-                        │ › 1. Cancel                                                          │
-                        │   2. Let igris fix them                                              │
+                        │   1. Let igris fix them                                              │
+                        │ › 2. Cancel                                                          │
                         │                                                                      │
                         │ enter choose · 1–2 pick · esc cancel                                 │
                         ╰──────────────────────────────────────────────────────────────────────╯

@@ -115,15 +115,17 @@ func (r *review) key(msg tea.KeyMsg) tea.Cmd {
 		}
 		return nil
 	}
+	// The one key map (SPEC §9, §15.5): A accepts, x rejects as esc and
+	// q do; before 1.7 a, r, h and l were bound here too.
 	switch k {
-	case "a":
+	case "A":
 		return r.activate(actAccept)
 	case "y":
 		r.notice = copyNotice(r.o.Out, r.o.ProposalPath)
 		return nil
-	case "r", "esc", "q":
+	case "x", "esc", "q":
 		return r.activate(actReject)
-	case "tab", "shift+tab", "left", "right", "h", "l":
+	case "tab", "shift+tab", "left", "right":
 		if r.focus == actReject {
 			r.focus = actAccept
 		} else {
@@ -238,7 +240,7 @@ func (r *review) View() string {
 	out = append(out, r.th.rule(w, ""))
 
 	modal := r.dialog != nil
-	bar := layoutBar(r.th, []button{{label: "Reject", key: "r", act: actReject}, {label: "Accept", key: "a", act: actAccept}}, w, 1, r.focus, modal, nil)
+	bar := layoutBar(r.th, []button{{label: "Reject", key: "x", act: actReject}, {label: "Accept", key: "A", act: actAccept}}, w, 1, r.focus, modal, nil)
 	bar.barZones(&r.zones, h-1, modal)
 	foot := bar.text[0]
 	if len(r.body) > rows {

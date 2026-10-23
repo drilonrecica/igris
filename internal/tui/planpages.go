@@ -105,7 +105,7 @@ func (s *phaseScreen) Init() tea.Cmd { return nil }
 func (s *phaseScreen) helpKeys() []helpEntry {
 	return []helpEntry{
 		{"↑ ↓ j k", "Select", "move along the tasks"},
-		{"enter", "Task details", "the selected task in full, with its last attempts"},
+		{"t enter", "Details", "the selected task in full, with its last attempts"},
 		{"a", "Arise this phase…", "open the start-run wizard on this phase"},
 		{"v", "Preview this phase", "the dry run of this phase"},
 		{"e", "Edit plan", "open the plan in your editor"},
@@ -139,7 +139,7 @@ func (s *phaseScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			s.move(-1)
 		case "down", "j":
 			s.move(1)
-		case "enter", " ":
+		case "enter", " ", "t":
 			return s, s.openTask()
 		case "a":
 			return s, s.act(actArise)

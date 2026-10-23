@@ -230,7 +230,7 @@ func (m *homeScreen) buttons() []button {
 		arise = "Resume…"
 	}
 	add(found && len(s.ConfigProblems) == 0 && !s.NoConfig && m.planValid() && m.herdr() && !live, button{label: arise, key: "a", act: actArise})
-	add(live && s.Served && m.run == nil, button{label: "Attach", key: "t", act: actAttach})
+	add(live && s.Served && m.run == nil, button{label: "Attach", key: "a", act: actAttach})
 	add(live && s.Run != nil && s.Run.Session != "", button{"Open session", "Open", "o", actOpen})
 	add(m.planValid(), button{label: "Preview", key: "v", act: actPreview})
 	add(m.planFile(), button{label: "Check", key: "c", act: actCheck})

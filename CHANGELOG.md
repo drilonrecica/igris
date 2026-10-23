@@ -2,6 +2,20 @@
 
 All notable changes to igris are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and igris uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Until 1.0, minor versions may change the plan format, config or CLI; such changes are called out here.
 
+## [Unreleased]
+
+### Upgrade note: keys and modes that moved in the TUI
+
+The TUI isn't covered by the compatibility promise (SPEC §19), so 1.7 moved a few keys to give every key one meaning on every screen (SPEC §15.5). Plans, `igris.toml`, `--json` and scripts are unaffected.
+
+- **`a` is the one way into the run.** On home, `a` is Arise…, Resume… or **Attach**, whichever the state offers; `t` no longer attaches.
+- **`t` is Details everywhere.** On home it opens the selected phase, on a phase page the selected task, in the run view the selected task (as before).
+- **`q` leaves the screen you are on**: back on a page, Home in the run view (asking Detach · Stop run · Cancel while the run is live), Quit on home. `ctrl+c` quits igris from anywhere; a run `igris serve` hosts goes on.
+- **The adapt and draft review**: `A` accepts and `x` rejects (as `esc` and `q` do); `a`, `r`, `h` and `l` are no longer bound. `enter` presses the focused button (Reject first), `←`/`→` and `tab` move the focus.
+- **The mode picker** (`m`, `M` and the start-run wizard) lists plan, auto, accept, manual and default first; **More modes…** adds plan:default, plan:accept, plan:auto, yolo and plan:yolo. No mode is gone, the number keys of the modes changed, and yolo and plan:yolo still need the typed phrase.
+- **Cancel is always the last option** of a dialog that has one, and `esc` picks it: Skip (`Skip` · Cancel), skip permissions (`Skip permissions` · Cancel), Adapt and Draft (the models, then Cancel), the wizard's start-up questions (`Start anyway`, `Let igris fix them`, `Use it`, `Clear the lock and start`, then Cancel), editing under a run (`Edit anyway` · Cancel) and No editor set (`Open with vi` · `Copy path` · Close). Where Cancel is the default it is still focused, and leaving a text field lands on it, so `enter` twice never confirms.
+- **The help** (`?`) lists every binding of the screen, a capital beside its lowercase (`a`/`A`, `i`/`I`, `e`/`E` on home; `m`/`M`, `s`/`S` in the run view).
+
 ## [1.6.0] - 2026-10-23
 
 igris 1.6 adds one thing to 1.5 and breaks nothing: you can follow a run and answer its questions from your phone. It is off until you set an address, there is no relay or igris cloud, and skip-permissions mode can never be set remotely. Plans, `igris.toml` and scripts written for 1.0 to 1.5 need no changes ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). The additions are a config table, two flags, a subcommand, a file, an ntfy option and an HTTP mapping of protocol 1. `state.json` stays version 4.

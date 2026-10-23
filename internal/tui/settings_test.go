@@ -147,8 +147,8 @@ func TestEditOpensTheFile(t *testing.T) {
 	}
 }
 
-// With no editor set, a dialog shows the path: Close first, vi only when
-// it is on PATH, copy with y. Nothing opens on its own.
+// With no editor set, a dialog shows the path: Close last and focused, vi
+// only when it is on PATH, copy with y. Nothing opens on its own.
 func TestEditWithoutEditorAsks(t *testing.T) {
 	for _, vi := range []bool{false, true} {
 		_, home, _, opened := editApp(t, readyFix(), false, vi)
@@ -159,7 +159,8 @@ func TestEditWithoutEditorAsks(t *testing.T) {
 		if d == nil || d.title != "No editor set" || !strings.Contains(d.detail, "/src/sinjal/igris.toml") {
 			t.Fatalf("vi %v: dialog %+v", vi, d)
 		}
-		if d.options[0].act != actClose || hasOption(d, actEditVi) != vi || !hasOption(d, actCopy) {
+		last := len(d.options) - 1
+		if d.options[last].act != actClose || d.selected != last || hasOption(d, actEditVi) != vi || !hasOption(d, actCopy) {
 			t.Errorf("vi %v: options %+v", vi, d.options)
 		}
 		if len(*opened) != 0 {

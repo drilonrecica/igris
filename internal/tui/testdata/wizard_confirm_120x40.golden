@@ -17,8 +17,8 @@ PHASES                                      │ READY · phase M2 Config & state
                            │                                                               │
                            │ warning: ANTHROPIC_API_KEY is set: Claude Code bills that key │
                            │                                                               │
-                           │ › 1. Cancel                                                   │
-                           │   2. Start anyway                                             │
+                           │   1. Start anyway                                             │
+                           │ › 2. Cancel                                                   │
                            │                                                               │
                            │ enter choose · 1–2 pick · esc cancel                          │
                            ╰───────────────────────────────────────────────────────────────╯

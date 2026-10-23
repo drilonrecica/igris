@@ -720,7 +720,8 @@ func TestHomeHelpKeys(t *testing.T) {
 	for _, e := range m.helpKeys() {
 		keys = append(keys, e.key)
 	}
-	want := "a v c i h e , n A D I t o S u ? q"
+	// Every binding, a capital beside its lowercase (SPEC §15.5).
+	want := "a A D i I e E S t o v c h n u , ? q"
 	if got := strings.Join(keys, " "); got != want {
 		t.Errorf("help keys %q, want %q", got, want)
 	}

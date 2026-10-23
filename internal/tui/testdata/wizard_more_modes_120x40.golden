@@ -1,0 +1,40 @@
+igris · sinjal · tasks.md · herdr ✓ · mode auto                                                                     Idle
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+PHASES                                      │ READY · phase M2 Config & state
+  ✓ M0  Foundations    ██████████ 3/3 done  │ next  · M2-02  Lock file   opus
+  ✓ M1  Plan parser    ██████████ 2/2 done  │ then  · M2-03  State file  sonnet
+› · M2  Config & state ██░░░░░░░░ 1/4 next  │ 3 left · 2 wait on M2-02
+  ◌ M3  Engine         ░░░░░░░░░░ 0/3 wait  │ ── HEALTH ────────────────────────────────────────────────────────────────
+  ◌ M4  TUI            ░░░░░░░░░░ 0/2 wait  │ ✓ plan valid · 5 phases · 14 tasks
+                                            │ ✓ doctor: ok
+                                            │ ── RECENT ────────────────────────────────────────────────────────────────
+                         ╭────────────────────────────────────────────────────────────────────╮
+                         │ Mode                                                               │
+                         │                                                                    │
+                         │ The permission mode of this run's sessions.                        │
+                         │                                                                    │
+                         │   1. As planned (Mode column, then default_mode: auto)             │
+                         │   2. plan — plan first, you approve, then it implements            │
+                         │   3. auto — Claude Code asks only about risky actions              │
+                         │   4. accept — edits are accepted                                   │
+                         │   5. manual — every action asks, whatever Claude Code's default is │
+                         │   6. default — your normal permission prompts                      │
+                         │ › 7. plan:default — plan, then default                             │
+                         │   8. plan:accept — plan, then accept                               │
+                         │   9. plan:auto — plan, then auto                                   │
+                         │   10. yolo [SKIP PERMISSIONS] — no permission prompts              │
+                         │   11. plan:yolo — then [SKIP PERMISSIONS]                          │
+                         │                                                                    │
+                         │ enter choose · 1–9 pick · esc close                                │
+                         ╰────────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[a Arise…] [v Preview] [c Check] [D Draft…] [i Doctor] [h History] [e Edit] [, Settings] [n Notify] [More…] [?] [q Quit]

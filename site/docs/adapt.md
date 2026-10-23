@@ -24,8 +24,8 @@ It keeps every task, ID, description, dependency, status and model; it only rest
 ## The review
 
 - The review shows the `igris check` result and any problems on top. When your plan already has task tables, it compares them table by table (tasks by ID, cells by column name) and lists only what changed: added (`+`) and removed (`-`) phases, tasks and columns, and one `~` line per changed cell. Otherwise it is a line diff of the two files.
-- Scroll with the arrow keys, `pgup`/`pgdn` or the wheel. **Reject** has the focus first, so `enter` changes nothing.
-- `a` or **Accept** replaces your plan after backing it up to `.igris/adapt/<plan>.<timestamp>.bak.md`. `r`, `esc` or `q` reject; the proposal stays in `.igris/adapt/`.
+- Scroll with the arrow keys, `pgup`/`pgdn` or the wheel. **Reject** has the focus first, so `enter` changes nothing; `←`/`→` and `tab` move the focus.
+- `A` or **Accept** replaces your plan after backing it up to `.igris/adapt/<plan>.<timestamp>.bak.md`. `x`, `esc` or `q` reject; the proposal stays in `.igris/adapt/`. (Before 1.7: `a` accepted, `r` rejected.)
 - A proposal that doesn't pass `check` yet, with models left at `?`, asks once more before it replaces anything.
 - If the plan changed on disk while you reviewed, nothing is replaced.
 

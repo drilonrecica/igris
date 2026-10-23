@@ -250,12 +250,9 @@ func (m *homeScreen) edit(t editTarget) tea.Cmd {
 	}
 	if t.plan && !t.confirmed && m.planBusy() {
 		m.editing = &t
-		m.dialog = &dialog{
-			title:   "A run is going",
-			detail:  "igris writes " + t.name() + "'s Status cells while it runs. If your editor saves over them, the run holds until you look (the plan changed under it).",
-			options: []option{{"Cancel", actClose}, {"Edit anyway", actEditAnyway}},
-			cancel:  actClose,
-		}
+		m.dialog = confirmDialog("A run is going",
+			"igris writes "+t.name()+"'s Status cells while it runs. If your editor saves over them, the run holds until you look (the plan changed under it).",
+			"Edit anyway", actEditAnyway)
 		return nil
 	}
 	cmd, err := m.svc.EditCommand(t.path)
@@ -273,18 +270,19 @@ func (m *homeScreen) edit(t editTarget) tea.Cmd {
 }
 
 // noEditorDialog shows the path and asks how to open it; vi is offered
-// only when it is on PATH, never picked on its own.
+// only when it is on PATH, never picked on its own: Close, the last
+// option, is the default (SPEC §15.6).
 func noEditorDialog(t editTarget) *dialog {
 	d := &dialog{
-		title:   "No editor set",
-		detail:  "Set $VISUAL or $EDITOR (e.g. export EDITOR=nano) to edit from igris. The file: " + textsafe.Line(t.path),
-		options: []option{{"Close", actClose}},
-		cancel:  actClose,
+		title:  "No editor set",
+		detail: "Set $VISUAL or $EDITOR (e.g. export EDITOR=nano) to edit from igris. The file: " + textsafe.Line(t.path),
+		cancel: actClose,
 	}
 	if t.vi != nil {
 		d.options = append(d.options, option{"Open with vi", actEditVi})
 	}
-	d.options = append(d.options, option{"Copy path (y)", actCopy})
+	d.options = append(d.options, option{"Copy path (y)", actCopy}, option{"Close", actClose})
+	d.selected = len(d.options) - 1
 	return d
 }
 

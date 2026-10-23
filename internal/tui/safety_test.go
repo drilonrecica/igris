@@ -218,7 +218,7 @@ func TestHomeCleansEveryTextSource(t *testing.T) {
 		shows(t, "wizard summary", view())
 		press(a, "enter") // Arise
 		shows(t, "wizard confirmation", view())
-		press(a, "2") // Start anyway
+		press(a, "1") // Start anyway
 		if home.dialog == nil || home.dialog.title != want {
 			t.Fatalf("launch %d: dialog %+v, want %q", i, home.dialog, want)
 		}
@@ -284,7 +284,7 @@ func TestHomeCleansEveryTextSource(t *testing.T) {
 func TestYoloNeverOneClick(t *testing.T) {
 	st := &starts{}
 	a, home := wizardApp(t, st, report.Prelaunch{}, nil)
-	press(a, "a", "enter", "enter", "6")
+	press(a, "a", "enter", "enter", "7", "down", "down", "down", "enter") // More modes…, yolo
 	d := home.dialog
 	if d == nil || d.title != "Skip permissions?" || !d.inField {
 		t.Fatalf("dialog %+v, want the phrase field", d)
@@ -292,7 +292,7 @@ func TestYoloNeverOneClick(t *testing.T) {
 	home.View() // records the option zones
 	var confirm *zone
 	for i := range home.zones.list {
-		if z := &home.zones.list[i]; z.t.act == actOption && z.t.option == 1 {
+		if z := &home.zones.list[i]; z.t.act == actOption && z.t.option == 0 {
 			confirm = z
 		}
 	}
@@ -304,7 +304,7 @@ func TestYoloNeverOneClick(t *testing.T) {
 	if home.dialog != d || !d.inField || d.input.hint == "" || home.launch.conf.Yolo || home.launch.req.Mode == engine.ModeYolo {
 		t.Errorf("a click confirmed yolo: dialog %+v, launch %+v", home.dialog, home.launch)
 	}
-	press(a, "enter", "2") // leave the field, then the choice's number
+	press(a, "enter", "1") // leave the field, then the choice's number
 	if home.dialog != d || !d.inField || home.launch.conf.Yolo || home.launch.req.Mode == engine.ModeYolo {
 		t.Errorf("a number confirmed yolo: dialog %+v, launch %+v", home.dialog, home.launch)
 	}
@@ -356,7 +356,7 @@ func TestHomeReadOnlyUnderALiveLock(t *testing.T) {
 		}
 		quiet(t, a, home, svc, "a", "A", "I", "E")
 		press(a, "e")
-		if d := home.dialog; d == nil || d.title != "A run is going" || d.options[0].label != "Cancel" || svc.called("EditCommand") != 0 {
+		if d := home.dialog; d == nil || d.title != "A run is going" || d.options[len(d.options)-1].label != "Cancel" || svc.called("EditCommand") != 0 {
 			t.Errorf("e: dialog %+v, EditCommand called %d times; want a question first", d, svc.called("EditCommand"))
 		}
 		press(a, "esc")
@@ -547,7 +547,7 @@ func TestEmbeddedRunReleasesTheLock(t *testing.T) {
 		if lockHeld(t, root) {
 			t.Error("the lock is still held while the drift question is open")
 		}
-		tm.Type("2") // Let igris fix them: the run starts
+		tm.Type("1") // Let igris fix them: the run starts
 		seen(t, tm, "[q Home]")
 		if !lockHeld(t, root) {
 			t.Error("the run holds no lock")

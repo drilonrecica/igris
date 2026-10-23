@@ -161,6 +161,23 @@ func press(a *appModel, keys ...string) {
 }
 
 // labels are the open dialog's options.
+// modeNames are a mode picker's options by the mode's name, the label up
+// to its first space ("As planned", "plan", "More modes…").
+func modeNames(d *dialog) []string {
+	var out []string
+	for _, l := range labels(d) {
+		switch {
+		case strings.HasPrefix(l, "As planned"):
+			out = append(out, "As planned")
+		case l == moreModesLabel:
+			out = append(out, l)
+		default:
+			out = append(out, strings.Fields(l)[0])
+		}
+	}
+	return out
+}
+
 func labels(d *dialog) []string {
 	var out []string
 	for _, o := range d.options {
@@ -195,20 +212,23 @@ func TestWizardSteps(t *testing.T) {
 
 	press(a, "down", "enter")
 	d = home.dialog
-	if d.title != "Mode" || d.selected != 0 || d.options[0].label != "As planned (Mode column, then default_mode: auto)" || len(d.options) != 11 {
-		t.Fatalf("mode dialog %q %q (selected %d)", d.title, labels(d), d.selected)
+	// The mode picker (SPEC §15.5): As planned, the common modes, then
+	// More modes….
+	want = []string{"As planned", "plan", "auto", "accept", "manual", "default", "More modes…"}
+	if d.title != "Mode" || d.selected != 0 || d.options[0].label != "As planned (Mode column, then default_mode: auto)" || !reflect.DeepEqual(modeNames(d), want) {
+		t.Fatalf("mode dialog %q %q (selected %d), want %q", d.title, labels(d), d.selected, want)
 	}
-	if yolo := d.options[5].label; !strings.HasPrefix(yolo, "yolo [SKIP PERMISSIONS]") {
-		t.Errorf("mode 5 %q, want yolo with its badge", yolo)
+	press(a, "7") // More modes… lists the rest in its place and picks nothing
+	want = []string{"As planned", "plan", "auto", "accept", "manual", "default", "plan:default", "plan:accept", "plan:auto", "yolo", "plan:yolo"}
+	if d = home.dialog; d.title != "Mode" || d.selected != 6 || !reflect.DeepEqual(modeNames(d), want) {
+		t.Fatalf("more modes %q (selected %d), want %q with plan:default selected", labels(d), d.selected, want)
 	}
-	if manual := d.options[6].label; !strings.HasPrefix(manual, "manual — every action asks") {
-		t.Errorf("mode 6 %q, want manual right after yolo", manual)
+	for _, i := range []int{9, 10} {
+		if l := d.options[i].label; !strings.Contains(l, "[SKIP PERMISSIONS]") {
+			t.Errorf("mode %d %q, want its badge", i, l)
+		}
 	}
-	if last := d.options[10].label; !strings.HasPrefix(last, "plan:yolo") || !strings.Contains(last, "[SKIP PERMISSIONS]") {
-		t.Errorf("last mode %q, want plan:yolo with its badge", last)
-	}
-
-	press(a, "enter") // As planned; the checks are back at once here
+	press(a, "1") // As planned; the checks are back at once here
 	d = home.dialog
 	wantTitle := "Arise M2 through M3 · mode as planned · 6 tasks · first M2-02 opus"
 	if d.title != wantTitle || !strings.Contains(d.detail, "warning: the working tree has uncommitted changes") {
@@ -247,7 +267,7 @@ func TestWizardResume(t *testing.T) {
 	if home.dialog.title != "Mode" {
 		t.Fatalf("after Resume: %q, want the mode", home.dialog.title)
 	}
-	press(a, "5") // plan
+	press(a, "2") // plan
 	d = home.dialog
 	if want := "Resume M2 through M3 · mode plan · 6 tasks · first M2-02 opus"; d.title != want {
 		t.Errorf("summary %q, want %q", d.title, want)
@@ -292,10 +312,12 @@ func TestWizardStartAPhaseInsteadOfResuming(t *testing.T) {
 func TestWizardYoloNeedsThePhrasePerLaunch(t *testing.T) {
 	st := &starts{}
 	a, home := wizardApp(t, st, report.Prelaunch{}, nil)
-	press(a, "a", "enter", "enter", "6")
+	// yolo is under More modes… (SPEC §15.5): 7, then down to it.
+	yolo := []string{"7", "down", "down", "down", "enter"}
+	press(a, append([]string{"a", "enter", "enter"}, yolo...)...)
 	d := home.dialog
-	if d.input == nil || !d.inField || d.options[0].label != "Cancel" {
-		t.Fatalf("yolo opened %q %q, want the typed phrase with Cancel first", d.title, labels(d))
+	if d.input == nil || !d.inField || d.options[len(d.options)-1].label != "Cancel" {
+		t.Fatalf("yolo opened %q %q, want the typed phrase with Cancel last", d.title, labels(d))
 	}
 	// Enter twice never confirms: leaving the field lands on Cancel, and
 	// Cancel goes back to the mode with nothing chosen.
@@ -303,7 +325,8 @@ func TestWizardYoloNeedsThePhrasePerLaunch(t *testing.T) {
 	if home.dialog.title != "Mode" || st.count() != 0 {
 		t.Fatalf("enter twice: %q, %d starts; want the mode dialog again", home.dialog.title, st.count())
 	}
-	press(a, "6", "skip permission", "enter", "down", "enter")
+	press(a, yolo...)
+	press(a, "skip permission", "enter", "down", "enter")
 	if d = home.dialog; d.input == nil || d.input.hint != "Type exactly: skip permissions" {
 		t.Fatalf("a wrong phrase gave %q %+v", d.title, d.input)
 	}
@@ -392,10 +415,11 @@ func TestWizardParity(t *testing.T) {
 					}
 					continue
 				}
-				if d.options[0].label != "Cancel" || d.cancel != actClose || (d.input == nil) == tt.input {
-					t.Fatalf("choices %q (field %v), want Cancel first", labels(d), d.input != nil)
+				last := len(d.options) - 1
+				if d.options[last].label != "Cancel" || d.selected != last || d.cancel != actClose || (d.input == nil) == tt.input {
+					t.Fatalf("choices %q (selected %d, field %v), want Cancel last and the default", labels(d), d.selected, d.input != nil)
 				}
-				if got := d.options[1].label; got != tt.confirm {
+				if got := d.options[0].label; got != tt.confirm {
 					t.Errorf("confirming choice %q, want %q", got, tt.confirm)
 				}
 				// The default answer is no: nothing starts (again).
@@ -419,7 +443,7 @@ func TestWizardParity(t *testing.T) {
 			if tt.input {
 				press(a, engine.YoloPhrase, "enter", "down", "enter")
 			} else {
-				press(a, "2")
+				press(a, "1")
 			}
 			if st.count() != before+1 || !tt.meaning(st.conf(before)) {
 				t.Fatalf("confirmed: %d starts (had %d), answers %+v", st.count(), before, st.confs)
@@ -474,7 +498,7 @@ func TestWizardPrefilledFromArise(t *testing.T) {
 		t.Errorf("through %q, want --through M3 selected", d.options[d.selected].label)
 	}
 	press(a, "enter")
-	if d := home.dialog; d.options[d.selected].label != modeActs[3].label {
+	if d := home.dialog; d.options[d.selected].label != modeActs[0].label {
 		t.Errorf("mode %q, want --mode plan selected", d.options[d.selected].label)
 	}
 	press(a, "enter", "enter")
@@ -679,11 +703,12 @@ func TestWizardGolden(t *testing.T) {
 		{name: "phase", keys: []string{"a"}},
 		{name: "through", keys: []string{"a", "enter"}},
 		{name: "mode", keys: []string{"a", "enter", "down", "enter"}},
-		{name: "yolo", keys: []string{"a", "enter", "down", "enter", "6"}},
+		{name: "more_modes", keys: []string{"a", "enter", "down", "enter", "7"}},
+		{name: "yolo", keys: []string{"a", "enter", "down", "enter", "7", "down", "down", "down", "enter"}},
 		{name: "summary", keys: []string{"a", "enter", "down", "enter", "enter"}},
 		{name: "confirm", keys: []string{"a", "enter", "down", "enter", "enter", "enter"}},
-		{name: "drift", answers: []error{drift}, keys: []string{"a", "enter", "down", "enter", "enter", "enter", "2"}},
-		{name: "failed", answers: []error{errors.New("backend herdr is not available: no socket")}, keys: []string{"a", "enter", "down", "enter", "enter", "enter", "2"}},
+		{name: "drift", answers: []error{drift}, keys: []string{"a", "enter", "down", "enter", "enter", "enter", "1"}},
+		{name: "failed", answers: []error{errors.New("backend herdr is not available: no socket")}, keys: []string{"a", "enter", "down", "enter", "enter", "enter", "1"}},
 	}
 	for _, s := range steps {
 		for _, size := range [][2]int{{120, 40}, {80, 24}, {50, 20}} {

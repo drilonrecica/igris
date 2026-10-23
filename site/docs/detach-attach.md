@@ -26,7 +26,7 @@ From any terminal in the project:
 igris attach
 ```
 
-Bare `igris` opens home, which shows the live run with **Attach** as its first action (`enter` or `t`). Over ssh from your phone it is the same: log in, `cd` to the project, `igris attach`.
+Bare `igris` opens home, which shows the live run with **Attach** as its first action (`enter` or `a`; `t` before 1.7). Over ssh from your phone it is the same: log in, `cd` to the project, `igris attach`.
 
 - **Several terminals at once.** Each can do everything the run view can. A question is answered by the first terminal that answers it; the others see the answer arrive and the dialog closes.
 - **A lost connection.** The header says `reconnecting…` and the view comes back with a fresh snapshot of the run, with the last lines of the feed.

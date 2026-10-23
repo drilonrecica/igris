@@ -203,7 +203,7 @@ func TestCardAnswerOpensItsOwnQuestion(t *testing.T) {
 	// Skip… from M1-03's session-lost question skips M1-03.
 	hs.click(isAct(actAnswer))
 	hs.click(isOption(3))
-	hs.keys("w", "h", "y", "enter", "2")
+	hs.keys("w", "h", "y", "enter", "1")
 	if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdSkip, Text: "why", Task: "M1-03"}) {
 		t.Errorf("sent %+v, want M1-03 skipped", got)
 	}

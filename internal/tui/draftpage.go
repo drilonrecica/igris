@@ -146,13 +146,15 @@ func (m *homeScreen) draftAsk(src draft.Source) *dialog {
 	}
 	detail += " draft.model in igris.toml is " + model + "."
 	d.detail = m.draftWarning(detail)
-	d.options = []option{{"Cancel", actClose}}
 	for _, dm := range draftModels {
 		d.options = append(d.options, option{"Draft with " + dm.model, dm.act})
 		if dm.model == model {
 			d.submit = dm.act
 		}
 	}
+	d.options = append(d.options, option{"Cancel", actClose})
+	d.selected = len(d.options) - 1 // Cancel is the default, as for Adapt
+	d.def = d.selected
 	if d.input != nil {
 		d.inField = true
 	}

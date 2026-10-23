@@ -106,13 +106,14 @@ func TestSkipAsksForAReason(t *testing.T) {
 		{name: "enter twice cancels", keys: []string{"enter", "enter"}},
 		{name: "esc cancels in the field", keys: []string{"d", "u", "p", "esc"}},
 		{name: "esc cancels on the options", keys: []string{"d", "enter", "esc"}},
-		{name: "an empty reason can't skip", keys: []string{"enter", "2"}, open: true},
-		{name: "a blank reason can't skip", keys: []string{" ", " ", "enter", "down", "enter"}, open: true},
-		{name: "reason then Skip", keys: []string{"d", "u", "p", "e", "enter", "down", "enter"}, want: "dupe"},
-		{name: "reason then number", keys: []string{"o", "k", "tab", "2"}, want: "ok"},
-		{name: "shortcut keys type", keys: []string{"q", "p", "d", "1", "j", "k", "?", "enter", "2"}, want: "qpd1jk?"},
-		{name: "backspace", keys: []string{"a", "b", "backspace", "c", "enter", "2"}, want: "ac"},
-		{name: "back to the field", keys: []string{"a", "enter", "up", "b", "enter", "2"}, want: "ab"},
+		{name: "an empty reason can't skip", keys: []string{"enter", "1"}, open: true},
+		{name: "a blank reason can't skip", keys: []string{" ", " ", "enter", "up", "enter"}, open: true},
+		{name: "reason then Skip", keys: []string{"d", "u", "p", "e", "enter", "up", "enter"}, want: "dupe"},
+		{name: "reason then number", keys: []string{"o", "k", "tab", "1"}, want: "ok"},
+		{name: "shortcut keys type", keys: []string{"q", "p", "d", "1", "j", "k", "?", "enter", "1"}, want: "qpd1jk?"},
+		{name: "backspace", keys: []string{"a", "b", "backspace", "c", "enter", "1"}, want: "ac"},
+		{name: "back to the field", keys: []string{"a", "enter", "up", "up", "b", "enter", "1"}, want: "ab"},
+		{name: "Cancel is last", keys: []string{"a", "enter", "2"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -152,13 +153,13 @@ func TestSkipByMouse(t *testing.T) {
 	hs.withPlan(demoPlan)
 	hs.events(started("M0-03"), opened("M0-03"))
 	hs.click(isAct(actSkip))
-	hs.click(isOption(0)) // leaves the field for Cancel
+	hs.click(isOption(1)) // Cancel, the last option
 	if hs.m.dialog != nil || len(hs.s.take()) != 0 {
 		t.Fatal("Cancel did not just close")
 	}
 	hs.click(isAct(actSkip))
 	hs.keys("x")
-	hs.click(isOption(1))
+	hs.click(isOption(0))
 	if got := hs.s.take(); len(got) != 1 || got[0].Text != "x" {
 		t.Fatalf("sent %+v", got)
 	}
@@ -204,7 +205,7 @@ func TestSessionLostSkip(t *testing.T) {
 		t.Fatal("cancelling the skip dropped the pending question")
 	}
 	hs.click(isAct(actAnswer))
-	hs.keys("4", "w", "o", "n", "t", "enter", "2")
+	hs.keys("4", "w", "o", "n", "t", "enter", "1")
 	if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdSkip, Text: "wont", Task: "M0-03"}) {
 		t.Fatalf("sent %+v", got)
 	}

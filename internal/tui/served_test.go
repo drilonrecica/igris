@@ -139,7 +139,7 @@ func servedProgram(t *testing.T, ar *attachedRuns) (*teatest.TestModel, *fakeSer
 func TestHomeAttachHomeDetaches(t *testing.T) {
 	ar := &attachedRuns{}
 	tm, svc := servedProgram(t, ar)
-	tm.Type("t")
+	tm.Type("a")
 	seen(t, tm, "[q Home]", "phase M2")
 	tm.Type("q")
 	seen(t, tm, "Leave the run view?")
@@ -166,7 +166,7 @@ func TestHomeAttachHomeDetaches(t *testing.T) {
 func TestHomeAttachStopRun(t *testing.T) {
 	ar := &attachedRuns{}
 	tm, _ := servedProgram(t, ar)
-	tm.Type("t")
+	tm.Type("a")
 	seen(t, tm, "[q Home]")
 	tm.Type("q")
 	seen(t, tm, "Leave the run view?")
@@ -184,7 +184,7 @@ func TestHomeAttachStopRun(t *testing.T) {
 func TestHomeAttachQuitDetaches(t *testing.T) {
 	ar := &attachedRuns{}
 	tm, _ := servedProgram(t, ar)
-	tm.Type("t")
+	tm.Type("a")
 	seen(t, tm, "[q Home]")
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	a := finalApp(t, tm)
@@ -201,7 +201,7 @@ func TestHomeAttachFails(t *testing.T) {
 	svc.snapshot = func(context.Context) (*report.Snapshot, error) { return fixture(t, "served").snap, nil }
 	tm := appProgram(t, svc, 120, 40)
 	seen(t, tm, "RUNNING · igris serve")
-	tm.Type("t")
+	tm.Type("a")
 	seen(t, tm, "attach: no run answers on the socket")
 	tm.Type("q")
 	if a := finalApp(t, tm); len(a.stack) != 1 || a.run != nil {
@@ -229,5 +229,22 @@ func TestHomeAriseServedQuitDetaches(t *testing.T) {
 	}
 	if got := ar.get().commands(); len(got) != 0 {
 		t.Errorf("sent %v", got)
+	}
+}
+
+// Before 1.7 t attached; it is Details now, and a is the one way into
+// the run (SPEC §15.5).
+func TestHomeTDoesNotAttach(t *testing.T) {
+	ar := &attachedRuns{}
+	tm, svc := servedProgram(t, ar)
+	tm.Type("t")
+	seen(t, tm, "Phase M")
+	tm.Type("q")
+	tm.Type("q")
+	finalApp(t, tm)
+	svc.mu.Lock()
+	defer svc.mu.Unlock()
+	if svc.calls["Attach"] != 0 {
+		t.Errorf("t attached %d times", svc.calls["Attach"])
 	}
 }

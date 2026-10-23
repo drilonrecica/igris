@@ -173,7 +173,7 @@ func attachedHelp() []helpEntry {
 	copy(out, helpActions)
 	for i, e := range out {
 		if e.key == "q" {
-			out[i].what = "Detach (the run goes on in igris serve; igris attach shows it again) or Stop run; ctrl+c detaches at once"
+			out[i].what = "leave the run view: Detach (the run goes on in igris serve; igris attach shows it again) or Stop run; ctrl+c detaches at once"
 		}
 	}
 	return out

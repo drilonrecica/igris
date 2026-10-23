@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"slices"
+
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/state"
 )
@@ -45,6 +47,7 @@ const (
 	actModePlanAccept
 	actModePlanAuto
 	actModePlanYolo
+	actModeMore // More modes…: the picker lists the rest of the modes
 	// igris adapt's review (review.go).
 	actAccept       // replace the plan with the proposal
 	actAcceptAnyway // replace it although the proposal doesn't pass check
@@ -122,23 +125,70 @@ const (
 )
 
 // modeActs maps the mode picker's actions to their modes, in the order
-// the picker lists them.
+// the picker lists them (SPEC §15.5, since 1.7): the common modes first,
+// then the ones More modes… adds.
 var modeActs = []struct {
 	act         action
 	mode, label string
 }{
-	{actModeDefault, engine.ModeDefault, "default — your normal permission prompts"},
-	{actModeAccept, engine.ModeAccept, "accept — edits are accepted"},
-	{actModeAuto, engine.ModeAuto, "auto — Claude Code asks only about risky actions"},
 	{actModePlan, engine.ModePlan, "plan — plan first, you approve, then it implements"},
-	{actModeYolo, engine.ModeYolo, "yolo [SKIP PERMISSIONS] — no permission prompts"},
-	// Listed after the first five, which keep their number keys (V12-F).
+	{actModeAuto, engine.ModeAuto, "auto — Claude Code asks only about risky actions"},
+	{actModeAccept, engine.ModeAccept, "accept — edits are accepted"},
 	{actModeManual, engine.ModeManual, "manual — every action asks, whatever Claude Code's default is"},
-	// The plan modes that name the mode after approval (SPEC §7.1).
+	{actModeDefault, engine.ModeDefault, "default — your normal permission prompts"},
+	// More modes…: the plan modes that name the mode after approval
+	// (SPEC §7.1) and skip permissions.
 	{actModePlanDefault, engine.ModePlanDefault, "plan:default — plan, then default"},
 	{actModePlanAccept, engine.ModePlanAccept, "plan:accept — plan, then accept"},
 	{actModePlanAuto, engine.ModePlanAuto, "plan:auto — plan, then auto"},
+	{actModeYolo, engine.ModeYolo, "yolo [SKIP PERMISSIONS] — no permission prompts"},
 	{actModePlanYolo, engine.ModePlanYolo, "plan:yolo — then [SKIP PERMISSIONS]"},
+}
+
+// commonModes is how many of modeActs the picker shows before More modes….
+const commonModes = 5
+
+// moreModesLabel is the picker's last option until it is picked.
+const moreModesLabel = "More modes…"
+
+// modeOptions are the mode picker's options and the index of current's:
+// the common modes and More modes…, or every mode when current is one of
+// the others, so the current mode can be focused. -1 when current isn't
+// listed ("" is As planned).
+func modeOptions(current string) ([]option, int) {
+	n, sel := commonModes, -1
+	for i, m := range modeActs {
+		if m.mode == current {
+			sel = i
+			n = max(n, i+1)
+		}
+	}
+	if n > commonModes {
+		n = len(modeActs)
+	}
+	var out []option
+	for _, m := range modeActs[:n] {
+		out = append(out, option{m.label, m.act})
+	}
+	if n < len(modeActs) {
+		out = append(out, option{moreModesLabel, actModeMore})
+	}
+	return out, sel
+}
+
+// moreModes replaces d's More modes… with the modes it stands for and
+// focuses the first of them.
+func (d *dialog) moreModes() {
+	i := slices.IndexFunc(d.options, func(o option) bool { return o.act == actModeMore })
+	if i < 0 {
+		return
+	}
+	var rest []option
+	for _, m := range modeActs[commonModes:] {
+		rest = append(rest, option{m.label, m.act})
+	}
+	d.options = append(d.options[:i:i], rest...)
+	d.selected = i
 }
 
 // modeOf is the mode a mode picker action picks, if it is one.
@@ -200,23 +250,24 @@ var shortcuts = map[string]action{
 // helpEntry is one line of the help page.
 type helpEntry struct{ key, name, what string }
 
-// helpActions are the actions the help page lists, in SPEC §15.3 order.
+// helpActions are the run view's bindings the help page lists (SPEC
+// §15.3, §15.5), a capital beside its lowercase.
 var helpActions = []helpEntry{
 	{"o", "Open session", "bring the current session's pane to the front"},
 	{"[ ]", "Select card", "with several active tasks: the previous or next card; o d s r t M y act on its task"},
 	{"t", "Details", "the selected task's full text and facts: the current one unless you picked another"},
-	{"m", "Mode", "run mode for the sessions launched from now on; yolo needs the typed phrase"},
+	{"m", "Mode", "run mode for the sessions launched from now on; More modes… lists the plan:* modes and yolo, which needs the typed phrase"},
 	{"M", "Task mode", "mode for the selected agent task's next session, over its Mode column (not for user tasks)"},
 	{"p", "Pause / Resume", "pause after the current task; igris waits until you resume"},
 	{"d", "Done", "mark the current task done (your decision: verify is skipped); a user task asks for an optional note"},
 	{"s", "Skip", "skip the current task; asks for a reason and closes its session"},
+	{"S", "Side session", "a Claude Code session of your own, not a task"},
 	{"r", "Retry", "close the session and start fresh or continue the conversation"},
 	{"x", "Stop", "stop igris after confirming; the session stays open"},
-	{"S", "Side session", "a Claude Code session of your own, not a task"},
 	{"y", "Copy", "copy claude --resume for the current session, the log line at the bottom when the log has the focus, or the igris report command on the end-of-run summary"},
 	{"h", "History", "on the end-of-run summary: the History page"},
-	{"q", "Quit", "quit the TUI; sessions keep running, igris arise resumes"},
 	{"?", "Help", "this page"},
+	{"q", "Home / Quit", "leave the run view; sessions keep running, igris arise resumes"},
 }
 
 // helpFocus are the focus keys the help page lists (SPEC §15.5).
@@ -229,4 +280,5 @@ var helpFocus = []helpEntry{
 	{"enter space", "", "activate the focused element: a button, a task's details, the whole log"},
 	{"1…9", "", "pick a dialog option by its number"},
 	{"esc", "", "close a dialog or page with its safe choice"},
+	{"ctrl+c", "", "quit igris from anywhere; a run igris serve hosts goes on"},
 }

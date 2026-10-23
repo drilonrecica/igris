@@ -8,9 +8,9 @@
 │ warning: ANTHROPIC_API_KEY is set: Claude Code would bill the API instead of │
 │ your subscription login. Unset it unless that is what you want.              │
 │                                                                              │
-│ › 1. Cancel                                                                  │
-│   2. Adapt with sonnet                                                       │
-│   3. Adapt with opus                                                         │
+│   1. Adapt with sonnet                                                       │
+│   2. Adapt with opus                                                         │
+│ › 3. Cancel                                                                  │
 │                                                                              │
 │ enter choose · 1–3 pick · esc cancel                                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯

@@ -4,16 +4,12 @@
 │ The permission mode of this run's sessions.                        │
 │                                                                    │
 │ › 1. As planned (Mode column, then default_mode: auto)             │
-│   2. default — your normal permission prompts                      │
-│   3. accept — edits are accepted                                   │
-│   4. auto — Claude Code asks only about risky actions              │
-│   5. plan — plan first, you approve, then it implements            │
-│   6. yolo [SKIP PERMISSIONS] — no permission prompts               │
-│   7. manual — every action asks, whatever Claude Code's default is │
-│   8. plan:default — plan, then default                             │
-│   9. plan:accept — plan, then accept                               │
-│   10. plan:auto — plan, then auto                                  │
-│   11. plan:yolo — then [SKIP PERMISSIONS]                          │
+│   2. plan — plan first, you approve, then it implements            │
+│   3. auto — Claude Code asks only about risky actions              │
+│   4. accept — edits are accepted                                   │
+│   5. manual — every action asks, whatever Claude Code's default is │
+│   6. default — your normal permission prompts                      │
+│   7. More modes…                                                   │
 │                                                                    │
-│ enter choose · 1–9 pick · esc close                                │
+│ enter choose · 1–7 pick · esc close                                │
 ╰────────────────────────────────────────────────────────────────────╯

@@ -202,31 +202,35 @@ func (m *homeScreen) runDoctor() tea.Cmd {
 }
 
 func (m *homeScreen) helpKeys() []helpEntry {
+	// Every binding of home (SPEC §15.6), a capital beside its lowercase.
 	return []helpEntry{
-		{"a", "Arise… / Resume…", "start a run, or resume the last one (when the plan and igris.toml are valid and herdr or tmux is reachable)"},
-		{"v", "Preview", "the dry run: what a run would do"},
-		{"c", "Check", "the plan's problems and warnings"},
-		{"i", "Doctor", "what is wrong with the setup, and what fixes it"},
-		{"h", "History", "the last runs, their tasks and attempts"},
-		{"e", "Edit plan", "open the plan in your editor"},
-		{",", "Settings", "the effective igris.toml; edit it from there"},
-		{"n", "Notify test", "send a test message on every channel"},
+		{"a", "Arise… / Resume… / Attach", "start or resume a run, or attach to the one igris serve hosts here"},
 		{"A", "Adapt", "let Claude propose a canonical plan (when the plan is invalid)"},
 		{"D", "Draft…", "Claude drafts a plan from a goal, spec or export, or extends it"},
+		{"i", "Doctor", "what is wrong with the setup, and what fixes it"},
 		{"I", "Init", "create igris.toml and .igris/ (when there is no igris.toml)"},
-		{"t", "Attach", "the run view of the run igris serve hosts here"},
-		{"o", "Open session", "bring the running session's pane to the front"},
+		{"e", "Edit plan", "open the plan in your editor"},
+		{"E", "Plan from template…", "write the example plan or a template (no plan yet)"},
 		{"S", "Side session", "a Claude Code session of your own, not a task"},
+		{"t", "Details", "the selected phase: its tasks, outcome and counts"},
+		{"o", "Open session", "bring the running session's pane to the front"},
+		{"v", "Preview", "the dry run: what a run would do"},
+		{"c", "Check", "the plan's problems and warnings"},
+		{"h", "History", "the last runs, their tasks and attempts"},
+		{"n", "Notify test", "send a test message on every channel"},
 		{"u", "Check for updates", "ask GitHub for the latest release; updating asks first"},
+		{",", "Settings", "the effective igris.toml; edit it from there"},
 		{"?", "Help", "this page"},
-		{"q", "Quit", "quit igris"},
+		{"q", "Quit", "quit igris; a run goes on in igris serve"},
 	}
 }
 
-// homeShortcuts maps home's keys to their actions (SPEC §15.6).
+// homeShortcuts maps home's keys to their actions (SPEC §15.6). a is
+// Arise…, Resume… or Attach, whichever the state offers: the one way into
+// the run.
 var homeShortcuts = map[string]action{
 	"a": actArise, "v": actPreview, "c": actCheck, "i": actDoctor, "h": actHistory,
-	"e": actEdit, ",": actSettings, "n": actNotify, "A": actAdapt, "D": actDraft, "I": actInit, "E": actExample, "o": actOpen, "t": actAttach, "S": actSide,
+	"e": actEdit, ",": actSettings, "n": actNotify, "A": actAdapt, "D": actDraft, "I": actInit, "E": actExample, "o": actOpen, "t": actDetails, "S": actSide,
 	"u": actUpdate, "?": actHelp, "q": actQuit,
 }
 
@@ -425,6 +429,9 @@ func (m *homeScreen) key(msg tea.KeyMsg) tea.Cmd {
 		m.arrow(max(m.phaseRows()-1, 1))
 	default:
 		if a, ok := homeShortcuts[k]; ok {
+			if a == actArise && !m.offers(actArise) && m.offers(actAttach) {
+				a = actAttach
+			}
 			return m.activate(a)
 		}
 	}
@@ -633,6 +640,8 @@ func (m *homeScreen) activate(a action) tea.Cmd {
 		return nil
 	case actNone, actClose:
 		return nil
+	case actDetails:
+		return m.openPhase() // t: no button, the selected phase's page
 	}
 	if a == actEditConfig {
 		// Doctor's and Settings' action: igris.toml can always be edited.

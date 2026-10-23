@@ -9,8 +9,8 @@ import (
 	"github.com/drilonrecica/igris/internal/engine"
 )
 
-// dialog is a modal choice list (SPEC §15.5). The first option is the safe
-// default and starts selected.
+// dialog is a modal choice list (SPEC §15.5). The default starts
+// selected: the first option, or Cancel, which is always the last.
 type dialog struct {
 	title    string
 	detail   string
@@ -29,6 +29,10 @@ type dialog struct {
 	// submit is what enter in the field picks; actNone leaves the field
 	// for the options instead.
 	submit action
+	// def is the option the focus lands on whenever it leaves the field:
+	// the default, Cancel where that is the default, so enter twice never
+	// confirms.
+	def int
 	// task is the task a dialog the TUI opened is about; it closes when
 	// that task ends.
 	task string
@@ -167,6 +171,18 @@ func planRejectDialog(id string) *dialog {
 	}
 }
 
+// confirmDialog asks before act, which can't be taken back: yes first,
+// Cancel last and focused, as every dialog with a Cancel (SPEC §15.5).
+func confirmDialog(title, detail, yes string, act action) *dialog {
+	return &dialog{
+		title:    title,
+		detail:   detail,
+		options:  []option{{yes, act}, {"Cancel", actClose}},
+		selected: 1,
+		cancel:   actClose,
+	}
+}
+
 // stopDialog confirms the Stop action.
 func stopDialog() *dialog {
 	return &dialog{
@@ -189,21 +205,23 @@ func retryDialog(id string) *dialog {
 }
 
 // skipDialog asks for the reason to skip task id. The field has the focus;
-// leaving it lands on Cancel, so enter twice never skips. session says the
-// task has an open session, which the skip closes.
+// leaving it lands on Cancel, the last option, so enter twice never skips.
+// session says the task has an open session, which the skip closes.
 func skipDialog(id string, session bool) *dialog {
 	detail := "The reason is recorded with the skip."
 	if session {
 		detail += " The session is closed."
 	}
 	return &dialog{
-		title:   "Skip " + id + "?",
-		detail:  detail,
-		input:   &field{label: "Reason: "},
-		inField: true,
-		options: []option{{"Cancel", actClose}, {"Skip", actSkipConfirm}},
-		cancel:  actClose,
-		task:    id,
+		title:    "Skip " + id + "?",
+		detail:   detail,
+		input:    &field{label: "Reason: "},
+		inField:  true,
+		options:  []option{{"Skip", actSkipConfirm}, {"Cancel", actClose}},
+		selected: 1,
+		def:      1,
+		cancel:   actClose,
+		task:     id,
 	}
 }
 
@@ -234,14 +252,11 @@ func modeDialog(task, current string) *dialog {
 	if task != "" {
 		d.title = "Mode for " + task + "'s next session"
 	}
-	for i, m := range modeActs {
-		label := m.label
-		if m.mode == current {
-			label += " (current)"
-			d.selected = i
-		}
-		d.options = append(d.options, option{label, m.act})
+	d.options, d.selected = modeOptions(current)
+	if d.selected >= 0 {
+		d.options[d.selected].label += " (current)"
 	}
+	d.selected = max(d.selected, 0)
 	return d
 }
 
@@ -257,14 +272,16 @@ func yoloDialog(task, mode string) *dialog {
 		detail = "Claude Code starts " + what + " in plan mode with --allow-dangerously-skip-permissions; once you approve the plan in igris, it runs with no permission prompts at all."
 	}
 	return &dialog{
-		title:   "Skip permissions?",
-		detail:  detail + " Type \"" + engine.YoloPhrase + "\" to confirm.",
-		input:   &field{label: "Phrase: "},
-		inField: true,
-		options: []option{{"Cancel", actClose}, {"Skip permissions", actYoloConfirm}},
-		cancel:  actClose,
-		task:    task,
-		mode:    mode,
+		title:    "Skip permissions?",
+		detail:   detail + " Type \"" + engine.YoloPhrase + "\" to confirm.",
+		input:    &field{label: "Phrase: "},
+		inField:  true,
+		options:  []option{{"Skip permissions", actYoloConfirm}, {"Cancel", actClose}},
+		selected: 1,
+		def:      1,
+		cancel:   actClose,
+		task:     task,
+		mode:     mode,
 	}
 }
 
@@ -285,7 +302,7 @@ func (d *dialog) key(msg tea.KeyMsg) (action, bool) {
 	case "down", "j", "tab":
 		d.move(1)
 	case "enter", " ", "space":
-		return d.options[d.selected].act, true
+		return d.choose(d.selected), true
 	case "esc":
 		return d.cancel, true
 	case "pgup":
@@ -297,8 +314,7 @@ func (d *dialog) key(msg tea.KeyMsg) (action, bool) {
 		if err != nil || n < 1 || n > len(d.options) || n > 9 {
 			return actNone, false
 		}
-		d.selected = n - 1
-		return d.options[d.selected].act, true
+		return d.choose(n - 1), true
 	}
 	return actNone, true
 }
@@ -324,7 +340,7 @@ func (d *dialog) fieldKey(msg tea.KeyMsg) (action, bool) {
 		if msg.Type == tea.KeyEnter && d.submit != actNone {
 			return d.submit, true
 		}
-		d.inField, d.selected = false, 0
+		d.inField, d.selected = false, d.def
 		return actNone, true
 	case tea.KeyEsc:
 		return d.cancel, true
@@ -351,7 +367,17 @@ func (d *dialog) pick(i int) action {
 		return actNone
 	}
 	d.inField = false
+	return d.choose(i)
+}
+
+// choose selects option i and returns its action. More modes… is the
+// dialog's own: it lists the rest of the modes and picks nothing.
+func (d *dialog) choose(i int) action {
 	d.selected = i
+	if d.options[i].act == actModeMore {
+		d.moreModes()
+		return actNone
+	}
 	return d.options[i].act
 }
 

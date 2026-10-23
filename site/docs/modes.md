@@ -22,7 +22,7 @@ A task's mode is, in order:
 3. the run mode, `igris arise --mode`;
 4. `default_mode` in `igris.toml`, which is `auto` unless you set it (`default_mode = "manual"` gets you every permission prompt).
 
-Choose a mode in the TUI per run or per task: `m` (or **Mode**) for the run, or select a task and press `M` (**Task mode**) to override it for that task. A change applies to the next session; a running one keeps its mode. User tasks have no session, so they have no mode.
+Choose a mode in the TUI per run or per task: `m` (or **Mode**) for the run, or select a task and press `M` (**Task mode**) to override it for that task. The mode picker (`m`, `M` and the wizard, since 1.7) lists plan, auto, accept, manual and default; **More modes…** adds plan:default, plan:accept, plan:auto, yolo and plan:yolo. A change applies to the next session; a running one keeps its mode. User tasks have no session, so they have no mode.
 
 Use the plan's `Mode` column for tasks that always want one, such as `plan` for design-heavy work. The mode names are also listed in the [plan format](../../docs/plan-format.md).
 

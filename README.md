@@ -255,7 +255,7 @@ It keeps every task, ID, description, dependency, status and model; it only rest
 
 - Verify, Timeout and Context cells are kept as written and never invented; a column of one of those names that holds something else (a command under Verify, say) is renamed so it stays an extra column, and noted.
 - The review shows the `igris check` result and any problems on top. When your plan already has task tables, it compares them table by table (tasks by ID, cells by column name) and lists only what changed: added (`+`) and removed (`-`) phases, tasks and columns, one `~` line per changed cell (`M2-04 Deps: "M2-01" → "M2-01, M2-03"`), renamed columns or a new column order, then a line diff of the text outside the tables. Otherwise it is a line diff of the two files (`-` removed, `+` added, long unchanged stretches folded).
-- Scroll with the arrow keys, `pgup`/`pgdn` or the wheel. **Reject** has the focus first, so `enter` changes nothing. `a` or **Accept** replaces your plan after backing it up to `.igris/adapt/<plan>.<timestamp>.bak.md`; `r`, `esc` or `q` reject (the proposal stays in `.igris/adapt/`).
+- Scroll with the arrow keys, `pgup`/`pgdn` or the wheel. **Reject** has the focus first, so `enter` changes nothing; `←`/`→` and `tab` move the focus. `A` or **Accept** replaces your plan after backing it up to `.igris/adapt/<plan>.<timestamp>.bak.md`; `x`, `esc` or `q` reject (the proposal stays in `.igris/adapt/`). Before 1.7 `a`, `r`, `h` and `l` were bound here too.
 - A proposal that doesn't pass `check` yet, e.g. with models left at `?`, asks once more before it replaces anything, and igris then lists what is left to fix. If the plan changed on disk while you reviewed, nothing is replaced.
 - `adapt` can't run while `igris arise` runs in the project, and `Ctrl-C` stops waiting without closing the session.
 
@@ -428,7 +428,7 @@ Since 1.5 the tasks of a phase can run at the same time, if you say so. Declare 
 
 ## Modes
 
-Choose the permission mode in the TUI, per run or per task: `m` (or **Mode**) for the run, or select a task and press `M` (**Task mode**) to override it for that task. A change applies to the next session; a running one keeps its mode. User tasks have no session, so they have no mode.
+Choose the permission mode in the TUI, per run or per task: `m` (or **Mode**) for the run, or select a task and press `M` (**Task mode**) to override it for that task. The mode picker (`m`, `M` and the wizard, since 1.7) lists plan, auto, accept, manual and default; **More modes…** adds plan:default, plan:accept, plan:auto, yolo and plan:yolo. A change applies to the next session; a running one keeps its mode. User tasks have no session, so they have no mode.
 
 A task's mode is, in order: your override, its `Mode` column, the run mode (`--mode`), then `default_mode` in `igris.toml` (`auto` unless you set it; `default_mode = "manual"` gets you every permission prompt).
 
@@ -639,9 +639,9 @@ What's on it:
 
 | Key | Opens | What you get |
 |---|---|---|
-| `a` | Start-run wizard | Resume the last run or start a phase, through which phase, the mode; then a summary with the warnings `igris arise` prints. Also what `igris arise` with no phase and nothing to resume opens. |
+| `a` | Start-run wizard, or Attach | Resume the last run or start a phase, through which phase (skipped when no later phase exists), the mode (As planned, plan, auto, accept, manual, default, then **More modes…** for the plan:* modes and yolo); then a summary with the warnings `igris arise` prints. Also what `igris arise` with no phase and nothing to resume opens. While `igris serve` hosts a run here, `a` is **Attach** (since 1.7; `t` before): the one way into the run. |
 | `v` | Preview | The dry run as numbered steps (task, rank → model, mode, a `[SKIP PERMISSIONS]` badge, resumed or not), the warnings and the totals. **Arise with these settings** starts the wizard with the same phase, through and mode. |
-| `enter` | A phase | Its outcome word, task counts and task rows, with **Arise this phase…**, **Preview this phase** and **Edit plan**. `enter` on a task shows it in full, laid out as in the run view, plus its last attempts (`y` copies its ID). |
+| `enter` / `t` | A phase | Its outcome word, task counts and task rows, with **Arise this phase…**, **Preview this phase** and **Edit plan**. `enter` or `t` (since 1.7, **Details** on every screen) on a task shows it in full, laid out as in the run view, plus its last attempts (`y` copies its ID). |
 | `c` | Check | The plan's `file:line: message` problems, then the warnings (setup, hints, drift), with **Edit plan** and **Adapt**. |
 | `i` | Doctor | One row per check as `✓ ok`, `! warn` or `⨯ fail`. The selected row shows its next step and its safe action where home has one (**Edit config**, **Init**, **Check**, **Adapt**); `y` copies the fix command. |
 | `h` | History | The last runs; `enter` lists a run's tasks, and `enter` on a task its attempts. |
@@ -654,12 +654,12 @@ What's on it:
 | `o` | Open session | Jumps to a running session. |
 | `S` | Side sessions | Since 1.2, a [side session](#side-sessions) of your own; HEALTH shows `SIDE N open` while any are. |
 | `u` | Check for updates | Since 1.2, asks GitHub for the latest release; a newer one shows the method and the exact command with **Update** · Not now (no Update while a run holds the project). See [Updating igris](#updating-igris). |
-| `?` / `q` | Help / Quit | |
+| `?` / `q` | Help / Quit | The help lists every binding, a capital beside its lowercase (`a`/`A`, `i`/`I`, `e`/`E`). |
 
 <details>
 <summary>More about home: the wizard, the editor, Adapt and the Notify test</summary>
 
-- **The wizard's questions** are the ones `arise` asks before a run (an API key in the environment, plan drift, an `igris.toml` that changed during the last run, skip permissions with the typed `skip permissions` on every launch, and clearing a stale or remote lock as `--force-unlock` does), each a dialog with **Cancel** as the default. An error that leaves nothing to answer (another igris runs here, the backend is unreachable) shows what to do next. Nothing you answer is kept for the next run.
+- **The wizard's questions** are the ones `arise` asks before a run (an API key in the environment, plan drift, an `igris.toml` that changed during the last run, skip permissions with the typed `skip permissions` on every launch, and clearing a stale or remote lock as `--force-unlock` does), each a dialog with **Cancel** as the default; since 1.7 Cancel is the last option of every dialog that has one, and `esc` picks it. An error that leaves nothing to answer (another igris runs here, the backend is unreachable) shows what to do next. Nothing you answer is kept for the next run.
 - **Once a run starts,** its run view has **Home** in place of Quit: Home (or `q`) stops igris and leaves the session running, Stop returns home once igris has stopped, and a run that ends on its own shows the end-of-run summary (since 1.7: the helm, `Done` and the outcome, the phase, the counts, wall and needs-you time, tokens, commits, verify, the skip reasons and `next:` with the commands that follow) until you go home; `h` opens History from it and `y` copies the `igris report` command. Home's status line then says how the run ended. `ctrl+c` quits from anywhere; a running run is stopped and its lock released before igris exits. While it stops, igris says `stopping… (Ctrl-C again to quit now)`: another Ctrl-C exits at once.
 - **The editor:** the TUI comes back when the editor closes, reads the file again and says on the status line whether it is valid (`✓ igris.toml valid`, `⨯ igris.toml: 2 problems — Settings`). The variable is split on spaces, so `code --wait` works but quoted arguments don't, and no shell is involved. With neither variable set, igris shows the file's path and offers vi (if it is installed) or copying the path; it never opens vi on its own. igris itself never rewrites `igris.toml`. Editing the plan while another igris runs on it asks first.
 - **Adapt in the app:** a dialog asks first (**Cancel**, **Adapt with sonnet** or **Adapt with opus**, with the `ANTHROPIC_API_KEY` warning when it is set), then a page streams adapt's progress with **Open session** and **Cancel** (Cancel stops waiting; the session stays open and nothing changes), and the review replaces it once the proposal is there. The status line then names the backup and how many problems are left, or where a rejected proposal is kept. A plan that already passes `check` has nothing to adapt.
