@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/plan"
+	"github.com/drilonrecica/igris/internal/serve"
 )
 
 // The end-of-run summary (SPEC §15.3, since 1.7), in place of `the run
@@ -121,8 +123,12 @@ func outcomeOf(detail string) look.Outcome {
 }
 
 // resultOutcome is the outcome of a run that ended with res and err, for
-// a feed that ended without a RunStopped event.
+// a feed that ended without a RunStopped event. A serve that is gone
+// (killed, crashed) left its run interrupted, not failed (SPEC §15.4).
 func resultOutcome(res engine.Result, err error) look.Outcome {
+	if errors.Is(err, serve.ErrGone) {
+		return look.InterruptedRun
+	}
 	if err != nil {
 		return look.Failed
 	}
@@ -322,7 +328,9 @@ func (m *model) summaryFacts(w, width int) []string {
 
 // nextCommands are the commands that follow the run (SPEC §15.3): the
 // next phase with work after a completed run, a resume after a stop, the
-// phase's status when it is stuck, doctor after an error; and the report.
+// phase's status when it is stuck, status after an interrupted run (it
+// says whether the stale lock needs --force-unlock), doctor after an
+// error; and the report.
 func (m *model) nextCommands() []string {
 	var out []string
 	switch s := &m.sum; s.outcome {
@@ -336,6 +344,8 @@ func (m *model) nextCommands() []string {
 		if m.phase != "" {
 			out = append(out, "igris status "+m.phase)
 		}
+	case look.InterruptedRun:
+		out = append(out, "igris status")
 	default:
 		out = append(out, "igris doctor")
 	}
@@ -367,12 +377,17 @@ func (m *model) nextPhase() string {
 	return ""
 }
 
-// phaseTaskCount counts the tasks of the phases ids in the plan.
-func phaseTaskCount(p *plan.Plan, ids []string) int {
+// unfinishedTasks counts the tasks of the phases ids in the plan that
+// are neither done nor skipped.
+func unfinishedTasks(p *plan.Plan, ids []string) int {
 	n := 0
 	for _, id := range ids {
 		if ph := p.Phase(id); ph != nil {
-			n += len(ph.Tasks)
+			for _, t := range ph.Tasks {
+				if !t.Status.Satisfied() {
+					n++
+				}
+			}
 		}
 	}
 	return n

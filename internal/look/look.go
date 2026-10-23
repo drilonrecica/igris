@@ -123,16 +123,21 @@ const (
 	Stopped
 	Stuck
 	Failed
+	// InterruptedRun is a run that didn't end itself: the igris serving it
+	// was killed or crashed (the Interrupted of status and home, §15.4).
+	InterruptedRun
 )
 
 var outcomes = [...]struct{ word, glyph string }{
-	Completed: {"completed", GlyphDone},
-	Stopped:   {"stopped", GlyphSkipped},
-	Stuck:     {"stuck", GlyphWarn},
-	Failed:    {"failed", GlyphFail},
+	Completed:      {"completed", GlyphDone},
+	Stopped:        {"stopped", GlyphSkipped},
+	Stuck:          {"stuck", GlyphWarn},
+	Failed:         {"failed", GlyphFail},
+	InterruptedRun: {"interrupted", GlyphWarn},
 }
 
-// String is the outcome's word: completed, stopped, stuck, failed.
+// String is the outcome's word: completed, stopped, stuck, failed,
+// interrupted.
 func (o Outcome) String() string {
 	if o < 0 || int(o) >= len(outcomes) {
 		return "failed"
@@ -149,14 +154,15 @@ func (o Outcome) Glyph() string {
 }
 
 // Severity is how the outcome is drawn: a completed run in the accent, a
-// stop plain, a stuck run a warning, a failed one a failure.
+// stop plain, a stuck or interrupted run a warning, a failed one a
+// failure.
 func (o Outcome) Severity() Severity {
 	switch o {
 	case Completed:
 		return Accent
 	case Stopped:
 		return Plain
-	case Stuck:
+	case Stuck, InterruptedRun:
 		return Warn
 	}
 	return Fail

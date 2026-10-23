@@ -17,6 +17,7 @@ import (
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/report"
+	"github.com/drilonrecica/igris/internal/serve"
 	"github.com/drilonrecica/igris/internal/state"
 )
 
@@ -529,6 +530,7 @@ func TestExitText(t *testing.T) {
 		{engine.Result{Outcome: engine.Stopped}, nil, "igris stopped; a running session keeps running — `igris arise` resumes"},
 		{engine.Result{Outcome: engine.Stuck, Phase: "M2"}, nil, "phase M2 is stuck: unfinished tasks, none can start (see `igris status M2`)"},
 		{engine.Result{}, errors.New("boom\x1b[2J"), "the run failed: boom"},
+		{engine.Result{}, fmt.Errorf("attach: %w", serve.ErrGone), "the run was interrupted: the igris serving it ended without stopping it; `igris status` says how to resume"},
 		{engine.Result{Outcome: engine.Completed, NotRun: make([]plan.Waiting, 2)}, nil, "run completed; 2 tasks of the slice not run: their dependencies aren't done"},
 		{engine.Result{}, ErrDetached, "detached; the run goes on in igris serve: `igris attach` (or Attach on home) shows it again, `igris stop` stops it"},
 	}

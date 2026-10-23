@@ -87,10 +87,13 @@ type model struct {
 	phase string
 	// slice holds the IDs of a sliced run's tasks (SPEC §5.5), from
 	// RunStarted; nil when the run takes its phases whole.
-	slice   map[string]bool
-	mode    string
-	paused  bool // pause-after-task is on
-	holding bool // the run holds because of the pause
+	slice map[string]bool
+	// ariseTasks is the Arise. line's task count, once ariseCounted.
+	ariseTasks   int
+	ariseCounted bool
+	mode         string
+	paused       bool // pause-after-task is on
+	holding      bool // the run holds because of the pause
 	// cards are the active tasks in plan order (SPEC §15.1): one in a
 	// sequential phase, up to max in a parallel one. cur is the selected
 	// card, which o, d, s, r, t, M and y act on; nil with none.
@@ -246,6 +249,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if msg.ended {
 			m.ended = true
+			m.lost = false // nothing is left to reconnect to
 			if m.endText == "" {
 				m.endText = "the run ended"
 			}
@@ -1074,6 +1078,7 @@ func (m *model) needs(c *current) bool { return c.needsOwner() || m.cardAsk(c) !
 func (m *model) logEvent(ev engine.Event) {
 	if ev.Kind == engine.RunStarted {
 		m.sum.phases = scopePhases(ev.Detail) // named before the line is written
+		m.ariseCounted = false
 		m.log = append(m.log, logEntry{at: ev.At, tone: lookAccentBold, arise: true})
 		m.refreshArise()
 		if len(m.log) > maxLog {
@@ -1087,8 +1092,10 @@ func (m *model) logEvent(ev engine.Event) {
 }
 
 // refreshArise writes the Arise. line's text: `Arise. phase M1 · 8 tasks
-// · mode plan`, the count left out until the plan is read (the slice's
-// tasks for a sliced run, SPEC §5.5).
+// · mode plan`, the count left out until the plan is read. It counts as
+// serve and --no-tui do (SPEC §14): the slice's tasks for a sliced run
+// (§5.5), else the unfinished tasks of the run's phases, with those this
+// view saw the run finish before the plan was read.
 func (m *model) refreshArise() {
 	for i := range m.log {
 		if !m.log[i].arise {
@@ -1102,7 +1109,13 @@ func (m *model) refreshArise() {
 		case m.slice != nil:
 			text += " · " + look.Count(len(m.slice), "task", "tasks")
 		case m.plan != nil:
-			text += " · " + look.Count(phaseTaskCount(m.plan, m.sum.phases), "task", "tasks")
+			if !m.ariseCounted {
+				// Counted once: the plan read later has the run's own
+				// tasks done.
+				m.ariseTasks = unfinishedTasks(m.plan, m.sum.phases) + m.sum.done + m.sum.skipped
+				m.ariseCounted = true
+			}
+			text += " · " + look.Count(m.ariseTasks, "task", "tasks")
 		}
 		if m.mode != "" {
 			text += " · mode " + m.mode

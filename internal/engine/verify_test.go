@@ -308,6 +308,19 @@ func TestAttemptText(t *testing.T) {
 	}
 }
 
+// The V17 re-gate, with verify_max_attempts = 1, read "verify failed
+// once in a row".
+func TestLimitText(t *testing.T) {
+	for n, want := range map[int]string{
+		1: "verify failed once; igris stops sending failures to the session",
+		3: "verify failed 3 times in a row; igris stops sending failures to the session",
+	} {
+		if got := limitText(n); got != want {
+			t.Errorf("limitText(%d) = %q, want %q", n, got, want)
+		}
+	}
+}
+
 func TestTimes(t *testing.T) {
 	for n, want := range map[int]string{1: "once", 2: "2 times", 3: "3 times"} {
 		if got := times(n); got != want {

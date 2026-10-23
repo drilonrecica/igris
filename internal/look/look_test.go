@@ -74,6 +74,7 @@ func TestOutcomes(t *testing.T) {
 		{Stopped, "Done – stopped", Plain},
 		{Stuck, "Done ▲ stuck", Warn},
 		{Failed, "Done ✗ failed", Fail},
+		{InterruptedRun, "Done ▲ interrupted", Warn},
 	} {
 		if got := tt.o.Line(); got != tt.line {
 			t.Errorf("%d: %q, want %q", tt.o, got, tt.line)

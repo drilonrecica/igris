@@ -256,4 +256,62 @@ Only these need the owner before v1.7.0 ships (with V17-R):
 2. **Termius at its width.** From the phone, `ssh` in and run `igris attach` on that run. Check the narrow run screen at Termius's real width: the switcher (`‹ ! A-01 · 1 of 2 ›`, `[`/`]` or a tap), the selected card, the full-screen dialog, the two-row bar, and the end-of-run summary stacking.
 3. **The look in your own terminal theme.** Run a small phase in your usual terminal, plus `igris`, `igris status` and `igris doctor`. Judge the wide run screen with a floating dialog, home, GET STARTED and the summary's helm. Check that Ember warnings and plume Needs-you read well on your background, and in light mode too if you use it (`[tui] theme`). The gate read colors from tmux captures, not a real terminal.
 4. **A Needs-you notification on the phone.** With your real topic, let a task reach its commit question. The phone should show `! Needs you · <project>` at high priority with **Commit** · **Leave uncommitted**. A `▲`, `✗` or `✓` message should arrive at normal priority.
-5. **Decide or defer the four items under Needs a decision.** None blocks the release; each can stay as is for 1.7.0.
+5. **Decide or defer the four items under Needs a decision, and the three of the re-gate (below).** None blocks the release; each can stay as is for 1.7.0.
+
+## Re-gate (V17-G2)
+
+The re-gate checks the fixes V17-13 to V17-17 made after the gate. It ran unattended on the same machine on 2026-10-23, 10:33–11:00, from the V17-G2 task session. The build was this tree (`1d263a7`, then with the fixes below), built with `-X main.version=1.7.0` into a scratch `GOBIN`. Projects p1–p4 were synthetic scratch git repos under a `mktemp -d` directory, with sonnet tasks that write one file and run `igris done`, `commit = "ask"`, and mode `auto` or as planned, never `yolo`. Phase A was parallel (A-01 told to `sleep 240` first, A-02 quick), phase B had one task.
+
+**Where the runs ran.** tmux was a private server, `tmux -L igris-gate-g2`, started from `env -i` with `SHELL=/bin/bash` and `default-shell /bin/bash`. herdr was a private named session, `herdr --session igris-gate-g2`, whose client ran in a window of that server. Every `herdr` call set that session's socket and unset the gate's own `HERDR_*` variables.
+
+**A gate pitfall, caught and redone.** The first server inherited the owner's `default-shell` (zsh), whose `.zshenv` puts `~/go/bin` first in `PATH`. Windows opened with `tmux new-window` from the gate's shell also took that shell's `PATH`, even with `-e PATH=…`. So the first stop and the first `igris status` after it ran the owner's installed `igris v1.6.0-17`, which predates V17-13, and status read `▲ Interrupted` for a clean stop. `type igris` showed this. The server was killed and started again with bash; every window then checked `igris version` = `1.7.0`, or exported `PATH` itself. Every result below is from this build. The sessions' own `igris done` resolved to this build too: their windows are opened by serve, with serve's environment.
+
+| Check | Result |
+|---|---|
+| tmux: `igris stop` mid-task (A-01 in progress, A-02 committed) | `status` before: `● Working · A-01 Alpha · sonnet · mode auto · since 10:39 · pid … on this host`. `igris stop`: `the run stopped; its sessions stay open`, `next: igris status`, exit 0. `status` at once: `Idle · stopped · A-01 Alpha`, `next: igris arise`. Home: header `Idle`, `STOPPED · last run A · 52s ago`, the task, `session: tmux @2 %2 (Resume reattaches if it is still open)`, `Resume picks A-01 up first, then the rest of A.`, RECENT `1 done · stopped`, bar led by `[›a Resume…‹]` |
+| tmux: SIGKILL of serve by exact PID, after Resume from home | home: `LAST RUN DID NOT CLEAN UP (pid 1683636 gone)`, `Resume asks before clearing the lock.`, RECENT `0 done · interrupted`; `status`: `▲ Interrupted · A-01 Alpha` with `Lock  stale (pid 1683636: process no longer running)`. The run view said `Done ✗ failed` (finding 1, fixed) |
+| herdr: the same two | `status`: `Idle · stopped · A-01 Alpha`, `Session  herdr w1:t2 w1:p2`; home `STOPPED`, `session: herdr w1:t2 w1:p2`. After `kill -9`: `▲ Interrupted · A-01 Alpha` with the stale lock row, home `LAST RUN DID NOT CLEAN UP (pid 1692436 gone)` |
+| The TUI LOG | `Arise. phase A · 2 tasks`, `phase A started`, `A-01 started · sonnet · mode auto`, `A-01 session open`, `A-02 verifying (default) · true`, `✓ A-02 verify passed (default)`, `! A-02 needs you · commit?`, `✓ A-02 committed · A-02: Beta`, `✓ A-02 integrated onto main: A-02: Beta`, `✓ A-02 done · Wrote b.txt …`, `◌ A-01 waits on background work; …`, `– C-01 skipped · gate verify never passes`, `▲ C-02 overdue · …`. No `?` glyph anywhere. On a resumed run the line read `Arise. phase A · 2 tasks` where one task was left (finding 2, fixed) |
+| `arise --no-tui` (p1, resuming A) | `10:42:22 Arise. phase A · 1 task`, `A-01 resumed · reattached to its session`, `` ! A-01 needs you · the agent is idle and has not run `igris done` for 20s ``, `A-01 is working again`, `! A-01 needs you · commit?` with `  commit the changes of A-01 as "A-01: Alpha"? [y/n]` under it; `y` → `✓ A-01 committed …`, `✓ phase A complete`, `run stopped · completed`. `serve.log` has the same lines |
+| The side dialog in a parallel run (A-01 active in its worktree, tmux) | Preset: Blank · About this task — A-01 · igris problem, `in a tmux window`. Mode: `A run works in this tree, so manual comes first.`, `manual` first. Where: `The run merges into this tree; a plan edit holds the run.` (V17-15) |
+| `serve token`, no run | piped and under `NO_COLOR`: the URL, the QR code as 23 lines of `ESC[30;107m…ESC[0m` (kept, V17-16), `next: igris arise`, exit 0 |
+| `serve token`, `igris serve B` live | `next: open the URL on the device  ·  igris attach`, piped and under `NO_COLOR` |
+| A task at its verify limit (p3, `verify = "test -e never-there"`, `verify_max_attempts = 1`) | banner `! C-01 needs you · verify failed once`, card `! Needs you · verify failed once · o opens the session` with `fix it, retry or skip the task` under it, no `idle 0s`. A later `igris done`: `2 failures in a row, past the limit of 1`, card `verify failed 2 times`. The limit's line read `verify failed once in a row` (finding 3, fixed) |
+| An overdue task that needs you (C-02, Timeout `5s`) | banner `! C-02 needs you · running longer than its Timeout 5s`, card `! Needs you · overdue · running longer than its Timeout 5s · o opens the session`, `igris leaves its session running`: one Needs-you line, no stacked `▲ Overdue` state. Log `▲ C-02 overdue · …` then `! C-02 needs you · …` |
+| The end of p3 | `Done ✓ completed`, `1 done · 1 skipped`, `verify 0 ✓ · 3 ✗`, `– C-01 skipped · gate verify never passes`, `next: igris report …` |
+
+### Fixed (each with a regression test)
+
+1. **A run whose igris serve was killed read as failed.** The run view's feed ends with `serve.ErrGone` when serve dies, and the summary mapped any error to `Done ✗ failed` with `next: igris doctor` and no error line. The header kept `▲ reconnecting…`, and the bar offered only Quit. Home's status line then said `the run failed: the connection to the run was lost…`. Yet `status`, home's card and `history` call the same run interrupted (§15.4). The summary predates 1.7; the status line has been there since 1.4.
+
+   **Fixed:** `look.InterruptedRun` (`Done ▲ interrupted`, Ember), which the summary takes for `serve.ErrGone`, with `next: igris status`. `status` says whether the stale lock needs `--force-unlock`. An ended view drops `reconnecting…`, and `ExitText` says `` the run was interrupted: the igris serving it ended without stopping it; `igris status` says how to resume ``. Tests: `TestSummaryOfAKilledServe`, `TestExitText`, `TestSummaryFailedAndNext` and `TestOutcomes`; the first three failed before. Live (p4): `Done ▲ interrupted`, `next: igris status · igris report …`, the bar `[›q Home‹] [h History] [y Copy report command] [?]`, and home's status line in the new words. SPEC §15.3/§15.4, docs/design.md, the CHANGELOG and the release notes say so.
+2. **The TUI's `Arise.` line counted every task of the run's phases**, done and skipped ones included: `2 tasks` on a resumed run where `--no-tui`, `serve.log` and the wizard said `1 task`. §14 counts the unfinished ones. **Fixed** in `refreshArise`: the unfinished tasks, plus those the view saw the run finish, counted once, so the number doesn't shrink as the plan is read again. Test: `TestAriseLine` (M0 with 2 done and 1 skipped: `4 tasks`, still 4 after a task is done). Ten goldens were updated with `-update`; the diff is only that line, `7 tasks` → `4 tasks`. Live: `Arise. phase A · 1 task` on a resume. New in 1.7, so there is no CHANGELOG entry.
+3. **`verify failed once in a row`** at `verify_max_attempts = 1`. **Fixed** with `limitText`: `verify failed once; …`, and `verify failed 3 times in a row; …` as before. Test: `TestLimitText`. Live: `✗ A-01 verify failed once; igris stops sending failures to the session`. In the CHANGELOG.
+
+### Needs a decision
+
+1. **After the verify limit igris still reminds the agent of `igris done`, then says it never ran it.** The limit consumes the done signal, so §6.3's rule ("idle without a signal") applies. The reminder (`you ended your turn without running igris done`) makes the agent run `igris done` again, which verifies again (p3: three failures for a limit of 1). 20 s later Needs you switches to `` ! Needs you · idle 51s · the agent is idle and has not run `igris done` for 20s ``, although it did, so the card no longer says the verify limit is why. The options: keep §6.3 as it is, or treat an open verify-limit Needs you as the episode's reason (no reminder, no second Needs you) until the agent works again or the owner acts. That amends §6.3.
+2. **The wizard and `arise` say `the interrupted task A-01 is picked up first`** for a run the owner stopped. That is §13's term for the task to resume; since V17-13 the word Interrupted otherwise means a run that didn't stop itself. Rewording it (`A-01 is picked up first`) touches §5.5/§13/§15.6 and the goldens of `arise`.
+3. **The `Arise.` line's mode differs between surfaces.** For `igris arise A` with no `--mode`, `serve.log` and `--no-tui` say `· mode auto` (`default_mode`; `TestAriseNoTUI` pins it). The TUI and the run header say nothing, as for As planned. One of the two should follow the other.
+
+### Observations (no change)
+
+- **A stopped or interrupted task keeps `●`** (running) in the STOPPED card, in `status`'s phase table (`● A-01  in progress`) and in home's PHASES (`● A`), though nothing runs; the goldens pin it.
+- On a resumed run the log has `A-01 resumed · reattached to its session` before `phase A started`.
+- `✓ A-02 committed · A-02: Beta` uses `·`, but `✓ A-02 integrated onto main: A-02: Beta` uses a colon.
+- Home's Clear-the-lock dialog shows the lock's time in UTC (`since 2026-10-23T08:56:10Z`), from the lock error's text.
+- Sonnet ran into Claude Code's own block on a foreground `sleep 240`. The first time it put the sleep in the background; the second time it asked in the pane, and the gate answered as the owner ("Skip the wait and signal done now."). The Skip dialog's `enter`, `enter` picks Cancel by design (`skipDialog`); the gate's first skip was cancelled that way.
+- `pgrep -f` for serve's path also matched the gate's own shell command; the kill used the exact PID from `ps`.
+
+### The suite
+
+- **Lint and tests:** `make fmt lint test` gave 0 issues and every package ok, after the fixes.
+- **Race:** `go test -race -count=1 ./...` passed in every package.
+- **Fuzz:** `make fuzz FUZZTIME=30s` ran all eleven targets 30 s each with no failure, after the fixes.
+- **govulncheck:** `Your code is affected by 0 vulnerabilities`; the module finding GO-2026-5024 in `golang.org/x/sys` (Windows only, not called) as before.
+
+Every test run went through the `systemd-run --user --scope` fence (MemoryMax 6G, TasksMax 400), one at a time, with `pgrep` before and after.
+
+**Cleanup.** The tmux server and its socket file, the herdr session (`herdr session stop`, then `delete`), every Claude Code session and the scratch tree are gone. No igris, Claude Code, herdr or test process of the re-gate was left; the owner's own igris run (3 processes) was not touched. Answering folder trust again recorded scratch paths in Claude Code's config, and the sessions left transcripts under `~/.claude/projects/`.
+
+**Owner checks left** are the five above, on this build; item 5 covers the three decisions here too.

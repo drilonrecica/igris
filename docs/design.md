@@ -50,7 +50,7 @@ Seven words say what igris is doing. They are the header's right-hand word in th
 | **Needs you** | anything waits on you: a question, a user task at its turn, a session blocked or lost, a reset request | plume |
 | **Paused** | the pause has taken effect: no task runs, igris waits for Resume | plain |
 | **Stopping** | Stop was confirmed; igris winds down (sessions stay open) | plain |
-| **Done** | the run has ended. The outcome follows the word with its glyph: `Done ✓ completed`, `Done – stopped`, `Done ▲ stuck`, `Done ✗ failed` | by outcome |
+| **Done** | the run has ended. The outcome follows the word with its glyph: `Done ✓ completed`, `Done – stopped`, `Done ▲ stuck`, `Done ✗ failed`, and `Done ▲ interrupted` when the igris serving the run died without ending it | by outcome |
 | **Idle** | no run in this project (home) | dim |
 | **Interrupted** | the last run ended without ending itself (no `run_stopped` in the log; an `igris stop` is Idle); Resume picks it up (home) | ember |
 

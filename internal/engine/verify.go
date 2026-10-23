@@ -121,7 +121,7 @@ func (e *Engine) verified(ctx context.Context, l *launch, profile, script string
 	e.emit(Event{Kind: VerifyFailed, Detail: fmt.Sprintf("%s (`%s`) failed (%s), %s", profile, script, why, attemptText(n, max))})
 
 	if n >= max {
-		e.emit(Event{Kind: VerifyLimit, Detail: fmt.Sprintf("verify failed %s in a row; igris stops sending failures to the session", times(n))})
+		e.emit(Event{Kind: VerifyLimit, Detail: limitText(n)})
 		e.needsYou(ctx, notifyVerifyLimit, state.ReasonVerifyLimit, fmt.Sprintf("verify failed %s; fix it, retry or skip the task", times(n)), "")
 		return false, nil
 	}
@@ -144,6 +144,16 @@ func (e *Engine) verified(ctx context.Context, l *launch, profile, script string
 		e.needsYou(ctx, notifyNeedsInput, state.ReasonVerifyNotSent, "the verify failure could not be sent to the session; tell it yourself", "verify failure not sent to the session")
 	}
 	return false, nil
+}
+
+// limitText is the verify limit's event after n failures in a row:
+// `verify failed 3 times in a row; …`, and `verify failed once; …`.
+func limitText(n int) string {
+	what := "verify failed once"
+	if n > 1 {
+		what = "verify failed " + times(n) + " in a row"
+	}
+	return what + "; igris stops sending failures to the session"
 }
 
 // attemptText is failure n of at most max in a row, in words: `attempt 2

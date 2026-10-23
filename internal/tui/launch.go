@@ -13,6 +13,7 @@ import (
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/report"
+	"github.com/drilonrecica/igris/internal/serve"
 	"github.com/drilonrecica/igris/internal/state"
 	"github.com/drilonrecica/igris/internal/textsafe"
 )
@@ -769,6 +770,8 @@ func ExitText(res engine.Result, err error) string {
 	switch {
 	case errors.Is(err, ErrDetached):
 		return "detached; the run goes on in igris serve: `igris attach` (or Attach on home) shows it again, `igris stop` stops it"
+	case errors.Is(err, serve.ErrGone):
+		return "the run was interrupted: the igris serving it ended without stopping it; `igris status` says how to resume"
 	case err != nil:
 		return "the run failed: " + textsafe.Line(err.Error())
 	case res.Outcome == engine.Stuck:

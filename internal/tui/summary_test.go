@@ -164,6 +164,7 @@ func TestSummaryFailedAndNext(t *testing.T) {
 		{look.Stopped, []string{"igris arise", "igris report"}},
 		{look.Stuck, []string{"igris status M0", "igris report"}},
 		{look.Failed, []string{"igris doctor", "igris report"}},
+		{look.InterruptedRun, []string{"igris status", "igris report"}},
 	} {
 		hs := newHarness(t, 120, 40)
 		hs.withPlan(demoPlan)
@@ -191,6 +192,29 @@ func TestSummaryWithoutRunStopped(t *testing.T) {
 	hs.m.Update(batch{ended: true})
 	if v := hs.m.View(); !strings.Contains(v, "Done ▲ stuck") {
 		t.Errorf("summary lacks the feed's outcome:\n%s", v)
+	}
+}
+
+// A view whose serve was killed (the V17 re-gate: SIGKILL by PID) ends
+// with serve.ErrGone. The run didn't end itself, so it is interrupted,
+// as home, status and history call it (SPEC §15.4), not failed, and the
+// header no longer says it is reconnecting.
+func TestSummaryOfAKilledServe(t *testing.T) {
+	hs := newHarness(t, 120, 40)
+	hs.events(engine.Event{Kind: engine.RunStarted, Detail: "phase M0"})
+	hs.m.Update(batch{lost: true})
+	hs.m.opts.Feed.End(engine.Result{}, serve.ErrGone)
+	hs.m.Update(batch{ended: true})
+	v := hs.m.View()
+	for _, want := range []string{"Done ▲ interrupted", "next: igris status", "Copy report command"} {
+		if !strings.Contains(v, want) {
+			t.Errorf("summary lacks %q:\n%s", want, v)
+		}
+	}
+	for _, bad := range []string{"failed", "reconnecting", "igris doctor"} {
+		if strings.Contains(v, bad) {
+			t.Errorf("summary says %q:\n%s", bad, v)
+		}
 	}
 }
 
@@ -233,12 +257,22 @@ func TestAriseLine(t *testing.T) {
 	if got := hs.m.log[0].tone; got != lookAccentBold {
 		t.Errorf("Arise. drawn %v, want bold accent", got)
 	}
+	// The unfinished tasks, as serve and --no-tui count them (SPEC §14):
+	// M0's done and skipped tasks aren't the run's (the V17 re-gate saw
+	// "2 tasks" here and "1 task" in serve.log for one resumed run).
 	hs.withPlan(demoPlan)
-	if got := first(hs); got != "Arise. phase M0 · 7 tasks · mode plan" {
+	if got := first(hs); got != "Arise. phase M0 · 4 tasks · mode plan" {
 		t.Errorf("after the plan: %q", got)
 	}
-	if v := hs.m.View(); !strings.Contains(v, "09:41 Arise. phase M0 · 7 tasks · mode plan") || strings.Contains(v, "run started") {
+	if v := hs.m.View(); !strings.Contains(v, "09:41 Arise. phase M0 · 4 tasks · mode plan") || strings.Contains(v, "run started") {
 		t.Errorf("log:\n%s", v)
+	}
+	// A task the run finishes doesn't shrink the count as the plan is read
+	// again.
+	hs.events(engine.Event{Kind: engine.TaskDone, Task: "M0-03"})
+	hs.withPlan(strings.Replace(demoPlan, "fmt, lint, test | M0-01 | in progress |", "fmt, lint, test | M0-01 | done |", 1))
+	if got := first(hs); got != "Arise. phase M0 · 4 tasks · mode plan" {
+		t.Errorf("after a task is done: %q", got)
 	}
 	hs = newHarness(t, 120, 40)
 	hs.m.mode = ""
