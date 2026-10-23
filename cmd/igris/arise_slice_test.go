@@ -87,14 +87,14 @@ func TestAriseNoTUINotRun(t *testing.T) {
 	for _, w := range []string{
 		"Arise. phase A · only A-2 · 1 task",
 		"phase A started",
-		"not run: A-2 waits on A-1 (ready, phase A)",
-		"run stopped: completed",
+		"not run · A-2 waits on A-1 (ready, phase A)",
+		"run stopped · completed",
 	} {
 		if !strings.Contains(got, w) {
 			t.Errorf("output lacks %q:\n%s", w, got)
 		}
 	}
-	if n := strings.Count(got, "not run: A-2 waits on A-1"); n != 2 {
+	if n := strings.Count(got, "not run · A-2 waits on A-1"); n != 2 {
 		t.Errorf("not run reported %d times, want in the log and the summary:\n%s", n, got)
 	}
 	if strings.Contains(got, "STUCK") || strings.Contains(got, "phase A complete") {
@@ -122,7 +122,7 @@ func TestDryRunWalksTheSlice(t *testing.T) {
 		"dry run of phase A through B; only A-0, A-1, B-1: nothing is written and no session starts",
 		"  1  · A-0  opus    opus    auto         Half done (resumed: fresh session)",
 		"  2  · A-1  sonnet  sonnet  plan → auto  One",
-		"  not run: B-1 waits on A-3 (blocked, phase A)",
+		"  not run · B-1 waits on A-3 (blocked, phase A)",
 		"dry run: 2 sessions, 0 user tasks",
 	}
 	last := -1
@@ -134,7 +134,7 @@ func TestDryRunWalksTheSlice(t *testing.T) {
 		}
 		last = i
 	}
-	for _, no := range []string{"A-2        ", "A-3        ", "phase A complete", "phase B complete", "STUCK"} {
+	for _, no := range []string{"A-2        ", "A-3        ", "✓ phase A complete", "phase B complete", "STUCK"} {
 		if strings.Contains(got, no) {
 			t.Errorf("output has %q:\n%s", no, got)
 		}

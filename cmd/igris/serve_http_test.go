@@ -83,7 +83,7 @@ func TestServeHTTPListener(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit %d, want 0 after a stop over HTTP; output:\n%s", code, out)
 	}
-	for _, w := range []string{"web UI on http://" + addr + "/ for paired devices", "no device is paired yet; `igris serve token` pairs one", "run stopped: stopped"} {
+	for _, w := range []string{"web UI on http://" + addr + "/ for paired devices", "no device is paired yet; `igris serve token` pairs one", "run stopped · stopped"} {
 		if !strings.Contains(out, w) {
 			t.Errorf("output lacks %q:\n%s", w, out)
 		}

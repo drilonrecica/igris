@@ -296,14 +296,18 @@ func formatServed(ev engine.Event) []string {
 	const attach = "answer in `igris attach`"
 	switch ev.Kind {
 	case engine.Asked:
-		return []string{"? " + ev.Detail, "  " + attach}
+		lines := []string{needsLine(ev.Task, ev.Question.Kind()), "  " + ev.Detail}
+		for _, l := range ev.Output {
+			lines = append(lines, "  | "+l)
+		}
+		return append(lines, "  "+attach)
 	case engine.YourTurn:
 		return []string{
-			look.GlyphNeedsYou + " " + ev.Task + " your turn: " + ev.Detail,
+			needsLine(ev.Task, "your turn · "+ev.Detail),
 			"  do it outside igris (no session), then run `igris done " + ev.Task + "` anywhere in the project (or " + attach + ")",
 		}
 	case engine.PauseOn:
-		return []string{"pause after task: on"}
+		return []string{"pause after task on"}
 	case engine.Paused:
 		return []string{"paused before " + ev.Task + "; Pause in `igris attach` continues"}
 	}

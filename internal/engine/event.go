@@ -170,6 +170,28 @@ const (
 	QuestionIntegration Question = "integration"
 )
 
+// Kind names the question in a word or two, as the Needs-you lines say
+// it (SPEC §15.1): `! M1-04 needs you · commit?`.
+func (q Question) Kind() string {
+	switch q {
+	case QuestionCommit:
+		return "commit?"
+	case QuestionConfirmSkip:
+		return "skip?"
+	case QuestionSessionLost:
+		return "session lost"
+	case QuestionHookFailed:
+		return "hook failed"
+	case QuestionConfirmReset:
+		return "reset?"
+	case QuestionPlanApproval:
+		return "a plan to approve"
+	case QuestionIntegration:
+		return "integration"
+	}
+	return "your answer"
+}
+
 // emit stamps ev with the time and the current phase and task and hands it
 // to the UI.
 func (e *Engine) emit(ev Event) {

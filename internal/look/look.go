@@ -23,8 +23,8 @@ const (
 	GlyphWaiting  = "◌" // waits on other phases, background work, a send
 )
 
-// TaskGlyph is the glyph of a task status in the plan: "?" for a status
-// igris doesn't know. A task that waits on the owner is GlyphNeedsYou
+// TaskGlyph is the glyph of a task status in the plan: GlyphSkipped, an
+// unavailable value, for a status igris doesn't know. A task that waits on the owner is GlyphNeedsYou
 // whatever its status; the caller knows that, the plan doesn't.
 func TaskGlyph(s plan.Status) string {
 	switch s {
@@ -39,7 +39,7 @@ func TaskGlyph(s plan.Status) string {
 	case plan.Skipped:
 		return GlyphSkipped
 	}
-	return "?"
+	return GlyphSkipped
 }
 
 // Status is what igris is doing, in one of seven words (SPEC §15.4): the

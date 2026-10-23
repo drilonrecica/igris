@@ -178,7 +178,7 @@ func TestEventsDriveTheCurrentTask(t *testing.T) {
 	hs.now = t0.Add(4*time.Minute + 12*time.Second)
 	hs.events(engine.Event{Kind: engine.NeedsYou, Task: "M0-03", Detail: "idle", At: t0.Add(3*time.Minute + 27*time.Second)})
 	view := hs.m.View()
-	for _, want := range []string{"igris · sinjal · phase M0 · mode plan · herdr", "! Needs you", "M0-03 Makefile", "4m12s", "Needs you · idle 45s", "M0-03 needs you: idle", "[›o Open session‹]"} {
+	for _, want := range []string{"igris · sinjal · phase M0 · mode plan · herdr", "! Needs you", "M0-03 Makefile", "4m12s", "Needs you · idle 45s", "! M0-03 needs you · idle", "[›o Open session‹]"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("view lacks %q:\n%s", want, view)
 		}

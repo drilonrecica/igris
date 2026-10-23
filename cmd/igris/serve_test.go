@@ -67,8 +67,8 @@ func TestServe(t *testing.T) {
 	for _, w := range []string{
 		"serving the run on " + state.SocketPath(root),
 		"Arise. phase A",
-		"A-1 done · did A-1",
-		"run stopped: completed",
+		"✓ A-1 done · did A-1",
+		"run stopped · completed",
 	} {
 		if !strings.Contains(got, w) {
 			t.Errorf("output lacks %q:\n%s", w, got)
@@ -87,16 +87,16 @@ func TestFormatServed(t *testing.T) {
 		ev   engine.Event
 		want string
 	}{
-		{engine.Event{Kind: engine.Asked, Question: engine.QuestionCommit, Detail: "commit?"}, "? commit?\n  answer in `igris attach`"},
-		{engine.Event{Kind: engine.Asked, Question: engine.QuestionSessionLost, Detail: "gone"}, "? gone\n  answer in `igris attach`"},
-		{engine.Event{Kind: engine.Asked, Question: engine.QuestionHookFailed, Detail: "failed"}, "? failed\n  answer in `igris attach`"},
-		{engine.Event{Kind: engine.Asked, Question: engine.QuestionConfirmReset, Task: "A-1", Detail: "reset A-1 (done) to ready/blocked?"}, "? reset A-1 (done) to ready/blocked?\n  answer in `igris attach`"},
-		{engine.Event{Kind: engine.YourTurn, Task: "A-2", Detail: "Buy"}, "! A-2 your turn: Buy\n  do it outside igris (no session), then run `igris done A-2` anywhere in the project (or answer in `igris attach`)"},
-		{engine.Event{Kind: engine.PauseOn}, "pause after task: on"},
+		{engine.Event{Kind: engine.Asked, Question: engine.QuestionCommit, Task: "A-1", Detail: "commit?"}, "! A-1 needs you · commit?\n  commit?\n  answer in `igris attach`"},
+		{engine.Event{Kind: engine.Asked, Question: engine.QuestionSessionLost, Task: "A-1", Detail: "gone"}, "! A-1 needs you · session lost\n  gone\n  answer in `igris attach`"},
+		{engine.Event{Kind: engine.Asked, Question: engine.QuestionHookFailed, Task: "A-1", Detail: "failed"}, "! A-1 needs you · hook failed\n  failed\n  answer in `igris attach`"},
+		{engine.Event{Kind: engine.Asked, Question: engine.QuestionConfirmReset, Task: "A-1", Detail: "reset A-1 (done) to ready/blocked?"}, "! A-1 needs you · reset?\n  reset A-1 (done) to ready/blocked?\n  answer in `igris attach`"},
+		{engine.Event{Kind: engine.YourTurn, Task: "A-2", Detail: "Buy"}, "! A-2 needs you · your turn · Buy\n  do it outside igris (no session), then run `igris done A-2` anywhere in the project (or answer in `igris attach`)"},
+		{engine.Event{Kind: engine.PauseOn}, "pause after task on"},
 		{engine.Event{Kind: engine.Paused, Task: "A-2"}, "paused before A-2; Pause in `igris attach` continues"},
 		// Everything else is --no-tui's line.
-		{engine.Event{Kind: engine.TaskDone, Task: "A-1"}, "A-1 done"},
-		{engine.Event{Kind: engine.PauseOff}, "pause after task: off"},
+		{engine.Event{Kind: engine.TaskDone, Task: "A-1"}, "✓ A-1 done"},
+		{engine.Event{Kind: engine.PauseOff}, "pause after task off"},
 	}
 	for _, tt := range tests {
 		got := strings.Join(formatServed(tt.ev), "\n")
@@ -124,7 +124,7 @@ func TestServeStop(t *testing.T) {
 	if s.code != exitOK || !strings.Contains(s.out, "the run stopped") {
 		t.Errorf("stop: exit %d, %q %q", s.code, s.out, s.err)
 	}
-	if !strings.Contains(got, "run stopped: stopped") {
+	if !strings.Contains(got, "run stopped · stopped") {
 		t.Errorf("output:\n%s", got)
 	}
 	if got := planStatuses(t, root); got != "A-1=in progress" {

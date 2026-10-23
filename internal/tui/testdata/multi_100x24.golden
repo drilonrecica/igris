@@ -17,8 +17,8 @@ TASKS                    │ ! M1-04 needs you · the agent is idle
                          │ └───────────────────────────────────────────────────────────────────────┘
 ── LOG ─────────────────────────────────────────────────────────────────────────────────────────────
 09:41 M1-03 session open
-09:41 M1-04 started (sonnet → sonnet, plan) · title of M1-04
+09:41 M1-04 started · sonnet · mode plan
 09:41 M1-04 session open
-09:41 ! M1-04 needs you: the agent is idle
+09:41 ! M1-04 needs you · the agent is idle
 ────────────────────────────────────────────────────────────────────────────────────────────────────
 [›o Open‹] [m Mode] [M Task mode] [p Pause] [d Done] [r Retry] [s Skip] [x Stop] [?] [q Quit]

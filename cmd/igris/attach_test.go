@@ -70,7 +70,7 @@ func TestAttachStopsTheRun(t *testing.T) {
 		cmd: "serve", plan: servePlan, args: []string{"A"}, noSignal: true,
 		actions: map[string]func(){"A-1 session open": attachAction(attached)},
 	}.run(t)
-	if code != exitOK || !strings.Contains(got, "run stopped: stopped") {
+	if code != exitOK || !strings.Contains(got, "run stopped · stopped") {
 		t.Fatalf("serve exit %d; output:\n%s", code, got)
 	}
 	a := <-attached

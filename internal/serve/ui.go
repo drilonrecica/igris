@@ -937,7 +937,7 @@ func statusMark(status string) string {
 	case "skipped":
 		return look.GlyphSkipped
 	}
-	return "?"
+	return look.GlyphSkipped // an unavailable value
 }
 
 // slug makes a status a class name: "in progress" → "in-progress".

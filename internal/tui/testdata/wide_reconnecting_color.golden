@@ -12,12 +12,12 @@
                                 ␛[38;2;44;89;160m│␛[0m ␛[38;2;44;89;160m│␛[0m ␛[1m␛[38;2;60;200;255m[o Open session]␛[0m␛[0m ␛[38;2;60;200;255m[t Details]␛[0m                                                       ␛[38;2;44;89;160m│␛[0m
                                 ␛[38;2;44;89;160m│␛[0m ␛[38;2;44;89;160m└────────────────────────────────────────────────────────────────────────────────────┘␛[0m
 ␛[38;2;44;89;160m──␛[0m ␛[1mLOG␛[0m ␛[38;2;44;89;160m─────────────────────────────────────────────────────────────────────────────────────────────────────────────────␛[0m
-␛[2m09:41␛[0m M0-03 started (sonnet → sonnet, plan) · Makefile
+␛[2m09:41␛[0m M0-03 started · sonnet · mode plan
 ␛[2m09:41␛[0m M0-03 session open
-␛[2m09:41␛[0m run mode for the next sessions: yolo ␛[1m␛[38;2;255;92;116m[SKIP PERMISSIONS]␛[0m␛[0m
-␛[2m09:41␛[0m ␛[38;2;255;176;0m▲ M0-03 rank mismatch: on claude-opus-5-5, not its rank sonnet␛[0m
-␛[2m09:41␛[0m ␛[38;2;255;176;0m▲ M0-03 overdue: 52m of 45m␛[0m
-␛[2m09:41␛[0m ␛[1m␛[38;2;255;92;116m! M0-03 needs you: idle␛[0m␛[0m
+␛[2m09:41␛[0m next sessions in mode yolo ␛[1m␛[38;2;255;92;116m[SKIP PERMISSIONS]␛[0m␛[0m
+␛[2m09:41␛[0m ␛[38;2;255;176;0m▲ M0-03 rank mismatch · on claude-opus-5-5, not its rank sonnet␛[0m
+␛[2m09:41␛[0m ␛[38;2;255;176;0m▲ M0-03 overdue · 52m of 45m␛[0m
+␛[2m09:41␛[0m ␛[1m␛[38;2;255;92;116m! M0-03 needs you · idle␛[0m␛[0m
 
 
 

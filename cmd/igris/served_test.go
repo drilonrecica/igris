@@ -64,7 +64,7 @@ func TestAriseServeAttachStop(t *testing.T) {
 		t.Fatal(err)
 	}
 	log := strings.Join(lines, "\n")
-	for _, want := range []string{"serving the run on", "Arise. phase A", "run stopped: stopped"} {
+	for _, want := range []string{"serving the run on", "Arise. phase A", "run stopped · stopped"} {
 		if !strings.Contains(log, want) {
 			t.Errorf("serve.log lacks %q:\n%s", want, log)
 		}

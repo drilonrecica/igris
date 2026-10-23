@@ -420,7 +420,7 @@ func tuiExit(res engine.Result, err error, out, stderr io.Writer) int {
 // because their deps are unmet (SPEC §5.5).
 func printNotRun(out io.Writer, res engine.Result) {
 	for _, w := range res.NotRun {
-		fmt.Fprintln(out, "not run: "+w.String())
+		fmt.Fprintln(out, "not run · "+w.String())
 	}
 }
 
@@ -734,7 +734,9 @@ func runMode(f ariseFlags, cfg *config.Config) string {
 	return cfg.DefaultMode
 }
 
-// formatEvent renders ev for the plain log. Most events are one line.
+// formatEvent renders ev for the plain log in the design language (SPEC
+// §15.1, §15.4), the TUI log's lines with the typing hints after them.
+// Most events are one line.
 func formatEvent(ev engine.Event) []string {
 	id := ev.Task
 	switch ev.Kind {
@@ -746,88 +748,86 @@ func formatEvent(ev engine.Event) []string {
 	case engine.PhaseStarted:
 		return []string{"phase " + ev.Phase + " started"}
 	case engine.TaskStarted:
-		if ev.Model == "" {
-			return []string{fmt.Sprintf("%s started (user task) · %s", id, ev.Title)}
-		}
-		return []string{fmt.Sprintf("%s started (%s → %s, mode %s) · %s", id, ev.Rank, ev.Model, ev.Mode, ev.Title)}
+		return []string{startedLine(ev)}
 	case engine.TaskResumed:
-		return []string{id + " resumed: " + ev.Detail}
+		return []string{id + " resumed · " + ev.Detail}
 	case engine.SessionOpened:
 		return []string{id + " session open" + yoloBadge(ev.Mode)}
 	case engine.YourTurn:
 		return []string{
-			look.GlyphNeedsYou + " " + id + " your turn: " + ev.Detail,
+			needsLine(id, "your turn · "+ev.Detail),
 			"  do it outside igris (no session), then type `done [note]` or `skip <reason>` (or run `igris done " + id + "` anywhere in the project)",
 		}
-	case engine.NeedsYou:
-		return []string{look.GlyphNeedsYou + " " + id + " needs you: " + ev.Detail}
+	case engine.NeedsYou, engine.SessionLost:
+		return []string{needsLine(id, ev.Detail)}
 	case engine.NeedsYouClear:
 		return []string{id + " is working again"}
 	case engine.AgentWaiting:
-		return []string{id + " waits on background work; Claude Code resumes it when that is done"}
+		return []string{look.GlyphWaiting + " " + id + " waits on background work; Claude Code resumes it when that is done"}
 	case engine.AgentWaitingOver, engine.UsageRead, engine.QuotaRead:
 		return nil // the card shows it; the next event says what followed
 	case engine.Nudged:
 		return []string{id + " stopped without igris done; igris reminded it once"}
 	case engine.TaskOverdue:
-		return []string{look.GlyphWarn + " " + id + " overdue: " + ev.Detail + "; its session keeps running"}
+		return []string{look.GlyphWarn + " " + id + " overdue · " + ev.Detail + "; its session keeps running"}
 	case engine.RankMismatch:
-		return []string{look.GlyphWarn + " " + id + " rank mismatch: " + ev.Detail + "; its session keeps running"}
-	case engine.SessionLost:
-		return []string{look.GlyphNeedsYou + " " + id + " session lost: " + ev.Detail}
+		return []string{look.GlyphWarn + " " + id + " rank mismatch · " + ev.Detail + "; its session keeps running"}
 	case engine.Asked:
+		// The line says what waits; the question itself and how to answer
+		// it follow, indented.
+		lines := []string{needsLine(id, ev.Question.Kind())}
 		switch ev.Question {
 		case engine.QuestionSessionLost:
-			return []string{"? " + ev.Detail, "  type `retry continue`, `retry fresh`, `done [note]`, `skip <reason>` or `stop`"}
+			return append(lines, "  "+ev.Detail, "  type `retry continue`, `retry fresh`, `done [note]`, `skip <reason>` or `stop`")
 		case engine.QuestionHookFailed:
-			return []string{"? " + ev.Detail, "  type `retry`, `done [note]`, `skip <reason>` or `stop`"}
+			return append(lines, "  "+ev.Detail, "  type `retry`, `done [note]`, `skip <reason>` or `stop`")
 		case engine.QuestionIntegration:
-			lines := []string{"? " + ev.Detail}
+			lines = append(lines, "  "+ev.Detail)
 			for _, l := range ev.Output {
 				lines = append(lines, "  | "+l)
 			}
 			return append(lines, "  type `retry fresh`, `done [note]`, `skip <reason>` or `stop`")
 		case engine.QuestionConfirmReset:
-			return []string{"? " + ev.Detail, "  type `reset yes " + id + "` or `reset no " + id + "`"}
+			return append(lines, "  "+ev.Detail, "  type `reset yes "+id+"` or `reset no "+id+"`")
 		default:
-			return []string{"? " + ev.Detail + " [y/n]"}
+			return append(lines, "  "+ev.Detail+" [y/n]")
 		}
 	case engine.Retrying:
 		return []string{id + " new session (" + ev.Detail + ")"}
 	case engine.VerifyStarted:
-		return []string{id + " verifying (" + ev.Verify + "): " + ev.Detail}
+		return []string{id + " verifying (" + ev.Verify + ") · " + ev.Detail}
 	case engine.VerifyPassed:
-		return []string{id + " verify passed (" + ev.Verify + ")"}
+		return []string{look.GlyphDone + " " + id + " verify passed (" + ev.Verify + ")"}
 	case engine.VerifyFailed:
-		return []string{id + " verify failed: " + ev.Detail}
+		return []string{look.GlyphFail + " " + id + " verify failed · " + ev.Detail}
 	case engine.VerifyLimit:
-		return []string{id + " " + ev.Detail}
+		return []string{look.GlyphFail + " " + id + " " + ev.Detail}
 	case engine.Committed:
-		return []string{id + " committed: " + ev.Detail}
+		return []string{look.GlyphDone + " " + id + " committed · " + ev.Detail}
 	case engine.NotCommitted:
-		return []string{id + " not committed: " + ev.Detail}
+		return []string{id + " not committed · " + ev.Detail}
 	case engine.Integrated:
-		return []string{id + " integrated " + ev.Detail}
-	case engine.IntegrationFailed:
-		lines := []string{id + " " + ev.Detail}
+		return []string{look.GlyphDone + " " + id + " integrated " + ev.Detail}
+	case engine.IntegrationFailed, engine.HookFailed:
+		lines := []string{look.GlyphFail + " " + id + " " + ev.Detail}
 		for _, l := range ev.Output {
 			lines = append(lines, "  | "+l)
 		}
 		return lines
 	case engine.Overlap:
-		return []string{"overlap: " + ev.Detail}
+		return []string{look.GlyphWarn + " overlap · " + ev.Detail}
 	case engine.TaskDone:
-		return []string{withNote(id+" done", ev.Detail)}
+		return []string{withNote(look.GlyphDone+" "+id+" done", ev.Detail)}
 	case engine.TaskSkipped:
-		return []string{withNote(id+" skipped", ev.Detail)}
+		return []string{withNote(look.GlyphSkipped+" "+id+" skipped", ev.Detail)}
 	case engine.TaskReset:
 		return []string{"reset " + ev.Detail}
 	case engine.ResetDropped:
 		return []string{ev.Detail}
 	case engine.PhaseDone:
-		return []string{"phase " + ev.Phase + " complete"}
+		return []string{look.GlyphDone + " phase " + ev.Phase + " complete"}
 	case engine.PhaseStuck:
-		lines := []string{look.GlyphWarn + " phase " + ev.Phase + " is stuck: unfinished tasks, none can start"}
+		lines := []string{look.GlyphWarn + " phase " + ev.Phase + " is stuck · unfinished tasks, none can start"}
 		for _, w := range ev.Waiting {
 			lines = append(lines, "  "+w.String())
 		}
@@ -835,40 +835,55 @@ func formatEvent(ev engine.Event) []string {
 	case engine.NotRun:
 		return notRunLines(ev)
 	case engine.PauseOn:
-		return []string{"pause after task: on (type `pause` again to turn it off)"}
+		return []string{"pause after task on (type `pause` again to turn it off)"}
 	case engine.PauseOff:
-		return []string{"pause after task: off"}
+		return []string{"pause after task off"}
 	case engine.Paused:
 		return []string{"paused before " + id + "; type `pause` to continue"}
 	case engine.ModeChanged:
-		return []string{"run mode for the next sessions: " + ev.Detail + yoloBadge(ev.Detail)}
+		return []string{"next sessions in mode " + ev.Detail + yoloBadge(ev.Detail)}
 	case engine.TaskModeChanged:
-		return []string{"mode for " + id + "'s next session: " + ev.Detail + yoloBadge(ev.Detail)}
-	case engine.ConfigChanged, engine.ConfigRestored, engine.PlanChanged, engine.StaleSignal, engine.StraySignal:
+		return []string{id + "'s next session in mode " + ev.Detail + yoloBadge(ev.Detail)}
+	case engine.PlanChanged:
+		return []string{look.GlyphWarn + " " + ev.Detail}
+	case engine.ConfigChanged, engine.ConfigRestored, engine.StaleSignal, engine.StraySignal:
 		return []string{ev.Detail}
 	case engine.HookStarted:
 		return []string{id + " running " + ev.Detail + " hook…"}
-	case engine.HookFailed:
-		lines := []string{id + " " + ev.Detail}
-		for _, l := range ev.Output {
-			lines = append(lines, "  | "+l)
-		}
-		return lines
 	case engine.Warning:
-		return []string{"warning: " + ev.Detail}
+		return []string{look.GlyphWarn + " " + ev.Detail}
 	case engine.RunFailed:
-		return []string{"error: " + ev.Detail}
+		return []string{look.GlyphFail + " run failed · " + ev.Detail}
 	case engine.RunStopped:
-		return []string{"run stopped: " + ev.Detail}
+		return []string{"run stopped · " + ev.Detail}
 	}
 	return []string{strings.TrimSpace(string(ev.Kind) + " " + id + " " + ev.Detail)}
+}
+
+// startedLine is a task's start: `M1-03 started · sonnet · mode plan`,
+// with `rank → model` only when the model isn't the rank's own name, and
+// `M1-06 started · user task` for a user task (SPEC §15.1).
+func startedLine(ev engine.Event) string {
+	if ev.Model == "" {
+		return ev.Task + " started · user task"
+	}
+	model := ev.Model
+	if ev.Rank != "" && ev.Rank != ev.Model {
+		model = ev.Rank + " → " + ev.Model
+	}
+	return ev.Task + " started · " + model + " · mode " + ev.Mode
+}
+
+// needsLine is a line that waits on the owner: `! M1-04 needs you · what`.
+func needsLine(id, what string) string {
+	return strings.TrimSpace(look.GlyphNeedsYou+" "+id) + " needs you · " + what
 }
 
 // notRunLines are the slice's tasks a phase left (SPEC §5.5).
 func notRunLines(ev engine.Event) []string {
 	lines := make([]string, len(ev.Waiting))
 	for i, w := range ev.Waiting {
-		lines[i] = "not run: " + w.String()
+		lines[i] = "not run · " + w.String()
 	}
 	return lines
 }

@@ -241,7 +241,7 @@ igris · sinjal · M1 · 3/8 ███░░░       ! Needs you
  ⨯ M1-07 Release          – M1-08 Old idea
 ── LOG ───────────────────────────────────────────
 09:41  M1-04 started · sonnet · mode plan
-09:44  ! M1-04 needs you · idle without a signal
+09:44  ! M1-04 needs you · the session is idle wi…
 [›Answer…‹] [o Open] [m Mode] [p Pause] [More…]
 [?] [q Home]
 ```
@@ -306,7 +306,7 @@ TASKS                             │ ┏━ › M1-03  Parser ━━━━━�
  – M1-08  Old idea      │ 4 files · +212 −8                                │
 ── LOG ─────────────────│                                                  │────────────────────────
 09:41  Arise. phase M1 ·│ › 1. Commit                                      │
-09:55  M1-03 done · "par│   2. Leave uncommitted                           │
+09:55  ✓ M1-03 verify pa│   2. Leave uncommitted                           │
 09:55  ! M1-03 needs you│                                                  │
                         │ enter choose · 1–2 pick · esc keep asking        │
                         ╰──────────────────────────────────────────────────╯

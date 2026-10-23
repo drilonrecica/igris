@@ -15,7 +15,7 @@ func TestTaskGlyph(t *testing.T) {
 		want string
 	}{
 		{plan.Done, "✓"}, {plan.InProgress, "●"}, {plan.Ready, "·"},
-		{plan.Blocked, "⨯"}, {plan.Skipped, "–"}, {plan.StatusUnknown, "?"},
+		{plan.Blocked, "⨯"}, {plan.Skipped, "–"}, {plan.StatusUnknown, "–"},
 	} {
 		if got := TaskGlyph(tt.s); got != tt.want {
 			t.Errorf("TaskGlyph(%v) = %q, want %q", tt.s, got, tt.want)

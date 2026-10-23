@@ -78,7 +78,7 @@ func (r rows) glyph(t *plan.Task) string {
 	if g, ok := glyphs[t.Status]; ok {
 		return g
 	}
-	return "?"
+	return look.GlyphSkipped // an unavailable value
 }
 
 // looks are the looks of t's glyph and of its text: what runs or waits on
@@ -295,7 +295,7 @@ func (r rows) facts(t *plan.Task) []fact {
 	for _, d := range t.Deps {
 		dt := r.plan.Task(d)
 		if dt == nil {
-			deps.lines = append(deps.lines, "? "+d+" (not in the plan)")
+			deps.lines = append(deps.lines, look.GlyphWarn+" "+d+" (not in the plan)")
 			continue
 		}
 		deps.lines = append(deps.lines, r.paintedGlyph(dt)+" "+d+" "+statusWord(dt)+" · "+dt.Title)

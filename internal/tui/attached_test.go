@@ -310,7 +310,7 @@ func TestAttachedReconnect(t *testing.T) {
 			t.Errorf("view lacks %q:\n%s", want, v)
 		}
 	}
-	if len(hs.m.log) != 1 || hs.m.log[0].text != "pause after task: on" {
+	if len(hs.m.log) != 1 || hs.m.log[0].text != "pause after task on" {
 		t.Errorf("log = %+v, want the snapshot's feed", hs.m.log)
 	}
 	if strings.Contains(v, "reconnecting…") || hs.m.lost {

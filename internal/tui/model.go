@@ -1174,16 +1174,6 @@ func (m *model) dropResetAsk(id string) {
 }
 
 func (m *model) addLog(at time.Time, text string, l tone) {
-	// Never color alone (SPEC §15.4): a line that waits on the owner, warns
-	// or fails starts with its glyph.
-	switch l {
-	case lookAlert:
-		text = look.GlyphNeedsYou + " " + text
-	case lookWarn:
-		text = look.GlyphWarn + " " + text
-	case lookFail:
-		text = look.GlyphFail + " " + text
-	}
 	m.log = append(m.log, logEntry{at: at, text: text, tone: l})
 	if len(m.log) > maxLog {
 		m.log = m.log[len(m.log)-maxLog:]

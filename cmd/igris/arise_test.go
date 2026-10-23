@@ -83,20 +83,22 @@ func TestFormatEvent(t *testing.T) {
 		ev   engine.Event
 		want string
 	}{
-		{engine.Event{Kind: engine.TaskStarted, Task: "A-1", Title: "One", Rank: "opus", Model: "opus", Mode: "plan"}, "A-1 started (opus → opus, mode plan) · One"},
-		{engine.Event{Kind: engine.TaskStarted, Task: "A-2", Title: "Buy"}, "A-2 started (user task) · Buy"},
+		{engine.Event{Kind: engine.TaskStarted, Task: "A-1", Title: "One", Rank: "opus", Model: "opus", Mode: "plan"}, "A-1 started · opus · mode plan"},
+		{engine.Event{Kind: engine.TaskStarted, Task: "A-1", Rank: "sonnet", Model: "claude-sonnet-5-5", Mode: "auto"}, "A-1 started · sonnet → claude-sonnet-5-5 · mode auto"},
+		{engine.Event{Kind: engine.VerifyFailed, Task: "A-1", Detail: "test failed"}, "✗ A-1 verify failed · test failed"},
+		{engine.Event{Kind: engine.TaskStarted, Task: "A-2", Title: "Buy"}, "A-2 started · user task"},
 		{engine.Event{Kind: engine.SessionOpened, Task: "A-1", Mode: "yolo"}, "A-1 session open [SKIP PERMISSIONS]"},
-		{engine.Event{Kind: engine.Asked, Question: engine.QuestionCommit, Detail: "commit?"}, "? commit? [y/n]"},
-		{engine.Event{Kind: engine.Asked, Question: engine.QuestionSessionLost, Detail: "gone"}, "? gone\n  type `retry continue`, `retry fresh`, `done [note]`, `skip <reason>` or `stop`"},
-		{engine.Event{Kind: engine.TaskDone, Task: "A-1"}, "A-1 done"},
-		{engine.Event{Kind: engine.TaskSkipped, Task: "A-1", Detail: "why"}, "A-1 skipped · why"},
-		{engine.Event{Kind: engine.TaskOverdue, Task: "A-1", Detail: "running longer than its Timeout 45m"}, "▲ A-1 overdue: running longer than its Timeout 45m; its session keeps running"},
+		{engine.Event{Kind: engine.Asked, Question: engine.QuestionCommit, Task: "A-1", Detail: "commit?"}, "! A-1 needs you · commit?\n  commit? [y/n]"},
+		{engine.Event{Kind: engine.Asked, Question: engine.QuestionSessionLost, Task: "A-1", Detail: "gone"}, "! A-1 needs you · session lost\n  gone\n  type `retry continue`, `retry fresh`, `done [note]`, `skip <reason>` or `stop`"},
+		{engine.Event{Kind: engine.TaskDone, Task: "A-1"}, "✓ A-1 done"},
+		{engine.Event{Kind: engine.TaskSkipped, Task: "A-1", Detail: "why"}, "– A-1 skipped · why"},
+		{engine.Event{Kind: engine.TaskOverdue, Task: "A-1", Detail: "running longer than its Timeout 45m"}, "▲ A-1 overdue · running longer than its Timeout 45m; its session keeps running"},
 		{engine.Event{Kind: engine.TaskReset, Task: "A-1", Detail: "A-1: in progress → ready"}, "reset A-1: in progress → ready"},
-		{engine.Event{Kind: engine.Warning, Detail: "hm"}, "warning: hm"},
-		{engine.Event{Kind: engine.Asked, Question: engine.QuestionConfirmReset, Task: "A-1", Detail: "reset A-1 (done) to ready/blocked?"}, "? reset A-1 (done) to ready/blocked?\n  type `reset yes A-1` or `reset no A-1`"},
+		{engine.Event{Kind: engine.Warning, Detail: "hm"}, "▲ hm"},
+		{engine.Event{Kind: engine.Asked, Question: engine.QuestionConfirmReset, Task: "A-1", Detail: "reset A-1 (done) to ready/blocked?"}, "! A-1 needs you · reset?\n  reset A-1 (done) to ready/blocked?\n  type `reset yes A-1` or `reset no A-1`"},
 		{engine.Event{Kind: engine.ResetDropped, Task: "A-1", Detail: "the reset request for A-1 was withdrawn"}, "the reset request for A-1 was withdrawn"},
-		{engine.Event{Kind: engine.Asked, Question: engine.QuestionHookFailed, Detail: "failed"}, "? failed\n  type `retry`, `done [note]`, `skip <reason>` or `stop`"},
-		{engine.Event{Kind: engine.HookFailed, Task: "A-1", Detail: "before_task hook failed: exit status 1", Output: []string{"db is down"}}, "A-1 before_task hook failed: exit status 1\n  | db is down"},
+		{engine.Event{Kind: engine.Asked, Question: engine.QuestionHookFailed, Task: "A-1", Detail: "failed"}, "! A-1 needs you · hook failed\n  failed\n  type `retry`, `done [note]`, `skip <reason>` or `stop`"},
+		{engine.Event{Kind: engine.HookFailed, Task: "A-1", Detail: "before_task hook failed: exit status 1", Output: []string{"db is down"}}, "✗ A-1 before_task hook failed: exit status 1\n  | db is down"},
 		{engine.Event{Kind: engine.HookStarted, Task: "A-1", Detail: "after_task"}, "A-1 running after_task hook…"},
 	}
 	for _, tt := range tests {
@@ -577,8 +579,8 @@ func TestAriseNoTUI(t *testing.T) {
 		},
 		replies: [][2]string{
 			{"A-1 session open", "bogus"},
-			{"? commit the changes of A-1", "y"},
-			{"A-2 your turn", "done bought it"},
+			{"commit the changes of A-1", "y"},
+			{"A-2 needs you · your turn", "done bought it"},
 		},
 	}.run(t)
 	if code != exitOK {
@@ -587,15 +589,15 @@ func TestAriseNoTUI(t *testing.T) {
 	for _, w := range []string{
 		"warning: the working tree has uncommitted changes",
 		" Arise. phase A · 2 tasks · mode auto\n",
-		"A-1 started (sonnet → sonnet, mode auto) · One",
+		"A-1 started · sonnet · mode auto",
 		`unknown command "bogus"; type help`,
-		"A-1 committed: A-1: One",
-		"A-1 done · did A-1",
-		"! A-2 your turn: **Buy a domain**",
+		"✓ A-1 committed · A-1: One",
+		"✓ A-1 done · did A-1",
+		"! A-2 needs you · your turn · **Buy a domain**",
 		"  do it outside igris (no session), then type `done [note]` or `skip <reason>`",
-		"A-2 done · bought it",
-		"phase A complete",
-		"run stopped: completed",
+		"✓ A-2 done · bought it",
+		"✓ phase A complete",
+		"run stopped · completed",
 	} {
 		if !strings.Contains(got, w) {
 			t.Errorf("output lacks %q:\n%s", w, got)
@@ -623,7 +625,7 @@ func TestAriseStartUpConfirmations(t *testing.T) {
 	}{
 		{
 			name:       "api key confirmed",
-			r:          noTUIRun{apiKey: "sk-x", replies: [][2]string{{"Start the run anyway?", "y"}, {"A-2 your turn", "done"}}},
+			r:          noTUIRun{apiKey: "sk-x", replies: [][2]string{{"Start the run anyway?", "y"}, {"A-2 needs you · your turn", "done"}}},
 			wantCode:   exitOK,
 			wantOut:    []string{"warning: ANTHROPIC_API_KEY is set"},
 			wantStatus: "A-1=done A-2=done",
@@ -637,7 +639,7 @@ func TestAriseStartUpConfirmations(t *testing.T) {
 		},
 		{
 			name:       "config changed during the last run, confirmed",
-			r:          noTUIRun{before: staleConfigRun, replies: [][2]string{{"Use the changed igris.toml?", "y"}, {"A-2 your turn", "done"}}},
+			r:          noTUIRun{before: staleConfigRun, replies: [][2]string{{"Use the changed igris.toml?", "y"}, {"A-2 needs you · your turn", "done"}}},
 			wantCode:   exitOK,
 			wantOut:    []string{"warning: igris.toml changed during the last run", "a session may have edited it"},
 			wantStatus: "A-1=done A-2=done",
@@ -681,7 +683,7 @@ func TestAriseStartUpConfirmations(t *testing.T) {
 			r: noTUIRun{
 				gitFn:   func(runner.Cmd) (runner.Result, error) { return runner.Result{ExitCode: 128}, nil },
 				toml:    "[run]\ncommit = \"never\"\n",
-				replies: [][2]string{{"A-2 your turn", "done"}},
+				replies: [][2]string{{"A-2 needs you · your turn", "done"}},
 			},
 			wantCode:   exitOK,
 			wantOut:    []string{"warning: this is not a git repository"},
@@ -875,7 +877,7 @@ func TestAriseExitCodes(t *testing.T) {
 	t.Run("owner stops", func(t *testing.T) {
 		code, got, _ := noTUIRun{args: []string{"A", "--no-tui"}, noSignal: true,
 			replies: [][2]string{{"A-1 session open", "stop"}}}.run(t)
-		if code != exitOK || !strings.Contains(got, "run stopped: stopped") {
+		if code != exitOK || !strings.Contains(got, "run stopped · stopped") {
 			t.Errorf("exit %d, want 0; output:\n%s", code, got)
 		}
 	})
@@ -970,7 +972,7 @@ func TestAriseNoTUITaskModeOnUserTask(t *testing.T) {
 	code, got, _ := noTUIRun{
 		args: []string{"A", "--no-tui"},
 		replies: [][2]string{
-			{"A-2 your turn", "mode A-2 plan"},
+			{"A-2 needs you · your turn", "mode A-2 plan"},
 			{"A-2 is a user task; it has no session", "done"},
 		},
 	}.run(t)

@@ -547,7 +547,7 @@ func TestLogLinesNotRun(t *testing.T) {
 		t.Fatal("M1-02 waits on nothing")
 	}
 	ev := engine.Event{Kind: engine.NotRun, Waiting: []plan.Waiting{*w}}
-	if got, want := strings.Join(logLines(ev), "\n"), "not run: M1-02 waits on M1-01 (ready, phase M1)"; got != want {
+	if got, want := strings.Join(logLines(ev), "\n"), "not run · M1-02 waits on M1-01 (ready, phase M1)"; got != want {
 		t.Errorf("logLines = %q, want %q", got, want)
 	}
 	if logLook(engine.NotRun) == lookAlert {

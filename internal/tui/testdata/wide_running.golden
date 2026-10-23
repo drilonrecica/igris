@@ -11,8 +11,8 @@ TASKS                           │ ┌─ M0-03 Makefile ───────�
  – M0-14  Old idea       haiku  │
 ── LOG ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 09:41 Arise. phase M0 · 7 tasks · mode plan
-09:41 M0-02 done · subcommand dispatch + tests
-09:41 M0-03 started (sonnet → sonnet, plan) · Makefile
+09:41 ✓ M0-02 done · subcommand dispatch + tests
+09:41 M0-03 started · sonnet · mode plan
 09:41 M0-03 session open
 
 

@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/look"
 )
 
@@ -108,7 +107,7 @@ func (m *model) stateText(c *current) string {
 // the Needs-you banner (SPEC §15.1): its question's kind, else its state.
 func (m *model) needKind(c *current) string {
 	if q := m.cardAsk(c); q != nil {
-		return askKind(q.Question)
+		return q.Question.Kind()
 	}
 	switch c.state {
 	case stateYourTurn:
@@ -123,27 +122,6 @@ func (m *model) needKind(c *current) string {
 			return "waiting without a signal"
 		}
 		return "idle without a signal"
-	}
-	return "your answer"
-}
-
-// askKind names a question's kind in a word or two.
-func askKind(q engine.Question) string {
-	switch q {
-	case engine.QuestionCommit:
-		return "commit?"
-	case engine.QuestionConfirmSkip:
-		return "skip?"
-	case engine.QuestionSessionLost:
-		return "session lost"
-	case engine.QuestionHookFailed:
-		return "hook failed"
-	case engine.QuestionConfirmReset:
-		return "reset?"
-	case engine.QuestionPlanApproval:
-		return "a plan to approve"
-	case engine.QuestionIntegration:
-		return "integration"
 	}
 	return "your answer"
 }

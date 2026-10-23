@@ -124,11 +124,11 @@ func (m *model) banner(x, y, w int) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	kind := askKind(engine.Question(""))
+	kind := engine.Question("").Kind()
 	if c := m.card(id); c != nil {
 		kind = m.needKind(c)
 	} else if q := m.question(); q != nil {
-		kind = askKind(q.Question)
+		kind = q.Question.Kind()
 	}
 	text := look.GlyphNeedsYou + " " + id + " needs you · " + kind
 	n := len(m.needYou())

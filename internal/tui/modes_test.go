@@ -121,7 +121,7 @@ func TestTaskModePicker(t *testing.T) {
 	if hs.m.mode != "plan" || hs.m.overrides["M0-04"] != "auto" {
 		t.Errorf("run mode %q, override %q", hs.m.mode, hs.m.overrides["M0-04"])
 	}
-	if !strings.Contains(hs.m.View(), "mode for M0-04's next session: auto") {
+	if !strings.Contains(hs.m.View(), "M0-04's next session in mode auto") {
 		t.Errorf("override not logged:\n%s", hs.m.View())
 	}
 	hs.key("M")

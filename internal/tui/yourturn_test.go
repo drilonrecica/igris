@@ -36,7 +36,7 @@ func TestYourTurnSaysWhatToDo(t *testing.T) {
 				}
 			}
 			// The log line is cut to the width on small screens; its text says it all.
-			if last := hs.m.log[len(hs.m.log)-1].text; last != "M0-04 is your turn: do it outside igris, then d (done) or s (skip)" {
+			if last := hs.m.log[len(hs.m.log)-1].text; last != "! M0-04 needs you · your turn · do it outside igris, then d done or s skip" {
 				t.Errorf("log line %q", last)
 			}
 			if strings.Contains(v, "Open session") {

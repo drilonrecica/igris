@@ -10,9 +10,9 @@ TASKS                           │ ! M0-03 needs you · commit?
    waits on P0-05               │
  – M0-14  Old idea       haiku  │
 ── LOG ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-09:41 M0-03 started (sonnet → sonnet, plan) · Makefile
+09:41 M0-03 started · sonnet · mode plan
 09:41 M0-03 session open
-09:41 ? commit the changes of M0-03 as "M0-03: Makefile"?
+09:41 ! M0-03 needs you · commit?
                                  ╭───────────────────────────────────────────────────╮
                                  │ Commit M0-03?                                     │
                                  │                                                   │
