@@ -6,8 +6,8 @@ plan invalid — Check shows the problems                    │ tasks.md:5: M9-
                                                            │ tasks.md:7: M9-04: unknown model rank "gpt"; add it to [mo…
                                                            │ … 1 more — Check shows all
                                                            │ ── HEALTH ─────────────────────────────────────────────────
-                                                           │ ⨯ plan invalid · 4 problems
-                                                           │ ! doctor: 1 warning — uncommitted changes
+                                                           │ ✗ plan invalid · 4 problems
+                                                           │ ▲ doctor: 1 warning — uncommitted changes
                                                            │ ── RECENT ─────────────────────────────────────────────────
                                                            │ no runs yet
                                                            │

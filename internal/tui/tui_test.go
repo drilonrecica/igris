@@ -178,7 +178,7 @@ func TestEventsDriveTheCurrentTask(t *testing.T) {
 	hs.now = t0.Add(4*time.Minute + 12*time.Second)
 	hs.events(engine.Event{Kind: engine.NeedsYou, Task: "M0-03", Detail: "idle", At: t0.Add(3*time.Minute + 27*time.Second)})
 	view := hs.m.View()
-	for _, want := range []string{"igris · sinjal · phase M0 · mode: plan · herdr", "! Needs you", "M0-03 Makefile", "4m12s", "NEEDS YOU (idle 45s)", "M0-03 needs you: idle", "[›o Open session‹]"} {
+	for _, want := range []string{"igris · sinjal · phase M0 · mode plan · herdr", "! Needs you", "M0-03 Makefile", "4m12s", "Needs you · idle 45s", "M0-03 needs you: idle", "[›o Open session‹]"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("view lacks %q:\n%s", want, view)
 		}
@@ -481,7 +481,7 @@ func TestResetRequestDialog(t *testing.T) {
 }
 
 // An agent waiting on background work is shown calmly with how long it has
-// waited; past waiting_limit NEEDS YOU says it was waiting, counted from the
+// waited; past waiting_limit Needs you says it was waiting, counted from the
 // start of the wait (SPEC §6.3, §15.3).
 func TestWaitingState(t *testing.T) {
 	for _, size := range [][2]int{{120, 40}, {60, 24}} {
@@ -490,7 +490,7 @@ func TestWaitingState(t *testing.T) {
 		hs.events(engine.Event{Kind: engine.AgentWaiting, Task: "M0-03", Detail: "the agent waits on background work"})
 		hs.now = hs.now.Add(4 * time.Minute)
 		view := hs.m.View()
-		if !strings.Contains(view, "waiting on background work (4m") || strings.Contains(view, "NEEDS YOU") {
+		if !strings.Contains(view, "Waiting on background work · 4m") || strings.Contains(view, "Needs you ·") {
 			t.Errorf("%dx%d: waiting view:\n%s", size[0], size[1], view)
 		}
 		if stateLook(hs.m.cur) != lookPlain {
@@ -501,7 +501,7 @@ func TestWaitingState(t *testing.T) {
 		}
 		hs.now = hs.now.Add(26 * time.Minute)
 		hs.events(engine.Event{Kind: engine.NeedsYou, Task: "M0-03", Detail: "the agent has been waiting on background work for 30m"})
-		if view := hs.m.View(); !strings.Contains(view, "NEEDS YOU (waiting 30m") {
+		if view := hs.m.View(); !strings.Contains(view, "Needs you · waiting 30m") {
 			t.Errorf("%dx%d: past the limit:\n%s", size[0], size[1], view)
 		}
 		hs.events(engine.Event{Kind: engine.NeedsYouClear, Task: "M0-03"}, engine.Event{Kind: engine.AgentWaitingOver, Task: "M0-03"})
@@ -510,7 +510,7 @@ func TestWaitingState(t *testing.T) {
 		}
 		// An idle Needs you still says idle.
 		hs.events(engine.Event{Kind: engine.NeedsYou, Task: "M0-03", Detail: "idle"})
-		if view := hs.m.View(); !strings.Contains(view, "NEEDS YOU (idle") {
+		if view := hs.m.View(); !strings.Contains(view, "Needs you · idle") {
 			t.Errorf("%dx%d: idle needs you:\n%s", size[0], size[1], view)
 		}
 	}

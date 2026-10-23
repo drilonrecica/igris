@@ -1,16 +1,16 @@
-igris · sinjal · phase M1 · 0/4 · 0% · 3 active · needs you: M1-04 · mode: plan · herdr  ! Needs you
+igris · sinjal · phase M1 · 0/4 · 0% · 3 active · needs you M1-04 · mode plan · herdr    ! Needs you
 ────────────────────────────────────────────────────────────────────────────────────────────────────
 TASKS                                            │ ┌─ M1-03 · slot 1 title of M1-03 ───────────────┐
  ● M1-03  Parser                          sonnet │ │ mode plan · 0s                                │
- ! M1-04  Writer                          sonnet │ │ state: working                                │
+ ! M1-04  Writer                          sonnet │ │ ● Working                                     │
  ● M1-05  Docs                            opus   │ │ [o] Open session  [t] Details                 │
  ⨯ M1-06  Release                         sonnet │ └───────────────────────────────────────────────┘
    waits on M1-03                                │ ┌─ M1-04 · slot 2 title of M1-04 ───────────────┐
-                                                 │ │ state: NEEDS YOU (idle 0s)                    │
+                                                 │ │ ! Needs you · idle 0s · o opens the session   │
                                                  │ │ [o] Open session  [t] Details                 │
                                                  │ └───────────────────────────────────────────────┘
                                                  │ ┏━ › M1-05 · slot 0 title of M1-05 ━━━━━━━━━━━━━┓
-                                                 │ ┃ state: working                                ┃
+                                                 │ ┃ ● Working                                     ┃
                                                  │ ┃ [o] Open session  [t] Details                 ┃
                                                  │ ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ── LOG ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -19,6 +19,6 @@ TASKS                                            │ ┌─ M1-03 · slot 1 titl
 09:41 M1-03 session open
 09:41 M1-04 started (sonnet → sonnet, plan) · title of M1-04
 09:41 M1-04 session open
-09:41 M1-04 needs you: the agent is idle
+09:41 ! M1-04 needs you: the agent is idle
 ────────────────────────────────────────────────────────────────────────────────────────────────────
 [›o Open‹] [m Mode] [M Task mode] [p Pause] [d Done] [r Retry] [s Skip] [x Stop] [?] [q Quit]

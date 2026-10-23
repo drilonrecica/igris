@@ -4,7 +4,7 @@ igris · sinjal · M1 · 0/4 · 3 active…  ! Needs you
 ┏━ › M1-05 · slot 0 title of M1-05 ━━━━━━━━━━━━━━┓
 ┃ rank sonnet → model sonnet                     ┃
 ┃ mode plan · 0s                                 ┃
-┃ state: working                                 ┃
+┃ ● Working                                      ┃
 ┃ say how it works                               ┃
 ┃ [o] Open session  [t] Details                  ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
@@ -15,6 +15,6 @@ igris · sinjal · M1 · 0/4 · 3 active…  ! Needs you
 ── LOG ───────────────────────────────────────────
 09:41 M1-04 started (sonnet → sonnet, plan) · tit…
 09:41 M1-04 session open
-09:41 M1-04 needs you: the agent is idle
+09:41 ! M1-04 needs you: the agent is idle
 [›o Open‹] [m Mode] [M Task mode] [p Pause]
 [d Done] [r Retry] [s Skip] [x Stop] [?] [q Quit]

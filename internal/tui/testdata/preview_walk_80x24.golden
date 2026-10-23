@@ -1,7 +1,7 @@
 igris · Preview · M2 through M3
 ────────────────────────────────────────────────────────────────────────────────
 note: the last run stopped during M2-02; a real run picks it up first
-warning: M2-04 asks for model fable, which igris.toml doesn't define
+▲ M2-04 asks for model fable, which igris.toml doesn't define
 nothing is written and no session starts
 
   1. M2-02 sonnet → sonnet · mode plan · resumed: fresh session
@@ -14,11 +14,11 @@ nothing is written and no session starts
       mode of M3 follows the Mode column
   4. M3-01 haiku → haiku · mode default
      Release notes
-warning: phase M3 is stuck: M3-02 waits for M9-01
+▲ phase M3 is stuck: M3-02 waits for M9-01
 
 Total: 3 sessions · 1 user task
 
 
 
 ────────────────────────────────────────────────────────────────────────────────
-[a Arise with these settings] [v Preview again] [q Back]
+[a Arise with these settings] [v Preview again] [q Close]

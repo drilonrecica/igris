@@ -1,9 +1,9 @@
-igris · sinjal · phase M0 · 3/7 · 42% ████░░░░░░ · mode: plan · herdr                                          ● Working
+igris · sinjal · phase M0 · 3/7 · 42% ████░░░░░░ · mode plan · herdr                                           ● Working
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 TASKS                                                      │ ┌─ M0-03 Makefile ────────────────────────────────────────┐
  ✓ M0-01  Go module                                 sonnet │ │ rank sonnet → model sonnet                              │
  ✓ M0-02  Entrypoint                                sonnet │ │ mode plan · 4m12s                                       │
- ● M0-03  Makefile                                  sonnet │ │ state: working                                          │
+ ● M0-03  Makefile                                  sonnet │ │ ● Working                                               │
  · M0-04  Config loader                             opus   │ │ earlier line two                                        │
  · M0-05  Buy the domain                            user   │ │ ⏺ Running the tests with make test.                     │
  ⨯ M0-13  Static assets                             sonnet │ │   ⎿  ok github.com/example/demo 0.012s                  │

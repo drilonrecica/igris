@@ -128,7 +128,7 @@ func TestNeedsYouPointsAtTheSession(t *testing.T) {
 			v := hs.m.View()
 			checkFits(t, v, size[0], size[1])
 			if !strings.Contains(v, "o opens the session") || !strings.Contains(v, "[o] Open session") {
-				t.Errorf("NEEDS YOU doesn't point at o:\n%s", v)
+				t.Errorf("Needs you doesn't point at o:\n%s", v)
 			}
 			hs.key("o")
 			if len(hs.focus) != 1 {
@@ -140,7 +140,7 @@ func TestNeedsYouPointsAtTheSession(t *testing.T) {
 
 // An attached client that can't reach the session's backend (igris attach
 // over ssh, outside herdr and tmux) has no Focus: neither the bar, the card
-// nor NEEDS YOU offer a session o can't open (SPEC §15.3, V14-G).
+// nor Needs you offer a session o can't open (SPEC §15.3, V14-G).
 func TestNoOpenSessionWithoutFocus(t *testing.T) {
 	for _, size := range append([][2]int{{100, 30}}, cardSizes...) {
 		t.Run(fmt.Sprint(size), func(t *testing.T) {
@@ -149,8 +149,8 @@ func TestNoOpenSessionWithoutFocus(t *testing.T) {
 			hs.events(engine.Event{Kind: engine.NeedsYou, Task: "M0-02", Detail: "the agent is waiting"})
 			v := hs.m.View()
 			checkFits(t, v, size[0], size[1])
-			if !strings.Contains(v, "NEEDS YOU") {
-				t.Fatalf("no NEEDS YOU:\n%s", v)
+			if !strings.Contains(v, "Needs you ·") {
+				t.Fatalf("no Needs you:\n%s", v)
 			}
 			if strings.Contains(v, "Open session") || strings.Contains(v, "o opens the session") {
 				t.Errorf("Open session offered without a backend to open it:\n%s", v)
@@ -213,15 +213,15 @@ func TestCardShowsRankMismatchUntilTheAttemptEnds(t *testing.T) {
 				engine.Event{Kind: engine.NeedsYou, Task: "M0-02", Detail: "the session runs on claude-opus-5-5, not its rank sonnet; igris leaves it running"})
 			v := hs.m.View()
 			checkFits(t, v, size[0], size[1])
-			if !strings.Contains(v, "RANK MISMATCH") {
+			if !strings.Contains(v, "Rank mismatch") {
 				t.Errorf("card lacks the rank mismatch line:\n%s", v)
 			}
 			hs.events(engine.Event{Kind: engine.NeedsYouClear, Task: "M0-02"})
-			if v := hs.m.View(); !strings.Contains(v, "RANK MISMATCH") {
+			if v := hs.m.View(); !strings.Contains(v, "Rank mismatch") {
 				t.Errorf("rank mismatch cleared while the attempt runs:\n%s", v)
 			}
 			hs.events(engine.Event{Kind: engine.Retrying, Task: "M0-02", Detail: "fresh"})
-			if v := hs.m.View(); strings.Contains(v, "RANK MISMATCH") {
+			if v := hs.m.View(); strings.Contains(v, "Rank mismatch") {
 				t.Errorf("rank mismatch kept after the attempt ended:\n%s", v)
 			}
 		})
@@ -237,15 +237,15 @@ func TestCardShowsOverdueUntilTheAttemptEnds(t *testing.T) {
 				engine.Event{Kind: engine.NeedsYou, Task: "M0-02", Detail: "the task is running longer than its Timeout 45m; igris leaves its session running"})
 			v := hs.m.View()
 			checkFits(t, v, size[0], size[1])
-			if !strings.Contains(v, "OVERDUE: running longer") {
+			if !strings.Contains(v, "Overdue · running longer") {
 				t.Errorf("card lacks the overdue line:\n%s", v)
 			}
 			hs.events(engine.Event{Kind: engine.NeedsYouClear, Task: "M0-02"})
-			if v := hs.m.View(); !strings.Contains(v, "OVERDUE") {
+			if v := hs.m.View(); !strings.Contains(v, "Overdue") {
 				t.Errorf("overdue cleared while the attempt runs:\n%s", v)
 			}
 			hs.events(engine.Event{Kind: engine.Retrying, Task: "M0-02", Detail: "fresh"})
-			if v := hs.m.View(); strings.Contains(v, "OVERDUE") {
+			if v := hs.m.View(); strings.Contains(v, "Overdue") {
 				t.Errorf("overdue kept after the attempt ended:\n%s", v)
 			}
 		})
@@ -292,16 +292,16 @@ func TestCardShowsTokenUsage(t *testing.T) {
 	}
 }
 
-// The model id is red on a rank mismatch, and it is the only change: the
+// The model id is Ember on a rank mismatch, and it is the only change: the
 // words stay the same.
-func TestCardTokenModelIsRedOnMismatch(t *testing.T) {
+func TestCardTokenModelIsEmberOnMismatch(t *testing.T) {
 	hs := cardHarness(t, 120, 40, "M0-02")
 	hs.m.th = colorTheme(t, true, nil)
 	hs.events(engine.Event{Kind: engine.UsageRead, Task: "M0-02", Tokens: &engine.Tokens{In: 5, Out: 1, Models: []string{"claude-opus-5-5"}}})
 	plain := hs.m.View()
 	hs.events(engine.Event{Kind: engine.RankMismatch, Task: "M0-02", Detail: "on claude-opus-5-5, not its rank sonnet"})
 	red := hs.m.View()
-	paint := hs.m.th.paint(lookAlert, "claude-opus-5-5")
+	paint := hs.m.th.paint(lookWarn, "claude-opus-5-5")
 	if !strings.Contains(red, "· "+paint) || strings.Contains(plain, paint) {
 		t.Errorf("model id not painted only on a mismatch:\n%s", red)
 	}
@@ -344,7 +344,7 @@ func TestQuotaWarningLooks(t *testing.T) {
 	m.th = newTheme(lipgloss.NewRenderer(io.Discard), true, nil)
 	m.th.r.SetColorProfile(termenv.TrueColor)
 	got := m.quotaText()
-	if !strings.Contains(got, m.th.paint(lookAlert, "5h 96%")) || !strings.Contains(got, m.th.paint(lookWarn, "7d 81%")) {
+	if !strings.Contains(got, m.th.paint(lookFail, "5h 96%")) || !strings.Contains(got, m.th.paint(lookWarn, "7d 81%")) {
 		t.Errorf("quotaText = %q", got)
 	}
 }

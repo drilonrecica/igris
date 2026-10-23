@@ -13,6 +13,7 @@ import (
 	"github.com/drilonrecica/igris/internal/adapt"
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/checks"
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/textsafe"
 )
@@ -358,7 +359,7 @@ func (s *adaptScreen) body(w int) []string {
 	}
 	if s.err != nil {
 		out = append(out, "")
-		out = append(out, painted(th, lookAlert, glyphs[plan.Blocked]+" ", "adapt failed: "+errText(s.err), w)...)
+		out = append(out, paintedMark(th, lookFail, look.GlyphFail, "adapt failed: "+errText(s.err), w)...)
 		out = append(out, wrap("The plan is unchanged.", w)...)
 	} else if s.ref != nil {
 		out = append(out, "")

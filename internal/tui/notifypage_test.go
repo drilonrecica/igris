@@ -101,7 +101,7 @@ func TestNotifyRowsFillLive(t *testing.T) {
 	s.Init()
 	s.Update(s.run.next())
 	v := s.View()
-	for _, want := range []string{"Notify test · sending…", "needs_input", "ntfy", "✓ ok", "discord      · sending", "phase_done", "[q Cancel]"} {
+	for _, want := range []string{"Notify test · sending…", "needs_input", "ntfy", "✓ ok", "discord      ◌ sending", "phase_done", "[q Cancel]"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("mid-test view lacks %q:\n%s", want, v)
 		}
@@ -111,7 +111,7 @@ func TestNotifyRowsFillLive(t *testing.T) {
 		s.Update(s.run.next())
 	}
 	v = s.View()
-	for _, want := range []string{"1 failure", "⨯ FAILED: discord answered 400", "[n Send again]", "[q Back]"} {
+	for _, want := range []string{"1 failure", "✗ FAILED: discord answered 400", "[n Send again]", "[q Close]"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("final view lacks %q:\n%s", want, v)
 		}

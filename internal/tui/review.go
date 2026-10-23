@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/drilonrecica/igris/internal/adapt"
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
@@ -181,8 +182,8 @@ func (r *review) activate(a action) tea.Cmd {
 			}
 			r.dialog = &dialog{
 				title: verb + " the plan anyway?",
-				detail: fmt.Sprintf("The proposal has %d problem(s) igris check rejects, e.g. models left at ?. "+
-					"igris arise refuses the plan until you fix them.", len(r.o.Issues)),
+				detail: fmt.Sprintf("The proposal has %s igris check rejects, e.g. models left at ?. "+
+					"igris arise refuses the plan until you fix them.", plural(len(r.o.Issues), "problem")),
 				options: []option{{"Keep reviewing", actClose}, {verb + " anyway", actAcceptAnyway}},
 				cancel:  actClose,
 			}
@@ -260,9 +261,9 @@ func (r *review) View() string {
 
 // status is the proposal's validation result.
 func (r *review) status() string {
-	s := r.th.paint(lookAccent, "✓ the proposal passes igris check")
+	s := r.th.paint(lookAccent, look.GlyphDone+" the proposal passes igris check")
 	if len(r.o.Issues) > 0 {
-		s = r.th.paint(lookAlert, fmt.Sprintf("⨯ the proposal has %d problem(s) igris check rejects", len(r.o.Issues)))
+		s = r.th.paint(lookFail, fmt.Sprintf("%s the proposal has %s igris check rejects", look.GlyphFail, plural(len(r.o.Issues), "problem")))
 	}
 	if r.notice != "" {
 		s += r.th.paint(lookDim, " · "+r.notice)
@@ -279,10 +280,10 @@ const diffContext = 3
 func (r *review) layout(w int) []string {
 	var out []string
 	if len(r.o.Issues) > 0 {
-		out = append(out, r.th.paint(lookAlert, fit("Problems (fix them after accepting, or reject):", w)))
+		out = append(out, r.th.paint(lookFail, fit("Problems (fix them after accepting, or reject):", w)))
 		for _, is := range r.o.Issues {
-			for _, l := range hang("  ⨯ ", clean(is), w) {
-				out = append(out, r.th.paint(lookAlert, l))
+			for _, l := range hang("  "+look.GlyphFail+" ", clean(is), w) {
+				out = append(out, r.th.paint(lookFail, l))
 			}
 		}
 		out = append(out, "")
@@ -359,7 +360,7 @@ func (r *review) marked(indent string, op adapt.Op, text string, w int) []string
 	mark, lk := "  ", lookPlain
 	switch op {
 	case adapt.Del:
-		mark, lk = "- ", lookAlert
+		mark, lk = "- ", lookDim
 	case adapt.Add:
 		mark, lk = "+ ", lookAccent
 	case adapt.Mod:
@@ -394,7 +395,7 @@ func (r *review) lineDiff(d []adapt.Line, w int) []string {
 			for j < len(d) && !near(j) {
 				j++
 			}
-			out = append(out, r.th.paint(lookDim, fit(fmt.Sprintf("  ⋯ %d unchanged line(s)", j-i), w)))
+			out = append(out, r.th.paint(lookDim, fit("  ⋯ "+plural(j-i, "unchanged line"), w)))
 			i = j
 			continue
 		}

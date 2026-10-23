@@ -3,12 +3,12 @@ igris · sinjal · Doctor                       Idle
 5 checks · 1 fail · 2 warn
 
   ✓ ok    claude 2.1.4
-  ! warn  ANTHROPIC_API_KEY is set: runs would
+  ▲ warn  ANTHROPIC_API_KEY is set: runs would
           bill the API
-› ⨯ fail  igris.toml:7: mode: unknown value
+› ✗ fail  igris.toml:7: mode: unknown value
           "turbo"
           next: edit igris.toml, then igris doctor
-  ! warn  `igris done` is not allowed in
+  ▲ warn  `igris done` is not allowed in
           .claude/settings.local.json
   ✓ ok    ntfy topic set
 
@@ -17,4 +17,4 @@ igris · sinjal · Doctor                       Idle
 
 
 ──────────────────────────────────────────────────
-[e Edit] [y Copy] [i Again] [q Back]
+[e Edit] [y Copy] [i Again] [q Close]

@@ -305,7 +305,7 @@ func TestAttachedReconnect(t *testing.T) {
 	}
 	hs.m.Update(batch{snap: &snap})
 	v = hs.m.View()
-	for _, want := range []string{"mode: auto", "tmux", "Commit M0-03?"} {
+	for _, want := range []string{"mode auto", "tmux", "Commit M0-03?"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("view lacks %q:\n%s", want, v)
 		}

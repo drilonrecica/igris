@@ -3,8 +3,8 @@ igris · herdr ✓                                                              
 PHASES                                                     │ could not read the project: permission denied
 the project can't be read                                  │ Doctor may say why.
                                                            │ ── HEALTH ─────────────────────────────────────────────────
-                                                           │ · plan …
-                                                           │ ! doctor: 1 warning — uncommitted changes
+                                                           │ ◌ plan
+                                                           │ ▲ doctor: 1 warning — uncommitted changes
                                                            │ ── RECENT ─────────────────────────────────────────────────
                                                            │ no runs yet
                                                            │

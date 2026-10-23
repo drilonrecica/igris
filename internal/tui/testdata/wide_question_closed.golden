@@ -1,9 +1,9 @@
-igris · sinjal · phase M0 · 3/7 · 42% ████░░░░░░ · mode: plan · herdr                                        ! Needs you
+igris · sinjal · phase M0 · 3/7 · 42% ████░░░░░░ · mode plan · herdr                                         ! Needs you
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 TASKS                                                      │ ┌─ M0-03 Makefile ────────────────────────────────────────┐
  ✓ M0-01  Go module                                 sonnet │ │ rank sonnet → model sonnet                              │
  ✓ M0-02  Entrypoint                                sonnet │ │ mode plan · 0s                                          │
- ! M0-03  Makefile                                  sonnet │ │ state: WAITING FOR YOUR ANSWER                          │
+ ! M0-03  Makefile                                  sonnet │ │ ! Needs you · your answer                               │
  · M0-04  Config loader                             opus   │ │ fmt, lint, test                                         │
  · M0-05  Buy the domain                            user   │ │ [o] Open session  [t] Details  [Answer…]                │
  ⨯ M0-13  Static assets                             sonnet │ └─────────────────────────────────────────────────────────┘

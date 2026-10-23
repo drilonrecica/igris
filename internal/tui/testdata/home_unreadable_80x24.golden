@@ -16,8 +16,8 @@ the project can't be read
 
 
 ── HEALTH ──────────────────────────────────────────────────────────────────────
-· plan …
-! doctor: 1 warning — uncommitted changes
+◌ plan
+▲ doctor: 1 warning — uncommitted changes
 ── RECENT ──────────────────────────────────────────────────────────────────────
 no runs yet
 

@@ -1,6 +1,6 @@
 igris · sinjal · Check                        Idle
 ──────────────────────────────────────────────────
-⨯ plan invalid · 4 problems
+✗ plan invalid · 4 problems
 
 tasks.md:5: M9-02 depends on unknown task M9-01;
 check the ID or remove it from Deps
@@ -15,6 +15,6 @@ mean in progress?); use ready, blocked, in
 progress, done or skipped
 
 3 warnings
-! igris.toml:4: unknown key tui.moose
+▲ igris.toml:4: unknown key tui.moose
 ──────────────────────────────────────────────────
-[e Edit plan] [A Adapt] [c Check again] [q Back]
+[e Edit plan] [A Adapt] [c Check again] [q Close]

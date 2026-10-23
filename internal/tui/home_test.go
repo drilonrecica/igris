@@ -690,7 +690,7 @@ func TestHomeInitAsksForTheSlowChecks(t *testing.T) {
 	if home.snap == nil || !home.backendKnown || !home.doctorKnown {
 		t.Errorf("after Init: snapshot %v, herdr known %v, doctor known %v", home.snap != nil, home.backendKnown, home.doctorKnown)
 	}
-	if v := a.View(); !strings.Contains(v, "herdr ⨯") || !strings.Contains(v, "doctor: 1 warning") {
+	if v := a.View(); !strings.Contains(v, "herdr ✗") || !strings.Contains(v, "doctor: 1 warning") {
 		t.Errorf("the slow checks aren't shown:\n%s", v)
 	}
 	for _, name := range []string{"Snapshot", "BackendAvailable", "Doctor"} {

@@ -1,7 +1,7 @@
 igris · newproj · herdr ✓                     Idle
 ──────────────────────────────────────────────────
 GET STARTED
-⨯ 1 igris.toml  not found
+✗ 1 igris.toml  not found
 · 2 plan        tasks.md not found
 · 3 check       —
 · 4 preview     —
@@ -12,7 +12,7 @@ no plan yet
 
 
 ── HEALTH ────────────────────────────────────────
-⨯ plan missing  ⨯ doctor: 1 failure
+✗ plan missing  ✗ doctor: 1 failure
 ── RECENT ────────────────────────────────────────
 no runs yet
 

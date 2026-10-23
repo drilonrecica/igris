@@ -1,14 +1,14 @@
-[1migr[0m[1mi[0m[1ms[0m · sinjal · tasks.md · herdr ✓ · mode auto                                                            [1m▲ Interrupted[0m
+[1migr[0m[1mi[0m[1ms[0m · sinjal · tasks.md · herdr ✓ · mode auto                                                            ▲ Interrupted
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-[1mPHASES[0m                                                     │ [1mINTERRUPTED · last run M2 through M3 · 2h ago[0m
+[1mPHASES[0m                                                     │ ▲ Interrupted · last run M2 through M3 · 2h ago
   ✓ [2mM0[0m  [2mFoundations                  [0m ██████████ [2m3/3 done[0m  │ [1m● M2-02[0m  Lock file              opus · mode plan
   ✓ [2mM1[0m  [2mPlan parser                  [0m ██████████ [2m2/2 done[0m  │ [2msession: herdr tab-3 (Resume reattaches if it is still[0m
 › [1m●[0m [1mM2[0m  [1mConfig & state               [0m ██░░░░░░░░ [1m1/4 next[0m  │ [2mopen)[0m
-  [2m⨯[0m [2mM3[0m  [2mEngine                       [0m ░░░░░░░░░░ [2m0/3 wait[0m  │ Resume picks M2-02 up first, then the rest of M2 through
-  [2m⨯[0m [2mM4[0m  [2mTUI                          [0m ░░░░░░░░░░ [2m0/2 wait[0m  │ M3.
+  [2m◌[0m [2mM3[0m  [2mEngine                       [0m ░░░░░░░░░░ [2m0/3 wait[0m  │ Resume picks M2-02 up first, then the rest of M2 through
+  [2m◌[0m [2mM4[0m  [2mTUI                          [0m ░░░░░░░░░░ [2m0/2 wait[0m  │ M3.
                                                            │ ── [1mHEALTH[0m ─────────────────────────────────────────────────
                                                            │ [2m✓ plan valid · 5 phases · 14 tasks[0m
-                                                           │ [1m! doctor: 1 warning — uncommitted changes[0m
+                                                           │ ▲ doctor: 1 warning — uncommitted changes
                                                            │ ── [1mRECENT[0m ─────────────────────────────────────────────────
                                                            │ Oct 07 07:12  M2, M3  1 done · interrupted
                                                            │ Oct 06 21:10  M2  3 done · 1 skipped · stopped

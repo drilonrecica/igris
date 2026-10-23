@@ -6,8 +6,8 @@
                                                            │ tasks.md:7: M9-04: unknown model rank "gpt"; add it to [mo…
                                                            │ [2m… 1 more — Check shows all[0m
                                                            │ ── [1mHEALTH[0m ─────────────────────────────────────────────────
-                                                           │ [1m⨯ plan invalid · 4 problems[0m
-                                                           │ [1m! doctor: 1 warning — uncommitted changes[0m
+                                                           │ [1m✗ plan invalid · 4 problems[0m
+                                                           │ ▲ doctor: 1 warning — uncommitted changes
                                                            │ ── [1mRECENT[0m ─────────────────────────────────────────────────
                                                            │ [2mno runs yet[0m
                                                            │

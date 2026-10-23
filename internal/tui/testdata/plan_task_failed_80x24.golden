@@ -13,7 +13,7 @@ Deps      ● M2-02 in progress · Lock file
 Waits on  M2-02
 
 Last attempts
-the run log can't be read: runs.jsonl: permission denied
+✗ the run log can't be read: runs.jsonl: permission denied
 
 
 
@@ -21,4 +21,4 @@ the run log can't be read: runs.jsonl: permission denied
 
 
 ────────────────────────────────────────────────────────────────────────────────
-[y Copy ID] [q Back]
+[y Copy ID] [q Close]

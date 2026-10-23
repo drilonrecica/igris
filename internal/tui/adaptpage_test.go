@@ -195,7 +195,7 @@ func TestAdaptFailureStaysToBeRead(t *testing.T) {
 		t.Fatalf("top is %T, want the progress screen", top(a))
 	}
 	v := s.View()
-	for _, want := range []string{"Adapt · sonnet · failed", "adapt session started (sonnet)", "adapt session done: converted", "ended without", "The plan is unchanged", "[q Back]"} {
+	for _, want := range []string{"Adapt · sonnet · failed", "adapt session started (sonnet)", "adapt session done: converted", "ended without", "The plan is unchanged", "[q Close]"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("view lacks %q:\n%s", want, v)
 		}

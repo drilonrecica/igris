@@ -15,8 +15,8 @@ plan invalid — Check shows the problems
 
 
 ── HEALTH ──────────────────────────────────────────────────────────────────────
-⨯ plan invalid · 1 problem
-! doctor: 1 warning — uncommitted changes
+✗ plan invalid · 1 problem
+▲ doctor: 1 warning — uncommitted changes
 ── RECENT ──────────────────────────────────────────────────────────────────────
 no runs yet
 

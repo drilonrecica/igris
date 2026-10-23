@@ -3,7 +3,7 @@ igris · sinjal · Settings · igris.toml        Idle
 /src/sinjal/igris.toml
 
 PROBLEMS
-  ! warn  notify.webhook.url uses http://, so the
+  ▲ warn  notify.webhook.url uses http://, so the
           payload (and its signature) go
           unencrypted; use an https:// URL
 
@@ -17,4 +17,4 @@ poll_interval     = "2s" · default
 
 [models]
 ──────────────────────────────────────────────────
-[e Edit igris.toml] [i Doctor] [q Back]
+[e Edit igris.toml] [i Doctor] [q Close]

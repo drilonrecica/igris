@@ -1,9 +1,9 @@
-igris · sinjal · M0 · 3/7 · 42% ███░░░ · mode: plan · herdr            ● Working
+igris · sinjal · M0 · 3/7 · 42% ███░░░ · mode plan · herdr             ● Working
 ────────────────────────────────────────────────────────────────────────────────
 ┌─ M0-03 Makefile ─────────────────────────────────────────────────────────────┐
 │ rank sonnet → model sonnet                                                   │
 │ mode plan · 18m5s · over ≈ 14m typical                                       │
-│ state: working                                                               │
+│ ● Working                                                                    │
 │ fmt, lint, test                                                              │
 │ [o] Open session  [t] Details                                                │
 └──────────────────────────────────────────────────────────────────────────────┘

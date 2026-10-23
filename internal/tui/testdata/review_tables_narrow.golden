@@ -1,8 +1,8 @@
 igris · adapt · review tasks.md · 24 table change(s) · +5 −…
-⨯ the proposal has 1 problem(s) igris check rejects
+✗ the proposal has 1 problem igris check rejects
 ────────────────────────────────────────────────────────────
 Problems (fix them after accepting, or reject):
-  ⨯ proposed.md:30: L-02: model not set yet ("?")
+  ✗ proposed.md:30: L-02: model not set yet ("?")
 
 ~ phase W1 — Parsing widgets
   ~ heading: "W1 — Parsing" → "W1 — Parsing widgets"

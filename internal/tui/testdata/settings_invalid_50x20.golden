@@ -3,10 +3,10 @@ igris · sinjal · Settings · igris.toml        Idle
 /src/sinjal/igris.toml
 
 PROBLEMS
-  ⨯ fail  default_mode = "fast" is invalid; use
+  ✗ fail  default_mode = "fast" is invalid; use
           one of: default, accept, auto, plan,
           yolo
-  ⨯ fail  run.verify_max_attempts must be at least
+  ✗ fail  run.verify_max_attempts must be at least
           1
 Until igris.toml is fixed, igris uses the defaults
 below.
@@ -17,4 +17,4 @@ default_mode      = "auto" · default
 needs_input_after = "30s" · default
 waiting_limit     = "30m" · default
 ──────────────────────────────────────────────────
-[e Edit igris.toml] [i Doctor] [q Back]
+[e Edit igris.toml] [i Doctor] [q Close]

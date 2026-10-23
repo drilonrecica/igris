@@ -149,15 +149,15 @@ func (m *model) facts(narrow bool, d factsDrop) string {
 		// queue in plan order.
 		parts = append(parts, fmt.Sprintf("%d active", len(m.cards)))
 		if ids := m.needYou(); len(ids) > 0 {
-			parts = append(parts, m.th.paint(lookAlert, "needs you: "+strings.Join(ids, ", ")))
+			parts = append(parts, m.th.paint(lookAlert, "needs you "+strings.Join(ids, ", ")))
 		}
 	}
 	if m.mode != "" && !d.noMode {
-		parts = append(parts, m.th.marks("mode: "+m.mode+badge(m.mode)))
+		parts = append(parts, m.th.marks("mode "+m.mode+badge(m.mode)))
 	}
 	if !engine.SkipsPermissions(m.mode) && slices.ContainsFunc(m.cards, func(c *current) bool { return engine.SkipsPermissions(c.mode) }) {
 		// The run mode isn't yolo but a session is (SPEC §7.3).
-		parts = append(parts, m.th.paint(lookAlert, "SKIP PERMISSIONS"))
+		parts = append(parts, m.th.paint(lookAlert, skipBadge))
 	}
 	switch {
 	case d.noBackend:
@@ -170,7 +170,7 @@ func (m *model) facts(narrow bool, d factsDrop) string {
 		parts = append(parts, "served by "+m.servedBy)
 	}
 	if m.lost {
-		parts = append(parts, m.th.paint(lookAlert, "reconnecting…"))
+		parts = append(parts, m.th.paint(lookWarn, look.GlyphWarn+" reconnecting…"))
 	}
 	if n := m.side.count(); n > 0 && extras >= factsAll {
 		parts = append(parts, fmt.Sprintf("side %d", n))
@@ -261,12 +261,12 @@ func (m *model) cardNeed(w int) int {
 	return 2 + len(m.cardBody(m.cur, cardInner(w), 0, 0, -1, false, true))
 }
 
-// yourTurnText follows YOUR TURN: a user task is the owner's own work,
+// yourTurnText follows the "Needs you · your turn" state line: a user task is the owner's own work,
 // and how it ends. Each part wraps on its own, so the keys stay together.
 var yourTurnText = []string{"Yours to do outside igris (no session).", "Then: d done · s skip"}
 
-// openHint follows NEEDS YOU when the session can be opened.
-const openHint = " — o opens the session"
+// openHint follows the Needs you state when the session can be opened.
+const openHint = " · o opens the session"
 
 // moreText ends the task text when the card cut it.
 const moreText = " … t: details"
@@ -313,7 +313,7 @@ func (m *model) cardBody(c *current, w, x, y, rows int, record, boxed bool) []st
 		}
 		head = append(head, fit(m.th.marks("mode "+c.mode+badge(c.mode)+" · "+timing), w))
 	}
-	state := "state: " + m.th.paint(stateLook(c), m.stateText(c))
+	state := m.th.paint(stateLook(c), m.stateText(c))
 	stateAt := len(head) // the state's line, which a tight box keeps longest
 	if c.state == stateNeedsYou && m.canOpen(c) {
 		// Say how to get there, on the state line when it fits.
@@ -322,7 +322,7 @@ func (m *model) cardBody(c *current, w, x, y, rows int, record, boxed bool) []st
 			state += hint
 		} else {
 			head = append(head, fit(state, w))
-			state = m.th.paint(stateLook(c), strings.TrimPrefix(openHint, " — "))
+			state = m.th.paint(stateLook(c), strings.TrimPrefix(openHint, " · "))
 		}
 	}
 	head = append(head, fit(state, w))
@@ -331,11 +331,11 @@ func (m *model) cardBody(c *current, w, x, y, rows int, record, boxed bool) []st
 	}
 	if c.overdue != "" {
 		// Until the attempt ends (SPEC §6.3), in words, not color alone.
-		head = append(head, fit(m.th.paint(lookAlert, "OVERDUE: "+c.overdue), w))
+		head = append(head, fit(m.th.paint(lookWarn, look.GlyphWarn+" Overdue · "+c.overdue), w))
 	}
 	if c.rankMismatch != "" {
-		// Until the attempt ends (SPEC §6.9), like OVERDUE.
-		head = append(head, fit(m.th.paint(lookAlert, "RANK MISMATCH: "+c.rankMismatch), w))
+		// Until the attempt ends (SPEC §6.9), like Overdue.
+		head = append(head, fit(m.th.paint(lookWarn, look.GlyphWarn+" Rank mismatch · "+c.rankMismatch), w))
 	}
 	if c.state == stateYourTurn {
 		// A user task has no session: say whose it is and how it ends.
@@ -506,7 +506,7 @@ func (m *model) tokensLine(c *current, w int) string {
 	if len(t.Models) > 0 {
 		id := strings.Join(t.Models, ", ")
 		if c.rankMismatch != "" {
-			id = m.th.paint(lookAlert, id)
+			id = m.th.paint(lookWarn, id)
 		}
 		line += " · " + id
 	}
@@ -536,7 +536,7 @@ func (m *model) quotaText() string {
 		tone := lookPlain
 		switch {
 		case w.w.Used >= 95:
-			tone = lookAlert
+			tone = lookFail
 		case w.w.Used >= 80:
 			tone = lookWarn
 		}

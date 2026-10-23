@@ -10,6 +10,7 @@ import (
 
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/engine"
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/side"
 	"github.com/drilonrecica/igris/internal/state"
@@ -1067,6 +1068,16 @@ func (m *model) dropResetAsk(id string) {
 }
 
 func (m *model) addLog(at time.Time, text string, l tone) {
+	// Never color alone (SPEC §15.4): a line that waits on the owner, warns
+	// or fails starts with its glyph.
+	switch l {
+	case lookAlert:
+		text = look.GlyphNeedsYou + " " + text
+	case lookWarn:
+		text = look.GlyphWarn + " " + text
+	case lookFail:
+		text = look.GlyphFail + " " + text
+	}
 	m.log = append(m.log, logEntry{at, text, l})
 	if len(m.log) > maxLog {
 		m.log = m.log[len(m.log)-maxLog:]

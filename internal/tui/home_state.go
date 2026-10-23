@@ -289,9 +289,9 @@ func (m *homeScreen) phaseRowsData() []phaseRow {
 				r.glyph, r.glyphLook, r.textLook = glyphs[plan.InProgress], lookAccentBold, lookTitle
 			}
 		default:
-			r.glyph, r.word, r.glyphLook, r.textLook = glyphs[plan.Blocked], "stuck", lookDim, lookDim
+			r.glyph, r.word, r.glyphLook, r.textLook = look.GlyphWarn, "stuck", lookWarn, lookDim
 			if m.waitsOnOtherPhases(ph.ID) {
-				r.word = "wait"
+				r.glyph, r.word, r.glyphLook = look.GlyphWaiting, "wait", lookDim
 			}
 		}
 		out = append(out, r)
@@ -401,7 +401,7 @@ func (m *homeScreen) getStartedCard(w int) []string {
 	type step struct{ glyph, name, state string }
 	cfgStep := step{glyphs[plan.Done], "igris.toml", "found"}
 	if s.NoConfig {
-		cfgStep = step{glyphs[plan.Blocked], "igris.toml", "not found"}
+		cfgStep = step{look.GlyphFail, "igris.toml", "not found"}
 	}
 	planStep := step{glyphs[plan.Ready], "plan", m.planName() + " not found"}
 	checkStep := step{glyphs[plan.Ready], "check", "—"}
@@ -410,9 +410,9 @@ func (m *homeScreen) getStartedCard(w int) []string {
 		planStep = step{glyphs[plan.Done], "plan", m.planName()}
 		checkStep = step{glyphs[plan.Done], "check", "passes"}
 	case s.PlanErr != "":
-		planStep = step{glyphs[plan.Blocked], "plan", m.planName() + " unreadable"}
+		planStep = step{look.GlyphFail, "plan", m.planName() + " unreadable"}
 	case m.planFile():
-		planStep = step{glyphs[plan.Blocked], "plan", fmt.Sprintf("%s: %s", m.planName(), plural(len(s.Issues), "problem"))}
+		planStep = step{look.GlyphFail, "plan", fmt.Sprintf("%s: %s", m.planName(), plural(len(s.Issues), "problem"))}
 	}
 	steps := []step{
 		cfgStep,
@@ -497,9 +497,9 @@ func (m *homeScreen) runningCard(w int) []string {
 	if s.Served {
 		who = "igris serve"
 	}
-	out := wrap(fmt.Sprintf("RUNNING in %s · pid %d on this host · since %s", who, l.Info.PID, l.Info.StartedAt.In(m.loc).Format("15:04")), w)
+	out := wrap(fmt.Sprintf("%s Running elsewhere · in %s · pid %d on this host · since %s", look.GlyphWarn, who, l.Info.PID, look.Clock(l.Info.StartedAt.In(m.loc))), w)
 	for i := range out {
-		out[i] = m.th.paint(lookAlert, out[i])
+		out[i] = m.th.paint(lookWarn, out[i])
 	}
 	switch {
 	case s.Run == nil || s.Run.Unreadable != "":
@@ -563,7 +563,7 @@ func (m *homeScreen) interruptedCard(w int) []string {
 	r := m.snap.Run
 	word, at := "STOPPED", r.StartedAt
 	if r.Task != "" {
-		word, at = "INTERRUPTED", r.Since
+		word, at = look.Interrupted.Label(), r.Since
 	}
 	head := word + " · last run " + rangeText(r.Phases, r.Through)
 	if t, err := time.Parse(time.RFC3339, at); err == nil {
@@ -571,7 +571,7 @@ func (m *homeScreen) interruptedCard(w int) []string {
 	}
 	l := lookTitle
 	if r.Task != "" {
-		l = lookAlert
+		l = lookWarn // Interrupted is a warning: Ember
 	}
 	out := []string{m.th.paint(l, fit(head, w))}
 	out = append(out, m.runLines(w)...)
@@ -629,7 +629,7 @@ func (m *homeScreen) readyCard(w int) []string {
 		out = append(out, m.th.paint(lookTitle, fit("READY · phase "+work.ID+" "+work.Title, w)))
 		out = append(out, m.nextLines(p, work, w)...)
 	case stuck != nil:
-		out = append(out, m.th.paint(lookAlert, fit("STUCK · phase "+stuck.ID+" "+stuck.Title+" can't start", w)))
+		out = append(out, m.th.paint(lookWarn, fit(look.GlyphWarn+" STUCK · phase "+stuck.ID+" "+stuck.Title+" can't start", w)))
 		if sel, err := p.Select(stuck.ID); err == nil && len(sel.Waiting) > 0 {
 			out = append(out, fit(sel.Waiting[0].String(), w))
 		}
@@ -718,13 +718,13 @@ func (m *homeScreen) healthLines() []homeLine {
 	var planLine homeLine
 	switch {
 	case s == nil:
-		planLine = homeLine{glyphs[plan.Ready] + " plan …", "", actNone}
+		planLine = homeLine{look.GlyphWaiting + " plan", "", actNone}
 	case s.PlanMissing:
-		planLine = homeLine{glyphs[plan.Blocked] + " plan missing · " + m.planName() + " not found", glyphs[plan.Blocked] + " plan missing", actNone}
+		planLine = homeLine{look.GlyphFail + " plan missing · " + m.planName() + " not found", look.GlyphFail + " plan missing", actNone}
 	case s.Plan == nil:
-		planLine = homeLine{glyphs[plan.Blocked] + " plan unreadable · " + s.PlanErr, glyphs[plan.Blocked] + " plan unreadable", actCheck}
+		planLine = homeLine{look.GlyphFail + " plan unreadable · " + s.PlanErr, look.GlyphFail + " plan unreadable", actCheck}
 	case len(s.Issues) > 0:
-		planLine = homeLine{glyphs[plan.Blocked] + " plan invalid · " + plural(len(s.Issues), "problem"), glyphs[plan.Blocked] + " plan invalid", actCheck}
+		planLine = homeLine{look.GlyphFail + " plan invalid · " + plural(len(s.Issues), "problem"), look.GlyphFail + " plan invalid", actCheck}
 	default:
 		planLine = homeLine{fmt.Sprintf("%s plan valid · %s · %s", glyphs[plan.Done], plural(len(s.Plan.Phases), "phase"), plural(len(s.Plan.Tasks), "task")), glyphs[plan.Done] + " plan valid", actCheck}
 	}
@@ -748,9 +748,9 @@ func (m *homeScreen) healthLines() []homeLine {
 		}
 		switch {
 		case fails > 0:
-			doc.short = glyphs[plan.Blocked] + " doctor: " + plural(fails, "failure")
+			doc.short = look.GlyphFail + " doctor: " + plural(fails, "failure")
 		case warns > 0:
-			doc.short = "! doctor: " + plural(warns, "warning")
+			doc.short = look.GlyphWarn + " doctor: " + plural(warns, "warning")
 		default:
 			doc.short = glyphs[plan.Done] + " doctor: ok"
 		}
@@ -828,11 +828,11 @@ func (m *homeScreen) header(wide bool) string {
 	}
 	switch {
 	case !m.backendKnown:
-		parts = append(parts, m.backendName()+" …")
+		parts = append(parts, m.backendName()+" "+look.GlyphWaiting)
 	case m.backendErr != nil:
-		parts = append(parts, m.th.paint(lookAlert, m.backendName()+" ⨯"))
+		parts = append(parts, m.th.paint(lookFail, m.backendName()+" "+look.GlyphFail))
 	default:
-		parts = append(parts, m.th.paint(lookAccent, m.backendName()+" ✓"))
+		parts = append(parts, m.th.paint(lookAccent, m.backendName()+" "+look.GlyphDone))
 	}
 	if wide && s != nil && !s.NoConfig && s.Config != nil {
 		parts = append(parts, m.th.marks("mode "+s.Config.DefaultMode+badge(s.Config.DefaultMode)))
@@ -869,12 +869,7 @@ func shortSince(now, t time.Time) string {
 }
 
 // plural is "1 problem" / "2 problems".
-func plural(n int, noun string) string {
-	if n == 1 {
-		return "1 " + noun
-	}
-	return strconv.Itoa(n) + " " + noun + "s"
-}
+func plural(n int, noun string) string { return look.Count(n, noun, noun+"s") }
 
 // orText is r's Unreadable text, or def when there is no run.
 func orText(r *report.RunInfo, def string) string {

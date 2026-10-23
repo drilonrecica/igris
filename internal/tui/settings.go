@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/drilonrecica/igris/internal/checks"
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/textsafe"
@@ -135,7 +136,7 @@ func (s *settingsScreen) body(w int) []string {
 	th, snap := s.home.th, s.home.snap
 	if snap == nil {
 		if err := s.home.snapErr; err != nil {
-			return painted(th, lookAlert, "", "can't read the project: "+textsafe.Line(err.Error()), w)
+			return paintedMark(th, lookFail, look.GlyphFail, "can't read the project: "+textsafe.Line(err.Error()), w)
 		}
 		return []string{th.paint(lookDim, "reading igris.toml…")}
 	}
@@ -360,7 +361,7 @@ func (m *homeScreen) editStatus(msg editedMsg) string {
 // validity says whether t's file is valid as the last read found it.
 func (m *homeScreen) validity(t editTarget) string {
 	s, name := m.snap, t.name()
-	fail := glyphs[plan.Blocked] + " " + name + ": "
+	fail := look.GlyphFail + " " + name + ": "
 	ok := glyphs[plan.Done] + " " + name + " valid"
 	switch {
 	case m.snapErr != nil:

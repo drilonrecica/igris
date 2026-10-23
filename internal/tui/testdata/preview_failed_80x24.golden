@@ -1,7 +1,7 @@
 igris · Preview · M2 through M3
 ────────────────────────────────────────────────────────────────────────────────
-warning: plan hint
-the dry run failed: unknown phase "X"
+▲ plan hint
+✗ the dry run failed: unknown phase "X"
 
 
 
@@ -21,4 +21,4 @@ the dry run failed: unknown phase "X"
 
 
 ────────────────────────────────────────────────────────────────────────────────
-[a Arise with these settings] [v Preview again] [q Back]
+[a Arise with these settings] [v Preview again] [q Close]

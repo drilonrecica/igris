@@ -351,7 +351,7 @@ func TestHelpPage(t *testing.T) {
 		}
 		v := hs.m.View()
 		checkFits(t, v, size[0], size[1])
-		if !strings.Contains(v, "Help") || !strings.Contains(v, "[q Back]") {
+		if !strings.Contains(v, "Help") || !strings.Contains(v, "[q Close]") {
 			t.Fatalf("%v: help not drawn:\n%s", size, v)
 		}
 		// The page is modal: shortcut keys don't act under it.

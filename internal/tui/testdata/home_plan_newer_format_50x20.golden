@@ -12,7 +12,7 @@ plan invalid — Check shows the problems
 
 
 ── HEALTH ────────────────────────────────────────
-⨯ plan invalid  ! doctor: 1 warning
+✗ plan invalid  ▲ doctor: 1 warning
 ── RECENT ────────────────────────────────────────
 no runs yet
 

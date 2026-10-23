@@ -1,9 +1,9 @@
-igris · sinjal · M0 · 3/7              ! Needs you
+igris · sinjal · M0 · 3/7 · mode plan  ! Needs you
 ──────────────────────────────────────────────────
 ┌─ M0-03 Makefile ───────────────────────────────┐
 │ rank sonnet → model sonnet                     │
 │ mode plan · 0s                                 │
-│ state: WAITING FOR YOUR ANSWER                 │
+│ ! Needs you · your answer                      │
 │ fmt, lint, test                                │
 │ [o] Open session  [t] Details  [Answer…]       │
 └────────────────────────────────────────────────┘

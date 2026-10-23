@@ -787,7 +787,7 @@ func ExitText(res engine.Result, err error) string {
 	case res.Outcome == engine.Stopped:
 		return "igris stopped; a running session keeps running — `igris arise` resumes"
 	case len(res.NotRun) > 0:
-		return fmt.Sprintf("run %s; %d task(s) of the slice not run: their dependencies aren't done", res.Outcome, len(res.NotRun))
+		return fmt.Sprintf("run %s; %s of the slice not run: their dependencies aren't done", res.Outcome, plural(len(res.NotRun), "task"))
 	}
 	return fmt.Sprintf("run %s", res.Outcome)
 }

@@ -1,7 +1,7 @@
 igris · sinjal · History · enter opens        Idle
 ──────────────────────────────────────────────────
-the run log can't be read: runs.jsonl: permission
-denied
+✗ the run log can't be read: runs.jsonl:
+  permission denied
 
 
 
@@ -17,4 +17,4 @@ denied
 
 
 ──────────────────────────────────────────────────
-[q Back]
+[q Close]

@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/drilonrecica/igris/internal/checks"
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/report"
 )
@@ -432,7 +433,7 @@ func (s *taskScreen) body(w int) []string {
 	case !s.loaded:
 		return append(out, th.paint(lookDim, "reading the run log…"))
 	case s.err != nil:
-		return append(out, painted(th, lookAlert, "", "the run log can't be read: "+errText(s.err), w)...)
+		return append(out, paintedMark(th, lookFail, look.GlyphFail, "the run log can't be read: "+errText(s.err), w)...)
 	case len(s.attempts) == 0:
 		return append(out, th.paint(lookDim, "none: igris hasn't run this task"))
 	}
@@ -599,15 +600,15 @@ func (s *checkScreen) body(w int) []string {
 	case snap == nil:
 		return []string{th.paint(lookDim, "reading the plan…")}
 	case snap.PlanMissing:
-		return painted(th, lookAlert, "", glyphs[plan.Blocked]+" plan missing: "+s.home.planName()+" not found", w)
+		return paintedMark(th, lookFail, look.GlyphFail, "plan missing: "+s.home.planName()+" not found", w)
 	case snap.Plan == nil:
-		return painted(th, lookAlert, "", glyphs[plan.Blocked]+" plan unreadable: "+snap.PlanErr, w)
+		return paintedMark(th, lookFail, look.GlyphFail, "plan unreadable: "+snap.PlanErr, w)
 	}
 	var out []string
 	if len(snap.Issues) == 0 {
 		out = append(out, th.paint(lookAccent, fmt.Sprintf("%s plan valid · %s · %s", glyphs[plan.Done], plural(len(snap.Plan.Phases), "phase"), plural(len(snap.Plan.Tasks), "task"))))
 	} else {
-		out = append(out, th.paint(lookAlert, glyphs[plan.Blocked]+" plan invalid · "+plural(len(snap.Issues), "problem")), "")
+		out = append(out, th.paint(lookFail, look.GlyphFail+" plan invalid · "+plural(len(snap.Issues), "problem")), "")
 		for _, is := range snap.Issues {
 			out = append(out, painted(th, lookPlain, "", is.String(), w)...)
 		}
@@ -622,7 +623,7 @@ func (s *checkScreen) body(w int) []string {
 	}
 	out = append(out, th.paint(lookTitle, plural(len(ws), "warning")))
 	for _, c := range ws {
-		out = append(out, painted(th, lookAlert, "! ", warningText(c), w)...)
+		out = append(out, paintedMark(th, lookWarn, look.GlyphWarn, warningText(c), w)...)
 	}
 	return out
 }

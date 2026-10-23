@@ -15,8 +15,8 @@ tasks.md not found
 
 
 ── HEALTH ──────────────────────────────────────────────────────────────────────
-⨯ plan missing · tasks.md not found
-! doctor: 1 warning — uncommitted changes
+✗ plan missing · tasks.md not found
+▲ doctor: 1 warning — uncommitted changes
 ── RECENT ──────────────────────────────────────────────────────────────────────
 no runs yet
 

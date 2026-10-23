@@ -148,8 +148,12 @@ func badge(mode string) string {
 // owner stands out. The words say it either way.
 func logLook(k engine.EventKind) tone {
 	switch k {
-	case engine.NeedsYou, engine.TaskOverdue, engine.RankMismatch, engine.SessionLost, engine.HookFailed, engine.VerifyFailed, engine.VerifyLimit, engine.PhaseStuck, engine.PlanChanged, engine.RunFailed:
-		return lookAlert
+	case engine.NeedsYou, engine.SessionLost, engine.VerifyLimit:
+		return lookAlert // waits on the owner: plume
+	case engine.TaskOverdue, engine.RankMismatch, engine.PhaseStuck, engine.PlanChanged:
+		return lookWarn
+	case engine.HookFailed, engine.VerifyFailed, engine.RunFailed:
+		return lookFail
 	case engine.Warning, engine.Asked, engine.YourTurn, engine.Paused, engine.PhaseDone, engine.NotRun, engine.TaskReset:
 		return lookTitle
 	}

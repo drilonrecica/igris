@@ -21,8 +21,9 @@ const (
 	lookPlain      tone = iota
 	lookAccent          // the working color: running, done, borders of dialogs
 	lookAccentBold      // the Working status word, the focused region, what wants a click
-	lookAlert           // needs the owner; skip permissions
-	lookWarn            // running low: the subscription quota from 80%
+	lookAlert           // plume: needs the owner; skip permissions; nothing else
+	lookWarn            // Ember: a warning (▲), the subscription quota from 80%
+	lookFail            // Ember in bold: a failure (✗), the quota from 95%
 	lookFrame           // box lines and rules
 	lookTitle           // titles and what matters now
 	lookDim             // finished or unavailable; secondary text
@@ -40,12 +41,12 @@ const (
 )
 
 // The palette is internal/look's (docs/brand, SPEC §15.4): glow cyan is
-// the working accent, plume red marks what needs the owner, Ember warns.
+// the working accent, plume red marks what needs the owner (and the
+// skip-permissions badge), Ember warns. Red means you: lookAlert is for
+// Needs you and the badge only.
 var (
-	accentShade = look.Glow
-	alertShade  = look.Plume
-	frameShade  = look.Frame
-	warnShade   = look.Ember
+	brandShade = look.Plume
+	frameShade = look.Frame
 )
 
 // paintStyle is a look resolved for one terminal.
@@ -68,17 +69,18 @@ type theme struct {
 // Under NO_COLOR r renders no colors; the attributes stay.
 func newTheme(r *lipgloss.Renderer, dark bool, rankColors map[string]string) *theme {
 	th := &theme{on: true, r: r, ranks: map[string]string{}}
-	accent := accentShade.Pick(dark)
+	accent := look.Accent.Style(dark).Color // the word shade, AA on the ground
 	th.looks = [lookCount]paintStyle{
 		lookAccent:     {color: accent},
 		lookAccentBold: {color: accent, attrs: sgrBold},
-		lookAlert:      {color: alertShade.Pick(dark), attrs: sgrBold},
-		lookWarn:       {color: warnShade.Pick(dark), attrs: sgrBold},
+		lookAlert:      fromStyle(look.Needs.Style(dark)),
+		lookWarn:       fromStyle(look.Warn.Style(dark)),
+		lookFail:       fromStyle(look.Fail.Style(dark)),
 		lookFrame:      {color: frameShade.Pick(dark)},
 		lookTitle:      {attrs: sgrBold},
 		lookDim:        {attrs: sgrFaint},
 		lookFocus:      {attrs: sgrBold + ";" + sgrReverse},
-		lookBrand:      {color: alertShade.Pick(dark), attrs: sgrBold},
+		lookBrand:      {color: brandShade.Pick(dark), attrs: sgrBold},
 	}
 	for _, r := range look.Ranks {
 		th.ranks[r.Rank] = r.Pick(dark)
@@ -87,6 +89,16 @@ func newTheme(r *lipgloss.Renderer, dark bool, rankColors map[string]string) *th
 		th.ranks[rank] = c
 	}
 	return th
+}
+
+// fromStyle is a look.Style as a paintStyle: the severity's colors and
+// weight come from internal/look, so the TUI never spells its own.
+func fromStyle(st look.Style) paintStyle {
+	p := paintStyle{color: st.Color}
+	if st.Bold {
+		p.attrs = sgrBold
+	}
+	return p
 }
 
 // paint draws s in look l.

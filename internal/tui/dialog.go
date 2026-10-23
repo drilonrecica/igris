@@ -443,7 +443,7 @@ func (d *dialog) render(th *theme, w, h int) ([]string, zones) {
 	if len(input) > 0 {
 		z.add(rect{x: 0, y: len(body) + 1, w: 1, h: 1}, target{act: actField})
 		add(lookPlain, input[0])
-		add(lookAlert, input[1:]...) // the hint
+		add(lookPlain, input[1:]...) // the hint
 		add(lookPlain, "")
 	}
 	for i, lines := range opts {

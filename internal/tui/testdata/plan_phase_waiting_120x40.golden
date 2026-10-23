@@ -1,6 +1,6 @@
 igris · sinjal · Phase M3 · Engine                                                                                  Idle
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-⨯ Outcome  wait — it completes once tasks of other phases are done
+◌ Outcome  wait — it completes once tasks of other phases are done
 3 tasks · 3 ready
 
 ›· M3-01  Scheduler                                                                                               opus
@@ -37,4 +37,4 @@ igris · sinjal · Phase M3 · Engine                                           
 
 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-[a Arise this phase…] [v Preview this phase] [e Edit plan] [q Back]
+[a Arise this phase…] [v Preview this phase] [e Edit plan] [q Close]

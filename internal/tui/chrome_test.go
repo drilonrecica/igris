@@ -217,13 +217,13 @@ func TestButtonText(t *testing.T) {
 }
 
 // q leaves the screen it is on (SPEC §15.5): on a page in the run view
-// it closes the page, as its [q Back] says; the run goes on.
+// it closes the page, as its [q Close] says; the run goes on.
 func TestQClosesTheRunViewsPage(t *testing.T) {
 	hs := newHarness(t, 120, 40)
 	hs.withPlan(demoPlan)
 	hs.events(started("M0-03"), opened("M0-03"))
 	hs.key("t")
-	if hs.m.page == nil || !strings.Contains(hs.m.View(), "[q Back]") {
+	if hs.m.page == nil || !strings.Contains(hs.m.View(), "[q Close]") {
 		t.Fatalf("no page after t:\n%s", hs.m.View())
 	}
 	hs.key("q")

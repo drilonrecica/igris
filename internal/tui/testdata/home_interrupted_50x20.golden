@@ -1,6 +1,6 @@
 igris · sinjal · herdr ✓             ▲ Interrupted
 ──────────────────────────────────────────────────
-INTERRUPTED · last run M2 through M3 · 2h ago
+▲ Interrupted · last run M2 through M3 · 2h ago
 ● M2-02  Lock file              opus · mode plan
 session: herdr tab-3 (Resume reattaches if it is
 still open)
@@ -10,9 +10,9 @@ through M3.
   ✓ M0  Foundations                      3/3 done
   ✓ M1  Plan parser                      2/2 done
 › ● M2  Config & state                   1/4 next
-  ⨯ M3  Engine                           0/3 wait
+  ◌ M3  Engine                           0/3 wait
 ── HEALTH ────────────────────────────────────────
-✓ plan valid  ! doctor: 1 warning
+✓ plan valid  ▲ doctor: 1 warning
 ── RECENT ────────────────────────────────────────
 Oct 07 07:12  M2, M3  1 done · interrupted
 

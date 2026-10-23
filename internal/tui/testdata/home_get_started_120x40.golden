@@ -1,7 +1,7 @@
 igris · newproj · no igris.toml · herdr ✓                                                                           Idle
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 PHASES                                                     │ GET STARTED
-no plan yet                                                │ ⨯ 1 igris.toml  not found
+no plan yet                                                │ ✗ 1 igris.toml  not found
                                                            │ · 2 plan        tasks.md not found
                                                            │ · 3 check       —
                                                            │ · 4 preview     —
@@ -10,8 +10,8 @@ no plan yet                                                │ ⨯ 1 igris.toml 
                                                            │ the Claude allow rule for `igris done`. Draft… has Claude
                                                            │ write the plan from a goal, a spec or an issue export.
                                                            │ ── HEALTH ─────────────────────────────────────────────────
-                                                           │ ⨯ plan missing · tasks.md not found
-                                                           │ ⨯ doctor: 1 failure — igris.toml not found
+                                                           │ ✗ plan missing · tasks.md not found
+                                                           │ ✗ doctor: 1 failure — igris.toml not found
                                                            │ ── RECENT ─────────────────────────────────────────────────
                                                            │ no runs yet
                                                            │

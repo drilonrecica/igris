@@ -3,10 +3,10 @@ igris · sinjal · Check                                                      Id
 ✓ plan valid · 5 phases · 14 tasks
 
 3 warnings
-! igris.toml:4: unknown key tui.moose
-! tasks.md:21: M2-03 has a Status cell that reads as blocked but depends on
+▲ igris.toml:4: unknown key tui.moose
+▲ tasks.md:21: M2-03 has a Status cell that reads as blocked but depends on
   nothing
-! M2-04 is marked ready but waits on M2-03
+▲ M2-04 is marked ready but waits on M2-03
 
 
 
@@ -21,4 +21,4 @@ igris · sinjal · Check                                                      Id
 
 
 ────────────────────────────────────────────────────────────────────────────────
-[e Edit plan] [c Check again] [q Back]
+[e Edit plan] [c Check again] [q Close]

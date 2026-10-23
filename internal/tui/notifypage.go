@@ -8,6 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/notify"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/report"
@@ -318,18 +319,24 @@ func (s *notifyScreen) body(w int) []string {
 		prefix := "  " + pad(r.event, evW) + "  " + pad(label, 11) + "  "
 		switch r.state {
 		case notifySending:
-			out = append(out, prefix+th.paint(lookDim, "· sending"))
+			out = append(out, prefix+th.paint(lookDim, look.GlyphWaiting+" sending"))
 		case notifyOK:
 			out = append(out, prefix+th.paint(lookAccent, glyphs[plan.Done]+" ok"))
 		case notifyUnsent:
-			out = append(out, prefix+th.paint(lookDim, "· not sent"))
+			out = append(out, prefix+th.paint(lookDim, look.GlyphReady+" not sent"))
 		default:
-			out = append(out, painted(th, lookAlert, prefix, glyphs[plan.Blocked]+" FAILED: "+r.err, w)...)
+			for i, l := range paintedMark(th, lookFail, look.GlyphFail, "FAILED: "+r.err, w-textWidth(prefix)) {
+				lead := prefix
+				if i > 0 {
+					lead = strings.Repeat(" ", textWidth(prefix))
+				}
+				out = append(out, lead+l)
+			}
 		}
 	}
 	if s.err != nil {
 		out = append(out, "")
-		out = append(out, painted(th, lookAlert, "", s.err.Error(), w)...)
+		out = append(out, paintedMark(th, lookFail, look.GlyphFail, s.err.Error(), w)...)
 	}
 	if s.stopped && s.ended {
 		out = append(out, "", th.paint(lookDim, "Cancelled: the rows still sending were not sent."))

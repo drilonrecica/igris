@@ -6,6 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/drilonrecica/igris/examples"
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/textsafe"
@@ -262,7 +263,7 @@ func (s *initScreen) body(w int) []string {
 		out = append(out, hang(th.paint(lookAccent, glyph)+" "+th.paint(lookTitle, label)+"  ", st.Message, w)...)
 	}
 	if err := s.res.err; err != nil {
-		out = append(out, hang(th.paint(lookAlert, glyphs[plan.Blocked])+" ", "init stopped: "+textsafe.Line(err.Error()), w)...)
+		out = append(out, hang(th.paint(lookFail, look.GlyphFail)+" ", "init stopped: "+textsafe.Line(err.Error()), w)...)
 		out = append(out, wrap("Fix that and run Init again; what was written stays, and nothing is overwritten.", w)...)
 		return out
 	}

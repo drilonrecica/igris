@@ -1,9 +1,9 @@
-igris · sinjal · M0 · 3/7 · 42% ███░░░ · mode: plan · herdr            ● Working
+igris · sinjal · M0 · 3/7 · 42% ███░░░ · mode plan · herdr             ● Working
 ────────────────────────────────────────────────────────────────────────────────
 ┌─ M0-03 Makefile ─────────────────────────────────────────────────────────────┐
 │ rank sonnet → model sonnet                                                   │
 │ mode plan · 4m12s                                                            │
-│ state: working                                                               │
+│ ● Working                                                                    │
 │ FAIL TestParse: a line long enough to be clipped at the card's width in eve… │
 │ ✻ Thinking… (esc to interrupt)                                               │
 │ >                                                                            │

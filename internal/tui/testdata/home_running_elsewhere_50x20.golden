@@ -1,7 +1,7 @@
 igris · sinjal · herdr ✓                 ● Working
 ──────────────────────────────────────────────────
-RUNNING in another igris · pid 4242 on this host ·
-since 09:12
+▲ Running elsewhere · in another igris · pid 4242
+on this host · since 09:12
 ● M2-02  Lock file          opus · mode plan · 14m
 recent: M2-01 done · M2-02 running
 This screen only watches. Use that terminal to
@@ -10,9 +10,9 @@ control the run.
   ✓ M0  Foundations                      3/3 done
   ✓ M1  Plan parser                      2/2 done
 › ● M2  Config & state                   1/4 next
-  ⨯ M3  Engine                           0/3 wait
+  ◌ M3  Engine                           0/3 wait
 ── HEALTH ────────────────────────────────────────
-✓ plan valid  ! doctor: 1 warning
+✓ plan valid  ▲ doctor: 1 warning
 ── RECENT ────────────────────────────────────────
 Oct 07 09:12  M2, M3  1 done · running
 

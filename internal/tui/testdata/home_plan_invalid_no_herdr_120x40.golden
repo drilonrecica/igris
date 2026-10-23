@@ -1,4 +1,4 @@
-igris · sinjal · tasks.md · herdr ⨯ · mode auto                                                                     Idle
+igris · sinjal · tasks.md · herdr ✗ · mode auto                                                                     Idle
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 PHASES                                                     │ PLAN INVALID · tasks.md · 4 problems
 plan invalid — Check shows the problems                    │ tasks.md:5: M9-02 depends on unknown task M9-01; check the…
@@ -8,8 +8,8 @@ plan invalid — Check shows the problems                    │ tasks.md:5: M9-
                                                            │ Adapt needs herdr (not reachable): run igris inside a herdr
                                                            │ pane.
                                                            │ ── HEALTH ─────────────────────────────────────────────────
-                                                           │ ⨯ plan invalid · 4 problems
-                                                           │ ! doctor: 1 warning — uncommitted changes
+                                                           │ ✗ plan invalid · 4 problems
+                                                           │ ▲ doctor: 1 warning — uncommitted changes
                                                            │ ── RECENT ─────────────────────────────────────────────────
                                                            │ no runs yet
                                                            │

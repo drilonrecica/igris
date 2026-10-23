@@ -1,8 +1,8 @@
-igris · sinjal · M0 · 3/7              ! Needs you
+igris · sinjal · M0 · 3/7 · mode plan  ! Needs you
 ──────────────────────────────────────────────────
 ┌─ M0-05 Buy the domain ─────────────────────────┐
 │ user task · 0s                                 │
-│ state: YOUR TURN                               │
+│ ! Needs you · your turn                        │
 │ Yours to do outside igris (no session).        │
 │ Then: d done · s skip                          │
 │ pick a registrar, buy it, then press d         │

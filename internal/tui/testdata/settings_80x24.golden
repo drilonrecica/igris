@@ -3,7 +3,7 @@ igris · sinjal · Settings · igris.toml                                      I
 /src/sinjal/igris.toml
 
 PROBLEMS
-  ! warn  notify.webhook.url uses http://, so the payload (and its signature) go
+  ▲ warn  notify.webhook.url uses http://, so the payload (and its signature) go
           unencrypted; use an https:// URL
 
 plan              = "tasks.md" · default
@@ -21,4 +21,4 @@ opus   = "opus" · default
 sonnet = "sonnet" · default
 
 ────────────────────────────────────────────────────────────────────────────────
-[e Edit igris.toml] [i Doctor] [q Back]
+[e Edit igris.toml] [i Doctor] [q Close]

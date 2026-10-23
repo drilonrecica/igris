@@ -1,9 +1,9 @@
 igris · sinjal · Notify test · 1 failure      Idle
 ──────────────────────────────────────────────────
   needs_input  ntfy         ✓ ok
-  needs_input  discord      ⨯ FAILED: discord
-                            answered 400 Bad
-                            Request
+  needs_input  discord      ✗ FAILED: discord
+                              answered 400 Bad
+                              Request
   phase_done   ntfy         ✓ ok
 
 
@@ -17,4 +17,4 @@ igris · sinjal · Notify test · 1 failure      Idle
 
 
 ──────────────────────────────────────────────────
-[n Send again] [q Back]
+[n Send again] [q Close]

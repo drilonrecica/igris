@@ -9,10 +9,10 @@ from Settings.
   ✓ M0  Foundations                      3/3 done
   ✓ M1  Plan parser                      2/2 done
 › · M2  Config & state                   1/4 next
-  ⨯ M3  Engine                           0/3 wait
-  ⨯ M4  TUI                              0/2 wait
+  ◌ M3  Engine                           0/3 wait
+  ◌ M4  TUI                              0/2 wait
 ── HEALTH ────────────────────────────────────────
-✓ plan valid  ⨯ doctor: 1 failure
+✓ plan valid  ✗ doctor: 1 failure
 ── RECENT ────────────────────────────────────────
 Oct 06 21:10  M2  3 done · 1 skipped · stopped
 

@@ -4,10 +4,10 @@ PHASES                                                     │ READY · phase M2
   ✓ M0  Foundations                   ██████████ 3/3 done  │ next  · M2-02  Lock file                             opus
   ✓ M1  Plan parser                   ██████████ 2/2 done  │ then  · M2-03  State file                            sonnet
 › · M2  Config & state                ██░░░░░░░░ 1/4 next  │ 3 left · 2 wait on M2-02
-  ⨯ M3  Engine                        ░░░░░░░░░░ 0/3 wait  │ last run M0, M1 completed
-  ⨯ M4  TUI                           ░░░░░░░░░░ 0/2 wait  │ ── HEALTH ─────────────────────────────────────────────────
+  ◌ M3  Engine                        ░░░░░░░░░░ 0/3 wait  │ last run M0, M1 completed
+  ◌ M4  TUI                           ░░░░░░░░░░ 0/2 wait  │ ── HEALTH ─────────────────────────────────────────────────
                                                            │ ✓ plan valid · 5 phases · 14 tasks
-                                                           │ ! doctor: 1 warning — uncommitted changes
+                                                           │ ▲ doctor: 1 warning — uncommitted changes
                                                            │ ── RECENT ─────────────────────────────────────────────────
                                                            │ Oct 06 21:10  M2  3 done · 1 skipped · stopped
                                                            │ Oct 05 18:02  M1  6 done · completed

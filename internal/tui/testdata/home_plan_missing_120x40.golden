@@ -11,8 +11,8 @@ tasks.md not found                                         │ ✓ 1 igris.toml 
                                                            │ spec or an issue export; or write your own at
                                                            │ /src/sinjal/tasks.md.
                                                            │ ── HEALTH ─────────────────────────────────────────────────
-                                                           │ ⨯ plan missing · tasks.md not found
-                                                           │ ! doctor: 1 warning — uncommitted changes
+                                                           │ ✗ plan missing · tasks.md not found
+                                                           │ ▲ doctor: 1 warning — uncommitted changes
                                                            │ ── RECENT ─────────────────────────────────────────────────
                                                            │ no runs yet
                                                            │

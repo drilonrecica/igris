@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/drilonrecica/igris/internal/checks"
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/report"
 )
@@ -20,7 +21,7 @@ import (
 // ---- doctor ----
 
 // doctorScreen lists doctor's results, one row each: a glyph and a word
-// (`✓ ok`, `! warn`, `⨯ fail`) then the message. The selected row expands
+// (`✓ ok`, `▲ warn`, `✗ fail`) then the message. The selected row expands
 // to its next step, and the page offers the row's own safe action.
 type doctorScreen struct {
 	home *homeScreen
@@ -226,9 +227,9 @@ func (s *doctorScreen) View() string {
 func levelWord(l checks.Level) (string, tone) {
 	switch l {
 	case checks.Fail:
-		return glyphs[plan.Blocked] + " fail", lookAlert
+		return look.GlyphFail + " fail", lookFail
 	case checks.Warn:
-		return "! warn", lookAlert
+		return look.GlyphWarn + " warn", lookWarn
 	}
 	return glyphs[plan.Done] + " ok", lookAccent
 }
@@ -283,7 +284,7 @@ func (s *doctorScreen) body(w int) []string {
 	return out
 }
 
-// wordW is the width of the widest level word ("⨯ fail").
+// wordW is the width of the widest level word ("✗ fail").
 const wordW = 6
 
 // rowLines lays one result out: its level and message, and when it is
@@ -550,7 +551,7 @@ func (s *historyScreen) body(w int) []string {
 	case !s.loaded:
 		return []string{th.paint(lookDim, "reading the run log…")}
 	case s.err != nil:
-		return painted(th, lookAlert, "", "the run log can't be read: "+errText(s.err), w)
+		return paintedMark(th, lookFail, look.GlyphFail, "the run log can't be read: "+errText(s.err), w)
 	case len(s.runs) == 0:
 		return []string{th.paint(lookDim, "none: igris hasn't run yet")}
 	}
@@ -615,12 +616,14 @@ func (s *historyScreen) runLines(w int) (out []string, owner []int, selAt int) {
 // endLook dims what ended well; a run that stopped short stands out.
 func endLook(end string) tone {
 	switch end {
-	case "completed":
+	case "completed", "stopped":
 		return lookPlain
 	case report.EndRunning:
 		return lookAccent
+	case "error":
+		return lookFail
 	}
-	return lookAlert
+	return lookWarn // stuck, interrupted
 }
 
 // taskLines are one run's facts, then its tasks.
@@ -642,7 +645,7 @@ func (s *historyScreen) taskLines(w int) (out []string, owner []int, selAt int) 
 		add(-1, painted(th, lookDim, "", plural(n, "commit")+": "+strings.Join(r.Commits, " "), w)...)
 	}
 	for _, e := range r.Errors {
-		add(-1, painted(th, lookAlert, "! ", e, w)...)
+		add(-1, paintedMark(th, lookFail, look.GlyphFail, e, w)...)
 	}
 	add(-1, "")
 	if len(r.Tasks) == 0 {

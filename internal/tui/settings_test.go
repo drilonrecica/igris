@@ -86,7 +86,7 @@ func TestSettingsPageHidesSecrets(t *testing.T) {
 			t.Errorf("the settings page shows a secret (%q):\n%s", bad, v)
 		}
 	}
-	for _, want := range []string{"token  = set (env:NTFY_TOKEN)", "webhook_url = set (hidden)", `verify              = "make test"`, `plan              = "tasks.md" · default`, `"Depends on" = "Deps"`, "! warn", "[notify.ntfy]"} {
+	for _, want := range []string{"token  = set (env:NTFY_TOKEN)", "webhook_url = set (hidden)", `verify              = "make test"`, `plan              = "tasks.md" · default`, `"Depends on" = "Deps"`, "▲ warn", "[notify.ntfy]"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the settings page lacks %q:\n%s", want, v)
 		}
@@ -98,7 +98,7 @@ func TestSettingsPageHidesSecrets(t *testing.T) {
 	inv := newSettingsScreen(homeAt(th, 120, 80, settingsInvalidFix()))
 	sized(inv, 120, 80)
 	v = inv.View()
-	if p, d := strings.Index(v, "PROBLEMS"), strings.Index(v, "plan "); p < 0 || d < p || !strings.Contains(v, "⨯ fail") {
+	if p, d := strings.Index(v, "PROBLEMS"), strings.Index(v, "plan "); p < 0 || d < p || !strings.Contains(v, "✗ fail") {
 		t.Errorf("problems don't come first:\n%s", v)
 	}
 }
@@ -227,10 +227,10 @@ func TestEditedRevalidates(t *testing.T) {
 		want string
 	}{
 		{"config ok", readyFix(), editTarget{path: cfgPath}, nil, "✓ igris.toml valid"},
-		{"config bad", settingsInvalidFix(), editTarget{path: cfgPath}, nil, "⨯ igris.toml: 2 problems — Settings"},
-		{"config exit", settingsInvalidFix(), editTarget{path: cfgPath}, exitErr(3), "editor exited with status 3; file reloaded · ⨯ igris.toml: 2 problems — Settings"},
+		{"config bad", settingsInvalidFix(), editTarget{path: cfgPath}, nil, "✗ igris.toml: 2 problems — Settings"},
+		{"config exit", settingsInvalidFix(), editTarget{path: cfgPath}, exitErr(3), "editor exited with status 3; file reloaded · ✗ igris.toml: 2 problems — Settings"},
 		{"plan ok", readyFix(), editTarget{path: planPath, plan: true}, nil, "✓ tasks.md valid"},
-		{"plan bad", invalidFix(), editTarget{path: planPath, plan: true}, nil, "⨯ tasks.md: "},
+		{"plan bad", invalidFix(), editTarget{path: planPath, plan: true}, nil, "✗ tasks.md: "},
 		{"not run", readyFix(), editTarget{path: planPath, plan: true}, errors.New("exec: \"nvim\": not found\x1b[31m"), "the editor didn't run: exec: \"nvim\": not found; check $VISUAL / $EDITOR"},
 	}
 	for _, tt := range tests {

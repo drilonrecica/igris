@@ -12,7 +12,7 @@ tasks.md not found
 
 
 ── HEALTH ────────────────────────────────────────
-⨯ plan missing  ! doctor: 1 warning
+✗ plan missing  ▲ doctor: 1 warning
 ── RECENT ────────────────────────────────────────
 no runs yet
 

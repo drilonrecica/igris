@@ -1,11 +1,11 @@
-igris · sinjal · tasks.md · herdr … · mode auto                                                                     Idle
+igris · sinjal · tasks.md · herdr ◌ · mode auto                                                                     Idle
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 PHASES                                                     │ READY · phase M2 Config & state
   ✓ M0  Foundations                   ██████████ 3/3 done  │ next  · M2-02  Lock file                             opus
   ✓ M1  Plan parser                   ██████████ 2/2 done  │ then  · M2-03  State file                            sonnet
 › · M2  Config & state                ██░░░░░░░░ 1/4 next  │ 3 left · 2 wait on M2-02
-  ⨯ M3  Engine                        ░░░░░░░░░░ 0/3 wait  │ checking herdr…
-  ⨯ M4  TUI                           ░░░░░░░░░░ 0/2 wait  │ ── HEALTH ─────────────────────────────────────────────────
+  ◌ M3  Engine                        ░░░░░░░░░░ 0/3 wait  │ checking herdr…
+  ◌ M4  TUI                           ░░░░░░░░░░ 0/2 wait  │ ── HEALTH ─────────────────────────────────────────────────
                                                            │ ✓ plan valid · 5 phases · 14 tasks
                                                            │ … doctor: checking
                                                            │ ── RECENT ─────────────────────────────────────────────────

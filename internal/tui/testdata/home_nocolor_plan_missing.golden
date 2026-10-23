@@ -11,8 +11,8 @@
                                                            │ spec or an issue export; or write your own at
                                                            │ /src/sinjal/tasks.md.
                                                            │ ── [1mHEALTH[0m ─────────────────────────────────────────────────
-                                                           │ [2m⨯ plan missing · tasks.md not found[0m
-                                                           │ [1m! doctor: 1 warning — uncommitted changes[0m
+                                                           │ [2m✗ plan missing · tasks.md not found[0m
+                                                           │ ▲ doctor: 1 warning — uncommitted changes
                                                            │ ── [1mRECENT[0m ─────────────────────────────────────────────────
                                                            │ [2mno runs yet[0m
                                                            │

@@ -2,8 +2,8 @@ igris · Preview · M2 through M3
 ──────────────────────────────────────────────────
 note: the last run stopped during M2-02; a real
 run picks it up first
-warning: M2-04 asks for model fable, which
-igris.toml doesn't define
+▲ M2-04 asks for model fable, which igris.toml
+  doesn't define
 nothing is written and no session starts
 
   1. M2-02 sonnet → sonnet · mode plan · resumed:
@@ -17,4 +17,4 @@ nothing is written and no session starts
      Buy the domain
       phase M2 complete
 ──────────────────────────────────────────────────
-[a Arise…] [v Again] [q Back]
+[a Arise…] [v Again] [q Close]

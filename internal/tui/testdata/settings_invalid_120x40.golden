@@ -3,8 +3,8 @@ igris · sinjal · Settings · igris.toml                                       
 /src/sinjal/igris.toml
 
 PROBLEMS
-  ⨯ fail  default_mode = "fast" is invalid; use one of: default, accept, auto, plan, yolo
-  ⨯ fail  run.verify_max_attempts must be at least 1
+  ✗ fail  default_mode = "fast" is invalid; use one of: default, accept, auto, plan, yolo
+  ✗ fail  run.verify_max_attempts must be at least 1
 Until igris.toml is fixed, igris uses the defaults below.
 
 plan              = "tasks.md" · default
@@ -37,4 +37,4 @@ prompt_template     = "" · default
 worktree            = false · default
 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-[e Edit igris.toml] [i Doctor] [q Back]
+[e Edit igris.toml] [i Doctor] [q Close]

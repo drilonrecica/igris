@@ -3,7 +3,7 @@ igris · sinjal · M0 · slice 1/3          ● Working
 ┌─ M0-03 Makefile ───────────────────────────────┐
 │ rank sonnet → model sonnet                     │
 │ mode plan · 4m12s · ≈ 10m left                 │
-│ state: working                                 │
+│ ● Working                                      │
 │ fmt, lint, test                                │
 │ [o] Open session  [t] Details                  │
 └────────────────────────────────────────────────┘

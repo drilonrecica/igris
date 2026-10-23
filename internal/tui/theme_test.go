@@ -244,7 +244,7 @@ func TestRankColors(t *testing.T) {
 
 func TestThemeForLightAndDark(t *testing.T) {
 	dark, light := colorTheme(t, true, nil), colorTheme(t, false, nil)
-	if dark.looks[lookAccent].color != "#3CC8FF" || light.looks[lookAccent].color != "#0A86C8" {
+	if dark.looks[lookAccent].color != "#3CC8FF" || light.looks[lookAccent].color != "#0A6FA8" {
 		t.Errorf("accent: dark %q, light %q", dark.looks[lookAccent].color, light.looks[lookAccent].color)
 	}
 	if dark.ranks["fable"] == light.ranks["fable"] || light.ranks["fable"] == "" {
@@ -270,7 +270,7 @@ func TestSkipPermissionsBadgeIsPainted(t *testing.T) {
 	if n := strings.Count(v, skipBadge+sgrReset); n < 2 { // the header and the log
 		t.Errorf("%d painted badges, want the header's and the log's:\n%q", n, v)
 	}
-	if !strings.Contains(strip(v), "mode: yolo "+skipBadge) {
+	if !strings.Contains(strip(v), "mode yolo "+skipBadge) {
 		t.Errorf("the badge lost its words:\n%s", strip(v))
 	}
 }

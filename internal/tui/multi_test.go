@@ -148,7 +148,7 @@ func TestNeedsYouIsOneQueueInPlanOrder(t *testing.T) {
 	if d := hs.m.dialog; d == nil || d.task != "M1-05" {
 		t.Fatalf("dialog %+v, want M1-05's still", d)
 	}
-	if v := hs.m.View(); !strings.Contains(v, "needs you: M1-03, M1-05") {
+	if v := hs.m.View(); !strings.Contains(v, "needs you M1-03, M1-05") {
 		t.Errorf("header lacks the queue in plan order:\n%s", v)
 	}
 	// Esc leaves both pending; Answer… opens the first in plan order.

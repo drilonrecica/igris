@@ -19,7 +19,7 @@ type page struct {
 	// buttons stand left of Back in the bar; the screen holding the page
 	// acts on their zones.
 	buttons []button
-	// closeLabel names the bar's last button (actClose); "" is Back.
+	// closeLabel names the bar's last button (actClose); "" is Close.
 	closeLabel string
 	top        int // first body line shown; clamped when drawn
 	rows       int // body lines shown in the last frame
@@ -98,7 +98,7 @@ func (p *page) render(th *theme, w, h int) ([]string, zones) {
 	out = append(out, th.rule(w, ""))
 	closeLabel := p.closeLabel
 	if closeLabel == "" {
-		closeLabel = "Back"
+		closeLabel = "Close"
 	}
 	btns := append(slices.Clone(p.buttons), button{label: closeLabel, key: "q", act: actClose})
 	bar := layoutBar(th, btns, w, 1, actNone, false, nil)

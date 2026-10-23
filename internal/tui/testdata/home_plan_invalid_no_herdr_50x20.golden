@@ -1,4 +1,4 @@
-igris · sinjal · herdr ⨯                      Idle
+igris · sinjal · herdr ✗                      Idle
 ──────────────────────────────────────────────────
 PLAN INVALID · tasks.md · 4 problems
 tasks.md:5: M9-02 depends on unknown task M9-01; …
@@ -12,7 +12,7 @@ plan invalid — Check shows the problems
 
 
 ── HEALTH ────────────────────────────────────────
-⨯ plan invalid  ! doctor: 1 warning
+✗ plan invalid  ▲ doctor: 1 warning
 ── RECENT ────────────────────────────────────────
 no runs yet
 

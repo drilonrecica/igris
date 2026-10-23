@@ -4,8 +4,8 @@ PHASES                                                     │ LOCKED by a run o
   ✓ M0  Foundations                   ██████████ 3/3 done  │ can't tell if it is alive
   ✓ M1  Plan parser                   ██████████ 2/2 done  │ Arise asks before clearing the lock.
 › · M2  Config & state                ██░░░░░░░░ 1/4 next  │ ── HEALTH ─────────────────────────────────────────────────
-  ⨯ M3  Engine                        ░░░░░░░░░░ 0/3 wait  │ ✓ plan valid · 5 phases · 14 tasks
-  ⨯ M4  TUI                           ░░░░░░░░░░ 0/2 wait  │ ! doctor: 1 warning — uncommitted changes
+  ◌ M3  Engine                        ░░░░░░░░░░ 0/3 wait  │ ✓ plan valid · 5 phases · 14 tasks
+  ◌ M4  TUI                           ░░░░░░░░░░ 0/2 wait  │ ▲ doctor: 1 warning — uncommitted changes
                                                            │ ── RECENT ─────────────────────────────────────────────────
                                                            │ Oct 06 21:10  M2  3 done · 1 skipped · stopped
                                                            │ Oct 05 18:02  M1  6 done · completed

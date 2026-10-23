@@ -65,7 +65,7 @@ func TestOnboardingFirstRunReachesArise(t *testing.T) {
 	svc.initSteps = initSteps
 	tm := appProgram(t, svc, 120, 40)
 
-	seen(t, tm, "GET STARTED", "⨯ 1 igris.toml", "[›I Init‹]")
+	seen(t, tm, "GET STARTED", "✗ 1 igris.toml", "[›I Init‹]")
 	tm.Type("I")
 	seen(t, tm, ".gitignore", ".claude/settings.local.json", "1. Create files")
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
@@ -158,7 +158,7 @@ func TestOnboardingNonCanonicalPlanOffersCheckAndAdapt(t *testing.T) {
 	f.snap.NoConfig, f.snap.ConfigPath = true, "/src/sinjal/igris.toml"
 	a, _ := planApp(t, f)
 	v := a.View()
-	for _, want := range []string{"GET STARTED", "⨯ 1 igris.toml", "tasks.md:", "Check", "Adapt"} {
+	for _, want := range []string{"GET STARTED", "✗ 1 igris.toml", "tasks.md:", "Check", "Adapt"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("no %q:\n%s", want, v)
 		}

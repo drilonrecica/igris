@@ -120,7 +120,7 @@ func TestDoctorPageWordsAndExpansion(t *testing.T) {
 	s := newDoctorScreen(h)
 	sized(s, 120, 40)
 	v := s.View()
-	for _, want := range []string{"✓ ok", "! warn", "⨯ fail", "igris.toml:7:", "edit igris.toml, then igris doctor", "next: ", "5 checks · 1 fail · 2 warn"} {
+	for _, want := range []string{"✓ ok", "▲ warn", "✗ fail", "igris.toml:7:", "edit igris.toml, then igris doctor", "next: ", "5 checks · 1 fail · 2 warn"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("doctor page lacks %q:\n%s", want, v)
 		}
@@ -256,7 +256,7 @@ func TestHistoryPageLevels(t *testing.T) {
 	}
 	press(a, "enter")
 	v = a.View()
-	for _, want := range []string{"run Oct 07 07:12", "1 commit: a1b2c3d", "! M2-02: verify failed twice", "M2-01", "sonnet → sonnet", "unfinished · opus → opus · 2 attempts · 40m"} {
+	for _, want := range []string{"run Oct 07 07:12", "1 commit: a1b2c3d", "✗ M2-02: verify failed twice", "M2-01", "sonnet → sonnet", "unfinished · opus → opus · 2 attempts · 40m"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("tasks level lacks %q:\n%s", want, v)
 		}

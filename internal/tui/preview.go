@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/textsafe"
 )
@@ -173,7 +174,7 @@ func (s *previewScreen) body(w int) []string {
 		out = append(out, hang("", "note: the last run stopped during "+r.Interrupted+"; a real run picks it up first", w)...)
 	}
 	for _, x := range r.Warnings {
-		out = append(out, painted(th, lookAlert, "", "warning: "+x, w)...)
+		out = append(out, paintedMark(th, lookWarn, look.GlyphWarn, x, w)...)
 	}
 	if r.Scope != "" {
 		out = append(out, th.paint(lookDim, fit("nothing is written and no session starts", w)))
@@ -186,7 +187,7 @@ func (s *previewScreen) body(w int) []string {
 		out = append(out, s.step(st, w)...)
 	}
 	if s.err != nil {
-		out = append(out, painted(th, lookAlert, "", "the dry run failed: "+errText(s.err), w)...)
+		out = append(out, paintedMark(th, lookFail, look.GlyphFail, "the dry run failed: "+errText(s.err), w)...)
 	}
 	if r.Scope != "" && s.err == nil {
 		out = append(out, "", th.paint(lookTitle, "Total: ")+plural(r.Sessions, "session")+" · "+plural(r.Users, "user task"))
@@ -204,6 +205,21 @@ func painted(th *theme, l tone, prefix, text string, w int) []string {
 			lead = strings.Repeat(" ", textWidth(prefix))
 		}
 		out = append(out, lead+th.paint(l, line))
+	}
+	return out
+}
+
+// paintedMark is painted with a glyph before the text, both in l; the
+// continuation lines hang under the text.
+func paintedMark(th *theme, l tone, glyph, text string, w int) []string {
+	lead := glyph + " "
+	var out []string
+	for i, line := range wrap(text, w-textWidth(lead)) {
+		if i == 0 {
+			out = append(out, th.paint(l, glyph)+" "+th.paint(l, line))
+			continue
+		}
+		out = append(out, strings.Repeat(" ", textWidth(lead))+th.paint(l, line))
 	}
 	return out
 }
@@ -236,7 +252,7 @@ func (s *previewScreen) step(st report.DryStep, w int) []string {
 		return []string{strings.Repeat(" ", indent) + th.paint(lookDim, fit("phase "+st.Phase+" complete", w-indent))}
 	case report.StepWarning:
 		if len(st.Lines) > 0 {
-			return painted(th, lookAlert, "", "warning: "+st.Lines[0], w)
+			return paintedMark(th, lookWarn, look.GlyphWarn, st.Lines[0], w)
 		}
 	case report.StepNote:
 		var out []string

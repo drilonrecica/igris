@@ -37,4 +37,4 @@ worktree            = false · default
 [adapt]
 model = "sonnet" · default
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-[e Edit igris.toml] [i Doctor] [q Back]
+[e Edit igris.toml] [i Doctor] [q Close]

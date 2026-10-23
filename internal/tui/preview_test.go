@@ -71,7 +71,7 @@ func TestPreviewGolden(t *testing.T) {
 // Under NO_COLOR the badge and warnings are still told in words.
 func TestPreviewNoColor(t *testing.T) {
 	view := previewAt(noColorTheme(t), 120, 40, previewDry(), nil).View()
-	for _, want := range []string{"[SKIP PERMISSIONS]", "warning:", "resumed: fresh session", "opus → opus", "3 sessions · 1 user task"} {
+	for _, want := range []string{"[SKIP PERMISSIONS]", "▲ phase M3 is stuck", "resumed: fresh session", "opus → opus", "3 sessions · 1 user task"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("view lacks %q:\n%s", want, view)
 		}

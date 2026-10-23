@@ -77,7 +77,8 @@ func (m *model) needsOwner() bool {
 // wide reports whether the frame uses the wide layout.
 func (m *model) wide() bool { return m.width >= wideWidth && m.height >= wideMinHeight }
 
-// stateText says what c's task needs, in words.
+// stateText is c's state line (SPEC §15.4): the task's glyph and a short
+// phrase in sentence case, the status words' vocabulary and no other.
 func (m *model) stateText(c *current) string {
 	switch c.state {
 	case stateNeedsYou:
@@ -85,19 +86,19 @@ func (m *model) stateText(c *current) string {
 		if c.waiting {
 			word = "waiting"
 		}
-		return fmt.Sprintf("NEEDS YOU (%s %s)", word, since(m.opts.Now(), c.since))
+		return fmt.Sprintf("%s · %s %s", look.NeedsYou.Label(), word, since(m.opts.Now(), c.since))
 	case stateWaiting:
-		return fmt.Sprintf("waiting on background work (%s)", since(m.opts.Now(), c.since))
+		return fmt.Sprintf("%s Waiting on background work · %s", look.GlyphWaiting, since(m.opts.Now(), c.since))
 	case stateYourTurn:
-		return "YOUR TURN"
+		return look.NeedsYou.Label() + " · your turn"
 	case stateVerifying:
-		return "verifying"
+		return look.GlyphRunning + " Verifying"
 	case stateQuestion:
-		return "WAITING FOR YOUR ANSWER"
+		return look.NeedsYou.Label() + " · your answer"
 	case stateLost:
-		return "SESSION LOST"
+		return look.NeedsYou.Label() + " · session lost"
 	}
-	return "working"
+	return look.Working.Label()
 }
 
 // logRows is how many log lines the frame shows.
@@ -128,6 +129,8 @@ func stateLook(c *current) tone {
 	case stateNeedsYou, stateYourTurn, stateQuestion, stateLost:
 		return lookAlert
 	case stateVerifying:
+		return lookAccent
+	case stateWorking:
 		return lookAccent
 	}
 	return lookPlain

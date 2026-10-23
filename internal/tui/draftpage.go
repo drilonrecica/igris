@@ -12,7 +12,7 @@ import (
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/draft"
-	"github.com/drilonrecica/igris/internal/plan"
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
@@ -470,7 +470,7 @@ func (s *draftScreen) body(w int) []string {
 	}
 	if s.err != nil {
 		out = append(out, "")
-		out = append(out, painted(th, lookAlert, glyphs[plan.Blocked]+" ", "draft failed: "+errText(s.err), w)...)
+		out = append(out, paintedMark(th, lookFail, look.GlyphFail, "draft failed: "+errText(s.err), w)...)
 		out = append(out, wrap("Nothing was written.", w)...)
 	} else if s.ref != nil {
 		out = append(out, "")

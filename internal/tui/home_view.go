@@ -3,6 +3,7 @@ package tui
 import (
 	"strings"
 
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/plan"
 )
 
@@ -215,10 +216,10 @@ func (m *homeScreen) lineRows(first int, lines []homeLine, x, y, w int) []string
 // out, what is fine recedes.
 func (m *homeScreen) paintLine(text string) string {
 	switch {
-	case strings.HasPrefix(text, glyphs[plan.Blocked]+" "):
-		return m.th.paint(lookAlert, text)
-	case strings.HasPrefix(text, "! "):
-		return m.th.paint(lookTitle, text)
+	case strings.HasPrefix(text, look.GlyphFail+" "):
+		return m.th.paint(lookFail, text)
+	case strings.HasPrefix(text, look.GlyphWarn+" "):
+		return m.th.paint(lookWarn, text)
 	case strings.HasPrefix(text, glyphs[plan.Done]+" "):
 		return m.th.paint(lookDim, text)
 	}

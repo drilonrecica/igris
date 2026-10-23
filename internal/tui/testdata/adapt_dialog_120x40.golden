@@ -6,8 +6,8 @@ plan invalid — Check shows the problems                    │ tasks.md:5: M9-
                                                            │ tasks.md:7: M9-04: unknown model rank "gpt"; add it to [mo…
                                                            │ … 1 more — Check shows all
                                                            │ ── HEALTH ─────────────────────────────────────────────────
-                                                           │ ⨯ plan invalid · 4 problems
-                                                           │ ! doctor: 3 warnings — unknown key tui.moose
+                                                           │ ✗ plan invalid · 4 problems
+                                                           │ ▲ doctor: 3 warnings — unknown key tui.moose
                                                            │ ── RECENT ─────────────────────────────────────────────────
                         ╭──────────────────────────────────────────────────────────────────────╮d · stopped
                         │ Adapt tasks.md?                                                      │d

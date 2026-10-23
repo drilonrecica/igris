@@ -149,9 +149,9 @@ func TestReviewView(t *testing.T) {
 	}
 	for _, want := range []string{
 		"review tasks.md",
-		"⨯ the proposal has 1 problem(s)",
+		"✗ the proposal has 1 problem",
 		"+3 −3 lines",
-		"⨯ p.md:5: W-1: model not set yet",
+		"✗ p.md:5: W-1: model not set yet",
 		"- | Key | What | State | LLM |",
 		"+ | ID | Task | Status | Model |",
 		"[›r Reject‹]", "[a Accept]",
@@ -249,7 +249,7 @@ func TestReviewFoldsUnchangedLines(t *testing.T) {
 	proposed[20] = "changed"
 	rh := newReviewHarness(t, 80, 40, ReviewOptions{PlanPath: "p.md", Review: adapt.Review{Prose: adapt.Diff(old, proposed)}})
 	out := rh.r.View()
-	for _, want := range []string{"⋯ 17 unchanged line(s)", "⋯ 16 unchanged line(s)", "  line 17", "- line 20", "+ changed", "  line 23"} {
+	for _, want := range []string{"⋯ 17 unchanged lines", "⋯ 16 unchanged lines", "  line 17", "- line 20", "+ changed", "  line 23"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("view missing %q:\n%s", want, out)
 		}
@@ -310,7 +310,7 @@ func TestReviewNoColorKeepsMarkers(t *testing.T) {
 	rh := newReviewHarness(t, 80, 20, reviewOpts("x"))
 	rh.r.th = noColorTheme(t)
 	out := strip(rh.r.View())
-	for _, want := range []string{"⨯ the proposal", "- # Widgets", "+ ## W — Widgets", "[›r Reject‹]"} {
+	for _, want := range []string{"✗ the proposal", "- # Widgets", "+ ## W — Widgets", "[›r Reject‹]"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("NO_COLOR view missing %q:\n%s", want, out)
 		}
