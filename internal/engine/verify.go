@@ -118,11 +118,11 @@ func (e *Engine) verified(ctx context.Context, l *launch, profile, script string
 	if err := e.dir.RemoveSignal(t.ID); err != nil {
 		return false, err
 	}
-	e.emit(Event{Kind: VerifyFailed, Detail: fmt.Sprintf("%s (`%s`) failed (%s), attempt %d of %d", profile, script, why, n, max)})
+	e.emit(Event{Kind: VerifyFailed, Detail: fmt.Sprintf("%s (`%s`) failed (%s), %s", profile, script, why, attemptText(n, max))})
 
 	if n >= max {
 		e.emit(Event{Kind: VerifyLimit, Detail: fmt.Sprintf("verify failed %s in a row; igris stops sending failures to the session", times(n))})
-		e.needsYou(ctx, notifyVerifyLimit, state.ReasonVerifyLimit, fmt.Sprintf("verification failed %s; fix it, retry or skip the task", times(n)), "")
+		e.needsYou(ctx, notifyVerifyLimit, state.ReasonVerifyLimit, fmt.Sprintf("verify failed %s; fix it, retry or skip the task", times(n)), "")
 		return false, nil
 	}
 	if l.lost {
@@ -144,6 +144,16 @@ func (e *Engine) verified(ctx context.Context, l *launch, profile, script string
 		e.needsYou(ctx, notifyNeedsInput, state.ReasonVerifyNotSent, "the verify failure could not be sent to the session; tell it yourself", "verify failure not sent to the session")
 	}
 	return false, nil
+}
+
+// attemptText is failure n of at most max in a row, in words: `attempt 2
+// of 3`, and past the limit, where failures no longer reach the session,
+// `4 failures in a row, past the limit of 3` (the run log keeps its fields).
+func attemptText(n, max int) string {
+	if n <= max {
+		return fmt.Sprintf("attempt %d of %d", n, max)
+	}
+	return fmt.Sprintf("%d failures in a row, past the limit of %d", n, max)
 }
 
 // check is the verify of a task in a parallel phase (SPEC §6.11). It

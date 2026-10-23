@@ -92,9 +92,11 @@ type Current struct {
 	Started time.Time `json:"started"`
 	// State is the card's state: working, your_turn, waiting, needs_you,
 	// verifying, lost or question, since Since; Detail says why.
-	State         string              `json:"state"`
-	Since         time.Time           `json:"since"`
-	Detail        string              `json:"detail,omitempty"`
+	State  string    `json:"state"`
+	Since  time.Time `json:"since"`
+	Detail string    `json:"detail,omitempty"`
+	// Reason is the run log's reason of a needs_you state (since 1.7).
+	Reason        string              `json:"reason,omitempty"`
 	Session       *backend.SessionRef `json:"session,omitempty"`
 	ClaudeSession string              `json:"claude_session,omitempty"`
 	// Waiting says the agent waits on background work (SPEC §6.3).
@@ -232,7 +234,7 @@ func (t *tracker) apply(raw engine.Event, ev Event) {
 		}
 	case engine.NeedsYou:
 		if c != nil && c.Waiting && c.State == StateWaiting {
-			c.State, c.Detail = StateNeedsYou, ev.Detail // the wait counts from its start
+			c.State, c.Detail, c.Reason = StateNeedsYou, ev.Detail, ev.Reason // the wait counts from its start
 			break
 		}
 		setState(c, StateNeedsYou, ev)
@@ -300,7 +302,7 @@ func setState(c *Current, s string, ev Event) {
 	if c == nil {
 		return
 	}
-	c.State, c.Since, c.Detail = s, ev.At, ev.Detail
+	c.State, c.Since, c.Detail, c.Reason = s, ev.At, ev.Detail, ev.Reason
 }
 
 // settle drops task id's question: a later event answered it.

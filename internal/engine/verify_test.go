@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -158,6 +159,33 @@ func TestVerifyLimit(t *testing.T) {
 	if got := h.count(VerifyLimit); got != 2 {
 		t.Errorf("%d verify_limit events, want one per failure at or over the limit", got)
 	}
+	// Past the limit a failure says so, never "attempt 3 of 2"; the run
+	// log keeps its fields (V17-17).
+	var failed, needs []string
+	for _, ev := range h.events {
+		switch ev.Kind {
+		case VerifyFailed:
+			failed = append(failed, ev.Detail)
+		case NeedsYou:
+			needs = append(needs, ev.Reason+": "+ev.Detail)
+		}
+	}
+	if want := []string{
+		"default (`make test`) failed (exit status 1), attempt 1 of 2",
+		"default (`make test`) failed (exit status 1), attempt 2 of 2",
+		"default (`make test`) failed (exit status 1), 3 failures in a row, past the limit of 2",
+	}; !slices.Equal(failed, want) {
+		t.Errorf("verify_failed details = %q, want %q", failed, want)
+	}
+	if want := []string{
+		"verify_limit: verify failed 2 times; fix it, retry or skip the task",
+		"verify_limit: verify failed 3 times; fix it, retry or skip the task",
+	}; !slices.Equal(needs, want) {
+		t.Errorf("needs you = %q, want %q", needs, want)
+	}
+	if got := h.logLines(state.EventVerifyFailed, "A-1"); len(got) != 3 || got[2].Detail != "profile default: attempt 3 of 2: exit status 1" {
+		t.Errorf("run log verify_failed = %+v", got)
+	}
 	if got := h.event(TaskDone, "A-1").Detail; got != "owner checked it" {
 		t.Errorf("A-1 done note %q", got)
 	}
@@ -265,6 +293,21 @@ func TestTailIsBoundedInBytes(t *testing.T) {
 }
 
 // Found in gate M5-06 with verify_max_attempts = 1: "verify failed 1 times".
+func TestAttemptText(t *testing.T) {
+	for _, c := range []struct {
+		n, max int
+		want   string
+	}{
+		{1, 3, "attempt 1 of 3"},
+		{3, 3, "attempt 3 of 3"},
+		{2, 1, "2 failures in a row, past the limit of 1"},
+	} {
+		if got := attemptText(c.n, c.max); got != c.want {
+			t.Errorf("attemptText(%d, %d) = %q, want %q", c.n, c.max, got, c.want)
+		}
+	}
+}
+
 func TestTimes(t *testing.T) {
 	for n, want := range map[int]string{1: "once", 2: "2 times", 3: "3 times"} {
 		if got := times(n); got != want {

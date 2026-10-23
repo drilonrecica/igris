@@ -520,9 +520,10 @@ func (m *homeScreen) herdrWhy() string {
 // taskTitleW is the title column of a task line.
 const taskTitleW = 22
 
-// taskLine is "● ID  title  rank" for the task id, w cells, with what
-// follows the rank (mode, time) in tail.
-func (m *homeScreen) taskLine(glyph, id, tail string, w int) string {
+// taskLine is "● ID  title  rank" for the running task id, w cells, with
+// what follows the rank (mode, time) in tail; "! ID" when it needs the
+// owner (SPEC §15.6).
+func (m *homeScreen) taskLine(id string, needs bool, tail string, w int) string {
 	title, rk := "", ""
 	if p := m.snap.Plan; p != nil {
 		if t := p.Task(id); t != nil {
@@ -533,12 +534,15 @@ func (m *homeScreen) taskLine(glyph, id, tail string, w int) string {
 	if rk == "" {
 		rest = tail
 	}
-	head := glyph + " " + id
+	head := m.th.paint(lookTitle, glyphs[plan.InProgress]+" "+id)
+	if needs {
+		head = m.th.paint(lookAlert, look.GlyphNeedsYou) + " " + m.th.paint(lookTitle, id)
+	}
 	titleW := min(w-textWidth(head)-2-textWidth(rest), taskTitleW)
 	if title == "" || titleW < 4 {
-		return fit(m.th.paint(lookTitle, head)+rest, w)
+		return fit(head+rest, w)
 	}
-	return fit(m.th.paint(lookTitle, head)+"  "+pad(fit(title, titleW), titleW)+rest, w)
+	return fit(head+"  "+pad(fit(title, titleW), titleW)+rest, w)
 }
 
 // runningCard is RUNNING: a run another igris on this host holds. A run
@@ -578,7 +582,7 @@ func (m *homeScreen) runningCard(w int) []string {
 		if t, err := time.Parse(time.RFC3339, s.Run.Since); err == nil {
 			tail += " · " + shortSince(m.now(), t)
 		}
-		out = append(out, m.th.marks(m.taskLine(glyphs[plan.InProgress], s.Run.Task, tail, w)))
+		out = append(out, m.th.marks(m.taskLine(s.Run.Task, s.Live.Needs(s.Run.Task), tail, w)))
 	default:
 		out = append(out, fit("between tasks · "+rangeText(s.Run.Phases, s.Run.Through), w))
 	}
@@ -672,7 +676,7 @@ func (m *homeScreen) runLines(w int) []string {
 	if r == nil || r.Task == "" {
 		return nil
 	}
-	out := []string{m.th.marks(m.taskLine(glyphs[plan.InProgress], r.Task, modeTail(r.Mode), w))}
+	out := []string{m.th.marks(m.taskLine(r.Task, false, modeTail(r.Mode), w))}
 	for _, l := range wrap("session: "+r.Session+" (Resume reattaches if it is still open)", w) {
 		if r.Session != "" {
 			out = append(out, m.th.paint(lookDim, l))

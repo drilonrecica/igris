@@ -204,17 +204,18 @@ func TestUserTaskCardHasNoSession(t *testing.T) {
 }
 
 // A session on another model says so on its card until the attempt ends
-// (SPEC §6.9), in words.
+// (SPEC §6.9), in words: on the Needs-you line while it needs the owner,
+// then a line of its own.
 func TestCardShowsRankMismatchUntilTheAttemptEnds(t *testing.T) {
 	for _, size := range cardSizes {
 		t.Run(fmt.Sprint(size), func(t *testing.T) {
 			hs := cardHarness(t, size[0], size[1], "M0-02")
 			hs.events(engine.Event{Kind: engine.RankMismatch, Task: "M0-02", Detail: "on claude-opus-5-5, not its rank sonnet"},
-				engine.Event{Kind: engine.NeedsYou, Task: "M0-02", Detail: "the session runs on claude-opus-5-5, not its rank sonnet; igris leaves it running"})
+				engine.Event{Kind: engine.NeedsYou, Task: "M0-02", Reason: state.ReasonRankMismatch, Detail: "on claude-opus-5-5, not its rank sonnet; igris leaves its session running"})
 			v := hs.m.View()
 			checkFits(t, v, size[0], size[1])
-			if !strings.Contains(v, "Rank mismatch") {
-				t.Errorf("card lacks the rank mismatch line:\n%s", v)
+			if !strings.Contains(v, "! Needs you") || !strings.Contains(v, "rank mismatch · on claude") || strings.Contains(v, "Rank mismatch") || strings.Contains(v, "idle") {
+				t.Errorf("card lacks one Needs-you line with the rank mismatch:\n%s", v)
 			}
 			hs.events(engine.Event{Kind: engine.NeedsYouClear, Task: "M0-02"})
 			if v := hs.m.View(); !strings.Contains(v, "Rank mismatch") {
@@ -234,14 +235,15 @@ func TestCardShowsOverdueUntilTheAttemptEnds(t *testing.T) {
 		t.Run(fmt.Sprint(size), func(t *testing.T) {
 			hs := cardHarness(t, size[0], size[1], "M0-02")
 			hs.events(engine.Event{Kind: engine.TaskOverdue, Task: "M0-02", Detail: "running longer than its Timeout 45m"},
-				engine.Event{Kind: engine.NeedsYou, Task: "M0-02", Detail: "the task is running longer than its Timeout 45m; igris leaves its session running"})
+				engine.Event{Kind: engine.NeedsYou, Task: "M0-02", Reason: state.ReasonTaskOverdue, Detail: "running longer than its Timeout 45m; igris leaves its session running"})
 			v := hs.m.View()
 			checkFits(t, v, size[0], size[1])
-			if !strings.Contains(v, "Overdue · running longer") {
-				t.Errorf("card lacks the overdue line:\n%s", v)
+			// One Needs-you line carries the reason, not two stacked states.
+			if !strings.Contains(v, "! Needs you") || !strings.Contains(v, "overdue · running longer") || strings.Contains(v, "Overdue") || strings.Contains(v, "idle") {
+				t.Errorf("card lacks one Needs-you line with the overdue reason:\n%s", v)
 			}
 			hs.events(engine.Event{Kind: engine.NeedsYouClear, Task: "M0-02"})
-			if v := hs.m.View(); !strings.Contains(v, "Overdue") {
+			if v := hs.m.View(); !strings.Contains(v, "▲ Overdue · running longer") {
 				t.Errorf("overdue cleared while the attempt runs:\n%s", v)
 			}
 			hs.events(engine.Event{Kind: engine.Retrying, Task: "M0-02", Detail: "fresh"})

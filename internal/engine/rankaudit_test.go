@@ -65,8 +65,8 @@ func TestRankMismatchLive(t *testing.T) {
 	if got := ev.At.Sub(h.event(SessionOpened, "A-1").At); got < 15*time.Second || got > 30*time.Second {
 		t.Errorf("rank_mismatch %s after the session opened, want at the next read", got)
 	}
-	if ny := h.event(NeedsYou, "A-1"); ny.Detail != "the session runs "+what+"; igris leaves it running" {
-		t.Errorf("needs you = %q", ny.Detail)
+	if ny := h.event(NeedsYou, "A-1"); ny.Detail != what+"; igris leaves its session running" || ny.Reason != state.ReasonRankMismatch {
+		t.Errorf("needs you = %q (%s)", ny.Detail, ny.Reason)
 	}
 	if got := h.toasts(); !slices.Contains(got, "request: phase A · A-1 One: "+what) {
 		t.Errorf("toasts = %q", got)

@@ -1,0 +1,24 @@
+igris · sinjal · M0 · 3/7 · 42% ███░░░ · mode plan · herdr           ! Needs you
+────────────────────────────────────────────────────────────────────────────────
+┌─ M0-03 Makefile ─────────────────────────────────────────────────────────────┐
+│ ! Needs you · verify failed 3 times · o opens the session                    │
+│ sonnet → sonnet · mode plan · 4m12s                                          │
+│ fix it, retry or skip the task                                               │
+│ fmt, lint, test                                                              │
+│ [o Open session] [t Details]                                                 │
+└──────────────────────────────────────────────────────────────────────────────┘
+── TASKS ───────────────────────────────────────────────────────────────────────
+ ✓ M0-01 Go module       ✓ M0-02 Entrypoint      ! M0-03 Makefile
+ · M0-04 Config loader   · M0-05 Buy the domain  ⨯ M0-13 Static assets
+ – M0-14 Old idea
+
+
+
+
+
+── LOG ─────────────────────────────────────────────────────────────────────────
+09:42 ✗ M0-03 verify failed · default (`make test`) failed (exit status 1), att…
+09:42 ✗ M0-03 verify failed 3 times in a row; igris stops sending failures to t…
+09:42 ! M0-03 needs you · verify failed 3 times; fix it, retry or skip the task
+[›o Open session‹] [m Mode] [M Task mode] [p Pause] [d Done] [r Retry…]
+[s Skip…] [x Stop…] [?] [q Quit]

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/drilonrecica/igris/internal/engine"
+	"github.com/drilonrecica/igris/internal/state"
 )
 
 // updating reports -update. The flag is registered by teatest's golden
@@ -136,6 +137,23 @@ var layoutStates = []struct {
 	{"question_closed", func(hs *harness) {
 		hs.events(started("M0-03"), opened("M0-03"), asked(engine.QuestionSessionLost, "the session of M0-03 is gone"))
 		hs.key("esc")
+	}},
+	{"verify_limit", func(hs *harness) {
+		// At its verify limit the card says why, and it stays so while the
+		// agent works on (no idle clock): the engine's events, in order.
+		hs.events(started("M0-03"), opened("M0-03"),
+			engine.Event{Kind: engine.VerifyStarted, Task: "M0-03", Detail: "make test", At: t0.Add(time.Minute)},
+			engine.Event{Kind: engine.VerifyFailed, Task: "M0-03", Detail: "default (`make test`) failed (exit status 1), attempt 3 of 3", At: t0.Add(time.Minute)},
+			engine.Event{Kind: engine.VerifyLimit, Task: "M0-03", Detail: "verify failed 3 times in a row; igris stops sending failures to the session", At: t0.Add(time.Minute)},
+			engine.Event{Kind: engine.NeedsYou, Task: "M0-03", Reason: state.ReasonVerifyLimit, Detail: "verify failed 3 times; fix it, retry or skip the task", At: t0.Add(time.Minute)})
+		hs.now = t0.Add(4*time.Minute + 12*time.Second)
+	}},
+	{"overdue", func(hs *harness) {
+		// An overdue task needs the owner on one line, not two states.
+		hs.events(started("M0-03"), opened("M0-03"),
+			engine.Event{Kind: engine.TaskOverdue, Task: "M0-03", Detail: "running longer than its Timeout 45m", At: t0.Add(46 * time.Minute)},
+			engine.Event{Kind: engine.NeedsYou, Task: "M0-03", Reason: state.ReasonTaskOverdue, Detail: "running longer than its Timeout 45m; igris leaves its session running", At: t0.Add(46 * time.Minute)})
+		hs.now = t0.Add(52 * time.Minute)
 	}},
 }
 

@@ -1,0 +1,20 @@
+igris · sinjal · M0 · 3/7 · mode plan  ! Needs you
+──────────────────────────────────────────────────
+┌─ M0-03 Makefile ───────────────────────────────┐
+│ ! Needs you                                    │
+│ overdue · running longer than its Timeout 45m  │
+│ o opens the session                            │
+│ sonnet → sonnet · mode plan · 52m0s            │
+│ igris leaves its session running               │
+│ fmt, lint, test                                │
+│ [o Open session] [t Details]                   │
+└────────────────────────────────────────────────┘
+── TASKS ─────────────────────────────────────────
+ ✓ M0-01 Go module       ✓ M0-02 Entrypoint
+ ! M0-03 Makefile        · M0-04 Config loader
+── LOG ───────────────────────────────────────────
+09:41 M0-03 session open
+10:27 ▲ M0-03 overdue · running longer than its T…
+10:27 ! M0-03 needs you · running longer than its…
+[›o Open‹] [m Mode] [M Task mode] [p Pause]
+[d Done] [r Retry] [s Skip] [x Stop] [?] [q Quit]

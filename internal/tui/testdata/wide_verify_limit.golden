@@ -1,0 +1,40 @@
+igris · sinjal · phase M0 · 3/7 · 42% ████░░░░░░ · mode plan · herdr                                         ! Needs you
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+TASKS                           │ ! M0-03 needs you · verify failed 3 times
+ ✓ M0-01  Go module      sonnet │ ┌─ M0-03 Makefile ───────────────────────────────────────────────────────────────────┐
+ ✓ M0-02  Entrypoint     sonnet │ │ ! Needs you · verify failed 3 times · o opens the session                          │
+ ! M0-03  Makefile       sonnet │ │ sonnet → sonnet · mode plan · 4m12s                                                │
+ · M0-04  Config loader  opus   │ │ fix it, retry or skip the task                                                     │
+ · M0-05  Buy the domain user   │ │ fmt, lint, test                                                                    │
+ ⨯ M0-13  Static assets  sonnet │ │ [o Open session] [t Details]                                                       │
+   waits on P0-05               │ └────────────────────────────────────────────────────────────────────────────────────┘
+ – M0-14  Old idea       haiku  │
+── LOG ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+09:41 M0-03 started · sonnet · mode plan
+09:41 M0-03 session open
+09:42 M0-03 verifying () · make test
+09:42 ✗ M0-03 verify failed · default (`make test`) failed (exit status 1), attempt 3 of 3
+09:42 ✗ M0-03 verify failed 3 times in a row; igris stops sending failures to the session
+09:42 ! M0-03 needs you · verify failed 3 times; fix it, retry or skip the task
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[›o Open session‹] [m Mode] [M Task mode] [p Pause] [d Done] [r Retry…] [s Skip…] [x Stop…] [?] [q Quit]

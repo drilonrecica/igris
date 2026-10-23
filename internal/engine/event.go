@@ -41,7 +41,7 @@ const (
 	PlanChanged       EventKind = "plan_changed"       // rows changed that the run did not write; Detail lists them; the run holds (pause on)
 	StaleSignal       EventKind = "stale_signal"       // a signal from before the task started was ignored
 	StraySignal       EventKind = "stray_signal"       // a signal for another task (or an unreadable one) is kept, never applied
-	NeedsYou          EventKind = "needs_you"          // the task waits on the owner; Detail says why
+	NeedsYou          EventKind = "needs_you"          // the task waits on the owner; Detail says why, Reason the run log's reason
 	NeedsYouClear     EventKind = "needs_you_clear"    // the agent is working again
 	AgentWaiting      EventKind = "agent_waiting"      // the agent ended its turn but waits on background work Claude Code resumes it for
 	AgentWaitingOver  EventKind = "agent_waiting_over" // ... and no longer does (it works, idles or the task ended)
@@ -88,7 +88,11 @@ type Event struct {
 	// Verify is the task's verify profile (SPEC §6.4), "" for none.
 	Verify string
 	// Detail is a short human-readable addition; see the kinds.
-	Detail  string
+	Detail string
+	// Reason is set on NeedsYou: the run log's reason (a state.Reason*).
+	// For any but an idle, blocked or waiting episode, Detail reads
+	// "<what>; <what to do>", and a card leads with what (SPEC §15.3).
+	Reason  string
 	Changes []plan.Change
 	Waiting []plan.Waiting
 	Session *backend.SessionRef

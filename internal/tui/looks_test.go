@@ -195,6 +195,11 @@ func severityViews(t *testing.T) map[string]string {
 		views[fmt.Sprintf("run %dx%d warnings", size[0], size[1])] = hs.m.View()
 		hs.m.th = truecolorTheme(t, false)
 		views[fmt.Sprintf("run %dx%d warnings light", size[0], size[1])] = hs.m.View()
+		// Working again, the warnings are lines of their own: while the
+		// task needed the owner they were on its Needs-you line.
+		hs.events(engine.Event{Kind: engine.NeedsYouClear, Task: "M0-03"})
+		hs.m.th = truecolorTheme(t, true)
+		views[fmt.Sprintf("run %dx%d warnings working", size[0], size[1])] = hs.m.View()
 	}
 	for _, st := range homeStates {
 		views["home "+st.name] = homeAt(truecolorTheme(t, true), 120, 40, st.fix()).View()

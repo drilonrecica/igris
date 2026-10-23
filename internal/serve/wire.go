@@ -123,6 +123,8 @@ type Event struct {
 	// Profile is the verify profile, as on the run log's verify_* lines.
 	Profile string `json:"profile,omitempty"`
 	Detail  string `json:"detail,omitempty"`
+	// Reason is the run log's reason on needs_you (since 1.7).
+	Reason string `json:"reason,omitempty"`
 
 	Changes       []Change            `json:"changes,omitempty"`
 	Waiting       []Waiting           `json:"waiting,omitempty"`
@@ -176,7 +178,7 @@ func fromEngine(ev engine.Event, run string) Event {
 	out := Event{
 		V: Protocol, At: ev.At.UTC(), Type: eventType(ev.Kind), Run: run,
 		Phase: ev.Phase, Task: ev.Task, Title: ev.Title, Rank: ev.Rank, Model: ev.Model, Mode: ev.Mode,
-		Profile: ev.Verify, Detail: cut(ev.Detail, maxDetail),
+		Profile: ev.Verify, Detail: cut(ev.Detail, maxDetail), Reason: ev.Reason,
 		Session: ev.Session, ClaudeSession: ev.ClaudeSession,
 		Question: string(ev.Question), Plan: cut(ev.Plan, maxPlan), Then: ev.Then, Quota: ev.Quota,
 		Slot: ev.Slot,

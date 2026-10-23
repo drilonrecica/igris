@@ -395,6 +395,15 @@ func (m *model) cardBody(c *current, w, x, y, rows int, record, boxed bool) []st
 		state += m.th.paint(lookPlain, " · "+timing)
 	}
 	stateAt := len(head) // the state's line, which a tight box keeps longest
+	if c.state == stateNeedsYou {
+		// Each reason stays whole: the line breaks between them rather
+		// than cut one off (needParts).
+		lines := packParts(append([]string{look.NeedsYou.Label()}, m.needParts(c)...), w)
+		for _, l := range lines[:len(lines)-1] {
+			head = append(head, fit(m.th.paint(stateLook(c), l), w))
+		}
+		state = m.th.paint(stateLook(c), lines[len(lines)-1])
+	}
 	if c.state == stateNeedsYou && m.canOpen(c) {
 		// Say how to get there, on the state line when it fits.
 		hint := m.th.paint(stateLook(c), openHint)
@@ -422,11 +431,12 @@ func (m *model) cardBody(c *current, w, x, y, rows int, record, boxed bool) []st
 	if line := m.tokensLine(c, w); line != "" {
 		head = append(head, line)
 	}
-	if c.overdue != "" {
-		// Until the attempt ends (SPEC §6.3), in words, not color alone.
+	if c.overdue != "" && c.state != stateNeedsYou {
+		// Until the attempt ends (SPEC §6.3), in words, not color alone;
+		// on the Needs-you line while the task needs the owner (needParts).
 		head = append(head, fit(m.th.paint(lookWarn, look.GlyphWarn+" Overdue · "+c.overdue), w))
 	}
-	if c.rankMismatch != "" {
+	if c.rankMismatch != "" && c.state != stateNeedsYou {
 		// Until the attempt ends (SPEC §6.9), like Overdue.
 		head = append(head, fit(m.th.paint(lookWarn, look.GlyphWarn+" Rank mismatch · "+c.rankMismatch), w))
 	}
@@ -438,7 +448,10 @@ func (m *model) cardBody(c *current, w, x, y, rows int, record, boxed bool) []st
 			}
 		}
 	}
-	if c.state == stateNeedsYou || c.state == stateLost {
+	switch _, rest := needWhat(c); {
+	case c.state == stateNeedsYou && rest != "":
+		head = append(head, fit(rest, w))
+	case c.state == stateLost:
 		head = append(head, fit(c.detail, w))
 	}
 
@@ -516,6 +529,25 @@ func (m *model) cardBody(c *current, w, x, y, rows int, record, boxed bool) []st
 		out = out[:rows]
 	}
 	return out
+}
+
+// packParts joins parts with " · " on as few lines of w cells as it can,
+// breaking only between parts; a part wider than a line is cut.
+func packParts(parts []string, w int) []string {
+	var out []string
+	line := ""
+	for _, p := range parts {
+		switch {
+		case line == "":
+			line = p
+		case textWidth(line+" · "+p) <= w:
+			line += " · " + p
+		default:
+			out = append(out, fit(line, w))
+			line = p
+		}
+	}
+	return append(out, fit(line, w))
 }
 
 // cutText keeps the first n lines of text, the last one ending in

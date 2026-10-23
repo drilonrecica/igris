@@ -137,7 +137,7 @@ func currentOf(c *serve.Current) *current {
 	}
 	cur := &current{
 		id: c.Task, title: c.Title, rank: c.Rank, model: c.Model, mode: c.Mode, user: c.User, slot: c.Slot,
-		started: c.Started, state: cardStates[c.State], since: c.Since, detail: c.Detail,
+		started: c.Started, state: cardStates[c.State], since: c.Since, detail: c.Detail, reason: c.Reason,
 		overdue: c.Overdue, rankMismatch: c.RankMismatch, waiting: c.Waiting,
 		session: c.Session, claudeSession: c.ClaudeSession,
 	}

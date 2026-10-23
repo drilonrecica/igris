@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/drilonrecica/igris/internal/look"
+	"github.com/drilonrecica/igris/internal/state"
 )
 
 // wideWidth is where the two-column layout starts (SPEC §15.1).
@@ -84,11 +85,7 @@ func (m *model) wide() bool { return m.width >= wideWidth && m.height >= wideMin
 func (m *model) stateText(c *current) string {
 	switch c.state {
 	case stateNeedsYou:
-		word := "idle"
-		if c.waiting {
-			word = "waiting"
-		}
-		return fmt.Sprintf("%s · %s %s", look.NeedsYou.Label(), word, since(m.opts.Now(), c.since))
+		return strings.Join(append([]string{look.NeedsYou.Label()}, m.needParts(c)...), " · ")
 	case stateWaiting:
 		return fmt.Sprintf("%s Waiting on background work · %s", look.GlyphWaiting, since(m.opts.Now(), c.since))
 	case stateYourTurn:
@@ -103,6 +100,55 @@ func (m *model) stateText(c *current) string {
 	return look.Working.Label()
 }
 
+// episodic reports whether a Needs you of reason is an idle, blocked or
+// waiting episode, which the state line times; "" is one too (an igris
+// before 1.7 sends no reason).
+func episodic(reason string) bool {
+	switch reason {
+	case "", state.ReasonIdle, state.ReasonBlocked, state.ReasonWaiting:
+		return true
+	}
+	return false
+}
+
+// needWhat splits c's Needs-you detail into what the state line says and
+// the rest, the line below it: an episode's detail stays whole below its
+// timed state line; any other reads "<what>; <what to do>" (engine.Event).
+func needWhat(c *current) (what, rest string) {
+	if episodic(c.reason) {
+		return "", c.detail
+	}
+	what, rest, _ = strings.Cut(c.detail, "; ")
+	return what, rest
+}
+
+// needParts follow "! Needs you" on c's state line (SPEC §15.3): how long
+// an idle or waiting episode has lasted (`idle 45s`), else what the task
+// waits for (`verify failed 3 times`). An attempt that is overdue or on
+// another model says so here too, not as a second state.
+func (m *model) needParts(c *current) []string {
+	var parts []string
+	switch what, _ := needWhat(c); {
+	case c.reason == state.ReasonTaskOverdue && c.overdue != "", c.reason == state.ReasonRankMismatch && c.rankMismatch != "":
+		// Said below, once.
+	case !episodic(c.reason):
+		if what != "" {
+			parts = append(parts, what)
+		}
+	case c.waiting:
+		parts = append(parts, "waiting "+since(m.opts.Now(), c.since))
+	default:
+		parts = append(parts, "idle "+since(m.opts.Now(), c.since))
+	}
+	if c.overdue != "" {
+		parts = append(parts, "overdue · "+c.overdue)
+	}
+	if c.rankMismatch != "" {
+		parts = append(parts, "rank mismatch · "+c.rankMismatch)
+	}
+	return parts
+}
+
 // needKind says in a few words what task c waits on the owner for, for
 // the Needs-you banner (SPEC §15.1): its question's kind, else its state.
 func (m *model) needKind(c *current) string {
@@ -115,6 +161,9 @@ func (m *model) needKind(c *current) string {
 	case stateLost:
 		return "session lost"
 	case stateNeedsYou:
+		if what, _ := needWhat(c); what != "" {
+			return what
+		}
 		if c.detail != "" {
 			return strings.TrimPrefix(c.detail, "the session is ")
 		}

@@ -142,7 +142,7 @@ func (e *Engine) beforeSession(ctx context.Context, l *launch) (opened bool, err
 	l.sess, l.lost = nil, true
 	// run_error is the notification, with the question's buttons; Needs
 	// you is the UI's.
-	e.emit(Event{Kind: NeedsYou, Detail: reason + "; no session was opened"})
+	e.emit(Event{Kind: NeedsYou, Detail: reason + "; no session was opened", Reason: state.ReasonHookFailed})
 	e.waitOn(state.ReasonHookFailed, reason)
 	e.emit(Event{Kind: Asked, Question: QuestionHookFailed, Detail: "the " + hookBefore + " hook of " + l.t.ID + " failed: retry (runs the hook again), mark the task done, skip it, or stop"})
 	e.toastAsking(ctx, notifyRunError, reason, QuestionHookFailed)

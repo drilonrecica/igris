@@ -1,0 +1,40 @@
+igris · sinjal · phase M0 · 3/7 · 42% ████░░░░░░ · mode plan · herdr                                         ! Needs you
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+TASKS                           │ ! M0-03 needs you · running longer than its Timeout 45m
+ ✓ M0-01  Go module      sonnet │ ┌─ M0-03 Makefile ───────────────────────────────────────────────────────────────────┐
+ ✓ M0-02  Entrypoint     sonnet │ │ ! Needs you · overdue · running longer than its Timeout 45m · o opens the session  │
+ ! M0-03  Makefile       sonnet │ │ sonnet → sonnet · mode plan · 52m0s                                                │
+ · M0-04  Config loader  opus   │ │ igris leaves its session running                                                   │
+ · M0-05  Buy the domain user   │ │ fmt, lint, test                                                                    │
+ ⨯ M0-13  Static assets  sonnet │ │ [o Open session] [t Details]                                                       │
+   waits on P0-05               │ └────────────────────────────────────────────────────────────────────────────────────┘
+ – M0-14  Old idea       haiku  │
+── LOG ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+09:41 M0-03 started · sonnet · mode plan
+09:41 M0-03 session open
+10:27 ▲ M0-03 overdue · running longer than its Timeout 45m
+10:27 ! M0-03 needs you · running longer than its Timeout 45m; igris leaves its session running
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[›o Open session‹] [m Mode] [M Task mode] [p Pause] [d Done] [r Retry…] [s Skip…] [x Stop…] [?] [q Quit]

@@ -1,6 +1,7 @@
 package report
 
 import (
+	"slices"
 	"time"
 
 	"github.com/drilonrecica/igris/internal/checks"
@@ -158,6 +159,12 @@ type LiveRun struct {
 	NeedsYou []LiveNeed
 	// Paused says the run holds after its current task.
 	Paused bool
+}
+
+// Needs reports whether task needs the owner in the live run; false
+// without one.
+func (l *LiveRun) Needs(task string) bool {
+	return l != nil && slices.ContainsFunc(l.NeedsYou, func(n LiveNeed) bool { return n.Task == task })
 }
 
 // LiveNeed is a task that needs the owner and what for, in a few words:

@@ -486,6 +486,7 @@ func (ev Event) Engine() (engine.Event, bool) {
 		At: ev.At, Kind: kind, Phase: textsafe.Line(ev.Phase), Task: textsafe.Line(ev.Task),
 		Title: textsafe.Clean(ev.Title), Rank: textsafe.Line(ev.Rank), Model: textsafe.Line(ev.Model),
 		Mode: textsafe.Line(ev.Mode), Verify: textsafe.Line(ev.Profile), Detail: textsafe.Clean(ev.Detail),
+		Reason:  textsafe.Line(ev.Reason),
 		Session: ev.Session, ClaudeSession: textsafe.Line(ev.ClaudeSession),
 		Question: engine.Question(ev.Question), Plan: textsafe.Clean(ev.Plan), Then: textsafe.Line(ev.Then),
 		Quota: ev.Quota, Slot: slotOf(ev.Slot),

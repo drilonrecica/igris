@@ -143,7 +143,7 @@ func (e *Engine) auditRank(ctx context.Context, l *launch, final bool) {
 		e.toast(ctx, notifyRankMismatch, "ran "+what)
 		return
 	}
-	e.needsYou(ctx, notifyRankMismatch, state.ReasonRankMismatch, "the session runs "+what+"; igris leaves it running", what)
+	e.needsYou(ctx, notifyRankMismatch, state.ReasonRankMismatch, what+"; igris leaves its session running", what)
 }
 
 // endUsage reads l's transcript one last time and logs the attempt's usage

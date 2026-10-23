@@ -315,7 +315,7 @@ func (e *Engine) checkOverdue(ctx context.Context, l *launch) {
 	what := "running longer than its Timeout " + l.t.TimeoutText
 	e.emit(Event{Kind: TaskOverdue, Detail: what})
 	e.log(state.Event{Type: state.EventTaskOverdue, Detail: what})
-	e.needsYou(ctx, notifyTaskOverdue, state.ReasonTaskOverdue, "the task is "+what+"; igris leaves its session running", what)
+	e.needsYou(ctx, notifyTaskOverdue, state.ReasonTaskOverdue, what+"; igris leaves its session running", what)
 }
 
 // needsYou marks the task Needs you, logs it with reason (a state.Reason*)
@@ -329,7 +329,7 @@ func (e *Engine) needsYou(ctx context.Context, event notify.Event, reason, why, 
 // Asked event, is emitted after Needs you and before the notification,
 // which then carries its answer buttons (SPEC §10). Nil asks nothing.
 func (e *Engine) needsYouAsking(ctx context.Context, event notify.Event, reason, why, words string, asked *Event) {
-	e.emit(Event{Kind: NeedsYou, Detail: why})
+	e.emit(Event{Kind: NeedsYou, Detail: why, Reason: reason})
 	what := "needs you"
 	if event == notifyVerifyLimit {
 		what = "verification keeps failing; needs you"

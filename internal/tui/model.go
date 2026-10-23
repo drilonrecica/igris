@@ -42,6 +42,7 @@ type current struct {
 	state                        taskState
 	since                        time.Time      // when state began
 	detail                       string         // why it needs the owner
+	reason                       string         // the run log's reason of Needs you (state.Reason*); "" before 1.7
 	overdue                      string         // the overdue detail while the attempt runs past its Timeout
 	rankMismatch                 string         // the rank audit's detail once the attempt ran on another model (SPEC §6.9)
 	tokens                       *engine.Tokens // the attempt's token usage so far (SPEC §6.9, §15.1); nil until read
@@ -964,7 +965,7 @@ func (m *model) event(ev engine.Event) {
 	case engine.NeedsYou:
 		if c != nil && c.waiting && c.state == stateWaiting {
 			// Waited past waiting_limit: the time counts from the start.
-			c.state, c.detail = stateNeedsYou, ev.Detail
+			c.state, c.detail, c.reason = stateNeedsYou, ev.Detail, ev.Reason
 			break
 		}
 		setState(c, stateNeedsYou, ev)
@@ -1114,7 +1115,7 @@ func setState(c *current, s taskState, ev engine.Event) {
 	if c == nil {
 		return
 	}
-	c.state, c.since, c.detail = s, ev.At, ev.Detail
+	c.state, c.since, c.detail, c.reason = s, ev.At, ev.Detail, ev.Reason
 }
 
 // settle drops task id's pending question: a later event answered it. A
