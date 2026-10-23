@@ -4,6 +4,8 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-23
+
 igris 1.7 gives the terminal UI, the web UI and the command line one design language ([`docs/design.md`](docs/design.md)) and breaks nothing that is promised: plans, `igris.toml`, `--json`, the run log, the webhook payload and protocol 1 are unchanged ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). The TUI's keys and mode picker did move; see the upgrade note below. `state.json` stays version 4.
 
 ### Added
@@ -669,7 +671,8 @@ First release. Linux and macOS, herdr backend only. The full behavior is specifi
 - Release artifacts are not signed (checksums only); signing is planned.
 - No Homebrew tap yet.
 
-[Unreleased]: https://github.com/drilonrecica/igris/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/drilonrecica/igris/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/drilonrecica/igris/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/drilonrecica/igris/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/drilonrecica/igris/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/drilonrecica/igris/compare/v1.2.1...v1.4.0
