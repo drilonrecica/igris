@@ -16,7 +16,16 @@ cp "$root/site/fonts/"* "$out/fonts/"
 for f in igris-logo-dark.svg igris-mark-dark.svg igris-mark-dark-512.png igris-icon-180.png favicon.ico; do
   cp "$root/docs/brand/$f" "$out/brand/"
 done
-cp "$root/docs/demo/igris-demo.gif" "$root/docs/demo/igris-home.png" "$root/docs/demo/igris-home-narrow.png" "$out/"
+cp "$root/docs/demo/igris-demo.gif" "$root/docs/demo/igris-home.png" "$root/docs/demo/igris-home-narrow.png" \
+  "$root/docs/demo/igris-run.png" "$root/docs/demo/igris-phone.png" "$out/"
+
+# The version pill shows the latest stable tag, so it can't go stale; the
+# checked-in text is the fallback for a checkout without tags.
+tag=$(git -C "$root" tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -v -- '-' | head -n 1 || true)
+if [ -n "$tag" ]; then
+  sed "s|\(class=\"pill pill-version\"[^>]*>\)v[0-9][0-9.]*<|\1$tag<|" "$out/index.html" > "$out/index.html.tmp"
+  mv "$out/index.html.tmp" "$out/index.html"
+fi
 : > "$out/.nojekyll"
 
 (cd "$root" && go run ./tools/sitedocs -root . -out "$out/docs")

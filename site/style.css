@@ -1,4 +1,6 @@
-/* igris project page. Palette and type follow docs/brand/README.md. */
+/* igris project page. Palette and type follow docs/brand/README.md; the
+   rank colors, Ember, the radius scale and the focus style are the web UI's
+   (docs/design.md, internal/serve/ui/app.css). */
 
 @font-face {
   font-family: "Chakra Petch";
@@ -22,9 +24,12 @@
   --deep: #123A7A;
   --glow: #3CC8FF;
   --glow-core: #B8F0FF;
-  --plume: #E3172B;
+  --ember: #FFB000;
+  --rank-haiku: #9FB3C8;
+  --rank-sonnet: #6EA8FF;
+  --rank-opus: #B48CFF;
+  --rank-fable: #FF8AD8;
   --snow: #EAF4FF;
-  --cyan: #0A86C8;
   --muted: #9DB0D3;
 
   --display: "Chakra Petch", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Arial, sans-serif;
@@ -33,7 +38,11 @@
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 
-  --radius: 10px;
+  /* the one radius scale (docs/design.md) */
+  --r-field: 8px;
+  --r-button: 12px;
+  --r-card: 14px;
+  --r-sheet: 22px;
   --wrap: 1120px;
   color-scheme: dark;
 }
@@ -55,11 +64,8 @@ img { max-width: 100%; height: auto; display: block; }
 a { color: var(--glow); text-underline-offset: 3px; }
 a:hover { color: var(--glow-core); }
 
-:focus-visible {
-  outline: 2px solid var(--glow);
-  outline-offset: 3px;
-  border-radius: 4px;
-}
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
 
 h1, h2, h3 { font-family: var(--display); font-weight: 700; line-height: 1.15; margin: 0 0 .5em; }
 h1 { font-size: clamp(2rem, 1.4rem + 2.2vw, 2.9rem); letter-spacing: -.01em; }
@@ -84,7 +90,7 @@ code {
   background: var(--glow);
   color: var(--abyss);
   padding: 8px 12px;
-  border-radius: 6px;
+  border-radius: var(--r-field);
   z-index: 10;
 }
 .skip:focus { top: 12px; }
@@ -132,7 +138,7 @@ code {
   gap: 12px;
   background: var(--abyss);
   border: 1px solid var(--deep);
-  border-radius: 8px;
+  border-radius: var(--r-field);
   padding: 10px 12px 10px 14px;
   margin: 0 0 1em;
   max-width: 100%;
@@ -147,7 +153,7 @@ code {
   color: var(--glow);
   background: transparent;
   border: 1px solid var(--deep);
-  border-radius: 6px;
+  border-radius: var(--r-field);
   padding: 4px 10px;
   cursor: pointer;
 }
@@ -159,7 +165,7 @@ code {
   font: 600 1rem var(--display);
   text-decoration: none;
   padding: 10px 20px;
-  border-radius: 8px;
+  border-radius: var(--r-button);
   transition: background-color .15s, color .15s;
 }
 .btn-primary { background: var(--glow); color: var(--abyss); }
@@ -170,7 +176,7 @@ code {
 .term {
   margin: 0;
   border: 1px solid var(--deep);
-  border-radius: var(--radius);
+  border-radius: var(--r-card);
   overflow: hidden;
   background: var(--abyss);
   box-shadow: 0 0 0 1px rgba(60, 200, 255, .06), 0 24px 60px -20px rgba(60, 200, 255, .25);
@@ -178,6 +184,10 @@ code {
 .term-bar { display: flex; gap: 6px; align-items: center; height: 28px; padding: 0 12px; background: var(--night); }
 .term-bar i { width: 10px; height: 10px; border-radius: 50%; background: var(--deep); }
 
+.hero-shots { position: relative; padding: 0 12% 120px 0; }
+.hero-shots .shot-phone { position: absolute; right: 0; bottom: 0; width: 26%; min-width: 110px; }
+.hero-shots .shot-phone img { border-radius: var(--r-card); }
+.gif { margin-top: 24px; max-width: 760px; }
 .shots { display: grid; grid-template-columns: minmax(0, 2.6fr) minmax(0, 1fr); gap: 20px; align-items: start; margin-top: 24px; }
 .shots img { display: block; width: 100%; height: auto; }
 @media (max-width: 800px) { .shots { grid-template-columns: 1fr; } }
@@ -202,7 +212,7 @@ code {
   counter-increment: step;
   background: var(--night);
   border: 1px solid var(--deep);
-  border-radius: var(--radius);
+  border-radius: var(--r-card);
   padding: 16px 16px 16px 56px;
   position: relative;
 }
@@ -216,40 +226,44 @@ code {
 }
 
 .ranks { display: grid; gap: 16px; margin-top: 24px; }
-.rank { background: var(--night); border: 1px solid var(--deep); border-radius: var(--radius); padding: 20px; }
+.rank { background: var(--night); border: 1px solid var(--deep); border-radius: var(--r-card); padding: 20px; }
 .rank p { margin: 10px 0 0; color: var(--muted); }
-.rank-top { border-color: var(--glow); }
-.rank-sonnet { background: var(--deep); color: var(--snow); }
-.rank-opus { background: var(--cyan); color: var(--abyss); }
-.rank-fable { background: var(--glow); color: var(--abyss); }
+.rank-haiku, .rank-sonnet, .rank-opus, .rank-fable { background: var(--abyss); border: 1px solid currentColor; }
+.rank-haiku { color: var(--rank-haiku); }
+.rank-sonnet { color: var(--rank-sonnet); }
+.rank-opus { color: var(--rank-opus); }
+.rank-fable { color: var(--rank-fable); }
 
 .plan {
   margin: 24px 0 0;
   background: var(--armor);
   border: 1px solid var(--deep);
-  border-radius: var(--radius);
+  border-radius: var(--r-card);
   padding: 18px 20px;
   overflow-x: auto;
   font: .9rem/1.65 var(--mono);
   color: var(--muted);
 }
 .md-h { color: var(--snow); }
-.m-sonnet { color: var(--snow); }
-.m-opus { color: var(--glow); }
+.m-haiku { color: var(--rank-haiku); }
+.m-sonnet { color: var(--rank-sonnet); }
+.m-opus { color: var(--rank-opus); }
+.m-fable { color: var(--rank-fable); }
 
 .features { display: grid; gap: 16px; margin-top: 24px; }
-.feature { background: var(--night); border: 1px solid var(--deep); border-radius: var(--radius); padding: 20px; }
+.feature { background: var(--night); border: 1px solid var(--deep); border-radius: var(--r-card); padding: 20px; }
 .feature p { margin: 0; color: var(--muted); }
 
 .two-col { display: grid; gap: 48px; }
 .reqs { padding-left: 1.2em; margin: 0 0 1em; }
 .reqs li { margin-bottom: .4em; }
 .callout {
-  border-left: 3px solid var(--plume);
+  border-left: 3px solid var(--ember);
   background: var(--armor);
   padding: 12px 14px;
-  border-radius: 0 8px 8px 0;
+  border-radius: 0 var(--r-field) var(--r-field) 0;
 }
+.warn { color: var(--ember); font-weight: 600; }
 .faq details { border-bottom: 1px solid var(--night); padding: 10px 0; }
 .faq summary { cursor: pointer; font-family: var(--display); font-weight: 600; }
 .faq details p { color: var(--muted); margin: 8px 0 0; }
@@ -261,12 +275,12 @@ code {
 .docs-nav-title { margin: 0 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: .8rem; }
 .docs-nav-title a { color: inherit; text-decoration: none; }
 .docs-nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 6px; }
-.docs-nav li a { display: block; padding: 4px 10px; border-radius: 6px; color: var(--snow); text-decoration: none; border: 1px solid transparent; }
+.docs-nav li a { display: block; padding: 4px 10px; border-radius: var(--r-field); color: var(--snow); text-decoration: none; border: 1px solid transparent; }
 .docs-nav li a:hover { color: var(--glow); }
 .docs-nav li a[aria-current="page"] { background: var(--night); border-color: var(--deep); color: var(--glow-core); }
 .docs-main { min-width: 0; max-width: 50rem; }
 .docs-index { list-style: none; padding: 0; margin: 24px 0 0; display: grid; gap: 12px; }
-.docs-index li { background: var(--night); border: 1px solid var(--deep); border-radius: var(--radius); padding: 14px 18px; }
+.docs-index li { background: var(--night); border: 1px solid var(--deep); border-radius: var(--r-card); padding: 14px 18px; }
 .docs-index a { font: 600 1.05rem var(--display); }
 .docs-index span { display: block; color: var(--muted); }
 
@@ -278,11 +292,11 @@ code {
 .prose li { margin-bottom: .35em; }
 .prose li > ul, .prose li > ol { margin: .35em 0 0; }
 .prose hr { border: 0; border-top: 1px solid var(--night); margin: 2em 0; }
-.prose blockquote { margin: 0 0 1em; border-left: 3px solid var(--plume); background: var(--armor); padding: 10px 14px 0; border-radius: 0 8px 8px 0; }
+.prose blockquote { margin: 0 0 1em; border-left: 3px solid var(--ember); background: var(--armor); padding: 10px 14px 0; border-radius: 0 var(--r-field) var(--r-field) 0; }
 .prose pre {
   background: var(--armor);
   border: 1px solid var(--deep);
-  border-radius: var(--radius);
+  border-radius: var(--r-card);
   padding: 14px 16px;
   overflow-x: auto;
   margin: 0 0 1.2em;
@@ -319,12 +333,13 @@ code {
 
 /* Layout breakpoints */
 @media (min-width: 640px) {
-  .ranks { grid-template-columns: repeat(3, 1fr); }
+  .ranks { grid-template-columns: repeat(2, 1fr); }
   .features { grid-template-columns: repeat(2, 1fr); }
   .steps { grid-template-columns: repeat(2, 1fr); }
 }
 @media (min-width: 900px) {
   .hero-grid { grid-template-columns: minmax(0, 4fr) minmax(0, 6fr); }
+  .ranks { grid-template-columns: repeat(4, 1fr); }
   .features { grid-template-columns: repeat(3, 1fr); }
   .steps { grid-template-columns: repeat(3, 1fr); }
   .two-col { grid-template-columns: 1fr 1fr; }

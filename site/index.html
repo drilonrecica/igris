@@ -31,7 +31,7 @@
         <a href="#install">Install</a>
         <a href="docs/">Docs</a>
         <a href="https://github.com/drilonrecica/igris">GitHub</a>
-        <a class="pill pill-version" href="https://github.com/drilonrecica/igris/releases/latest">v1.2.1</a>
+        <a class="pill pill-version" href="https://github.com/drilonrecica/igris/releases/latest">v1.6.0</a>
       </nav>
     </div>
   </header>
@@ -53,10 +53,15 @@
             <a class="btn btn-ghost" href="docs/">Docs</a>
           </div>
         </div>
-        <figure class="term">
-          <div class="term-bar" aria-hidden="true"><i></i><i></i><i></i></div>
-          <img src="igris-demo.gif" width="1280" height="760" alt="igris running a two-task phase in herdr: each task gets a fresh Claude Code session on the model the plan assigns, sonnet then opus, and the phase completes">
-        </figure>
+        <div class="hero-shots">
+          <figure class="term">
+            <div class="term-bar" aria-hidden="true"><i></i><i></i><i></i></div>
+            <img src="igris-run.png" width="1030" height="512" alt="The igris run screen: tasks M0-01 to M0-14 with their ranks, the status word Needs you at the top right, a banner naming M0-03 and a card with its session, model and mode">
+          </figure>
+          <figure class="term shot-phone">
+            <img src="igris-phone.png" width="780" height="1560" alt="The same run on a phone: the status word Needs you, the phase bar, and a commit question with Commit and Leave uncommitted buttons">
+          </figure>
+        </div>
       </div>
     </section>
 
@@ -80,6 +85,10 @@
           <li><strong>Starts the next task</strong> in a new session, until the phase is finished.</li>
         </ol>
         <p class="note">One task at a time unless you mark a phase parallel. Deterministic. No LLM decides which model runs what.</p>
+        <figure class="term gif">
+          <div class="term-bar" aria-hidden="true"><i></i><i></i><i></i></div>
+          <img src="igris-demo.gif" width="1280" height="760" alt="igris running a two-task phase in herdr: each task gets a fresh Claude Code session on the model the plan assigns, sonnet then opus, and the phase completes" loading="lazy">
+        </figure>
       </div>
     </section>
 
@@ -88,11 +97,12 @@
         <h2>Shadows have ranks</h2>
         <p class="section-lead">Like summoning the right shadow for the fight, each task gets the rank your plan gives it.</p>
         <div class="ranks">
+          <div class="rank"><span class="pill rank-haiku">haiku</span><p>Small, mechanical chores.</p></div>
           <div class="rank"><span class="pill rank-sonnet">sonnet</span><p>Routine, well-specified work.</p></div>
           <div class="rank"><span class="pill rank-opus">opus</span><p>Complex or security-sensitive logic.</p></div>
-          <div class="rank rank-top"><span class="pill rank-fable">fable</span><p>The highest-stakes design and correctness work.</p></div>
+          <div class="rank"><span class="pill rank-fable">fable</span><p>The highest-stakes design and correctness work.</p></div>
         </div>
-        <p class="note">Rank aliases are configurable in <code>igris.toml</code>. A task without a usable model is a validation error, not a guess.</p>
+        <p class="note">Each rank has its own color, in the terminal, on your phone and here, and its name is always written next to it. Rank aliases are configurable in <code>igris.toml</code>. A task without a usable model is a validation error, not a guess.</p>
       </div>
     </section>
 
@@ -155,16 +165,6 @@
       </div>
     </section>
 
-    <section id="next" class="section">
-      <div class="wrap">
-        <h2>What's next</h2>
-        <p class="section-lead">Plans, not promises. 1.x only adds to what 1.0 keeps stable, so even the bigger changes arrive as 1.x releases.</p>
-        <div class="features">
-          <div class="feature"><h3>From your phone</h3><p>Planned for 1.6: a small web page on your own network or tailnet to answer questions and approve plans. Off by default, never in skip-permissions mode. Until then, <code>igris attach</code> over ssh does it.</p></div>
-        </div>
-      </div>
-    </section>
-
     <section id="install" class="section">
       <div class="wrap two-col">
         <div>
@@ -192,7 +192,7 @@
             <li><strong>git</strong>, recommended.</li>
             <li><strong>Linux or macOS</strong>, or Windows through WSL2 (<a href="https://github.com/drilonrecica/igris#windows-wsl2">notes</a>).</li>
           </ul>
-          <p class="callout">If <code>ANTHROPIC_API_KEY</code> is set, Claude Code bills the API instead of your subscription. igris warns you at start.</p>
+          <p class="callout"><span class="warn">▲</span> If <code>ANTHROPIC_API_KEY</code> is set, Claude Code bills the API instead of your subscription. igris warns you at start.</p>
           <div class="faq">
             <details>
               <summary>Does igris use my subscription or the API?</summary>
