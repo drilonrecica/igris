@@ -219,6 +219,9 @@ func (m *Manager) Open(ctx context.Context, s Spec) (Entry, error) {
 	}
 	if s.Worktree {
 		wt := state.SideWorktree(id)
+		if err := state.EnsureWorktreesDir(m.o.Root); err != nil {
+			return fail(err)
+		}
 		if _, err := m.git(ctx, m.o.Root, "worktree", "add", "-b", wt.Branch, wt.Path, "HEAD"); err != nil {
 			return Entry{}, fmt.Errorf("open side session %s: make its worktree %s: %w (it needs a git repository with at least one commit)", id, wt.Path, err)
 		}

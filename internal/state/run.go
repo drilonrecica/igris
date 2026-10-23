@@ -88,6 +88,13 @@ type Worktree struct {
 // project root.
 var WorktreesDir = filepath.Join(DirName, "worktrees")
 
+// EnsureWorktreesDir creates root/.igris/worktrees 0700, or tightens an
+// existing one, before `git worktree add`: git would make it with the
+// umask (0755), and `igris doctor` wants 0700.
+func EnsureWorktreesDir(root string) error {
+	return mkdirPrivate(filepath.Join(root, WorktreesDir))
+}
+
 // Selection is `arise --only` or `--from`/`--until` (SPEC §5.5): task IDs,
 // as the owner named them.
 type Selection struct {

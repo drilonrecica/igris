@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -166,4 +167,42 @@ func TestMigratedRunSavesAsVersion4(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestEnsureWorktreesDir(t *testing.T) {
+	perm := func(t *testing.T, root string) os.FileMode {
+		t.Helper()
+		fi, err := os.Stat(filepath.Join(root, WorktreesDir))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return fi.Mode().Perm()
+	}
+	t.Run("fresh project", func(t *testing.T) {
+		root := t.TempDir()
+		old := syscall.Umask(0o022)
+		defer syscall.Umask(old)
+		if err := EnsureWorktreesDir(root); err != nil {
+			t.Fatal(err)
+		}
+		if got := perm(t, root); got != 0o700 {
+			t.Errorf("fresh .igris/worktrees is %o, want 700", got)
+		}
+	})
+	t.Run("0755 leftover", func(t *testing.T) {
+		root := t.TempDir()
+		dir := filepath.Join(root, WorktreesDir)
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(dir, 0o755); err != nil { //nolint:gosec // the 0755 git leaves
+			t.Fatal(err)
+		}
+		if err := EnsureWorktreesDir(root); err != nil {
+			t.Fatal(err)
+		}
+		if got := perm(t, root); got != 0o700 {
+			t.Errorf("leftover .igris/worktrees is %o, want 700", got)
+		}
+	})
 }

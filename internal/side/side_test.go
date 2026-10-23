@@ -178,6 +178,9 @@ func TestOpenSharedTreeAndWorktree(t *testing.T) {
 	if *own.Record.Worktree != *wt || own.Record.Dir != ".igris/worktrees/side-"+id {
 		t.Errorf("record %+v", own.Record)
 	}
+	if fi, err := os.Stat(filepath.Join(w.root, state.WorktreesDir)); err != nil || fi.Mode().Perm() != 0o700 {
+		t.Errorf(".igris/worktrees before worktree add: %v, %v; want 0700", fi, err)
+	}
 	if got := w.gitCalls(); !slices.EqualFunc(got, [][]string{{"worktree", "add", "-b", "igris/side-" + id, ".igris/worktrees/side-" + id, "HEAD"}}, slices.Equal) {
 		t.Errorf("git %q", got)
 	}

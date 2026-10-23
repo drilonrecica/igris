@@ -97,6 +97,9 @@ func (e *Engine) pickWorktree(prev *state.Run, resumed bool, carried *state.Curr
 func (e *Engine) enterWorktree(ctx context.Context) error {
 	if e.newWorktree {
 		wt := &state.Worktree{Path: filepath.Join(state.WorktreesDir, e.runID), Branch: "igris/" + e.runID}
+		if err := state.EnsureWorktreesDir(e.dir.Root()); err != nil {
+			return fmt.Errorf("worktree mode: %w", err)
+		}
 		if _, err := e.gitIn(ctx, e.dir.Root(), "worktree", "add", "-b", wt.Branch, wt.Path, "HEAD"); err != nil {
 			return fmt.Errorf("worktree mode: make the worktree %s: %w (it needs a git repository with at least one commit)", wt.Path, err)
 		}
@@ -332,6 +335,9 @@ func (e *Engine) ensureWorktree(ctx context.Context, l *launch, how startKind) e
 	case err == nil:
 		return fmt.Errorf("%s is not a directory igris made for %s: remove it, then run `igris arise` again", wt.Path, id)
 	default:
+		if err := state.EnsureWorktreesDir(root); err != nil {
+			return err
+		}
 		var gitErr error
 		if _, err := e.gitIn(ctx, root, "rev-parse", "--verify", "--quiet", "refs/heads/"+wt.Branch); err == nil {
 			// The branch outlived its worktree: git still lists the
