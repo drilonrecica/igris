@@ -185,6 +185,36 @@ func TestServeToken(t *testing.T) {
 	}
 }
 
+// The QR code keeps its black-on-white escapes piped and under NO_COLOR
+// (SPEC §15.4); with a run live, next: points at the device or attach.
+func TestServeTokenQRColorAndNext(t *testing.T) {
+	root := writeProject(t, map[string]string{"tasks.md": servePlan, "igris.toml": "[serve]\nhttp = \"100.101.102.103:7777\"\n"})
+	t.Setenv("NO_COLOR", "1")
+	var out, errb bytes.Buffer
+	if code := run([]string{"serve", "token"}, &out, &errb); code != exitOK {
+		t.Fatalf("serve token: exit %d: %s", code, errb.String())
+	}
+	if !strings.Contains(out.String(), "or scan it:\n\x1b[30;107m") || !strings.HasSuffix(out.String(), "next: igris arise\n") {
+		t.Errorf("want the QR escapes under NO_COLOR and next: igris arise:\n%s", out.String())
+	}
+	d, err := state.Open(root, state.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lock, err := d.Lock(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = lock.Release() })
+	out.Reset()
+	if code := run([]string{"serve", "token"}, &out, &errb); code != exitOK {
+		t.Fatalf("serve token: exit %d: %s", code, errb.String())
+	}
+	if !strings.Contains(out.String(), "\x1b[30;107m") || !strings.HasSuffix(out.String(), "next: open the URL on the device  ·  igris attach\n") || strings.Contains(out.String(), "igris arise") {
+		t.Errorf("want the QR and next: the device or attach with a run live:\n%s", out.String())
+	}
+}
+
 // With no address set the URL needs editing, so no QR code of it is drawn.
 func TestServeTokenNoAddress(t *testing.T) {
 	writeProject(t, map[string]string{"tasks.md": servePlan})

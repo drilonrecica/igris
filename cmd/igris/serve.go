@@ -535,13 +535,20 @@ func execServeToken(rotate bool, stdout, stderr io.Writer) int {
 		return exitOK // the URL needs editing first: a code of it would pair nothing
 	}
 	printQR(stdout, url)
+	if d.Running() {
+		// A run is live: pairing is for watching it, and arise would only
+		// meet its lock.
+		o.next("open the URL on the device", "igris attach")
+		return exitOK
+	}
 	o.next("igris arise")
 	return exitOK
 }
 
 // printQR draws url as a QR code in half blocks, black on white whatever
-// the terminal's colours, so a phone camera reads it. A URL too long for
-// version 10 is left as text.
+// the terminal's colours, so a phone camera reads it. The escapes stay when
+// piped and under NO_COLOR: it is the one functional-color exception
+// (SPEC §15.4). A URL too long for version 10 is left as text.
 func printQR(w io.Writer, url string) {
 	c, err := qr.Encode([]byte(url))
 	if err != nil {
