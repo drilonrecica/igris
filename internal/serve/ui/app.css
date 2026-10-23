@@ -38,6 +38,13 @@
   --rank-sonnet: #6EA8FF;
   --rank-opus: #B48CFF;
   --rank-fable: #FF8AD8;
+  /* the helm's shades (internal/look, docs/brand/helm-pixels.txt) */
+  --helm-face: #0A1124;
+  --helm-face-shadow: #05070F;
+  --helm-ridge: #236C92;
+  --helm-visor-core: #B8F0FF;
+  --helm-chin: #32A3D3;
+  --helm-plume-stroke: #F05A6E;
   --on-accent: #05070F;
   --glow: rgba(60, 200, 255, .55);
   --needs-glow: rgba(227, 23, 43, .45);
@@ -74,6 +81,12 @@
     --rank-sonnet: #1D5FD1;
     --rank-opus: #6D3FD6;
     --rank-fable: #B0237A;
+    --helm-face: #0E1730;
+    --helm-face-shadow: #05070F;
+    --helm-ridge: #0C4F7C;
+    --helm-visor-core: #8FE3FF;
+    --helm-chin: #0B70AA;
+    --helm-plume-stroke: #F05A6E;
     --on-accent: #05070F;
     --glow: rgba(10, 155, 230, .45);
     --needs-glow: rgba(227, 23, 43, .25);

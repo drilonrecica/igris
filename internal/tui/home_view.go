@@ -372,10 +372,21 @@ func (m *homeScreen) narrowHome(w, h int) []string {
 	return append(out, m.foot(bar, w, len(out))...)
 }
 
+// getStartedCardMin is the narrowest GET STARTED card that stands beside
+// the helm.
+const getStartedCardMin = 40
+
+// fitCard cuts the GET STARTED card to rows lines, its blank line first.
+func (m *homeScreen) fitCard(card []string, rows int) []string {
+	if len(card) > rows && len(card) > 3 && card[2] == "" {
+		card = append(card[:2:2], card[3:]...)
+	}
+	return card[:min(len(card), rows)]
+}
+
 // getStartedHome is home before there is a plan to show (SPEC §15.6): the
-// helm beside GET STARTED and its tagline (the helm dropped below
-// look.HelmMinWidth columns), then HEALTH and, once there are runs,
-// RECENT.
+// helm beside GET STARTED and its tagline, then HEALTH and, once there
+// are runs, RECENT.
 func (m *homeScreen) getStartedHome(w, h int, wide bool) []string {
 	rows := barRows
 	if wide {
@@ -389,16 +400,6 @@ func (m *homeScreen) getStartedHome(w, h int, wide bool) []string {
 	}
 	m.lines = append(append([]homeLine{}, health...), recent...)
 
-	// The helm stands in a column of its own, 3 cells in and 6 from the
-	// card.
-	const helmIndent, helmGap = 3, 6
-	var helm []string
-	cw := w
-	if w >= look.HelmMinWidth {
-		helm = look.HelmLines(m.th.helmPart)
-		cw = w - helmIndent - look.HelmWidth - helmGap
-	}
-	card := m.cardLines(cw)
 	sections := 0
 	for _, ls := range [][]homeLine{health, recent} {
 		if len(ls) > 0 {
@@ -406,22 +407,36 @@ func (m *homeScreen) getStartedHome(w, h int, wide bool) []string {
 		}
 	}
 	room := max(h-2-sections-1-len(m.statusLine(w))-len(bar.rows), 1)
-	if len(card) > room && len(card) > 3 && card[2] == "" {
-		card = append(card[:2:2], card[3:]...) // the blank line goes first
-	}
-	card = card[:min(len(card), room)]
 
+	// The helm stands in a column of its own, 3 cells in and 6 from the
+	// card: L on a large screen, S on a smaller one, none below
+	// look.HelmMinWidth columns. Where the card beside it would be
+	// narrower than getStartedCardMin, the helm stands above the card,
+	// and it is dropped where it fits neither way.
+	const helmIndent, helmGap = 3, 6
 	out := []string{m.headerLine(w, wide), m.th.rule(w, "")}
-	for i := range max(len(card), min(len(helm), room)) {
-		if helm == nil {
-			out = append(out, line(card, i))
-			continue
+	grid := look.HelmFor(w, h, room, m.th.colored())
+	switch {
+	case grid != nil && w-helmIndent-look.HelmWidth(grid)-helmGap >= getStartedCardMin:
+		helm, hw := m.th.helm(grid), look.HelmWidth(grid)
+		card := m.fitCard(m.cardLines(w-helmIndent-hw-helmGap), room)
+		for i := range max(len(card), len(helm)) {
+			left := strings.Repeat(" ", helmIndent+hw)
+			if i < len(helm) {
+				left = strings.Repeat(" ", helmIndent) + helm[i]
+			}
+			out = append(out, strings.TrimRight(left+strings.Repeat(" ", helmGap)+line(card, i), " "))
 		}
-		left := strings.Repeat(" ", helmIndent+look.HelmWidth)
-		if i < len(helm) {
-			left = strings.Repeat(" ", helmIndent) + helm[i]
+	default:
+		card := m.cardLines(w)
+		if grid != nil && len(m.fitCard(card, room))+1+look.HelmRows(grid) <= room {
+			for _, l := range m.th.helm(grid) {
+				out = append(out, strings.TrimRight(strings.Repeat(" ", helmIndent)+l, " "))
+			}
+			out = append(out, "")
+			room -= look.HelmRows(grid) + 1
 		}
-		out = append(out, strings.TrimRight(left+strings.Repeat(" ", helmGap)+line(card, i), " "))
+		out = append(out, m.fitCard(card, room)...)
 	}
 	linesFocused := m.focus == homeLines
 	if len(health) > 0 {

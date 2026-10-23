@@ -125,6 +125,8 @@ func colorPieces(view string) []piece {
 			case params[i] == "38" && i+4 < len(params)+0 && params[i+1] == "2":
 				color = strings.Join(params[i:i+5], ";")
 				i += 4
+			case params[i] == "48" && i+4 < len(params) && params[i+1] == "2":
+				i += 4 // a background, the helm's bottom pixel
 			}
 		}
 		for i, part := range strings.Split(m[2], "\n") {
@@ -161,17 +163,10 @@ func plumeOK(text string) bool {
 		strings.HasPrefix(text, "Yours to do outside igris") || strings.HasPrefix(text, "Then: d done")
 }
 
-// helmPlume says text is one of the helm's plume parts (look.Helm), the
-// brand mark's other named exception.
+// helmPlume says text is one of the helm's pixels (look.HelmL, look.HelmS),
+// half blocks only: the plume is the brand mark's other named exception.
 func helmPlume(text string) bool {
-	for _, row := range look.Helm {
-		for _, p := range row {
-			if p.Role == look.HelmPlume && p.Text == text {
-				return true
-			}
-		}
-	}
-	return false
+	return text != "" && strings.Trim(text, "▀▄") == ""
 }
 
 // severityViews are colored screens that draw every severity: the run
@@ -332,9 +327,18 @@ func TestColorGoldens(t *testing.T) {
 			hs.m.th = th()
 			return hs.m.View()
 		}},
+		{"ended_small", 60, 24, func(w, h int) string {
+			hs := newHarness(t, w, h)
+			hs.m.loc = time.UTC
+			hs.withPlan(demoPlan)
+			hs.events(started("M0-03"), opened("M0-03"), engine.Event{Kind: engine.TaskDone, Task: "M0-03", Detail: "ok"},
+				engine.Event{Kind: engine.RunStopped, Detail: "completed"})
+			hs.m.th = th()
+			return hs.m.View()
+		}},
 	}
 	for _, st := range homeStates {
-		if st.name != "interrupted" && st.name != "stopped_task" && st.name != "ready" {
+		if st.name != "interrupted" && st.name != "stopped_task" && st.name != "ready" && st.name != "get_started" {
 			continue
 		}
 		cases = append(cases, struct {
@@ -352,5 +356,55 @@ func TestColorGoldens(t *testing.T) {
 			checkFits(t, strip(view), c.w, c.h)
 			golden(t, c.name+"_color", escVisible(view))
 		})
+	}
+}
+
+// helmColor is a foreground or background color's "38;2;r;g;b" or
+// "48;2;r;g;b" parameters, without the 38 or 48.
+var helmColor = regexp.MustCompile(`[34]8(;2;\d+;\d+;\d+)`)
+
+// The helm (SPEC §15.4) is drawn pixel for pixel in internal/look's
+// shades: the mark in the ground's, the S tile always in the dark ones (it
+// carries its own ground); 256 colors take the nearest; without color it
+// is the plain S shape.
+func TestHelmDrawing(t *testing.T) {
+	for _, dark := range []bool{true, false} {
+		th := truecolorTheme(t, dark)
+		for _, grid := range [][]string{look.HelmL, look.HelmS} {
+			lines := th.helm(grid)
+			if len(lines) != look.HelmRows(grid) {
+				t.Fatalf("dark %v: %d lines, want %d", dark, len(lines), look.HelmRows(grid))
+			}
+			view := strings.Join(lines, "\n")
+			for i, l := range lines {
+				if n := textWidth(strip(l)); n != look.HelmWidth(grid) {
+					t.Errorf("dark %v: line %d is %d cells, want %d", dark, i, n, look.HelmWidth(grid))
+				}
+			}
+			ground := dark || len(grid) == len(look.HelmS)
+			for _, p := range []byte(strings.Join(grid, "")) {
+				s, ok := look.HelmShade(p)
+				if !ok {
+					continue
+				}
+				drawn := false
+				for _, c := range helmColor.FindAllStringSubmatch(view, -1) {
+					drawn = drawn || sameColor("38"+c[1], sgrColor(s.Pick(ground)))
+				}
+				if !drawn {
+					t.Errorf("dark %v: %q isn't drawn in %s", dark, p, s.Pick(ground))
+				}
+			}
+		}
+	}
+	th := truecolorTheme(t, true)
+	th.r.SetColorProfile(termenv.ANSI256)
+	if v := strings.Join(th.helm(look.HelmL), ""); !strings.Contains(v, "38;5;") || strings.Contains(v, "38;2;") {
+		t.Errorf("256 colors aren't the nearest: %q", v)
+	}
+	for _, th := range []*theme{noColorTheme(t), {}} {
+		if got := th.helm(look.HelmL); strings.Join(got, "\n") != strings.Join(look.HelmPlain(), "\n") {
+			t.Errorf("without color the helm is %q, want the plain S", got)
+		}
 	}
 }

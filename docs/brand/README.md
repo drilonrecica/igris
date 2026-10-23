@@ -11,8 +11,11 @@ The mark is a shadow knight's helm: black armor, glowing cyan seams and visor, a
 | `igris-mark-dark-512.png` / `igris-mark-light-512.png` | Helm as PNG, transparent background |
 | `igris-icon.svg`, `igris-icon-{16,32,48,180,512}.png` | Visor icon on a black tile, 32px and below: favicon, avatar, app icon |
 | `favicon.ico` | 16, 32 and 48px icon |
+| `helm-pixels.txt` | The helm in pixels for the terminal: **L** (the mark, 24 × 13 cells) and **S-tile** (the icon, 19 × 6 cells), the reference `internal/look` draws exactly |
 
 Below 48px the helm loses its detail, so use the icon instead.
+
+In the terminal the helm is drawn from `helm-pixels.txt`, two pixels to a cell with `▀`: the L mark on GET STARTED and the end-of-run summary where the screen is at least 80 columns by 32 rows, the S tile from 40 columns, nothing below. Without color it is the S shape in plain blocks, without the tile. Its own shades (face `#0A1124` and `#05070F`, ridges `#236C92`, visor core `#B8F0FF`, chin bars `#32A3D3`, the plume's stroke `#F05A6E`; light-ground values in [`docs/design.md`](../design.md)) are tokens in `internal/look`.
 
 ## Colors
 

@@ -1,13 +1,13 @@
 [1migr[0m[1mi[0m[1ms[0m · newproj · no igris.toml · herdr ✓                                                                           [2mIdle[0m
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   [2m ▄█▄   [0m[1m▄▄[0m      [1mGET STARTED[0m
-   [2m▄███▄ [0m[1m▄▀[0m       Arise. One task, one fresh session, the right rank.
-   [2m▟█████▙[0m[1m▀[0m
-   [2m█[0m▀▀▀▀▀[2m█[0m        [1m✗ 1  igris.toml   not found · I Init writes it[0m
-   [2m▜█████▛[0m        · 2  plan         tasks.md not found · D Draft… or E Plan from template…
-   [2m  ▀███▀[0m        · 3  check        —
-                  · 4  preview      —
-                  · 5  arise        —
+               ▄▄▄          [1mGET STARTED[0m
+            ▄██▀▀▀▀         Arise. One task, one fresh session, the right rank.
+     ▄▄▄▄       ▄▄▄▄
+     ▀██████▄██████▀        [1m✗ 1  igris.toml   not found · I Init writes it[0m
+         ▀▀███▀▀            · 2  plan         tasks.md not found · D Draft… or E Plan from template…
+            ▀               · 3  check        —
+                            · 4  preview      —
+                            · 5  arise        —
 ── [1mHEALTH[0m ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
 [1m✗ doctor: 1 failure · igris.toml not found[0m
 

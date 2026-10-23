@@ -1122,12 +1122,12 @@ Each button carries its key (`[o Open session]`, since 1.7); the bar shows only 
 ```
 igris · sinjal                     phase M1 · 8/8 · 100% ██████████ · herdr                     Done
 ────────────────────────────────────────────────────────────────────────────────────────────────────
-                                               ▄█▄   ▄▄
-                                              ▄███▄ ▄▀
-                                              ▟█████▙▀
-                                              █▀▀▀▀▀█
-                                              ▜█████▛
-                                                ▀███▀
+                                                    ▄▄▄
+                                                 ▄██▀▀▀▀
+                                          ▄▄▄▄       ▄▄▄▄
+                                          ▀██████▄██████▀
+                                              ▀▀███▀▀
+                                                 ▀
 
                                           Done ✓ completed
                                   phase M1 · Plan parser & writer
@@ -1142,7 +1142,7 @@ igris · sinjal                     phase M1 · 8/8 · 100% ██████�
 ────────────────────────────────────────────────────────────────────────────────────────────────────
 [›q Home‹] [h History] [y Copy report command] [?]
 ```
-The helm (§15.4), `Done` and the outcome with its glyph (`Done ✓ completed`, `Done – stopped`, `Done ▲ stuck` with the tasks that wait and on what, `Done ✗ failed` with the error, and since 1.7 `Done ▲ interrupted` in a view whose igris serve died without ending the run, killed or crashed, with `next: igris status`), the phase, the counts (done, skipped, and `failed`, the tasks whose last attempt hit the verify limit or an error, only when it isn't zero), wall time, needs-you time, tokens, commits, verify, the skip reasons, and `next:` with the commands that follow. Narrow, the helm is dropped first, then the two columns stack. A Stop the owner confirmed (`x`) returns to home on its own once igris has stopped.
+The helm (§15.4), `Done` and the outcome with its glyph (`Done ✓ completed`, `Done – stopped`, `Done ▲ stuck` with the tasks that wait and on what, `Done ✗ failed` with the error, and since 1.7 `Done ▲ interrupted` in a view whose igris serve died without ending the run, killed or crashed, with `next: igris status`), the phase, the counts (done, skipped, and `failed`, the tasks whose last attempt hit the verify limit or an error, only when it isn't zero), wall time, needs-you time, tokens, commits, verify, the skip reasons, and `next:` with the commands that follow. Short of rows, the helm shrinks from L to S and is then dropped, before the blank lines; narrow, the two columns stack. A Stop the owner confirmed (`x`) returns to home on its own once igris has stopped.
 
 **Attached clients** (since 1.4). Several run views may show one run at once (§13); each sends its owner's actions, and a question is answered by the first one: in the others its dialog closes as the answer's events arrive. The header names the serving igris when it is another version (`served by igris 1.4.0`, with the note that the run keeps that igris until it ends). When the connection to serve is lost the header says `▲ reconnecting…` in Ember and the view reconnects with a fresh snapshot; while it is gone the bar offers only Quit. In a view attached by `igris attach`, `ctrl+c` (like SIGINT, SIGTERM and SIGHUP) detaches without asking: the run goes on in serve.
 
@@ -1178,26 +1178,28 @@ Since 1.7 the TUI, the web UI (§15.8) and the CLI's text output (§14) share on
   | `▲ Interrupted` | the last run ended without ending itself: the newest run of the log has no `run_stopped` (igris crashed, was killed or lost its terminal; `interrupted` in `history`), or, with no log, `state.json` still has a task; Resume picks it up (home) |
 
   A task's state line is its glyph and a short phrase in sentence case, never a second vocabulary (§15.3). Words are sentence case; only the section labels (`TASKS`, `LOG`, `PHASES`, `HEALTH`, `RECENT`, the home cards' titles) are capitals. `NEEDS YOU`, `INTERRUPTED`, `OVERDUE`, `RANK MISMATCH`, `YOUR TURN` and the `state:` prefix are gone since 1.7. A noun comes before its value without a colon: `mode plan`, `rank sonnet → model claude-sonnet-5-5`, `phase M1`. A count carries its noun, pluralised: `1 task needs you`, `2 tasks need you`.
-- **Red means you.** Plume is drawn for exactly two things: **Needs you** (`!`, its words, the banner, the card that needs you) and the `[SKIP PERMISSIONS]` badge. Every warning (`▲`) is **Ember**, and a failure (`✗`) is Ember in bold: a condition to fix, not igris waiting on an answer. Nothing else is red on any surface. The brand mark is not a status: the wordmark's red `i` and the helm's plume are the only other red.
+- **Red means you.** Plume is drawn for exactly two things: **Needs you** (`!`, its words, the banner, the card that needs you) and the `[SKIP PERMISSIONS]` badge. Every warning (`▲`) is **Ember**, and a failure (`✗`) is Ember in bold: a condition to fix, not igris waiting on an answer. Nothing else is red on any surface. The brand mark is not a status: the wordmark's red `i` and the helm's plume (with its pink stroke) are the only other red.
 - **Colors** follow the brand palette (`docs/brand/`); each has a value for dark and for light terminals. `[tui] theme` picks one, and `auto` goes by the terminal's background (dark if it can't be detected).
 
   | Severity | Dark | Light | Used for |
   |---|---|---|---|
   | Plume (needs you) | `#E3172B`, words `#FF5C74` | `#E3172B`, words `#B3122E` | `!`, Needs you, the `[SKIP PERMISSIONS]` badge |
   | Ember (warning) | `#FFB000` | `#9A6700`, words bold | `▲`, `✗` (bold), Interrupted, Overdue, rank mismatch, reconnecting…, the quota from 80% (bold from 95%) |
-  | Glow (accent) | `#3CC8FF` | `#0A86C8`, words `#0A6FA8` | `●`, `✓`, Working, the focused region, the primary button, **Arise.**, the helm's seams |
+  | Glow (accent) | `#3CC8FF` | `#0A86C8`, words `#0A6FA8` | `●`, `✓`, Working, the focused region, the primary button, **Arise.**, the helm's outline and visor |
   | Text | `#EAF4FF` | `#05070F` | everything that is read |
   | Dim | faint | faint | done, skipped and blocked rows, secondary text, inactive buttons; `#9DB0D3` / `#4A5B7A` on the web |
   | Frame | `#2C5AA0` | `#8FA9CC` | rules, column lines, card borders |
 
   Plume and the light Glow are mark shades (glyphs, edges, segments, borders); words in those colors use the text shade, which is AA against the ground.
+
+  The helm (brand moments, below) adds its own shades, dark / light: face `#0A1124` / `#0E1730` and its shadow half `#05070F`, ridges `#236C92` / `#0C4F7C`, visor core `#B8F0FF` / `#8FE3FF`, chin bars `#32A3D3` / `#0B70AA`, the plume's stroke `#F05A6E`. They are art, never text. The S tile is the app icon and keeps its dark shades on a light terminal.
 - **Rank colors**, one scheme for the TUI, the web UI and the site: haiku Steel `#9FB3C8` / `#52657A`, sonnet Sky `#6EA8FF` / `#1D5FD1`, opus Violet `#B48CFF` / `#6D3FD6`, fable Orchid `#FF8AD8` / `#B0237A` (dark / light; fable was gold before 1.7, which is now Ember). They never take the accent's cyan, Ember or plume. Rank colors are configurable (`[tui.rank_colors]`, §12) but each rank also shows its name. Other ranks are uncolored until given one.
 - **Color only on a terminal**, with `NO_COLOR` unset and `TERM` not `dumb`: otherwise no color is drawn. Bold, faint and reverse video are not colors and stay. The one exception is the QR code of `igris serve token` (§14): it is always drawn black on white, piped or under `NO_COLOR`, because a camera must read it on any theme.
 - The focused element is marked without relying on color (reverse video plus `›…‹` brackets on buttons, `›` on rows), so focus is visible under `NO_COLOR`.
 - Buttons have four states: normal, focused, wanting attention (`Answer…` while a question is pending) and inactive (the bar under a dialog or page, dimmed). Hover is drawn over any of them (§15.5): the element under the pointer is underlined, which is no color, so it shows under `NO_COLOR` too, and it never looks like focus.
 - **Type.** In the terminal bold is the display face: the wordmark, the status word, titles, the focused button.
 - **Time and numbers.** Local time: `HH:MM` in the TUI (log lines, the header, cards), `Mon DD HH:MM` for a date (the year added when it isn't this year); durations in their two largest units (`45s`, `4m12s`, `1h47m`, `2d3h`), estimates with `≈` in minutes, ages as `25m ago`; tokens as `812`, `41k`, `2.3M`, `14M` (narrow `2.3M/41k`); progress as `7/12 · 58% ██████░░░░`.
-- **Brand moments.** The wordmark opens every header: `igris` in bold with the second `i` in plume. **Arise.** opens the log of every run (§15.1). The helm, six rows of half blocks (armor dim, seams and visor in glow, the plume in plume), stands on GET STARTED (§15.6) and the end-of-run summary (§15.3), and is dropped below 60 columns. During a run igris is quiet: only the running glyph and the live tail move, no spinner in the header, no banner that isn't Needs you, no color on what is fine.
+- **Brand moments.** The wordmark opens every header: `igris` in bold with the second `i` in plume. **Arise.** opens the log of every run (§15.1). The helm stands on GET STARTED (§15.6) and the end-of-run summary (§15.3), drawn from the hand-drawn pixel art in `docs/brand/helm-pixels.txt`, two pixels to a cell with `▀` (the top pixel in the foreground, the bottom one in the background): **L**, the mark (24 × 13 cells: the glow outline, the navy face split by a ridge, the side ridges, the V-visor with its bright core, three chin bars, the plume with its pink stroke), where the screen is at least 80 columns by 32 rows and it fits; **S-tile**, the app icon (19 × 6 cells: the visor and the plume's arc on a dark rounded tile), from 40 columns and on shorter screens; nothing below 40 columns. Without color (`NO_COLOR`, piped, no color support) it is the S shape in plain blocks without the tile; 256-color terminals take the nearest colors. Its shades beyond the palette (the face's two navies, the ridges, the visor core, the chin bars, the plume's stroke) are named tokens in `internal/look`, which the web UI's tokens are tested against. During a run igris is quiet: only the running glyph and the live tail move, no spinner in the header, no banner that isn't Needs you, no color on what is fine.
 
 ### 15.5 Interaction
 Modelled on Claude Code's choice prompts and herdr's clickable UI.
@@ -1276,7 +1278,7 @@ A header (the wordmark, the project, the plan file, the backend's name — `herd
 
 | State | Card | Default action |
 |---|---|---|
-| No `igris.toml` | **GET STARTED**, beside the helm and the tagline *Arise. One task, one fresh session, the right rank.* (the helm dropped below 60 columns, §15.4), in place of PHASES and the card (also while the plan is missing), then HEALTH (the doctor summary; the steps tell the plan's state) and RECENT once there are runs: numbered steps `igris.toml`, plan, check, preview, arise, each `·` until reached, `✗` with what to do while it fails (`✗ 1  igris.toml   not found · I Init writes it`), and `✓` as data refreshes; after init, the plan step offers **Plan from template…** (`init --example` or `--template`), or **Check** / **Adapt** when a non-canonical plan exists | Init |
+| No `igris.toml` | **GET STARTED**, beside the helm and the tagline *Arise. One task, one fresh session, the right rank.* (the helm above the steps where the card beside it would be narrower than 40 columns, dropped below 40 columns or where it doesn't fit, §15.4), in place of PHASES and the card (also while the plan is missing), then HEALTH (the doctor summary; the steps tell the plan's state) and RECENT once there are runs: numbered steps `igris.toml`, plan, check, preview, arise, each `·` until reached, `✗` with what to do while it fails (`✗ 1  igris.toml   not found · I Init writes it`), and `✓` as data refreshes; after init, the plan step offers **Plan from template…** (`init --example` or `--template`), or **Check** / **Adapt** when a non-canonical plan exists | Init |
 | `igris.toml` invalid | **CONFIG INVALID**: the first few problems, "… N more — Settings shows all"; igris uses the defaults meanwhile | Settings |
 | Plan missing | **NO PLAN**: the path igris looked at | — |
 | Plan invalid | **PLAN INVALID**: file, problem count, the first few `file:line: message`, "… N more — Check shows all", then what to do next with the keys (`Next: c Check lists every problem; e Edit plan fixes them by hand, or A Adapt has Claude propose a canonical plan.`; a plan in a newer format points at `u` Updates); without a backend, why Adapt is unavailable | Check |

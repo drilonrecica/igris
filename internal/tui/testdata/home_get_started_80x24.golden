@@ -1,14 +1,14 @@
 igris · newproj · herdr ✓                                                   Idle
 ────────────────────────────────────────────────────────────────────────────────
-    ▄█▄   ▄▄      GET STARTED
-   ▄███▄ ▄▀       Arise. One task, one fresh session, the right rank.
-   ▟█████▙▀
-   █▀▀▀▀▀█        ✗ 1  igris.toml   not found · I Init writes it
-   ▜█████▛        · 2  plan         tasks.md not found · D Draft… or E Plan from
-     ▀███▀                          template…
-                  · 3  check        —
-                  · 4  preview      —
-                  · 5  arise        —
+               ▄▄▄          GET STARTED
+            ▄██▀▀▀▀         Arise. One task, one fresh session, the right rank.
+     ▄▄▄▄       ▄▄▄▄
+     ▀██████▄██████▀        ✗ 1  igris.toml   not found · I Init writes it
+         ▀▀███▀▀            · 2  plan         tasks.md not found · D Draft… or E
+            ▀                                 Plan from template…
+                            · 3  check        —
+                            · 4  preview      —
+                            · 5  arise        —
 ── HEALTH ──────────────────────────────────────────────────────────────────────
 ✗ doctor: 1 failure · igris.toml not found
 

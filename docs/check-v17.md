@@ -315,3 +315,29 @@ Every test run went through the `systemd-run --user --scope` fence (MemoryMax 6G
 **Cleanup.** The tmux server and its socket file, the herdr session (`herdr session stop`, then `delete`), every Claude Code session and the scratch tree are gone. No igris, Claude Code, herdr or test process of the re-gate was left; the owner's own igris run (3 processes) was not touched. Answering folder trust again recorded scratch paths in Claude Code's config, and the sessions left transcripts under `~/.claude/projects/`.
 
 **Owner checks left** are the five above, on this build; item 5 covers the three decisions here too.
+
+## Helm (V17-18)
+
+The helm became the hand-drawn pixel art of `docs/brand/helm-pixels.txt` (owner decision 2026-10-23): L, the mark, and S-tile, the app icon. This check ran it live, unattended, on 2026-10-23 at about 13:15–13:25, from the V17-18 task session. The build was this tree with the change, built with `-X main.version=1.7.0` into a scratch `GOBIN`. The project p1 was a synthetic scratch git repo under a `mktemp -d` directory. It had `backend = "tmux"`, `commit = "auto"` and `verify = "true"`, and two phases of one sonnet task each that writes a file and runs `igris done`. Both ran with `--mode auto`, never `yolo`. tmux was a private server, `tmux -L igris-helm-v17`, started from `env -i` with bash (`default-shell /bin/bash`), `TERM=tmux-256color` and `COLORTERM=truecolor`; its window said `igris is …/bin/igris`, `igris 1.7.0`. Claude Code's folder-trust question was answered as the owner (Down, Enter).
+
+**How colors were read.** Each screen was captured with `capture-pane -e`. A script rebuilt the helm's pixels from the captured cells: `▀` is the top pixel in the foreground and the bottom one in the background, `▄` the bottom pixel alone, a space two transparent ones. It mapped each color back to its letter in the legend (±1 per channel; `#F05A6E` comes back as `#F0596E`) and compared the result with the reference, letter for letter. Without color it compared the blocks with the S-tile's `V`, `C` and `R` pixels.
+
+| Screen | Result |
+|---|---|
+| GET STARTED, 120×40 (no `igris.toml`) | **L** at column 3, beside the card: matches the reference, in all eight shades (`#3CC8FF`, `#0A1124`, `#05070F`, `#236C92`, `#B8F0FF`, `#32A3D3`, `#E3172B`, `#F05A6E`) |
+| GET STARTED, 120×24 | **S-tile** beside the card: matches, in `#0A1124`, `#3CC8FF`, `#B8F0FF`, `#E3172B` |
+| GET STARTED, 60×24 | **S-tile** above GET STARTED (the card beside it would be under 40 columns): matches |
+| GET STARTED, 38×20 | no helm: home says `igris — terminal too small (need 50×20, now 38×20) · q quits`, as before this change |
+| GET STARTED under `NO_COLOR`, 120×40 and 60×24 | the plain S shape, beside the card and above it: matches, with no color code in the helm's rows |
+| GET STARTED, 256 colors (`COLORTERM` empty, `TERM=xterm-256color`), 120×40 | L in `38;5`/`48;5` only: glow 81, visor core 159, plume 160, stroke 203, ridges 24, chin bars 74, both face navies 232 |
+| Summary of phase A, 120×40 | `Done ✓ completed`, `phase A · Color`, `1 done · 0 skipped`, `wall 37s`, `verify 1 ✓`, `1 commit · last A-01`, `next: igris arise B · igris report …`; **L** centred above it: matches, all eight shades |
+| The same summary at 120×24 and 60×24 | **S-tile** centred: matches |
+| The same summary at 38×20 | no helm; the facts stack |
+| Summary of phase B under `NO_COLOR`, 120×40 | the plain S shape centred: matches, with no color code on the screen |
+
+**Observations (no change).**
+
+- In 256 colors both face navies (`#0A1124`, `#05070F`) take index 232, so the face's two halves are one color there; the ridge still splits it.
+- Home needs 50×20, so GET STARTED never reaches the helm's 40-column floor; the summary does, and at 38×20 it draws without the helm.
+
+**Cleanup.** The tmux server and its socket file and the scratch tree are gone. No igris, Claude Code or test process of the check was left. The owner's own igris run (3 processes) was not touched. Claude Code recorded the scratch path's folder trust in its config, and the two sessions left transcripts under `~/.claude/projects/`.

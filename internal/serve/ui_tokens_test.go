@@ -49,6 +49,13 @@ func TestCSSTokensMatchLook(t *testing.T) {
 		"--plume":       look.Plume,
 		"--needs-text":  look.PlumeText,
 		"--ember":       look.Ember,
+		// the helm's shades
+		"--helm-face":         look.HelmFace,
+		"--helm-face-shadow":  look.HelmFaceShadow,
+		"--helm-ridge":        look.HelmRidge,
+		"--helm-visor-core":   look.HelmVisorCore,
+		"--helm-chin":         look.HelmChin,
+		"--helm-plume-stroke": look.HelmPlumeStroke,
 	}
 	for _, r := range look.Ranks {
 		want["--rank-"+r.Rank] = r.Shade

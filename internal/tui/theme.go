@@ -59,6 +59,7 @@ type paintStyle struct {
 // which is what the layout tests compare.
 type theme struct {
 	on    bool
+	dark  bool
 	r     *lipgloss.Renderer // turns colors into what the terminal takes
 	looks [lookCount]paintStyle
 	ranks map[string]string // rank -> color
@@ -68,7 +69,7 @@ type theme struct {
 // rankColors are the owner's colors by rank ("#rrggbb" or an ANSI number).
 // Under NO_COLOR r renders no colors; the attributes stay.
 func newTheme(r *lipgloss.Renderer, dark bool, rankColors map[string]string) *theme {
-	th := &theme{on: true, r: r, ranks: map[string]string{}}
+	th := &theme{on: true, dark: dark, r: r, ranks: map[string]string{}}
 	accent := look.Accent.Style(dark).Color // the word shade, AA on the ground
 	th.looks = [lookCount]paintStyle{
 		lookAccent:     {color: accent},
@@ -171,15 +172,65 @@ func (th *theme) button(label string, st btnState) string {
 	return "[" + label + "]"
 }
 
-// helmPart draws a part of the helm (GET STARTED, the end-of-run
-// summary): the armor dim, the visor in glow, the plume in plume (SPEC
-// §15.4).
-func (th *theme) helmPart(r look.HelmRole, s string) string {
-	switch r {
-	case look.HelmVisor:
-		return th.paint(lookAccent, s)
-	case look.HelmPlume:
-		return th.paint(lookBrand, s)
+// colored reports whether the theme draws colors: off for the layout
+// tests' zero theme and for a terminal without them (NO_COLOR, piped):
+// there the renderer draws a color as nothing.
+func (th *theme) colored() bool {
+	return th.on && th.r != nil && th.r.NewStyle().Foreground(lipgloss.Color("#FFFFFF")).Render("x") != "x"
+}
+
+// helm draws grid, look.HelmL or look.HelmS, for GET STARTED and the
+// end-of-run summary (SPEC §15.4): a cell is ▀ with the top pixel in the
+// foreground and the bottom one in the background, or ▄ where only the
+// bottom pixel is drawn, so a transparent pixel is the terminal's own
+// ground. The mark takes the ground's shades; the S tile is the app icon,
+// which carries its own dark ground. Without color it is the plain S
+// shape. Every line is the grid's width in cells.
+func (th *theme) helm(grid []string) []string {
+	if !th.colored() {
+		return look.HelmPlain()
 	}
-	return th.paint(lookDim, s)
+	dark := th.dark || &grid[0] == &look.HelmS[0]
+	shade := func(p byte) string {
+		s, _ := look.HelmShade(p)
+		return s.Pick(dark)
+	}
+	// A run of cells drawn alike is painted once.
+	type run struct{ glyph, fg, bg string }
+	var out []string
+	for _, row := range look.HelmCells(grid) {
+		var b strings.Builder
+		var cur run
+		n := 0
+		flush := func() {
+			text := strings.Repeat(cur.glyph, n)
+			if cur.fg == "" { // transparent: the terminal's own ground
+				b.WriteString(text)
+				return
+			}
+			st := th.r.NewStyle().Foreground(lipgloss.Color(cur.fg))
+			if cur.bg != "" {
+				st = st.Background(lipgloss.Color(cur.bg))
+			}
+			b.WriteString(st.Render(text))
+		}
+		for _, c := range row {
+			r := run{glyph: " "}
+			switch top, bottom := shade(c.Top), shade(c.Bottom); {
+			case top != "":
+				r = run{"▀", top, bottom}
+			case bottom != "":
+				r = run{"▄", bottom, ""}
+			}
+			if n > 0 && r != cur {
+				flush()
+				n = 0
+			}
+			cur = r
+			n++
+		}
+		flush()
+		out = append(out, b.String())
+	}
+	return out
 }

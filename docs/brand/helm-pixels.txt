@@ -1,0 +1,68 @@
+# The helm in pixels (V17-18)
+
+Reference art for the TUI's helm (SPEC §15.4, internal/look/helm.go), drawn
+by hand from the mark (igris-mark-dark.svg) and the icon (igris-icon.svg).
+One character is one pixel; a terminal cell holds two pixels stacked, drawn
+with `▀` (top in the foreground color, bottom in the background color), so
+each grid is half as many rows tall in cells. Approved by the owner
+2026-10-23: L on large screens, S-tile on small ones.
+
+Legend (truecolor):
+
+    .  transparent (the terminal's own background)
+    O  outline, glow        #3CC8FF
+    n  face, left half      #0A1124
+    m  face, right half     #05070F
+    r  ridges               #236C92
+    V  visor, glow          #3CC8FF
+    C  visor core           #B8F0FF
+    b  chin bars            #32A3D3
+    R  plume                #E3172B
+    p  plume's inner stroke #F05A6E
+
+## L — the mark (24 × 26 pixels, 24 × 13 cells)
+
+    ...........RRRR.........
+    ........OOORRRRRR.......
+    ......OOnrmOO.RRRRR.....
+    ....OOnnnrmmmOOpRRRRR...
+    ..OOnnnnnrmmmmmOOpRRRR..
+    .OnnnnnnnrmmmmmmmO.pRRR.
+    OnnrnnnnnrmmmmmrmmO.pRRR
+    OnnrnnnnnrmmmmmrmmO.pRRR
+    OnnnrnnnnrmmmmrmmmO.pRRR
+    OnnnrnnnnrmmmmrmmmO.pRRR
+    OnnnnrnnnrmmmrmmmmO.p.RR
+    OVVVnnnnnrmmmmmVVVO.p.RR
+    OCCCVVVnnrmmVVVCCCO.p..R
+    OVVVCCCVVVVVCCCVVVO....R
+    OnnnVVVCCVCCVVVmmmO.....
+    OnnnnnnVVCVVmmmmmmO.....
+    OnnnnnnnnVmmmmmmmmO.....
+    .OnnnnnnnrmmmmmmmO......
+    .OnbbnnnnrmmmmbbmO......
+    ..OnnbbbbbbbbbmmO.......
+    ..OnbbnnnrmmmbbmO.......
+    ...OnnbbbbbbbmmO........
+    ...OnnnnnrmmmmmO........
+    ....OnbbbbbbbmO.........
+    .....OOnnrmmOO..........
+    .......OOOOO............
+
+## S-tile — the icon (19 × 12 pixels, 19 × 6 cells)
+
+    .nnnnnnnnnnnnnnnnn.
+    nnnnnnnnnnnnRRRnnnn
+    nnnnnnnnnnRRRRRRnnn
+    nnnnnnnnnRRRnnnnnnn
+    nnnnnnnnnnnnnnnnnnn
+    nnVVVVnnnnnnnVVVVnn
+    nnVCCCVVVnVVVCCCVnn
+    nnnVVVCCCVCCCVVVnnn
+    nnnnnnVVVCVVVnnnnnn
+    nnnnnnnnVVVnnnnnnnn
+    nnnnnnnnnVnnnnnnnnn
+    .nnnnnnnnnnnnnnnnn.
+
+Without color, the S shape is drawn in plain blocks without the tile: the
+S-tile grid's V, C and R pixels as blocks, every other pixel blank.

@@ -13,7 +13,7 @@ Seven rules fix that. Everything below follows from them.
 ## The seven rules
 
 1. **One vocabulary on three surfaces, from one source.** Glyphs, status words, severities, colors, rank colors, plurals, time and token formats live in one Go package, `internal/look`, which the TUI and the CLI use and the web UI's CSS tokens mirror, with a test that keeps them equal. A word is spelled one way everywhere.
-2. **Red means you.** Plume red is drawn for exactly two things: **Needs you**, and the `[SKIP PERMISSIONS]` badge. Every warning is **Ember**. Nothing else is red, on any surface. The brand mark is not a status: the wordmark's red `i` and the helm's plume are the only other red, and the test that pins the rule names them as the exceptions.
+2. **Red means you.** Plume red is drawn for exactly two things: **Needs you**, and the `[SKIP PERMISSIONS]` badge. Every warning is **Ember**. Nothing else is red, on any surface. The brand mark is not a status: the wordmark's red `i` and the helm's plume (with its pink stroke) are the only other red, and the test that pins the rule names them as the exceptions.
 3. **Status first.** Every screen leads with one of seven status words, and when igris needs you that is the loudest thing on the screen: the header word, a banner, the card, the sheet. Nothing competes with it.
 4. **One glyph table.** Each glyph has one meaning and keeps it on every surface. Color never carries meaning alone: every state is a glyph or a word, and color and weight only add emphasis.
 5. **Brand at the moments that matter.** The wordmark with the red `i` in every header, **Arise.** when a run starts, the helm on GET STARTED and on the end-of-run summary. During a run igris is quiet: no decoration, nothing moving but what is working.
@@ -64,10 +64,12 @@ The rest of the run's states map onto the seven words: a hold (the plan or `igri
 |---|---|---|---|
 | **Plume** (needs you) | `#E3172B`, words `#FF5C74` | `#E3172B`, words `#B3122E` | `!`, the Needs-you banner's edge, the sheet's edge, the phase bar's segment, the `[SKIP PERMISSIONS]` badge; the words Needs you in the text shade. Nothing else |
 | **Ember** (warning) | `#FFB000` | `#9A6700` | `▲` and `✗` and their lines: warnings, failures, Interrupted, Overdue, Rank mismatch, reconnecting…, the quota from 80% |
-| **Glow** (accent) | `#3CC8FF` | `#0A86C8`, words `#0A6FA8` | `●`, `✓`, the working word, the focused region, the primary button, **Arise.**, the helm's seams; words on the light ground in the text shade |
+| **Glow** (accent) | `#3CC8FF` | `#0A86C8`, words `#0A6FA8` | `●`, `✓`, the working word, the focused region, the primary button, **Arise.**, the helm's outline and visor; words on the light ground in the text shade |
 | **Text** | `#EAF4FF` | `#05070F` | everything that is read |
 | **Dim** | faint | faint | done, skipped and blocked rows, secondary text, inactive buttons; on the web `#9DB0D3` / `#4A5B7A` |
 | **Frame** | `#2C5AA0` | `#8FA9CC` | rules, column lines, card borders |
+
+The helm adds shades of its own, art and never text, named in `internal/look` and mirrored by the web UI's tokens (dark / light): face `#0A1124` / `#0E1730` and its shadow half `#05070F`, ridges `#236C92` / `#0C4F7C`, visor core `#B8F0FF` / `#8FE3FF`, chin bars `#32A3D3` / `#0B70AA`, the plume's stroke `#F05A6E`. Its outline and visor are Glow and its plume is Plume. The S tile is the app icon and keeps its dark shades on a light terminal.
 
 Ember is the functional brand color for warnings on every surface: amber on dark, dark gold on light. It replaces the red that warnings wore in the TUI and the amber that only the quota wore. A failure (`✗`) is the strongest warning and uses Ember in bold, not red: it is a condition to fix, not igris waiting for your answer. The quota is Ember from 80% and bold Ember from 95%: running low is a warning, not igris waiting on you.
 
@@ -138,7 +140,7 @@ In the terminal, bold is the display face: the wordmark, the status word, titles
 
 - **The wordmark** opens every header: `igris` in bold with the second `i` in plume. On the web and the site it is Chakra Petch 700 and the visor icon goes before it.
 - **Arise.** When a run starts, the first line of the log is `Arise. phase M1 · 7 tasks · mode plan`, in bold accent; `igris serve` and `--no-tui` print the same line. It is the only line in the log that isn't an event.
-- **The helm** in half blocks, six rows, armor dim, seams and visor in glow, plume in plume, stands on two screens: GET STARTED (next to the tagline, *Arise. One task, one fresh session, the right rank.*) and the end-of-run summary. It is never shown during a run.
+- **The helm** is hand-drawn pixel art ([`docs/brand/helm-pixels.txt`](brand/helm-pixels.txt)), two pixels to a cell with `▀`, the top pixel in the foreground and the bottom one in the background. **L** is the mark, 24 × 13 cells: the glow outline, the navy face split by a ridge, the side ridges, the V-visor with its bright core, three chin bars, the plume with its pink stroke. **S-tile** is the app icon, 19 × 6 cells: the visor and the plume's arc on a dark rounded tile. L stands where the screen is at least 80 columns by 32 rows and it fits, S-tile from 40 columns and on shorter screens, nothing below 40. Without color it is the S shape in plain blocks, without the tile; 256-color terminals take the nearest colors. It stands on two screens: GET STARTED (next to the tagline, *Arise. One task, one fresh session, the right rank.*) and the end-of-run summary. It is never shown during a run.
 - **The summary** replaces `the run ended — press q to go home`: the helm, `Done` and the outcome, the phase, the counts (done, skipped, failed), wall time, needs-you time, tokens, commits, verify, the skip reasons, and `next:` with the commands that follow. Home is focused.
 - **Quiet during a run.** The only things that move are the running glyph and the live tail; on the phone, the live dot and the active segment. No spinner in the header, no banner that isn't Needs you, no color on what is fine.
 
@@ -274,21 +276,21 @@ With a run served elsewhere on this host the header word is `● Working` or `! 
 ```
 igris · newproj · herdr ✓                                                                       Idle
 ────────────────────────────────────────────────────────────────────────────────────────────────────
-     ▄█▄   ▄▄      GET STARTED
-    ▄███▄ ▄▀       Arise. One task, one fresh session, the right rank.
-   ▟█████▙▀
-   █▀▀▀▀▀█         ✗ 1  igris.toml   not found · I Init writes it
-   ▜█████▛         · 2  plan         tasks.md not found · D Draft… or E Plan from template…
-    ▀███▀          · 3  check        —
-                   · 4  preview      —
-                   · 5  arise        —
+               ▄▄▄          GET STARTED
+            ▄██▀▀▀▀         Arise. One task, one fresh session, the right rank.
+     ▄▄▄▄       ▄▄▄▄
+     ▀██████▄██████▀        ✗ 1  igris.toml   not found · I Init writes it
+         ▀▀███▀▀            · 2  plan         tasks.md not found · D Draft… or E Plan from template…
+            ▀               · 3  check        —
+                            · 4  preview      —
+                            · 5  arise        —
 ── HEALTH ──────────────────────────────────────────────────────────────────────────────────────────
 ✗ doctor: 1 failure · igris.toml not found
 ────────────────────────────────────────────────────────────────────────────────────────────────────
 [›I Init‹] [D Draft…] [i Doctor] [, Settings] [u Updates] [?] [q Quit]
 ```
 
-The helm: armor dim, the visor row (`▀▀▀▀▀`) in glow, the two plume strokes in plume. Below 60 columns the helm is dropped and the tagline stays.
+The helm is drawn here as it is without color, the plain S shape; in color a screen of at least 80 × 32 shows the L mark and a smaller one the S tile ([`docs/brand/helm-pixels.txt`](brand/helm-pixels.txt)). Where the card beside the helm would be narrower than 40 columns the helm stands above it; below 40 columns it is dropped and the tagline stays.
 
 ### A floating dialog (100×24, over the dimmed run screen)
 
@@ -327,12 +329,12 @@ Everything outside the dialog is dimmed and stays readable; the bar is inactive.
 igris · sinjal                     phase M1 · 8/8 · 100% ██████████ · herdr                     Done
 ────────────────────────────────────────────────────────────────────────────────────────────────────
 
-                                               ▄█▄   ▄▄
-                                              ▄███▄ ▄▀
-                                              ▟█████▙▀
-                                              █▀▀▀▀▀█
-                                              ▜█████▛
-                                                ▀███▀
+                                                    ▄▄▄
+                                                 ▄██▀▀▀▀
+                                          ▄▄▄▄       ▄▄▄▄
+                                          ▀██████▄██████▀
+                                              ▀▀███▀▀
+                                                 ▀
 
                                           Done ✓ completed
                                   phase M1 · Plan parser & writer
@@ -349,7 +351,7 @@ igris · sinjal                     phase M1 · 8/8 · 100% ██████�
 [›q Home‹] [h History] [y Copy report command] [?]
 ```
 
-`Done – stopped` and `Done ▲ stuck` (with `2 tasks wait on M1-05, which is blocked`) and `Done ✗ failed` (with the error) take the same screen. `failed` counts tasks whose last attempt hit the verify limit or an error and is shown only when it isn't zero. Narrow: the helm is dropped first, then the two columns stack.
+`Done – stopped` and `Done ▲ stuck` (with `2 tasks wait on M1-05, which is blocked`) and `Done ✗ failed` (with the error) take the same screen. `failed` counts tasks whose last attempt hit the verify limit or an error and is shown only when it isn't zero. Short of rows, the helm shrinks from L to S and is then dropped, before the blank lines; narrow, the two columns stack.
 
 ### The web sheet, collapsed and open (390 px)
 

@@ -167,7 +167,7 @@ const summaryWide = 72
 func (m *model) summaryScreen(w, h int) []string {
 	out := []string{m.header(w), m.th.rule(w, "")}
 	rows := max(h-chromeRows, 0)
-	body := m.summaryBody(w, rows)
+	body := m.summaryBody(w, h, rows)
 	for i := range rows {
 		out = append(out, fit(line(body, i), w))
 	}
@@ -180,7 +180,7 @@ func (m *model) summaryScreen(w, h int) []string {
 
 // summaryBody lays the summary out in at most rows lines of w cells. The
 // helm goes first when the rows run out, then the blank lines.
-func (m *model) summaryBody(w, rows int) []string {
+func (m *model) summaryBody(w, h, rows int) []string {
 	s := &m.sum
 	width := min(w-4, 72)
 	left := max((w-width)/2, 0)
@@ -189,11 +189,12 @@ func (m *model) summaryBody(w, rows int) []string {
 		return strings.Repeat(" ", left+max((width-textWidth(text))/2, 0)) + text
 	}
 
-	var helm []string
-	if w >= look.HelmMinWidth {
-		for _, l := range look.HelmLines(m.th.helmPart) {
-			helm = append(helm, strings.TrimRight(centre(l), " "))
+	helm := func(grid []string) []string {
+		var out []string
+		for _, l := range m.th.helm(grid) {
+			out = append(out, strings.TrimRight(strings.Repeat(" ", left+max((width-look.HelmWidth(grid))/2, 0))+l, " "))
 		}
+		return out
 	}
 
 	var head []string
@@ -219,7 +220,7 @@ func (m *model) summaryBody(w, rows int) []string {
 
 	next := indent + fit(m.th.paint(lookDim, "next: ")+m.th.paint(lookTitle, strings.Join(m.nextCommands(), "  ·  ")), width)
 
-	blocks := [][]string{helm, head, facts, notes, {next}}
+	blocks := [][]string{nil, head, facts, notes, {next}}
 	joined := func(blank bool) []string {
 		var out []string
 		for _, b := range blocks {
@@ -234,9 +235,18 @@ func (m *model) summaryBody(w, rows int) []string {
 		return out
 	}
 	body := joined(true)
-	if len(body) > rows {
-		blocks[0] = nil // the helm goes first
-		body = joined(true)
+	// The helm goes first: L where the screen is large and it fits, else
+	// S, else none.
+	for _, grid := range [][]string{look.HelmFor(w, h, rows, m.th.colored()), look.HelmS} {
+		if grid == nil || w < look.HelmMinWidth {
+			continue
+		}
+		blocks[0] = helm(grid)
+		if b := joined(true); len(b) <= rows {
+			body = b
+			break
+		}
+		blocks[0] = nil
 	}
 	if len(body) > rows {
 		body = joined(false) // then the blank lines
