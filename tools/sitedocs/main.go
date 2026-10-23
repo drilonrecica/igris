@@ -53,7 +53,8 @@ var pages = []page{
 	{"several-projects", "Several projects", "Running igris in more than one project at once.", "site/docs/several-projects.md"},
 	{"faq", "FAQ", "Subscription or API, models, skip-permissions, Windows.", "site/docs/faq.md"},
 	{"troubleshooting", "Troubleshooting", "What the symptoms mean and what to do.", "site/docs/troubleshooting.md"},
-	{"upgrade", "Upgrade", "From any 0.x release to 1.0, then 1.1, 1.2, 1.4, 1.5 and 1.6.", "site/docs/upgrade.md"},
+	{"upgrade", "Upgrade", "From any 0.x release to 1.0, then 1.1, 1.2, 1.4, 1.5, 1.6 and 1.7.", "site/docs/upgrade.md"},
+	{"design", "Design language", "The seven rules, the glyphs and status words, and what red means.", "docs/design.md"},
 	{"compatibility", "Compatibility", "What 1.x promises not to break, and the tests behind it.", "docs/compatibility.md"},
 }
 

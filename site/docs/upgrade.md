@@ -97,3 +97,11 @@ What is new, all additive:
 - **The commit question is now notified** as `needs_input`, like every other question, so a run left alone says that it waits.
 
 **Two things to know:** whoever holds the pairing token controls the run (short of skip-permissions mode, which is never set remotely) until you run `igris serve token --rotate`; and the web UI's pages are not part of what 1.x promises, only the HTTP API is. `state.json` stays version 4 and plans need no change, so going back to 1.5 is fine (it ignores `.igris/serve-token`).
+
+## From 1.6 to 1.7
+
+Install the new igris (or run `igris update`) and you are done: nothing in your plan, `igris.toml`, scripts, `--json` or `.igris/` changes, and a run interrupted under 1.6 resumes. `state.json` stays version 4.
+
+What is new: one [design language](../../docs/design.md) across the terminal UI, the web UI and the command line's text, a run screen and home that lead with what needs you, an end-of-run summary, a phone page whose Stop stays reachable, grouped help with `next:` hints, notifications that lead with the status word, and the Tokens column `igris report` always promised.
+
+**Three things to know:** the TUI's keys and mode picker moved (the TUI is not part of what 1.x promises): `a` is the one way into the run on home and `t` is Details everywhere, `q` leaves the screen you are on and `ctrl+c` quits igris from anywhere, `A` accepts and `x` rejects in the adapt and draft review, the mode picker lists plan, auto, accept, manual and default first with the rest under **More modes…**, and Cancel is always a dialog's last option; the command line's text output changed (tables, glyphs, help), so read `--json` in scripts; and `task_overdue` and `rank_mismatch` notifications are no longer high priority, only Needs you is. The webhook payload and your templates are unchanged. Going back to 1.6 is fine.

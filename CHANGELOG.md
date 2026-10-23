@@ -4,6 +4,29 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+igris 1.7 gives the terminal UI, the web UI and the command line one design language ([`docs/design.md`](docs/design.md)) and breaks nothing that is promised: plans, `igris.toml`, `--json`, the run log, the webhook payload and protocol 1 are unchanged ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). The TUI's keys and mode picker did move; see the upgrade note below. `state.json` stays version 4.
+
+### Added
+
+- **The design language.** [`docs/design.md`](docs/design.md): seven rules, one glyph table (`✓` done, `●` running, `!` needs you, `·` ready, `⨯` blocked, `–` skipped, `▲` warning, `✗` failed, `◌` waiting), the status words, and **red means you**: plume red only for Needs you and skip permissions, **Ember** (`#FFB000` dark, `#9A6700` light) for every warning. The words, glyphs, palette, rank colors, plurals, durations and timestamps live in `internal/look`; the TUI and the CLI draw with it and a test keeps the web UI's CSS tokens equal to it. Nothing is shown by color alone and `NO_COLOR` is honored.
+- **A run screen built around what needs you.** Panes sized by their content, a Needs-you banner with the card that needs you selected (also in the narrow view, which leads with the status word and puts Needs you first), **Arise.** when a run starts, and an end-of-run summary with the helm in place of "the run ended" (outcome, tasks done, skipped and failed, wall time, usage and the next step).
+- **Home with fewer empty corners.** Phases and tasks sized by their rows, a run elsewhere that needs you shown on home with Attach, GET STARTED with the helm and what to do on each step, and one task-detail layout shared with the run screen.
+- **The phone page on the same language.** The Needs-you sheet folds to a peek strip so Plan, Pause and Stop stay reachable, more questions are a stepper inside the sheet, a card whose question is in the sheet shows a marker instead of duplicate buttons, the brand header is on every page (the not-paired page says `igris serve token`), Recent is in plain words with relative times, phase segments are labelled links, and light-theme text meets AA contrast.
+- **`igris report` has the Tokens column** SPEC §14 and the 1.1 release notes promised (from the run's `usage` lines; `—` when none was read). `--json` adds `usage`, `sub` and `models` per task.
+- **`next:` hints** after success and on empty results of the commands that have a next step, and a summary line on `igris doctor`.
+- **Demo and README.** A new demo GIF (home, **Arise.**, a parallel phase, a question answered, the summary), new home and phone screenshots, and a README rewritten for 1.7 that links to the site's docs instead of repeating them.
+
+### Changed
+
+- **Warnings are Ember, not red.** INTERRUPTED, RUNNING ELSEWHERE, OVERDUE, RANK MISMATCH and reconnecting… carry `▲`; a failed doctor check or task is `✗`; a waiting phase is `◌`, no longer `⨯`.
+- **The command line speaks the same words.** One table style with headers (`history` too), no trailing spaces, long cells truncated to the terminal's width, repeated drift warnings grouped, the TUI's glyphs in `status`, `history`, `phases` and `--dry-run`, one wording for a rank mismatch, plume and cyan instead of raw ANSI. Help is grouped (Start, Inspect, Run, Signal, Plan with AI, Maintain); a flag error reads `igris CMD: …; see igris CMD -h`, and an unknown command is answered with "did you mean". `--json` is untouched.
+- **Notifications lead with the status word and glyph** (`! Needs you`, `▲ Overdue`, `✗ Failed`, `✓ Phase done`). High priority is for Needs you only, so `task_overdue` and `rank_mismatch` are normal priority by default (Gotify 5) and `verify_failed_limit` is high. The ntfy commit buttons read `Leave uncommitted` / `Keep working`. The webhook payload, user templates and template fields are frozen and unchanged.
+- **Keys and the mode picker moved** in the TUI; see the upgrade note below.
+
+### Not promised
+
+The TUI's layout, keys and colors, the web UI's pages, and the text of the command line (SPEC §19). Scripts read `--json`.
+
 ### Upgrade note: keys and modes that moved in the TUI
 
 The TUI isn't covered by the compatibility promise (SPEC §19), so 1.7 moved a few keys to give every key one meaning on every screen (SPEC §15.5). Plans, `igris.toml`, `--json` and scripts are unaffected.
