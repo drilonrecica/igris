@@ -122,6 +122,22 @@ func questionDialog(ev engine.Event) *dialog {
 			{"Stop igris", actStop},
 		}
 		d.cancel = actClose
+	case engine.QuestionFilesInTheWay:
+		// Files where the run branch is checked out are in the way of the
+		// fast-forward (SPEC §6.11): a rerun can't help. Once the owner
+		// moved them, Try again fast-forwards the committed branch.
+		d.title = ev.Task + " didn't integrate"
+		if len(ev.Output) > 0 {
+			d.detail += "\n\n" + strings.Join(ev.Output, "\n")
+			d.pre = true
+		}
+		d.options = []option{
+			{"Try again", actRetryFresh},
+			{"Mark done (integrated by hand)", actDone},
+			{"Skip…", actSkip},
+			{"Stop igris", actStop},
+		}
+		d.cancel = actClose
 	default:
 		d.title = "Question"
 		d.options = []option{{"Yes", actAnswerYes}, {"No", actAnswerNo}}

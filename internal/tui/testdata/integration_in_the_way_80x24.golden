@@ -1,0 +1,18 @@
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ M0-03 didn't integrate                                                       │
+│                                                                              │
+│ M0-03 didn't integrate: the fast-forward would overwrite uncommitted files   │
+│ in the project root: new.txt, docs/new.md: commit, move or remove them, then │
+│ try again (igris integrates the committed branch, no new session), mark it   │
+│ done (you integrated it by hand), skip it, or stop                           │
+│                                                                              │
+│ new.txt                                                                      │
+│ docs/new.md                                                                  │
+│                                                                              │
+│ › 1. Try again                                                               │
+│   2. Mark done (integrated by hand)                                          │
+│   3. Skip…                                                                   │
+│   4. Stop igris                                                              │
+│                                                                              │
+│ enter choose · 1–4 pick · esc keep asking                                    │
+╰──────────────────────────────────────────────────────────────────────────────╯

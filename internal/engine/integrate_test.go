@@ -428,6 +428,172 @@ func TestIntegrationVerifyFailsOnIntegratedTree(t *testing.T) {
 	}
 }
 
+// git's refusal of a fast-forward with files in the way, as it prints it.
+const (
+	untrackedInTheWay = "error: The following untracked working tree files would be overwritten by merge:\n\tnew.txt\n\tdocs/new.md\nPlease move or remove them before you merge.\nAborting\n"
+	changedInTheWay   = "error: Your local changes to the following files would be overwritten by merge:\n\tmain.go\nPlease commit your changes or stash them before you merge.\nAborting\n"
+)
+
+// A fast-forward that fails says why (SPEC §6.11). Files where the run
+// branch is checked out that the branch would overwrite are named, and no
+// rerun is tried, whatever on_conflict says: the owner moves them and
+// tries again, which integrates the committed branch again with no new
+// session. A run branch that moved since the rebase reruns the task, as
+// before; anything else keeps git's first line.
+func TestFastForwardFailures(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		refuse []string // git's errors for a's fast-forwards
+		move   bool     // the run branch moves between a's rebase and its fast-forward
+		ask    bool     // Needs you with QuestionFilesInTheWay, answered with Try again
+		files  []string // the question's output
+		log    []string
+		reruns int // fresh sessions of a after the first
+	}{
+		{name: "untracked file", refuse: []string{untrackedInTheWay}, ask: true, files: []string{"new.txt", "docs/new.md"},
+			log: []string{"integration_failed/conflict:the fast-forward would overwrite uncommitted files in the project root: new.txt, docs/new.md; then needs you", "needs_you/integration:needs you (integration failed)", "needs_you_clear/integration", "integrated:a: One", "task_done:did a"},
+		},
+		{name: "changed tracked file", refuse: []string{changedInTheWay}, ask: true, files: []string{"main.go"},
+			log: []string{"integration_failed/conflict:the fast-forward would overwrite uncommitted files in the project root: main.go; then needs you", "needs_you/integration:needs you (integration failed)", "needs_you_clear/integration", "integrated:a: One", "task_done:did a"},
+		},
+		{name: "still in the way", refuse: []string{untrackedInTheWay, untrackedInTheWay}, ask: true, files: []string{"new.txt", "docs/new.md"},
+			log: []string{"integration_failed/conflict:the fast-forward would overwrite uncommitted files in the project root: new.txt, docs/new.md; then needs you", "needs_you/integration:needs you (integration failed)", "needs_you_clear/integration",
+				"integration_failed/conflict:the fast-forward would overwrite uncommitted files in the project root: new.txt, docs/new.md; then needs you", "needs_you/integration:needs you (integration failed)", "needs_you_clear/integration", "integrated:a: One", "task_done:did a"},
+		},
+		{name: "run branch moved", move: true,
+			log:    []string{"integration_failed/conflict:the run branch moved since the rebase; fast-forward failed; then rerun", "task_retried:fresh", "integrated:a: One", "task_done:did a"},
+			reruns: 1},
+		{name: "something else", refuse: []string{"fatal: cannot lock ref 'refs/heads/main'\nhint: try later\n"},
+			log:    []string{"integration_failed/conflict:fast-forward failed: fatal: cannot lock ref 'refs/heads/main'; then rerun", "task_retried:fresh", "integrated:a: One", "task_done:did a"},
+			reruns: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newParallel(t, twoThenOne(), integrationTOML)
+			r := h.repo()
+			cmds := h.commands()
+			// a first and alone: nothing else moves the run branch while
+			// it waits for the owner; b is done long after.
+			sessions := 0
+			h.be.SetAutoSignal(func(_ context.Context, id string) error {
+				if id == "a" {
+					sessions++
+				}
+				if id == "c" || (id == "a" && sessions == 2) {
+					return h.signal(id)
+				}
+				return nil
+			})
+			h.signalAt(time.Minute, "a")
+			h.signalAt(time.Hour, "b")
+			var asks []Event
+			h.on(func(ev Event) {
+				switch {
+				case ev.Kind == RunStarted:
+					r.refuseFF("igris/"+ev.Run+"-a", tc.refuse...)
+				case ev.Kind == Asked && ev.Question == QuestionIntegration:
+					t.Errorf("a rerun offered: %+v", ev)
+				case ev.Kind == Asked && ev.Question == QuestionFilesInTheWay:
+					asks = append(asks, ev)
+					at := ev.At.Sub(t0) + 5*time.Second
+					h.clock.At(at, func() { h.eng.Send(Command{Kind: CmdRetry, Task: "a"}) })
+				}
+			})
+			if tc.move {
+				git := h.gitFn
+				moved := false
+				h.gitFn = func(c runner.Cmd) (runner.Result, error) {
+					if c.Args[0] == "merge" && strings.HasSuffix(c.Args[2], "-a") && !moved {
+						moved = true
+						r.mu.Lock()
+						r.runHead++ // a commit where the run branch is checked out
+						r.mu.Unlock()
+					}
+					return git(c)
+				}
+			}
+			res, err := h.run()
+			if err != nil || res.Outcome != Completed {
+				t.Fatalf("Run = %s, %v", res.Outcome, err)
+			}
+			if got := h.statuses(); got != "a=done b=done c=done B-1=ready" {
+				t.Errorf("statuses: %s", got)
+			}
+			var got []string
+			for _, l := range h.logOf("a") {
+				for _, p := range []string{"integration_failed", "task_retried", "needs_you", "integrated", "task_done"} {
+					if strings.HasPrefix(l, p) {
+						got = append(got, l)
+					}
+				}
+			}
+			if !slices.Equal(got, tc.log) {
+				t.Errorf("log of a %q, want %q", got, tc.log)
+			}
+			if want := len(tc.refuse); !tc.ask {
+				if len(asks) != 0 {
+					t.Errorf("asked %d times, want none", len(asks))
+				}
+			} else if len(asks) != want {
+				t.Errorf("asked %d times, want %d", len(asks), want)
+			}
+			for _, ask := range asks {
+				want := "a didn't integrate: the fast-forward would overwrite uncommitted files in the project root: " + strings.Join(tc.files, ", ") + ": commit, move or remove them, then try again"
+				if !slices.Equal(ask.Output, tc.files) || !strings.HasPrefix(ask.Detail, want) || strings.Contains(ask.Detail, "rerun") {
+					t.Errorf("question %+v, want output %q and %q", ask, tc.files, want)
+				}
+			}
+			if sessions != 1+tc.reruns {
+				t.Errorf("%d sessions of a, want %d", sessions, 1+tc.reruns)
+			}
+			// Each session's done is verified; Try again rebased onto a run
+			// branch that didn't move, so only its fast-forward ran.
+			if got := verifiesIn(cmds, taskWT(h.runBase(), "a")); got != 1+tc.reruns {
+				t.Errorf("a verified %d times, want %d", got, 1+tc.reruns)
+			}
+			if got, want := len(r.calls("merge --ff-only igris/"+h.runBase()+"-a")), len(tc.refuse)+1; !tc.move && got != want {
+				t.Errorf("%d fast-forwards of a, want %d", got, want)
+			}
+			if tc.ask {
+				want := "didn't integrate: the fast-forward would overwrite uncommitted files in the project root: " + strings.Join(tc.files, ", ") + "; its branch is kept"
+				if got := h.event(IntegrationFailed, "a").Detail; got != want {
+					t.Errorf("integration_failed event detail %q, want %q", got, want)
+				}
+			}
+		})
+	}
+}
+
+// The files in the way are git's tab-indented lines, whatever language
+// the lines around them are in, cleaned for the terminal and bounded.
+func TestInTheWay(t *testing.T) {
+	many := "error: x\n"
+	for i := range maxConflictFiles + 3 {
+		many += fmt.Sprintf("\tf%d\n", i)
+	}
+	for _, tc := range []struct {
+		name, stderr string
+		want         []string
+	}{
+		{"untracked", untrackedInTheWay, []string{"new.txt", "docs/new.md"}},
+		{"german", "Fehler: Ihre lokalen Änderungen in den folgenden Dateien würden durch den Merge\nüberschrieben werden:\n\tt.txt\nAbbruch\n", []string{"t.txt"}},
+		{"escapes", "error: x\n\tevil\x1b[31m.go\n", []string{"evil.go"}},
+		{"none", "fatal: not possible to fast-forward, aborting.\n", nil},
+		{"many", many, append(func() []string {
+			var fs []string
+			for i := range maxConflictFiles {
+				fs = append(fs, fmt.Sprintf("f%d", i))
+			}
+			return fs
+		}(), "and 3 more")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := inTheWay(tc.stderr); !slices.Equal(got, tc.want) {
+				t.Errorf("inTheWay = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 // The commit question of a parallel phase holds no other task: each task
 // waits for its own answer, and the rest go on; a declined commit is Needs
 // you until the owner answers again (SPEC §5.1, §6.11).

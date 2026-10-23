@@ -279,7 +279,7 @@ func checkID(id string) error {
 var questions = map[engine.Question]bool{
 	"": true, engine.QuestionConfirmSkip: true, engine.QuestionSessionLost: true, engine.QuestionHookFailed: true,
 	engine.QuestionCommit: true, engine.QuestionConfirmReset: true, engine.QuestionPlanApproval: true,
-	engine.QuestionIntegration: true,
+	engine.QuestionIntegration: true, engine.QuestionFilesInTheWay: true,
 }
 
 // command converts a command request into the engine's command, checking

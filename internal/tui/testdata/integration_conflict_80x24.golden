@@ -1,0 +1,17 @@
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ M0-03 didn't integrate                                                       │
+│                                                                              │
+│ M0-03 didn't integrate: the rebase onto the run branch conflicts in main.go, │
+│ util.go: rerun it fresh, mark it done (you integrated it by hand), skip it,  │
+│ or stop                                                                      │
+│                                                                              │
+│ main.go                                                                      │
+│ util.go                                                                      │
+│                                                                              │
+│ › 1. Rerun fresh                                                             │
+│   2. Mark done (integrated by hand)                                          │
+│   3. Skip…                                                                   │
+│   4. Stop igris                                                              │
+│                                                                              │
+│ enter choose · 1–4 pick · esc keep asking                                    │
+╰──────────────────────────────────────────────────────────────────────────────╯

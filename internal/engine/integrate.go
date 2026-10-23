@@ -29,11 +29,12 @@ import (
 type integStage int
 
 const (
-	integStart  integStage = iota // nothing done yet
-	integAsk                      // the commit question waits for the owner (commit = "ask")
-	integQueued                   // committed; waits for the integrator, which takes one task at a time
-	integVerify                   // rebased; its verify runs on the integrated tree (check)
-	integFailed                   // didn't integrate, and igris won't run it again by itself: the owner decides
+	integStart   integStage = iota // nothing done yet
+	integAsk                       // the commit question waits for the owner (commit = "ask")
+	integQueued                    // committed; waits for the integrator, which takes one task at a time
+	integVerify                    // rebased; its verify runs on the integrated tree (check)
+	integFailed                    // didn't integrate, and igris won't run it again by itself: the owner decides
+	integBlocked                   // committed, but files where the run branch is checked out are in the way of its fast-forward: the owner decides
 )
 
 // integration is the state of one task's integration, on its launch from
@@ -104,7 +105,14 @@ func (e *Engine) stepIntegrate(ctx context.Context, l *launch) (ended, stopped b
 			return false, false, e.rerun(ctx, l)
 		case g.stage == integFailed && c.Kind == CmdRetry:
 			e.reject(c, l.t.ID+" is run again from the start after a failed integration; retry fresh")
-		case g.stage == integFailed && c.Kind == CmdDone:
+		case g.stage == integBlocked && c.Kind == CmdRetry:
+			// Try again: the owner moved the files. The committed branch
+			// goes back in the integrator's line, no new session: its
+			// rebase changes nothing unless another task integrated
+			// meanwhile, so mostly only the fast-forward runs (SPEC §6.11).
+			e.waitOver(state.ReasonIntegration)
+			e.queueIntegration(l)
+		case (g.stage == integFailed || g.stage == integBlocked) && c.Kind == CmdDone:
 			// The owner integrated it by hand (SPEC §6.11).
 			e.waitOver(state.ReasonIntegration)
 			note := strings.TrimSpace(c.Text)
@@ -114,7 +122,7 @@ func (e *Engine) stepIntegrate(ctx context.Context, l *launch) (ended, stopped b
 			e.unqueueIntegration(l)
 			l.integ = nil
 			return true, false, e.finish(ctx, l, plan.Done, note)
-		case c.Kind == CmdSkip && (g.stage == integAsk || g.stage == integFailed):
+		case c.Kind == CmdSkip && (g.stage == integAsk || g.stage == integFailed || g.stage == integBlocked):
 			e.waitOver(state.ReasonCommit)
 			e.waitOver(state.ReasonIntegration)
 			e.unqueueIntegration(l)
@@ -124,6 +132,8 @@ func (e *Engine) stepIntegrate(ctx context.Context, l *launch) (ended, stopped b
 			e.reject(c, "answer the commit question of "+l.t.ID+" first")
 		case g.stage == integFailed:
 			e.reject(c, l.t.ID+" didn't integrate: retry fresh, mark it done, skip it or stop")
+		case g.stage == integBlocked:
+			e.reject(c, l.t.ID+" didn't integrate: commit, move or remove the files in the way, then try again; or mark it done, skip it or stop")
 		default:
 			e.reject(c, l.t.ID+" is being integrated; it takes no "+c.Kind.String()+" now")
 		}
@@ -319,10 +329,7 @@ func (e *Engine) fastForward(ctx context.Context, l *launch) (ended, stopped boo
 		if ctx.Err() != nil {
 			return false, false, err
 		}
-		// The run branch moved since the rebase (a commit in the project
-		// root, say): a rerun starts from its new head.
-		why := "the run branch moved since the rebase; fast-forward failed"
-		return e.integrationFailed(ctx, l, state.FailedConflict, why, why, nil)
+		return e.fastForwardFailed(ctx, l, err)
 	}
 	subject := g.msg
 	if subject == "" {
@@ -340,6 +347,105 @@ func (e *Engine) fastForward(ctx context.Context, l *launch) (ended, stopped boo
 	e.unqueueIntegration(l)
 	l.integ = nil
 	return true, false, e.finish(ctx, l, plan.Done, g.note)
+}
+
+// fastForwardFailed tells apart why the fast-forward of l's rebased
+// branch failed (SPEC §6.11). The run branch moved since the rebase (a
+// commit where it is checked out, say): a rerun starts from its new head,
+// as for a conflict. Files where it is checked out are in the way
+// (untracked or changed files the branch would overwrite): no rerun can
+// fix that, so the owner moves them and tries again. Anything else keeps
+// git's first line of error.
+func (e *Engine) fastForwardFailed(ctx context.Context, l *launch, ffErr error) (ended, stopped bool, err error) {
+	moved, err := e.runBranchMoved(ctx, l)
+	if err != nil {
+		return false, false, err
+	}
+	if moved {
+		why := "the run branch moved since the rebase; fast-forward failed"
+		return e.integrationFailed(ctx, l, state.FailedConflict, why, why, nil)
+	}
+	var stderr string
+	var xe *runner.ExitError
+	if errors.As(ffErr, &xe) {
+		stderr = string(xe.Stderr)
+	}
+	if files := inTheWay(stderr); len(files) > 0 {
+		return e.integrationBlocked(ctx, l, files)
+	}
+	why := "fast-forward failed"
+	if line := firstLine(stderr); line != "" {
+		why += ": " + line
+	} else {
+		why += ": " + textsafe.Line(ffErr.Error())
+	}
+	return e.integrationFailed(ctx, l, state.FailedConflict, why, why, nil)
+}
+
+// runBranchMoved reports whether the run branch's head is no longer an
+// ancestor of l's rebased branch, so no fast-forward can take it there.
+// When git can't say, it hasn't moved: the error itself tells why.
+func (e *Engine) runBranchMoved(ctx context.Context, l *launch) (bool, error) {
+	_, err := e.gitIn(ctx, e.work, "merge-base", "--is-ancestor", "HEAD", l.cur.Worktree.Branch)
+	var xe *runner.ExitError
+	if errors.As(err, &xe) {
+		return xe.Code == 1, nil
+	}
+	if err != nil && ctx.Err() != nil {
+		return false, err
+	}
+	return false, nil
+}
+
+// inTheWay are the files git's refused merge names as in the way: the
+// lines of its error that start with a tab, whatever the language of the
+// lines around them, at most maxConflictFiles, cleaned for the terminal.
+func inTheWay(stderr string) []string {
+	var files []string
+	for _, line := range strings.Split(stderr, "\n") {
+		if rest, ok := strings.CutPrefix(line, "\t"); ok {
+			if f := textsafe.Line(strings.TrimSpace(rest)); f != "" {
+				files = append(files, f)
+			}
+		}
+	}
+	if len(files) > maxConflictFiles {
+		files = append(files[:maxConflictFiles], fmt.Sprintf("and %d more", len(files)-maxConflictFiles))
+	}
+	return files
+}
+
+// firstLine is the first line of git's error that says something, cleaned
+// for the terminal; "" when it printed none.
+func firstLine(stderr string) string {
+	for _, line := range strings.Split(stderr, "\n") {
+		if line = textsafe.Line(strings.TrimSpace(line)); line != "" {
+			return line
+		}
+	}
+	return ""
+}
+
+// integrationBlocked handles a fast-forward that files in the way refused
+// (SPEC §6.11): the task needs the owner whatever on_conflict says, since
+// a rerun would be refused the same way. Its committed branch and worktree
+// are kept; Try again integrates that branch again once the files are
+// moved.
+func (e *Engine) integrationBlocked(ctx context.Context, l *launch, files []string) (ended, stopped bool, err error) {
+	id := l.t.ID
+	e.unqueueIntegration(l)
+	where := "the project root"
+	if wt := e.run.Worktree; wt != nil {
+		where = "the run's worktree " + textsafe.Line(wt.Path)
+	}
+	why := "the fast-forward would overwrite uncommitted files in " + where + ": " + strings.Join(files, ", ")
+	e.log(state.Event{Type: state.EventIntegrationFailed, Reason: state.FailedConflict, Detail: textsafe.Line(why + "; then needs you")})
+	l.integ.stage = integBlocked
+	what := "didn't integrate: " + why
+	e.emit(Event{Kind: IntegrationFailed, Detail: what + "; its branch is kept", Output: files})
+	e.needsYou(ctx, notifyNeedsInput, state.ReasonIntegration, id+" "+what+"; commit, move or remove them, then try again", "integration failed")
+	e.emit(Event{Kind: Asked, Question: QuestionFilesInTheWay, Detail: id + " " + what + ": commit, move or remove them, then try again (igris integrates the committed branch, no new session), mark it done (you integrated it by hand), skip it, or stop", Output: files})
+	return false, false, nil
 }
 
 // integrationFailed handles a task that didn't integrate (SPEC §6.11): a

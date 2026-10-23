@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"runtime"
 	"strings"
@@ -285,6 +286,8 @@ func TestQuestionDialogs(t *testing.T) {
 		{name: "hook failed default retry", q: engine.QuestionHookFailed, keys: []string{"enter"}, want: engine.Command{Kind: engine.CmdRetry, Task: "M0-03"}},
 		{name: "hook failed click done", q: engine.QuestionHookFailed, clickOp: 1, want: engine.Command{Kind: engine.CmdDone, Task: "M0-03"}},
 		{name: "hook failed wraps up to stop", q: engine.QuestionHookFailed, keys: []string{"up", "enter"}, want: engine.Command{Kind: engine.CmdStop}},
+		{name: "files in the way default try again", q: engine.QuestionFilesInTheWay, keys: []string{"enter"}, want: engine.Command{Kind: engine.CmdRetry, Task: "M0-03"}},
+		{name: "files in the way click done", q: engine.QuestionFilesInTheWay, clickOp: 1, want: engine.Command{Kind: engine.CmdDone, Task: "M0-03"}},
 		{name: "shortcuts are off in a dialog", q: engine.QuestionCommit, keys: []string{"p", "d", "9"}, open: true},
 	}
 	for _, tt := range tests {
@@ -320,6 +323,31 @@ func TestQuestionDialogs(t *testing.T) {
 				t.Errorf("dialog still open after the answer")
 			}
 		})
+	}
+}
+
+// The dialogs of a task that didn't integrate (SPEC §6.11): a conflict
+// offers a fresh rerun; files in the way of the fast-forward are named and
+// offer Try again instead, since a rerun can't move them.
+func TestIntegrationDialogs(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		ev   engine.Event
+	}{
+		{"integration_conflict", engine.Event{Kind: engine.Asked, Task: "M0-03", Question: engine.QuestionIntegration, Output: []string{"main.go", "util.go"},
+			Detail: "M0-03 didn't integrate: the rebase onto the run branch conflicts in main.go, util.go: rerun it fresh, mark it done (you integrated it by hand), skip it, or stop"}},
+		{"integration_in_the_way", engine.Event{Kind: engine.Asked, Task: "M0-03", Question: engine.QuestionFilesInTheWay, Output: []string{"new.txt", "docs/new.md"},
+			Detail: "M0-03 didn't integrate: the fast-forward would overwrite uncommitted files in the project root: new.txt, docs/new.md: commit, move or remove them, then try again (igris integrates the committed branch, no new session), mark it done (you integrated it by hand), skip it, or stop"}},
+	} {
+		for _, sz := range [][2]int{{80, 24}, {120, 40}} {
+			t.Run(fmt.Sprintf("%s_%dx%d", tc.name, sz[0], sz[1]), func(t *testing.T) {
+				hs := newHarness(t, sz[0], sz[1])
+				hs.events(started("M0-03"), opened("M0-03"), tc.ev)
+				view := hs.m.View()
+				checkFits(t, view, sz[0], sz[1])
+				golden(t, fmt.Sprintf("%s_%dx%d", tc.name, sz[0], sz[1]), view)
+			})
+		}
 	}
 }
 

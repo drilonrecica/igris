@@ -675,3 +675,28 @@ func TestUINotPairedPage(t *testing.T) {
 		t.Errorf("a static file's 401 is %s", resp.Header.Get("Content-Type"))
 	}
 }
+
+// A task that didn't integrate (SPEC §6.11): a conflict offers a fresh
+// rerun, files in the way of the fast-forward Try again, which the engine
+// takes as a retry of the integration.
+func TestIntegrationSheets(t *testing.T) {
+	for _, tc := range []struct {
+		q    engine.Question
+		want string
+	}{
+		{engine.QuestionIntegration, "Rerun fresh, Mark done (integrated by hand), Skip, Stop igris"},
+		{engine.QuestionFilesInTheWay, "Try again, Mark done (integrated by hand), Skip, Stop igris"},
+	} {
+		v := questionOf(Event{Type: "asked", Task: "M1-03", Question: string(tc.q)}, "csrf")
+		var labels []string
+		for _, a := range v.Answers {
+			labels = append(labels, a.Label)
+		}
+		if got := strings.Join(labels, ", "); got != tc.want || v.Title != "M1-03 didn't integrate" || v.Kind != "didn't integrate" {
+			t.Errorf("%s: %q titled %q (%s), want %q", tc.q, got, v.Title, v.Kind, tc.want)
+		}
+		if a := v.Answers[0]; a.Type != CmdRetry || a.Continue || !a.Primary {
+			t.Errorf("%s: first answer %+v, want the primary fresh retry", tc.q, a)
+		}
+	}
+}

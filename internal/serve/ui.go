@@ -601,6 +601,11 @@ func questionOf(q Event, csrf string) questionView {
 		a.fresh.Label = "Rerun fresh"
 		a.done.Label = "Mark done (integrated by hand)"
 		v.Answers = []form{a.fresh, a.done, a.skip, a.stop}
+	case engine.QuestionFilesInTheWay:
+		v.Title = t + " didn't integrate"
+		a.fresh.Label = "Try again"
+		a.done.Label = "Mark done (integrated by hand)"
+		v.Answers = []form{a.fresh, a.done, a.skip, a.stop}
 	case engine.QuestionConfirmReset:
 		v.Title = "Reset " + t + "?"
 		keep, reset := answer("Keep it as it is", false), answer("Reset "+t, true)
@@ -636,7 +641,7 @@ func questionKind(q engine.Question) string {
 		return "session lost"
 	case engine.QuestionHookFailed:
 		return "hook failed"
-	case engine.QuestionIntegration:
+	case engine.QuestionIntegration, engine.QuestionFilesInTheWay:
 		return "didn't integrate"
 	case engine.QuestionConfirmReset:
 		return "reset?"

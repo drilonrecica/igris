@@ -51,6 +51,8 @@ If two tasks change the same file, igris warns once (`M1-03 and M1-04 both chang
 
 A rebase conflict, or verify failing after the rebase, discards the task's branch and runs the task again from the start on the new base, once. A second failure is **Needs you** with the conflicting files or the verify output, and the worktree kept: **Rerun fresh**, **Mark done** (you integrated it by hand), **Skip** or **Stop igris**. `on_conflict = "ask"` skips the automatic rerun.
 
+If the fast-forward itself is refused because files in your checkout are in the way (an untracked file the task adds, or uncommitted changes to a file it changes), a rerun can't help, so igris doesn't try one. The task needs you with those files named: commit, move or remove them, then **Try again**. That integrates the committed branch again with no new session.
+
 ## What you see
 
 On a wide terminal the run view shows one card per active task, with its slot, and a header that says `3 active` and `needs you: M1-03, M1-05`. On a narrow one, a switcher line above the selected card; `[` and `]` move between tasks. Notifications raised together go out as one: `2 tasks need you`. Detach, attach and Stop work as before, for every active task: Stop leaves every session open, and the next `arise` reattaches them all.

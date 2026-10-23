@@ -1,0 +1,40 @@
+igris · sinjal · phase M0 · mode plan · herdr                                                                ! Needs you
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+TASKS                    │ ! M0-03 needs you · integration
+reading the plan…        │ ┌─ M0-03 Makefile ──────────────────────────────────────────────────────────────────────────┐
+                         │ │ ! Needs you · your answer                                                                 │
+                         │ │ sonnet → sonnet · mode plan · 0s                                                          │
+                         │ │ [o Open session] [t Details]                                                              │
+                         │ └───────────────────────────────────────────────────────────────────────────────────────────┘
+── LOG ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+11:41 M0-03 started · sonnet · mode plan
+11:41 M0-03 session open
+11:41 ! M0-03 needs you ╭──────────────────────────────────────────────────────────────────────╮
+                        │ M0-03 didn't integrate                                               │
+                        │                                                                      │
+                        │ M0-03 didn't integrate: the rebase onto the run branch conflicts in  │
+                        │ main.go, util.go: rerun it fresh, mark it done (you integrated it by │
+                        │ hand), skip it, or stop                                              │
+                        │                                                                      │
+                        │ main.go                                                              │
+                        │ util.go                                                              │
+                        │                                                                      │
+                        │ › 1. Rerun fresh                                                     │
+                        │   2. Mark done (integrated by hand)                                  │
+                        │   3. Skip…                                                           │
+                        │   4. Stop igris                                                      │
+                        │                                                                      │
+                        │ enter choose · 1–4 pick · esc keep asking                            │
+                        ╰──────────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[o Open session] [m Mode] [p Pause] [d Done] [r Retry…] [s Skip…] [x Stop…] [?] [q Quit]

@@ -54,6 +54,7 @@ func TestActionButtonsPerQuestion(t *testing.T) {
 		{engine.QuestionHookFailed, "Retry, Stop"},
 		{engine.QuestionPlanApproval, "Approve, Open (view)"},
 		{engine.QuestionIntegration, ""},
+		{engine.QuestionFilesInTheWay, ""},
 		{engine.QuestionConfirmReset, ""},
 	}
 	for _, tt := range tests {

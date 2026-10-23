@@ -98,6 +98,7 @@ func TestFormatEvent(t *testing.T) {
 		{engine.Event{Kind: engine.Asked, Question: engine.QuestionConfirmReset, Task: "A-1", Detail: "reset A-1 (done) to ready/blocked?"}, "! A-1 needs you · reset?\n  reset A-1 (done) to ready/blocked?\n  type `reset yes A-1` or `reset no A-1`"},
 		{engine.Event{Kind: engine.ResetDropped, Task: "A-1", Detail: "the reset request for A-1 was withdrawn"}, "the reset request for A-1 was withdrawn"},
 		{engine.Event{Kind: engine.Asked, Question: engine.QuestionHookFailed, Task: "A-1", Detail: "failed"}, "! A-1 needs you · hook failed\n  failed\n  type `retry`, `done [note]`, `skip <reason>` or `stop`"},
+		{engine.Event{Kind: engine.Asked, Question: engine.QuestionFilesInTheWay, Task: "A-1", Detail: "in the way", Output: []string{"new.txt"}}, "! A-1 needs you · integration\n  in the way\n  | new.txt\n  move them, then type `retry` to try again, or `done [note]`, `skip <reason>` or `stop`"},
 		{engine.Event{Kind: engine.HookFailed, Task: "A-1", Detail: "before_task hook failed: exit status 1", Output: []string{"db is down"}}, "✗ A-1 before_task hook failed: exit status 1\n  | db is down"},
 		{engine.Event{Kind: engine.HookStarted, Task: "A-1", Detail: "after_task"}, "A-1 running after_task hook…"},
 	}

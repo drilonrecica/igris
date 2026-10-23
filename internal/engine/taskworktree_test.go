@@ -22,7 +22,9 @@ import (
 // changes or main.go) until a commit in it; `rev-parse HEAD` names a
 // worktree's base on the run branch and its commits, so a rebase that
 // moves the base changes it; `rebase` conflicts where conflicts says so;
-// `merge --ff-only` moves the run branch's head; `branch -d` refuses a
+// `merge --ff-only` moves the run branch's head unless it moved since the
+// rebase (`merge-base --is-ancestor` says so too) or refuse says to fail
+// with git's error; `branch -d` refuses a
 // branch with a commit the run branch lacks. Every call is logged as
 // "<dir>: <args>" with the root shown as ".".
 type repo struct {
@@ -38,7 +40,9 @@ type repo struct {
 	// changes are the files a dirty worktree's status shows; main.go
 	// without an entry.
 	changes map[string][]string
-	ffFail  bool // the next fast-forward fails: the run branch moved
+	// refuse: a branch whose next fast-forwards fail with these errors, one
+	// per fast-forward, as git refuses one with files in the way.
+	refuse map[string][]string
 }
 
 type fakeWT struct {
@@ -54,7 +58,7 @@ type conflict struct {
 }
 
 func (h *harness) repo() *repo {
-	r := &repo{h: h, wts: map[string]*fakeWT{}, branches: map[string]*fakeWT{}, conflicts: map[string]*conflict{}, changes: map[string][]string{}}
+	r := &repo{h: h, wts: map[string]*fakeWT{}, branches: map[string]*fakeWT{}, conflicts: map[string]*conflict{}, changes: map[string][]string{}, refuse: map[string][]string{}}
 	h.gitFn = r.git
 	return r
 }
@@ -64,6 +68,14 @@ func (r *repo) conflictOn(dir string, times int, files ...string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.conflicts[dir] = &conflict{files: files, times: times}
+}
+
+// refuseFF makes the next fast-forwards of branch fail with git's errors,
+// one per fast-forward.
+func (r *repo) refuseFF(branch string, stderr ...string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.refuse[branch] = stderr
 }
 
 // sha is the commit hash HEAD names in dir: 40 digits, so it looks like one.
@@ -155,11 +167,19 @@ func (r *repo) git(c runner.Cmd) (runner.Result, error) {
 		if k := r.conflicts[dir]; k != nil {
 			return out(strings.Join(k.files, "\n") + "\n")
 		}
-	case a[0] == "merge":
-		wt := r.branches[a[len(a)-1]]
-		if r.ffFail || wt == nil || wt.base != r.runHead {
-			r.ffFail = false
+	case a[0] == "merge-base": // --is-ancestor HEAD <branch>
+		if wt := r.branches[a[3]]; wt == nil || wt.base != r.runHead {
 			return fail, nil
+		}
+	case a[0] == "merge":
+		branch := a[len(a)-1]
+		wt := r.branches[branch]
+		if wt == nil || wt.base != r.runHead {
+			return fail, nil
+		}
+		if errs := r.refuse[branch]; len(errs) > 0 {
+			r.refuse[branch] = errs[1:]
+			return runner.Result{ExitCode: 1, Stderr: []byte(errs[0])}, nil
 		}
 		r.runHead += wt.commits
 		wt.integrated = true

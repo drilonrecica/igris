@@ -787,6 +787,12 @@ func formatEvent(ev engine.Event) []string {
 				lines = append(lines, "  | "+l)
 			}
 			return append(lines, "  type `retry fresh`, `done [note]`, `skip <reason>` or `stop`")
+		case engine.QuestionFilesInTheWay:
+			lines = append(lines, "  "+ev.Detail)
+			for _, l := range ev.Output {
+				lines = append(lines, "  | "+l)
+			}
+			return append(lines, "  move them, then type `retry` to try again, or `done [note]`, `skip <reason>` or `stop`")
 		case engine.QuestionConfirmReset:
 			return append(lines, "  "+ev.Detail, "  type `reset yes "+id+"` or `reset no "+id+"`")
 		default:

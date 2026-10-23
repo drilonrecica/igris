@@ -110,7 +110,8 @@ type Event struct {
 	// Output is the last lines of a failed task hook's output, cleaned for
 	// the terminal, on HookFailed; the conflicting files or the verify
 	// output's last lines on IntegrationFailed and Asked with
-	// QuestionIntegration (SPEC §6.11). It is shown, never logged or sent.
+	// QuestionIntegration, the files in the way with QuestionFilesInTheWay
+	// (SPEC §6.11). It is shown, never logged or sent.
 	Output []string
 	// Plan is the plan text, cleaned for the terminal, and Then the mode
 	// an approval switches the session to; set on Asked with
@@ -172,6 +173,11 @@ const (
 	// (fresh: run it again from the start), CmdDone (the owner integrated
 	// it by hand), CmdSkip or CmdStop.
 	QuestionIntegration Question = "integration"
+	// QuestionFilesInTheWay: the task's rebased branch didn't fast-forward
+	// because files where the run branch is checked out are in the way
+	// (SPEC §6.11); Output names them. CmdRetry (try again: only the
+	// fast-forward, no new session), CmdDone, CmdSkip or CmdStop.
+	QuestionFilesInTheWay Question = "files_in_the_way"
 )
 
 // Kind names the question in a word or two, as the Needs-you lines say
@@ -190,7 +196,7 @@ func (q Question) Kind() string {
 		return "reset?"
 	case QuestionPlanApproval:
 		return "a plan to approve"
-	case QuestionIntegration:
+	case QuestionIntegration, QuestionFilesInTheWay:
 		return "integration"
 	}
 	return "your answer"
