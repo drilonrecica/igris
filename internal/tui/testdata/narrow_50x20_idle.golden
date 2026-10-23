@@ -2,10 +2,10 @@ igris · sinjal · M0 · 3/7 · mode plan    ● Working
 ──────────────────────────────────────────────────
 no task running
 ── TASKS ─────────────────────────────────────────
- ✓ M0-01 sonnet  ✓ M0-02 sonnet  ● M0-03 sonnet
- · M0-04 opus    · M0-05 user    ⨯ M0-13 sonnet
- – M0-14 haiku
-
+ ✓ M0-01 Go module       ✓ M0-02 Entrypoint
+ ● M0-03 Makefile        · M0-04 Config loader
+ · M0-05 Buy the domain  ⨯ M0-13 Static assets
+ – M0-14 Old idea
 
 
 
@@ -13,7 +13,7 @@ no task running
 
 
 ── LOG ───────────────────────────────────────────
-09:41 run started: phase M0
+09:41 Arise. phase M0 · 7 tasks · mode plan
 09:41 phase M0 started
 
 [›m Mode‹] [M Task mode] [p Pause] [x Stop…] [?]

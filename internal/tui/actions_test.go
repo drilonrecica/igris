@@ -37,7 +37,7 @@ func TestBarShowsOnlyWhatApplies(t *testing.T) {
 			[]action{actMode, actPause, actDone, actSkip, actStopAsk, actHelp, actQuit}},
 		{"run over", func(hs *harness) {
 			hs.events(started("M0-03"), engine.Event{Kind: engine.RunStopped, Detail: "completed"})
-		}, []action{actHelp, actQuit}},
+		}, []action{actQuit, actCopy, actHelp}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

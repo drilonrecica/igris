@@ -1,22 +1,22 @@
 igris · sinjal · phase M0 · 3/7 · 42% ████░░░░░░ · mode plan · herdr                                           ● Working
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-TASKS                                                      │ ┌─ M0-03 Makefile ────────────────────────────────────────┐
- ✓ M0-01  Go module                                 sonnet │ │ rank sonnet → model sonnet                              │
- ✓ M0-02  Entrypoint                                sonnet │ │ mode plan · 4m12s                                       │
- ● M0-03  Makefile                                  sonnet │ │ ● Working                                               │
- · M0-04  Config loader                             opus   │ │ earlier line two                                        │
- · M0-05  Buy the domain                            user   │ │ ⏺ Running the tests with make test.                     │
- ⨯ M0-13  Static assets                             sonnet │ │   ⎿  ok github.com/example/demo 0.012s                  │
-   waits on P0-05                                          │ │ FAIL TestParse: a line long enough to be clipped at th… │
- – M0-14  Old idea                                  haiku  │ │ ✻ Thinking… (esc to interrupt)                          │
-                                                           │ │ >                                                       │
-                                                           │ │ fmt, lint, test                                         │
-                                                           │ │ [o] Open session  [t] Details                           │
-                                                           │ └─────────────────────────────────────────────────────────┘
+TASKS                           │ ┌─ M0-03 Makefile ───────────────────────────────────────────────────────────────────┐
+ ✓ M0-01  Go module      sonnet │ │ ● Working · 4m12s                                                                  │
+ ✓ M0-02  Entrypoint     sonnet │ │ sonnet → sonnet · mode plan                                                        │
+ ● M0-03  Makefile       sonnet │ │ earlier line two                                                                   │
+ · M0-04  Config loader  opus   │ │ ⏺ Running the tests with make test.                                                │
+ · M0-05  Buy the domain user   │ │   ⎿  ok github.com/example/demo 0.012s                                             │
+ ⨯ M0-13  Static assets  sonnet │ │ FAIL TestParse: a line long enough to be clipped at the card's width in every lay… │
+   waits on P0-05               │ │ ✻ Thinking… (esc to interrupt)                                                     │
+ – M0-14  Old idea       haiku  │ │ >                                                                                  │
+                                │ │ fmt, lint, test                                                                    │
+                                │ │ [o Open session] [t Details]                                                       │
+                                │ └────────────────────────────────────────────────────────────────────────────────────┘
 ── LOG ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-09:41 run started: phase M0
+09:41 Arise. phase M0 · 7 tasks · mode plan
 09:41 M0-03 started (sonnet → sonnet, plan) · Makefile
 09:41 M0-03 session open
+
 
 
 

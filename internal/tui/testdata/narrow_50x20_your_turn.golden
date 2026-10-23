@@ -1,17 +1,17 @@
 igris · sinjal · M0 · 3/7 · mode plan  ! Needs you
 ──────────────────────────────────────────────────
 ┌─ M0-05 Buy the domain ─────────────────────────┐
-│ user task · 0s                                 │
 │ ! Needs you · your turn                        │
+│ user task · 0s                                 │
 │ Yours to do outside igris (no session).        │
 │ Then: d done · s skip                          │
 │ pick a registrar, buy it, then press d         │
-│ [d] Done…  [s] Skip…  [t] Details              │
+│ [d Done…] [s Skip…] [t Details]                │
 └────────────────────────────────────────────────┘
 ── TASKS ─────────────────────────────────────────
- ✓ M0-01 sonnet  ✓ M0-02 sonnet  ● M0-03 sonnet
- · M0-04 opus    ! M0-05 user    ⨯ M0-13 sonnet
- – M0-14 haiku
+ ✓ M0-01 Go module       ✓ M0-02 Entrypoint
+ ● M0-03 Makefile        · M0-04 Config loader
+ ! M0-05 Buy the domain  ⨯ M0-13 Static assets
 ── LOG ───────────────────────────────────────────
 09:41 M0-05 started (user task) · Buy the domain
 09:41 M0-05 is your turn: do it outside igris, th…

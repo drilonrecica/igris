@@ -596,8 +596,8 @@ func TestEmbeddedRunEndsOnItsOwn(t *testing.T) {
 	tm, _ := launchProgram(t, st)
 	seen(t, tm, "READY")
 	ariseM2(t, tm)
-	// The view stays with its end banner until the owner goes home.
-	seen(t, tm, "press q to go home")
+	// The view stays with its summary until the owner goes home.
+	seen(t, tm, "Done ▲ stuck", "[›q Home‹]")
 	tm.Type("q")
 	seen(t, tm, "phase M2 is stuck: unfinished tasks, none can start")
 	tm.Type("q")

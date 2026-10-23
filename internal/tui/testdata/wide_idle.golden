@@ -1,16 +1,16 @@
 igris · sinjal · phase M0 · 3/7 · 42% ████░░░░░░ · mode plan · herdr                                           ● Working
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-TASKS                                                      │ no task running
- ✓ M0-01  Go module                                 sonnet │
- ✓ M0-02  Entrypoint                                sonnet │
- ● M0-03  Makefile                                  sonnet │
- · M0-04  Config loader                             opus   │
- · M0-05  Buy the domain                            user   │
- ⨯ M0-13  Static assets                             sonnet │
-   waits on P0-05                                          │
- – M0-14  Old idea                                  haiku  │
+TASKS                           │ no task running
+ ✓ M0-01  Go module      sonnet │
+ ✓ M0-02  Entrypoint     sonnet │
+ ● M0-03  Makefile       sonnet │
+ · M0-04  Config loader  opus   │
+ · M0-05  Buy the domain user   │
+ ⨯ M0-13  Static assets  sonnet │
+   waits on P0-05               │
+ – M0-14  Old idea       haiku  │
 ── LOG ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-09:41 run started: phase M0
+09:41 Arise. phase M0 · 7 tasks · mode plan
 09:41 phase M0 started
 
 

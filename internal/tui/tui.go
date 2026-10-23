@@ -70,6 +70,10 @@ type Options struct {
 	// program holding the view. Nil means quitting ends the program, as
 	// for a standalone run.
 	Leave func() tea.Msg
+	// History, when set, is how the end-of-run summary's History (h)
+	// leaves for the History page (SPEC §15.3): the message it returns goes
+	// to the program holding the view. Nil offers no History.
+	History func() tea.Msg
 	// Attached says the run is served by igris serve and fed through a
 	// serve.Client (SPEC §13, §14): q asks Detach · Stop run · Cancel
 	// (§15.3), and the view says when the connection is lost.

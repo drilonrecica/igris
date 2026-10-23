@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -65,6 +66,9 @@ type logEntry struct {
 	at   time.Time
 	text string
 	tone tone
+	// arise marks the Arise. line (SPEC §15.1), the one line that isn't
+	// an event: its task count is filled in once the plan is read.
+	arise bool
 }
 
 // model is the TUI's state. Only Update changes it; View only records the
@@ -103,8 +107,11 @@ type model struct {
 	scroll   int // log lines scrolled back from the newest
 	ended    bool
 	endText  string
-	plan     *plan.Plan // as last read; nil until loaded
-	taskTop  int        // first task list line shown; -1 follows the current task
+	// sum is what the run's events add up to, for the end-of-run summary
+	// (summary.go).
+	sum     summary
+	plan    *plan.Plan // as last read; nil until loaded
+	taskTop int        // first task list line shown; -1 follows the current task
 	// autoTaskTop is where following the current task put the list in the
 	// last frame; scrolling starts from there.
 	autoTaskTop int
@@ -241,6 +248,13 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.endText == "" {
 				m.endText = "the run ended"
 			}
+			if m.sum.end.IsZero() {
+				// No RunStopped came: the feed's result says how it ended.
+				m.sum.end = m.opts.Now()
+				m.sum.outcome = resultOutcome(m.opts.Feed.Result())
+				m.sum.need(false, m.sum.end)
+				m.endFocus()
+			}
 		}
 		if m.leaveOnEnd && m.ended {
 			return m, m.leave() // Stop run: it has stopped
@@ -256,6 +270,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.plan = msg.p
 		m.sortCards()
+		m.refreshArise()
 	case tickMsg:
 		if m.notice != "" && m.opts.Now().Sub(m.noticeAt) >= noticeFor {
 			m.notice = ""
@@ -372,8 +387,13 @@ func (m *model) pageArea(by int) {
 	m.scrollLog(-by * m.logRows())
 }
 
-// cycleFocus moves the focus to the next (or previous) region.
+// cycleFocus moves the focus to the next (or previous) region; the
+// summary has only its bar.
 func (m *model) cycleFocus(next bool) {
+	if m.ended {
+		m.focus = focusBar
+		return
+	}
 	i := 0
 	for j, a := range areaOrder {
 		if a == m.focus {
@@ -662,6 +682,11 @@ func (m *model) activate(a action) tea.Cmd {
 	case actHelp:
 		m.page = helpPage(m.th, m.opts.Attached)
 		return nil
+	case actHistory:
+		if m.ended && m.opts.History != nil {
+			return m.opts.History // the History page, over home (SPEC §15.3)
+		}
+		return nil
 	case actSide:
 		if m.side != nil {
 			var cmd tea.Cmd
@@ -846,9 +871,7 @@ func (m *model) event(ev engine.Event) {
 			m.resetTail() // another session, or none, for some card
 		}
 	}()
-	for _, line := range logLines(ev) {
-		m.addLog(ev.At, line, logLook(ev.Kind))
-	}
+	m.logEvent(ev)
 	if ev.Phase != "" {
 		m.phase = ev.Phase
 	}
@@ -856,6 +879,16 @@ func (m *model) event(ev engine.Event) {
 		ev.Task = m.cards[0].id // a task's event, from a sequential run
 	}
 	c := m.card(ev.Task)
+	needed := c != nil && m.needs(c)
+	defer func() {
+		// The card that needs you is selected when Needs you starts, unless
+		// the selected card itself needs you (SPEC §15.1).
+		if c != nil && !needed && m.needs(c) && slices.Contains(m.cards, c) && (m.cur == nil || !m.needs(m.cur)) {
+			m.selectCard(c)
+		}
+		m.sum.note(ev)
+		m.sum.need(m.needsOwner() && !m.ended, ev.At)
+	}()
 	switch ev.Kind {
 	case engine.RunStarted:
 		m.slice = nil
@@ -865,6 +898,7 @@ func (m *model) event(ev engine.Event) {
 				m.slice[id] = true
 			}
 		}
+		m.refreshArise() // the slice's count, now that it is known
 	case engine.TaskStarted, engine.TaskResumed:
 		if c == nil {
 			c = &current{id: ev.Task, started: ev.At}
@@ -883,6 +917,7 @@ func (m *model) event(ev engine.Event) {
 		m.settle(ev.Task)
 	case engine.SessionOpened:
 		if c != nil {
+			m.sum.fold(c.tokens) // the attempt before this one is over
 			c.session, c.mode, c.claudeSession = ev.Session, ev.Mode, ev.ClaudeSession
 			c.overdue, c.rankMismatch, c.tokens = "", "", nil // a new attempt
 		}
@@ -967,6 +1002,7 @@ func (m *model) event(ev engine.Event) {
 	case engine.TaskReset:
 		m.dropResetAsk(ev.Task)
 		if c != nil {
+			m.sum.fold(c.tokens)
 			m.dropCard(ev.Task) // the run let go of it and pauses
 			m.settle(ev.Task)
 			if m.dialog != nil && m.dialog.task == ev.Task {
@@ -974,6 +1010,9 @@ func (m *model) event(ev engine.Event) {
 			}
 		}
 	case engine.TaskDone, engine.TaskSkipped:
+		if c != nil {
+			m.sum.fold(c.tokens)
+		}
 		m.dropCard(ev.Task)
 		m.settle(ev.Task)
 		if m.dialog != nil && m.dialog.task == ev.Task {
@@ -998,6 +1037,64 @@ func (m *model) event(ev engine.Event) {
 		if !m.side.owns(m.dialog) {
 			m.dialog = nil // nothing left to ask or confirm; a side session isn't the run's
 		}
+		for _, c := range m.cards {
+			m.sum.fold(c.tokens) // the attempts end with the run
+			c.tokens = nil
+		}
+		m.endFocus()
+	}
+}
+
+// endFocus puts the focus on the summary's bar with Home focused, so the
+// outcome can be read and one key leaves (SPEC §15.3).
+func (m *model) endFocus() {
+	m.focus, m.barFocus = focusBar, actQuit
+}
+
+// needs reports whether c's task waits on the owner: its state, or a
+// question for it.
+func (m *model) needs(c *current) bool { return c.needsOwner() || m.cardAsk(c) != nil }
+
+// logEvent adds ev's log lines. A run's first line is Arise. (SPEC
+// §15.1): the phases, the task count and the mode, in bold accent, the
+// one line that isn't an event.
+func (m *model) logEvent(ev engine.Event) {
+	if ev.Kind == engine.RunStarted {
+		m.sum.phases = scopePhases(ev.Detail) // named before the line is written
+		m.log = append(m.log, logEntry{at: ev.At, tone: lookAccentBold, arise: true})
+		m.refreshArise()
+		if len(m.log) > maxLog {
+			m.log = m.log[len(m.log)-maxLog:]
+		}
+		return
+	}
+	for _, line := range logLines(ev) {
+		m.addLog(ev.At, line, logLook(ev.Kind))
+	}
+}
+
+// refreshArise writes the Arise. line's text: `Arise. phase M1 · 8 tasks
+// · mode plan`, the count left out until the plan is read (the slice's
+// tasks for a sliced run, SPEC §5.5).
+func (m *model) refreshArise() {
+	for i := range m.log {
+		if !m.log[i].arise {
+			continue
+		}
+		text := "Arise."
+		if len(m.sum.phases) > 0 {
+			text += " phase " + strings.Join(m.sum.phases, ", ")
+		}
+		switch {
+		case m.slice != nil:
+			text += " · " + look.Count(len(m.slice), "task", "tasks")
+		case m.plan != nil:
+			text += " · " + look.Count(phaseTaskCount(m.plan, m.sum.phases), "task", "tasks")
+		}
+		if m.mode != "" {
+			text += " · mode " + m.mode
+		}
+		m.log[i].text = text
 	}
 }
 
@@ -1078,7 +1175,7 @@ func (m *model) addLog(at time.Time, text string, l tone) {
 	case lookFail:
 		text = look.GlyphFail + " " + text
 	}
-	m.log = append(m.log, logEntry{at, text, l})
+	m.log = append(m.log, logEntry{at: at, text: text, tone: l})
 	if len(m.log) > maxLog {
 		m.log = m.log[len(m.log)-maxLog:]
 	}

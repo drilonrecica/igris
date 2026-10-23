@@ -30,7 +30,7 @@ func TestYourTurnSaysWhatToDo(t *testing.T) {
 			v := hs.m.View()
 			checkFits(t, v, size[0], size[1])
 			flat := strings.Join(strings.Fields(v), " ")
-			for _, want := range []string{"outside igris", "d done · s skip", "[d] Done…", "[s] Skip…", "[t] Details"} {
+			for _, want := range []string{"outside igris", "d done · s skip", "[d Done…]", "[s Skip…]", "[t Details]"} {
 				if !strings.Contains(flat, want) {
 					t.Errorf("view lacks %q:\n%s", want, v)
 				}
@@ -97,7 +97,7 @@ func TestYourTurnCardButtons(t *testing.T) {
 	hs := yourTurn(t, 120, 40)
 	hs.click(isAct(actDone))
 	if hs.m.dialog == nil || !strings.Contains(hs.m.View(), "Mark M0-04 done?") {
-		t.Fatalf("[d] Done… opened no dialog:\n%s", hs.m.View())
+		t.Fatalf("[d Done…] opened no dialog:\n%s", hs.m.View())
 	}
 	hs.key("esc")
 	hs.m.View()
@@ -107,8 +107,8 @@ func TestYourTurnCardButtons(t *testing.T) {
 			n++
 		}
 	}
-	if n < 2 { // the card's [s] Skip… and the bar's Skip
-		t.Errorf("want the card's [s] Skip… clickable, %d Skip zones", n)
+	if n < 2 { // the card's [s Skip…] and the bar's Skip
+		t.Errorf("want the card's [s Skip…] clickable, %d Skip zones", n)
 	}
 }
 

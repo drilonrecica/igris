@@ -245,7 +245,7 @@ func TestProgramQuestionOpensDialog(t *testing.T) {
 
 func TestProgramShowsTheEnd(t *testing.T) {
 	tm, _ := program(t, 100, 30, started("M0-03"), engine.Event{Kind: engine.RunStopped, Detail: "completed"})
-	seen(t, tm, "the run stopped: completed")
+	seen(t, tm, "Done ✓ completed")
 }
 
 // esc closes the before_task hook question but keeps it pending: Answer…

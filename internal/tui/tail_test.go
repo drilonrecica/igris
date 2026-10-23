@@ -124,7 +124,7 @@ func TestCardShowsTheTail(t *testing.T) {
 		if strings.Contains(v, "\x1b") || strings.Contains(v, "\a") {
 			t.Errorf("%dx%d: escape sequences reached the view", tc.w, tc.h)
 		}
-		if !strings.Contains(v, "read igris.toml") || !strings.Contains(v, "[t] Details") {
+		if !strings.Contains(v, "read igris.toml") || !strings.Contains(v, "[t Details]") {
 			t.Errorf("%dx%d: the text or the buttons are gone:\n%s", tc.w, tc.h, v)
 		}
 		if got := src.calls; !slices.Equal(got, []int{tailFetch}) {
@@ -171,7 +171,7 @@ func TestTailGivesWayToTheCard(t *testing.T) {
 	for rows := len(full); rows >= 7; rows-- {
 		card := hs.m.drawCard(hs.m.cur, 0, 0, 54, rows)
 		text := strings.Join(card, "\n")
-		if len(card) > rows || !strings.Contains(card[0], "M0-03") || !strings.Contains(card[len(card)-2], "[t] Details") {
+		if len(card) > rows || !strings.Contains(card[0], "M0-03") || !strings.Contains(card[len(card)-2], "[t Details]") {
 			t.Fatalf("%d rows:\n%s", rows, text)
 		}
 		hasText := strings.Contains(text, "this sentence")

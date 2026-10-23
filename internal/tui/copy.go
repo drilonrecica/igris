@@ -38,12 +38,15 @@ func copyNotice(out io.Writer, text string) string {
 	return "copied"
 }
 
-// copySelected copies the item under the owner's focus: the log line at
-// the bottom of the view when the log has the focus, else the command that
-// resumes the current session.
+// copySelected copies the item under the owner's focus: the report
+// command on the end-of-run summary, the log line at the bottom of the
+// view when the log has the focus, else the command that resumes the
+// current session.
 func (m *model) copySelected() {
 	text := ""
 	switch {
+	case m.ended:
+		text = m.sum.reportCommand()
 	case m.focus == focusLog:
 		if i := len(m.log) - 1 - min(m.scroll, max(len(m.log)-1, 0)); i >= 0 {
 			text = textsafe.Line(m.log[i].text)

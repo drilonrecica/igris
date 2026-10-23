@@ -81,12 +81,16 @@ func (m *model) restore(s serve.Snapshot) {
 	m.tails = map[string][]string{}
 
 	m.log, m.scroll = nil, 0
+	m.sum = summary{run: s.Run, start: s.Started}
 	for _, w := range s.Feed {
 		if ev, ok := w.Engine(); ok {
-			for _, line := range logLines(ev) {
-				m.addLog(ev.At, line, logLook(ev.Kind))
-			}
+			m.logEvent(ev)
+			m.sum.note(ev)
 		}
+	}
+	if s.Ended {
+		m.sum.outcome = outcomeOf(s.End)
+		m.endFocus()
 	}
 	if m.servedBy != "" {
 		m.addLog(m.opts.Now(), "this run is served by "+m.servedBy+" and keeps that igris until it ends", lookTitle)

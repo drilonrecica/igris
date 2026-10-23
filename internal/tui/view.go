@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/look"
 )
 
@@ -25,6 +26,8 @@ func (m *model) View() string {
 		var z zones
 		screen, z = m.page.render(m.th, w, h)
 		m.zones.merge(z, 0, 0)
+	case m.ended:
+		screen = m.summaryScreen(w, h)
 	case m.wide():
 		screen = m.wideScreen(w, h)
 	default:
@@ -101,6 +104,50 @@ func (m *model) stateText(c *current) string {
 	return look.Working.Label()
 }
 
+// needKind says in a few words what task c waits on the owner for, for
+// the Needs-you banner (SPEC §15.1): its question's kind, else its state.
+func (m *model) needKind(c *current) string {
+	if q := m.cardAsk(c); q != nil {
+		return askKind(q.Question)
+	}
+	switch c.state {
+	case stateYourTurn:
+		return "your turn"
+	case stateLost:
+		return "session lost"
+	case stateNeedsYou:
+		if c.detail != "" {
+			return strings.TrimPrefix(c.detail, "the session is ")
+		}
+		if c.waiting {
+			return "waiting without a signal"
+		}
+		return "idle without a signal"
+	}
+	return "your answer"
+}
+
+// askKind names a question's kind in a word or two.
+func askKind(q engine.Question) string {
+	switch q {
+	case engine.QuestionCommit:
+		return "commit?"
+	case engine.QuestionConfirmSkip:
+		return "skip?"
+	case engine.QuestionSessionLost:
+		return "session lost"
+	case engine.QuestionHookFailed:
+		return "hook failed"
+	case engine.QuestionConfirmReset:
+		return "reset?"
+	case engine.QuestionPlanApproval:
+		return "a plan to approve"
+	case engine.QuestionIntegration:
+		return "integration"
+	}
+	return "your answer"
+}
+
 // logRows is how many log lines the frame shows.
 func (m *model) logRows() int { return max(m.height-3, 1) }
 
@@ -143,6 +190,20 @@ func (m *model) buttons() []button {
 	if m.lost {
 		return []button{{label: "Quit", key: "q", act: actQuit}} // until the view reconnects
 	}
+	quit := "Quit"
+	if m.opts.Leave != nil {
+		quit = "Home"
+	}
+	if m.ended {
+		// The summary (SPEC §15.3): Home first and focused, History, the
+		// report command, ?.
+		out := []button{{label: quit, key: "q", act: actQuit}}
+		if m.opts.History != nil {
+			out = append(out, button{label: "History", key: "h", act: actHistory})
+		}
+		out = append(out, button{"Copy report command", "Copy", "y", actCopy})
+		return append(out, button{key: "?", act: actHelp})
+	}
 	var out []button
 	running := m.cur != nil && !m.ended
 	if m.question() != nil && m.dialog == nil {
@@ -180,10 +241,6 @@ func (m *model) buttons() []button {
 	}
 	if m.side != nil {
 		out = append(out, button{label: "Side…", key: "S", act: actSide})
-	}
-	quit := "Quit"
-	if m.opts.Leave != nil {
-		quit = "Home"
 	}
 	return append(out, button{key: "?", act: actHelp}, button{label: quit, key: "q", act: actQuit})
 }

@@ -148,8 +148,9 @@ func TestNeedsYouIsOneQueueInPlanOrder(t *testing.T) {
 	if d := hs.m.dialog; d == nil || d.task != "M1-05" {
 		t.Fatalf("dialog %+v, want M1-05's still", d)
 	}
-	if v := hs.m.View(); !strings.Contains(v, "needs you M1-03, M1-05") {
-		t.Errorf("header lacks the queue in plan order:\n%s", v)
+	// The banner names the first in plan order and counts the rest.
+	if v := hs.m.View(); !strings.Contains(v, "! M1-03 needs you · skip? · 2 tasks need you") {
+		t.Errorf("banner lacks the queue in plan order:\n%s", v)
 	}
 	// Esc leaves both pending; Answer… opens the first in plan order.
 	hs.keys("esc")
@@ -181,10 +182,19 @@ func TestCardAnswerOpensItsOwnQuestion(t *testing.T) {
 		engine.Event{Kind: engine.Asked, Phase: "M1", Task: "M1-03", Question: engine.QuestionSessionLost},
 	)
 	hs.keys("esc")
+	// M1-03 took the selection when it began to need you (SPEC §15.1).
+	if hs.m.cur.id != "M1-03" {
+		t.Fatalf("selected %s, want M1-03, which needs you", hs.m.cur.id)
+	}
 	hs.events(engine.Event{Kind: engine.Asked, Phase: "M1", Task: "M1-05", Question: engine.QuestionCommit})
 	hs.keys("esc")
-	// The selected card is M1-05: its [Answer…] opens its own question,
-	// though M1-03's is first in line.
+	// The selection never jumps away from a card that needs you; the
+	// owner picks M1-05: its [Answer…] opens its own question, though
+	// M1-03's is first in line.
+	if hs.m.cur.id != "M1-03" {
+		t.Fatalf("selected %s, want M1-03 kept", hs.m.cur.id)
+	}
+	hs.click(func(tg target) bool { return tg.act == actCardPick && tg.option == 2 })
 	hs.click(isAct(actAnswerCard))
 	if d := hs.m.dialog; d == nil || d.task != "M1-05" {
 		t.Fatalf("card's Answer… opened %+v, want M1-05's", d)
@@ -231,20 +241,29 @@ func TestNarrowSwitcher(t *testing.T) {
 	hs := multiHarness(t, 50, 20)
 	hs.events(engine.Event{Kind: engine.NeedsYou, Phase: "M1", Task: "M1-04", Detail: "idle"})
 	v := hs.m.View()
-	if !strings.Contains(v, "‹ M1-05 · 3/3 › M1-03 ● M1-04 !") {
+	// M1-04 needs you: it is selected and first, whatever the plan order.
+	if !strings.Contains(v, "‹ ! M1-04 · 1 of 3 › ● M1-03 ● M1-05") {
 		t.Errorf("no switcher line:\n%s", v)
 	}
 	if strings.Contains(v, "M1-03 · slot") {
 		t.Errorf("narrow shows the selected card only:\n%s", v)
 	}
 	checkFits(t, v, 50, 20)
-	hs.click(func(tg target) bool { return tg.act == actCardPick && tg.option == 1 })
-	if hs.m.cur.id != "M1-04" {
-		t.Errorf("tap selected %s, want M1-04", hs.m.cur.id)
+	hs.click(func(tg target) bool { return tg.act == actCardPick && tg.option == 0 })
+	if hs.m.cur.id != "M1-03" {
+		t.Errorf("tap selected %s, want M1-03", hs.m.cur.id)
 	}
+	if v := hs.m.View(); !strings.Contains(v, "‹ ● M1-03 · 2 of 3 › ! M1-04 ● M1-05") {
+		t.Errorf("switcher after the tap:\n%s", v)
+	}
+	// › and ‹ follow the switcher's order.
 	hs.click(isAct(actCardNext))
 	if hs.m.cur.id != "M1-05" {
 		t.Errorf("› selected %s, want M1-05", hs.m.cur.id)
+	}
+	hs.click(isAct(actCardPrev))
+	if hs.m.cur.id != "M1-03" {
+		t.Errorf("‹ selected %s, want M1-03", hs.m.cur.id)
 	}
 	hs.click(isAct(actCardPrev))
 	if hs.m.cur.id != "M1-04" {

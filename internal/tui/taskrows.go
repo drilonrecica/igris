@@ -115,6 +115,19 @@ func rank(t *plan.Task) string {
 	return t.Rank
 }
 
+// natural is the width the task list wants (SPEC §15.1, TASKS as wide as
+// its longest row): "›✓ " + ID + "  " + the longest title + " " + rank.
+func (r rows) natural() int {
+	idW, titleW, rankW := 0, 0, 0
+	for _, t := range r.tasks() {
+		idW, titleW, rankW = max(idW, textWidth(t.ID)), max(titleW, textWidth(t.Title)), max(rankW, textWidth(rank(t)))
+	}
+	if idW == 0 {
+		return textWidth("reading the plan…")
+	}
+	return 3 + idW + 2 + titleW + 1 + rankW
+}
+
 // lines renders the task list w cells wide, returning the lines, the index
 // of the line to keep in view (-1 for none) — the selected task's when sel
 // is a task index, else the current task's — and for each line the index of
@@ -160,30 +173,45 @@ func (r rows) lines(w, sel int) (lines []string, follow int, owner []int) {
 	return out, follow, owner
 }
 
-// compact lays the phase's tasks out as "glyph ID rank" cells in as many
-// columns as fit w, row by row, returning the lines, the column count, the
-// cell width and the index of the task to keep in view (-1 for none): the
-// selected one, else the current one. sel < 0 means no selection is shown.
+// compact lays the phase's tasks out as "glyph ID title" cells (SPEC
+// §15.2, the narrow TASKS keep the titles) in as many columns as fit w,
+// row by row, returning the lines, the column count, the cell width and
+// the index of the task to keep in view (-1 for none): the selected one,
+// else the current one. sel < 0 means no selection is shown. A title that
+// doesn't fit its cell is cut.
 func (r rows) compact(w, sel int) (lines []string, cols, cellW, cur int) {
 	tasks := r.tasks()
 	cells := make([]string, len(tasks))
 	cur = sel
+	idW := 0
 	for i, t := range tasks {
-		cells[i] = rowMark(i == sel) + r.glyph(t) + " " + t.ID + " " + rank(t)
+		idW = max(idW, textWidth(t.ID))
+		cells[i] = rowMark(i == sel) + r.glyph(t) + " " + t.ID + " " + t.Title
 		cellW = max(cellW, textWidth(cells[i]))
 		if sel < 0 && r.curID == t.ID {
 			cur = i
 		}
 	}
+	// Two columns when the longest row fits twice; else one, the titles
+	// cut to the width.
+	cols = max((w+1)/(cellW+1), 1)
+	cellW = min(cellW, w)
+	if cols == 1 {
+		cellW = w
+	}
+	titleW := max(cellW-3-idW-1, 1)
 	for i, t := range tasks {
+		title := fit(t.Title, titleW)
 		if i == sel {
-			cells[i] = r.th.focusLine(cells[i], cellW)
+			// The focus bar is as wide as the cell's text: a padded one would
+			// leave trailing spaces the plain layout trims.
+			cell := rowMark(true) + r.glyph(t) + " " + pad(t.ID, idW) + " " + title
+			cells[i] = r.th.focusLine(cell, textWidth(cell))
 			continue
 		}
 		_, tl := r.looks(t)
-		cells[i] = rowMark(false) + r.paintedGlyph(t) + " " + r.th.paint(tl, t.ID) + " " + r.th.rank(rank(t), tl == lookDim)
+		cells[i] = rowMark(false) + r.paintedGlyph(t) + " " + r.th.paint(tl, pad(t.ID, idW)) + " " + r.th.paint(tl, title)
 	}
-	cols = max((w+1)/(cellW+1), 1)
 	for i := 0; i < len(cells); i += cols {
 		var b strings.Builder
 		for j := i; j < min(i+cols, len(cells)); j++ {

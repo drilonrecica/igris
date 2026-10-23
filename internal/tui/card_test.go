@@ -53,7 +53,7 @@ func TestCardShowsTheTaskText(t *testing.T) {
 			if strings.Contains(v, "Config loader — read") || strings.Contains(v, "**") {
 				t.Errorf("card repeats the title or shows markdown:\n%s", v)
 			}
-			if !strings.Contains(v, "[t] Details") || !strings.Contains(v, "[o] Open session") {
+			if !strings.Contains(v, "[t Details]") || !strings.Contains(v, "[o Open session]") {
 				t.Errorf("card lacks its buttons:\n%s", v)
 			}
 		})
@@ -66,7 +66,7 @@ func TestCardTrimsLongTextAndKeepsItsButtons(t *testing.T) {
 			hs := cardHarness(t, size[0], size[1], "M0-03")
 			v := hs.m.View()
 			checkFits(t, v, size[0], size[1])
-			for _, want := range []string{"this sentence describes", "… t: details", "[t] Details", "[o] Open session"} {
+			for _, want := range []string{"this sentence describes", "… t: details", "[t Details]", "[o Open session]"} {
 				if !strings.Contains(v, want) {
 					t.Errorf("view lacks %q:\n%s", want, v)
 				}
@@ -78,7 +78,7 @@ func TestCardTrimsLongTextAndKeepsItsButtons(t *testing.T) {
 func TestCardOfATitleOnlyTask(t *testing.T) {
 	hs := cardHarness(t, 120, 40, "M0-01")
 	v := hs.m.View()
-	if strings.Contains(v, "… t: details") || !strings.Contains(v, "[t] Details") {
+	if strings.Contains(v, "… t: details") || !strings.Contains(v, "[t Details]") {
 		t.Errorf("a title-only task is trimmed or has no details button:\n%s", v)
 	}
 }
@@ -109,7 +109,7 @@ func TestCardDetailsButtonAndTitle(t *testing.T) {
 				}
 			}
 			if n < 2 {
-				t.Fatalf("want the title and the [t] Details button clickable, got %d zones:\n%s", n, hs.m.View())
+				t.Fatalf("want the title and the [t Details] button clickable, got %d zones:\n%s", n, hs.m.View())
 			}
 			hs.click(isAct(actDetails))
 			if hs.m.page == nil || !strings.Contains(hs.m.View(), "M0-02 — Config loader") {
@@ -127,7 +127,7 @@ func TestNeedsYouPointsAtTheSession(t *testing.T) {
 			hs.events(engine.Event{Kind: engine.NeedsYou, Task: "M0-02", Detail: "the agent is waiting"})
 			v := hs.m.View()
 			checkFits(t, v, size[0], size[1])
-			if !strings.Contains(v, "o opens the session") || !strings.Contains(v, "[o] Open session") {
+			if !strings.Contains(v, "o opens the session") || !strings.Contains(v, "[o Open session]") {
 				t.Errorf("Needs you doesn't point at o:\n%s", v)
 			}
 			hs.key("o")
@@ -173,7 +173,7 @@ func TestResumedSessionCanBeOpened(t *testing.T) {
 	hs.withPlan(cardPlan)
 	ref := &backend.SessionRef{Backend: "herdr", PaneID: "p1"}
 	hs.events(engine.Event{Kind: engine.TaskResumed, Phase: "M0", Task: "M0-02", Rank: "opus", Model: "opus", Mode: "plan", Session: ref, Detail: "reattached to its session"})
-	if v := hs.m.View(); !strings.Contains(v, "[o] Open session") || len(hs.m.buttons()) == 0 || hs.m.buttons()[0].act != actOpen {
+	if v := hs.m.View(); !strings.Contains(v, "[o Open session]") || len(hs.m.buttons()) == 0 || hs.m.buttons()[0].act != actOpen {
 		t.Fatalf("no Open session after a resume (bar %v):\n%s", hs.m.buttons(), v)
 	}
 	hs.key("o")
@@ -195,7 +195,7 @@ func TestUserTaskCardHasNoSession(t *testing.T) {
 	hs.withPlan(cardPlan)
 	hs.events(userStarted("M0-04"))
 	v := hs.m.View()
-	if !strings.Contains(v, "your call, not the agent's") || !strings.Contains(v, "[t] Details") {
+	if !strings.Contains(v, "your call, not the agent's") || !strings.Contains(v, "[t Details]") {
 		t.Errorf("user task card lacks its text or details:\n%s", v)
 	}
 	if strings.Contains(v, "Open session") || strings.Contains(v, "o opens the session") {
@@ -269,7 +269,7 @@ func TestCardShowsTokenUsage(t *testing.T) {
 			checkFits(t, v, size[0], size[1])
 			want := "tokens 2.3M in · 41k out · claude-sonnet-5-5"
 			if size[0] < wideWidth {
-				want = "tokens 2.3M/41k"
+				want = "mode plan · 2.3M/41k" // on the facts line (SPEC §15.2)
 			}
 			if !strings.Contains(v, want) {
 				t.Errorf("card lacks %q:\n%s", want, v)
@@ -285,7 +285,7 @@ func TestCardShowsTokenUsage(t *testing.T) {
 			}
 			// A new attempt starts counting again.
 			hs.events(read, engine.Event{Kind: engine.SessionOpened, Task: "M0-02", Mode: "plan", Session: &backend.SessionRef{Backend: "herdr", PaneID: "p2"}})
-			if v := hs.m.View(); strings.Contains(v, "tokens") {
+			if v := hs.m.View(); strings.Contains(v, "tokens") || strings.Contains(v, "2.3M") {
 				t.Errorf("card keeps the old attempt's tokens:\n%s", v)
 			}
 		})

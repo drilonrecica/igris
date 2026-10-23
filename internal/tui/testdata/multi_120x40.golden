@@ -1,29 +1,27 @@
-igris · sinjal · phase M1 · 0/4 · 0% ░░░░░░░░░░ · 3 active · needs you M1-04 · mode plan · herdr             ! Needs you
+igris · sinjal · phase M1 · 0/4 · 0% ░░░░░░░░░░ · 3 active · mode plan · herdr                               ! Needs you
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-TASKS                                                      │ ┌─ M1-03 · slot 1 title of M1-03 ─────────────────────────┐
- ● M1-03  Parser                                    sonnet │ │ rank sonnet → model sonnet                              │
- ! M1-04  Writer                                    sonnet │ │ mode plan · 0s                                          │
- ● M1-05  Docs                                      opus   │ │ ● Working                                               │
- ⨯ M1-06  Release                                   sonnet │ │ read the input                                          │
-   waits on M1-03                                          │ │ [o] Open session  [t] Details                           │
-                                                           │ └─────────────────────────────────────────────────────────┘
-                                                           │ ┌─ M1-04 · slot 2 title of M1-04 ─────────────────────────┐
-                                                           │ │ rank sonnet → model sonnet                              │
-                                                           │ │ mode plan · 0s                                          │
-                                                           │ │ ! Needs you · idle 0s · o opens the session             │
-                                                           │ │ the agent is idle                                       │
-                                                           │ │ write the output                                        │
-                                                           │ │ [o] Open session  [t] Details                           │
-                                                           │ └─────────────────────────────────────────────────────────┘
-                                                           │ ┏━ › M1-05 · slot 0 title of M1-05 ━━━━━━━━━━━━━━━━━━━━━━━┓
-                                                           │ ┃ rank sonnet → model sonnet                              ┃
-                                                           │ ┃ mode plan · 0s                                          ┃
-                                                           │ ┃ ● Working                                               ┃
-                                                           │ ┃ say how it works                                        ┃
-                                                           │ ┃ [o] Open session  [t] Details                           ┃
-                                                           │ ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+TASKS                    │ ! M1-04 needs you · the agent is idle
+ ● M1-03  Parser  sonnet │ ┌─ M1-03 · slot 1 title of M1-03 ───────────────────────────────────────────────────────────┐
+ ! M1-04  Writer  sonnet │ │ ● Working · 0s                                                                            │
+ ● M1-05  Docs    opus   │ │ sonnet → sonnet · mode plan                                                               │
+ ⨯ M1-06  Release sonnet │ │ read the input                                                                            │
+   waits on M1-03        │ │ [o Open session] [t Details]                                                              │
+                         │ └───────────────────────────────────────────────────────────────────────────────────────────┘
+                         │ ┏━ › M1-04 · slot 2 title of M1-04 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+                         │ ┃ ! Needs you · idle 0s · o opens the session                                               ┃
+                         │ ┃ sonnet → sonnet · mode plan · 0s                                                          ┃
+                         │ ┃ the agent is idle                                                                         ┃
+                         │ ┃ write the output                                                                          ┃
+                         │ ┃ [o Open session] [t Details]                                                              ┃
+                         │ ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+                         │ ┌─ M1-05 · slot 0 title of M1-05 ───────────────────────────────────────────────────────────┐
+                         │ │ ● Working · 0s                                                                            │
+                         │ │ sonnet → sonnet · mode plan                                                               │
+                         │ │ say how it works                                                                          │
+                         │ │ [o Open session] [t Details]                                                              │
+                         │ └───────────────────────────────────────────────────────────────────────────────────────────┘
 ── LOG ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-09:41 run started: phase M1
+09:41 Arise. phase M1 · 4 tasks · mode plan
 09:41 M1-05 started (sonnet → sonnet, plan) · title of M1-05
 09:41 M1-05 session open
 09:41 M1-03 started (sonnet → sonnet, plan) · title of M1-03
@@ -31,6 +29,8 @@ TASKS                                                      │ ┌─ M1-03 · s
 09:41 M1-04 started (sonnet → sonnet, plan) · title of M1-04
 09:41 M1-04 session open
 09:41 ! M1-04 needs you: the agent is idle
+
+
 
 
 

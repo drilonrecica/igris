@@ -11,7 +11,6 @@ import (
 	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/state"
-	"github.com/drilonrecica/igris/internal/usage"
 )
 
 // The wide layout (SPEC §15.1), an open screen (chrome.go): the header
@@ -31,31 +30,36 @@ import (
 // the TASKS title plus three rows, and three log lines.
 const wideMinHeight = 13
 
-// wideMultiLog is the least the log keeps when several cards want the
-// height (SPEC §15.1).
-const wideMultiLog = 6
+// wideLogMin is the least the log keeps when the panes want the height
+// (SPEC §15.1): the panes are sized by their content and LOG takes what
+// is left under the cards.
+const wideLogMin = 4
 
 // chromeRows is what the open screen's chrome takes: the header, its
 // rule, the rule over the bar and the bar.
 const chromeRows = 4
 
+// The TASKS column is as wide as its longest row (SPEC §15.1), within
+// these bounds: never narrower than its title and a short row, never past
+// half the screen, so the cards keep the wider part.
+const (
+	tasksMinWidth = 24
+	tasksMaxShare = 2 // of the width
+)
+
 // wideScreen draws the wide layout's h lines of w cells and records its
 // zones; a page or a dialog is drawn over it by View.
 func (m *model) wideScreen(w, h int) []string {
-	lw := (w - 3) / 2 // the left column; " │ " then the right one
+	lw := min(max(m.rows().natural(), tasksMinWidth), (w-3)/tasksMaxShare) // the left column; " │ " then the right one
 	rw := columnsRight(lw, w)
-	avail := h - chromeRows - 1 // the panes and the log, without the LOG rule
-	most := avail * 55 / 100
-	if m.multi() {
-		most = max(most, avail-wideMultiLog) // several cards: the log keeps a few lines
-	}
-	paneRows := min(max(m.paneNeed(lw, rw), 4), most) // incl. the TASKS title
-	logRows := avail - paneRows
+	avail := h - chromeRows - 1                                           // the panes and the log, without the LOG rule
+	paneRows := min(max(m.paneNeed(lw, rw), 4), max(avail-wideLogMin, 4)) // incl. the TASKS title
+	logRows := max(avail-paneRows, 0)
 
 	out := []string{m.header(w), m.th.rule(w, "")}
 	m.zones.add(rect{0, len(out) + 1, lw, paneRows - 1}, target{region: regionTasks})
 	left := append([]string{m.areaTitle("TASKS", focusTasks)}, m.taskPane(0, len(out)+1, lw, paneRows-1)...)
-	right := m.cardPane(lw+3, len(out), rw, paneRows)
+	right := m.rightPane(lw+3, len(out), rw, paneRows)
 	out = append(out, m.th.columns(left, right, lw, w, paneRows, func(int) bool { return true })...)
 	out = append(out, m.th.rule(w, m.areaTitle("LOG", focusLog)))
 	m.zones.add(rect{0, len(out), w, logRows}, target{region: regionLog})
@@ -75,6 +79,84 @@ func line(lines []string, i int) string {
 		return lines[i]
 	}
 	return ""
+}
+
+// rightPane is the wide layout's right column at (x, y), rows lines of w
+// cells: the Needs-you banner while anything waits on the owner, then the
+// cards.
+func (m *model) rightPane(x, y, w, rows int) []string {
+	banner, ok := m.banner(x, y, w)
+	if !ok {
+		return m.cardPane(x, y, w, rows)
+	}
+	return append([]string{banner}, m.cardPane(x, y+1, w, rows-1)...)
+}
+
+// bannerRows is what the banner takes when it shows.
+func (m *model) bannerRows() int {
+	if _, ok := m.bannerTask(); ok {
+		return 1
+	}
+	return 0
+}
+
+// bannerTask is the task the Needs-you banner names: the first in plan
+// order that needs you (SPEC §15.1), else the task of the first pending
+// question; "" and false while nothing waits on the owner.
+func (m *model) bannerTask() (string, bool) {
+	if m.ended {
+		return "", false
+	}
+	if ids := m.needYou(); len(ids) > 0 {
+		return ids[0], true
+	}
+	if q := m.question(); q != nil {
+		return q.Task, true
+	}
+	return "", false
+}
+
+// banner draws the Needs-you banner w cells wide at (x, y) and records
+// its zones: `! M1-04 needs you · idle without a signal`, `· 2 tasks need
+// you` with more, and `[Answer…]` at the right while a question waits.
+func (m *model) banner(x, y, w int) (string, bool) {
+	id, ok := m.bannerTask()
+	if !ok {
+		return "", false
+	}
+	kind := askKind(engine.Question(""))
+	if c := m.card(id); c != nil {
+		kind = m.needKind(c)
+	} else if q := m.question(); q != nil {
+		kind = askKind(q.Question)
+	}
+	text := look.GlyphNeedsYou + " " + id + " needs you · " + kind
+	n := len(m.needYou())
+	for _, q := range m.asks {
+		if m.card(q.Task) == nil {
+			n++ // a question for a task no card shows
+		}
+	}
+	if n > 1 {
+		text += " · " + look.Count(n, "task needs", "tasks need") + " you"
+	}
+	btn := ""
+	if m.question() != nil && m.dialog == nil {
+		btn = "[Answer…]"
+	}
+	room := w
+	if btn != "" {
+		room -= textWidth(btn) + 2
+	}
+	line := m.th.paint(lookAlert, fit(text, max(room, 1)))
+	if btn != "" {
+		gap := max(w-textWidth(line)-textWidth(btn), 1)
+		if !m.modal() {
+			m.zones.add(rect{x + textWidth(line) + gap, y, textWidth(btn), 1}, target{act: actAnswer})
+		}
+		line += strings.Repeat(" ", gap) + m.th.paint(lookAccentBold, btn)
+	}
+	return fit(line, w), true
 }
 
 // header is the run view's header line (SPEC §15.1): the project, the
@@ -144,15 +226,12 @@ func (m *model) facts(narrow bool, d factsDrop) string {
 			parts = append(parts, "phase "+m.phase, p)
 		}
 	}
-	if m.multi() {
-		// Several active tasks (SPEC §15.1): how many, and the Needs-you
-		// queue in plan order.
+	if m.multi() && !m.ended {
+		// Several active tasks (SPEC §15.1): how many; the Needs-you queue
+		// is the banner's.
 		parts = append(parts, fmt.Sprintf("%d active", len(m.cards)))
-		if ids := m.needYou(); len(ids) > 0 {
-			parts = append(parts, m.th.paint(lookAlert, "needs you "+strings.Join(ids, ", ")))
-		}
 	}
-	if m.mode != "" && !d.noMode {
+	if m.mode != "" && !d.noMode && !m.ended {
 		parts = append(parts, m.th.marks("mode "+m.mode+badge(m.mode)))
 	}
 	if !engine.SkipsPermissions(m.mode) && slices.ContainsFunc(m.cards, func(c *current) bool { return engine.SkipsPermissions(c.mode) }) {
@@ -230,10 +309,10 @@ func (m *model) listSel() int {
 }
 
 // paneNeed is how many rows the panes want: the TASKS title and its rows,
-// or the cards.
+// or the banner and the cards.
 func (m *model) paneNeed(lw, rw int) int {
 	tasks, _, _ := m.taskLines(lw)
-	return max(1+len(tasks), m.cardNeed(rw))
+	return max(1+len(tasks), m.bannerRows()+m.cardNeed(rw))
 }
 
 // cardPane renders the cards at (x, y), rows lines of w cells, and
@@ -271,18 +350,18 @@ const openHint = " · o opens the session"
 // moreText ends the task text when the card cut it.
 const moreText = " … t: details"
 
-// renderCard says why there is no card: the run is over, or no task runs;
-// at most rows lines (all of them when rows < 0).
+// cardTextMax is the most lines of the task's text a card shows, however
+// much room it has (SPEC §15.1): the card is a glance, Details the whole.
+const cardTextMax = 6
+
+// renderCard says why there is no card: the run is over (the summary
+// screen says how, View), or no task runs; at most rows lines (all of
+// them when rows < 0).
 func (m *model) renderCard(w, rows int) []string {
 	var lines []string
 	switch {
 	case m.ended:
-		// The run is over; a task it was on stays as the plan says.
-		if m.opts.Leave != nil {
-			lines = wrap(m.endText+" — press q to go home", w)
-		} else {
-			lines = wrap(m.endText+" — press q to quit", w)
-		}
+		lines = wrap(m.endText, w)
 	case m.holding:
 		lines = []string{"paused before the next task", "press p to continue"}
 	default:
@@ -295,25 +374,28 @@ func (m *model) renderCard(w, rows int) []string {
 }
 
 // cardBody lays c's card out in at most rows lines (all of them when
-// rows < 0). The head (title, facts, state) and the buttons come first,
-// then the live tail; the task's text gets the rows left over and is cut
-// with moreText. boxed leaves the title out: the box's border carries it.
+// rows < 0). The head leads with the state line (SPEC §15.1: `● Working ·
+// 4m12s · ≈ 14m left`), then the facts (`sonnet → claude-sonnet-5-5 ·
+// mode plan`), the usage and the warnings; the buttons come last, the
+// live tail before them; the task's text gets the rows left over and is
+// cut with moreText. boxed leaves the title out: the box's border carries
+// it.
 func (m *model) cardBody(c *current, w, x, y, rows int, record, boxed bool) []string {
 	var head []string
 	if !boxed {
 		head = append(head, m.th.paint(lookTitle, fit(m.cardTitle(c), w)))
 	}
-	if c.user {
-		head = append(head, "user task · "+since(m.opts.Now(), c.started))
-	} else {
-		head = append(head, fit("rank "+m.th.rank(c.rank, false)+" → model "+c.model, w))
-		timing := since(m.opts.Now(), c.started)
-		if eta := m.eta(c); eta != "" {
-			timing += " · " + eta
-		}
-		head = append(head, fit(m.th.marks("mode "+c.mode+badge(c.mode)+" · "+timing), w))
+	// The elapsed time and the ETA go on the state line while the task
+	// works; a state of its own (idle 45s) keeps them on the facts line.
+	timing := since(m.opts.Now(), c.started)
+	if eta := m.eta(c); eta != "" {
+		timing += " · " + eta
 	}
+	onState := c.state == stateWorking || c.state == stateVerifying
 	state := m.th.paint(stateLook(c), m.stateText(c))
+	if onState {
+		state += m.th.paint(lookPlain, " · "+timing)
+	}
 	stateAt := len(head) // the state's line, which a tight box keeps longest
 	if c.state == stateNeedsYou && m.canOpen(c) {
 		// Say how to get there, on the state line when it fits.
@@ -326,6 +408,19 @@ func (m *model) cardBody(c *current, w, x, y, rows int, record, boxed bool) []st
 		}
 	}
 	head = append(head, fit(state, w))
+	facts := "user task"
+	if !c.user {
+		facts = m.th.rank(c.rank, false) + " → " + c.model + m.th.marks(" · mode "+c.mode+badge(c.mode))
+	}
+	if !onState {
+		facts += " · " + timing
+	}
+	if !m.wide() {
+		if t := c.tokens; t != nil && !t.Unavailable {
+			facts += " · " + look.InOutNarrow(t.In, t.Out) // the narrow card's usage (SPEC §15.2)
+		}
+	}
+	head = append(head, fit(facts, w))
 	if line := m.tokensLine(c, w); line != "" {
 		head = append(head, line)
 	}
@@ -362,18 +457,23 @@ func (m *model) cardBody(c *current, w, x, y, rows int, record, boxed bool) []st
 	var text []string
 	if a != "" {
 		text = wrap(a, w)
+		if len(text) > cardTextMax {
+			text = m.cutText(text, cardTextMax, w) // a card, not a page: Details has the rest
+		}
 	}
 
-	btns := []option{{"[t] Details", actDetails}}
+	// The buttons carry their keys as the bar's do (SPEC §15.1): what
+	// answers igris's wait comes first.
+	btns := []option{{"[t Details]", actDetails}}
 	if c.user {
-		btns = append([]option{{"[d] Done…", actDone}, {"[s] Skip…", actSkip}}, btns...)
+		btns = append([]option{{"[d Done…]", actDone}, {"[s Skip…]", actSkip}}, btns...)
 	}
 	if m.canOpen(c) {
-		btns = append([]option{{"[o] Open session", actOpen}}, btns...)
+		btns = append([]option{{"[o Open session]", actOpen}}, btns...)
 	}
 	// Alone, the card answers whatever waits; among several, its own.
 	if m.dialog == nil && (m.cardAsk(c) != nil || (!m.multi() && m.question() != nil)) {
-		btns = append(btns, option{"[Answer…]", actAnswerCard})
+		btns = append([]option{{"[Answer…]", actAnswerCard}}, btns...)
 	}
 	btnLines, btnZones := m.cardButtons(c, btns, w)
 
@@ -443,12 +543,12 @@ func (m *model) cardButtons(c *current, btns []option, w int) ([]string, []zone)
 	line, used := "", 0
 	for _, b := range btns {
 		lw := min(textWidth(b.label), w)
-		if used > 0 && used+2+lw > w {
+		if used > 0 && used+1+lw > w {
 			lines, line, used = append(lines, line), "", 0
 		}
 		if used > 0 {
-			line += "  "
-			used += 2
+			line += " "
+			used++
 		}
 		l := lookAccent
 		if b.act == actAnswerCard || (b.act == actOpen && c.state == stateNeedsYou) {
@@ -488,10 +588,11 @@ func (m *model) fitBar(w, rows int) barLayout {
 // Open session, Done, ? and Home always show.
 var foldOrder = []action{actTaskMode, actSide, actStopAsk, actRetry, actSkip, actPause, actMode}
 
-// tokensLine is the card's usage counter (SPEC §15.1): `tokens 2.3M in ·
-// 41k out · claude-sonnet-5-5`, `2.3M/41k` in the narrow layout, `usage
-// unavailable` when the transcript can't be read; "" until something is
-// read. The model id is red on a rank mismatch.
+// tokensLine is the wide card's usage counter (SPEC §15.1): `tokens 2.3M
+// in · 41k out · claude-sonnet-5-5`, `usage unavailable` when the
+// transcript can't be read; "" until something is read, and in the narrow
+// layout, whose facts line carries `2.3M/41k`. The model id is Ember on a
+// rank mismatch.
 func (m *model) tokensLine(c *current, w int) string {
 	t := c.tokens
 	switch {
@@ -500,9 +601,9 @@ func (m *model) tokensLine(c *current, w int) string {
 	case t.Unavailable:
 		return fit(m.th.paint(lookDim, "usage unavailable"), w)
 	case !m.wide():
-		return fit("tokens "+usage.Short(t.In)+"/"+usage.Short(t.Out), w)
+		return ""
 	}
-	line := "tokens " + usage.Short(t.In) + " in · " + usage.Short(t.Out) + " out"
+	line := "tokens " + look.InOut(t.In, t.Out)
 	if len(t.Models) > 0 {
 		id := strings.Join(t.Models, ", ")
 		if c.rankMismatch != "" {

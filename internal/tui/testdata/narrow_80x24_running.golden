@@ -1,15 +1,15 @@
 igris · sinjal · M0 · 3/7 · 42% ███░░░ · mode plan · herdr             ● Working
 ────────────────────────────────────────────────────────────────────────────────
 ┌─ M0-03 Makefile ─────────────────────────────────────────────────────────────┐
-│ rank sonnet → model sonnet                                                   │
-│ mode plan · 4m12s                                                            │
-│ ● Working                                                                    │
+│ ● Working · 4m12s                                                            │
+│ sonnet → sonnet · mode plan                                                  │
 │ fmt, lint, test                                                              │
-│ [o] Open session  [t] Details                                                │
+│ [o Open session] [t Details]                                                 │
 └──────────────────────────────────────────────────────────────────────────────┘
 ── TASKS ───────────────────────────────────────────────────────────────────────
- ✓ M0-01 sonnet  ✓ M0-02 sonnet  ● M0-03 sonnet  · M0-04 opus    · M0-05 user
- ⨯ M0-13 sonnet  – M0-14 haiku
+ ✓ M0-01 Go module       ✓ M0-02 Entrypoint      ● M0-03 Makefile
+ · M0-04 Config loader   · M0-05 Buy the domain  ⨯ M0-13 Static assets
+ – M0-14 Old idea
 
 
 

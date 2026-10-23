@@ -55,7 +55,7 @@ func TestNarrowShowsWhatMatters(t *testing.T) {
 		hs.events(engine.Event{Kind: engine.Warning, Detail: fmt.Sprintf("log %d", i)})
 	}
 	v := hs.m.View()
-	for _, want := range []string{"M0-03 Makefile", "● M0-03 sonnet", "⨯ M0-13 sonnet", "log 2", "log 3", "log 4", "[›o Open‹]", "[d Done]"} {
+	for _, want := range []string{"M0-03 Makefile", "● M0-03 Makefile", "⨯ M0-13 Static assets", "log 2", "log 3", "log 4", "[›o Open‹]", "[d Done]"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("view lacks %q:\n%s", want, v)
 		}
@@ -220,7 +220,7 @@ func TestClicksLandWhereTheTextIs(t *testing.T) {
 				}
 				hs.key("esc")
 			}
-			hs.clickText("[o] Open se")
+			hs.clickText("[o Open se")
 			if len(hs.focus) != 1 {
 				t.Fatal("card button: not focused")
 			}

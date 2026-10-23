@@ -1,16 +1,16 @@
-igris · sinjal · M1 · 0/4 · 3 active…  ! Needs you
+igris · sinjal · M1 · 0/4 · 3 active   ! Needs you
 ──────────────────────────────────────────────────
-‹ M1-05 · 3/3 › M1-03 ● M1-04 !
-┏━ › M1-05 · slot 0 title of M1-05 ━━━━━━━━━━━━━━┓
-┃ rank sonnet → model sonnet                     ┃
-┃ mode plan · 0s                                 ┃
-┃ ● Working                                      ┃
-┃ say how it works                               ┃
-┃ [o] Open session  [t] Details                  ┃
+‹ ! M1-04 · 1 of 3 › ● M1-03 ● M1-05
+┏━ › M1-04 · slot 2 title of M1-04 ━━━━━━━━━━━━━━┓
+┃ ! Needs you · idle 0s · o opens the session    ┃
+┃ sonnet → sonnet · mode plan · 0s               ┃
+┃ the agent is idle                              ┃
+┃ write the output                               ┃
+┃ [o Open session] [t Details]                   ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ── TASKS ─────────────────────────────────────────
- ● M1-03 sonnet  ! M1-04 sonnet  ● M1-05 opus
- ⨯ M1-06 sonnet
+ ● M1-03 Parser   ! M1-04 Writer   ● M1-05 Docs
+ ⨯ M1-06 Release
 
 ── LOG ───────────────────────────────────────────
 09:41 M1-04 started (sonnet → sonnet, plan) · tit…

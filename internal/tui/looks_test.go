@@ -155,10 +155,23 @@ func emberOK(text string) bool {
 // what the Needs-you state line and a user task's card say.
 func plumeOK(text string) bool {
 	text = strings.TrimSpace(text)
-	return needsPiece.MatchString(text) || text == "i" ||
+	return needsPiece.MatchString(text) || text == "i" || helmPlume(text) ||
 		strings.HasPrefix(text, "[SKIP PERMISSION") ||
 		strings.HasPrefix(text, "· o opens the session") || strings.HasPrefix(text, "o opens the session") ||
 		strings.HasPrefix(text, "Yours to do outside igris") || strings.HasPrefix(text, "Then: d done")
+}
+
+// helmPlume says text is one of the helm's plume parts (look.Helm), the
+// brand mark's other named exception.
+func helmPlume(text string) bool {
+	for _, row := range look.Helm {
+		for _, p := range row {
+			if p.Role == look.HelmPlume && p.Text == text {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // severityViews are colored screens that draw every severity: the run

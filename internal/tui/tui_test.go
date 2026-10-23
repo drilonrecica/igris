@@ -395,8 +395,14 @@ func TestRunEnd(t *testing.T) {
 	hs.events(started("M0-03"), engine.Event{Kind: engine.RunStopped, Detail: "completed"})
 	hs.m.Update(batch{ended: true})
 	v := hs.m.View()
-	if !strings.Contains(v, "the run stopped: completed — press q to quit") || strings.Contains(v, "[p Pause]") || strings.Contains(v, "[d Done]") {
-		t.Errorf("end not shown:\n%s", v)
+	// The summary (SPEC §15.3): the outcome, Home focused, no run actions.
+	for _, want := range []string{"Done ✓ completed", "[›q Quit‹]", "[y Copy report command]", "next: igris report"} {
+		if !strings.Contains(v, want) {
+			t.Errorf("summary lacks %q:\n%s", want, v)
+		}
+	}
+	if strings.Contains(v, "[p Pause]") || strings.Contains(v, "[d Done]") || strings.Contains(v, "TASKS") {
+		t.Errorf("the summary shows the run's actions or panes:\n%s", v)
 	}
 }
 

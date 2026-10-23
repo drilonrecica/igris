@@ -190,6 +190,7 @@ var shortcuts = map[string]action{
 	"S":      actSide,
 	"[":      actCardPrev,
 	"]":      actCardNext,
+	"h":      actHistory,
 	"y":      actCopy,
 	"?":      actHelp,
 	"q":      actQuit,
@@ -212,7 +213,8 @@ var helpActions = []helpEntry{
 	{"r", "Retry", "close the session and start fresh or continue the conversation"},
 	{"x", "Stop", "stop igris after confirming; the session stays open"},
 	{"S", "Side session", "a Claude Code session of your own, not a task"},
-	{"y", "Copy", "copy claude --resume for the current session, or the log line at the bottom when the log has the focus"},
+	{"y", "Copy", "copy claude --resume for the current session, the log line at the bottom when the log has the focus, or the igris report command on the end-of-run summary"},
+	{"h", "History", "on the end-of-run summary: the History page"},
 	{"q", "Quit", "quit the TUI; sessions keep running, igris arise resumes"},
 	{"?", "Help", "this page"},
 }

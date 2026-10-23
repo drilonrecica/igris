@@ -94,7 +94,9 @@ type (
 		res engine.Result
 		err error
 	}
-	leaveRunMsg struct{}             // the owner left the run view
+	// leaveRunMsg: the owner left the run view; history says for the
+	// History page (the summary's h, SPEC §15.3).
+	leaveRunMsg struct{ history bool }
 	runEndedMsg struct{ r *liveRun } // the run home started ended
 	// attachedMsg: home's Attach reached the run igris serve hosts.
 	attachedMsg struct {
@@ -506,6 +508,7 @@ func (m *homeScreen) runView(req report.RunRequest, r *liveRun) tea.Model {
 		Focus:    m.svc.Focus,
 		Side:     m.svc.Side(),
 		Leave:    func() tea.Msg { return ownedMsg{m, leaveRunMsg{}} },
+		History:  func() tea.Msg { return ownedMsg{m, leaveRunMsg{history: true}} },
 		// The ETA's history, as read by the snapshot the run started from
 		// (SPEC §15.3), as `igris arise` reads it at its start.
 		RankDurations: s.RankDurations,
@@ -731,12 +734,15 @@ func (m *homeScreen) closeWizard() {
 // leaveRun is the run view's Home: an attached run is detached from (it
 // goes on in igris serve), an in-process engine is stopped (the session
 // keeps running); the view closes once that is done.
-func (m *homeScreen) leaveRun() tea.Cmd {
+func (m *homeScreen) leaveRun(history bool) tea.Cmd {
 	r := m.run
 	if r == nil {
 		return nil
 	}
 	if r.ended {
+		if history {
+			return tea.Sequence(m.runOver(r), push(newHistoryScreen(m)))
+		}
 		return m.runOver(r)
 	}
 	r.leaving = true

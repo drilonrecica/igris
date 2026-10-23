@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/drilonrecica/igris/internal/backend"
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/plan"
 )
 
@@ -77,14 +78,36 @@ func (m *model) sortCards() {
 	slices.SortStableFunc(m.cards, func(a, b *current) int { return pos(a) - pos(b) })
 }
 
-// moveCard selects the card by cards along, wrapping around. The task
-// list's selection follows it.
+// moveCard selects the card by cards along the order the screen shows
+// (cardOrder), wrapping around. The task list's selection follows it.
 func (m *model) moveCard(by int) {
-	if len(m.cards) == 0 {
+	cards := m.cardOrder()
+	if len(cards) == 0 {
 		return
 	}
-	i := max(slices.Index(m.cards, m.cur), 0)
-	m.selectCard(m.cards[((i+by)%len(m.cards)+len(m.cards))%len(m.cards)])
+	i := max(slices.Index(cards, m.cur), 0)
+	m.selectCard(cards[((i+by)%len(cards)+len(cards))%len(cards)])
+}
+
+// cardOrder is the order the cards are shown in: plan order wide; narrow,
+// the switcher puts a task that needs you first whatever the plan order
+// (SPEC §15.1), so [ and ] follow it.
+func (m *model) cardOrder() []*current {
+	if m.wide() {
+		return m.cards
+	}
+	out := make([]*current, 0, len(m.cards))
+	for _, c := range m.cards {
+		if m.needs(c) {
+			out = append(out, c)
+		}
+	}
+	for _, c := range m.cards {
+		if !m.needs(c) {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // selectCard makes c the selected card.
@@ -128,7 +151,7 @@ func (c *current) needsOwner() bool {
 func (m *model) needYou() []string {
 	var ids []string
 	for _, c := range m.cards {
-		if c.needsOwner() || m.cardAsk(c) != nil {
+		if m.needs(c) {
 			ids = append(ids, c.id)
 		}
 	}
@@ -137,10 +160,19 @@ func (m *model) needYou() []string {
 
 // cardGlyph is c's glyph on the switcher: "!" while it waits on the owner.
 func (m *model) cardGlyph(c *current) string {
-	if c.needsOwner() || m.cardAsk(c) != nil {
-		return "!"
+	if m.needs(c) {
+		return look.GlyphNeedsYou
 	}
 	return glyphs[plan.InProgress]
+}
+
+// paintedCardGlyph is c's switcher glyph in its look: plume for Needs
+// you, the accent for a working task.
+func (m *model) paintedCardGlyph(c *current) string {
+	if m.needs(c) {
+		return m.th.paint(lookAlert, look.GlyphNeedsYou)
+	}
+	return m.th.paint(lookAccentBold, glyphs[plan.InProgress])
 }
 
 // slotText is c's slot in its head, " · slot 1", or "".
@@ -261,12 +293,14 @@ func shareRows(need []int, rows int) []int {
 	return give
 }
 
-// switcher is the narrow layout's line over the selected card:
-// "‹ M1-03 · 1/3 › M1-04 ● M1-05 !", each other active task with its
-// glyph. ‹ and › select the previous and next card, a task's ID selects
-// it; the zones are recorded for the line drawn at row y.
+// switcher is the narrow layout's line over the selected card (SPEC
+// §15.1): "‹ ! M1-04 · 1 of 2 › ● M1-03", each active task with its glyph,
+// a task that needs you first whatever the plan order. ‹ and › select
+// the previous and next card, a task's ID selects it; the zones are
+// recorded for the line drawn at row y.
 func (m *model) switcher(y, w int) string {
-	i := max(slices.Index(m.cards, m.cur), 0)
+	cards := m.cardOrder()
+	i := max(slices.Index(cards, m.cur), 0)
 	var b strings.Builder
 	at := 0
 	put := func(text string, t target, painted string) {
@@ -284,19 +318,14 @@ func (m *model) switcher(y, w int) string {
 		at += textWidth(text)
 	}
 	put("‹", target{act: actCardPrev}, m.th.paint(lookAccent, "‹"))
-	sel := fmt.Sprintf("%s · %d/%d", m.cur.id, i+1, len(m.cards))
-	put(sel, target{}, m.th.paint(lookAccentBold, sel))
+	sel := fmt.Sprintf("%s · %d of %d", m.cur.id, i+1, len(cards))
+	put(m.cardGlyph(m.cur)+" "+sel, target{}, m.paintedCardGlyph(m.cur)+" "+m.th.paint(lookAccentBold, sel))
 	put("›", target{act: actCardNext}, m.th.paint(lookAccent, "›"))
-	for j, c := range m.cards {
+	for _, c := range cards {
 		if c == m.cur {
 			continue
 		}
-		g := m.cardGlyph(c)
-		tone := lookPlain
-		if g == "!" {
-			tone = lookAlert
-		}
-		put(c.id+" "+g, target{act: actCardPick, option: j}, c.id+" "+m.th.paint(tone, g))
+		put(m.cardGlyph(c)+" "+c.id, target{act: actCardPick, option: slices.Index(m.cards, c)}, m.paintedCardGlyph(c)+" "+c.id)
 	}
 	return fit(b.String(), w)
 }
