@@ -169,11 +169,17 @@ func (t *tracker) apply(raw engine.Event, ev Event) {
 	if raw.Phase != "" {
 		t.phase = raw.Phase
 	}
-	t.addFeed(ev)
 	if raw.Task == "" && len(t.cards) == 1 {
 		raw.Task = t.cards[0].Task // a task's event, from a sequential run
 	}
 	c := t.card(raw.Task)
+	if c != nil && c.Tokens != nil && ev.Tokens == nil && (raw.Kind == engine.TaskDone || raw.Kind == engine.TaskSkipped) {
+		// The feed's line of a finished task says what it used (§15.8).
+		tk := *c.Tokens
+		tk.Models = slices.Clone(tk.Models)
+		ev.Tokens = &tk
+	}
+	t.addFeed(ev)
 	switch raw.Kind {
 	case engine.RunStarted:
 		t.slice = ev.Slice

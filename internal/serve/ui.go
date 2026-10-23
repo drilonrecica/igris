@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/drilonrecica/igris/internal/engine"
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/state"
 	"github.com/drilonrecica/igris/internal/textsafe"
 )
@@ -58,6 +59,8 @@ var uiTemplates = template.Must(template.New("ui").Funcs(template.FuncMap{
 	"stateText": stateText,
 	"slug":      slug,
 	"offered":   func(m string) bool { return slices.Contains(remoteModes, m) },
+	"tokens":    tokensText,
+	"spans":     codeSpans,
 }).ParseFS(uiFiles, "ui/page.html"))
 
 // UIOptions configures the web UI.
@@ -141,10 +144,74 @@ func (u *ui) render(w http.ResponseWriter, status int, name string, data any) {
 
 // message shows a page with a title, a text and a way back.
 func (u *ui) message(w http.ResponseWriter, status int, title, text string) {
-	u.render(w, status, "message", messageView{Title: title, Text: text})
+	u.render(w, status, "message", messageView{Project: u.srv.opts.Project, Title: title, Text: text})
 }
 
-type messageView struct{ Title, Text string }
+type messageView struct{ Project, Title, Text string }
+
+// refuse is the page of a request the listener turned away before the UI
+// saw it (not paired, a stale pairing URL, a missing CSRF token): the
+// brand and the next step, with no stylesheet, since an unpaired browser
+// can't load one and a stale cookie's every failed request counts against
+// its address (SPEC §14, §15.8). msg is the listener's error: a title
+// before its first ": ", else the status's.
+func (u *ui) refuse(w http.ResponseWriter, status int, msg string) {
+	title, text, ok := strings.Cut(msg, ": ")
+	if !ok {
+		title, text = refusedTitle(status), msg
+	}
+	u.render(w, status, "refused", messageView{Title: capital(title), Text: sentence(text)})
+}
+
+// refusedTitle names a refusal without a title of its own.
+func refusedTitle(status int) string {
+	switch status {
+	case http.StatusUnauthorized:
+		return "Not paired"
+	case http.StatusTooManyRequests:
+		return "Too many attempts"
+	case http.StatusNotFound:
+		return "Not found"
+	case http.StatusServiceUnavailable:
+		return "Not now"
+	}
+	return "Refused"
+}
+
+// capital starts s with a capital letter.
+func capital(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// sentence starts s with a capital and ends it with a full stop.
+func sentence(s string) string {
+	s = capital(s)
+	if s != "" && !strings.HasSuffix(s, ".") && !strings.HasSuffix(s, "?") {
+		s += "."
+	}
+	return s
+}
+
+// span is a piece of a sentence; Code marks a command.
+type span struct {
+	Text string
+	Code bool
+}
+
+// codeSpans splits s at its backticks, so a command is drawn as code
+// rather than with literal backticks.
+func codeSpans(s string) []span {
+	var out []span
+	for i, part := range strings.Split(s, "`") {
+		if part != "" {
+			out = append(out, span{Text: part, Code: i%2 == 1})
+		}
+	}
+	return out
+}
 
 // act sends a form's command (SPEC §15.8, JavaScript off): stop, skip and
 // done first show their second confirmation; the rest go to the run at
@@ -167,7 +234,7 @@ func (u *ui) act(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if c, ok := confirmOf(req.Type, req.Task); ok && f.Get(confirmedField) != "1" {
-		u.render(w, http.StatusOK, "confirm", confirmView{Confirm: c, Form: f, CSRF: CSRFToken(r.Context())})
+		u.render(w, http.StatusOK, "confirm", confirmView{Project: u.srv.opts.Project, Confirm: c, Form: f, CSRF: CSRFToken(r.Context())})
 		return
 	}
 	rep, status := u.srv.remoteRequest(r.Context(), req)
@@ -210,6 +277,7 @@ func confirmOf(typ, task string) (confirmation, bool) {
 
 // confirmView is the confirmation page: the form again, confirmed.
 type confirmView struct {
+	Project string
 	Confirm confirmation
 	Form    url.Values
 	CSRF    string
@@ -239,28 +307,31 @@ type pageView struct {
 	Phase       *Phase
 	Done, Total int
 	Cards       []cardView
-	// Word is the status word the page leads with (Working, Needs you,
-	// Paused, Waiting, or the outcome once ended); Needs says it is Needs
-	// you; Line is the short line beside it; Elapsed how long the run has
-	// run.
-	Word    string
-	Needs   bool
-	Line    string
+	// Status is the word the page leads with, the line beside it and its
+	// tone (SPEC §15.4); Elapsed is how long the run has run.
+	Status  status
 	Elapsed string
 	// Segments is the phase bar: one per task of the run's phase.
 	Segments []segment
 	// Sheet is everything that waits on the owner, in plan order: the
 	// pending questions (with or without a card), a user task's turn, a
-	// blocked or lost session, the reset request. The first is drawn as
-	// the sheet; the rest follow it.
+	// blocked or lost session, the reset request. With the script on they
+	// are the sheet, one at a time; without it they follow each other.
 	Sheet []questionView
-	// Next are the next tasks of the run's phase still to do (at most two).
+	// Next are the next tasks of the run's phase still to do (at most
+	// two), none once the run ended.
 	Next   []Task
 	Header []form // pause or resume, stop
 	Mode   *form  // the mode for the next sessions
 	// ModeNote says the run's mode can't be chosen here.
 	ModeNote string
-	Recent   []Event
+	Recent   []recentView
+}
+
+// status is the page's status word, its line and its tone: "" for the
+// accent, needs, ember, plain or dim.
+type status struct {
+	Word, Line, Tone string
 }
 
 // phaseView is a phase of the task list.
@@ -283,7 +354,11 @@ type cardView struct {
 	Current
 	Ran      string // how long it has run
 	Override string // the owner's mode for its next session
-	// Question is the card's entry of the sheet, for its kind label.
+	// Glyph is the card's state as a glyph: ! when its entry is in the
+	// sheet, ◌ waiting on background work, else ●.
+	Glyph string
+	// Question is the card's entry of the sheet: the card links to it
+	// instead of offering Actions a second time.
 	Question *questionView
 	Actions  []form
 }
@@ -293,11 +368,14 @@ type cardView struct {
 // Text says it).
 type questionView struct {
 	Q Event
-	// Sheet marks the first entry, drawn as the sheet; N of Of says which
-	// of the page's entries this is, and NextID the task of the next.
-	Sheet  bool
-	N, Of  int
-	NextID string
+	// Sheet marks the first entry, the sheet's when the page loads; N of
+	// Of says which of the page's entries this is (its anchor is q-N), and
+	// NextN the entry its stepper goes to, back to the first from the last.
+	Sheet bool
+	N, Of int
+	NextN int
+	// Key names the entry across refreshes, so the script keeps showing it.
+	Key string
 	// Kind is the small label: commit?, plan, session lost, your turn…
 	Kind    string
 	Title   string
@@ -308,9 +386,17 @@ type questionView struct {
 }
 
 // segment is one task of the phase bar: done, active, needs, todo or
-// skipped.
+// skipped, and Label the state in words.
 type segment struct {
-	ID, State string
+	ID, State, Label string
+}
+
+// recentView is a line of Recent: the event in plain words, with its
+// glyph, its tone (done, alert or ""), when and how long ago.
+type recentView struct {
+	Glyph, Text, Tone string
+	At                time.Time
+	Ago               string
 }
 
 // form is one command's form: hidden fields, at most one text or select
@@ -388,32 +474,38 @@ func (u *ui) view(r *http.Request) pageView {
 		asks[q.Task] = q
 		asked[q.Task] = true
 	}
-	v.Word, v.Line = statusOf(snap, now)
-	v.Needs = v.Word == "Needs you"
+	v.Status = statusOf(snap, now)
 	if !snap.Started.IsZero() {
-		v.Elapsed = ran(now.Sub(snap.Started))
+		v.Elapsed = look.Duration(now.Sub(snap.Started))
 	}
 	v.Segments = segmentsOf(v.Phase, snap.Active, asked)
-	if v.Phase != nil {
+	if v.Phase != nil && !snap.Ended {
 		for _, t := range v.Phase.Tasks {
 			if st := strings.ToLower(t.Status); (st == "ready" || st == "blocked") && len(v.Next) < 2 {
 				v.Next = append(v.Next, t)
 			}
 		}
 	}
+	// The cards' entries first, in the cards' order, then the questions
+	// without a card and the reset request; each card learns its entry's
+	// place once every entry is known.
+	carded := map[int]int{} // card → its entry
 	for _, c := range snap.Active {
-		cv := cardView{Current: c, Ran: ran(now.Sub(c.Started)), Override: snap.Overrides[c.Task]}
+		cv := cardView{Current: c, Ran: look.Duration(now.Sub(c.Started)), Override: snap.Overrides[c.Task], Glyph: look.GlyphRunning}
+		if c.State == StateWaiting {
+			cv.Glyph = look.GlyphWaiting
+		}
 		if live {
 			if q, ok := asks[c.Task]; ok {
-				qv := questionOf(q, csrf)
-				cv.Question = &qv
-				v.Sheet = append(v.Sheet, qv)
+				carded[len(v.Cards)] = len(v.Sheet)
+				v.Sheet = append(v.Sheet, questionOf(q, csrf))
 				delete(asks, c.Task)
 			} else if qv, ok := sheetOf(c, csrf); ok {
-				cv.Question = &qv
+				carded[len(v.Cards)] = len(v.Sheet)
 				v.Sheet = append(v.Sheet, qv)
+			} else {
+				cv.Actions = cardActions(c, csrf)
 			}
-			cv.Actions = cardActions(c, csrf)
 		}
 		v.Cards = append(v.Cards, cv)
 	}
@@ -430,10 +522,13 @@ func (u *ui) view(r *http.Request) pageView {
 			v.Sheet[0].Sheet = true
 		}
 		for i := range v.Sheet {
-			v.Sheet[i].N, v.Sheet[i].Of = i+1, len(v.Sheet)
-			if i+1 < len(v.Sheet) {
-				v.Sheet[i].NextID = v.Sheet[i+1].Q.Task
-			}
+			q := &v.Sheet[i]
+			q.N, q.Of, q.NextN = i+1, len(v.Sheet), (i+1)%len(v.Sheet)+1
+			q.Key = q.Kind + " " + q.Q.Task
+		}
+		for c, q := range carded {
+			v.Cards[c].Question = &v.Sheet[q]
+			v.Cards[c].Glyph = look.GlyphNeedsYou
 		}
 		pause := form{CSRF: csrf, Type: CmdPause, Label: "Pause after this task"}
 		if snap.Paused {
@@ -451,7 +546,7 @@ func (u *ui) view(r *http.Request) pageView {
 		feed = feed[len(feed)-recentLen:]
 	}
 	for i := len(feed) - 1; i >= 0; i-- {
-		v.Recent = append(v.Recent, feed[i])
+		v.Recent = append(v.Recent, recentOf(feed[i], now))
 	}
 	return v
 }
@@ -477,39 +572,39 @@ func cardActions(c Current, csrf string) []form {
 // offers (internal/tui), less the pane: opening one stays in the terminal.
 func questionOf(q Event, csrf string) questionView {
 	t := q.Task
-	v := questionView{Q: q, Kind: "question", Title: "Question"}
+	v := questionView{Q: q, Kind: questionKind(engine.Question(q.Question)), Title: "Question"}
 	answer := func(label string, yes bool) form {
 		return form{CSRF: csrf, Type: CmdAnswer, Task: t, Yes: yes, Label: label}
 	}
 	a := answersFor(t, csrf)
 	switch engine.Question(q.Question) {
 	case engine.QuestionCommit:
-		v.Kind, v.Title = "commit?", "Commit "+t+"?"
+		v.Title = "Commit " + t + "?"
 		v.Answers = []form{answer("Commit", true), answer("Leave uncommitted", false)}
 	case engine.QuestionConfirmSkip:
-		v.Kind, v.Title = "skip?", t+" asks to skip"
+		v.Title = t + " asks to skip"
 		v.Answers = []form{answer("Keep working", false), answer("Skip the task", true)}
 		v.Answers[1].Danger = true
 	case engine.QuestionSessionLost:
-		v.Kind, v.Title = "session lost", t+": session lost"
+		v.Title = t + ": session lost"
 		v.Answers = []form{a.fresh, a.cont, a.done, a.skip, a.stop}
 	case engine.QuestionHookFailed:
-		v.Kind, v.Title = "hook failed", t+": before_task hook failed"
+		v.Title = t + ": before_task hook failed"
 		a.fresh.Label = "Retry"
 		v.Answers = []form{a.fresh, a.done, a.skip, a.stop}
 	case engine.QuestionIntegration:
-		v.Kind, v.Title = "didn't integrate", t+" didn't integrate"
+		v.Title = t + " didn't integrate"
 		a.fresh.Label = "Rerun fresh"
 		a.done.Label = "Mark done (integrated by hand)"
 		v.Answers = []form{a.fresh, a.done, a.skip, a.stop}
 	case engine.QuestionConfirmReset:
-		v.Kind, v.Title = "reset?", "Reset "+t+"?"
+		v.Title = "Reset " + t + "?"
 		keep, reset := answer("Keep it as it is", false), answer("Reset "+t, true)
 		keep.Question, reset.Question = string(engine.QuestionConfirmReset), string(engine.QuestionConfirmReset)
 		reset.Danger = true
 		v.Answers = []form{keep, reset}
 	case engine.QuestionPlanApproval:
-		v.Kind, v.Title = "plan", t+" presents a plan"
+		v.Title = t + " presents a plan"
 		v.NoPlan = q.Plan == ""
 		then := q.Then
 		if then == "" {
@@ -524,6 +619,27 @@ func questionOf(q Event, csrf string) questionView {
 	}
 	v.Answers[0].Primary = true
 	return v
+}
+
+// questionKind is a question's small label, on the sheet and in Recent.
+func questionKind(q engine.Question) string {
+	switch q {
+	case engine.QuestionCommit:
+		return "commit?"
+	case engine.QuestionConfirmSkip:
+		return "skip?"
+	case engine.QuestionSessionLost:
+		return "session lost"
+	case engine.QuestionHookFailed:
+		return "hook failed"
+	case engine.QuestionIntegration:
+		return "didn't integrate"
+	case engine.QuestionConfirmReset:
+		return "reset?"
+	case engine.QuestionPlanApproval:
+		return "plan"
+	}
+	return "question"
 }
 
 // answers are the forms every sheet may offer for a task.
@@ -581,21 +697,19 @@ func sheetOf(c Current, csrf string) (questionView, bool) {
 	return v, true
 }
 
-// statusOf is the page's status word and the line beside it: Needs you
-// (a question, a user task's turn, a blocked or lost session) outranks
-// Paused, which outranks Working; Waiting before any task; the outcome
-// word once ended.
-func statusOf(s Snapshot, now time.Time) (word, line string) {
+// statusOf is the page's status word, the line beside it and its tone
+// (SPEC §15.4): Needs you (a question, a user task's turn, a blocked or
+// lost session) outranks Paused, which outranks Working; Working also
+// while a pause waits for the active tasks and before the first task;
+// Idle with no run; Done with the outcome once ended.
+func statusOf(s Snapshot, now time.Time) status {
 	if s.Ended {
-		end := s.End
-		if end == "" {
-			end = "unknown"
-		}
-		return endWord(s.End), "ended: " + end
+		o := endOutcome(s.End)
+		return status{look.Done.String(), o.Glyph() + " " + o.String(), outcomeTone(o)}
 	}
 	elapsed := ""
 	if !s.Started.IsZero() {
-		elapsed = " · " + ran(now.Sub(s.Started))
+		elapsed = " · " + look.Duration(now.Sub(s.Started))
 	}
 	var oldest time.Time
 	questions := 0
@@ -621,40 +735,52 @@ func statusOf(s Snapshot, now time.Time) (word, line string) {
 			needs++
 		}
 	}
+	working := func(line string) status { return status{look.Working.String(), line, ""} }
 	switch {
 	case needs > 0:
 		n := needs + questions
-		if n == 1 {
-			return "Needs you", "1 task needs you"
-		}
-		return "Needs you", fmt.Sprintf("%d tasks need you", n)
-	case questions == 1:
-		return "Needs you", "1 question · " + ran(now.Sub(oldest))
-	case questions > 1:
-		return "Needs you", fmt.Sprintf("%d questions · %s", questions, ran(now.Sub(oldest)))
+		return status{look.NeedsYou.String(), fmt.Sprintf("%s %s you", look.Count(n, "task", "tasks"), look.Plural(n, "needs", "need")), "needs"}
+	case questions > 0:
+		return status{look.NeedsYou.String(), look.Count(questions, "question", "questions") + " · " + look.Duration(now.Sub(oldest)), "needs"}
 	case s.Paused && s.Holding:
-		return "Paused", "holding" + elapsed
+		return status{look.Paused.String(), "holding" + elapsed, "plain"}
+	case s.Paused && len(s.Active) == 1:
+		return working("pauses after " + s.Active[0].Task + elapsed)
+	case s.Paused && len(s.Active) > 1:
+		return working("pauses after these tasks" + elapsed)
 	case s.Paused:
-		return "Paused", "after this task" + elapsed
+		return status{look.Paused.String(), "after this task" + elapsed, "plain"}
 	case len(s.Active) > 0:
-		return "Working", "nothing needs you" + elapsed
+		return working("nothing needs you" + elapsed)
 	case s.Run != "":
-		return "Waiting", "nothing running yet" + elapsed
+		return working("nothing running yet" + elapsed)
 	}
-	return "Waiting", "no run yet"
+	return status{look.Idle.String(), "no run yet", "dim"}
 }
 
-// endWord is the status word for a run's outcome.
-func endWord(end string) string {
+// endOutcome is a run's outcome from run_stopped's detail; an error is a
+// failure, anything else a stop.
+func endOutcome(end string) look.Outcome {
 	switch end {
 	case "completed":
-		return "Done"
-	case "failed":
-		return "Failed"
+		return look.Completed
 	case "stuck":
-		return "Stuck"
+		return look.Stuck
+	case "failed", "error":
+		return look.Failed
 	}
-	return "Stopped"
+	return look.Stopped
+}
+
+// outcomeTone is how the word Done is drawn for an outcome.
+func outcomeTone(o look.Outcome) string {
+	switch o.Severity() {
+	case look.Accent:
+		return ""
+	case look.Warn, look.Fail:
+		return "ember"
+	}
+	return "plain"
 }
 
 // segmentsOf is the phase bar: one segment per task of ph in plan order,
@@ -669,51 +795,140 @@ func segmentsOf(ph *Phase, active []Current, asked map[string]bool) []segment {
 	}
 	out := make([]segment, 0, len(ph.Tasks))
 	for _, t := range ph.Tasks {
-		seg := segment{ID: t.ID, State: "todo"}
+		seg := segment{ID: t.ID, State: "todo", Label: "to do"}
 		st, isActive := states[t.ID]
 		switch {
 		case strings.EqualFold(t.Status, "done"):
-			seg.State = "done"
+			seg.State, seg.Label = "done", "done"
 		case strings.EqualFold(t.Status, "skipped"):
-			seg.State = "skipped"
+			seg.State, seg.Label = "skipped", "skipped"
 		case isActive && (asked[t.ID] || st == StateYourTurn || st == StateNeedsYou || st == StateLost):
-			seg.State = "needs"
+			seg.State, seg.Label = "needs", "needs you"
 		case isActive:
-			seg.State = "active"
+			seg.State, seg.Label = "active", "working"
 		}
 		out = append(out, seg)
 	}
 	return out
 }
 
-// ran says how long a task has run: 4m12s, 1h05m.
-func ran(d time.Duration) string {
-	if d < 0 {
-		d = 0
+// recentOf is an event as a line of Recent: in plain words, with how long
+// ago it was and, for a finished task, the tokens it used.
+func recentOf(ev Event, now time.Time) recentView {
+	id := ev.Task
+	r := recentView{At: ev.At, Ago: look.Age(now.Sub(ev.At))}
+	with := func(s, more string) string {
+		if more == "" {
+			return s
+		}
+		return s + " · " + more
 	}
-	d = d.Truncate(time.Second)
-	switch {
-	case d < time.Minute:
-		return fmt.Sprintf("%ds", int(d.Seconds()))
-	case d < time.Hour:
-		return fmt.Sprintf("%dm%02ds", int(d.Minutes()), int(d.Seconds())%60)
+	done := func(text string) { r.Glyph, r.Text, r.Tone = look.GlyphDone, text, "done" }
+	warn := func(glyph, text string) { r.Glyph, r.Text, r.Tone = glyph, text, "alert" }
+	switch engine.EventKind(ev.Type) {
+	case engine.RunStarted:
+		r.Text = with("Run started", ev.Detail)
+	case engine.PhaseStarted:
+		r.Text = "Phase " + ev.Phase + " started"
+	case engine.PhaseDone:
+		done("Phase " + ev.Phase + " complete")
+	case engine.PhaseStuck:
+		warn(look.GlyphWarn, "Phase "+ev.Phase+" is stuck")
+	case engine.TaskStarted:
+		r.Glyph, r.Text = look.GlyphRunning, with(id+" started", ev.Title)
+	case engine.TaskResumed:
+		r.Glyph, r.Text = look.GlyphRunning, id+" resumed"
+	case engine.SessionOpened:
+		r.Text = with(id+" session opened", ev.Mode)
+	case engine.TaskDone:
+		done(with(with(id+" done", ev.Detail), tokensText(ev.Tokens)))
+	case engine.TaskSkipped:
+		r.Glyph, r.Text = look.GlyphSkipped, with(with(id+" skipped", ev.Detail), tokensText(ev.Tokens))
+	case engine.TaskReset:
+		r.Text = with("Reset", ev.Detail)
+	case engine.Asked:
+		r.Glyph, r.Text = look.GlyphNeedsYou, id+" asked: "+questionKind(engine.Question(ev.Question))
+	case engine.YourTurn:
+		r.Glyph, r.Text = look.GlyphNeedsYou, id+" is your turn"
+	case engine.NeedsYou:
+		r.Glyph, r.Text = look.GlyphNeedsYou, with(id+" needs you", ev.Detail)
+	case engine.NeedsYouClear, engine.AgentWaitingOver:
+		r.Glyph, r.Text = look.GlyphRunning, id+" is working again"
+	case engine.AgentWaiting:
+		r.Glyph, r.Text = look.GlyphWaiting, id+" waits on background work"
+	case engine.SessionLost:
+		warn(look.GlyphFail, id+" session lost")
+	case engine.TaskOverdue:
+		warn(look.GlyphWarn, with(id+" overdue", ev.Detail))
+	case engine.RankMismatch:
+		warn(look.GlyphWarn, with(id+" rank mismatch", ev.Detail))
+	case engine.PlanClosed:
+		r.Text = with(id+" plan", ev.Detail)
+	case engine.Retrying:
+		r.Text = with(id+" new session", ev.Detail)
+	case engine.VerifyStarted:
+		r.Glyph, r.Text = look.GlyphWaiting, id+" verifying"
+	case engine.VerifyPassed:
+		done(id + " verify passed")
+	case engine.VerifyFailed:
+		warn(look.GlyphFail, with(id+" verify failed", ev.Detail))
+	case engine.Committed:
+		done(with(id+" committed", ev.Detail))
+	case engine.NotCommitted:
+		r.Text = with(id+" not committed", ev.Detail)
+	case engine.Integrated:
+		done(with(id+" integrated", ev.Detail))
+	case engine.IntegrationFailed:
+		warn(look.GlyphFail, id+" didn't integrate")
+	case engine.HookFailed:
+		warn(look.GlyphFail, with(id+" hook failed", ev.Detail))
+	case engine.PauseOn:
+		r.Text = "Pause after this task: on"
+	case engine.PauseOff:
+		r.Text = "Pause after this task: off"
+	case engine.Paused:
+		r.Text = "Paused before " + id
+	case engine.ModeChanged:
+		r.Text = "Mode of the next sessions: " + ev.Detail
+	case engine.TaskModeChanged:
+		r.Text = "Mode of " + id + "'s next session: " + ev.Detail
+	case engine.Warning:
+		warn(look.GlyphWarn, ev.Detail)
+	case engine.RunFailed:
+		warn(look.GlyphFail, ev.Detail)
+	case engine.RunStopped:
+		o := endOutcome(ev.Detail)
+		r.Glyph, r.Text = o.Glyph(), "Run ended: "+o.String()
+	default:
+		r.Text = strings.TrimSpace(strings.ReplaceAll(ev.Type, "_", " ") + " " + id)
+		r.Text = with(capital(r.Text), ev.Detail)
 	}
-	return fmt.Sprintf("%dh%02dm", int(d.Hours()), int(d.Minutes())%60)
+	return r
 }
 
-// statusMark is a task status as a sign that reads without colour.
+// tokensText is a session's tokens as §15.4 writes them: "2.3M in · 41k
+// out"; "" when unknown.
+func tokensText(t *Tokens) string {
+	if t == nil || t.Unavailable || (t.In == 0 && t.Out == 0) {
+		return ""
+	}
+	return look.InOut(t.In, t.Out)
+}
+
+// statusMark is a task status as its glyph (SPEC §15.4), which reads
+// without colour.
 func statusMark(status string) string {
 	switch strings.ToLower(status) {
 	case "done":
-		return "✓"
+		return look.GlyphDone
 	case "in progress":
-		return "●"
+		return look.GlyphRunning
 	case "ready":
-		return "○"
+		return look.GlyphReady
 	case "blocked":
-		return "◌"
+		return look.GlyphBlocked
 	case "skipped":
-		return "–"
+		return look.GlyphSkipped
 	}
 	return "?"
 }

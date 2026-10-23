@@ -18,9 +18,9 @@
 <script src="/static/app.js" defer></script>
 </head>
 <body>
-<p id="conn" role="status" hidden>reconnecting…</p>
+<p id="conn" role="status" hidden>▲ reconnecting…</p>
 <p id="flash" role="status" hidden></p>
-<main id="live" data-live="/live">
+<main id="live" data-live="/live"{{if .Snap.Ended}} data-ended="1"{{end}}>
 {{template "live" .}}
 </main>
 </body>
@@ -33,22 +33,30 @@
 <script src="/static/app.js" defer></script>
 </head>
 <body>
-<p id="conn" role="status" hidden>reconnecting…</p>
+<p id="conn" role="status" hidden>▲ reconnecting…</p>
 <p id="flash" role="status" hidden></p>
-<main id="live" data-live="/plan/live">
+<main id="live" data-live="/plan/live"{{if .Snap.Ended}} data-ended="1"{{end}}>
 {{template "plan-live" .}}
 </main>
 </body>
 </html>
 {{end}}
 
+{{define "mark" -}}
+<svg class="mark" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="7" fill="#05070F" stroke="#3CC8FF" stroke-opacity=".35"></rect><path fill="#E3172B" d="M15 10.5C17.5 5.5 24 3.5 28 6.5C24.5 6.5 21 8 18.5 12Z"></path><path fill="#3CC8FF" d="M3.5 14L14 17L16 19.5L18 17L28.5 14L27.5 19L18 22L16 24.5L14 22L4.5 19Z"></path><path fill="#B8F0FF" d="M7 16L14.2 18.2L16 20.3L17.8 18.2L25 16L24.8 17L17.8 19.6L16 21.6L14.2 19.6L7.2 17Z"></path></svg>
+{{- end}}
+
+{{define "brand" -}}
+{{template "mark"}}
+<p class="wordmark">igr<span class="i">i</span>s<span class="project"> · {{or . "run"}}</span></p>
+{{- end}}
+
 {{define "top" -}}
 <header class="top">
-<svg class="mark" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="7" fill="#05070F" stroke="#3CC8FF" stroke-opacity=".35"></rect><path fill="#E3172B" d="M15 10.5C17.5 5.5 24 3.5 28 6.5C24.5 6.5 21 8 18.5 12Z"></path><path fill="#3CC8FF" d="M3.5 14L14 17L16 19.5L18 17L28.5 14L27.5 19L18 22L16 24.5L14 22L4.5 19Z"></path><path fill="#B8F0FF" d="M7 16L14.2 18.2L16 20.3L17.8 18.2L25 16L24.8 17L17.8 19.6L16 21.6L14.2 19.6L7.2 17Z"></path></svg>
-<h1 class="wordmark">{{if .Plan}}Plan{{else}}igr<span class="i">i</span>s{{end}}<span class="project"> · {{or .Snap.Project "run"}}</span></h1>
+{{template "brand" .Snap.Project}}
 {{- if .Plan}}
 <a href="/" class="btn back">Run</a>
-{{- else}}
+{{- else if not .Snap.Ended}}
 <span class="dot" aria-hidden="true"></span>
 {{- end}}
 </header>
@@ -57,12 +65,12 @@
 {{define "live" -}}
 {{template "top" .}}
 <section class="glance" aria-label="Status">
-<p class="word{{if .Needs}} needs{{end}}">{{.Word}}</p>
-<p class="line">{{.Line}}</p>
+<h1 class="word{{with .Status.Tone}} {{.}}{{end}}">{{.Status.Word}}</h1>
+<p class="line">{{.Status.Line}}</p>
 {{- if .Segments}}
 <ol class="bar-phase" aria-label="Phase progress">
 {{- range .Segments}}
-<li class="seg {{.State}}" title="{{.ID}}: {{.State}}"></li>
+<li class="seg {{.State}}"><a href="/plan#t-{{.ID}}" title="{{.ID}}: {{.Label}}"><span class="sr">{{.ID}}: {{.Label}}</span></a></li>
 {{- end}}
 </ol>
 {{- end}}
@@ -72,20 +80,23 @@
 {{template "question" .}}
 {{- end}}
 {{- if .Cards}}
-<section aria-label="Active tasks">
+<section class="cards" aria-label="Active tasks">
 {{- range .Cards}}
-<article class="card" id="card-{{.Task}}">
-<h2><span class="id">{{.Task}}</span>{{with .Title}} <span class="title">{{.}}</span>{{end}}</h2>
+<article class="card{{if .Question}} asks{{end}}" id="card-{{.Task}}">
+<h2><span class="id">{{.Task}}</span>{{with .Title}} <span class="title">{{.}}</span>{{end}}<span class="glyph{{if .Question}} needs{{end}}" aria-hidden="true">{{.Glyph}}</span></h2>
 <p class="meta state">{{stateText .State}}{{if ne .State "question"}}{{with .Detail}}: {{.}}{{end}}{{end}}</p>
-<p class="meta">{{if .User}}your task{{else}}<span class="rank">{{or .Rank "—"}}</span> → {{or .Model "—"}}{{end}}{{with .Mode}} · mode {{.}}{{end}}{{with .Override}} · next session {{.}}{{end}} · <span class="ran" data-started="{{.Started.UTC.Format "2006-01-02T15:04:05Z07:00"}}">{{.Ran}}</span>{{with .Tokens}} · {{.In}} in · {{.Out}} out{{end}}</p>
+<p class="meta">{{if .User}}your task{{else}}<span class="rank{{with .Rank}} rank-{{.}}{{end}}">{{or .Rank "—"}}</span> → {{or .Model "—"}}{{end}}{{with .Mode}} · mode {{.}}{{end}}{{with .Override}} · next session {{.}}{{end}} · <span class="ran" data-started="{{.Started.UTC.Format "2006-01-02T15:04:05Z07:00"}}">{{.Ran}}</span>{{with tokens .Tokens}} · {{.}}{{end}}</p>
 {{- with .Overdue}}
-<p class="warn">overdue: {{.}}</p>
+<p class="warn">Overdue · {{.}}</p>
 {{- end}}
 {{- with .RankMismatch}}
-<p class="warn">{{.}}</p>
+<p class="warn">Rank mismatch · {{.}}</p>
 {{- end}}
 {{- if not .User}}
 <pre class="tail" data-task="{{.Task}}" aria-label="The session's last lines"></pre>
+{{- end}}
+{{- with .Question}}
+<a class="to-sheet" href="#q-{{.N}}">▸ answer in the sheet</a>
 {{- end}}
 {{- if .Actions}}
 <div class="actions">
@@ -108,7 +119,7 @@
 <h2>Next up</h2>
 <ul class="tasks">
 {{- range .Next}}
-<li><span class="id">{{.ID}}</span> <span class="title">{{.Title}}</span>{{with .Rank}} <span class="meta">{{.}}</span>{{end}}</li>
+<li><span class="mark" aria-hidden="true">{{mark .Status}}</span> <span class="id">{{.ID}}</span> <span class="title">{{.Title}}</span>{{with .Rank}} <span class="meta rank rank-{{.}}">{{.}}</span>{{end}}</li>
 {{- end}}
 </ul>
 </section>
@@ -118,7 +129,7 @@
 <h2>Recent</h2>
 <ul class="recent">
 {{- range .Recent}}
-<li><time datetime="{{.At.UTC.Format "2006-01-02T15:04:05Z07:00"}}">{{.At.UTC.Format "15:04:05"}}</time> {{.Type}}{{with .Task}} {{.}}{{end}}{{with .Detail}}: {{.}}{{end}}</li>
+<li class="ev{{with .Tone}} {{.}}{{end}}">{{with .Glyph}}<span class="glyph" aria-hidden="true">{{.}}</span> {{end}}<span class="what">{{.Text}}</span> <time datetime="{{.At.UTC.Format "2006-01-02T15:04:05Z07:00"}}">{{.Ago}}</time></li>
 {{- end}}
 </ul>
 </section>
@@ -138,6 +149,7 @@
 
 {{define "plan-live" -}}
 {{template "top" .}}
+<h1 class="page">Plan</h1>
 {{- with .Snap.PlanError}}
 <p class="warn">The plan can't be read: {{.}}</p>
 {{- end}}
@@ -146,9 +158,9 @@
 <h2><span class="phase-id">{{.ID}}</span>{{with .Title}} <span class="title">{{.}}</span>{{end}}{{if .Parallel}} <span class="meta">parallel</span>{{end}}{{if .Run}} <span class="now">this run</span>{{end}}</h2>
 <ul class="tasks">
 {{- range .Tasks}}
-<li class="t {{slug .Status}}"><span class="mark" aria-hidden="true">{{mark .Status}}</span> <span class="id">{{.ID}}</span> <span class="title">{{.Title}}</span> <span class="meta">{{.Status}}{{with .Rank}} · {{.}}{{end}}{{with .Mode}} · {{.}}{{end}}{{if eq .Owner "user"}} · <span class="you">you</span>{{end}}</span>
+<li class="t {{slug .Status}}" id="t-{{.ID}}"><span class="mark" aria-hidden="true">{{mark .Status}}</span> <span class="id">{{.ID}}</span> <span class="title">{{.Title}}</span> <span class="meta">{{.Status}}{{with .Rank}} · <span class="rank rank-{{.}}">{{.}}</span>{{end}}{{with .Mode}} · mode {{.}}{{end}}{{if eq .Owner "user"}} · <span class="you">you</span>{{end}}</span>
 {{- with .ModeForm}}
-<details><summary>mode</summary>{{template "form" .}}</details>
+<details><summary>Task mode…</summary>{{template "form" .}}</details>
 {{- end}}</li>
 {{- end}}
 </ul>
@@ -170,8 +182,9 @@
 {{end}}
 
 {{define "question" -}}
-<section class="question{{if .Sheet}} sheet{{end}}" aria-label="Needs you"{{with .Q.Task}} id="q-{{.}}"{{end}}>
-<p class="kind">{{with .Q.Task}}<span class="id">{{.}}</span> {{end}}<span class="what">{{.Kind}}</span>{{if gt .Of 1}}<a class="next"{{with .NextID}} href="#q-{{.}}"{{end}}>{{.N}} of {{.Of}}{{if .NextID}} · next{{end}}</a>{{end}}</p>
+<section class="question{{if .Sheet}} sheet{{end}}" aria-label="Needs you" id="q-{{.N}}" data-key="{{.Key}}">
+<button type="button" class="peek" aria-label="Open what needs you"><span class="glyph needs" aria-hidden="true">!</span> {{with .Q.Task}}{{.}} · {{end}}{{.Kind}}<span class="up" aria-hidden="true">▴</span></button>
+<p class="kind">{{with .Q.Task}}<span class="id">{{.}}</span> {{end}}<span class="what">{{.Kind}}</span>{{if gt .Of 1}}<a class="step" href="#q-{{.NextN}}">{{.N}} of {{.Of}} ›</a>{{end}}</p>
 <h2>{{.Title}}</h2>
 {{- with .Q.Detail}}
 <p>{{.}}</p>
@@ -192,6 +205,7 @@
 <div class="actions">
 {{range .Answers}}{{template "form" .}}{{end}}
 </div>
+<button type="button" class="fold">▾ collapse</button>
 </section>
 {{- end}}
 
@@ -245,7 +259,10 @@
 </head>
 <body>
 <main>
-<section class="question">
+<header class="top">
+{{template "brand" .Project}}
+</header>
+<section class="notice">
 <h1>{{.Confirm.Title}}</h1>
 <p>{{.Confirm.Text}}</p>
 {{- range .Fields}}{{if eq (index . 0) "text"}}
@@ -258,7 +275,7 @@
 {{- end}}
 <button type="submit" name="confirmed" value="1">{{.Confirm.Label}}</button>
 </form>
-<p><a href="/">Cancel</a></p>
+<a href="/" class="btn">Cancel</a>
 </section>
 </main>
 </body>
@@ -270,11 +287,35 @@
 </head>
 <body>
 <main>
-<section class="question">
+<header class="top">
+{{template "brand" .Project}}
+</header>
+<section class="notice">
 <h1>{{.Title}}</h1>
 <p>{{.Text}}</p>
-<p><a href="/">Back to the run</a></p>
+<a href="/" class="btn">Back to the run</a>
 </section>
+</main>
+</body>
+</html>
+{{end}}
+
+{{define "refused" -}}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>{{.Title}} · igris</title>
+</head>
+<body>
+<main>
+<header>
+<svg viewBox="0 0 112 32" width="112" height="32" role="img" aria-label="igris"><rect x="1" y="1" width="30" height="30" rx="7" fill="#05070F" stroke="#3CC8FF" stroke-opacity=".35"></rect><path fill="#E3172B" d="M15 10.5C17.5 5.5 24 3.5 28 6.5C24.5 6.5 21 8 18.5 12Z"></path><path fill="#3CC8FF" d="M3.5 14L14 17L16 19.5L18 17L28.5 14L27.5 19L18 22L16 24.5L14 22L4.5 19Z"></path><path fill="#B8F0FF" d="M7 16L14.2 18.2L16 20.3L17.8 18.2L25 16L24.8 17L17.8 19.6L16 21.6L14.2 19.6L7.2 17Z"></path><text x="40" y="23" fill="currentColor" font-family="Chakra Petch, sans-serif" font-weight="700" font-size="22">igr<tspan fill="#E3172B">i</tspan>s</text></svg>
+</header>
+<h1>{{.Title}}</h1>
+<p>{{range spans .Text}}{{if .Code}}<code>{{.Text}}</code>{{else}}{{.Text}}{{end}}{{end}}</p>
 </main>
 </body>
 </html>

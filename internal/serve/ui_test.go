@@ -206,6 +206,32 @@ func uiPages(t *testing.T) map[string]string {
 	}
 	page("blocked.html", w, "/")
 
+	w = uiWeb(t, "accept", true)
+	slot := func(n int) *int { return &n }
+	for _, ev := range []engine.Event{
+		{At: uiT0, Kind: engine.RunStarted, Run: "r6", Phase: "P1", Detail: "phase P1"},
+		{At: uiT0.Add(time.Second), Kind: engine.TaskStarted, Phase: "P1", Task: "P1-02", Title: "Parser", Rank: "opus", Model: "claude-opus-5-5", Mode: "plan", Slot: slot(0)},
+		{At: uiT0.Add(2 * time.Second), Kind: engine.TaskStarted, Phase: "P1", Task: "P1-03", Title: "Writer", Rank: "sonnet", Model: "claude-sonnet-5-5", Mode: "accept", Slot: slot(1)},
+		{At: uiT0.Add(time.Minute), Kind: engine.UsageRead, Task: "P1-03", Tokens: &engine.Tokens{In: 2_345_678, Out: 41_234}},
+		{At: uiT0.Add(2 * time.Minute), Kind: engine.TaskOverdue, Task: "P1-03", Detail: "4m of 3m"},
+		{At: uiT0.Add(2 * time.Minute), Kind: engine.RankMismatch, Task: "P1-03", Detail: "runs claude-opus-5-5; rank sonnet resolves to claude-sonnet-5-5"},
+		{At: uiT0.Add(3 * time.Minute), Kind: engine.Asked, Phase: "P1", Task: "P1-02", Question: engine.QuestionCommit, Detail: `commit the changes of P1-02 as "P1-02: Parser"?`},
+		{At: uiT0.Add(4 * time.Minute), Kind: engine.PauseOn},
+	} {
+		w.srv.Publish(ev)
+	}
+	page("working.html", w, "/")
+	status, body, _ = w.get("/nope", "cookie")
+	if status != http.StatusNotFound {
+		t.Fatalf("GET /nope = %d", status)
+	}
+	pages["not-found.html"] = body
+	status, body, _ = w.get("/", "")
+	if status != http.StatusUnauthorized {
+		t.Fatalf("GET / unpaired = %d", status)
+	}
+	pages["not-paired.html"] = body
+
 	w = uiWeb(t, "", false)
 	page("empty.html", w, "/")
 	return pages
@@ -383,12 +409,12 @@ func TestUIRoutes(t *testing.T) {
 	}{
 		{"GET", "/", "cookie", 200, "text/html"},
 		{"GET", "/", "bearer", 200, "text/html"},
-		{"GET", "/", "", 401, "text/plain"},
+		{"GET", "/", "", 401, "text/html"},
 		{"GET", PathLive, "cookie", 200, "text/html"},
-		{"GET", PathLive, "", 401, "text/plain"},
+		{"GET", PathLive, "", 401, "text/html"},
 		{"GET", PathPlan, "cookie", 200, "text/html"},
 		{"GET", PathPlanLive, "cookie", 200, "text/html"},
-		{"GET", PathPlan, "", 401, "text/plain"},
+		{"GET", PathPlan, "", 401, "text/html"},
 		{"GET", "/static/app.js", "cookie", 200, "text/javascript"},
 		{"GET", "/static/app.css", "cookie", 200, "text/css"},
 		{"GET", "/static/app.js", "", 401, "text/plain"},
@@ -457,8 +483,16 @@ func TestUIScriptEndsWithTheRun(t *testing.T) {
 	}
 	pages := uiPages(t)
 	ended := pages["ended.html"]
-	if !strings.Contains(ended, "ended: stopped") {
+	if !strings.Contains(ended, `<h1 class="word plain">Done</h1>`) || !strings.Contains(ended, `<p class="line">– stopped</p>`) {
 		t.Error("the ended page doesn't say so")
+	}
+	// A page loaded after the end follows no stream: there is none left,
+	// and it would say reconnecting… for ever.
+	if !strings.Contains(ended, `data-ended="1"`) || !regexp.MustCompile(`var over = live\.dataset\.ended === "1";`).MatchString(js) {
+		t.Error("a page loaded after the end still follows the stream")
+	}
+	if strings.Contains(uiPages(t)["running.html"], "data-ended") {
+		t.Error("a live page says it ended")
 	}
 	for _, c := range []struct{ sel, mark string }{
 		{"form.cmd", `class="cmd`},
@@ -467,6 +501,9 @@ func TestUIScriptEndsWithTheRun(t *testing.T) {
 		{"details", "<details>"},
 		{"section[aria-label='Run mode']", `<section aria-label="Run mode">`},
 		{"nav.bar", `<nav class="bar"`},
+		{"section.next", `<section class="next"`},
+		{".dot", `<span class="dot"`},
+		{"a.to-sheet", `<a class="to-sheet"`},
 	} {
 		if !strings.Contains(remove[1], c.sel) {
 			t.Errorf("app.js's ended keeps %s", c.sel)
@@ -480,17 +517,6 @@ func TestUIScriptEndsWithTheRun(t *testing.T) {
 		}
 		if !shown {
 			t.Errorf("no live page has %s: the test no longer checks it", c.mark)
-		}
-	}
-}
-
-func TestRan(t *testing.T) {
-	for d, want := range map[time.Duration]string{
-		-time.Second: "0s", 59 * time.Second: "59s", 4*time.Minute + 12*time.Second: "4m12s",
-		time.Hour + 5*time.Minute + 59*time.Second: "1h05m",
-	} {
-		if got := ran(d); got != want {
-			t.Errorf("ran(%v) = %q, want %q", d, got, want)
 		}
 	}
 }
@@ -550,11 +576,54 @@ func TestUINoJSFields(t *testing.T) {
 	if deny < 0 || !strings.Contains(body[deny:deny+600], `<textarea name="text"`) {
 		t.Error("the reject form has no feedback field")
 	}
+	body = uiPages(t)["blocked.html"]
 	skip := strings.Index(body, `<input type="hidden" name="type" value="skip">`)
 	if skip < 0 || !strings.Contains(body[skip:skip+600], `<input type="text" name="text"`) {
 		t.Error("the skip form has no reason field")
 	}
 	if strings.Contains(body, `class="field" hidden`) {
 		t.Error("a field is hidden in the markup")
+	}
+}
+
+// A browser that isn't paired gets a page with the brand and the next
+// step, which loads nothing it can't have: no stylesheet, no script (an
+// unpaired browser gets neither, and a stale cookie's every failed
+// request counts against its address). The API keeps its JSON, the
+// static files their short text.
+func TestUINotPairedPage(t *testing.T) {
+	w := uiWeb(t, "accept", true)
+	for _, tt := range []struct{ path, title, step string }{
+		{"/", "<h1>Not paired</h1>", "<p>Run <code>igris serve token</code> on the machine and open its URL on this device.</p>"},
+		{PathPair + "?token=stale", "<h1>This pairing URL is not valid (any more)</h1>", "<p>Run <code>igris serve token</code> on the machine for the current one.</p>"},
+	} {
+		resp := w.do(http.MethodGet, tt.path, "", "", nil)
+		b, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body := string(b)
+		if resp.StatusCode != http.StatusUnauthorized || !strings.HasPrefix(resp.Header.Get("Content-Type"), "text/html") {
+			t.Errorf("GET %s = %d %s", tt.path, resp.StatusCode, resp.Header.Get("Content-Type"))
+		}
+		for _, want := range []string{tt.title, tt.step, `aria-label="igris"`, `igr<tspan fill="#E3172B">i</tspan>s`} {
+			if !strings.Contains(body, want) {
+				t.Errorf("GET %s lacks %s:\n%s", tt.path, want, body)
+			}
+		}
+		for _, no := range []string{"<link", "<script", "`"} {
+			if strings.Contains(body, no) {
+				t.Errorf("GET %s holds %s", tt.path, no)
+			}
+		}
+		if csp := resp.Header.Get("Content-Security-Policy"); !strings.Contains(csp, "default-src 'none'") {
+			t.Errorf("GET %s: CSP = %q", tt.path, csp)
+		}
+	}
+	if resp := w.do(http.MethodGet, PathEvents, "", "", nil); !strings.HasPrefix(resp.Header.Get("Content-Type"), "application/json") {
+		t.Errorf("the API's 401 is %s", resp.Header.Get("Content-Type"))
+	}
+	if resp := w.do(http.MethodGet, "/static/app.css", "", "", nil); !strings.HasPrefix(resp.Header.Get("Content-Type"), "text/plain") {
+		t.Errorf("a static file's 401 is %s", resp.Header.Get("Content-Type"))
 	}
 }

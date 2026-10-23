@@ -20,7 +20,13 @@
   var timer = 0;
   var stream = null;
   var flashTimer = 0;
-  var over = false; // the run ended: nothing left to read or refresh
+  // over: the run ended, nothing left to read or refresh; a page loaded
+  // after the end has no stream to follow (serve ended with the run).
+  var over = live.dataset.ended === "1";
+  var stopping = false; // this page confirmed Stop: Stopping until the end
+  var sheetOpen = true; // the sheet is open, else a peek strip
+  var sheetKey = ""; // the entry the sheet shows, kept across refreshes
+  var seen = {}; // the entries the sheet has shown: a new one opens it
   var liveURL = live.dataset.live || "/live"; // the run's live part, or the plan's
 
   // collapse disables the text field of every form that hasn't been
@@ -37,10 +43,67 @@
     }
   }
 
-  // sheet marks the page as having a sheet, which the stylesheet dims
-  // the rest for.
+  // sheet draws what needs the owner as the sheet, one entry at a time
+  // (SPEC §15.8): the one it showed before a refresh if it is still
+  // there, else the first. It opens by itself when something new needs
+  // the owner and otherwise stays as the owner left it: open over the
+  // dimmed page, or folded to a peek strip above the thumb bar.
   function sheet() {
-    document.body.classList.toggle("has-sheet", !over && live.querySelector(".question.sheet") !== null);
+    var asks = over ? [] : Array.prototype.slice.call(live.querySelectorAll("section.question"));
+    var at = 0;
+    asks.forEach(function (q, i) {
+      if (!seen[q.dataset.key]) {
+        seen[q.dataset.key] = true;
+        sheetOpen = true;
+      }
+      if (q.dataset.key === sheetKey) {
+        at = i;
+      }
+    });
+    sheetKey = asks.length > 0 ? asks[at].dataset.key : "";
+    asks.forEach(function (q, i) {
+      q.classList.toggle("sheet", i === at);
+      q.classList.toggle("peek", i === at && !sheetOpen);
+    });
+    var bar = live.querySelector("nav.bar");
+    if (bar) {
+      root.style.setProperty("--bar", bar.offsetHeight + "px"); // the sheet sits on it
+    }
+    document.body.classList.toggle("has-sheet", asks.length > 0 && sheetOpen);
+    document.body.classList.toggle("has-peek", asks.length > 0 && !sheetOpen);
+  }
+
+  // showSheet opens the sheet at the entry with id, or folds it.
+  function showSheet(id, open) {
+    var q = id ? document.getElementById(id) : null;
+    if (q && q.dataset.key) {
+      sheetKey = q.dataset.key;
+    }
+    sheetOpen = open;
+    sheet();
+    var now = live.querySelector("section.question.sheet");
+    if (now) {
+      now.scrollTop = 0;
+      var to = now.querySelector(open ? "h2" : "button.peek");
+      if (to) {
+        to.setAttribute("tabindex", "-1");
+        to.focus({ preventScroll: true });
+      }
+    }
+  }
+
+  // stopped shows Stopping on the page that confirmed Stop: the protocol
+  // has no event for it, so the other pages say Working until the end.
+  function stopped() {
+    var word = live.querySelector(".glance .word");
+    var line = live.querySelector(".glance .line");
+    if (word) {
+      word.textContent = "Stopping";
+      word.className = "word plain";
+    }
+    if (line) {
+      line.textContent = "the sessions stay open";
+    }
   }
 
   function id() {
@@ -148,9 +211,11 @@
       live.replaceChildren.apply(live, Array.prototype.slice.call(doc.body.childNodes));
       retype(kept);
       fillTails();
-      localTimes();
       tick();
       sheet();
+      if (stopping) {
+        stopped();
+      }
     }).catch(function (e) {
       say(e.message, true);
     }).then(function () {
@@ -204,36 +269,57 @@
     next();
   }
 
-  // tick keeps how long each task has run current between refreshes,
-  // and stops with the run.
+  // duration writes s seconds as internal/look does: the two largest
+  // units, no spaces (45s, 4m12s, 1h47m, 2d3h).
+  function duration(s) {
+    if (s < 60) {
+      return s + "s";
+    }
+    if (s < 3600) {
+      return Math.floor(s / 60) + "m" + String(s % 60).padStart(2, "0") + "s";
+    }
+    if (s < 86400) {
+      return Math.floor(s / 3600) + "h" + String(Math.floor(s / 60) % 60).padStart(2, "0") + "m";
+    }
+    return Math.floor(s / 86400) + "d" + Math.floor(s / 3600) % 24 + "h";
+  }
+
+  // age writes how long ago s seconds were, in one unit (25m ago).
+  function age(s) {
+    if (s < 60) {
+      return s + "s ago";
+    }
+    if (s < 3600) {
+      return Math.floor(s / 60) + "m ago";
+    }
+    if (s < 86400) {
+      return Math.floor(s / 3600) + "h ago";
+    }
+    return Math.floor(s / 86400) + "d ago";
+  }
+
+  // tick keeps how long each task has run and how long ago each event
+  // was current between refreshes, and stops with the run. An event's
+  // title is its clock time in the device's zone.
   function tick() {
     if (over) {
       return;
     }
-    var spans = live.querySelectorAll(".ran[data-started]");
     var now = Date.now();
+    var since = function (iso) {
+      return Math.max(0, Math.floor((now - Date.parse(iso)) / 1000));
+    };
+    var spans = live.querySelectorAll(".ran[data-started]");
     for (var i = 0; i < spans.length; i++) {
-      var s = Math.max(0, Math.floor((now - Date.parse(spans[i].dataset.started)) / 1000));
-      var text;
-      if (s < 60) {
-        text = s + "s";
-      } else if (s < 3600) {
-        text = Math.floor(s / 60) + "m" + String(s % 60).padStart(2, "0") + "s";
-      } else {
-        text = Math.floor(s / 3600) + "h" + String(Math.floor(s / 60) % 60).padStart(2, "0") + "m";
-      }
-      spans[i].textContent = text;
+      spans[i].textContent = duration(since(spans[i].dataset.started));
     }
-  }
-
-  // localTimes shows the events' times, rendered in UTC, in the
-  // device's time zone.
-  function localTimes() {
     var times = live.querySelectorAll("time[datetime]");
-    for (var i = 0; i < times.length; i++) {
-      var d = new Date(times[i].getAttribute("datetime"));
+    for (var j = 0; j < times.length; j++) {
+      var iso = times[j].getAttribute("datetime");
+      var d = new Date(iso);
       if (!isNaN(d)) {
-        times[i].textContent = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+        times[j].textContent = age(since(iso));
+        times[j].title = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
       }
     }
   }
@@ -270,14 +356,16 @@
     };
   }
 
-  // endWord is the status word for a run's outcome, as the server's.
-  function endWord(outcome) {
+  // endLine is the outcome after the word Done, with its glyph and the
+  // word's tone, as the server's (internal/look).
+  function endLine(outcome) {
     switch (outcome) {
-      case "completed": return "Done";
-      case "failed": return "Failed";
-      case "stuck": return "Stuck";
+      case "completed": return ["✓ completed", ""];
+      case "stuck": return ["▲ stuck", "ember"];
+      case "failed":
+      case "error": return ["✗ failed", "ember"];
     }
-    return "Stopped";
+    return ["– stopped", "plain"];
   }
 
   // ended shows the run's end as the page of an ended run does: serve
@@ -292,18 +380,19 @@
     root.classList.add("over");
     root.classList.remove("down");
     sheet();
-    var gone = live.querySelectorAll("form.cmd, section.question, .actions, details, section[aria-label='Run mode'], nav.bar");
+    var gone = live.querySelectorAll("form.cmd, section.question, .actions, details, section[aria-label='Run mode'], nav.bar, section.next, .dot, a.to-sheet");
     for (var i = 0; i < gone.length; i++) {
       gone[i].remove();
     }
+    var end = endLine(outcome);
     var word = live.querySelector(".glance .word");
     if (word) {
-      word.textContent = endWord(outcome);
-      word.classList.remove("needs");
+      word.textContent = "Done";
+      word.className = "word" + (end[1] ? " " + end[1] : "");
     }
     var line = live.querySelector(".glance .line");
     if (line) {
-      line.textContent = "ended: " + (outcome || "unknown");
+      line.textContent = end[0];
     }
   }
 
@@ -344,6 +433,10 @@
         return;
       }
       say("Sent.", false);
+      if (msg.type === "stop") {
+        stopping = true;
+        stopped();
+      }
       form.reset();
       form.classList.remove("open");
       collapse();
@@ -385,11 +478,30 @@
   });
 
   live.addEventListener("click", function (e) {
-    var b = e.target.closest ? e.target.closest("button.cancel") : null;
+    if (!e.target.closest) {
+      return;
+    }
+    var b = e.target.closest("button.cancel");
     if (b && b.form) {
       confirming(b.form, false);
       b.form.classList.remove("open");
       collapse();
+      return;
+    }
+    if (e.target.closest("button.peek")) {
+      showSheet("", true);
+      return;
+    }
+    if (e.target.closest("button.fold")) {
+      showSheet("", false);
+      return;
+    }
+    // The stepper and a card's marker go to an entry of the sheet, which
+    // without the script are links to it further down the page.
+    var to = e.target.closest("a.step, a.to-sheet");
+    if (to) {
+      e.preventDefault();
+      showSheet(to.getAttribute("href").slice(1), true);
     }
   });
 
@@ -399,9 +511,13 @@
     }
   });
 
-  localTimes();
+  tick();
   sheet();
   collapse();
+  if (over) {
+    root.classList.add("over");
+    return;
+  }
   setInterval(tick, 1000);
   follow();
   readTails();

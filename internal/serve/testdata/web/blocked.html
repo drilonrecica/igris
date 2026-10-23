@@ -13,27 +13,28 @@
 <script src="/static/app.js" defer></script>
 </head>
 <body>
-<p id="conn" role="status" hidden>reconnecting…</p>
+<p id="conn" role="status" hidden>▲ reconnecting…</p>
 <p id="flash" role="status" hidden></p>
 <main id="live" data-live="/live">
 <header class="top">
 <svg class="mark" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="7" fill="#05070F" stroke="#3CC8FF" stroke-opacity=".35"></rect><path fill="#E3172B" d="M15 10.5C17.5 5.5 24 3.5 28 6.5C24.5 6.5 21 8 18.5 12Z"></path><path fill="#3CC8FF" d="M3.5 14L14 17L16 19.5L18 17L28.5 14L27.5 19L18 22L16 24.5L14 22L4.5 19Z"></path><path fill="#B8F0FF" d="M7 16L14.2 18.2L16 20.3L17.8 18.2L25 16L24.8 17L17.8 19.6L16 21.6L14.2 19.6L7.2 17Z"></path></svg>
-<h1 class="wordmark">igr<span class="i">i</span>s<span class="project"> · demo</span></h1>
+<p class="wordmark">igr<span class="i">i</span>s<span class="project"> · demo</span></p>
 <span class="dot" aria-hidden="true"></span>
 </header>
 <section class="glance" aria-label="Status">
-<p class="word needs">Needs you</p>
+<h1 class="word needs">Needs you</h1>
 <p class="line">1 task needs you</p>
 <ol class="bar-phase" aria-label="Phase progress">
-<li class="seg done" title="P1-01: done"></li>
-<li class="seg todo" title="P1-02: todo"></li>
-<li class="seg needs" title="P1-03: needs"></li>
-<li class="seg todo" title="P1-04: todo"></li>
-<li class="seg todo" title="P1-05: todo"></li>
+<li class="seg done"><a href="/plan#t-P1-01" title="P1-01: done"><span class="sr">P1-01: done</span></a></li>
+<li class="seg todo"><a href="/plan#t-P1-02" title="P1-02: to do"><span class="sr">P1-02: to do</span></a></li>
+<li class="seg needs"><a href="/plan#t-P1-03" title="P1-03: needs you"><span class="sr">P1-03: needs you</span></a></li>
+<li class="seg todo"><a href="/plan#t-P1-04" title="P1-04: to do"><span class="sr">P1-04: to do</span></a></li>
+<li class="seg todo"><a href="/plan#t-P1-05" title="P1-05: to do"><span class="sr">P1-05: to do</span></a></li>
 </ol>
 <p class="meta"><span>phase P1 · Parser &lt;i&gt;and&lt;/i&gt; writer</span><span>1 of 5 done · 4m12s</span></p>
 </section>
-<section class="question sheet" aria-label="Needs you" id="q-P1-03">
+<section class="question sheet" aria-label="Needs you" id="q-1" data-key="blocked P1-03">
+<button type="button" class="peek" aria-label="Open what needs you"><span class="glyph needs" aria-hidden="true">!</span> P1-03 · blocked<span class="up" aria-hidden="true">▴</span></button>
 <p class="kind"><span class="id">P1-03</span> <span class="what">blocked</span></p>
 <h2>P1-03 waits for you in its pane</h2>
 <p>waiting for a permission or an answer</p>
@@ -71,69 +72,30 @@
 </div>
 </form>
 </div>
+<button type="button" class="fold">▾ collapse</button>
 </section>
-<section aria-label="Active tasks">
-<article class="card" id="card-P1-03">
-<h2><span class="id">P1-03</span> <span class="title">Writer</span></h2>
+<section class="cards" aria-label="Active tasks">
+<article class="card asks" id="card-P1-03">
+<h2><span class="id">P1-03</span> <span class="title">Writer</span><span class="glyph needs" aria-hidden="true">!</span></h2>
 <p class="meta state">needs you: waiting for a permission or an answer</p>
-<p class="meta"><span class="rank">sonnet</span> → claude-sonnet-5-5 · <span class="ran" data-started="2026-10-22T09:01:00Z">3m12s</span></p>
+<p class="meta"><span class="rank rank-sonnet">sonnet</span> → claude-sonnet-5-5 · <span class="ran" data-started="2026-10-22T09:01:00Z">3m12s</span></p>
 <pre class="tail" data-task="P1-03" aria-label="The session's last lines"></pre>
-<div class="actions">
-<form method="post" action="/act" class="cmd has-field" data-confirm="1">
-<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
-<input type="hidden" name="type" value="done">
-<input type="hidden" name="task" value="P1-03">
-<div class="field"><label>Note (optional) <input type="text" name="text" maxlength="16384"></label></div>
-<button type="submit" class="go">Mark done</button>
-<div class="confirm" hidden>
-<p><strong>Mark P1-03 done?</strong> It&#39;s your decision, so igris doesn&#39;t verify it.</p>
-<button type="submit" name="confirmed" value="1">Mark P1-03 done</button>
-<button type="button" class="cancel">Cancel</button>
-</div>
-</form>
-<form method="post" action="/act" class="cmd danger has-field" data-confirm="1">
-<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
-<input type="hidden" name="type" value="skip">
-<input type="hidden" name="task" value="P1-03">
-<div class="field"><label>Reason <input type="text" name="text" maxlength="16384" required></label></div>
-<button type="submit" class="go">Skip</button>
-<div class="confirm" hidden>
-<p><strong>Skip P1-03?</strong> The reason is recorded with the skip; an open session is closed.</p>
-<button type="submit" name="confirmed" value="1">Skip P1-03</button>
-<button type="button" class="cancel">Cancel</button>
-</div>
-</form>
-<details class="retry"><summary>Retry</summary>
-<form method="post" action="/act" class="cmd">
-<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
-<input type="hidden" name="type" value="retry">
-<input type="hidden" name="task" value="P1-03">
-<button type="submit" class="go">Retry fresh</button>
-</form>
-<form method="post" action="/act" class="cmd">
-<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
-<input type="hidden" name="type" value="retry">
-<input type="hidden" name="task" value="P1-03">
-<input type="hidden" name="continue" value="1">
-<button type="submit" class="go">Retry, continuing the conversation</button>
-</form>
-</details>
-</div>
+<a class="to-sheet" href="#q-1">▸ answer in the sheet</a>
 </article>
 </section>
 <section class="next" aria-label="Next up">
 <h2>Next up</h2>
 <ul class="tasks">
-<li><span class="id">P1-04</span> <span class="title">Docs</span> <span class="meta">sonnet</span></li>
-<li><span class="id">P1-05</span> <span class="title">Owner check</span></li>
+<li><span class="mark" aria-hidden="true">⨯</span> <span class="id">P1-04</span> <span class="title">Docs</span> <span class="meta rank rank-sonnet">sonnet</span></li>
+<li><span class="mark" aria-hidden="true">⨯</span> <span class="id">P1-05</span> <span class="title">Owner check</span></li>
 </ul>
 </section>
 <section class="recent" aria-label="Recent events">
 <h2>Recent</h2>
 <ul class="recent">
-<li><time datetime="2026-10-22T09:02:00Z">09:02:00</time> needs_you P1-03: waiting for a permission or an answer</li>
-<li><time datetime="2026-10-22T09:01:00Z">09:01:00</time> task_started P1-03</li>
-<li><time datetime="2026-10-22T09:00:00Z">09:00:00</time> run_started</li>
+<li class="ev"><span class="glyph" aria-hidden="true">!</span> <span class="what">P1-03 needs you · waiting for a permission or an answer</span> <time datetime="2026-10-22T09:02:00Z">2m ago</time></li>
+<li class="ev"><span class="glyph" aria-hidden="true">●</span> <span class="what">P1-03 started · Writer</span> <time datetime="2026-10-22T09:01:00Z">3m ago</time></li>
+<li class="ev"><span class="what">Run started</span> <time datetime="2026-10-22T09:00:00Z">4m ago</time></li>
 </ul>
 </section>
 <nav class="bar" aria-label="Actions">

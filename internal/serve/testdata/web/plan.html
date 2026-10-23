@@ -13,20 +13,21 @@
 <script src="/static/app.js" defer></script>
 </head>
 <body>
-<p id="conn" role="status" hidden>reconnecting…</p>
+<p id="conn" role="status" hidden>▲ reconnecting…</p>
 <p id="flash" role="status" hidden></p>
 <main id="live" data-live="/plan/live">
 <header class="top">
 <svg class="mark" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="7" fill="#05070F" stroke="#3CC8FF" stroke-opacity=".35"></rect><path fill="#E3172B" d="M15 10.5C17.5 5.5 24 3.5 28 6.5C24.5 6.5 21 8 18.5 12Z"></path><path fill="#3CC8FF" d="M3.5 14L14 17L16 19.5L18 17L28.5 14L27.5 19L18 22L16 24.5L14 22L4.5 19Z"></path><path fill="#B8F0FF" d="M7 16L14.2 18.2L16 20.3L17.8 18.2L25 16L24.8 17L17.8 19.6L16 21.6L14.2 19.6L7.2 17Z"></path></svg>
-<h1 class="wordmark">Plan<span class="project"> · demo</span></h1>
+<p class="wordmark">igr<span class="i">i</span>s<span class="project"> · demo</span></p>
 <a href="/" class="btn back">Run</a>
 </header>
+<h1 class="page">Plan</h1>
 <section class="phase run" aria-label="Phase P1">
 <h2><span class="phase-id">P1</span> <span class="title">Parser &lt;i&gt;and&lt;/i&gt; writer</span> <span class="now">this run</span></h2>
 <ul class="tasks">
-<li class="t done"><span class="mark" aria-hidden="true">✓</span> <span class="id">P1-01</span> <span class="title">Go module</span> <span class="meta">done · sonnet</span></li>
-<li class="t in-progress"><span class="mark" aria-hidden="true">●</span> <span class="id">P1-02</span> <span class="title">&lt;b&gt;Parser&lt;/b&gt;</span> <span class="meta">in progress · opus · plan</span>
-<details><summary>mode</summary><form method="post" action="/act" class="cmd">
+<li class="t done" id="t-P1-01"><span class="mark" aria-hidden="true">✓</span> <span class="id">P1-01</span> <span class="title">Go module</span> <span class="meta">done · <span class="rank rank-sonnet">sonnet</span></span></li>
+<li class="t in-progress" id="t-P1-02"><span class="mark" aria-hidden="true">●</span> <span class="id">P1-02</span> <span class="title">&lt;b&gt;Parser&lt;/b&gt;</span> <span class="meta">in progress · <span class="rank rank-opus">opus</span> · mode plan</span>
+<details><summary>Task mode…</summary><form method="post" action="/act" class="cmd">
 <input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
 <input type="hidden" name="type" value="task_mode">
 <input type="hidden" name="task" value="P1-02">
@@ -42,8 +43,8 @@
 </select></label>
 <button type="submit" class="go">Set</button>
 </form></details></li>
-<li class="t in-progress"><span class="mark" aria-hidden="true">●</span> <span class="id">P1-03</span> <span class="title">Writer</span> <span class="meta">in progress · sonnet</span>
-<details><summary>mode</summary><form method="post" action="/act" class="cmd">
+<li class="t in-progress" id="t-P1-03"><span class="mark" aria-hidden="true">●</span> <span class="id">P1-03</span> <span class="title">Writer</span> <span class="meta">in progress · <span class="rank rank-sonnet">sonnet</span></span>
+<details><summary>Task mode…</summary><form method="post" action="/act" class="cmd">
 <input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
 <input type="hidden" name="type" value="task_mode">
 <input type="hidden" name="task" value="P1-03">
@@ -59,8 +60,8 @@
 </select></label>
 <button type="submit" class="go">Set</button>
 </form></details></li>
-<li class="t blocked"><span class="mark" aria-hidden="true">◌</span> <span class="id">P1-04</span> <span class="title">Docs</span> <span class="meta">blocked · sonnet · auto</span>
-<details><summary>mode</summary><form method="post" action="/act" class="cmd">
+<li class="t blocked" id="t-P1-04"><span class="mark" aria-hidden="true">⨯</span> <span class="id">P1-04</span> <span class="title">Docs</span> <span class="meta">blocked · <span class="rank rank-sonnet">sonnet</span> · mode auto</span>
+<details><summary>Task mode…</summary><form method="post" action="/act" class="cmd">
 <input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
 <input type="hidden" name="type" value="task_mode">
 <input type="hidden" name="task" value="P1-04">
@@ -76,13 +77,13 @@
 </select></label>
 <button type="submit" class="go">Set</button>
 </form></details></li>
-<li class="t blocked"><span class="mark" aria-hidden="true">◌</span> <span class="id">P1-05</span> <span class="title">Owner check</span> <span class="meta">blocked · <span class="you">you</span></span></li>
+<li class="t blocked" id="t-P1-05"><span class="mark" aria-hidden="true">⨯</span> <span class="id">P1-05</span> <span class="title">Owner check</span> <span class="meta">blocked · <span class="you">you</span></span></li>
 </ul>
 </section>
 <section class="phase" aria-label="Phase P2">
 <h2><span class="phase-id">P2</span> <span class="title">Later</span></h2>
 <ul class="tasks">
-<li class="t blocked"><span class="mark" aria-hidden="true">◌</span> <span class="id">P2-01</span> <span class="title">Release</span> <span class="meta">blocked · <span class="you">you</span></span></li>
+<li class="t blocked" id="t-P2-01"><span class="mark" aria-hidden="true">⨯</span> <span class="id">P2-01</span> <span class="title">Release</span> <span class="meta">blocked · <span class="you">you</span></span></li>
 </ul>
 </section>
 <section aria-label="Run mode">

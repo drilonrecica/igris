@@ -13,40 +13,32 @@
 <script src="/static/app.js" defer></script>
 </head>
 <body>
-<p id="conn" role="status" hidden>reconnecting…</p>
+<p id="conn" role="status" hidden>▲ reconnecting…</p>
 <p id="flash" role="status" hidden></p>
-<main id="live" data-live="/live">
+<main id="live" data-live="/live" data-ended="1">
 <header class="top">
 <svg class="mark" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="7" fill="#05070F" stroke="#3CC8FF" stroke-opacity=".35"></rect><path fill="#E3172B" d="M15 10.5C17.5 5.5 24 3.5 28 6.5C24.5 6.5 21 8 18.5 12Z"></path><path fill="#3CC8FF" d="M3.5 14L14 17L16 19.5L18 17L28.5 14L27.5 19L18 22L16 24.5L14 22L4.5 19Z"></path><path fill="#B8F0FF" d="M7 16L14.2 18.2L16 20.3L17.8 18.2L25 16L24.8 17L17.8 19.6L16 21.6L14.2 19.6L7.2 17Z"></path></svg>
-<h1 class="wordmark">igr<span class="i">i</span>s<span class="project"> · demo</span></h1>
-<span class="dot" aria-hidden="true"></span>
+<p class="wordmark">igr<span class="i">i</span>s<span class="project"> · demo</span></p>
 </header>
 <section class="glance" aria-label="Status">
-<p class="word">Stopped</p>
-<p class="line">ended: stopped</p>
+<h1 class="word plain">Done</h1>
+<p class="line">– stopped</p>
 <ol class="bar-phase" aria-label="Phase progress">
-<li class="seg done" title="P1-01: done"></li>
-<li class="seg todo" title="P1-02: todo"></li>
-<li class="seg todo" title="P1-03: todo"></li>
-<li class="seg todo" title="P1-04: todo"></li>
-<li class="seg todo" title="P1-05: todo"></li>
+<li class="seg done"><a href="/plan#t-P1-01" title="P1-01: done"><span class="sr">P1-01: done</span></a></li>
+<li class="seg todo"><a href="/plan#t-P1-02" title="P1-02: to do"><span class="sr">P1-02: to do</span></a></li>
+<li class="seg todo"><a href="/plan#t-P1-03" title="P1-03: to do"><span class="sr">P1-03: to do</span></a></li>
+<li class="seg todo"><a href="/plan#t-P1-04" title="P1-04: to do"><span class="sr">P1-04: to do</span></a></li>
+<li class="seg todo"><a href="/plan#t-P1-05" title="P1-05: to do"><span class="sr">P1-05: to do</span></a></li>
 </ol>
 <p class="meta"><span>phase P1 · Parser &lt;i&gt;and&lt;/i&gt; writer</span><span>1 of 5 done · 4m12s</span></p>
-</section>
-<section class="next" aria-label="Next up">
-<h2>Next up</h2>
-<ul class="tasks">
-<li><span class="id">P1-04</span> <span class="title">Docs</span> <span class="meta">sonnet</span></li>
-<li><span class="id">P1-05</span> <span class="title">Owner check</span></li>
-</ul>
 </section>
 <section class="recent" aria-label="Recent events">
 <h2>Recent</h2>
 <ul class="recent">
-<li><time datetime="2026-10-22T09:01:00Z">09:01:00</time> run_stopped: stopped</li>
-<li><time datetime="2026-10-22T09:01:00Z">09:01:00</time> task_done P1-02</li>
-<li><time datetime="2026-10-22T09:00:00Z">09:00:00</time> task_started P1-02</li>
-<li><time datetime="2026-10-22T09:00:00Z">09:00:00</time> run_started</li>
+<li class="ev"><span class="glyph" aria-hidden="true">–</span> <span class="what">Run ended: stopped</span> <time datetime="2026-10-22T09:01:00Z">3m ago</time></li>
+<li class="ev done"><span class="glyph" aria-hidden="true">✓</span> <span class="what">P1-02 done</span> <time datetime="2026-10-22T09:01:00Z">3m ago</time></li>
+<li class="ev"><span class="glyph" aria-hidden="true">●</span> <span class="what">P1-02 started · Parser</span> <time datetime="2026-10-22T09:00:00Z">4m ago</time></li>
+<li class="ev"><span class="what">Run started</span> <time datetime="2026-10-22T09:00:00Z">4m ago</time></li>
 </ul>
 </section>
 

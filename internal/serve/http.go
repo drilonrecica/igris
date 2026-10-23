@@ -513,9 +513,21 @@ func (h *remote) fail(w http.ResponseWriter, r *http.Request, status int, msg st
 		writeReply(w, status, Reply{Type: TypeError, Error: msg})
 		return
 	}
+	// A page the browser opened gets the UI's refusal page (the brand and
+	// the next step, SPEC §15.8); its script, stylesheet and icon a short
+	// text.
+	if p, ok := h.opts.UI.(refuser); ok && !strings.HasPrefix(r.URL.Path, pathStatic) && r.URL.Path != pathFavicon {
+		p.refuse(w, status, msg)
+		return
+	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(status)
 	_, _ = io.WriteString(w, "igris: "+msg+"\n")
+}
+
+// refuser draws a refusal as a page: the web UI's handler is one.
+type refuser interface {
+	refuse(w http.ResponseWriter, status int, msg string)
 }
 
 func (h *remote) tooMany(w http.ResponseWriter, r *http.Request, wait time.Duration) {
