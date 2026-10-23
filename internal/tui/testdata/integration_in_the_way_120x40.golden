@@ -7,9 +7,9 @@ reading the plan…        │ ┌─ M0-03 Makefile ─────────
                          │ │ [o Open session] [t Details]                                                              │
                          │ └───────────────────────────────────────────────────────────────────────────────────────────┘
 ── LOG ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-11:41 M0-03 started · sonnet · mode plan
-11:41 M0-03 session open╭──────────────────────────────────────────────────────────────────────╮
-11:41 ! M0-03 needs you │ M0-03 didn't integrate                                               │
+09:41 M0-03 started · sonnet · mode plan
+09:41 M0-03 session open╭──────────────────────────────────────────────────────────────────────╮
+09:41 ! M0-03 needs you │ M0-03 didn't integrate                                               │
                         │                                                                      │
                         │ M0-03 didn't integrate: the fast-forward would overwrite uncommitted │
                         │ files in the project root: new.txt, docs/new.md: commit, move or     │

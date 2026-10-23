@@ -8,8 +8,8 @@ PHASES                                      │ READY · phase M2 Config & state
   ◌ M4  TUI            ░░░░░░░░░░ 0/2 wait  │ ✓ plan valid · 5 phases · 14 tasks
                                             │ ✓ doctor: ok
                                             │ ── RECENT ────────────────────────────────────────────────────────────────
-                                            │ Oct 06 23:10  M2  3 done · 1 skipped · stopped
-                                            │ Oct 05 20:02  M1  6 done · completed
+                                            │ Oct 06 21:10  M2  3 done · 1 skipped · stopped
+                                            │ Oct 05 18:02  M1  6 done · completed
 
                             ╭──────────────────────────────────────────────────────────────╮
                             │ The run did not start                                        │

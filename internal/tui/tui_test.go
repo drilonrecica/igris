@@ -342,6 +342,7 @@ func TestIntegrationDialogs(t *testing.T) {
 		for _, sz := range [][2]int{{80, 24}, {120, 40}} {
 			t.Run(fmt.Sprintf("%s_%dx%d", tc.name, sz[0], sz[1]), func(t *testing.T) {
 				hs := newHarness(t, sz[0], sz[1])
+				hs.m.loc = time.UTC
 				hs.events(started("M0-03"), opened("M0-03"), tc.ev)
 				view := hs.m.View()
 				checkFits(t, view, sz[0], sz[1])

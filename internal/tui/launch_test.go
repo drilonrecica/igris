@@ -133,6 +133,7 @@ func wizardApp(t *testing.T, st *starts, pre report.Prelaunch, edit func(*report
 		return s, nil
 	}
 	a, home := pollApp(t, svc)
+	home.loc = time.UTC
 	return a, home
 }
 
