@@ -819,6 +819,9 @@ func (m *model) sideAt() sideAt {
 		return at
 	}
 	at.run = &SideRun{Worktree: m.worktree}
+	for _, c := range m.cards {
+		at.run.Parallel = at.run.Parallel || c.slot != nil
+	}
 	at.state = &side.RunInfo{Phase: m.phase}
 	if c := m.cur; c != nil {
 		at.running = m.card(at.task) != nil

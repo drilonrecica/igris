@@ -464,3 +464,17 @@ func TestSideRunViewFromHome(t *testing.T) {
 		t.Errorf("run view side: %+v", v.opts.Side)
 	}
 }
+
+func TestSideWhereParallelRun(t *testing.T) {
+	f := &sideFlow{run: &SideRun{Task: "A-02", Parallel: true}}
+	if got, want := f.treeWarning(), "The run merges into this tree; a plan edit holds the run."; got != want {
+		t.Errorf("parallel: %q, want %q", got, want)
+	}
+	if !f.sharedRun() {
+		t.Error("manual must still come first in a parallel run")
+	}
+	f.run.Parallel = false
+	if got := f.treeWarning(); got != "A-02 is working in this tree; a plan edit holds the run." {
+		t.Errorf("single-task: %q", got)
+	}
+}

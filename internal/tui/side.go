@@ -61,6 +61,9 @@ type SideRun struct {
 	// Worktree: the run's sessions work in a worktree of their own
 	// (SPEC §6.8), not in the project root.
 	Worktree bool
+	// Parallel: the run's tasks work in worktrees of their own (SPEC
+	// §6.11) and merge into the project root.
+	Parallel bool
 }
 
 // SideRow is an open side session, as the Side sessions page lists it.
@@ -559,6 +562,8 @@ func (f *sideFlow) treeWarning() string {
 		return ""
 	case f.run.Worktree:
 		return "The run works in its own worktree; a plan edit holds the run."
+	case f.run.Parallel:
+		return "The run merges into this tree; a plan edit holds the run."
 	case f.run.Task != "":
 		return f.run.Task + " is working in this tree; a plan edit holds the run."
 	}

@@ -25,7 +25,7 @@ mode = "default"
 
 ## During a run
 
-A side session in the shared tree works in the same files as the task. The dialog says so (`M2-04 is working in this tree; a plan edit holds the run`) and preselects `manual` mode whatever `[side] mode` says, so every edit asks first, whatever Claude Code's own default is. The rules igris gives the session also tell it to ask you before editing files while a task is running.
+A side session in the shared tree works in the same files as the task. The dialog says so (`M2-04 is working in this tree; a plan edit holds the run`, or in a parallel run `The run merges into this tree; a plan edit holds the run.`) and preselects `manual` mode whatever `[side] mode` says, so every edit asks first, whatever Claude Code's own default is. The rules igris gives the session also tell it to ask you before editing files while a task is running.
 
 Two things to know:
 

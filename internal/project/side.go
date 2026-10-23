@@ -97,6 +97,9 @@ func (s *SideSessions) Setup(context.Context) (tui.SideSetup, error) {
 	if lock, err := state.PeekLock(p.Root); err == nil && lock.Alive {
 		if r, err := state.PeekRun(p.Root); err == nil {
 			out.Run = &tui.SideRun{Worktree: r.Worktree != nil}
+			for _, a := range r.Active {
+				out.Run.Parallel = out.Run.Parallel || (a != nil && a.Slot != nil)
+			}
 			if r.Current != nil {
 				out.Run.Task = r.Current.TaskID
 			}
