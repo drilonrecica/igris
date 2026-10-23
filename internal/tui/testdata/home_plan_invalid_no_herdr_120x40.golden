@@ -1,40 +1,40 @@
 igris · sinjal · tasks.md · herdr ✗ · mode auto                                                                     Idle
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-PHASES                                                     │ PLAN INVALID · tasks.md · 4 problems
-plan invalid — Check shows the problems                    │ tasks.md:5: M9-02 depends on unknown task M9-01; check the…
-                                                           │ tasks.md:6: M9-03: unknown status "wip" (did you mean in p…
-                                                           │ tasks.md:7: M9-04: unknown model rank "gpt"; add it to [mo…
-                                                           │ … 1 more — Check shows all
-                                                           │ Adapt needs herdr (not reachable): run igris inside a herdr
-                                                           │ pane.
-                                                           │ ── HEALTH ─────────────────────────────────────────────────
-                                                           │ ✗ plan invalid · 4 problems
-                                                           │ ▲ doctor: 1 warning — uncommitted changes
-                                                           │ ── RECENT ─────────────────────────────────────────────────
-                                                           │ no runs yet
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+PHASES                         │ PLAN INVALID · tasks.md · 4 problems
+no phases: the plan is invalid │ tasks.md:5: M9-02 depends on unknown task M9-01; check the ID or remove it from Deps
+                               │ tasks.md:6: M9-03: unknown status "wip" (did you mean in progress?); use ready, blocke…
+                               │ tasks.md:7: M9-04: unknown model rank "gpt"; add it to [models] in igris.toml or use o…
+                               │ … 1 more — Check shows all
+                               │ Next: c Check lists every problem; e Edit plan fixes them.
+                               │ Adapt needs herdr (not reachable): run igris inside a herdr pane.
+                               │ ── HEALTH ─────────────────────────────────────────────────────────────────────────────
+                               │ ✗ plan invalid · 4 problems
+                               │ ▲ doctor: 1 warning · uncommitted changes
+                               │ ── RECENT ─────────────────────────────────────────────────────────────────────────────
+                               │ no runs yet
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 [›c Check‹] [i Doctor] [e Edit plan] [, Settings] [n Notify] [u Updates] [?] [q Quit]

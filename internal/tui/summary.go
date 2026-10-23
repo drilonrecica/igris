@@ -184,7 +184,7 @@ func (m *model) summaryBody(w, rows int) []string {
 
 	var helm []string
 	if w >= look.HelmMinWidth {
-		for _, l := range look.HelmLines(m.helmPaint) {
+		for _, l := range look.HelmLines(m.th.helmPart) {
 			helm = append(helm, strings.TrimRight(centre(l), " "))
 		}
 	}
@@ -235,18 +235,6 @@ func (m *model) summaryBody(w, rows int) []string {
 		body = joined(false) // then the blank lines
 	}
 	return body[:min(len(body), max(rows, 0))]
-}
-
-// helmPaint draws a part of the helm: the armor dim, the visor in glow,
-// the plume in plume (SPEC §15.4).
-func (m *model) helmPaint(r look.HelmRole, s string) string {
-	switch r {
-	case look.HelmVisor:
-		return m.th.paint(lookAccent, s)
-	case look.HelmPlume:
-		return m.th.paint(lookBrand, s)
-	}
-	return m.th.paint(lookDim, s)
 }
 
 // outcomeLook is how an outcome's headline is drawn.

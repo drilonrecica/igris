@@ -128,7 +128,9 @@ func (p *Project) Snapshot() *report.Snapshot {
 	if l, err := state.PeekLock(p.Root); err == nil {
 		l.Info.Host, l.Reason, l.Path = textsafe.Line(l.Info.Host), textsafe.Line(l.Reason), textsafe.Line(l.Path)
 		s.Lock = l
-		s.Served = l.Alive && serve.Answers(context.Background(), p.Root)
+		if l.Alive {
+			s.Live, s.Served = p.peekLive()
+		}
 	}
 	if in, err := HistoryInput(p.Root, RecentRuns); err == nil {
 		s.Recent = report.NewHistory(in).Runs
@@ -168,4 +170,42 @@ func fileStamp(path string) report.FileStamp {
 		return report.FileStamp{}
 	}
 	return report.FileStamp{Exists: true, Size: fi.Size(), ModTime: fi.ModTime()}
+}
+
+// peekLive reads the snapshot of the run served here, read-only, as
+// `igris status` does (SPEC §14); ok says one answered.
+func (p *Project) peekLive() (live *report.LiveRun, ok bool) {
+	snap, err := serve.Peek(context.Background(), p.Root, strings.TrimSpace("igris "+p.env.Version)+" home")
+	if err != nil {
+		return nil, false
+	}
+	return LiveRun(snap), true
+}
+
+// LiveRun is what home shows of a served run's snapshot: the tasks that
+// need the owner (pending questions first, then the cards that wait on
+// them) and whether it holds on the pause, as `igris status` reads it.
+func LiveRun(s serve.Snapshot) *report.LiveRun {
+	out := &report.LiveRun{Paused: s.Paused && (s.Holding || len(s.Active) == 0)}
+	seen := map[string]bool{}
+	need := func(task, kind string) {
+		if task = textsafe.Line(task); !seen[task] {
+			seen[task] = true
+			out.NeedsYou = append(out.NeedsYou, report.LiveNeed{Task: task, Kind: kind})
+		}
+	}
+	for _, q := range s.Questions {
+		need(q.Task, serve.QuestionKind(q.Question))
+	}
+	for _, c := range s.Active {
+		switch c.State {
+		case serve.StateYourTurn:
+			need(c.Task, "your turn")
+		case serve.StateNeedsYou:
+			need(c.Task, "needs you")
+		case serve.StateLost:
+			need(c.Task, "session lost")
+		}
+	}
+	return out
 }

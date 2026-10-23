@@ -1,40 +1,40 @@
 igris · sinjal · no plan · herdr ✓ · mode auto                                                                      Idle
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-PHASES                                                     │ GET STARTED
-tasks.md not found                                         │ ✓ 1 igris.toml  found
-                                                           │ · 2 plan        tasks.md not found
-                                                           │ · 3 check       —
-                                                           │ · 4 preview     —
-                                                           │ · 5 arise       —
-                                                           │ Plan from template… writes a starter plan (the example plan
-                                                           │ or a template); Draft… has Claude write one from a goal, a
-                                                           │ spec or an issue export; or write your own at
-                                                           │ /src/sinjal/tasks.md.
-                                                           │ ── HEALTH ─────────────────────────────────────────────────
-                                                           │ ✗ plan missing · tasks.md not found
-                                                           │ ▲ doctor: 1 warning — uncommitted changes
-                                                           │ ── RECENT ─────────────────────────────────────────────────
-                                                           │ no runs yet
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+    ▄█▄   ▄▄      GET STARTED
+   ▄███▄ ▄▀       Arise. One task, one fresh session, the right rank.
+   ▟█████▙▀
+   █▀▀▀▀▀█        ✓ 1  igris.toml   found
+   ▜█████▛        ✗ 2  plan         tasks.md not found · D Draft… or E Plan from template…
+     ▀███▀        · 3  check        —
+                  · 4  preview      —
+                  · 5  arise        —
+── HEALTH ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+▲ doctor: 1 warning · uncommitted changes
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 [›E Plan from template…‹] [D Draft…] [i Doctor] [, Settings] [n Notify] [u Updates] [?] [q Quit]

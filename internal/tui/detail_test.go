@@ -84,7 +84,7 @@ func TestDetailsShowEverything(t *testing.T) {
 	got := text("M0-02")
 	for _, want := range []string{
 		"M0-02 — Config loader",
-		"Config loader — read igris.toml, validate every key and report each problem with the line it is",
+		"read igris.toml, validate every key and report each problem with the line it is on, so the owner",
 		"Status    ⨯ blocked",
 		"Rank      opus",
 		"Owner     agent",

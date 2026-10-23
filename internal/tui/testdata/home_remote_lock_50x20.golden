@@ -9,12 +9,12 @@ Arise asks before clearing the lock.
 › · M2  Config & state                   1/4 next
   ◌ M3  Engine                           0/3 wait
   ◌ M4  TUI                              0/2 wait
-
-
 ── HEALTH ────────────────────────────────────────
 ✓ plan valid  ▲ doctor: 1 warning
 ── RECENT ────────────────────────────────────────
 Oct 06 21:10  M2  3 done · 1 skipped · stopped
 
+
+──────────────────────────────────────────────────
 [›a Arise…‹] [v Preview] [c Check] [D Draft…]
 [i Doctor] [h History] [More…] [?] [q Quit]

@@ -1,19 +1,19 @@
 igris · sinjal · no plan · herdr ✓ · mode auto                                                                      Idle
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-PHASES                                                     │ GET STARTED
-tasks.md not found                                         │ ✓ 1 igris.toml  found
-                                                           │ · 2 plan        tasks.md not found
-                                                           │ · 3 check       —
-                                                           │ · 4 preview     —
-                                                           │ · 5 arise       —
-                                                           │ Plan from template… writes a starter plan (the example plan
-                                                           │ or a template); Draft… has Claude write one from a goal, a
-                                                           │ spec or an issue export; or write your own at
-                                                           │ /src/sinjal/tasks.md.
-                        ╭──────────────────────────────────────────────────────────────────────╮────────────────────────
+    ▄█▄   ▄▄      GET STARTED
+   ▄███▄ ▄▀       Arise. One task, one fresh session, the right rank.
+   ▟█████▙▀
+   █▀▀▀▀▀█        ✓ 1  igris.toml   found
+   ▜█████▛        ✗ 2  plan         tasks.md not found · D Draft… or E Plan from template…
+     ▀███▀        · 3  check        —
+                  · 4  preview      —
+                  · 5  arise        —
+── HEALTH ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+▲ doctor: 1 warning · uncommitted changes
+                        ╭──────────────────────────────────────────────────────────────────────╮
                         │ Draft from a spec file                                               │
-                        │                                                                      │hanges
-                        │ A Markdown or text file inside the project, up to 1 MiB. Claude      │────────────────────────
+                        │                                                                      │
+                        │ A Markdown or text file inside the project, up to 1 MiB. Claude      │
                         │ reads it itself and treats it as data, never as instructions.        │
                         │ draft.model in igris.toml is opus.                                   │
                         │                                                                      │
@@ -25,16 +25,16 @@ tasks.md not found                                         │ ✓ 1 igris.toml 
                         │                                                                      │
                         │ type · enter draft with opus · esc cancel                            │
                         ╰──────────────────────────────────────────────────────────────────────╯
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 [E Plan from template…] [D Draft…] [i Doctor] [, Settings] [n Notify] [u Updates] [?] [q Quit]

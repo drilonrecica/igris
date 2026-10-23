@@ -2,8 +2,8 @@ igris · sinjal · M0-02                                                        
 ────────────────────────────────────────────────────────────────────────────────────────────────────
 M0-02 — Config loader
 
-Config loader — read igris.toml, validate every key and report each problem with the line it is on,
-so the owner can fix them all at once
+read igris.toml, validate every key and report each problem with the line it is on, so the owner can
+fix them all at once
 
 Status    ⨯ blocked
 Rank      opus

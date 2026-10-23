@@ -1,20 +1,20 @@
 igris · sinjal · herdr ✓                      Idle
 ──────────────────────────────────────────────────
 GET STARTED
-✓ 1 igris.toml  found
-· 2 plan        tasks.md not found
-· 3 check       —
-· 4 preview     —
-· 5 arise       —
-Plan from template… writes a starter plan (the
-── PHASES ────────────────────────────────────────
-tasks.md not found
+Arise. One task, one fresh session, the right
+rank.
 
-
+✓ 1  igris.toml   found
+✗ 2  plan         tasks.md not found · D Draft… or
+                  E Plan from template…
+· 3  check        —
+· 4  preview      —
+· 5  arise        —
 ── HEALTH ────────────────────────────────────────
-✗ plan missing  ▲ doctor: 1 warning
-── RECENT ────────────────────────────────────────
-no runs yet
+▲ doctor: 1 warning · uncommitted changes
 
+
+
+──────────────────────────────────────────────────
 [›E Plan from template…‹] [D Draft…] [i Doctor]
 [, Settings] [n Notify] [u Updates] [?] [q Quit]

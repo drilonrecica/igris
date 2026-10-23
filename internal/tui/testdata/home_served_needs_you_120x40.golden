@@ -1,0 +1,40 @@
+igris · sinjal · tasks.md · herdr ✓ · mode auto                                                              ! Needs you
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+PHASES                                      │ RUNNING · igris serve · pid 4242 on this host · since 09:12
+  ✓ M0  Foundations    ██████████ 3/3 done  │ ! M2-02 needs you · commit? · 2 tasks need you
+  ✓ M1  Plan parser    ██████████ 2/2 done  │ ● M2-02  Lock file              opus · mode plan · 14m
+› ● M2  Config & state ██░░░░░░░░ 1/4 next  │ recent: M2-01 done · M2-02 running
+  ◌ M3  Engine         ░░░░░░░░░░ 0/3 wait  │ Attach to answer: it shows the run view and controls the run.
+  ◌ M4  TUI            ░░░░░░░░░░ 0/2 wait  │ ── HEALTH ────────────────────────────────────────────────────────────────
+                                            │ ✓ plan valid · 5 phases · 14 tasks
+                                            │ ▲ doctor: 1 warning · uncommitted changes
+                                            │ ── RECENT ────────────────────────────────────────────────────────────────
+                                            │ Oct 07 09:12  M2, M3  1 done · running
+                                            │ Oct 06 21:10  M2  3 done · 1 skipped · stopped
+                                            │ Oct 05 18:02  M1  6 done · completed
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[›t Attach‹] [o Open] [v Preview] [c Check] [i Doctor] [h History] [e Edit] [, Settings] [n Notify] [More…] [?] [q Quit]

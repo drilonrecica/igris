@@ -1,40 +1,40 @@
 igris · sinjal · tasks.md · herdr ✓ · mode auto                                                                ● Working
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-PHASES                                                     │ ▲ Running elsewhere · in igris serve · pid 4242 on this
-  ✓ M0  Foundations                   ██████████ 3/3 done  │ host · since 09:12
-  ✓ M1  Plan parser                   ██████████ 2/2 done  │ ● M2-02  Lock file              opus · mode plan · 14m
-› ● M2  Config & state                ██░░░░░░░░ 1/4 next  │ recent: M2-01 done · M2-02 running
-  ◌ M3  Engine                        ░░░░░░░░░░ 0/3 wait  │ igris serve hosts this run: Attach (t) shows its run view
-  ◌ M4  TUI                           ░░░░░░░░░░ 0/2 wait  │ and controls it.
-                                                           │ ── HEALTH ─────────────────────────────────────────────────
-                                                           │ ✓ plan valid · 5 phases · 14 tasks
-                                                           │ ▲ doctor: 1 warning — uncommitted changes
-                                                           │ ── RECENT ─────────────────────────────────────────────────
-                                                           │ Oct 07 09:12  M2, M3  1 done · running
-                                                           │ Oct 06 21:10  M2  3 done · 1 skipped · stopped
-                                                           │ Oct 05 18:02  M1  6 done · completed
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+PHASES                                      │ RUNNING · igris serve · pid 4242 on this host · since 09:12
+  ✓ M0  Foundations    ██████████ 3/3 done  │ ● M2-02  Lock file              opus · mode plan · 14m
+  ✓ M1  Plan parser    ██████████ 2/2 done  │ recent: M2-01 done · M2-02 running
+› ● M2  Config & state ██░░░░░░░░ 1/4 next  │ Attach shows the run view and controls the run.
+  ◌ M3  Engine         ░░░░░░░░░░ 0/3 wait  │ ── HEALTH ────────────────────────────────────────────────────────────────
+  ◌ M4  TUI            ░░░░░░░░░░ 0/2 wait  │ ✓ plan valid · 5 phases · 14 tasks
+                                            │ ▲ doctor: 1 warning · uncommitted changes
+                                            │ ── RECENT ────────────────────────────────────────────────────────────────
+                                            │ Oct 07 09:12  M2, M3  1 done · running
+                                            │ Oct 06 21:10  M2  3 done · 1 skipped · stopped
+                                            │ Oct 05 18:02  M1  6 done · completed
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 [›t Attach‹] [o Open] [v Preview] [c Check] [i Doctor] [h History] [e Edit] [, Settings] [n Notify] [More…] [?] [q Quit]

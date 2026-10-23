@@ -1,16 +1,16 @@
 igris · sinjal · tasks.md · herdr ✓ · mode auto                                                                     Idle
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-PHASES                                                     │ PLAN INVALID · tasks.md · 4 problems
-plan invalid — Check shows the problems                    │ tasks.md:5: M9-02 depends on unknown task M9-01; check the…
-                                                           │ tasks.md:6: M9-03: unknown status "wip" (did you mean in p…
-                                                           │ tasks.md:7: M9-04: unknown model rank "gpt"; add it to [mo…
-                                                           │ … 1 more — Check shows all
-                                                           │ ── HEALTH ─────────────────────────────────────────────────
-                                                           │ ✗ plan invalid · 4 problems
-                                                           │ ▲ doctor: 3 warnings — unknown key tui.moose
-                                                           │ ── RECENT ─────────────────────────────────────────────────
-                        ╭──────────────────────────────────────────────────────────────────────╮d · stopped
-                        │ Adapt tasks.md?                                                      │d
+PHASES                         │ PLAN INVALID · tasks.md · 4 problems
+no phases: the plan is invalid │ tasks.md:5: M9-02 depends on unknown task M9-01; check the ID or remove it from Deps
+                               │ tasks.md:6: M9-03: unknown status "wip" (did you mean in progress?); use ready, blocke…
+                               │ tasks.md:7: M9-04: unknown model rank "gpt"; add it to [models] in igris.toml or use o…
+                               │ … 1 more — Check shows all
+                               │ Next: c Check lists every problem; e Edit plan fixes them by hand, or A Adapt has
+                               │ Claude propose a canonical plan.
+                               │ ── HEALTH ─────────────────────────────────────────────────────────────────────────────
+                               │ ✗ plan invalid · 4 problems
+                        ╭──────────────────────────────────────────────────────────────────────╮
+                        │ Adapt tasks.md?                                                      │────────────────────────
                         │                                                                      │
                         │ Adapt starts Claude in a herdr tab to propose a canonical plan for   │
                         │ tasks.md in .igris/adapt/; nothing changes until you accept it in    │
@@ -26,15 +26,15 @@ plan invalid — Check shows the problems                    │ tasks.md:5: M9-
                         │                                                                      │
                         │ enter choose · 1–3 pick · esc cancel                                 │
                         ╰──────────────────────────────────────────────────────────────────────╯
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 [c Check] [A Adapt] [i Doctor] [h History] [e Edit plan] [, Settings] [n Notify] [u Updates] [?] [q Quit]

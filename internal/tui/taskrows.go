@@ -227,7 +227,8 @@ func (r rows) compact(w, sel int) (lines []string, cols, cellW, cur int) {
 
 // detail is the body of task id's detail page w cells wide (SPEC §15.3):
 // its text, status, rank, owner, mode, dependencies with their states and
-// the extra columns.
+// the extra columns. The run view's details and home's task page are this
+// one layout.
 func (r rows) detail(id string, w int) []string {
 	t := r.task(id)
 	if t == nil {
@@ -238,8 +239,10 @@ func (r rows) detail(id string, w int) []string {
 		out = append(out, r.th.paint(lookTitle, l))
 	}
 	out = append(out, "")
-	out = append(out, wrap(strings.ReplaceAll(t.Text, "**", ""), w)...)
-	out = append(out, "")
+	if text := about(t); text != "" { // the title is on the line above
+		out = append(out, wrap(text, w)...)
+		out = append(out, "")
+	}
 	return append(out, fields(r.th, r.facts(t), w)...)
 }
 

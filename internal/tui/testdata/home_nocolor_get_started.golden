@@ -1,40 +1,40 @@
 [1migr[0m[1mi[0m[1ms[0m · newproj · no igris.toml · herdr ✓                                                                           [2mIdle[0m
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-[1mPHASES[0m                                                     │ [1mGET STARTED[0m
-[2mno plan yet[0m                                                │ ✗ 1 igris.toml  not found
-                                                           │ · 2 plan        tasks.md not found
-                                                           │ · 3 check       —
-                                                           │ · 4 preview     —
-                                                           │ · 5 arise       —
-                                                           │ Init creates igris.toml, .igris/, a .gitignore entry and
-                                                           │ the Claude allow rule for `igris done`. Draft… has Claude
-                                                           │ write the plan from a goal, a spec or an issue export.
-                                                           │ ── [1mHEALTH[0m ─────────────────────────────────────────────────
-                                                           │ [2m✗ plan missing · tasks.md not found[0m
-                                                           │ [1m✗ doctor: 1 failure — igris.toml not found[0m
-                                                           │ ── [1mRECENT[0m ─────────────────────────────────────────────────
-                                                           │ [2mno runs yet[0m
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   [2m ▄█▄   [0m[1m▄▄[0m      [1mGET STARTED[0m
+   [2m▄███▄ [0m[1m▄▀[0m       Arise. One task, one fresh session, the right rank.
+   [2m▟█████▙[0m[1m▀[0m
+   [2m█[0m▀▀▀▀▀[2m█[0m        [1m✗ 1  igris.toml   not found · I Init writes it[0m
+   [2m▜█████▛[0m        · 2  plan         tasks.md not found · D Draft… or E Plan from template…
+   [2m  ▀███▀[0m        · 3  check        —
+                  · 4  preview      —
+                  · 5  arise        —
+── [1mHEALTH[0m ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[1m✗ doctor: 1 failure · igris.toml not found[0m
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 [1;7m[›I Init‹][0m [D Draft…] [i Doctor] [, Settings] [u Updates] [?] [q Quit]

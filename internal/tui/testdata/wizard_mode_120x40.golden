@@ -1,15 +1,15 @@
 igris · sinjal · tasks.md · herdr ✓ · mode auto                                                                     Idle
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-PHASES                                                     │ READY · phase M2 Config & state
-  ✓ M0  Foundations                   ██████████ 3/3 done  │ next  · M2-02  Lock file                             opus
-  ✓ M1  Plan parser                   ██████████ 2/2 done  │ then  · M2-03  State file                            sonnet
-› · M2  Config & state                ██░░░░░░░░ 1/4 next  │ 3 left · 2 wait on M2-02
-  ◌ M3  Engine                        ░░░░░░░░░░ 0/3 wait  │ ── HEALTH ─────────────────────────────────────────────────
-  ◌ M4  TUI                           ░░░░░░░░░░ 0/2 wait  │ ✓ plan valid · 5 phases · 14 tasks
-                                                           │ ✓ doctor: ok
-                                                           │ ── RECENT ─────────────────────────────────────────────────
-                         ╭────────────────────────────────────────────────────────────────────╮ed · stopped
-                         │ Mode                                                               │ed
+PHASES                                      │ READY · phase M2 Config & state
+  ✓ M0  Foundations    ██████████ 3/3 done  │ next  · M2-02  Lock file   opus
+  ✓ M1  Plan parser    ██████████ 2/2 done  │ then  · M2-03  State file  sonnet
+› · M2  Config & state ██░░░░░░░░ 1/4 next  │ 3 left · 2 wait on M2-02
+  ◌ M3  Engine         ░░░░░░░░░░ 0/3 wait  │ ── HEALTH ────────────────────────────────────────────────────────────────
+  ◌ M4  TUI            ░░░░░░░░░░ 0/2 wait  │ ✓ plan valid · 5 phases · 14 tasks
+                                            │ ✓ doctor: ok
+                                            │ ── RECENT ────────────────────────────────────────────────────────────────
+                         ╭────────────────────────────────────────────────────────────────────╮
+                         │ Mode                                                               │
                          │                                                                    │
                          │ The permission mode of this run's sessions.                        │
                          │                                                                    │
@@ -27,14 +27,14 @@ PHASES                                                     │ READY · phase M2
                          │                                                                    │
                          │ enter choose · 1–9 pick · esc close                                │
                          ╰────────────────────────────────────────────────────────────────────╯
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 [a Arise…] [v Preview] [c Check] [D Draft…] [i Doctor] [h History] [e Edit] [, Settings] [n Notify] [More…] [?] [q Quit]

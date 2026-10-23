@@ -1,8 +1,8 @@
 igris · sinjal · herdr ✓                      Idle
 ──────────────────────────────────────────────────
 READY · phase M2 Config & state
-next  · M2-02  Lock file                    opus
-then  · M2-03  State file                   sonnet
+next  · M2-02  Lock file   opus
+then  · M2-03  State file  sonnet
 3 left · 2 wait on M2-02
 ── PHASES ────────────────────────────────────────
   ✓ M0  Foundations                      3/3 done
@@ -10,11 +10,11 @@ then  · M2-03  State file                   sonnet
 › · M2  Config & state                   1/4 next
   ◌ M3  Engine                           0/3 wait
   ◌ M4  TUI                              0/2 wait
-
 ── HEALTH ────────────────────────────────────────
 ✓ plan valid  ▲ doctor: 1 warning
 ── RECENT ────────────────────────────────────────
 Oct 06 21:10  M2  3 done · 1 skipped · stopped
 
+──────────────────────────────────────────────────
 [›a Arise…‹] [v Preview] [c Check] [D Draft…]
 [i Doctor] [h History] [More…] [?] [q Quit]

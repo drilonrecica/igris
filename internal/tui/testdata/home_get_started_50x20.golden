@@ -1,20 +1,20 @@
 igris · newproj · herdr ✓                     Idle
 ──────────────────────────────────────────────────
 GET STARTED
-✗ 1 igris.toml  not found
-· 2 plan        tasks.md not found
-· 3 check       —
-· 4 preview     —
-· 5 arise       —
-Init creates igris.toml, .igris/, a .gitignore
-── PHASES ────────────────────────────────────────
-no plan yet
+Arise. One task, one fresh session, the right
+rank.
 
-
+✗ 1  igris.toml   not found · I Init writes it
+· 2  plan         tasks.md not found · D Draft… or
+                  E Plan from template…
+· 3  check        —
+· 4  preview      —
+· 5  arise        —
 ── HEALTH ────────────────────────────────────────
-✗ plan missing  ✗ doctor: 1 failure
-── RECENT ────────────────────────────────────────
-no runs yet
+✗ doctor: 1 failure · igris.toml not found
 
+
+
+──────────────────────────────────────────────────
 [›I Init‹] [D Draft…] [i Doctor] [, Settings]
 [u Updates] [?] [q Quit]

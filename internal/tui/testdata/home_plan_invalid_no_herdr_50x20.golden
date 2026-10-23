@@ -5,16 +5,16 @@ tasks.md:5: M9-02 depends on unknown task M9-01; …
 tasks.md:6: M9-03: unknown status "wip" (did you …
 tasks.md:7: M9-04: unknown model rank "gpt"; add …
 … 1 more — Check shows all
-Adapt needs herdr (not reachable): run igris
-inside a herdr pane.
+Next: c Check lists every problem; e Edit plan
+fixes them.
 ── PHASES ────────────────────────────────────────
-plan invalid — Check shows the problems
-
-
+no phases: the plan is invalid
 ── HEALTH ────────────────────────────────────────
 ✗ plan invalid  ▲ doctor: 1 warning
 ── RECENT ────────────────────────────────────────
 no runs yet
 
+
+──────────────────────────────────────────────────
 [›c Check‹] [i Doctor] [e Edit plan] [, Settings]
 [n Notify] [u Updates] [?] [q Quit]

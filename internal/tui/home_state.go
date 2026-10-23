@@ -66,13 +66,30 @@ func (m *homeScreen) kind() nowKind {
 	return nowReady
 }
 
+// onboarding says home shows GET STARTED, beside the helm, in place of
+// PHASES and the NOW card: no igris.toml, or no plan yet.
+func (m *homeScreen) onboarding() bool {
+	k := m.kind()
+	return k == nowGetStarted || k == nowPlanMissing
+}
+
 // stateWord is the status word the header shows on the right (SPEC
 // §15.4), and its look: Idle while no run goes here (the card says why),
-// Interrupted when the last run ended without ending itself, Working for
-// a run served here.
+// Interrupted when the last run ended without ending itself, the run's
+// own word (Working, Needs you, Paused) for a run served here, and ▲
+// running elsewhere for one home can't attach to.
 func (m *homeScreen) stateWord() (string, tone) {
 	switch m.kind() {
 	case nowRunningElsewhere:
+		live := m.snap.Live
+		switch {
+		case !m.snap.Served:
+			return look.GlyphWarn + " running elsewhere", lookWarn
+		case live != nil && len(live.NeedsYou) > 0:
+			return look.NeedsYou.Label(), lookAlert
+		case live != nil && live.Paused:
+			return look.Paused.String(), lookTitle
+		}
 		return look.Working.Label(), lookAccentBold
 	case nowInterrupted:
 		return look.Interrupted.Label(), lookWarn
@@ -393,49 +410,68 @@ func (m *homeScreen) firstLines(lines []string, n int, where string, w int) []st
 	return out
 }
 
-// getStartedCard is the onboarding stepper: each step turns ✓ as the data
-// comes in (SPEC §15.6). It stands for a project with no igris.toml and,
-// once Init made one, for a project with no plan yet.
+// getStartedCard is the onboarding stepper beside the helm: the
+// tagline, then each step turns ✓ as the data comes in, and the step that
+// fails or comes next says what to do (SPEC §15.6). It stands for a
+// project with no igris.toml and, once Init made one, for a project with
+// no plan yet.
 func (m *homeScreen) getStartedCard(w int) []string {
 	s := m.snap
-	type step struct{ glyph, name, state string }
-	cfgStep := step{glyphs[plan.Done], "igris.toml", "found"}
+	type step struct{ glyph, name, state, todo string }
+	cfgStep := step{glyphs[plan.Done], "igris.toml", "found", ""}
 	if s.NoConfig {
-		cfgStep = step{look.GlyphFail, "igris.toml", "not found"}
+		cfgStep = step{look.GlyphFail, "igris.toml", "not found", "I Init writes it"}
 	}
-	planStep := step{glyphs[plan.Ready], "plan", m.planName() + " not found"}
-	checkStep := step{glyphs[plan.Ready], "check", "—"}
+	var ways []string
+	if m.canDraft() {
+		ways = append(ways, "D Draft…")
+	}
+	ways = append(ways, "E Plan from template…")
+	planStep := step{glyphs[plan.Ready], "plan", m.planName() + " not found", strings.Join(ways, " or ")}
+	if !s.NoConfig {
+		planStep.glyph = look.GlyphFail // reached: igris.toml is there
+	}
+	checkStep := step{glyphs[plan.Ready], "check", "—", ""}
+	fix := "c Check lists them"
+	if m.offers(actAdapt) {
+		fix += " · A Adapt"
+	}
 	switch {
 	case m.planValid():
-		planStep = step{glyphs[plan.Done], "plan", m.planName()}
-		checkStep = step{glyphs[plan.Done], "check", "passes"}
+		planStep = step{glyphs[plan.Done], "plan", m.planName(), ""}
+		checkStep = step{glyphs[plan.Done], "check", "passes", ""}
 	case s.PlanErr != "":
-		planStep = step{look.GlyphFail, "plan", m.planName() + " unreadable"}
+		planStep = step{look.GlyphFail, "plan", m.planName() + " unreadable", "c Check says why"}
 	case m.planFile():
-		planStep = step{look.GlyphFail, "plan", fmt.Sprintf("%s: %s", m.planName(), plural(len(s.Issues), "problem"))}
+		planStep = step{look.GlyphFail, "plan", fmt.Sprintf("%s: %s", m.planName(), plural(len(s.Issues), "problem")), fix}
 	}
 	steps := []step{
 		cfgStep,
 		planStep,
 		checkStep,
-		{glyphs[plan.Ready], "preview", "—"},
-		{glyphs[plan.Ready], "arise", "—"},
+		{glyphs[plan.Ready], "preview", "—", ""},
+		{glyphs[plan.Ready], "arise", "—", ""},
 	}
 	out := []string{m.th.paint(lookTitle, "GET STARTED")}
+	out = append(out, wrap(look.Tagline, w)...)
+	out = append(out, "")
 	for i, st := range steps {
-		out = append(out, fit(st.glyph+" "+strconv.Itoa(i+1)+" "+pad(st.name, 11)+" "+st.state, w))
+		text := st.state
+		if st.todo != "" {
+			text += " · " + st.todo
+		}
+		prefix := st.glyph + " " + strconv.Itoa(i+1) + "  " + pad(st.name, 11) + "  "
+		for _, l := range hang(prefix, text, w) {
+			switch st.glyph {
+			case look.GlyphFail:
+				l = m.th.paint(lookFail, l)
+			case glyphs[plan.Done]:
+				l = m.th.paint(lookDim, l)
+			}
+			out = append(out, l)
+		}
 	}
-	hint := "Init creates igris.toml, .igris/, a .gitignore entry and the Claude allow rule for `igris done`."
-	if s.NoConfig && m.canDraft() {
-		hint += " Draft… has Claude write the plan from a goal, a spec or an issue export."
-	}
-	switch {
-	case !s.NoConfig && !m.planFile():
-		hint = "Plan from template… writes a starter plan (the example plan or a template); Draft… has Claude write one from a goal, a spec or an issue export; or write your own at " + m.planPath() + "."
-	case m.planFile() && !m.planValid():
-		hint += " The plan has problems: Check lists them, Adapt proposes a canonical one."
-	}
-	return append(out, wrap(hint, w)...)
+	return out
 }
 
 func (m *homeScreen) planInvalidCard(w int) []string {
@@ -452,10 +488,25 @@ func (m *homeScreen) planInvalidCard(w int) []string {
 		}
 		out = append(out, m.firstLines(lines, 3, "Check shows all", w)...)
 	}
+	out = append(out, wrap(m.planNext(), w)...)
 	if !m.herdr() {
 		out = append(out, wrap(m.needsBackend("Adapt", m.herdrWhy()), w)...)
 	}
 	return out
+}
+
+// planNext says what to do about a plan that isn't valid, with the keys
+// that do it.
+func (m *homeScreen) planNext() string {
+	switch {
+	case m.snap.Plan != nil && m.snap.Plan.NewerFormat():
+		return "Next: this plan needs a newer igris; u Updates checks for one."
+	case m.snap.Plan == nil:
+		return "Next: c Check says why; e Edit plan fixes it."
+	case m.offers(actAdapt):
+		return "Next: c Check lists every problem; e Edit plan fixes them by hand, or A Adapt has Claude propose a canonical plan."
+	}
+	return "Next: c Check lists every problem; e Edit plan fixes them."
 }
 
 // herdrWhy says why the backend isn't available, in a few words.
@@ -490,16 +541,34 @@ func (m *homeScreen) taskLine(glyph, id, tail string, w int) string {
 	return fit(m.th.paint(lookTitle, head)+"  "+pad(fit(title, titleW), titleW)+rest, w)
 }
 
+// runningCard is RUNNING: a run another igris on this host holds. A run
+// igris serve hosts says what needs the owner, as the run's banner does,
+// and Attach is the way in; another igris's run can only be watched.
 func (m *homeScreen) runningCard(w int) []string {
 	s := m.snap
 	l := s.Lock
-	who := "another igris"
+	since := look.Clock(l.Info.StartedAt.In(m.loc))
+	var out []string
 	if s.Served {
-		who = "igris serve"
-	}
-	out := wrap(fmt.Sprintf("%s Running elsewhere · in %s · pid %d on this host · since %s", look.GlyphWarn, who, l.Info.PID, look.Clock(l.Info.StartedAt.In(m.loc))), w)
-	for i := range out {
-		out[i] = m.th.paint(lookWarn, out[i])
+		for _, line := range wrap(fmt.Sprintf("RUNNING · igris serve · pid %d on this host · since %s", l.Info.PID, since), w) {
+			out = append(out, m.th.paint(lookTitle, line))
+		}
+		if live := s.Live; live != nil && len(live.NeedsYou) > 0 {
+			n := live.NeedsYou[0]
+			text := look.GlyphNeedsYou + " " + n.Task + " needs you"
+			if n.Kind != "needs you" {
+				text += " · " + n.Kind
+			}
+			if k := len(live.NeedsYou); k > 1 {
+				text += " · " + look.Count(k, "task needs", "tasks need") + " you"
+			}
+			out = append(out, m.th.paint(lookAlert, fit(text, w)))
+		}
+	} else {
+		out = wrap(fmt.Sprintf("%s Running elsewhere · in another igris · pid %d on this host · since %s", look.GlyphWarn, l.Info.PID, since), w)
+		for i := range out {
+			out[i] = m.th.paint(lookWarn, out[i])
+		}
 	}
 	switch {
 	case s.Run == nil || s.Run.Unreadable != "":
@@ -523,10 +592,13 @@ func (m *homeScreen) runningCard(w int) []string {
 			out = append(out, m.th.paint(lookDim, fit("recent: "+strings.Join(parts, " · "), w)))
 		}
 	}
-	if s.Served {
-		return append(out, wrap("igris serve hosts this run: Attach (t) shows its run view and controls it.", w)...)
+	switch {
+	case !s.Served:
+		return append(out, wrap("This screen only watches. Use that terminal to control the run.", w)...)
+	case s.Live != nil && len(s.Live.NeedsYou) > 0:
+		return append(out, wrap("Attach to answer: it shows the run view and controls the run.", w)...)
 	}
-	return append(out, wrap("This screen only watches. Use that terminal to control the run.", w)...)
+	return append(out, wrap("Attach shows the run view and controls the run.", w)...)
 }
 
 func (m *homeScreen) lockCard(w int) []string {
@@ -689,12 +761,13 @@ func (m *homeScreen) nextLines(p *plan.Plan, ph *report.PhaseStatus, w int) []st
 			then = t
 		}
 	}
-	idW, rankW := textWidth(next.ID), textWidth(rank(next))
+	idW, rankW, longest := textWidth(next.ID), textWidth(rank(next)), textWidth(next.Title)
 	if then != nil {
-		idW, rankW = max(idW, textWidth(then.ID)), max(rankW, textWidth(rank(then)))
+		idW, rankW, longest = max(idW, textWidth(then.ID)), max(rankW, textWidth(rank(then))), max(longest, textWidth(then.Title))
 	}
 	row := func(label string, t *plan.Task) string {
-		titleW := w - 5 - 3 - idW - 2 - 1 - rankW // "next  · " + ID + "  " + title + " " + rank
+		// The rank follows the longest title, not the card's edge.
+		titleW := min(w-5-3-idW-2-1-rankW, max(longest+1, 4)) // "next  · " + ID + "  " + title + " " + rank
 		if titleW < 4 {
 			return fit(label+" · "+t.ID+" "+m.th.rank(rank(t), false), w)
 		}
@@ -756,10 +829,13 @@ func (m *homeScreen) healthLines() []homeLine {
 		}
 		doc.text = doc.short
 		if first != "" {
-			doc.text += " — " + first
+			doc.text += " · " + first
 		}
 	}
 	out := []homeLine{planLine, doc}
+	if m.onboarding() {
+		out = out[1:] // GET STARTED's steps tell the plan's state
+	}
 	if n := m.side.count(); n > 0 {
 		out = append(out, homeLine{"SIDE " + strconv.Itoa(n) + " open · S lists them", "SIDE " + strconv.Itoa(n) + " open", actSide})
 	}

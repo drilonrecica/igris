@@ -15,6 +15,6 @@ from Settings.
 ✓ plan valid  ✗ doctor: 1 failure
 ── RECENT ────────────────────────────────────────
 Oct 06 21:10  M2  3 done · 1 skipped · stopped
-
+──────────────────────────────────────────────────
 [›, Settings‹] [v Preview] [c Check] [i Doctor]
 [h History] [e Edit plan] [More…] [?] [q Quit]

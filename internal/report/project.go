@@ -133,6 +133,10 @@ type Snapshot struct {
 	// Served says the live lock's igris is an igris serve whose socket
 	// answers (since 1.4): home offers Attach (SPEC §15.6).
 	Served bool
+	// Live is what that served run says about itself (serve.Peek, read
+	// only): home's header word and RUNNING card follow it (SPEC §15.6).
+	// nil unless Served.
+	Live   *LiveRun
 	Recent []HistoryRun // the last runs, newest first
 	// RankDurations are the run log's finished task durations per rank
 	// (RankDurations), for the ETA of a run started from home.
@@ -142,6 +146,21 @@ type Snapshot struct {
 	// APIKeySet says ANTHROPIC_API_KEY is set, so the sessions igris
 	// starts would bill the API (checks.APIKeyWarning).
 	APIKeySet bool
+}
+
+// LiveRun is a served run as its socket's snapshot tells it.
+type LiveRun struct {
+	// NeedsYou are the tasks that wait on the owner, in plan order, each
+	// once.
+	NeedsYou []LiveNeed
+	// Paused says the run holds after its current task.
+	Paused bool
+}
+
+// LiveNeed is a task that needs the owner and what for, in a few words:
+// "commit?", "session lost", "needs you".
+type LiveNeed struct {
+	Task, Kind string
 }
 
 // Valid says igris.toml (if any) and the plan are both valid.

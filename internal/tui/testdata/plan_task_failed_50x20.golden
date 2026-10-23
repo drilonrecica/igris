@@ -2,8 +2,6 @@ igris · sinjal · M2-03                        Idle
 ──────────────────────────────────────────────────
 M2-03 — State file
 
-State file
-
 Status    · ready
 Rank      sonnet
 Owner     agent
@@ -11,10 +9,12 @@ Mode      auto (run mode)
 Phase     M2 Config & state
 Deps      ● M2-02 in progress · Lock file
 Waits on  M2-02
-
-Last attempts
+── LAST ATTEMPTS ─────────────────────────────────
 ✗ the run log can't be read: runs.jsonl:
   permission denied
+
+
+
 
 ──────────────────────────────────────────────────
 [y Copy ID] [q Close]

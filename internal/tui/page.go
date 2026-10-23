@@ -70,8 +70,9 @@ func (p *page) clamp() {
 const pageChrome = 4
 
 // render draws the page in exactly h lines of at most w cells: the
-// header, a rule, the body, a rule and the bar with the page's buttons
-// and Back, each with its key. Zones are relative to the top-left corner.
+// header, a rule, the body, a rule (saying where the view is when the body
+// scrolls) and the bar with the page's buttons and Back, each with its
+// key. Zones are relative to the top-left corner.
 func (p *page) render(th *theme, w, h int) ([]string, zones) {
 	var z zones
 	// The title is what the page is about and is never cut for the status
@@ -95,7 +96,13 @@ func (p *page) render(th *theme, w, h int) ([]string, zones) {
 	for i := range rows {
 		out = append(out, fit(line(body, p.top+i), w))
 	}
-	out = append(out, th.rule(w, ""))
+	// A page longer than the screen says so on the rule over the bar,
+	// whatever the bar holds.
+	more := ""
+	if len(body) > rows {
+		more = th.paint(lookDim, fmt.Sprintf("%d–%d of %d · ↑↓ scroll", p.top+1, min(p.top+rows, len(body)), len(body)))
+	}
+	out = append(out, th.rule(w, more))
 	closeLabel := p.closeLabel
 	if closeLabel == "" {
 		closeLabel = "Close"
@@ -103,11 +110,7 @@ func (p *page) render(th *theme, w, h int) ([]string, zones) {
 	btns := append(slices.Clone(p.buttons), button{label: closeLabel, key: "q", act: actClose})
 	bar := layoutBar(th, btns, w, 1, actNone, false, nil)
 	bar.barZones(&z, h-1, false)
-	foot := bar.text[0]
-	if len(body) > rows && len(p.buttons) == 0 {
-		foot += th.paint(lookDim, fmt.Sprintf("  %d–%d of %d · ↑↓ scroll", p.top+1, min(p.top+rows, len(body)), len(body)))
-	}
-	out = append(out, fit(foot, w))
+	out = append(out, fit(bar.text[0], w))
 	return out, z
 }
 

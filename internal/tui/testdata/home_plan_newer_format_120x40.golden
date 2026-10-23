@@ -1,40 +1,40 @@
 igris · sinjal · tasks.md · herdr ✓ · mode auto                                                                     Idle
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-PHASES                                                     │ PLAN INVALID · tasks.md · 1 problem
-plan invalid — Check shows the problems                    │ tasks.md:1: plan format 4 needs a newer igris (this igris …
-                                                           │ ── HEALTH ─────────────────────────────────────────────────
-                                                           │ ✗ plan invalid · 1 problem
-                                                           │ ▲ doctor: 1 warning — uncommitted changes
-                                                           │ ── RECENT ─────────────────────────────────────────────────
-                                                           │ no runs yet
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+PHASES                         │ PLAN INVALID · tasks.md · 1 problem
+no phases: the plan is invalid │ tasks.md:1: plan format 4 needs a newer igris (this igris reads formats 1 to 3)
+                               │ Next: this plan needs a newer igris; u Updates checks for one.
+                               │ ── HEALTH ─────────────────────────────────────────────────────────────────────────────
+                               │ ✗ plan invalid · 1 problem
+                               │ ▲ doctor: 1 warning · uncommitted changes
+                               │ ── RECENT ─────────────────────────────────────────────────────────────────────────────
+                               │ no runs yet
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 [›c Check‹] [i Doctor] [e Edit plan] [, Settings] [n Notify] [u Updates] [?] [q Quit]

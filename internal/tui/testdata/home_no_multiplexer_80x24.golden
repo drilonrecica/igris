@@ -1,8 +1,8 @@
 igris · sinjal · herdr/tmux ✗                                               Idle
 ────────────────────────────────────────────────────────────────────────────────
 READY · phase M2 Config & state
-next  · M2-02  Lock file                                                  opus
-then  · M2-03  State file                                                 sonnet
+next  · M2-02  Lock file   opus
+then  · M2-03  State file  sonnet
 3 left · 2 wait on M2-02
 Arise needs herdr or tmux: run igris inside a herdr pane or a tmux session.
 ── PHASES ──────────────────────────────────────────────────────────────────────
@@ -11,14 +11,14 @@ Arise needs herdr or tmux: run igris inside a herdr pane or a tmux session.
 › · M2  Config & state                                      ██░░░░░░░░ 1/4 next
   ◌ M3  Engine                                              ░░░░░░░░░░ 0/3 wait
   ◌ M4  TUI                                                 ░░░░░░░░░░ 0/2 wait
-
-
 ── HEALTH ──────────────────────────────────────────────────────────────────────
 ✓ plan valid · 5 phases · 14 tasks
-▲ doctor: 1 warning — uncommitted changes
+▲ doctor: 1 warning · uncommitted changes
 ── RECENT ──────────────────────────────────────────────────────────────────────
 Oct 06 21:10  M2  3 done · 1 skipped · stopped
 Oct 05 18:02  M1  6 done · completed
 
+
+────────────────────────────────────────────────────────────────────────────────
 [›v Preview‹] [c Check] [i Doctor] [h History] [e Edit plan] [, Settings]
 [n Notify] [u Updates] [?] [q Quit]

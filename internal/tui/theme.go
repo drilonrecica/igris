@@ -170,3 +170,16 @@ func (th *theme) button(label string, st btnState) string {
 	}
 	return "[" + label + "]"
 }
+
+// helmPart draws a part of the helm (GET STARTED, the end-of-run
+// summary): the armor dim, the visor in glow, the plume in plume (SPEC
+// §15.4).
+func (th *theme) helmPart(r look.HelmRole, s string) string {
+	switch r {
+	case look.HelmVisor:
+		return th.paint(lookAccent, s)
+	case look.HelmPlume:
+		return th.paint(lookBrand, s)
+	}
+	return th.paint(lookDim, s)
+}

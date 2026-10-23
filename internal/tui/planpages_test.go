@@ -293,12 +293,12 @@ func TestTaskPageAttemptsAndCopy(t *testing.T) {
 	sized(s, 100, 30)
 	s.Update(taskHistoryMsg{h: taskHistory()})
 	v := s.View()
-	for _, want := range []string{"Last attempts", "Oct 07 07:12", "unfinished", "opus → opus", "14m", "Oct 06 21:10", "done · sonnet → sonnet · 2 attempts · 1h15m · verify 1 failed, 1 passed"} {
+	for _, want := range []string{"LAST ATTEMPTS", "Oct 07 07:12", "unfinished", "opus → opus", "14m", "Oct 06 21:10", "done · sonnet → sonnet · 2 attempts · 1h15m · verify 1 failed, 1 passed"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("task page lacks %q:\n%s", want, v)
 		}
 	}
-	if strings.Contains(v, "M2-01") && strings.Contains(v[strings.Index(v, "Last attempts"):], "M2-01") {
+	if strings.Contains(v, "M2-01") && strings.Contains(v[strings.Index(v, "LAST ATTEMPTS"):], "M2-01") {
 		t.Error("another task's attempts are listed")
 	}
 	s.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})

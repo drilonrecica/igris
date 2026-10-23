@@ -98,7 +98,18 @@ func TestHomeServedOffersAttachFirst(t *testing.T) {
 	if b := m.buttons(); len(b) == 0 || b[0].label != "Attach" || b[0].act != actAttach {
 		t.Errorf("buttons = %v, want Attach first", b)
 	}
-	for _, want := range []string{"Running elsewhere · in igris serve", "Attach (t) shows its run view"} {
+	for _, want := range []string{"RUNNING · igris serve · pid 4242", "Attach shows the run view", "● Working"} {
+		if !strings.Contains(m.View(), want) {
+			t.Errorf("home lacks %q:\n%s", want, m.View())
+		}
+	}
+	// A served run that waits on the owner says so on home, and Attach is
+	// still the way in (SPEC §15.6).
+	m = homeAt(&theme{}, 120, 40, fixture(t, "served_needs_you"))
+	if b := m.buttons(); len(b) == 0 || b[0].act != actAttach {
+		t.Errorf("buttons = %v, want Attach first", b)
+	}
+	for _, want := range []string{"! Needs you", "! M2-02 needs you · commit? · 2 tasks need you", "Attach to answer"} {
 		if !strings.Contains(m.View(), want) {
 			t.Errorf("home lacks %q:\n%s", want, m.View())
 		}
@@ -110,7 +121,7 @@ func TestHomeServedOffersAttachFirst(t *testing.T) {
 			t.Error("Attach offered for a run no serve hosts")
 		}
 	}
-	if !strings.Contains(m.View(), "Running elsewhere · in another igris") {
+	if v := m.View(); !strings.Contains(v, "Running elsewhere · in another igris") || !strings.Contains(v, "▲ running elsewhere") {
 		t.Errorf("home:\n%s", m.View())
 	}
 }
@@ -121,7 +132,7 @@ func servedProgram(t *testing.T, ar *attachedRuns) (*teatest.TestModel, *fakeSer
 	svc := &fakeServices{attach: ar.attach}
 	svc.snapshot = func(context.Context) (*report.Snapshot, error) { return fixture(t, "served").snap, nil }
 	tm := appProgram(t, svc, 120, 40)
-	seen(t, tm, "Running elsewhere · in igris serve")
+	seen(t, tm, "RUNNING · igris serve")
 	return tm, svc
 }
 
@@ -189,7 +200,7 @@ func TestHomeAttachFails(t *testing.T) {
 	svc := &fakeServices{attach: func(*Feed) (AttachedRunner, error) { return nil, errors.New("no run answers on the socket") }}
 	svc.snapshot = func(context.Context) (*report.Snapshot, error) { return fixture(t, "served").snap, nil }
 	tm := appProgram(t, svc, 120, 40)
-	seen(t, tm, "Running elsewhere · in igris serve")
+	seen(t, tm, "RUNNING · igris serve")
 	tm.Type("t")
 	seen(t, tm, "attach: no run answers on the socket")
 	tm.Type("q")

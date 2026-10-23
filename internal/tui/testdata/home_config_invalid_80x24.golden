@@ -10,15 +10,15 @@ igris uses the defaults meanwhile. Edit igris.toml from Settings.
 › · M2  Config & state                                      ██░░░░░░░░ 1/4 next
   ◌ M3  Engine                                              ░░░░░░░░░░ 0/3 wait
   ◌ M4  TUI                                                 ░░░░░░░░░░ 0/2 wait
-
-
-
 ── HEALTH ──────────────────────────────────────────────────────────────────────
 ✓ plan valid · 5 phases · 14 tasks
-✗ doctor: 1 failure — igris.toml: 2 problems
+✗ doctor: 1 failure · igris.toml: 2 problems
 ── RECENT ──────────────────────────────────────────────────────────────────────
 Oct 06 21:10  M2  3 done · 1 skipped · stopped
 Oct 05 18:02  M1  6 done · completed
 
+
+
+────────────────────────────────────────────────────────────────────────────────
 [›, Settings‹] [v Preview] [c Check] [i Doctor] [h History] [e Edit plan]
 [n Notify] [u Updates] [?] [q Quit]

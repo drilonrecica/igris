@@ -1,40 +1,40 @@
 igris · sinjal · tasks.md · herdr ✓ · mode auto                                                                     Idle
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-PHASES                                                     │ LAST RUN DID NOT CLEAN UP (pid 4242 gone)
-  ✓ M0  Foundations                   ██████████ 3/3 done  │ ● M2-02  Lock file              opus · mode plan
-  ✓ M1  Plan parser                   ██████████ 2/2 done  │ session: herdr tab-3 (Resume reattaches if it is still
-› ● M2  Config & state                ██░░░░░░░░ 1/4 next  │ open)
-  ◌ M3  Engine                        ░░░░░░░░░░ 0/3 wait  │ Resume asks before clearing the lock.
-  ◌ M4  TUI                           ░░░░░░░░░░ 0/2 wait  │ ── HEALTH ─────────────────────────────────────────────────
-                                                           │ ✓ plan valid · 5 phases · 14 tasks
-                                                           │ ▲ doctor: 1 warning — uncommitted changes
-                                                           │ ── RECENT ─────────────────────────────────────────────────
-                                                           │ Oct 06 21:10  M2  3 done · 1 skipped · stopped
-                                                           │ Oct 05 18:02  M1  6 done · completed
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+PHASES                                      │ LAST RUN DID NOT CLEAN UP (pid 4242 gone)
+  ✓ M0  Foundations    ██████████ 3/3 done  │ ● M2-02  Lock file              opus · mode plan
+  ✓ M1  Plan parser    ██████████ 2/2 done  │ session: herdr tab-3 (Resume reattaches if it is still open)
+› ● M2  Config & state ██░░░░░░░░ 1/4 next  │ Resume asks before clearing the lock.
+  ◌ M3  Engine         ░░░░░░░░░░ 0/3 wait  │ ── HEALTH ────────────────────────────────────────────────────────────────
+  ◌ M4  TUI            ░░░░░░░░░░ 0/2 wait  │ ✓ plan valid · 5 phases · 14 tasks
+                                            │ ▲ doctor: 1 warning · uncommitted changes
+                                            │ ── RECENT ────────────────────────────────────────────────────────────────
+                                            │ Oct 06 21:10  M2  3 done · 1 skipped · stopped
+                                            │ Oct 05 18:02  M1  6 done · completed
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 [›a Resume…‹] [v Preview] [c Check] [D Draft…] [i Doctor] [h History] [e Edit plan] [, Settings] [More…] [?] [q Quit]

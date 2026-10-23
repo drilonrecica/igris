@@ -10,15 +10,15 @@ Resume picks M2-02 up first, then the rest of M2 through M3.
 › ● M2  Config & state                                      ██░░░░░░░░ 1/4 next
   ◌ M3  Engine                                              ░░░░░░░░░░ 0/3 wait
   ◌ M4  TUI                                                 ░░░░░░░░░░ 0/2 wait
-
-
-
 ── HEALTH ──────────────────────────────────────────────────────────────────────
 ✓ plan valid · 5 phases · 14 tasks
-▲ doctor: 1 warning — uncommitted changes
+▲ doctor: 1 warning · uncommitted changes
 ── RECENT ──────────────────────────────────────────────────────────────────────
 Oct 07 07:12  M2, M3  1 done · interrupted
 Oct 06 21:10  M2  3 done · 1 skipped · stopped
+Oct 05 18:02  M1  6 done · completed
 
+
+────────────────────────────────────────────────────────────────────────────────
 [›a Resume…‹] [v Preview] [c Check] [D Draft…] [i Doctor] [h History]
 [e Edit plan] [, Settings] [n Notify] [u Updates] [?] [q Quit]

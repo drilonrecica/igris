@@ -428,7 +428,7 @@ func (m *homeScreen) snapPlan() *plan.Plan {
 func (s *taskScreen) body(w int) []string {
 	th := s.home.th
 	out := s.home.rowsFor(s.phaseOf()).detail(s.id, w)
-	out = append(out, "", th.paint(lookTitle, "Last attempts"))
+	out = append(out, th.rule(w, th.paint(lookTitle, "LAST ATTEMPTS")))
 	switch {
 	case !s.loaded:
 		return append(out, th.paint(lookDim, "reading the run log…"))

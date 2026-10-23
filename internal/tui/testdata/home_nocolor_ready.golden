@@ -1,40 +1,40 @@
 [1migr[0m[1mi[0m[1ms[0m · sinjal · tasks.md · herdr ✓ · mode auto                                                                     [2mIdle[0m
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-[1mPHASES[0m                                                     │ [1mREADY · phase M2 Config & state[0m
-  ✓ [2mM0[0m  [2mFoundations                  [0m ██████████ [2m3/3 done[0m  │ next  · M2-02  Lock file                             opus
-  ✓ [2mM1[0m  [2mPlan parser                  [0m ██████████ [2m2/2 done[0m  │ then  · M2-03  State file                            sonnet
-› · M2  Config & state                ██░░░░░░░░ 1/4 next  │ [2m3 left · 2 wait on M2-02[0m
-  [2m◌[0m [2mM3[0m  [2mEngine                       [0m ░░░░░░░░░░ [2m0/3 wait[0m  │ ── [1mHEALTH[0m ─────────────────────────────────────────────────
-  [2m◌[0m [2mM4[0m  [2mTUI                          [0m ░░░░░░░░░░ [2m0/2 wait[0m  │ [2m✓ plan valid · 5 phases · 14 tasks[0m
-                                                           │ ▲ doctor: 1 warning — uncommitted changes
-                                                           │ ── [1mRECENT[0m ─────────────────────────────────────────────────
-                                                           │ Oct 06 21:10  M2  3 done · 1 skipped · stopped
-                                                           │ Oct 05 18:02  M1  6 done · completed
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[1mPHASES[0m                                      │ [1mREADY · phase M2 Config & state[0m
+  ✓ [2mM0[0m  [2mFoundations   [0m ██████████ [2m3/3 done[0m  │ next  · M2-02  Lock file   opus
+  ✓ [2mM1[0m  [2mPlan parser   [0m ██████████ [2m2/2 done[0m  │ then  · M2-03  State file  sonnet
+› · M2  Config & state ██░░░░░░░░ 1/4 next  │ [2m3 left · 2 wait on M2-02[0m
+  [2m◌[0m [2mM3[0m  [2mEngine        [0m ░░░░░░░░░░ [2m0/3 wait[0m  │ ── [1mHEALTH[0m ────────────────────────────────────────────────────────────────
+  [2m◌[0m [2mM4[0m  [2mTUI           [0m ░░░░░░░░░░ [2m0/2 wait[0m  │ [2m✓ plan valid · 5 phases · 14 tasks[0m
+                                            │ ▲ doctor: 1 warning · uncommitted changes
+                                            │ ── [1mRECENT[0m ────────────────────────────────────────────────────────────────
+                                            │ Oct 06 21:10  M2  3 done · 1 skipped · stopped
+                                            │ Oct 05 18:02  M1  6 done · completed
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 [1;7m[›a Arise…‹][0m [v Preview] [c Check] [D Draft…] [i Doctor] [h History] [e Edit plan] [, Settings] [More…] [?] [q Quit]

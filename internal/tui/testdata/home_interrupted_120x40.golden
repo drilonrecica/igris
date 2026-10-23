@@ -1,40 +1,40 @@
 igris · sinjal · tasks.md · herdr ✓ · mode auto                                                            ▲ Interrupted
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-PHASES                                                     │ ▲ Interrupted · last run M2 through M3 · 2h ago
-  ✓ M0  Foundations                   ██████████ 3/3 done  │ ● M2-02  Lock file              opus · mode plan
-  ✓ M1  Plan parser                   ██████████ 2/2 done  │ session: herdr tab-3 (Resume reattaches if it is still
-› ● M2  Config & state                ██░░░░░░░░ 1/4 next  │ open)
-  ◌ M3  Engine                        ░░░░░░░░░░ 0/3 wait  │ Resume picks M2-02 up first, then the rest of M2 through
-  ◌ M4  TUI                           ░░░░░░░░░░ 0/2 wait  │ M3.
-                                                           │ ── HEALTH ─────────────────────────────────────────────────
-                                                           │ ✓ plan valid · 5 phases · 14 tasks
-                                                           │ ▲ doctor: 1 warning — uncommitted changes
-                                                           │ ── RECENT ─────────────────────────────────────────────────
-                                                           │ Oct 07 07:12  M2, M3  1 done · interrupted
-                                                           │ Oct 06 21:10  M2  3 done · 1 skipped · stopped
-                                                           │ Oct 05 18:02  M1  6 done · completed
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+PHASES                                      │ ▲ Interrupted · last run M2 through M3 · 2h ago
+  ✓ M0  Foundations    ██████████ 3/3 done  │ ● M2-02  Lock file              opus · mode plan
+  ✓ M1  Plan parser    ██████████ 2/2 done  │ session: herdr tab-3 (Resume reattaches if it is still open)
+› ● M2  Config & state ██░░░░░░░░ 1/4 next  │ Resume picks M2-02 up first, then the rest of M2 through M3.
+  ◌ M3  Engine         ░░░░░░░░░░ 0/3 wait  │ ── HEALTH ────────────────────────────────────────────────────────────────
+  ◌ M4  TUI            ░░░░░░░░░░ 0/2 wait  │ ✓ plan valid · 5 phases · 14 tasks
+                                            │ ▲ doctor: 1 warning · uncommitted changes
+                                            │ ── RECENT ────────────────────────────────────────────────────────────────
+                                            │ Oct 07 07:12  M2, M3  1 done · interrupted
+                                            │ Oct 06 21:10  M2  3 done · 1 skipped · stopped
+                                            │ Oct 05 18:02  M1  6 done · completed
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 [›a Resume…‹] [v Preview] [c Check] [D Draft…] [i Doctor] [h History] [e Edit plan] [, Settings] [More…] [?] [q Quit]

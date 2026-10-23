@@ -2,7 +2,7 @@ igris · sinjal · M2-02                                                      Id
 ────────────────────────────────────────────────────────────────────────────────
 M2-02 — Lock file
 
-Lock file with a title long enough to be cut in a narrow row
+with a title long enough to be cut in a narrow row
 
 Status  ● in progress
 Rank    opus
@@ -10,11 +10,11 @@ Owner   agent
 Mode    auto (run mode)
 Phase   M2 Config & state
 Deps    ✓ M2-01 done · Config loader
-
-Last attempts
+── LAST ATTEMPTS ───────────────────────────────────────────────────────────────
 Oct 07 07:12  unfinished · opus → opus · 1 attempt · 14m
 Oct 06 21:10  done · sonnet → sonnet · 2 attempts · 1h15m · verify 1 failed, 1
               passed
+
 
 
 

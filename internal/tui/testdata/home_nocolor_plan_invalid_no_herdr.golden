@@ -1,40 +1,40 @@
 [1migr[0m[1mi[0m[1ms[0m · sinjal · tasks.md · [1mherdr ✗[0m · mode auto                                                                     [2mIdle[0m
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-[1mPHASES[0m                                                     │ [1mPLAN INVALID · tasks.md · 4 problems[0m
-[2mplan invalid — Check shows the problems[0m                    │ tasks.md:5: M9-02 depends on unknown task M9-01; check the…
-                                                           │ tasks.md:6: M9-03: unknown status "wip" (did you mean in p…
-                                                           │ tasks.md:7: M9-04: unknown model rank "gpt"; add it to [mo…
-                                                           │ [2m… 1 more — Check shows all[0m
-                                                           │ Adapt needs herdr (not reachable): run igris inside a herdr
-                                                           │ pane.
-                                                           │ ── [1mHEALTH[0m ─────────────────────────────────────────────────
-                                                           │ [1m✗ plan invalid · 4 problems[0m
-                                                           │ ▲ doctor: 1 warning — uncommitted changes
-                                                           │ ── [1mRECENT[0m ─────────────────────────────────────────────────
-                                                           │ [2mno runs yet[0m
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[1mPHASES[0m                         │ [1mPLAN INVALID · tasks.md · 4 problems[0m
+[2mno phases: the plan is invalid[0m │ tasks.md:5: M9-02 depends on unknown task M9-01; check the ID or remove it from Deps
+                               │ tasks.md:6: M9-03: unknown status "wip" (did you mean in progress?); use ready, blocke…
+                               │ tasks.md:7: M9-04: unknown model rank "gpt"; add it to [models] in igris.toml or use o…
+                               │ [2m… 1 more — Check shows all[0m
+                               │ Next: c Check lists every problem; e Edit plan fixes them.
+                               │ Adapt needs herdr (not reachable): run igris inside a herdr pane.
+                               │ ── [1mHEALTH[0m ─────────────────────────────────────────────────────────────────────────────
+                               │ [1m✗ plan invalid · 4 problems[0m
+                               │ ▲ doctor: 1 warning · uncommitted changes
+                               │ ── [1mRECENT[0m ─────────────────────────────────────────────────────────────────────────────
+                               │ [2mno runs yet[0m
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 [1;7m[›c Check‹][0m [i Doctor] [e Edit plan] [, Settings] [n Notify] [u Updates] [?] [q Quit]

@@ -1,19 +1,19 @@
 igris · sinjal · no plan · herdr ✓ · mode auto                                                                      Idle
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-PHASES                                                     │ GET STARTED
-tasks.md not found                                         │ ✓ 1 igris.toml  found
-                                                           │ · 2 plan        tasks.md not found
-                                                           │ · 3 check       —
-                                                           │ · 4 preview     —
-                                                           │ · 5 arise       —
-                                                           │ Plan from template… writes a starter plan (the example plan
-                                                           │ or a template); Draft… has Claude write one from a goal, a
-                        ╭──────────────────────────────────────────────────────────────────────╮our own at
-                        │ Draft a plan                                                         │
-                        │                                                                      │────────────────────────
+    ▄█▄   ▄▄      GET STARTED
+   ▄███▄ ▄▀       Arise. One task, one fresh session, the right rank.
+   ▟█████▙▀
+   █▀▀▀▀▀█        ✓ 1  igris.toml   found
+   ▜█████▛        ✗ 2  plan         tasks.md not found · D Draft… or E Plan from template…
+     ▀███▀        · 3  check        —
+                  · 4  preview      —
+                  · 5  arise        —
+── HEALTH ──────────────╭──────────────────────────────────────────────────────────────────────╮────────────────────────
+▲ doctor: 1 warning · un│ Draft a plan                                                         │
+                        │                                                                      │
                         │ Draft starts Claude in a herdr tab to write a proposal in            │
-                        │ .igris/draft/; nothing reaches tasks.md until you accept it in the   │hanges
-                        │ review.                                                              │────────────────────────
+                        │ .igris/draft/; nothing reaches tasks.md until you accept it in the   │
+                        │ review.                                                              │
                         │                                                                      │
                         │ warning: ANTHROPIC_API_KEY is set: Claude Code would bill the API    │
                         │ instead of your subscription login. Unset it unless that is what you │
@@ -26,15 +26,15 @@ tasks.md not found                                         │ ✓ 1 igris.toml 
                         │                                                                      │
                         │ enter choose · 1–4 pick · esc cancel                                 │
                         ╰──────────────────────────────────────────────────────────────────────╯
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-                                                           │
-────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 [E Plan from template…] [D Draft…] [i Doctor] [, Settings] [n Notify] [u Updates] [?] [q Quit]

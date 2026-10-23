@@ -7,6 +7,9 @@ import "strings"
 // and the end-of-run summary. The armor is drawn dim, the visor in glow,
 // the plume in plume; a surface without color writes the blocks plain.
 
+// Tagline is what GET STARTED says beside the helm (SPEC §15.6).
+const Tagline = "Arise. One task, one fresh session, the right rank."
+
 // HelmRole is what a part of the helm is drawn as.
 type HelmRole int
 

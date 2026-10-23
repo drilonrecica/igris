@@ -16,5 +16,5 @@ backend           = "auto" · default
 default_mode      = "auto" · default
 needs_input_after = "30s" · default
 waiting_limit     = "30m" · default
-──────────────────────────────────────────────────
+── 1–16 of 80 · ↑↓ scroll ────────────────────────
 [e Edit igris.toml] [i Doctor] [q Close]
