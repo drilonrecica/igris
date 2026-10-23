@@ -1,0 +1,20 @@
+# Config for the advanced example plan (SPEC §12): verify profiles, a
+# phase default and task hooks. Every key not shown keeps its default; see
+# ../igris.toml for the full list.
+
+plan = "tasks.md"
+
+[run]
+verify = "make test"              # the profile "default"
+
+[verify]                          # profile name -> shell command; plans name profiles, never commands
+fast = "go test ./internal/..."
+full = "make fmt lint test"
+
+[phases.P2]                       # the verify profile of P2's tasks unless a Verify cell says otherwise
+verify = "full"                   # a profile, or "none"
+
+[hooks]                           # optional, argv lists run without a shell, around every agent session
+# before_task = ["./scripts/dev-db", "up"]
+# after_task = ["./scripts/post-status"]
+# timeout = "2m"
