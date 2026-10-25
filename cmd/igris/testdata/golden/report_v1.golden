@@ -10,7 +10,13 @@ Phase B
 
 ## Tasks
 
-| Task | Result | Duration | Attempts | Tokens | Verify | Commit | Needs you |
-|---|---|---|---|---|---|---|---|
-| B-1 | done | 4m00s | 1 | — | — | — | — |
+| Task | Result | Duration | Agent | Attempts | Tokens | Verify | Commit | Needs you |
+|---|---|---|---|---|---|---|---|---|
+| B-1 | done | 4m00s | 4m00s | 1 | — | — | — | — |
+
+## Time
+
+| Time | Agent | Verify | Needs you | Wall |
+|---|---|---|---|---|
+| Run | 4m00s | 0s | 0s | 4m00s |
 --- stderr

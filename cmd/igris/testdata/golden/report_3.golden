@@ -8,10 +8,10 @@ Phase A
 
 ## Tasks
 
-| Task | Result | Duration | Attempts | Tokens | Verify | Commit | Needs you |
-|---|---|---|---|---|---|---|---|
-| A-1 | done | 2m59s | 1 | — | fast ✗ ✓ | — | — |
-| A-2 | unfinished | — | 1 | — | — | — | — |
+| Task | Result | Duration | Agent | Attempts | Tokens | Verify | Commit | Needs you |
+|---|---|---|---|---|---|---|---|---|
+| A-1 | done | 2m59s | — | 1 | — | fast ✗ ✓ | — | — |
+| A-2 | unfinished | — | — | 1 | — | — | — | — |
 
 Notes
 - A-1 done: v0 line

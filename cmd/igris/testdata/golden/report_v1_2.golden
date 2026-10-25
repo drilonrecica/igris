@@ -10,7 +10,13 @@ Phase A
 
 ## Phase A
 
-| Task | Result | Duration | Attempts | Tokens | Verify | Commit | Needs you |
-|---|---|---|---|---|---|---|---|
-| A-2 Two | unfinished | — | 1 | — | — | — | — |
+| Task | Result | Duration | Agent | Attempts | Tokens | Verify | Commit | Needs you |
+|---|---|---|---|---|---|---|---|---|
+| A-2 Two | unfinished | — | 29s | 1 | — | — | — | — |
+
+## Time
+
+| Time | Agent | Verify | Needs you | Wall |
+|---|---|---|---|---|
+| Run | 29s | 0s | 0s | 29s |
 --- stderr

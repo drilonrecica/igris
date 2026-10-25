@@ -75,7 +75,13 @@ exit: 0
       "models": [
         "claude-sonnet-5-5",
         "claude-opus-5-5"
-      ]
+      ],
+      "time": {
+        "agent_s": 591,
+        "verify_s": 11,
+        "needs_you_s": 240,
+        "limit_s": 0
+      }
     },
     {
       "id": "M1-05",
@@ -105,8 +111,89 @@ exit: 0
       ],
       "resume": "claude --resume 9aa07c5e-d5cc-43b5-812b-1a20c5336f67",
       "needs_you_s": 300,
-      "audit": "unavailable"
+      "audit": "unavailable",
+      "time": {
+        "agent_s": 299,
+        "verify_s": 0,
+        "needs_you_s": 300,
+        "limit_s": 0
+      }
     }
-  ]
+  ],
+  "time": {
+    "run": {
+      "agent_s": 890,
+      "verify_s": 11,
+      "needs_you_s": 540,
+      "limit_s": 0,
+      "wall_s": 1441,
+      "wall": {
+        "agent_s": 890,
+        "verify_s": 11,
+        "needs_you_s": 540,
+        "limit_s": 0
+      }
+    },
+    "phases": [
+      {
+        "phase": "M1",
+        "agent_s": 591,
+        "verify_s": 11,
+        "needs_you_s": 240,
+        "limit_s": 0,
+        "wall_s": 842,
+        "wall": {
+          "agent_s": 591,
+          "verify_s": 11,
+          "needs_you_s": 240,
+          "limit_s": 0
+        }
+      },
+      {
+        "phase": "M2",
+        "agent_s": 299,
+        "verify_s": 0,
+        "needs_you_s": 300,
+        "limit_s": 0,
+        "wall_s": 599,
+        "wall": {
+          "agent_s": 299,
+          "verify_s": 0,
+          "needs_you_s": 300,
+          "limit_s": 0
+        }
+      }
+    ],
+    "ranks": [
+      {
+        "rank": "sonnet",
+        "agent_s": 591,
+        "verify_s": 11,
+        "needs_you_s": 240,
+        "limit_s": 0,
+        "wall_s": 842,
+        "wall": {
+          "agent_s": 591,
+          "verify_s": 11,
+          "needs_you_s": 240,
+          "limit_s": 0
+        }
+      },
+      {
+        "rank": "opus",
+        "agent_s": 299,
+        "verify_s": 0,
+        "needs_you_s": 300,
+        "limit_s": 0,
+        "wall_s": 599,
+        "wall": {
+          "agent_s": 299,
+          "verify_s": 0,
+          "needs_you_s": 300,
+          "limit_s": 0
+        }
+      }
+    ]
+  }
 }
 --- stderr

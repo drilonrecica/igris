@@ -38,7 +38,11 @@ type Report struct {
 	Commits   []ReportCommit `json:"commits"`
 	Errors    []string       `json:"errors"`
 	Tasks     []ReportTask   `json:"tasks"`
-	Note      string         `json:"note,omitempty"` // as History.Note
+	// Time is the run's agent tasks' time by what it was spent on, for the
+	// run, each phase and each rank; nil for a v0 run or a run without an
+	// agent task (SPEC §14). Since 1.8.
+	Time *TimeBreakdown `json:"time,omitempty"`
+	Note string         `json:"note,omitempty"` // as History.Note
 }
 
 // ReportCommit is one commit the run made.
@@ -79,6 +83,9 @@ type ReportTask struct {
 	Usage  *Tokens  `json:"usage,omitempty"`
 	Sub    *Tokens  `json:"sub,omitempty"`
 	Models []string `json:"models,omitempty"`
+	// Time is the task's time by what it was spent on; nil for a v0 run
+	// or a user task (SPEC §14). Since 1.8.
+	Time *Times `json:"time,omitempty"`
 }
 
 // RankMismatch reports that some attempt of the task ran on a model its
@@ -229,20 +236,9 @@ func (r *runRec) report(live bool) Report {
 		tasks = append(tasks, t)
 		return t
 	}
-	var waits []*wait
-	closeWaits := func(at time.Time, match func(*wait) bool) {
-		for _, w := range waits {
-			if w.end.IsZero() && match(w) {
-				w.end = at
-			}
-		}
-	}
+	waits := r.waits()
 	for _, e := range r.events {
 		e.Task = textsafe.Line(e.Task)
-		switch e.Type {
-		case state.EventTaskRetried, state.EventTaskDone, state.EventTaskSkipped, state.EventTaskReset:
-			closeWaits(e.At, func(w *wait) bool { return w.task == e.Task })
-		}
 		switch e.Type {
 		case state.EventRunStopped:
 			if e.DurationMS > 0 {
@@ -309,25 +305,14 @@ func (r *runRec) report(live bool) Report {
 			if t := byID[e.Task]; t != nil {
 				t.audit(state.AuditMismatch)
 			}
-		case state.EventNeedsYou:
-			waits = append(waits, &wait{task: e.Task, reason: e.Reason, start: e.At})
-		case state.EventNeedsYouClear:
-			// Every open wait of the task for the reason: older igris
-			// logged a repeated wait twice and cleared it once.
-			closeWaits(e.At, func(w *wait) bool { return w.task == e.Task && w.reason == e.Reason })
 		}
 	}
-	// Waits still open end with the run: its stop, or its last line.
-	end := r.end
-	if !r.stopped && len(r.events) > 0 {
-		end = r.events[len(r.events)-1].At
-	}
-	closeWaits(end, func(*wait) bool { return true })
-
 	v1 := r.id != "" // only v1 lines carry a run ID; v0 runs log no waits
 	if v1 {
 		out.NeedsYouS = ptr(union(waits, func(*wait) bool { return true }))
 	}
+	perTask, breakdown := r.times(waits)
+	out.Time = breakdown
 	running := sum.End == EndRunning
 	for _, t := range tasks {
 		rt := t.t
@@ -348,6 +333,7 @@ func (r *runRec) report(live bool) Report {
 			id := rt.ID
 			rt.NeedsYouS = ptr(union(waits, func(w *wait) bool { return w.task == id }))
 		}
+		rt.Time = perTask[rt.ID]
 		switch rt.Result {
 		case ResultDone:
 			out.Done++
@@ -359,6 +345,44 @@ func (r *runRec) report(live bool) Report {
 		out.Tasks = append(out.Tasks, rt)
 	}
 	return out
+}
+
+// waits are the run's needs-you intervals (SPEC §13), each closed: by its
+// needs_you_clear, by the task's next retry, result or reset, or by the
+// run's end (its stop, or its last line).
+func (r *runRec) waits() []*wait {
+	var waits []*wait
+	closeWaits := func(at time.Time, match func(*wait) bool) {
+		for _, w := range waits {
+			if w.end.IsZero() && match(w) {
+				w.end = at
+			}
+		}
+	}
+	for _, e := range r.events {
+		task := textsafe.Line(e.Task)
+		switch e.Type {
+		case state.EventTaskRetried, state.EventTaskDone, state.EventTaskSkipped, state.EventTaskReset:
+			closeWaits(e.At, func(w *wait) bool { return w.task == task })
+		case state.EventNeedsYou:
+			waits = append(waits, &wait{task: task, reason: e.Reason, start: e.At})
+		case state.EventNeedsYouClear:
+			// Every open wait of the task for the reason: older igris
+			// logged a repeated wait twice and cleared it once.
+			closeWaits(e.At, func(w *wait) bool { return w.task == task && w.reason == e.Reason })
+		}
+	}
+	closeWaits(r.lastAt(), func(*wait) bool { return true })
+	return waits
+}
+
+// lastAt is when the run ended as far as the log says: its stop, or its
+// last line when it has none.
+func (r *runRec) lastAt() time.Time {
+	if !r.stopped && len(r.events) > 0 {
+		return r.events[len(r.events)-1].At
+	}
+	return r.end
 }
 
 // describe takes the task's details from e where it has them.

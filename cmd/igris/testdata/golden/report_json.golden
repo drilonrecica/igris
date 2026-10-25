@@ -29,8 +29,61 @@ exit: 0
         "9aa07c5e-d5cc-43b5-812b-1a20c5336f67"
       ],
       "resume": "claude --resume 9aa07c5e-d5cc-43b5-812b-1a20c5336f67",
-      "needs_you_s": 120
+      "needs_you_s": 120,
+      "time": {
+        "agent_s": 59,
+        "verify_s": 0,
+        "needs_you_s": 120,
+        "limit_s": 0
+      }
     }
-  ]
+  ],
+  "time": {
+    "run": {
+      "agent_s": 59,
+      "verify_s": 0,
+      "needs_you_s": 120,
+      "limit_s": 0,
+      "wall_s": 179,
+      "wall": {
+        "agent_s": 59,
+        "verify_s": 0,
+        "needs_you_s": 120,
+        "limit_s": 0
+      }
+    },
+    "phases": [
+      {
+        "phase": "M2",
+        "agent_s": 59,
+        "verify_s": 0,
+        "needs_you_s": 120,
+        "limit_s": 0,
+        "wall_s": 179,
+        "wall": {
+          "agent_s": 59,
+          "verify_s": 0,
+          "needs_you_s": 120,
+          "limit_s": 0
+        }
+      }
+    ],
+    "ranks": [
+      {
+        "rank": "opus",
+        "agent_s": 59,
+        "verify_s": 0,
+        "needs_you_s": 120,
+        "limit_s": 0,
+        "wall_s": 179,
+        "wall": {
+          "agent_s": 59,
+          "verify_s": 0,
+          "needs_you_s": 120,
+          "limit_s": 0
+        }
+      }
+    ]
+  }
 }
 --- stderr

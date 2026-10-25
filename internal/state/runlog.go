@@ -71,6 +71,9 @@ const (
 	EventIntegrationFailed EventType = "integration_failed"
 	EventOverlap           EventType = "overlap"
 	EventError             EventType = "error"
+	// EventLimitHit: a session hit a usage limit and waits for its reset
+	// (SPEC §6.9); Window and ResetsAt say which and until when. Since 1.8.
+	EventLimitHit EventType = "limit_hit"
 )
 
 // Why a task didn't integrate (SPEC §6.11): a rebase conflict, or verify
@@ -179,8 +182,13 @@ type Event struct {
 	Audit     string        `json:"audit,omitempty"`
 	// Side is the side session's ID on side_opened, side_closed and
 	// side_usage (SPEC §6.10). Since 1.2.
-	Side   string `json:"side,omitempty"`
-	Detail string `json:"detail,omitempty"` // never secrets (AGENTS §6)
+	Side string `json:"side,omitempty"`
+	// Window and ResetsAt are the quota window (five_hour, seven_day or
+	// spend_limit) and its reset (RFC 3339, UTC) on limit_hit and
+	// limit_hold (SPEC §6.9). Since 1.8.
+	Window   string `json:"window,omitempty"`
+	ResetsAt string `json:"resets_at,omitempty"`
+	Detail   string `json:"detail,omitempty"` // never secrets (AGENTS §6)
 }
 
 var runIDPattern = regexp.MustCompile(`^[0-9]{8}-[0-9]{6}-[0-9a-f]{4}$`)

@@ -10,13 +10,19 @@ Phase A · only A-2
 
 ## Phase A
 
-| Task | Result | Duration | Attempts | Tokens | Verify | Commit | Needs you |
-|---|---|---|---|---|---|---|---|
-| A-2 Two | done | 12m05s | 2 | — | fast ✗ ✓ | 3fa29c1 | 1m00s |
+| Task | Result | Duration | Agent | Attempts | Tokens | Verify | Commit | Needs you |
+|---|---|---|---|---|---|---|---|---|
+| A-2 Two | done | 12m05s | 10m42s | 2 | — | fast ✗ ✓ · 23s | 3fa29c1 | 1m00s |
 
 Notes
 - A-2 done: did the second thing
 
 Resume
 - A-2: `claude --resume 7d1e9b20-3c4a-4f5e-8b6d-0a1b2c3d4e5f` (run it in the project root)
+
+## Time
+
+| Time | Agent | Verify | Needs you | Wall |
+|---|---|---|---|---|
+| Run | 10m42s | 23s | 1m00s | 12m05s |
 --- stderr

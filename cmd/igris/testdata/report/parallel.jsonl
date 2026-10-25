@@ -1,0 +1,18 @@
+{"v":1,"at":"2026-10-05T10:00:00Z","type":"run_started","run":"20261005-100000-beef","detail":"phase P, S"}
+{"v":1,"at":"2026-10-05T10:00:05Z","type":"task_started","run":"20261005-100000-beef","task":"P-1","rank":"opus","model":"opus","attempt":1,"phase":"P","title":"Parser","owner":"agent","slot":0,"branch":"igris/20261005-100000-beef-P-1","detail":"mode auto"}
+{"v":1,"at":"2026-10-05T10:00:06Z","type":"task_started","run":"20261005-100000-beef","task":"P-2","rank":"sonnet","model":"sonnet","attempt":1,"phase":"P","title":"Printer","owner":"agent","slot":1,"branch":"igris/20261005-100000-beef-P-2","detail":"mode auto"}
+{"v":1,"at":"2026-10-05T10:05:00Z","type":"limit_hit","run":"20261005-100000-beef","task":"P-2","rank":"sonnet","model":"sonnet","attempt":1,"window":"five_hour","resets_at":"2026-10-05T10:20:00Z"}
+{"v":1,"at":"2026-10-05T10:08:00Z","type":"needs_you","run":"20261005-100000-beef","task":"P-1","rank":"opus","model":"opus","attempt":1,"reason":"blocked","detail":"needs you (blocked)"}
+{"v":1,"at":"2026-10-05T10:10:00Z","type":"needs_you_clear","run":"20261005-100000-beef","task":"P-1","rank":"opus","model":"opus","attempt":1,"reason":"blocked"}
+{"v":1,"at":"2026-10-05T10:15:00Z","type":"verify_passed","run":"20261005-100000-beef","task":"P-1","rank":"opus","model":"opus","attempt":1,"profile":"fast","duration_ms":90000,"detail":"profile fast"}
+{"v":1,"at":"2026-10-05T10:15:30Z","type":"integrated","run":"20261005-100000-beef","task":"P-1","rank":"opus","model":"opus","attempt":1,"commit":"4b1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d","branch":"igris/20261005-100000-beef","detail":"P-1: Parser"}
+{"v":1,"at":"2026-10-05T10:16:00Z","type":"task_done","run":"20261005-100000-beef","task":"P-1","rank":"opus","model":"opus","attempt":1,"duration_ms":955000,"detail":"parser done"}
+{"v":1,"at":"2026-10-05T10:18:00Z","type":"needs_you","run":"20261005-100000-beef","task":"P-2","rank":"sonnet","model":"sonnet","attempt":1,"reason":"idle","detail":"needs you (idle)"}
+{"v":1,"at":"2026-10-05T10:21:00Z","type":"needs_you_clear","run":"20261005-100000-beef","task":"P-2","rank":"sonnet","model":"sonnet","attempt":1,"reason":"idle"}
+{"v":1,"at":"2026-10-05T10:24:00Z","type":"verify_failed","run":"20261005-100000-beef","task":"P-2","rank":"sonnet","model":"sonnet","attempt":1,"profile":"fast","duration_ms":60000,"detail":"profile fast: attempt 1 of 3: exit status 1"}
+{"v":1,"at":"2026-10-05T10:27:00Z","type":"verify_passed","run":"20261005-100000-beef","task":"P-2","rank":"sonnet","model":"sonnet","attempt":1,"profile":"fast","duration_ms":60000,"detail":"profile fast"}
+{"v":1,"at":"2026-10-05T10:28:00Z","type":"task_done","run":"20261005-100000-beef","task":"P-2","rank":"sonnet","model":"sonnet","attempt":1,"duration_ms":1674000,"detail":"printer done"}
+{"v":1,"at":"2026-10-05T10:28:10Z","type":"task_started","run":"20261005-100000-beef","task":"S-1","rank":"sonnet","model":"sonnet","attempt":1,"phase":"S","title":"Docs","owner":"agent","detail":"mode auto"}
+{"v":1,"at":"2026-10-05T10:38:00Z","type":"verify_passed","run":"20261005-100000-beef","task":"S-1","rank":"sonnet","model":"sonnet","attempt":1,"profile":"fast","duration_ms":30000,"detail":"profile fast"}
+{"v":1,"at":"2026-10-05T10:40:00Z","type":"task_done","run":"20261005-100000-beef","task":"S-1","rank":"sonnet","model":"sonnet","attempt":1,"duration_ms":710000,"detail":"docs done"}
+{"v":1,"at":"2026-10-05T10:40:05Z","type":"run_stopped","run":"20261005-100000-beef","duration_ms":2405000,"detail":"completed"}

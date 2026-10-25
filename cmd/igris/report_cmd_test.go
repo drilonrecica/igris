@@ -29,6 +29,10 @@ func TestRunReportGoldens(t *testing.T) {
 			{"report", "20261001-090000-3fa2"},
 			{"report", "4"}, {"report", "20991231-000000-0000"},
 		}},
+		// A parallel phase (two tasks side by side, a limit wait under a
+		// needs-you wait) and a sequential one: the time breakdown.
+		{"report/parallel.jsonl", "report_par", [][]string{{"report"}, {"report", "--json"}}},
+		{"report/parallel.jsonl", "history_par", [][]string{{"history"}, {"history", "--json"}}},
 		{"history/runs_v1.jsonl", "report_v1", [][]string{
 			{"report"}, {"report", "2"}, {"report", "2", "--json"}, {"report", "3"}, {"report", "4"},
 		}},

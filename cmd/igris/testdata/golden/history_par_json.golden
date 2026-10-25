@@ -1,0 +1,148 @@
+exit: 0
+--- stdout
+{
+  "v": 1,
+  "runs": [
+    {
+      "run": "20261005-100000-beef",
+      "started_at": "2026-10-05T10:00:00Z",
+      "ended_at": "2026-10-05T10:40:05Z",
+      "duration_s": 2405,
+      "phases": [
+        "P",
+        "S"
+      ],
+      "end": "completed",
+      "done": 3,
+      "skipped": 0,
+      "tasks": [
+        {
+          "id": "P-1",
+          "rank": "opus",
+          "model": "opus",
+          "result": "done",
+          "attempts": 1,
+          "duration_s": 955,
+          "verify_failed": 0,
+          "verify_passed": 1,
+          "time": {
+            "agent_s": 745,
+            "verify_s": 90,
+            "needs_you_s": 120,
+            "limit_s": 0
+          }
+        },
+        {
+          "id": "P-2",
+          "rank": "sonnet",
+          "model": "sonnet",
+          "result": "done",
+          "attempts": 1,
+          "duration_s": 1674,
+          "verify_failed": 1,
+          "verify_passed": 1,
+          "time": {
+            "agent_s": 594,
+            "verify_s": 120,
+            "needs_you_s": 180,
+            "limit_s": 780
+          }
+        },
+        {
+          "id": "S-1",
+          "rank": "sonnet",
+          "model": "sonnet",
+          "result": "done",
+          "attempts": 1,
+          "duration_s": 710,
+          "verify_failed": 0,
+          "verify_passed": 1,
+          "time": {
+            "agent_s": 680,
+            "verify_s": 30,
+            "needs_you_s": 0,
+            "limit_s": 0
+          }
+        }
+      ],
+      "commits": [],
+      "errors": [],
+      "time": {
+        "run": {
+          "agent_s": 2019,
+          "verify_s": 240,
+          "needs_you_s": 300,
+          "limit_s": 780,
+          "wall_s": 2385,
+          "wall": {
+            "agent_s": 1725,
+            "verify_s": 240,
+            "needs_you_s": 300,
+            "limit_s": 780
+          }
+        },
+        "phases": [
+          {
+            "phase": "P",
+            "agent_s": 1339,
+            "verify_s": 210,
+            "needs_you_s": 300,
+            "limit_s": 780,
+            "wall_s": 1675,
+            "wall": {
+              "agent_s": 1045,
+              "verify_s": 210,
+              "needs_you_s": 300,
+              "limit_s": 780
+            }
+          },
+          {
+            "phase": "S",
+            "agent_s": 680,
+            "verify_s": 30,
+            "needs_you_s": 0,
+            "limit_s": 0,
+            "wall_s": 710,
+            "wall": {
+              "agent_s": 680,
+              "verify_s": 30,
+              "needs_you_s": 0,
+              "limit_s": 0
+            }
+          }
+        ],
+        "ranks": [
+          {
+            "rank": "opus",
+            "agent_s": 745,
+            "verify_s": 90,
+            "needs_you_s": 120,
+            "limit_s": 0,
+            "wall_s": 955,
+            "wall": {
+              "agent_s": 745,
+              "verify_s": 90,
+              "needs_you_s": 120,
+              "limit_s": 0
+            }
+          },
+          {
+            "rank": "sonnet",
+            "agent_s": 1274,
+            "verify_s": 150,
+            "needs_you_s": 180,
+            "limit_s": 780,
+            "wall_s": 2384,
+            "wall": {
+              "agent_s": 1274,
+              "verify_s": 150,
+              "needs_you_s": 180,
+              "limit_s": 780
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
+--- stderr

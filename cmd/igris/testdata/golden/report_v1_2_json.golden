@@ -26,9 +26,62 @@ exit: 0
       "attempts": 1,
       "verify": [],
       "sessions": [],
-      "needs_you_s": 0
+      "needs_you_s": 0,
+      "time": {
+        "agent_s": 29,
+        "verify_s": 0,
+        "needs_you_s": 0,
+        "limit_s": 0
+      }
     }
   ],
+  "time": {
+    "run": {
+      "agent_s": 29,
+      "verify_s": 0,
+      "needs_you_s": 0,
+      "limit_s": 0,
+      "wall_s": 29,
+      "wall": {
+        "agent_s": 29,
+        "verify_s": 0,
+        "needs_you_s": 0,
+        "limit_s": 0
+      }
+    },
+    "phases": [
+      {
+        "phase": "A",
+        "agent_s": 29,
+        "verify_s": 0,
+        "needs_you_s": 0,
+        "limit_s": 0,
+        "wall_s": 29,
+        "wall": {
+          "agent_s": 29,
+          "verify_s": 0,
+          "needs_you_s": 0,
+          "limit_s": 0
+        }
+      }
+    ],
+    "ranks": [
+      {
+        "rank": "opus",
+        "agent_s": 29,
+        "verify_s": 0,
+        "needs_you_s": 0,
+        "limit_s": 0,
+        "wall_s": 29,
+        "wall": {
+          "agent_s": 29,
+          "verify_s": 0,
+          "needs_you_s": 0,
+          "limit_s": 0
+        }
+      }
+    ]
+  },
   "note": "runs.jsonl has lines from a newer igris (v2); some details may be missing"
 }
 --- stderr

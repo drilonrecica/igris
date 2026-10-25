@@ -62,6 +62,9 @@ type TaskRun struct {
 	DurationS    int    `json:"duration_s,omitempty"` // 0 when the log doesn't say
 	VerifyFailed int    `json:"verify_failed"`
 	VerifyPassed int    `json:"verify_passed"`
+	// Time is the task's time by what it was spent on; nil for a v0 run
+	// or a user task (SPEC §14). Since 1.8.
+	Time *Times `json:"time,omitempty"`
 }
 
 // HistoryRun is one igris run: the lines with its run ID, or for v0 lines
@@ -79,6 +82,8 @@ type HistoryRun struct {
 	Tasks     []TaskRun `json:"tasks"`
 	Commits   []string  `json:"commits"`
 	Errors    []string  `json:"errors"`
+	// Time is as Report.Time. Since 1.8.
+	Time *TimeBreakdown `json:"time,omitempty"`
 }
 
 // History is the result of `igris history`: the last runs, newest first.
@@ -342,6 +347,11 @@ func (r *runRec) summary(live bool) HistoryRun {
 		t.DurationS += seconds(a.start, a.end)
 		t.VerifyFailed += a.failed
 		t.VerifyPassed += a.passed
+	}
+	per, breakdown := r.times(r.waits())
+	out.Time = breakdown
+	for i := range out.Tasks {
+		out.Tasks[i].Time = per[out.Tasks[i].ID]
 	}
 	for _, t := range out.Tasks {
 		switch t.Result {

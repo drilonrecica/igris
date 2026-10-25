@@ -4,18 +4,21 @@ note: runs.jsonl has lines from a newer igris (v2); some details may be missing
 
 Run 20261003-080000-abcd · Oct 03 08:00 · phase B · ▲ interrupted
 1 done · 0 skipped
-  TASK   RESULT  RANK    MODEL   DURATION  VERIFY
-  ✓ B-1  done    sonnet  sonnet  4m00s     —
+  TASK   RESULT  RANK    MODEL   DURATION  AGENT  VERIFY  NEEDS YOU
+  ✓ B-1  done    sonnet  sonnet  4m00s     4m00s  —       0s
+  time: agent 4m00s · verify 0s · needs you 0s
 
 Run 20261002-100000-00ff · Oct 02 10:00 · phase A · ▲ interrupted
 0 done · 0 skipped
-  TASK   RESULT      RANK  MODEL  DURATION  VERIFY
-  ▲ A-2  unfinished  opus  opus   —         —
+  TASK   RESULT      RANK  MODEL  DURATION  AGENT  VERIFY  NEEDS YOU
+  ▲ A-2  unfinished  opus  opus   —         29s    —       0s
+  time: agent 29s · verify 0s · needs you 0s
 
 Run 20261001-090000-3fa2 · Oct 01 09:00 · phase A · ✓ completed · 12m07s
 1 done · 0 skipped
-  TASK   RESULT  RANK  MODEL  DURATION  VERIFY
-  ✓ A-2  done    opus  opus   12m05s    1 failed · 1 passed
+  TASK   RESULT  RANK  MODEL  DURATION  AGENT   VERIFY                     NEEDS YOU
+  ✓ A-2  done    opus  opus   12m05s    10m42s  1 failed · 1 passed · 23s  1m00s
+  time: agent 10m42s · verify 23s · needs you 1m00s
   commit: A-2: Two
 
 Run Sep 30 09:00 · phase A · ✓ completed · 3m01s

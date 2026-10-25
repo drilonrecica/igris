@@ -1,0 +1,38 @@
+exit: 0
+--- stdout
+# igris report · demo
+
+Run 20261005-100000-beef · Oct 05 10:00 → 10:40 (40m05s) · completed
+Phases P, S
+3 done · 0 skipped · 0 unfinished · 0 commits · needs you 5m00s
+
+## Phase P
+
+| Task | Result | Duration | Agent | Attempts | Tokens | Verify | Commit | Needs you |
+|---|---|---|---|---|---|---|---|---|
+| P-1 Parser | done | 15m55s | 12m25s | 1 | — | fast ✓ · 1m30s | — | 2m00s |
+| P-2 Printer | done | 27m54s | 9m54s | 1 | — | fast ✗ ✓ · 2m00s | — | 3m00s |
+
+Notes
+- P-1 done: parser done
+- P-2 done: printer done
+
+## Phase S
+
+| Task | Result | Duration | Agent | Attempts | Tokens | Verify | Commit | Needs you |
+|---|---|---|---|---|---|---|---|---|
+| S-1 Docs | done | 11m50s | 11m20s | 1 | — | fast ✓ · 30s | — | — |
+
+Notes
+- S-1 done: docs done
+
+## Time
+
+| Time | Agent | Verify | Needs you | Limit wait | Wall |
+|---|---|---|---|---|---|
+| Run | 33m39s (28m45s wall) | 4m00s | 5m00s | 13m00s | 39m45s |
+| Phase P | 22m19s (17m25s wall) | 3m30s | 5m00s | 13m00s | 27m55s |
+| Phase S | 11m20s | 30s | 0s | 0s | 11m50s |
+| Rank opus | 12m25s | 1m30s | 2m00s | 0s | 15m55s |
+| Rank sonnet | 21m14s | 2m30s | 3m00s | 13m00s | 39m44s |
+--- stderr

@@ -1,0 +1,16 @@
+exit: 0
+--- stdout
+Run 20261005-100000-beef · Oct 05 10:00 · phases P, S · ✓ completed · 40m05s
+3 done · 0 skipped
+  TASK   RESULT  RANK    MODEL   DURATION  AGENT   VERIFY                       NEEDS YOU
+  ✓ P-1  done    opus    opus    15m55s    12m25s  0 failed · 1 passed · 1m30s  2m00s
+  ✓ P-2  done    sonnet  sonnet  27m54s    9m54s   1 failed · 1 passed · 2m00s  3m00s
+  ✓ S-1  done    sonnet  sonnet  11m50s    11m20s  0 failed · 1 passed · 30s    0s
+  time: agent 33m39s (28m45s wall) · verify 4m00s · needs you 5m00s · limit wait 13m00s
+  phase P: agent 22m19s (17m25s wall) · verify 3m30s · needs you 5m00s · limit wait 13m00s
+  phase S: agent 11m20s · verify 30s · needs you 0s
+  rank opus: agent 12m25s · verify 1m30s · needs you 2m00s
+  rank sonnet: agent 21m14s · verify 2m30s · needs you 3m00s · limit wait 13m00s
+
+next: igris report
+--- stderr

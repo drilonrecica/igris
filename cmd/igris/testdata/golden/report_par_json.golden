@@ -1,0 +1,184 @@
+exit: 0
+--- stdout
+{
+  "v": 1,
+  "run": "20261005-100000-beef",
+  "started_at": "2026-10-05T10:00:00Z",
+  "ended_at": "2026-10-05T10:40:05Z",
+  "duration_s": 2405,
+  "end": "completed",
+  "phases": [
+    "P",
+    "S"
+  ],
+  "done": 3,
+  "skipped": 0,
+  "unfinished": 0,
+  "needs_you_s": 300,
+  "commits": [],
+  "errors": [],
+  "tasks": [
+    {
+      "id": "P-1",
+      "phase": "P",
+      "title": "Parser",
+      "owner": "agent",
+      "rank": "opus",
+      "model": "opus",
+      "result": "done",
+      "duration_s": 955,
+      "attempts": 1,
+      "verify": [
+        {
+          "profile": "fast",
+          "passed": true,
+          "duration_s": 90
+        }
+      ],
+      "note": "parser done",
+      "sessions": [],
+      "needs_you_s": 120,
+      "time": {
+        "agent_s": 745,
+        "verify_s": 90,
+        "needs_you_s": 120,
+        "limit_s": 0
+      }
+    },
+    {
+      "id": "P-2",
+      "phase": "P",
+      "title": "Printer",
+      "owner": "agent",
+      "rank": "sonnet",
+      "model": "sonnet",
+      "result": "done",
+      "duration_s": 1674,
+      "attempts": 1,
+      "verify": [
+        {
+          "profile": "fast",
+          "passed": false,
+          "duration_s": 60
+        },
+        {
+          "profile": "fast",
+          "passed": true,
+          "duration_s": 60
+        }
+      ],
+      "note": "printer done",
+      "sessions": [],
+      "needs_you_s": 180,
+      "time": {
+        "agent_s": 594,
+        "verify_s": 120,
+        "needs_you_s": 180,
+        "limit_s": 780
+      }
+    },
+    {
+      "id": "S-1",
+      "phase": "S",
+      "title": "Docs",
+      "owner": "agent",
+      "rank": "sonnet",
+      "model": "sonnet",
+      "result": "done",
+      "duration_s": 710,
+      "attempts": 1,
+      "verify": [
+        {
+          "profile": "fast",
+          "passed": true,
+          "duration_s": 30
+        }
+      ],
+      "note": "docs done",
+      "sessions": [],
+      "needs_you_s": 0,
+      "time": {
+        "agent_s": 680,
+        "verify_s": 30,
+        "needs_you_s": 0,
+        "limit_s": 0
+      }
+    }
+  ],
+  "time": {
+    "run": {
+      "agent_s": 2019,
+      "verify_s": 240,
+      "needs_you_s": 300,
+      "limit_s": 780,
+      "wall_s": 2385,
+      "wall": {
+        "agent_s": 1725,
+        "verify_s": 240,
+        "needs_you_s": 300,
+        "limit_s": 780
+      }
+    },
+    "phases": [
+      {
+        "phase": "P",
+        "agent_s": 1339,
+        "verify_s": 210,
+        "needs_you_s": 300,
+        "limit_s": 780,
+        "wall_s": 1675,
+        "wall": {
+          "agent_s": 1045,
+          "verify_s": 210,
+          "needs_you_s": 300,
+          "limit_s": 780
+        }
+      },
+      {
+        "phase": "S",
+        "agent_s": 680,
+        "verify_s": 30,
+        "needs_you_s": 0,
+        "limit_s": 0,
+        "wall_s": 710,
+        "wall": {
+          "agent_s": 680,
+          "verify_s": 30,
+          "needs_you_s": 0,
+          "limit_s": 0
+        }
+      }
+    ],
+    "ranks": [
+      {
+        "rank": "opus",
+        "agent_s": 745,
+        "verify_s": 90,
+        "needs_you_s": 120,
+        "limit_s": 0,
+        "wall_s": 955,
+        "wall": {
+          "agent_s": 745,
+          "verify_s": 90,
+          "needs_you_s": 120,
+          "limit_s": 0
+        }
+      },
+      {
+        "rank": "sonnet",
+        "agent_s": 1274,
+        "verify_s": 150,
+        "needs_you_s": 180,
+        "limit_s": 780,
+        "wall_s": 2384,
+        "wall": {
+          "agent_s": 1274,
+          "verify_s": 150,
+          "needs_you_s": 180,
+          "limit_s": 780
+        }
+      }
+    ]
+  }
+}
+--- stderr

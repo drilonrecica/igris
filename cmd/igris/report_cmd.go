@@ -124,8 +124,8 @@ func printReport(o textOut, r report.Report) {
 		} else {
 			fmt.Fprintf(w, "\n## Phase %s\n\n", md(g.Phase))
 		}
-		fmt.Fprintln(w, "| Task | Result | Duration | Attempts | Tokens | Verify | Commit | Needs you |")
-		fmt.Fprintln(w, "|---|---|---|---|---|---|---|---|")
+		fmt.Fprintln(w, "| Task | Result | Duration | Agent | Attempts | Tokens | Verify | Commit | Needs you |")
+		fmt.Fprintln(w, "|---|---|---|---|---|---|---|---|---|")
 		for _, t := range g.Tasks {
 			attempts := ""
 			if t.Attempts > 0 {
@@ -139,9 +139,16 @@ func printReport(o textOut, r report.Report) {
 			if t.RankMismatch() {
 				result += " " + o.paint(look.Warn, rankMark)
 			}
-			fmt.Fprintf(w, "| %s | %s | %s | %s | %s | %s | %s | %s |\n",
-				cell(strings.TrimSpace(t.ID+" "+t.Title)), result, dash(fmtSeconds(t.DurationS)), dash(attempts), tokensCell(t.Usage),
-				dash(cell(verifyMarks(t.Verify))), dash(shortSHA(t.Commit)), dash(needs))
+			agent, verify := "", cell(verifyMarks(t.Verify))
+			if t.Time != nil {
+				agent = fmtDuration(t.Time.AgentS)
+				if verify != "" && t.Time.VerifyS > 0 {
+					verify += " · " + fmtSeconds(t.Time.VerifyS)
+				}
+			}
+			fmt.Fprintf(w, "| %s | %s | %s | %s | %s | %s | %s | %s | %s |\n",
+				cell(strings.TrimSpace(t.ID+" "+t.Title)), result, dash(fmtSeconds(t.DurationS)), dash(agent), dash(attempts), tokensCell(t.Usage),
+				dash(verify), dash(shortSHA(t.Commit)), dash(needs))
 		}
 		var notes, resume []string
 		for _, t := range g.Tasks {
@@ -156,11 +163,55 @@ func printReport(o textOut, r report.Report) {
 		printList(w, "Notes", notes)
 		printList(w, "Resume", resume)
 	}
+	printTimes(w, r.Time)
 	var errs []string
 	for _, e := range r.Errors {
 		errs = append(errs, "- "+md(e))
 	}
 	printList(w, "Errors", errs)
+}
+
+// printTimes writes the run's time breakdown (SPEC §14): a row for the
+// run, and one per phase and per rank when there are several. A time
+// counted per task is followed by its wall time when tasks overlapped in
+// it (a parallel phase); Limit wait is a column only when there was one.
+func printTimes(w io.Writer, tm *report.TimeBreakdown) {
+	if tm == nil {
+		return
+	}
+	limit := tm.Run.LimitS > 0
+	cellOf := func(sum, wall int) string {
+		out := fmtDuration(sum)
+		if wall != sum {
+			out += " (" + fmtDuration(wall) + " wall)"
+		}
+		return out
+	}
+	row := func(name string, g report.TimeGroup) {
+		cells := []string{name, cellOf(g.AgentS, g.Wall.AgentS), cellOf(g.VerifyS, g.Wall.VerifyS), cellOf(g.NeedsYouS, g.Wall.NeedsYouS)}
+		if limit {
+			cells = append(cells, cellOf(g.LimitS, g.Wall.LimitS))
+		}
+		cells = append(cells, fmtDuration(g.WallS))
+		fmt.Fprintf(w, "| %s |\n", strings.Join(cells, " | "))
+	}
+	head := []string{"Time", "Agent", "Verify", "Needs you"}
+	if limit {
+		head = append(head, "Limit wait")
+	}
+	head = append(head, "Wall")
+	fmt.Fprintf(w, "\n## Time\n\n| %s |\n|%s\n", strings.Join(head, " | "), strings.Repeat("---|", len(head)))
+	row("Run", tm.Run)
+	if len(tm.Phases) > 1 {
+		for _, g := range tm.Phases {
+			row("Phase "+md(g.Phase), g)
+		}
+	}
+	if len(tm.Ranks) > 1 {
+		for _, g := range tm.Ranks {
+			row("Rank "+md(g.Rank), g)
+		}
+	}
 }
 
 // runSpan is a run's start and end, local (SPEC §14): "Oct 08 09:15 →

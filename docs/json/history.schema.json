@@ -80,6 +80,9 @@
           "items": {
             "type": "string"
           }
+        },
+        "time": {
+          "$ref": "#/$defs/time_breakdown"
         }
       },
       "required": [
@@ -130,6 +133,10 @@
         "verify_passed": {
           "type": "integer",
           "minimum": 0
+        },
+        "time": {
+          "$ref": "#/$defs/times",
+          "description": "Since 1.8: the task's time by what it was spent on (SPEC §14): each instant once, in the first of needs you, limit wait, verify and agent it is in; absent for a v0 run and a user task."
         }
       },
       "required": [
@@ -138,6 +145,113 @@
         "attempts",
         "verify_failed",
         "verify_passed"
+      ]
+    },
+    "times": {
+      "type": "object",
+      "description": "Seconds by what the time was spent on.",
+      "properties": {
+        "agent_s": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The rest of the time: the task's sessions at work, resolver sessions included."
+        },
+        "verify_s": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The verify command running, outside the waits."
+        },
+        "needs_you_s": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "igris waiting on the owner."
+        },
+        "limit_s": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "A session waiting for a usage limit to reset, outside a needs-you wait."
+        }
+      },
+      "required": [
+        "agent_s",
+        "verify_s",
+        "needs_you_s",
+        "limit_s"
+      ]
+    },
+    "time_group": {
+      "type": "object",
+      "description": "The time of a set of agent tasks (the run's, a phase's or a rank's): agent_s … limit_s summed over the tasks, so tasks running side by side in a parallel phase each count; wall the time at least one of them spent on each; wall_s the time at least one of them ran.",
+      "properties": {
+        "phase": {
+          "type": "string"
+        },
+        "rank": {
+          "type": "string"
+        },
+        "agent_s": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The rest of the time: the task's sessions at work, resolver sessions included."
+        },
+        "verify_s": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The verify command running, outside the waits."
+        },
+        "needs_you_s": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "igris waiting on the owner."
+        },
+        "limit_s": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "A session waiting for a usage limit to reset, outside a needs-you wait."
+        },
+        "wall_s": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "wall": {
+          "$ref": "#/$defs/times"
+        }
+      },
+      "required": [
+        "agent_s",
+        "verify_s",
+        "needs_you_s",
+        "limit_s",
+        "wall_s",
+        "wall"
+      ]
+    },
+    "time_breakdown": {
+      "type": "object",
+      "description": "Since 1.8: the run's time by what it was spent on (SPEC §14), for its agent tasks; absent for a v0 run and a run without an agent task. A wait on the owner of no task is in the run's needs_you_s only.",
+      "properties": {
+        "run": {
+          "$ref": "#/$defs/time_group"
+        },
+        "phases": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/time_group"
+          },
+          "description": "Each phase, in log order."
+        },
+        "ranks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/time_group"
+          },
+          "description": "Each rank, in order of first start."
+        }
+      },
+      "required": [
+        "run",
+        "phases",
+        "ranks"
       ]
     }
   }

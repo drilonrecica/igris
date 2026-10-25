@@ -96,13 +96,42 @@ func printHistory(w io.Writer, h report.History) {
 		o.println(strings.Join(head, " · ") + " · " + end)
 		o.printf("%d done · %d skipped", r.Done, r.Skipped)
 		if len(r.Tasks) > 0 {
-			tb := &look.Table{Indent: "  ", Header: []string{"TASK", "RESULT", "RANK", "MODEL", "DURATION", "VERIFY"}}
+			// Agent and needs-you time only where the log records them (v1).
+			timed := r.Time != nil
+			header := []string{"TASK", "RESULT", "RANK", "MODEL", "DURATION", "VERIFY"}
+			if timed {
+				header = []string{"TASK", "RESULT", "RANK", "MODEL", "DURATION", "AGENT", "VERIFY", "NEEDS YOU"}
+			}
+			tb := &look.Table{Indent: "  ", Header: header}
 			for _, t := range r.Tasks {
 				glyph, sev := resultMark(t.Result)
-				tb.Row(look.Mark(sev, glyph, t.ID), look.TextCell(t.Result), look.TextCell(t.Rank), look.TextCell(t.Model),
-					look.TextCell(fmtSeconds(t.DurationS)), look.TextCell(verifyText(t)))
+				cells := []look.Cell{look.Mark(sev, glyph, t.ID), look.TextCell(t.Result), look.TextCell(t.Rank), look.TextCell(t.Model),
+					look.TextCell(fmtSeconds(t.DurationS))}
+				switch {
+				case !timed:
+					cells = append(cells, look.TextCell(verifyText(t)))
+				case t.Time == nil: // a user task
+					cells = append(cells, look.TextCell(""), look.TextCell(verifyText(t)), look.TextCell(""))
+				default:
+					cells = append(cells, look.TextCell(fmtDuration(t.Time.AgentS)), look.TextCell(verifyText(t)),
+						look.TextCell(fmtDuration(t.Time.NeedsYouS)))
+				}
+				tb.Row(cells...)
 			}
 			o.table(tb)
+		}
+		if tm := r.Time; tm != nil {
+			o.println(o.fit("  time: " + timeLine(tm.Run)))
+			if len(tm.Phases) > 1 {
+				for _, g := range tm.Phases {
+					o.println(o.fit("  phase " + g.Phase + ": " + timeLine(g)))
+				}
+			}
+			if len(tm.Ranks) > 1 {
+				for _, g := range tm.Ranks {
+					o.println(o.fit("  rank " + g.Rank + ": " + timeLine(g)))
+				}
+			}
 		}
 		for _, c := range r.Commits {
 			o.println(o.fit("  commit: " + c))
@@ -201,11 +230,40 @@ func printNote(o textOut, note string) {
 	}
 }
 
+// verifyText is a task's verify results and, when the log says, the time
+// verify took: "1 failed · 1 passed · 45s".
 func verifyText(t report.TaskRun) string {
 	if t.VerifyFailed == 0 && t.VerifyPassed == 0 {
 		return ""
 	}
-	return fmt.Sprintf("%d failed · %d passed", t.VerifyFailed, t.VerifyPassed)
+	out := fmt.Sprintf("%d failed · %d passed", t.VerifyFailed, t.VerifyPassed)
+	if t.Time != nil && t.Time.VerifyS > 0 {
+		out += " · " + fmtSeconds(t.Time.VerifyS)
+	}
+	return out
+}
+
+// timeLine is a group's time breakdown (SPEC §14): "agent 30m00s (12m00s
+// wall) · verify 1m10s · needs you 2m00s", a time counted per task
+// followed by its wall time when tasks overlapped in it, the limit wait
+// only when there was one.
+func timeLine(g report.TimeGroup) string {
+	part := func(name string, sum, wall int) string {
+		out := name + " " + fmtDuration(sum)
+		if wall != sum {
+			out += " (" + fmtDuration(wall) + " wall)"
+		}
+		return out
+	}
+	parts := []string{
+		part("agent", g.AgentS, g.Wall.AgentS),
+		part("verify", g.VerifyS, g.Wall.VerifyS),
+		part("needs you", g.NeedsYouS, g.Wall.NeedsYouS),
+	}
+	if g.LimitS > 0 {
+		parts = append(parts, part("limit wait", g.LimitS, g.Wall.LimitS))
+	}
+	return strings.Join(parts, " · ")
 }
 
 func dash(s string) string {
