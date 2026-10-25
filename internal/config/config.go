@@ -151,11 +151,29 @@ type Run struct {
 	// a branch of their own (SPEC §6.8); nil is off. Left out of the
 	// config hash while unset.
 	Worktree *bool `toml:"worktree,omitempty" json:",omitempty"`
+	// DepNotes puts the done notes and approved plans of a task's deps in
+	// its prompt (SPEC §6.1, since 1.8); nil is on. Left out of the config
+	// hash while unset or true.
+	DepNotes *bool `toml:"dep_notes,omitempty" json:",omitempty"`
 }
 
 // WorktreeOn reports whether runs use a worktree (SPEC §6.8); off unless
 // worktree = true.
 func (r Run) WorktreeOn() bool { return r.Worktree != nil && *r.Worktree }
+
+// DepNotesOn reports whether task prompts get their deps' notes (SPEC
+// §6.1); on unless dep_notes = false.
+func (r Run) DepNotesOn() bool { return r.DepNotes == nil || *r.DepNotes }
+
+// The commit policies (SPEC §6.5). CommitBatch commits each task as
+// CommitAuto does and asks once, when the run ends, whether to keep the
+// run's commits (since 1.8).
+const (
+	CommitAsk   = "ask"
+	CommitAuto  = "auto"
+	CommitNever = "never"
+	CommitBatch = "batch"
+)
 
 // PhaseConfig is a [phases.<id>] table.
 type PhaseConfig struct {
@@ -257,6 +275,15 @@ type Usage struct {
 	// Statusline makes igris's status line the one in task panes, to record
 	// the subscription quota (SPEC §6.3). It replaces the owner's own.
 	Statusline bool `toml:"statusline,omitempty" json:",omitempty"`
+	// HoldAt is the quota percentage that holds the next task (SPEC §6.9,
+	// since 1.8); nil is DefaultHoldAt, 0 holds only after a hit.
+	HoldAt *int `toml:"hold_at,omitempty" json:",omitempty"`
+	// Prices overrides the embedded price table per model id
+	// ([usage.prices], since 1.8); left out of the hash while unset.
+	Prices map[string]Price `toml:"prices,omitempty" json:",omitempty"`
+	// Budget is [usage.budget] (since 1.8); left out of the hash while
+	// unset.
+	Budget Budgets `toml:"budget,omitempty" json:",omitzero"`
 }
 
 // On reports whether igris reads its sessions' transcripts for usage and
@@ -459,16 +486,19 @@ const (
 	// MaxParallel bounds max, --parallel and every rank cap.
 	MaxParallel = 8
 	// OnConflictRerun runs a task that doesn't integrate again once, from
-	// the start; OnConflictAsk asks the owner at once (SPEC §6.11).
-	OnConflictRerun = "rerun"
-	OnConflictAsk   = "ask"
+	// the start; OnConflictAsk asks the owner at once; OnConflictResolve
+	// opens one resolver session first, then reruns once (SPEC §6.11,
+	// since 1.8).
+	OnConflictRerun   = "rerun"
+	OnConflictAsk     = "ask"
+	OnConflictResolve = "resolve"
 	// defaultCapRank is the rank held to one active task unless
 	// [parallel.ranks] says otherwise.
 	defaultCapRank = "fable"
 )
 
 // validOnConflict are the on_conflict policies.
-var validOnConflict = []string{OnConflictRerun, OnConflictAsk}
+var validOnConflict = []string{OnConflictRerun, OnConflictAsk, OnConflictResolve}
 
 // Parallel is the [parallel] table (SPEC §12): how the phases marked
 // <!-- igris:parallel --> run (SPEC §5.1, §6.11). Every key is nil or
@@ -484,8 +514,11 @@ type Parallel struct {
 	// parallel; nil is false.
 	SerialVerify *bool `toml:"serial_verify,omitempty" json:",omitempty"`
 	// OnConflict is what happens to a task that doesn't integrate:
-	// OnConflictRerun or OnConflictAsk; "" is rerun.
+	// OnConflictRerun, OnConflictAsk or OnConflictResolve; "" is rerun.
 	OnConflict string `toml:"on_conflict,omitempty" json:",omitempty"`
+	// ResolverRank is the rank of the resolver session, a [models] key;
+	// "" is the task's own rank (since 1.8).
+	ResolverRank string `toml:"resolver_rank,omitempty" json:",omitempty"`
 	// Ranks caps the active tasks of a rank ([parallel.ranks]), 1 to
 	// MaxParallel each; RankCaps merges in the default fable = 1.
 	Ranks map[string]int `toml:"ranks,omitempty" json:",omitempty"`
@@ -494,7 +527,7 @@ type Parallel struct {
 // IsZero reports that nothing in [parallel] is set, so the table stays out
 // of the written file; Hash normalizes the defaults away first.
 func (p Parallel) IsZero() bool {
-	return p.Max == nil && p.ExclusiveOwnerTasks == nil && p.SerialVerify == nil && p.OnConflict == "" && len(p.Ranks) == 0
+	return p.Max == nil && p.ExclusiveOwnerTasks == nil && p.SerialVerify == nil && p.OnConflict == "" && p.ResolverRank == "" && len(p.Ranks) == 0
 }
 
 // MaxOrDefault is parallel.max, or DefaultParallelMax when unset.
@@ -692,10 +725,10 @@ func (Secrets) GoString() string { return "config.Secrets{redacted}" }
 
 var (
 	validModes   = []string{"default", "accept", "auto", "plan", "plan:default", "plan:accept", "plan:auto", "plan:yolo", "yolo", "manual"}
-	validCommit  = []string{"ask", "auto", "never"}
+	validCommit  = []string{CommitAsk, CommitAuto, CommitNever, CommitBatch}
 	validAdapt   = []string{"sonnet", "opus"}
 	validThemes  = []string{"auto", "dark", "light"}
-	validEvents  = []string{"needs_input", "session_lost", "task_overdue", "rank_mismatch", "verify_failed_limit", "task_done", "phase_done", "phase_stuck", "run_error"}
+	validEvents  = []string{"needs_input", "session_lost", "task_overdue", "rank_mismatch", "verify_failed_limit", "task_done", "phase_done", "phase_stuck", "run_error", "usage_limit", "budget_exceeded"}
 	forbiddenArg = []string{
 		"--model", "--fallback-model", "--permission-mode",
 		"--dangerously-skip-permissions", "--allow-dangerously-skip-permissions",
@@ -730,7 +763,16 @@ func ForbiddenExtraArg(arg string) bool {
 }
 
 func defaultEvents() []string {
-	return []string{"needs_input", "session_lost", "task_overdue", "rank_mismatch", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"}
+	return []string{"needs_input", "session_lost", "task_overdue", "rank_mismatch", "phase_done", "phase_stuck", "run_error", "verify_failed_limit", "usage_limit", "budget_exceeded"}
+}
+
+// pastDefaultEvents are the default events lists of earlier releases: a
+// config that lists one of them itself hashes as the default does, as it
+// did in those releases (SPEC §19).
+func pastDefaultEvents() [][]string {
+	return [][]string{
+		{"needs_input", "session_lost", "task_overdue", "rank_mismatch", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"}, // 1.1–1.7
+	}
 }
 
 // hashEvents is the default events list as the config hash encodes it: the
@@ -965,6 +1007,7 @@ func (c *Config) Validate() error {
 	}
 
 	c.validateSide(add)
+	c.validateUsage(add)
 	c.validateParallel(add)
 	c.validateServe(add)
 
@@ -1141,7 +1184,7 @@ func (c *Config) validateSide(add func(string, ...any)) {
 
 // validateParallel checks [parallel] and [parallel.ranks] (SPEC §12): max
 // and every cap from 1 to MaxParallel, on_conflict a known policy, the
-// ranks [models] keys.
+// ranks and resolver_rank [models] keys.
 func (c *Config) validateParallel(add func(string, ...any)) {
 	p := c.Parallel
 	if p.Max != nil && (*p.Max < 1 || *p.Max > MaxParallel) {
@@ -1149,6 +1192,11 @@ func (c *Config) validateParallel(add func(string, ...any)) {
 	}
 	if p.OnConflict != "" && !contains(validOnConflict, p.OnConflictOrDefault()) {
 		add("parallel.on_conflict = %q is invalid; use one of: %s", textsafe.Line(p.OnConflict), strings.Join(validOnConflict, ", "))
+	}
+	if r := p.ResolverRank; r != "" {
+		if _, ok := c.Models[r]; !ok {
+			add("parallel.resolver_rank = %q is not a [models] rank; use one of: %s, or leave it unset for the task's own rank", textsafe.Line(r), strings.Join(sortedKeys(c.Models), ", "))
+		}
 	}
 	for _, rank := range sortedKeys(p.Ranks) {
 		if _, ok := c.Models[rank]; !ok {
@@ -1201,6 +1249,10 @@ func (c *Config) Warnings() []string {
 	if n.Ntfy.Actions && c.Serve.HTTP == "" {
 		out = append(out, "notify.ntfy.actions = true needs serve's HTTP listener: set [serve] http (SPEC §14), or the answer buttons are left out")
 	}
+	if p := c.Parallel; p.ResolverRank != "" && p.OnConflictOrDefault() != OnConflictResolve {
+		out = append(out, fmt.Sprintf("parallel.resolver_rank is set, but on_conflict = %q; no resolver runs: set on_conflict = \"resolve\", or remove resolver_rank", p.OnConflictOrDefault()))
+	}
+	out = append(out, c.usageWarnings()...)
 	return out
 }
 
@@ -1337,8 +1389,12 @@ func Write(path string, c *Config) error {
 func (c *Config) Hash() string {
 	h := *c
 	h.Parallel = h.Parallel.normalized() // the defaults written out are no change (SPEC §12)
+	h.Usage = h.Usage.normalized()
+	if h.Run.DepNotes != nil && *h.Run.DepNotes {
+		h.Run.DepNotes = nil
+	}
 	for _, ev := range []*[]string{&h.Notify.Ntfy.Events, &h.Notify.Discord.Events, &h.Notify.Webhook.Events, &h.Notify.Slack.Events, &h.Notify.Gotify.Events} {
-		if slices.Equal(*ev, defaultEvents()) {
+		if slices.Equal(*ev, defaultEvents()) || slices.ContainsFunc(pastDefaultEvents(), func(past []string) bool { return slices.Equal(*ev, past) }) {
 			*ev = hashEvents() // replaced, never written through: c keeps its lists
 		}
 	}

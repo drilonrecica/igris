@@ -132,6 +132,27 @@ func TestPlanGiven(t *testing.T) {
 	}
 }
 
+// A [usage.budget.phases] key that names no phase of the plan is a plan
+// hint, as an unknown [phases.<id>] is (SPEC §12): the config is validated
+// without the plan. Phase IDs match case-insensitively.
+func TestBudgetPhaseNamesNoPhase(t *testing.T) {
+	cfg, err := config.Parse([]byte("[usage.budget.phases]\na = \"1M\"\nZ9 = \"$5\"\n"), "igris.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := plan.Parse("tasks.md", []byte(driftPlan), plan.Options{})
+	got := Problems(Run(context.Background(), Options{IDs: []string{IDPlanHints}, Config: cfg, Plan: p}))
+	var msgs []string
+	for _, r := range got {
+		if strings.Contains(r.Message, "usage.budget") {
+			msgs = append(msgs, r.String())
+		}
+	}
+	if want := []string{"igris.toml: usage.budget.phases.Z9 names no phase of tasks.md, so it never holds; fix the phase ID or remove it"}; !slices.Equal(msgs, want) {
+		t.Errorf("budget hints = %q, want %q", msgs, want)
+	}
+}
+
 func TestConfigWarnings(t *testing.T) {
 	cfg := config.Default()
 	if got := Run(context.Background(), Options{IDs: []string{IDConfig}, Config: cfg}); len(got) != 1 || got[0].Level != OK {

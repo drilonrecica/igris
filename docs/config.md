@@ -38,11 +38,12 @@
 | `verify` | string | `""` | Shell command run after a task signals done; the verify profile `default` (SPEC §6.4). Empty means no verification. Cannot be combined with `[verify] default`. |
 | `verify_timeout` | duration | `"15m"` | Time limit for every verify profile. Greater than zero. |
 | `verify_max_attempts` | integer | `3` | How many times a failing verify is fed back to the agent before the run stops. |
-| `commit` | string | `"ask"` | What igris does with the changes after a verified task. Allowed: `ask`, `auto`, `never`. |
+| `commit` | string | `"ask"` | What igris does with the changes after a verified task (SPEC §6.5): `ask` asks after each task, `auto` commits, `never` leaves git alone, `batch` commits each task as `auto` does and asks once, when the run ends, whether to keep the run's commits. Allowed: `ask`, `auto`, `never`, `batch`. |
 | `commit_message` | string | `"{{.ID}}: {{.Title}}"` | Go template for the commit message. Variables include `{{.ID}}` and `{{.Title}}`. |
 | `prompt_template` | string | `""` | Path to a custom task prompt template. Empty uses the built-in one. |
 | `env` | list of strings | unset | The only variables verify commands and task hooks get, besides `PATH` and `HOME`: names, or prefixes ending in `*` (SPEC §6.4). Unset passes igris's whole environment. |
 | `worktree` | boolean | `false` | Run sessions, verify and commits in a git worktree on branch `igris/<run-id>` (SPEC §6.8). |
+| `dep_notes` | boolean | `true` | Put the done notes and approved plans of a task's direct deps in its prompt, bounded and cleaned (SPEC §6.1, `.DepNotes`). `false` leaves them out. |
 
 ## `[hooks]`
 
@@ -65,6 +66,16 @@
 |---|---|---|---|
 | `enabled` | boolean | `true` | Read the task sessions' transcripts for token usage in the run log (SPEC §6.9). `false` reads none. |
 | `statusline` | boolean | `false` | Use igris's status line in task panes to record your subscription quota (5-hour and 7-day usage) for the header and `igris usage` (SPEC §6.3). It replaces your own status line in those panes. `false` leaves it alone and the quota is unavailable. |
+| `hold_at` | integer | `95` | Hold the next task while a quota window is at or above this percentage, until it resets (SPEC §6.9). Needs `statusline`; `0` holds only after a session hits a usage limit, which holds new tasks either way. Allowed: `0` to `100`. |
+| `prices` | table | the embedded table | Overrides igris's embedded price table, which the `≈ $` estimate uses (SPEC §6.9): a model id to `{ input, cache_write_5m, cache_write_1h, cache_read, output }`, US dollars per million tokens, all five, not negative. A model igris doesn't know may be named. |
+
+## `[usage.budget]`
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `run` | integer or string | unset | The run's budget (SPEC §6.9): a token count (`"20M"`, `"500k"`, `1500000`; input + output, subagents included) or an estimated amount (`"$40"`, by the price table). Reaching it needs you; nothing is stopped. |
+| `phases` | table | no budgets | Budgets per phase under `[usage.budget.phases]`: a phase ID (case-insensitive) to a budget like `run`'s. |
+| `ranks` | table | no budgets | Budgets per rank under `[usage.budget.ranks]`: a `[models]` key to a budget like `run`'s. |
 
 ## `[side]`
 
@@ -92,7 +103,8 @@
 | `max` | integer | `2` | How many tasks a phase marked `<!-- igris:parallel -->` runs at once, each in its own worktree (SPEC §5.1, §6.11). `arise`/`serve --parallel N` replaces it for one run. Allowed: `1` to `8`. |
 | `exclusive_owner_tasks` | boolean | `true` | A `user` or `agent + user` task of a parallel phase starts only when no other task is active, and nothing starts beside it (SPEC §5.1). `false` schedules them like the others. |
 | `serial_verify` | boolean | `false` | Run one verify at a time in a parallel phase while the sessions stay parallel (SPEC §6.11). |
-| `on_conflict` | string | `"rerun"` | What happens to a task whose commit doesn't integrate, a rebase conflict or verify failing on the integrated tree (SPEC §6.11): `rerun` runs it again from the start once, then asks; `ask` asks at once. Allowed: `rerun`, `ask`. |
+| `on_conflict` | string | `"rerun"` | What happens to a task whose commit doesn't integrate, a rebase conflict or verify failing on the integrated tree (SPEC §6.11): `rerun` runs it again from the start once, then asks; `ask` asks at once; `resolve` opens one resolver session to settle it, then reruns once, then asks. Allowed: `rerun`, `ask`, `resolve`. |
+| `resolver_rank` | string | the task's rank | The rank of the resolver session under `on_conflict = "resolve"` (SPEC §6.11), a `[models]` key. Unset: the task's own rank. |
 | `ranks` | table | `{ fable = 1 }` | At most this many active tasks of a rank, under `[parallel.ranks]` (SPEC §5.1): a `[models]` key to `1`–`8`. Merged with the default `fable = 1`; a cap above `max` changes nothing. |
 
 ## `[serve]`
@@ -133,7 +145,7 @@
 | `server` | string | `"https://ntfy.sh"` | ntfy server URL. |
 | `topic` | string | `""` | ntfy topic. The channel is off while this is empty. |
 | `token` | string | `""` | ntfy access token, or `"env:VAR"` to read it from the environment. |
-| `events` | list of strings | `["needs_input", "session_lost", "task_overdue", "rank_mismatch", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]` | Events sent to ntfy. A file igris writes leaves this out while it is the default list. Allowed: event names (see below). |
+| `events` | list of strings | `["needs_input", "session_lost", "task_overdue", "rank_mismatch", "phase_done", "phase_stuck", "run_error", "verify_failed_limit", "usage_limit", "budget_exceeded"]` | Events sent to ntfy. A file igris writes leaves this out while it is the default list. Allowed: event names (see below). |
 | `template` | string | `""` | Message text template (SPEC §10), at most 1000 characters. Empty uses the default text. |
 | `actions` | boolean | `false` | Answer buttons on a pending question's message (SPEC §10): commit, skip, retry or stop, approve a plan. Needs serve's HTTP listener (`[serve] http` or `serve --http`). |
 
@@ -142,7 +154,7 @@
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `webhook_url` | string | `""` | Discord webhook URL (https only), or `"env:VAR"`. The channel is off while this is empty. |
-| `events` | list of strings | `["needs_input", "session_lost", "task_overdue", "rank_mismatch", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]` | Events sent to Discord. Allowed: event names (see below). |
+| `events` | list of strings | `["needs_input", "session_lost", "task_overdue", "rank_mismatch", "phase_done", "phase_stuck", "run_error", "verify_failed_limit", "usage_limit", "budget_exceeded"]` | Events sent to Discord. Allowed: event names (see below). |
 | `template` | string | `""` | Message text template (SPEC §10). |
 
 ## `[notify.webhook]`
@@ -151,7 +163,7 @@
 |---|---|---|---|
 | `url` | string | `""` | Generic webhook URL (http or https), or `"env:VAR"`. The channel is off while url and secret are empty. |
 | `secret` | string | `""` | Signs the body (`X-Igris-Signature`), or `"env:VAR"`. A secret without a url is an error. |
-| `events` | list of strings | `["needs_input", "session_lost", "task_overdue", "rank_mismatch", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]` | Events sent to the webhook. Allowed: event names (see below). |
+| `events` | list of strings | `["needs_input", "session_lost", "task_overdue", "rank_mismatch", "phase_done", "phase_stuck", "run_error", "verify_failed_limit", "usage_limit", "budget_exceeded"]` | Events sent to the webhook. Allowed: event names (see below). |
 | `template` | string | `""` | Message text template (SPEC §10). |
 
 ## `[notify.slack]`
@@ -159,7 +171,7 @@
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `webhook_url` | string | `""` | Slack incoming-webhook URL (https only), or `"env:VAR"`. The channel is off while this is empty. |
-| `events` | list of strings | `["needs_input", "session_lost", "task_overdue", "rank_mismatch", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]` | Events sent to Slack. Allowed: event names (see below). |
+| `events` | list of strings | `["needs_input", "session_lost", "task_overdue", "rank_mismatch", "phase_done", "phase_stuck", "run_error", "verify_failed_limit", "usage_limit", "budget_exceeded"]` | Events sent to Slack. Allowed: event names (see below). |
 | `template` | string | `""` | Message text template (SPEC §10). |
 
 ## `[notify.gotify]`
@@ -168,11 +180,11 @@
 |---|---|---|---|
 | `server` | string | `""` | Gotify server URL, for example `https://gotify.example.org`. Needs `token` too. |
 | `token` | string | `""` | Gotify application token, or `"env:VAR"`. Needs `server` too. |
-| `events` | list of strings | `["needs_input", "session_lost", "task_overdue", "rank_mismatch", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]` | Events sent to Gotify. Allowed: event names (see below). |
+| `events` | list of strings | `["needs_input", "session_lost", "task_overdue", "rank_mismatch", "phase_done", "phase_stuck", "run_error", "verify_failed_limit", "usage_limit", "budget_exceeded"]` | Events sent to Gotify. Allowed: event names (see below). |
 | `template` | string | `""` | Message text template (SPEC §10). |
 
 ## Event names
 
-`events` and `break_through` take any of: `needs_input`, `session_lost`, `task_overdue`, `rank_mismatch`, `verify_failed_limit`, `task_done`, `phase_done`, `phase_stuck`, `run_error`.
+`events` and `break_through` take any of: `needs_input`, `session_lost`, `task_overdue`, `rank_mismatch`, `verify_failed_limit`, `task_done`, `phase_done`, `phase_stuck`, `run_error`, `usage_limit`, `budget_exceeded`.
 
-The default `events` of a channel are `["needs_input", "session_lost", "task_overdue", "rank_mismatch", "phase_done", "phase_stuck", "run_error", "verify_failed_limit"]`; the default `break_through` is `["needs_input", "session_lost", "task_overdue"]`.
+The default `events` of a channel are `["needs_input", "session_lost", "task_overdue", "rank_mismatch", "phase_done", "phase_stuck", "run_error", "verify_failed_limit", "usage_limit", "budget_exceeded"]`; the default `break_through` is `["needs_input", "session_lost", "task_overdue"]`.

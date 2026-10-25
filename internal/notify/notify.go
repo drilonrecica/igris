@@ -32,6 +32,8 @@ const (
 	PhaseDone         Event = "phase_done"
 	PhaseStuck        Event = "phase_stuck"
 	RunError          Event = "run_error"
+	UsageLimit        Event = "usage_limit"     // since 1.8 (SPEC §6.9)
+	BudgetExceeded    Event = "budget_exceeded" // since 1.8 (SPEC §6.9)
 )
 
 // Digest is the event of a quiet-hours digest: the messages one channel
@@ -39,15 +41,15 @@ const (
 const Digest Event = "digest"
 
 // AllEvents lists every event.
-var AllEvents = []Event{NeedsInput, SessionLost, TaskOverdue, RankMismatch, VerifyFailedLimit, TaskDone, PhaseDone, PhaseStuck, RunError}
+var AllEvents = []Event{NeedsInput, SessionLost, TaskOverdue, RankMismatch, VerifyFailedLimit, TaskDone, PhaseDone, PhaseStuck, RunError, UsageLimit, BudgetExceeded}
 
 // DefaultEvents are the events a channel gets when its config lists none.
-var DefaultEvents = []Event{NeedsInput, SessionLost, TaskOverdue, RankMismatch, PhaseDone, PhaseStuck, RunError, VerifyFailedLimit}
+var DefaultEvents = []Event{NeedsInput, SessionLost, TaskOverdue, RankMismatch, PhaseDone, PhaseStuck, RunError, VerifyFailedLimit, UsageLimit, BudgetExceeded}
 
 // Urgent reports whether the owner is needed now (high priority on ntfy,
 // the "request" sound on a toast).
 func (e Event) Urgent() bool {
-	return e == NeedsInput || e == SessionLost || e == TaskOverdue || e == RankMismatch
+	return e == NeedsInput || e == SessionLost || e == TaskOverdue || e == RankMismatch || e == BudgetExceeded
 }
 
 // Message is what a notification says. It carries identifiers and a few
@@ -85,7 +87,7 @@ func NeedYou(ids []string) string {
 // only events that get a high priority (SPEC §10, §15.4). A warning
 // (task_overdue, rank_mismatch) is Urgent, not Needs you.
 func (e Event) NeedsYou() bool {
-	return e == NeedsInput || e == SessionLost || e == VerifyFailedLimit
+	return e == NeedsInput || e == SessionLost || e == VerifyFailedLimit || e == BudgetExceeded
 }
 
 // Subject is the headline: the status word with its glyph, then the
@@ -98,8 +100,10 @@ func (m Message) Subject() string {
 // headline is the glyph and word an event's title starts with.
 func (e Event) headline() string {
 	switch e {
-	case NeedsInput, SessionLost, VerifyFailedLimit:
+	case NeedsInput, SessionLost, VerifyFailedLimit, BudgetExceeded:
 		return look.NeedsYou.Label()
+	case UsageLimit:
+		return look.GlyphWaiting + " Usage limit"
 	case TaskOverdue:
 		return look.GlyphWarn + " Overdue"
 	case RankMismatch:

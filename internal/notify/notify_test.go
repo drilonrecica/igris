@@ -88,6 +88,8 @@ func TestSubject(t *testing.T) {
 		{PhaseDone, "✓ Phase done · demo", false},
 		{TaskDone, "✓ Task done · demo", false},
 		{Digest, "◌ Held · demo", false},
+		{UsageLimit, "◌ Usage limit · demo", false},
+		{BudgetExceeded, "! Needs you · demo", true},
 	}
 	for _, tt := range tests {
 		if got := (Message{Event: tt.ev, Project: "demo"}).Subject(); got != tt.want {
@@ -288,7 +290,7 @@ func TestNotifyKeepsChannelOrder(t *testing.T) {
 
 func TestUrgent(t *testing.T) {
 	for _, ev := range AllEvents {
-		want := ev == NeedsInput || ev == SessionLost || ev == TaskOverdue || ev == RankMismatch
+		want := ev == NeedsInput || ev == SessionLost || ev == TaskOverdue || ev == RankMismatch || ev == BudgetExceeded
 		if got := ev.Urgent(); got != want {
 			t.Errorf("%s.Urgent() = %v, want %v", ev, got, want)
 		}

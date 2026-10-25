@@ -55,7 +55,7 @@ func TestNotifyTest(t *testing.T) {
 		t.Fatalf("exit %d\nstdout: %s\nstderr: %s", code, out.String(), errb.String())
 	}
 	got := out.String()
-	for _, want := range []string{"needs_input", "session_lost", "task_overdue", "rank_mismatch", "verify_failed_limit", "phase_done", "phase_stuck", "run_error"} {
+	for _, want := range []string{"needs_input", "session_lost", "task_overdue", "rank_mismatch", "verify_failed_limit", "phase_done", "phase_stuck", "run_error", "usage_limit", "budget_exceeded"} {
 		if !strings.Contains(got, want+strings.Repeat(" ", 21-len(want))+"ntfy") {
 			t.Errorf("no ntfy line for %s in:\n%s", want, got)
 		}
@@ -66,8 +66,8 @@ func TestNotifyTest(t *testing.T) {
 	if strings.Contains(got, "tk_secret") {
 		t.Errorf("output leaks the token:\n%s", got)
 	}
-	if len(titles) != 8 {
-		t.Errorf("ntfy got %d messages, want 8", len(titles))
+	if len(titles) != 10 {
+		t.Errorf("ntfy got %d messages, want 10", len(titles))
 	}
 	// Each sample names its event and says what a real one would.
 	for i, want := range []string{
@@ -79,6 +79,8 @@ func TestNotifyTest(t *testing.T) {
 		"phase TEST: test of phase_done: complete",
 		"phase TEST: test of phase_stuck: stuck: 2 unfinished tasks, none can start",
 		"phase TEST: test of run_error: the run stopped with an error",
+		"phase TEST · TEST-1 Notification check: test of usage_limit: 7-day limit · TEST-1 waits, resumes 09:00 (in 3h12m)",
+		"phase TEST · TEST-1 Notification check: test of budget_exceeded: run budget 20M reached · 20.4M used · TEST-1 keeps running",
 	} {
 		if i >= len(bodies) || bodies[i] != want {
 			t.Errorf("ntfy body %d = %q, want %q", i, bodies[i:min(i+1, len(bodies))], want)

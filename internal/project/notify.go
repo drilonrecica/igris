@@ -42,6 +42,8 @@ var testWhat = map[notify.Event]string{
 	notify.PhaseDone:         "complete",
 	notify.PhaseStuck:        "stuck: 2 unfinished tasks, none can start",
 	notify.RunError:          "the run stopped with an error",
+	notify.UsageLimit:        "7-day limit · TEST-1 waits, resumes 09:00 (in 3h12m)",
+	notify.BudgetExceeded:    "run budget 20M reached · 20.4M used · TEST-1 keeps running",
 }
 
 // TestMessages are the samples `igris notify test` sends for the project

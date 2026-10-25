@@ -347,8 +347,9 @@ func phaseDone(ph *plan.Phase) bool {
 	return true
 }
 
-// planHints lists the plan's hints, each [phases.<id>] of the config that
-// names no phase of the plan (the config is validated without it), and
+// planHints lists the plan's hints, each [phases.<id>] and
+// [usage.budget.phases] key of the config that names no phase of the plan
+// (the config is validated without it), and
 // each parallel phase with work left that commit = "never" makes run one
 // task at a time (SPEC §6.11).
 func planHints(p *plan.Plan, cfg *config.Config) []Result {
@@ -368,6 +369,12 @@ func planHints(p *plan.Plan, cfg *config.Config) []Result {
 		if p.Phase(id) == nil {
 			out = append(out, Result{ID: IDPlanHints, Level: Warn, File: state.ConfigFile,
 				Message: fmt.Sprintf("[phases.%s] names no phase of %s; fix the phase ID or remove the table", id, p.Path)})
+		}
+	}
+	for _, id := range slices.Sorted(maps.Keys(cfg.Usage.Budget.Phases)) {
+		if p.Phase(id) == nil {
+			out = append(out, Result{ID: IDPlanHints, Level: Warn, File: state.ConfigFile,
+				Message: fmt.Sprintf("usage.budget.phases.%s names no phase of %s, so it never holds; fix the phase ID or remove it", id, p.Path)})
 		}
 	}
 	if len(out) == 0 {

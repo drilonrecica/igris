@@ -35,11 +35,12 @@ var keyDocs = map[string]keyDoc{
 	"run.verify":                     {desc: "Shell command run after a task signals done; the verify profile `default` (SPEC §6.4). Empty means no verification. Cannot be combined with `[verify] default`."},
 	"run.verify_timeout":             {desc: "Time limit for every verify profile. Greater than zero."},
 	"run.verify_max_attempts":        {desc: "How many times a failing verify is fed back to the agent before the run stops."},
-	"run.commit":                     {desc: "What igris does with the changes after a verified task.", values: "`ask`, `auto`, `never`"},
+	"run.commit":                     {desc: "What igris does with the changes after a verified task (SPEC §6.5): `ask` asks after each task, `auto` commits, `never` leaves git alone, `batch` commits each task as `auto` does and asks once, when the run ends, whether to keep the run's commits.", values: "`ask`, `auto`, `never`, `batch`"},
 	"run.commit_message":             {desc: "Go template for the commit message. Variables include `{{.ID}}` and `{{.Title}}`."},
 	"run.prompt_template":            {desc: "Path to a custom task prompt template. Empty uses the built-in one."},
 	"run.env":                        {desc: "The only variables verify commands and task hooks get, besides `PATH` and `HOME`: names, or prefixes ending in `*` (SPEC §6.4). Unset passes igris's whole environment.", def: "unset"},
 	"run.worktree":                   {desc: "Run sessions, verify and commits in a git worktree on branch `igris/<run-id>` (SPEC §6.8).", def: "`false`"},
+	"run.dep_notes":                  {desc: "Put the done notes and approved plans of a task's direct deps in its prompt, bounded and cleaned (SPEC §6.1, `.DepNotes`). `false` leaves them out.", def: "`true`"},
 	"verify":                         {desc: "Verify profiles: name to shell command (SPEC §6.4). Names match `[a-z0-9_-]+`, `none` is reserved, commands must not be empty.", def: "no profiles"},
 	"phases":                         {desc: "Per-phase settings under `[phases.<id>]` (SPEC §6.4); the id matches a plan phase case-insensitively. `verify` is its only key: a profile name, or `none`.", def: "no phases"},
 	"hooks.before_task":              {desc: "Argv list run before every agent session, never through a shell (SPEC §6.7). A non-empty list needs a non-empty first element.", def: "`[]`"},
@@ -49,6 +50,11 @@ var keyDocs = map[string]keyDoc{
 	"plan_mode.approve_timeout":      {desc: "How long a plan presented for approval waits for your answer in igris before the pane decides (SPEC §6.3). 1m to 24h; `\"0\"` approves plans in the pane only.", def: "`\"30m\"`"},
 	"usage.enabled":                  {desc: "Read the task sessions' transcripts for token usage in the run log (SPEC §6.9). `false` reads none.", def: "`true`"},
 	"usage.statusline":               {desc: "Use igris's status line in task panes to record your subscription quota (5-hour and 7-day usage) for the header and `igris usage` (SPEC §6.3). It replaces your own status line in those panes. `false` leaves it alone and the quota is unavailable.", def: "`false`"},
+	"usage.hold_at":                  {desc: "Hold the next task while a quota window is at or above this percentage, until it resets (SPEC §6.9). Needs `statusline`; `0` holds only after a session hits a usage limit, which holds new tasks either way.", values: "`0` to `100`", def: "`95`"},
+	"usage.budget.run":               {desc: "The run's budget (SPEC §6.9): a token count (`\"20M\"`, `\"500k\"`, `1500000`; input + output, subagents included) or an estimated amount (`\"$40\"`, by the price table). Reaching it needs you; nothing is stopped.", def: "unset"},
+	"usage.budget.phases":            {desc: "Budgets per phase under `[usage.budget.phases]`: a phase ID (case-insensitive) to a budget like `run`'s.", def: "no budgets"},
+	"usage.budget.ranks":             {desc: "Budgets per rank under `[usage.budget.ranks]`: a `[models]` key to a budget like `run`'s.", def: "no budgets"},
+	"usage.prices":                   {desc: "Overrides igris's embedded price table, which the `≈ $` estimate uses (SPEC §6.9): a model id to `{ input, cache_write_5m, cache_write_1h, cache_read, output }`, US dollars per million tokens, all five, not negative. A model igris doesn't know may be named.", def: "the embedded table"},
 	"side.model":                     {desc: "The rank the side-session dialog preselects (SPEC §6.10), a `[models]` key. Unset, `sonnet`, or the first rank when there is none of that name.", def: "`\"sonnet\"`"},
 	"side.mode":                      {desc: "The mode the side-session dialog preselects (SPEC §6.10); during a run in the shared tree it preselects `manual` whatever this says. Never `yolo` nor a `plan:<mode>` value: side sessions never skip permissions.", values: "`default`, `manual`, `accept`, `auto`, `plan`", def: "`\"default\"`"},
 	"adapt.model":                    {desc: "Model rank `igris adapt` uses (SPEC §9).", values: "`sonnet`, `opus`"},
@@ -59,7 +65,8 @@ var keyDocs = map[string]keyDoc{
 	"parallel.max":                   {desc: "How many tasks a phase marked `<!-- igris:parallel -->` runs at once, each in its own worktree (SPEC §5.1, §6.11). `arise`/`serve --parallel N` replaces it for one run.", values: "`1` to `8`", def: "`2`"},
 	"parallel.exclusive_owner_tasks": {desc: "A `user` or `agent + user` task of a parallel phase starts only when no other task is active, and nothing starts beside it (SPEC §5.1). `false` schedules them like the others.", def: "`true`"},
 	"parallel.serial_verify":         {desc: "Run one verify at a time in a parallel phase while the sessions stay parallel (SPEC §6.11).", def: "`false`"},
-	"parallel.on_conflict":           {desc: "What happens to a task whose commit doesn't integrate, a rebase conflict or verify failing on the integrated tree (SPEC §6.11): `rerun` runs it again from the start once, then asks; `ask` asks at once.", values: "`rerun`, `ask`", def: "`\"rerun\"`"},
+	"parallel.on_conflict":           {desc: "What happens to a task whose commit doesn't integrate, a rebase conflict or verify failing on the integrated tree (SPEC §6.11): `rerun` runs it again from the start once, then asks; `ask` asks at once; `resolve` opens one resolver session to settle it, then reruns once, then asks.", values: "`rerun`, `ask`, `resolve`", def: "`\"rerun\"`"},
+	"parallel.resolver_rank":         {desc: "The rank of the resolver session under `on_conflict = \"resolve\"` (SPEC §6.11), a `[models]` key. Unset: the task's own rank.", def: "the task's rank"},
 	"parallel.ranks":                 {desc: "At most this many active tasks of a rank, under `[parallel.ranks]` (SPEC §5.1): a `[models]` key to `1`–`8`. Merged with the default `fable = 1`; a cap above `max` changes nothing.", def: "`{ fable = 1 }`"},
 	"tui.mouse":                      {desc: "Click/tap, wheel and hover in the TUI (SPEC §15.5). `false` keeps the terminal's own text selection."},
 	"tui.theme":                      {desc: "Which colors to use (SPEC §15.4). `auto` goes by the terminal's background.", values: "`auto`, `dark`, `light`"},
@@ -141,7 +148,7 @@ func tomlType(t reflect.Type) string {
 	switch {
 	case t == durationType:
 		return "duration"
-	case t.Name() == "TaskDoneDigest":
+	case t.Name() == "TaskDoneDigest", t.Name() == "Budget":
 		return "integer or string"
 	}
 	switch t.Kind() {
