@@ -113,9 +113,18 @@ func (e *Engine) watchStep(ctx context.Context, l *launch) (v verdict, decided b
 			&Event{Kind: Asked, Question: QuestionConfirmSkip, Detail: fmt.Sprintf("skip %s? the session's reason: %s", t.ID, sig.Note)})
 	}
 
+	e.watchSession(ctx, l)
+	return verdict{}, false, nil
+}
+
+// watchSession is the session part of a poll of l (SPEC §6.3): its
+// state, the idle episode, the usage and the rank audit, the Timeout. A
+// lost session is watched by nobody: the owner was asked.
+func (e *Engine) watchSession(ctx context.Context, l *launch) {
 	if l.lost {
-		return verdict{}, false, nil
+		return
 	}
+	t := l.t
 	st, err := l.sess.State(ctx)
 	switch {
 	case err != nil:
@@ -136,7 +145,6 @@ func (e *Engine) watchStep(ctx context.Context, l *launch) (v verdict, decided b
 		e.auditRank(ctx, l, false)
 	}
 	e.checkOverdue(ctx, l)
-	return verdict{}, false, nil
 }
 
 // observe updates the idle episode with the agent state st and raises Needs

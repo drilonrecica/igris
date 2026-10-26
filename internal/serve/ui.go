@@ -657,6 +657,10 @@ func questionOf(q Event, csrf string) questionView {
 		a.fresh.Label = "Rerun fresh"
 		a.done.Label = "Mark done (integrated by hand)"
 		v.Answers = []form{a.fresh, a.done, a.skip, a.stop}
+		if q.Resolve {
+			// A resolver session for this one task (SPEC §6.11).
+			v.Answers = append([]form{{CSRF: csrf, Type: CmdResolve, Task: t, Label: "Resolve (a resolver session)"}}, v.Answers...)
+		}
 	case engine.QuestionFilesInTheWay:
 		v.Title = t + " didn't integrate"
 		a.fresh.Label = "Try again"
@@ -697,6 +701,12 @@ func questionOf(q Event, csrf string) questionView {
 	}
 	v.Answers[0].Primary = true
 	return v
+}
+
+// after is what follows the first sep in s; "" without one.
+func after(s, sep string) string {
+	_, rest, _ := strings.Cut(s, sep)
+	return rest
 }
 
 // questionKind is a question's small label, on the sheet and in Recent.
@@ -988,7 +998,13 @@ func recentOf(ev Event, now time.Time) recentView {
 	case engine.Integrated:
 		done(with(id+" integrated", ev.Detail))
 	case engine.IntegrationFailed:
-		warn(look.GlyphFail, id+" didn't integrate")
+		warn(look.GlyphFail, with(id+" didn't integrate", after(ev.Detail, "; ")))
+	case engine.ResolverOpened:
+		r.Glyph, r.Text = look.GlyphRunning, id+"'s resolver session opened · "+ev.Detail
+	case engine.ResolverDone:
+		done(id + "'s " + ev.Detail)
+	case engine.ResolverFailed:
+		warn(look.GlyphFail, id+"'s "+ev.Detail)
 	case engine.HookFailed:
 		warn(look.GlyphFail, with(id+" hook failed", ev.Detail))
 	case engine.PauseOn:

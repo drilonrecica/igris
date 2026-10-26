@@ -33,6 +33,7 @@ const (
 	integAsk                       // the commit question waits for the owner (commit = "ask")
 	integQueued                    // committed; waits for the integrator, which takes one task at a time
 	integVerify                    // rebased; its verify runs on the integrated tree (check)
+	integResolve                   // a resolver session works on it (SPEC §6.11); the integrator's line is held
 	integFailed                    // didn't integrate, and igris won't run it again by itself: the owner decides
 	integBlocked                   // committed, but files where the run branch is checked out are in the way of its fast-forward: the owner decides
 )
@@ -52,6 +53,17 @@ type integration struct {
 	// target and branch are the run branch's head the task was rebased
 	// onto and its name ("" with a detached HEAD in the project root).
 	target, branch string
+	// fail is why the task didn't integrate, while the owner decides
+	// (integFailed), so Resolve can open the resolver for it; resolveAsked
+	// says the owner picked Resolve for a conflict, whose rebase is done
+	// again and left where it stops (SPEC §6.11).
+	fail         failure
+	resolveAsked bool
+	// resolver is the task's resolver session, while it works
+	// (integResolve) and after, for the log; resolved says its resolution
+	// is on the tree and being verified: a failure then is the resolver's.
+	resolver *resolverRun
+	resolved bool
 }
 
 // maxConflictFiles bounds the conflicting files a failed rebase names.
@@ -76,6 +88,10 @@ func (e *Engine) stepIntegrate(ctx context.Context, l *launch) (ended, stopped b
 		return false, false, nil
 	}
 	g := l.integ
+	if g.stage == integResolve {
+		// The resolver session takes the owner's commands (SPEC §6.11).
+		return e.stepResolve(ctx, l)
+	}
 	for _, c := range e.takeCommands(l) {
 		switch {
 		case g.stage == integAsk && c.Kind == CmdAnswer:
@@ -105,6 +121,25 @@ func (e *Engine) stepIntegrate(ctx context.Context, l *launch) (ended, stopped b
 			return false, false, e.rerun(ctx, l)
 		case g.stage == integFailed && c.Kind == CmdRetry:
 			e.reject(c, l.t.ID+" is run again from the start after a failed integration; retry fresh")
+		case g.stage == integFailed && c.Kind == CmdResolve:
+			// Resolve from the question (SPEC §6.11): the owner picks the
+			// resolver for this one task.
+			switch {
+			case e.resolved[l.t.ID]:
+				e.reject(c, "a resolver session already ran for "+l.t.ID+" in this run; rerun it fresh, mark it done, skip it or stop")
+				continue
+			case !g.fail.resolvable:
+				e.reject(c, l.t.ID+"'s failed fast-forward has nothing a resolver can settle; rerun it fresh, mark it done, skip it or stop")
+				continue
+			}
+			e.waitOver(state.ReasonIntegration)
+			if g.fail.reason == state.FailedVerify {
+				return e.openResolver(ctx, l, g.fail) // the worktree is the integrated tree
+			}
+			// A conflict's rebase was aborted (SPEC §6.11): it is done
+			// again, and left where it stops for the resolver.
+			g.resolveAsked = true
+			e.queueIntegration(l)
 		case g.stage == integBlocked && c.Kind == CmdRetry:
 			// Try again: the owner moved the files. The committed branch
 			// goes back in the integrator's line, no new session: its
@@ -239,19 +274,25 @@ func (e *Engine) integrate(ctx context.Context, l *launch) (ended, stopped bool,
 			return false, false, err
 		}
 		files := e.conflictFiles(ctx, l)
-		if _, err := e.git(ctx, l, "rebase", "--abort"); err != nil {
-			e.warn(fmt.Sprintf("abort the rebase of %s: %v; its worktree %s may be left mid-rebase", l.t.ID, err, l.cur.Worktree.Path))
-		}
 		why := "the rebase onto the run branch conflicts"
 		if len(files) > 0 {
 			why += " in " + strings.Join(files, ", ")
 		}
-		return e.integrationFailed(ctx, l, state.FailedConflict, strings.Join(files, ", "), why, files)
+		f := failure{reason: state.FailedConflict, detail: strings.Join(files, ", "), why: why, lines: files, resolvable: len(files) > 0}
+		if !e.willResolve(l, f) {
+			// The resolver works mid-rebase (SPEC §6.11); otherwise the
+			// rebase is aborted at once.
+			if _, err := e.git(ctx, l, "rebase", "--abort"); err != nil {
+				e.warn(fmt.Sprintf("abort the rebase of %s: %v; its worktree %s may be left mid-rebase", l.t.ID, err, l.cur.Worktree.Path))
+			}
+		}
+		return e.integrationFailed(ctx, l, f)
 	}
 	after, err := e.git(ctx, l, "rev-parse", "HEAD")
 	if err != nil {
 		return false, false, err
 	}
+	g.resolveAsked = false // the rebase went through: nothing to resolve
 	if strings.TrimSpace(after) == strings.TrimSpace(before) || g.owner || !e.verifies(l.t) {
 		return e.fastForward(ctx, l)
 	}
@@ -317,7 +358,12 @@ func (e *Engine) integrationVerified(ctx context.Context, l *launch) (ended, sto
 	e.emit(Event{Kind: VerifyFailed, Detail: fmt.Sprintf("%s (`%s`) failed (%s) on the integrated tree", k.profile, k.script, why)})
 	lines := strings.Split(tail(textsafe.Clean(string(k.res.Stdout)), hookTailLines), "\n")
 	detail := fmt.Sprintf("profile %s: %s", k.profile, why)
-	return e.integrationFailed(ctx, l, state.FailedVerify, detail, "verify failed on the integrated tree ("+detail+")", lines)
+	if l.integ.resolved {
+		// The resolver's resolution failed verify: the resolution failed
+		// (SPEC §6.11).
+		return e.resolverFailed(ctx, l, "verify failed on the integrated tree ("+detail+")", lines)
+	}
+	return e.integrationFailed(ctx, l, failure{reason: state.FailedVerify, detail: detail, why: "verify failed on the integrated tree (" + detail + ")", lines: lines, profile: k.profile, resolvable: true})
 }
 
 // fastForward moves the run branch to l's rebased branch, logs
@@ -363,7 +409,7 @@ func (e *Engine) fastForwardFailed(ctx context.Context, l *launch, ffErr error) 
 	}
 	if moved {
 		why := "the run branch moved since the rebase; fast-forward failed"
-		return e.integrationFailed(ctx, l, state.FailedConflict, why, why, nil)
+		return e.integrationFailed(ctx, l, failure{reason: state.FailedConflict, detail: why, why: why})
 	}
 	var stderr string
 	var xe *runner.ExitError
@@ -379,7 +425,7 @@ func (e *Engine) fastForwardFailed(ctx context.Context, l *launch, ffErr error) 
 	} else {
 		why += ": " + textsafe.Line(ffErr.Error())
 	}
-	return e.integrationFailed(ctx, l, state.FailedConflict, why, why, nil)
+	return e.integrationFailed(ctx, l, failure{reason: state.FailedConflict, detail: why, why: why})
 }
 
 // runBranchMoved reports whether the run branch's head is no longer an
@@ -448,32 +494,51 @@ func (e *Engine) integrationBlocked(ctx context.Context, l *launch, files []stri
 	return false, false, nil
 }
 
-// integrationFailed handles a task that didn't integrate (SPEC §6.11): a
-// rebase conflict (reason state.FailedConflict; detail names the files,
-// lines list them) or verify failing on the integrated tree
-// (state.FailedVerify; detail is the profile and why, lines its last lines
-// of output). why says it for the owner. With on_conflict = "rerun" the
-// task is run again from the start, once per task and run; else, or the
-// second time, the owner decides.
-func (e *Engine) integrationFailed(ctx context.Context, l *launch, reason, detail, why string, lines []string) (ended, stopped bool, err error) {
-	id := l.t.ID
+// integrationFailed handles a task that didn't integrate (SPEC §6.11) for
+// the failure f: a rebase conflict (f.lines names the files), verify
+// failing on the integrated tree (f.lines its last lines of output) or a
+// refused fast-forward. With on_conflict = "resolve" a resolvable failure
+// opens the resolver session, once per task and run; then, or with
+// "rerun", the task is run again from the start, once per task and run;
+// else, or the next time, the owner decides, with Resolve while a resolver
+// could still settle it.
+func (e *Engine) integrationFailed(ctx context.Context, l *launch, f failure) (ended, stopped bool, err error) {
+	id, g := l.t.ID, l.integ
 	e.unqueueIntegration(l)
-	what := "didn't integrate: " + why
-	rerun := e.cfg.Parallel.OnConflictOrDefault() == config.OnConflictRerun && !e.reran[id]
+	g.fail, g.resolved = f, false
+	what := "didn't integrate: " + f.why
+	resolve := e.willResolve(l, f)
+	rerun := !resolve && e.cfg.Parallel.OnConflictOrDefault() != config.OnConflictAsk && !e.reran[id]
 	then := "then needs you"
-	if rerun {
+	switch {
+	case resolve:
+		then = "then resolve"
+	case rerun:
 		then = "then rerun"
 	}
-	e.log(state.Event{Type: state.EventIntegrationFailed, Reason: reason, Detail: textsafe.Line(detail + "; " + then)})
+	e.log(state.Event{Type: state.EventIntegrationFailed, Reason: f.reason, Detail: textsafe.Line(f.detail + "; " + then)})
+	if resolve {
+		rank, _, err := e.resolverRank(l.t)
+		if err != nil {
+			return false, false, err
+		}
+		e.emit(Event{Kind: IntegrationFailed, Detail: what + "; igris opens a resolver session (" + rank + ")", Output: f.lines})
+		return e.openResolver(ctx, l, f)
+	}
 	if rerun {
 		e.reran[id] = true
-		e.emit(Event{Kind: IntegrationFailed, Detail: what + "; igris runs the task again from the start", Output: lines})
+		e.emit(Event{Kind: IntegrationFailed, Detail: what + "; igris runs the task again from the start", Output: f.lines})
 		return false, false, e.rerun(ctx, l)
 	}
-	l.integ.stage = integFailed
-	e.emit(Event{Kind: IntegrationFailed, Detail: what + "; its worktree is kept", Output: lines})
-	e.needsYou(ctx, notifyNeedsInput, state.ReasonIntegration, id+" "+what+"; rerun it fresh, mark it done, skip it or stop", "integration failed")
-	e.emit(Event{Kind: Asked, Question: QuestionIntegration, Detail: id + " " + what + ": rerun it fresh, mark it done (you integrated it by hand), skip it, or stop", Output: lines})
+	g.stage = integFailed
+	canResolve := f.resolvable && !e.resolved[id]
+	e.emit(Event{Kind: IntegrationFailed, Detail: what + "; its worktree is kept", Output: f.lines})
+	choices, ask := "rerun it fresh, mark it done, skip it or stop", "rerun it fresh, mark it done (you integrated it by hand), skip it, or stop"
+	if canResolve {
+		choices, ask = "resolve it with a resolver session, "+choices, "resolve it with a resolver session, "+ask
+	}
+	e.needsYou(ctx, notifyNeedsInput, state.ReasonIntegration, id+" "+what+"; "+choices, "integration failed")
+	e.emit(Event{Kind: Asked, Question: QuestionIntegration, Resolve: canResolve, Detail: id + " " + what + ": " + ask, Output: f.lines})
 	return false, false, nil
 }
 

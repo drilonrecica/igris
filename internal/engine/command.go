@@ -55,6 +55,10 @@ const (
 	// CmdBudget answers the budget reached (SPEC §6.9): Text is a new
 	// value for this run, or continue (the budget no longer holds it).
 	CmdBudget
+	// CmdResolve opens the resolver session for a task that didn't
+	// integrate (SPEC §6.11): the first option of the didn't-integrate
+	// question while no resolver ran for the task in this run.
+	CmdResolve
 )
 
 func (k CommandKind) String() string {
@@ -81,6 +85,8 @@ func (k CommandKind) String() string {
 		return "start anyway"
 	case CmdBudget:
 		return "budget answer"
+	case CmdResolve:
+		return "resolve"
 	}
 	return "unknown"
 }

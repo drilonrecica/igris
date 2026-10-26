@@ -46,7 +46,7 @@ func TestLogLinesCarryTheirGlyph(t *testing.T) {
 		engine.Nudged, engine.SessionLost, engine.TaskOverdue, engine.RankMismatch, engine.UsageRead, engine.QuotaRead, engine.Asked,
 		engine.PlanClosed, engine.Retrying, engine.TaskSkipped, engine.TaskReset, engine.ResetDropped, engine.YourTurn,
 		engine.VerifyStarted, engine.VerifyPassed, engine.VerifyFailed, engine.VerifyLimit, engine.Committed, engine.NotCommitted,
-		engine.Integrated, engine.IntegrationFailed, engine.Overlap, engine.HookStarted, engine.HookFailed, engine.Warning,
+		engine.Integrated, engine.IntegrationFailed, engine.ResolverOpened, engine.ResolverDone, engine.ResolverFailed, engine.Overlap, engine.HookStarted, engine.HookFailed, engine.Warning,
 		engine.RunFailed, engine.RunStopped,
 	}
 	for _, k := range kinds {

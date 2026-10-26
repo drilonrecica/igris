@@ -134,3 +134,28 @@ func TestTailOfATask(t *testing.T) {
 		t.Errorf("a tail for a malformed task = %v", m)
 	}
 }
+
+// A resolver session's card (SPEC §6.11): working, with why and its words,
+// kept across the waits it clears, and the task's own again after it.
+func TestSnapshotResolverCard(t *testing.T) {
+	s := parallelServer(t)
+	at := func(sec int) time.Time { return t0.Add(time.Duration(sec) * time.Second) }
+	for _, ev := range []engine.Event{
+		{At: at(0), Kind: engine.RunStarted, Run: "r", Phase: "M1"},
+		{At: at(1), Kind: engine.TaskStarted, Phase: "M1", Task: "M1-03", Model: "sonnet", Slot: slot(0)},
+		{At: at(2), Kind: engine.IntegrationFailed, Task: "M1-03", Detail: "didn't integrate: the rebase onto the run branch conflicts in a.go"},
+		{At: at(3), Kind: engine.ResolverOpened, Task: "M1-03", Reason: "conflict", Detail: "resolving a conflict in 1 file"},
+		{At: at(4), Kind: engine.NeedsYou, Task: "M1-03", Reason: "idle", Detail: "idle"},
+		{At: at(5), Kind: engine.NeedsYouClear, Task: "M1-03"},
+	} {
+		s.Publish(ev)
+	}
+	c := snap(t, s).Active[0]
+	if c.State != StateWorking || c.Resolver != "conflict" || c.Detail != "resolving a conflict in 1 file" {
+		t.Errorf("card while the resolver works: %+v", c)
+	}
+	s.Publish(engine.Event{At: at(6), Kind: engine.ResolverDone, Task: "M1-03", Detail: "resolver resolved it: kept both"})
+	if c := snap(t, s).Active[0]; c.Resolver != "" {
+		t.Errorf("card after the resolver: %+v", c)
+	}
+}

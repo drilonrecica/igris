@@ -119,6 +119,10 @@ func (m *model) stateText(c *current) string {
 	case stateLost:
 		return look.NeedsYou.Label() + " · session lost"
 	}
+	if c.resolver != "" {
+		// A resolver session works on it (SPEC §6.11, §15.1).
+		return look.Working.Label() + " · " + c.resolver
+	}
 	return look.Working.Label()
 }
 

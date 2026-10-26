@@ -158,6 +158,16 @@ type Current struct {
 	// Slot is the task's slot in a parallel phase (SPEC §6.11), from 0 to
 	// MaxSlots-1; nil outside one.
 	Slot *int `json:"-"`
+	// Resolver is set while a resolver session works on the task (SPEC
+	// §6.11): the entry's session fields then hold its session. Since
+	// 1.8; no version change.
+	Resolver *Resolver `json:"-"`
+}
+
+// Resolver records a resolver session (SPEC §6.11): why it was opened,
+// FailedConflict or FailedVerify.
+type Resolver struct {
+	Reason string `json:"reason"`
 }
 
 // ActiveTasks is the run's active list. Its entries share the record of
@@ -173,6 +183,7 @@ type activeEntry struct {
 	ClaudeSession  string              `json:"claude_session"`
 	Worktree       *Worktree           `json:"worktree,omitempty"`
 	Slot           *int                `json:"slot,omitempty"`
+	Resolver       *Resolver           `json:"resolver,omitempty"`
 	Mode           string              `json:"mode"`
 	VerifyAttempts int                 `json:"verify_attempts"`
 	PendingPrompt  string              `json:"pending_prompt,omitempty"`
@@ -186,7 +197,7 @@ func (a ActiveTasks) MarshalJSON() ([]byte, error) {
 	for _, c := range a {
 		out = append(out, activeEntry{
 			Task: c.TaskID, Attempt: c.Attempt, Session: c.Session, ClaudeSession: c.ClaudeSession,
-			Worktree: c.Worktree, Slot: c.Slot, Mode: c.Mode, VerifyAttempts: c.VerifyAttempts,
+			Worktree: c.Worktree, Slot: c.Slot, Resolver: c.Resolver, Mode: c.Mode, VerifyAttempts: c.VerifyAttempts,
 			PendingPrompt: c.PendingPrompt, ApprovedPlan: c.ApprovedPlan, StartedAt: c.StartedAt,
 		})
 	}
@@ -213,7 +224,7 @@ func (a *ActiveTasks) UnmarshalJSON(data []byte) error {
 		}
 		out = append(out, &Current{
 			TaskID: e.Task, Attempt: e.Attempt, Session: e.Session, ClaudeSession: e.ClaudeSession,
-			Worktree: e.Worktree, Slot: e.Slot, Mode: e.Mode, VerifyAttempts: e.VerifyAttempts,
+			Worktree: e.Worktree, Slot: e.Slot, Resolver: e.Resolver, Mode: e.Mode, VerifyAttempts: e.VerifyAttempts,
 			PendingPrompt: e.PendingPrompt, ApprovedPlan: e.ApprovedPlan, StartedAt: e.StartedAt,
 		})
 	}
@@ -446,6 +457,9 @@ func checkReadBack(r *Run) string {
 				return fmt.Sprintf("the active task %s's slot is not one igris gives", c.TaskID)
 			}
 			slots[*s] = true
+		}
+		if rs := c.Resolver; rs != nil && rs.Reason != FailedConflict && rs.Reason != FailedVerify {
+			return fmt.Sprintf("the resolver of the active task %s has no reason igris writes", c.TaskID)
 		}
 		if wt := c.Worktree; wt != nil {
 			// Only the task's own worktree in this run:

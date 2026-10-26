@@ -62,6 +62,9 @@ const (
 	// CmdBudget answers a budget reached (SPEC §6.9, since 1.8): text a
 	// new value for this run, or continue.
 	CmdBudget = "budget"
+	// CmdResolve opens the resolver session for a task that didn't
+	// integrate (SPEC §6.11, since 1.8): task.
+	CmdResolve = "resolve"
 )
 
 // LimitStart is the text of a limit command: the one action it takes.
@@ -79,6 +82,7 @@ var commandKinds = map[string]engine.CommandKind{
 	CmdPlan:     engine.CmdPlan,
 	CmdLimit:    engine.CmdLimitStart,
 	CmdBudget:   engine.CmdBudget,
+	CmdResolve:  engine.CmdResolve,
 }
 
 // EventTypeTokens is the socket type of engine.UsageRead: the run log's
@@ -158,6 +162,9 @@ type Event struct {
 	// §6.9), since 1.8.
 	Budget  *engine.BudgetUse  `json:"budget,omitempty"`
 	Budgets []engine.BudgetUse `json:"budgets,omitempty"`
+	// Resolve is set on the didn't-integrate question while a resolver
+	// session may be opened for the task (SPEC §6.11), since 1.8.
+	Resolve bool `json:"resolve,omitempty"`
 }
 
 // Change is a Status cell the run wrote.
@@ -204,7 +211,7 @@ func fromEngine(ev engine.Event, run string) Event {
 		Profile: ev.Verify, Detail: cut(ev.Detail, maxDetail), Reason: ev.Reason,
 		Session: ev.Session, ClaudeSession: ev.ClaudeSession,
 		Question: string(ev.Question), Plan: cut(ev.Plan, maxPlan), Then: ev.Then, Quota: ev.Quota,
-		Slot: ev.Slot,
+		Slot: ev.Slot, Resolve: ev.Resolve,
 	}
 	if l := ev.Limit; l != nil {
 		lim := *l
@@ -358,6 +365,10 @@ func (r Request) command() (engine.Command, error) {
 	case engine.CmdBudget:
 		if strings.TrimSpace(c.Text) == "" || len(c.Text) > maxBudgetText {
 			return engine.Command{}, fmt.Errorf("budget takes text: a new value (\"30M\", \"$60\") or %s", state.BudgetContinue)
+		}
+	case engine.CmdResolve:
+		if r.Task == "" {
+			return engine.Command{}, errors.New("resolve needs a task")
 		}
 	}
 	return c, nil

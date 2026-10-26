@@ -143,14 +143,14 @@ func (e *Engine) auditRank(ctx context.Context, l *launch, final bool) {
 	}
 	u.mismatch = true
 	want := l.model
-	if l.t.Rank != l.model {
-		want = l.t.Rank + " → " + l.model
+	if l.rank() != l.model {
+		want = l.rank() + " → " + l.model
 	}
 	// bad has the shape of a model id (usage.ValidModel): no markup, no
 	// control characters.
 	what := "on " + bad + ", not its rank " + want
 	e.emit(Event{Kind: RankMismatch, Detail: what})
-	e.log(state.Event{Type: state.EventRankMismatch, Models: got.Models, Detail: what})
+	e.log(state.Event{Type: state.EventRankMismatch, Models: got.Models, Detail: what, Resolver: l.resolving() != nil})
 	if final {
 		e.toast(ctx, notifyRankMismatch, "ran "+what)
 		return
@@ -170,7 +170,9 @@ func (e *Engine) endUsage(ctx context.Context, l *launch) {
 	e.auditRank(ctx, l, true)
 	e.endSpend(l)
 	l.usage = nil
-	ev := state.Event{Type: state.EventUsage}
+	// A resolver session's line is marked, so a reader of 1.8 counts no
+	// attempt for it (SPEC §6.11).
+	ev := state.Event{Type: state.EventUsage, Resolver: l.resolving() != nil}
 	if s := l.cur.ClaudeSession; backend.ValidClaudeSession(s) {
 		ev.Session = s
 	}

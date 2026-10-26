@@ -701,4 +701,10 @@ func TestIntegrationSheets(t *testing.T) {
 			t.Errorf("%s: first answer %+v, want the primary fresh retry", tc.q, a)
 		}
 	}
+	// While a resolver may still run for the task, Resolve comes first
+	// (SPEC §6.11).
+	v := questionOf(Event{Type: "asked", Task: "M1-03", Question: string(engine.QuestionIntegration), Resolve: true}, "csrf")
+	if a := v.Answers[0]; a.Type != CmdResolve || a.Task != "M1-03" || !a.Primary || a.Label != "Resolve (a resolver session)" {
+		t.Errorf("first answer %+v, want the primary Resolve", a)
+	}
 }

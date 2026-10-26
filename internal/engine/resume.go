@@ -53,6 +53,13 @@ func (e *Engine) reattach(ctx context.Context, cur *state.Current) error {
 		e.yourTurn(ctx, l)
 		return nil
 	}
+	if cur.Resolver != nil {
+		// A resolver session was working on the task (SPEC §6.11): the
+		// session fields are its, and the integration goes on from there.
+		if err := e.resumeResolver(l, cur.Resolver.Reason); err != nil {
+			return err
+		}
+	}
 
 	movedFrom := ""
 	if cur.Session != nil && cur.Session.Backend != e.be.Name() {

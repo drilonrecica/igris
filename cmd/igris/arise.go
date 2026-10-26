@@ -581,6 +581,7 @@ const commandHelp = `commands:
   done [note]                mark the current task done (an agent task is not verified)
   skip <reason>              skip the current task
   retry [continue|fresh]     replace the session: continue its conversation, or start fresh (default)
+  resolve [task]             open a resolver session for a task that didn't integrate (the current one without a task)
   pause                      pause after the current task (again to resume)
   start                      start the held task anyway while a usage limit holds it (a hit still holds)
   budget <value>|continue    answer a budget reached: a new value for this run (30M, $60), or let it go on
@@ -645,6 +646,13 @@ func parseCommand(line string) (engine.Command, commandAction, error) {
 		return c, actSend, nil
 	case "pause":
 		return noArgs(engine.Command{Kind: engine.CmdPause})
+	case "resolve":
+		// The resolver session for a task that didn't integrate (SPEC
+		// §6.11); the current task without one.
+		if rest != "" && !plan.ValidID(rest) {
+			return engine.Command{}, actNone, fmt.Errorf("resolve takes a task ID, not %q", rest)
+		}
+		return engine.Command{Kind: engine.CmdResolve, Task: rest}, actSend, nil
 	case "start":
 		return noArgs(engine.Command{Kind: engine.CmdLimitStart})
 	case "budget":
@@ -824,6 +832,9 @@ func formatEvent(ev engine.Event) []string {
 			for _, l := range ev.Output {
 				lines = append(lines, "  | "+l)
 			}
+			if ev.Resolve {
+				return append(lines, "  type `resolve` (a resolver session), `retry fresh`, `done [note]`, `skip <reason>` or `stop`")
+			}
 			return append(lines, "  type `retry fresh`, `done [note]`, `skip <reason>` or `stop`")
 		case engine.QuestionFilesInTheWay:
 			lines = append(lines, "  "+ev.Detail)
@@ -857,6 +868,16 @@ func formatEvent(ev engine.Event) []string {
 		return []string{look.GlyphDone + " " + id + " integrated " + ev.Detail}
 	case engine.IntegrationFailed, engine.HookFailed:
 		lines := []string{look.GlyphFail + " " + id + " " + ev.Detail}
+		for _, l := range ev.Output {
+			lines = append(lines, "  | "+l)
+		}
+		return lines
+	case engine.ResolverOpened:
+		return nil // the didn't-integrate line said it
+	case engine.ResolverDone:
+		return []string{look.GlyphDone + " " + id + "'s " + ev.Detail}
+	case engine.ResolverFailed:
+		lines := []string{look.GlyphFail + " " + id + "'s " + ev.Detail}
 		for _, l := range ev.Output {
 			lines = append(lines, "  | "+l)
 		}

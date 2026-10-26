@@ -22,6 +22,7 @@ const (
 	actAnswerNo
 	actRetryFresh
 	actRetryContinue
+	actResolve     // open the resolver session for a task that didn't integrate (SPEC §6.11)
 	actStop        // stop igris now; the Stop button asks first (actStopAsk)
 	actAnswer      // reopen the dialog of the pending question
 	actClose       // close a dialog or page; a question stays pending
@@ -222,6 +223,8 @@ func (a action) command() (engine.Command, bool) {
 		return engine.Command{Kind: engine.CmdRetry}, true
 	case actRetryContinue:
 		return engine.Command{Kind: engine.CmdRetry, Continue: true}, true
+	case actResolve:
+		return engine.Command{Kind: engine.CmdResolve}, true
 	case actStop:
 		return engine.Command{Kind: engine.CmdStop}, true
 	case actPlanApprove:

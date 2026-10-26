@@ -86,6 +86,12 @@ func logLines(ev engine.Event) []string {
 		return []string{look.GlyphDone + " " + id + " integrated " + ev.Detail}
 	case engine.IntegrationFailed:
 		return hookLines(id, ev)
+	case engine.ResolverOpened:
+		return nil // the didn't-integrate line said it; the card shows it
+	case engine.ResolverDone:
+		return []string{look.GlyphDone + " " + id + "'s " + ev.Detail}
+	case engine.ResolverFailed:
+		return hookLines(id+"'s", ev)
 	case engine.Overlap:
 		return []string{look.GlyphWarn + " overlap · " + ev.Detail}
 	case engine.TaskDone:
@@ -198,7 +204,7 @@ func logLook(k engine.EventKind) tone {
 		return lookAlert // waits on the owner: plume
 	case engine.TaskOverdue, engine.RankMismatch, engine.PhaseStuck, engine.PlanChanged, engine.Warning, engine.Overlap:
 		return lookWarn
-	case engine.HookFailed, engine.VerifyFailed, engine.VerifyLimit, engine.RunFailed, engine.IntegrationFailed:
+	case engine.HookFailed, engine.VerifyFailed, engine.VerifyLimit, engine.RunFailed, engine.IntegrationFailed, engine.ResolverFailed:
 		return lookFail
 	case engine.Paused, engine.PhaseDone, engine.NotRun, engine.TaskReset:
 		return lookTitle

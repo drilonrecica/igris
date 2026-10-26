@@ -85,6 +85,14 @@ const (
 	// "continue"). Since 1.8.
 	EventBudgetExceeded EventType = "budget_exceeded"
 	EventBudgetRaised   EventType = "budget_raised"
+	// A resolver session (SPEC §6.11), since 1.8: opened for a task that
+	// didn't integrate (Reason FailedConflict or FailedVerify, Detail the
+	// files or the verify profile; Rank, Model and Session its own,
+	// Attempt the task's), done (Detail its note) or failed (Detail why
+	// and what follows).
+	EventResolverOpened EventType = "resolver_opened"
+	EventResolverDone   EventType = "resolver_done"
+	EventResolverFailed EventType = "resolver_failed"
 )
 
 // Why a task didn't integrate (SPEC §6.11): a rebase conflict, or verify
@@ -212,7 +220,10 @@ type Event struct {
 	Budget string `json:"budget,omitempty"`
 	Limit  string `json:"limit,omitempty"`
 	Used   string `json:"used,omitempty"`
-	Detail string `json:"detail,omitempty"` // never secrets (AGENTS §6)
+	// Resolver marks a resolver session's usage and rank_mismatch lines
+	// (SPEC §6.11): Attempt is its task's, Session its own. Since 1.8.
+	Resolver bool   `json:"resolver,omitempty"`
+	Detail   string `json:"detail,omitempty"` // never secrets (AGENTS §6)
 }
 
 var runIDPattern = regexp.MustCompile(`^[0-9]{8}-[0-9]{6}-[0-9a-f]{4}$`)
@@ -439,7 +450,7 @@ func (e Event) checked() Event {
 		e.Side = ""
 	}
 	switch {
-	case e.Type == EventIntegrationFailed:
+	case e.Type == EventIntegrationFailed, e.Type == EventResolverOpened:
 		if e.Reason != FailedConflict && e.Reason != FailedVerify {
 			e.Reason = ReasonOther
 		}

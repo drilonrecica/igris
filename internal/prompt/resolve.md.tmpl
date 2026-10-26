@@ -1,0 +1,95 @@
+{{- /* The resolver session's first message (SPEC §6.11). Sent as the first user message of the session. */ -}}
+# Resolve the integration of task {{.ID}} — {{.Title}}
+
+You are the **resolver session** of one task of an igris run with parallel phases. The task's own session finished its work in this worktree, but its commit doesn't integrate into the run branch. Your one job is to make it integrate; do nothing beyond it.
+
+- Phase: {{.Phase}}{{if .PhaseTitle}} — {{.PhaseTitle}}{{end}}
+- Plan file: `{{.PlanFile}}`{{if eq .TaskFile .PlanFile}} (find the row for `{{.ID}}`){{else}}; the row for `{{.ID}}` is in `{{.TaskFile}}`, which it includes{{end}}
+- Model rank: {{.Rank}} ({{.Model}})
+- Owner: {{.Owner}}
+{{- if .Deps}}
+- Depends on (all done): {{range $i, $d := .Deps}}{{if $i}}, {{end}}{{$d}}{{end}}
+{{- end}}
+{{- range $k, $v := .Extra}}
+- {{$k}}: {{$v}}
+{{- end}}
+
+## The task
+
+{{.Text}}
+{{- if .Context}}
+
+## Required reading
+
+Read these paths of the project before changing anything:
+{{range .Context}}
+- `{{.}}`
+{{- end}}
+{{- end}}
+
+## Why you are here
+{{if eq .Reason "conflict"}}
+The rebase of this task's commit onto the run branch stopped on these files:
+{{range .Files}}
+- `{{.}}`
+{{- end}}
+
+The rebase is left where it stopped: `HEAD` (ours) is the run branch with the tasks integrated since this task started; the incoming side is this task's commit. The files above hold conflict markers.
+{{- else}}
+The rebase was clean, but verify profile `{{.Profile}}` (`{{.Command}}`) failed on the integrated tree, the run branch's head plus this task's commit. The last lines of its output:
+
+```
+{{range .Lines}}{{.}}
+{{end}}```
+
+This worktree is that integrated tree. Fix it so the checks pass; igris folds your fix into the task's commit.
+{{- end}}
+
+## The other side
+{{if or .Others .Commits}}
+The run branch took these since this task's base. Both sides' intents must survive.
+{{range .Others}}
+### {{.ID}}{{if .Title}} — {{.Title}}{{end}}
+{{if .Text}}
+{{.Text}}
+{{- end}}
+{{end}}
+{{- if .More}}
+… and {{.More}} more tasks.
+{{- end}}
+{{- if .Commits}}
+
+Other commits on the run branch since the base: {{range $i, $c := .Commits}}{{if $i}}; {{end}}{{$c}}{{end}}.
+{{- end}}
+{{- else}}
+igris couldn't name the tasks the run branch took since this task's base; read them from git.
+{{- end}}
+
+## How to read both sides
+
+- `git status` shows where the rebase stands and which files are unmerged.
+- `git diff` shows the conflict markers; `git log --oneline ORIG_HEAD..HEAD` the commits the run branch took, and `git show <commit>` each of them.
+- `git show REBASE_HEAD` is this task's commit as its session made it.
+
+## The job
+
+1. Produce a resolution in which both this task's intent and the other tasks' intents survive. Edit the files; don't drop one side to make the conflict go away.
+2. Don't run `git rebase --continue`, `git rebase --abort`, `git rebase --skip` or `git commit`. Edit files only; igris finishes the rebase (or folds your fix into the task's commit) after your done.
+3. Run the project's checks (`make fmt lint test` or whatever the project uses) before you finish.
+4. Don't edit the plan or its Status column; igris updates it.
+
+If anything needs the owner — a decision between two incompatible intents, an unclear spec — ask in this chat and wait.
+
+## Finish
+
+When the resolution is done and the checks pass, run this as your very last action:
+
+```
+{{.DoneCommand}} --note "<one-line summary of how you resolved it>"
+```
+
+If you can't resolve it, run this instead; igris then runs the task again from the start or asks the owner:
+
+```
+{{.SkipCommand}} --reason "<why it can't be resolved>"
+```

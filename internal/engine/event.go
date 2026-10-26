@@ -75,6 +75,9 @@ const (
 	NotCommitted      EventKind = "not_committed"      // Detail says why: nothing to commit, or the owner declined
 	Integrated        EventKind = "integrated"         // the task's commit is on the run branch (SPEC §6.11); Detail names the branch
 	IntegrationFailed EventKind = "integration_failed" // the task didn't integrate (SPEC §6.11); Detail says why and what follows
+	ResolverOpened    EventKind = "resolver_opened"    // a resolver session works on the task (SPEC §6.11); Reason is conflict or verify, Detail the card's words (resolving a conflict in 2 files)
+	ResolverDone      EventKind = "resolver_done"      // the resolver resolved it (SPEC §6.11); Detail is its note and what follows
+	ResolverFailed    EventKind = "resolver_failed"    // the resolution failed (SPEC §6.11); Detail says why and what follows, Output the files or the verify output's last lines
 	Overlap           EventKind = "overlap"            // two active tasks both change one file (SPEC §6.11); Detail names them and the file
 	HookStarted       EventKind = "hook_started"       // a task hook starts (SPEC §6.7); Detail is its name, before_task or after_task
 	HookFailed        EventKind = "hook_failed"        // a task hook failed (SPEC §6.7); Detail is the short reason, Output its last lines
@@ -143,6 +146,10 @@ type Event struct {
 	// §6.9).
 	Budget  *BudgetUse
 	Budgets []BudgetUse
+	// Resolve is set on Asked with QuestionIntegration while CmdResolve
+	// may open a resolver session for the task (SPEC §6.11): none ran for
+	// it in this run, and the failure is one a resolver can settle.
+	Resolve bool
 }
 
 // Limit is a usage limit a UI shows (SPEC §6.9, §15): a quota window at or
@@ -218,9 +225,10 @@ const (
 	// owner answered in the pane.
 	QuestionPlanApproval Question = "plan_approval"
 	// QuestionIntegration: the task didn't integrate and igris won't run
-	// it again by itself (SPEC §6.11); its worktree is kept. CmdRetry
-	// (fresh: run it again from the start), CmdDone (the owner integrated
-	// it by hand), CmdSkip or CmdStop.
+	// it again by itself (SPEC §6.11); its worktree is kept. CmdResolve
+	// (while Resolve is set: a resolver session), CmdRetry (fresh: run it
+	// again from the start), CmdDone (the owner integrated it by hand),
+	// CmdSkip or CmdStop.
 	QuestionIntegration Question = "integration"
 	// QuestionFilesInTheWay: the task's rebased branch didn't fast-forward
 	// because files where the run branch is checked out are in the way
@@ -356,7 +364,7 @@ func (e *Engine) warn(detail string) { e.emit(Event{Kind: Warning, Detail: detai
 func (e *Engine) log(ev state.Event) {
 	if l := e.task; l != nil {
 		if ev.Task == "" {
-			ev.Task, ev.Rank, ev.Model = l.t.ID, l.t.Rank, l.model
+			ev.Task, ev.Rank, ev.Model = l.t.ID, l.rank(), l.model
 		}
 		if ev.Task == l.t.ID {
 			if ev.Model == "" {

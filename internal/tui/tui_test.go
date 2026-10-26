@@ -561,3 +561,29 @@ func TestNudgedLogLine(t *testing.T) {
 		t.Errorf("agent_waiting_over logs %q, want nothing", got)
 	}
 }
+
+// While a resolver session works the card says what it does; its end
+// gives the card back to the task. The didn't-integrate question offers
+// Resolve first while it may (SPEC §6.11).
+func TestResolverCardAndDialog(t *testing.T) {
+	hs := newHarness(t, 80, 24)
+	hs.events(started("M0-03"), opened("M0-03"),
+		engine.Event{Kind: engine.ResolverOpened, Task: "M0-03", Reason: "conflict", Detail: "resolving a conflict in 2 files"})
+	if v := hs.m.View(); !strings.Contains(v, "resolving a conflict in 2 files") {
+		t.Errorf("the card doesn't say the resolver works:\n%s", v)
+	}
+	hs.events(engine.Event{Kind: engine.ResolverFailed, Task: "M0-03", Detail: "resolver failed: gave up: no; needs you"})
+	if v := hs.m.View(); strings.Contains(v, "resolving a conflict") {
+		t.Errorf("the card still says the resolver works:\n%s", v)
+	}
+	ev := asked(engine.QuestionIntegration, "M0-03 didn't integrate")
+	ev.Resolve = true
+	hs.events(ev)
+	if v := hs.m.View(); !strings.Contains(v, "1. Resolve (a resolver session)") {
+		t.Fatalf("the dialog doesn't offer Resolve first:\n%s", v)
+	}
+	hs.key("enter")
+	if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdResolve, Task: "M0-03"}) {
+		t.Errorf("sent %+v, want resolve for M0-03", got)
+	}
+}

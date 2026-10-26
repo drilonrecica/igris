@@ -366,12 +366,18 @@ func (b *usageBuilder) attempt(e state.Event) {
 		sub = *e.Sub
 	}
 	cost := attemptCost(b.prices, main, sub, e.Models, e.SubModels)
-	t.Attempts++
+	// A resolver session's line (SPEC §6.11) adds to its task, and is no
+	// attempt of its own.
+	attempt := 0
+	if !e.Resolver {
+		attempt = 1
+	}
+	t.Attempts += attempt
 	t.add(main, sub)
 	t.cost(cost)
 	t.Models = mergeModels(t.Models, e.Models)
 	t.SubModels = mergeModels(t.SubModels, e.SubModels)
-	b.u.Totals.Attempts++
+	b.u.Totals.Attempts += attempt
 	b.u.Totals.add(main, sub)
 	b.u.Totals.cost(cost)
 
@@ -380,7 +386,7 @@ func (b *usageBuilder) attempt(e state.Event) {
 	// the main thread's, and rows can add up to more than the totals.
 	counted := map[*UsageModel]bool{}
 	for _, m := range b.modelRows(e.Models) {
-		m.Attempts++
+		m.Attempts += attempt
 		m.Tokens.add(main)
 		m.cost(b.prices.Cost(main, []string{m.Model}))
 		counted[m] = true
@@ -388,7 +394,7 @@ func (b *usageBuilder) attempt(e state.Event) {
 	if !sub.IsZero() {
 		for _, s := range b.modelRows(e.SubModels) {
 			if !counted[s] {
-				s.Attempts++
+				s.Attempts += attempt
 				counted[s] = true
 			}
 			s.addSub(sub)
@@ -404,7 +410,7 @@ func (b *usageBuilder) attempt(e state.Event) {
 		r = &UsageRank{Rank: rank}
 		b.ranks[rank] = r
 	}
-	r.Attempts++
+	r.Attempts += attempt
 	r.add(main, sub)
 	r.cost(cost)
 }

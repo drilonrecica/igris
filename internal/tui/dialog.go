@@ -123,6 +123,10 @@ func questionDialog(ev engine.Event) *dialog {
 			{"Skip…", actSkip},
 			{"Stop igris", actStop},
 		}
+		if ev.Resolve {
+			// A resolver session for this one task, first (SPEC §6.11).
+			d.options = append([]option{{"Resolve (a resolver session)", actResolve}}, d.options...)
+		}
 		d.cancel = actClose
 	case engine.QuestionFilesInTheWay:
 		// Files where the run branch is checked out are in the way of the

@@ -145,6 +145,10 @@ type Current struct {
 	// Limit is the usage limit the session waits at (SPEC §6.3, since
 	// 1.8), once the transcript's hit named it; nil otherwise.
 	Limit *Limited `json:"limit,omitempty"`
+	// Resolver is why a resolver session works on the task, conflict or
+	// verify (SPEC §6.11, since 1.8); "" without one. Detail then says it
+	// in words while the card works.
+	Resolver string `json:"resolver,omitempty"`
 }
 
 // The card's states.
@@ -174,6 +178,7 @@ type tracker struct {
 	paused, holding, worktree bool
 	ended                     bool
 	cards                     []*Current        // the active tasks, in the order they started
+	resolving                 map[string]string // the card's words while a resolver session works (SPEC §6.11)
 	asks                      map[string]*Event // the pending question of each task
 	reset                     *Event
 	quota                     *state.Quota
@@ -327,6 +332,23 @@ func (t *tracker) apply(raw engine.Event, ev Event) {
 		setState(c, StateNeedsYou, ev)
 	case engine.NeedsYouClear, engine.VerifyFailed:
 		setState(c, StateWorking, ev)
+		if c != nil && c.Resolver != "" {
+			c.Detail = t.resolving[raw.Task] // still the resolver's
+		}
+	case engine.ResolverOpened:
+		setState(c, StateWorking, ev)
+		if c != nil {
+			c.Resolver = ev.Reason
+			if t.resolving == nil {
+				t.resolving = map[string]string{}
+			}
+			t.resolving[raw.Task] = ev.Detail
+		}
+	case engine.ResolverDone, engine.ResolverFailed:
+		if c != nil {
+			c.Resolver = ""
+			delete(t.resolving, raw.Task)
+		}
 	case engine.VerifyStarted:
 		setState(c, StateVerifying, ev)
 	case engine.SessionLost:

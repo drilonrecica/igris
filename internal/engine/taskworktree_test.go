@@ -43,6 +43,12 @@ type repo struct {
 	// refuse: a branch whose next fast-forwards fail with these errors, one
 	// per fast-forward, as git refuses one with files in the way.
 	refuse map[string][]string
+	// markers: a worktree dir whose next `diff --check` reports leftover
+	// conflict markers in these files (a resolver that left them).
+	markers map[string][]string
+	// empty: a worktree dir whose next `diff --cached --quiet` finds
+	// nothing staged (a resolution that is already on the base).
+	empty map[string]bool
 }
 
 type fakeWT struct {
@@ -50,6 +56,9 @@ type fakeWT struct {
 	dirty         bool
 	integrated    bool // its commits are on the run branch
 	run           bool // the run's own worktree (worktree mode), not a task's
+	// rebasing: a rebase stopped on a conflict and was neither aborted
+	// nor continued (REBASE_HEAD exists); rebased: ORIG_HEAD exists.
+	rebasing, rebased bool
 }
 
 type conflict struct {
@@ -58,7 +67,7 @@ type conflict struct {
 }
 
 func (h *harness) repo() *repo {
-	r := &repo{h: h, wts: map[string]*fakeWT{}, branches: map[string]*fakeWT{}, conflicts: map[string]*conflict{}, changes: map[string][]string{}, refuse: map[string][]string{}}
+	r := &repo{h: h, wts: map[string]*fakeWT{}, branches: map[string]*fakeWT{}, conflicts: map[string]*conflict{}, changes: map[string][]string{}, refuse: map[string][]string{}, markers: map[string][]string{}, empty: map[string]bool{}}
 	h.gitFn = r.git
 	return r
 }
@@ -78,6 +87,30 @@ func (r *repo) refuseFF(branch string, stderr ...string) {
 	r.refuse[branch] = stderr
 }
 
+// markersLeft makes the next `diff --check` in the worktree dir report
+// leftover conflict markers in files.
+func (r *repo) markersLeft(dir string, files ...string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.markers[dir] = files
+}
+
+// nothingStaged makes the next `diff --cached --quiet` in the worktree dir
+// find nothing staged.
+func (r *repo) nothingStaged(dir string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.empty[dir] = true
+}
+
+// rebasing reports whether the worktree dir is mid-rebase.
+func (r *repo) rebasing(dir string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	wt := r.wts[dir]
+	return wt != nil && wt.rebasing
+}
+
 // sha is the commit hash HEAD names in dir: 40 digits, so it looks like one.
 func (r *repo) sha(dir string) string {
 	if wt := r.wts[dir]; wt != nil && !wt.run {
@@ -86,15 +119,65 @@ func (r *repo) sha(dir string) string {
 	return fmt.Sprintf("%040d", 1000000+r.runHead)
 }
 
+// runSHA is the run branch's head after n commits, as rev-parse in the
+// root printed it then.
+func runSHA(n int) string { return fmt.Sprintf("%040d", 1000000+n) }
+
 func (r *repo) git(c runner.Cmd) (runner.Result, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	dir, _ := filepath.Rel(r.h.root, c.Dir)
 	a := c.Args
 	r.log = append(r.log, dir+": "+strings.Join(a, " "))
+	for len(a) > 1 && a[0] == "-c" {
+		a = a[2:] // git -c key=value <command>
+	}
 	fail := runner.Result{ExitCode: 1}
 	out := func(s string) (runner.Result, error) { return runner.Result{Stdout: []byte(s)}, nil }
+	wt := r.wts[dir]
 	switch {
+	case a[0] == "rev-parse" && len(a) == 4 && a[3] == "REBASE_HEAD":
+		if wt == nil || !wt.rebasing {
+			return fail, nil
+		}
+	case a[0] == "merge-base" && len(a) == 3: // merge-base <target> ORIG_HEAD
+		if wt == nil || !wt.rebased {
+			return fail, nil
+		}
+		return out(runSHA(wt.base) + "\n")
+	case a[0] == "log" && len(a) == 3 && strings.HasPrefix(a[1], "--format="): // the commits of base..target
+		var b strings.Builder
+		for n := r.runHead; wt != nil && n > wt.base; n-- {
+			b.WriteString(runSHA(n) + "\tsubject " + fmt.Sprint(n) + "\n")
+		}
+		return out(b.String())
+	case a[0] == "diff" && slices.Contains(a, "--check"):
+		files := r.markers[dir]
+		delete(r.markers, dir)
+		if len(files) == 0 {
+			return runner.Result{}, nil
+		}
+		var b strings.Builder
+		for _, f := range files {
+			b.WriteString(f + ":1: leftover conflict marker\n")
+		}
+		return runner.Result{ExitCode: 2, Stdout: []byte(b.String())}, nil
+	case a[0] == "diff" && slices.Contains(a, "--cached"):
+		if r.empty[dir] {
+			delete(r.empty, dir)
+			return runner.Result{}, nil
+		}
+		return fail, nil // something is staged
+	case a[0] == "add":
+	case a[0] == "commit" && slices.Contains(a, "--amend"):
+	case a[0] == "rebase" && (a[1] == "--continue" || a[1] == "--skip"):
+		if wt == nil || !wt.rebasing {
+			return runner.Result{ExitCode: 128, Stderr: []byte("fatal: No rebase in progress?\n")}, nil
+		}
+		wt.rebasing, wt.base = false, r.runHead
+		if a[1] == "--skip" {
+			wt.commits = 0
+		}
 	case a[0] == "worktree" && a[1] == "add" && a[2] == "-b":
 		branch, path := a[3], a[4]
 		if _, ok := r.branches[branch]; ok {
@@ -155,12 +238,21 @@ func (r *repo) git(c runner.Cmd) (runner.Result, error) {
 		}
 		return out(fmt.Sprintf("%d\n", n))
 	case a[0] == "rebase" && a[1] == "--abort":
+		if wt != nil {
+			wt.rebasing = false
+		}
 	case a[0] == "rebase":
+		if wt != nil {
+			wt.rebased = true
+		}
 		if k := r.conflicts[dir]; k != nil && k.times > 0 {
 			k.times--
+			if wt != nil {
+				wt.rebasing = true
+			}
 			return fail, nil
 		}
-		if wt := r.wts[dir]; wt != nil {
+		if wt != nil {
 			wt.base = r.runHead
 		}
 	case a[0] == "diff":

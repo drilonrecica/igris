@@ -161,6 +161,17 @@ func currentOf(c *serve.Current) *current {
 	if t := c.Tokens; t != nil {
 		cur.tokens = &engine.Tokens{In: t.In, Out: t.Out, Models: t.Models, Unavailable: t.Unavailable, USD: t.USD, Priced: t.Priced}
 	}
+	if c.Resolver != "" {
+		// The snapshot says why; its detail has the words while the card
+		// works (SPEC §6.11).
+		cur.resolver = "resolving a conflict"
+		if c.Resolver == "verify" {
+			cur.resolver = "fixing the integrated tree"
+		}
+		if c.State == serve.StateWorking && c.Detail != "" {
+			cur.resolver = c.Detail
+		}
+	}
 	return cur
 }
 

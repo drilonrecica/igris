@@ -327,7 +327,8 @@ func TestIntegrationFailureNeedsYou(t *testing.T) {
 			if got := h.statuses(); got != tc.statuses {
 				t.Errorf("statuses: %s", got)
 			}
-			if asked.Task != "a" || !slices.Equal(asked.Output, []string{"main.go"}) || !strings.Contains(asked.Detail, "a didn't integrate: the rebase onto the run branch conflicts in main.go: rerun it fresh, mark it done (you integrated it by hand), skip it, or stop") {
+			// No resolver ran for a: Resolve is offered first (SPEC §6.11).
+			if asked.Task != "a" || !asked.Resolve || !slices.Equal(asked.Output, []string{"main.go"}) || !strings.Contains(asked.Detail, "a didn't integrate: the rebase onto the run branch conflicts in main.go: resolve it with a resolver session, rerun it fresh, mark it done (you integrated it by hand), skip it, or stop") {
 				t.Errorf("question %+v", asked)
 			}
 			var got []string

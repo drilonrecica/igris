@@ -49,6 +49,7 @@ type current struct {
 	tokens                       *engine.Tokens // the attempt's token usage so far (SPEC §6.9, §15.1); nil until read
 	waiting                      bool           // the agent waits on background work (SPEC §6.3)
 	limit                        *engine.Limit  // the usage limit the session waits at, once known (SPEC §6.3)
+	resolver                     string         // the card's words while a resolver session works (SPEC §6.11); "" without one
 	session                      *backend.SessionRef
 	claudeSession                string // the session's Claude UUID, for claude --resume
 }
@@ -1034,6 +1035,15 @@ func (m *model) event(ev engine.Event) {
 		setState(c, stateNeedsYou, ev)
 	case engine.NeedsYouClear, engine.VerifyFailed:
 		setState(c, stateWorking, ev)
+	case engine.ResolverOpened:
+		setState(c, stateWorking, ev)
+		if c != nil {
+			c.resolver = ev.Detail
+		}
+	case engine.ResolverDone, engine.ResolverFailed:
+		if c != nil {
+			c.resolver = ""
+		}
 	case engine.VerifyStarted:
 		setState(c, stateVerifying, ev)
 	case engine.SessionLost:

@@ -88,7 +88,7 @@ func (e *Engine) nextAttempt(l *launch) {
 func (l *launch) startAttempt(now time.Time) { l.attemptAt, l.overdue, l.nudged = now, false, false }
 
 func (l *launch) fill(ev Event) Event {
-	ev.Task, ev.Title, ev.Rank, ev.Model, ev.Mode = l.t.ID, l.t.Title, l.t.Rank, l.model, l.mode
+	ev.Task, ev.Title, ev.Rank, ev.Model, ev.Mode = l.t.ID, l.t.Title, l.rank(), l.model, l.mode
 	if ev.Phase == "" {
 		ev.Phase = phaseOf(l.t)
 	}
@@ -115,6 +115,7 @@ type sessionStart struct {
 	sessionID string
 	args      []string
 	text      string // the first prompt
+	label     string // the pane's label; "" for the task's usual one
 }
 
 // startTask starts the task t (SPEC §6 steps 1–5): a user task is handed to
@@ -220,22 +221,29 @@ func (e *Engine) markInProgress(ctx context.Context, l *launch, detail string) (
 // prepareSession resolves the mode, session ID, arguments and first prompt
 // of a session for l's task. It writes only the rules file.
 func (e *Engine) prepareSession(l *launch, how startKind) (sessionStart, error) {
+	text := prompt.Continue(l.t.ID)
+	if how != startContinue {
+		var err error
+		if text, err = e.taskPrompt(l, how == startFresh); err != nil {
+			return sessionStart{how: how}, err
+		}
+	}
+	return e.prepareWith(l, how, text)
+}
+
+// prepareWith is prepareSession with text as the first prompt: the task
+// prompt, the continue prompt or a resolver's (SPEC §6.11).
+func (e *Engine) prepareWith(l *launch, how startKind, text string) (sessionStart, error) {
 	t := l.t
-	st := sessionStart{how: how}
+	st := sessionStart{how: how, text: text}
 	var err error
 	if st.mode, err = e.modeFor(t); err != nil {
 		return st, err
 	}
 	if how == startContinue {
 		st.sessionID = l.cur.ClaudeSession
-		st.text = prompt.Continue(t.ID)
-	} else {
-		if st.sessionID, err = NewSessionID(); err != nil {
-			return st, err
-		}
-		if st.text, err = e.taskPrompt(l, how == startFresh); err != nil {
-			return st, err
-		}
+	} else if st.sessionID, err = NewSessionID(); err != nil {
+		return st, err
 	}
 	rules, err := e.dir.WriteRules(t.ID, prompt.Rules())
 	if err != nil {
@@ -292,10 +300,14 @@ func (e *Engine) openSession(ctx context.Context, l *launch, st sessionStart) er
 		return err
 	}
 	from := e.clock.Now() // a continued session's transcript holds the earlier attempts too
+	label := st.label
+	if label == "" {
+		label = t.ID + " · " + t.Rank
+	}
 	sess, err := e.be.OpenSession(ctx, backend.SessionSpec{
 		TaskID: t.ID,
 		Dir:    e.workDir(l),
-		Label:  t.ID + " · " + t.Rank,
+		Label:  label,
 		Args:   st.args,
 		Env:    slotEnv(l),
 		// Keys the session's hook state (SPEC §6.3).
