@@ -39,6 +39,11 @@ func TestParseCommand(t *testing.T) {
 		{"no thanks", engine.Command{}, actNone, "takes no argument"},
 		{"start", engine.Command{Kind: engine.CmdLimitStart}, actSend, ""},
 		{"start now", engine.Command{}, actNone, "takes no argument"},
+		{"budget 30M", engine.Command{Kind: engine.CmdBudget, Text: "30M"}, actSend, ""},
+		{"budget $60", engine.Command{Kind: engine.CmdBudget, Text: "$60"}, actSend, ""},
+		{"budget continue", engine.Command{Kind: engine.CmdBudget, Text: "continue"}, actSend, ""},
+		{"budget", engine.Command{}, actNone, "budget takes a new value"},
+		{"budget 30 M", engine.Command{}, actNone, "budget takes a new value"},
 		{"done", engine.Command{Kind: engine.CmdDone}, actSend, ""},
 		{"done  bought it, all fine ", engine.Command{Kind: engine.CmdDone, Text: "bought it, all fine"}, actSend, ""},
 		{"skip", engine.Command{}, actNone, "needs a reason"},
@@ -112,6 +117,11 @@ func TestFormatEvent(t *testing.T) {
 		{engine.Event{Kind: engine.SessionLimitOver, Task: "A-1", Detail: "works again after the usage limit"}, "A-1 works again after the usage limit"},
 		{engine.Event{Kind: engine.Nudged, Task: "A-1", Detail: "didn't continue two minutes after the usage limit's reset; igris told it to continue"}, "A-1 didn't continue two minutes after the usage limit's reset; igris told it to continue"},
 		{engine.Event{Kind: engine.Nudged, Task: "A-1"}, "A-1 stopped without igris done; igris reminded it once"},
+		// Budgets (SPEC §6.9): the run's question, no task.
+		{engine.Event{Kind: engine.BudgetExceeded, Detail: "run budget 20M reached · 20.4M used · A-1 keeps running"}, "! run budget 20M reached · 20.4M used · A-1 keeps running"},
+		{engine.Event{Kind: engine.Asked, Question: engine.QuestionBudget, Detail: "run budget 20M reached · 20.4M used · A-1 keeps running; no new task starts until you raise it, let it go on, or stop the run"},
+			"! needs you · budget reached\n  run budget 20M reached · 20.4M used · A-1 keeps running; no new task starts until you raise it, let it go on, or stop the run\n  type `budget <value>` to raise it for this run (30M, $60), `budget continue` or `stop`"},
+		{engine.Event{Kind: engine.BudgetRaised, Detail: "run budget raised to 30M for this run"}, "run budget raised to 30M for this run"},
 	}
 	for _, tt := range tests {
 		if got := strings.Join(formatEvent(tt.ev), "\n"); got != tt.want {

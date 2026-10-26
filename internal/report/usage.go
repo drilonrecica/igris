@@ -215,6 +215,10 @@ type Usage struct {
 	// NoUsage says why (as a clause after "No usage was recorded:") the runs covered have no usage lines at all, so the
 	// zeros are not a measurement; empty when any attempt logged usage.
 	NoUsage string `json:"no_usage,omitempty"`
+	// Budgets are the budgets of each run covered with what it used of
+	// them (SPEC §6.9), oldest run first; none when igris.toml sets none
+	// and no run reached one. Since 1.8.
+	Budgets []Budget `json:"budgets,omitempty"`
 }
 
 // NewUsage reports the usage of the run sel names (as for NewReport), or
@@ -253,6 +257,9 @@ func NewUsage(in HistoryInput, project, sel string, since time.Time) (Usage, err
 		u.Runs = append(u.Runs, UsageRun{Run: r.id, StartedAt: sum.StartedAt, End: sum.End})
 		for _, e := range r.events {
 			b.event(r.id, e)
+		}
+		if r.id != "" {
+			u.Budgets = append(u.Budgets, r.budgets(in.Budgets, in.Prices)...)
 		}
 	}
 	b.finish()

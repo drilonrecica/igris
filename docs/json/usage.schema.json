@@ -197,6 +197,13 @@
       "required": [
         "at"
       ]
+    },
+    "budgets": {
+      "type": "array",
+      "description": "Since 1.8: the budgets of each run covered with what it used of them (SPEC §6.9), oldest run first; absent when igris.toml sets none and no run reached one.",
+      "items": {
+        "$ref": "#/$defs/budget"
+      }
     }
   },
   "required": [
@@ -617,6 +624,47 @@
         "as_of",
         "source",
         "unpriced"
+      ]
+    },
+    "budget": {
+      "type": "object",
+      "description": "Since 1.8: a budget of a run and what the run used of it (SPEC §6.9): the budgets igris.toml sets now, and any the run's log says it reached or raised.",
+      "properties": {
+        "run": {
+          "type": "string",
+          "description": "The run ID; absent in `report`, which is one run."
+        },
+        "budget": {
+          "type": "string",
+          "description": "run, phase:<id> or rank:<rank>."
+        },
+        "limit": {
+          "type": "string",
+          "description": "The value as igris.toml writes it (20M, $40), or as the run last raised it."
+        },
+        "used": {
+          "type": "string",
+          "description": "What the run used: a token count (14.2M; input + output, subagents included) or an estimate ($12.40) for an amount."
+        },
+        "percent": {
+          "type": "number",
+          "minimum": 0,
+          "description": "used of limit; may pass 100."
+        },
+        "reached": {
+          "type": "boolean",
+          "description": "The run reached it (budget_exceeded)."
+        },
+        "raised": {
+          "type": "string",
+          "description": "The owner's last answer once reached (budget_raised): a new value, or continue."
+        }
+      },
+      "required": [
+        "budget",
+        "limit",
+        "used",
+        "percent"
       ]
     }
   }

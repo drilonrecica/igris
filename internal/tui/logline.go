@@ -58,7 +58,16 @@ func logLines(ev engine.Event) []string {
 	case engine.SessionLost:
 		return []string{needsLine(id, ev.Detail)}
 	case engine.Asked:
+		if ev.Question == engine.QuestionBudget {
+			return nil // budget_exceeded said it
+		}
 		return []string{needsLine(id, ev.Question.Kind())}
+	case engine.BudgetRead:
+		return nil // the card shows it
+	case engine.BudgetExceeded:
+		return []string{look.GlyphNeedsYou + " " + ev.Detail}
+	case engine.BudgetRaised:
+		return []string{ev.Detail}
 	case engine.PlanClosed:
 		return []string{id + " " + ev.Detail}
 	case engine.Retrying:
@@ -185,7 +194,7 @@ func badge(mode string) string {
 // its glyph (logLines).
 func logLook(k engine.EventKind) tone {
 	switch k {
-	case engine.NeedsYou, engine.SessionLost, engine.Asked, engine.YourTurn:
+	case engine.NeedsYou, engine.SessionLost, engine.Asked, engine.YourTurn, engine.BudgetExceeded:
 		return lookAlert // waits on the owner: plume
 	case engine.TaskOverdue, engine.RankMismatch, engine.PhaseStuck, engine.PlanChanged, engine.Warning, engine.Overlap:
 		return lookWarn

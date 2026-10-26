@@ -52,6 +52,9 @@ const (
 	// (SPEC §6.9): the next start ignores the quota threshold once; a hit
 	// still holds.
 	CmdLimitStart
+	// CmdBudget answers the budget reached (SPEC §6.9): Text is a new
+	// value for this run, or continue (the budget no longer holds it).
+	CmdBudget
 )
 
 func (k CommandKind) String() string {
@@ -76,6 +79,8 @@ func (k CommandKind) String() string {
 		return "plan answer"
 	case CmdLimitStart:
 		return "start anyway"
+	case CmdBudget:
+		return "budget answer"
 	}
 	return "unknown"
 }
@@ -83,7 +88,7 @@ func (k CommandKind) String() string {
 // Command is an owner action sent to a running engine.
 type Command struct {
 	Kind     CommandKind
-	Text     string // CmdDone: the note; CmdSkip: the reason; CmdMode, CmdTaskMode: the mode; CmdPlan: the feedback
+	Text     string // CmdDone: the note; CmdSkip: the reason; CmdMode, CmdTaskMode: the mode; CmdPlan: the feedback; CmdBudget: the value
 	Continue bool   // CmdRetry: continue the conversation instead of starting fresh
 	Yes      bool   // CmdAnswer: the answer; CmdMode, CmdTaskMode: skip permissions confirmed
 	Task     string // CmdTaskMode: the task whose mode is overridden; CmdAnswer: the reset request answered
@@ -134,6 +139,8 @@ func (e *Engine) drain() {
 				continue
 			}
 			e.limit.startAnyway = true
+		case CmdBudget:
+			e.answerBudget(c)
 		case CmdMode, CmdTaskMode:
 			e.setMode(c)
 		case CmdAnswer:

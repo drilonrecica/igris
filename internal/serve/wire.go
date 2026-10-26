@@ -59,6 +59,9 @@ const (
 	// CmdLimit is Start anyway while the usage hold holds (SPEC §6.9,
 	// since 1.8): text start.
 	CmdLimit = "limit"
+	// CmdBudget answers a budget reached (SPEC §6.9, since 1.8): text a
+	// new value for this run, or continue.
+	CmdBudget = "budget"
 )
 
 // LimitStart is the text of a limit command: the one action it takes.
@@ -75,6 +78,7 @@ var commandKinds = map[string]engine.CommandKind{
 	CmdTaskMode: engine.CmdTaskMode,
 	CmdPlan:     engine.CmdPlan,
 	CmdLimit:    engine.CmdLimitStart,
+	CmdBudget:   engine.CmdBudget,
 }
 
 // EventTypeTokens is the socket type of engine.UsageRead: the run log's
@@ -149,6 +153,11 @@ type Event struct {
 	// Limit is the usage limit on limit_hold, limit_resume and
 	// session_limited (SPEC §6.9), since 1.8.
 	Limit *engine.Limit `json:"limit,omitempty"`
+	// Budget is the budget on budget_exceeded, budget_raised and the
+	// budget question; Budgets every budget of the run on budgets (SPEC
+	// §6.9), since 1.8.
+	Budget  *engine.BudgetUse  `json:"budget,omitempty"`
+	Budgets []engine.BudgetUse `json:"budgets,omitempty"`
 }
 
 // Change is a Status cell the run wrote.
@@ -201,6 +210,11 @@ func fromEngine(ev engine.Event, run string) Event {
 		lim := *l
 		out.Limit = &lim
 	}
+	if b := ev.Budget; b != nil {
+		bu := *b
+		out.Budget = &bu
+	}
+	out.Budgets = head(ev.Budgets, maxListItems)
 	for _, c := range head(ev.Changes, maxListItems) {
 		out.Changes = append(out.Changes, Change{ID: c.ID, From: c.From.String(), To: c.To.String()})
 	}
@@ -297,7 +311,7 @@ func checkID(id string) error {
 var questions = map[engine.Question]bool{
 	"": true, engine.QuestionConfirmSkip: true, engine.QuestionSessionLost: true, engine.QuestionHookFailed: true,
 	engine.QuestionCommit: true, engine.QuestionConfirmReset: true, engine.QuestionPlanApproval: true,
-	engine.QuestionIntegration: true, engine.QuestionFilesInTheWay: true,
+	engine.QuestionIntegration: true, engine.QuestionFilesInTheWay: true, engine.QuestionBudget: true,
 }
 
 // command converts a command request into the engine's command, checking
@@ -341,8 +355,40 @@ func (r Request) command() (engine.Command, error) {
 		if strings.TrimSpace(c.Text) != LimitStart {
 			return engine.Command{}, errors.New("limit takes text start")
 		}
+	case engine.CmdBudget:
+		if strings.TrimSpace(c.Text) == "" || len(c.Text) > maxBudgetText {
+			return engine.Command{}, fmt.Errorf("budget takes text: a new value (\"30M\", \"$60\") or %s", state.BudgetContinue)
+		}
 	}
 	return c, nil
+}
+
+// maxBudgetText bounds a budget command's value.
+const maxBudgetText = 64
+
+// budgetStates are the states a budget the run sent may have.
+var budgetStates = map[string]bool{"": true, engine.BudgetReached: true, engine.BudgetContinued: true}
+
+// budgetOf is a budget the run sent, nil unless it has the shape of one: a
+// budget's name, its value, a short use and a percentage.
+func budgetOf(b *engine.BudgetUse) *engine.BudgetUse {
+	if b == nil || !state.ValidBudgetKey(b.Budget) || !state.ValidBudgetValue(b.Limit) || b.Limit == state.BudgetContinue ||
+		len(b.Used) > 24 || textsafe.HasControl(b.Used) || !budgetStates[b.State] || !(b.Percent >= 0) || b.Percent > 1e9 {
+		return nil
+	}
+	out := *b
+	return &out
+}
+
+// budgetsOf is the budgets the run sent that have the shape of one.
+func budgetsOf(in []engine.BudgetUse) []engine.BudgetUse {
+	var out []engine.BudgetUse
+	for i := range head(in, maxListItems) {
+		if b := budgetOf(&in[i]); b != nil {
+			out = append(out, *b)
+		}
+	}
+	return out
 }
 
 // limitWindows are the quota windows an event's limit may name.

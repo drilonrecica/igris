@@ -97,6 +97,8 @@ func questionDialog(ev engine.Event) *dialog {
 		d.cancel = actClose
 	case engine.QuestionPlanApproval:
 		return planDialog(ev)
+	case engine.QuestionBudget:
+		return budgetDialog(ev)
 	case engine.QuestionHookFailed:
 		d.title = ev.Task + ": before_task hook failed"
 		d.options = []option{

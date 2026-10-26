@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/price"
 	"github.com/drilonrecica/igris/internal/state"
 	"github.com/drilonrecica/igris/internal/textsafe"
@@ -54,6 +55,9 @@ type HistoryInput struct {
 	// Prices is the price table of the estimate (SPEC §6.9, since 1.8);
 	// the zero value is the embedded table.
 	Prices price.Table
+	// Budgets are the budgets igris.toml sets now (SPEC §6.9, since 1.8),
+	// which `report` and `usage` show with what each run used of them.
+	Budgets config.Budgets
 }
 
 // TaskRun is one task within a run: its attempts merged.

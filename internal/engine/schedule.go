@@ -285,7 +285,9 @@ func (e *Engine) runPhase(ctx context.Context, id string) (Result, error) {
 					held = false
 					// The usage hold (SPEC §6.9): agent tasks wait for the
 					// reset; user tasks start.
-					if s = e.gateStarts(ctx, s); len(s.start) == 0 {
+					// A reached budget (SPEC §6.9): agent tasks wait for
+					// the owner's answer.
+					if s = e.gateStarts(ctx, e.gateBudget(s)); len(s.start) == 0 {
 						break
 					}
 					if err := e.startAll(ctx, s); err != nil {
@@ -315,6 +317,7 @@ func (e *Engine) runPhase(ctx context.Context, id string) (Result, error) {
 			progressed = progressed || ended
 		}
 		e.sendNeeds(ctx)
+		e.checkBudgets(ctx)
 		if progressed {
 			continue // a task ended: select again at once
 		}

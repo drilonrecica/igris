@@ -57,6 +57,9 @@ const (
 	LimitResume       EventKind = "limit_resume"       // ... and no longer are; Detail says why (reset, quota fell to 71%, started anyway)
 	SessionLimited    EventKind = "session_limited"    // the task's session waits at a usage limit (SPEC §6.3); Limit says which and until when once the transcript's hit is read (nil before)
 	SessionLimitOver  EventKind = "session_limit_over" // ... and works again, or igris told it to continue
+	BudgetRead        EventKind = "budgets"            // what the run's budgets used changed (SPEC §6.9); Budgets holds them; not logged as a feed line
+	BudgetExceeded    EventKind = "budget_exceeded"    // a budget is reached (SPEC §6.9); Budget says which, Detail what follows; the owner is asked (QuestionBudget)
+	BudgetRaised      EventKind = "budget_raised"      // the owner raised a reached budget or let it go on; Budget says which, Detail how
 	Asked             EventKind = "asked"              // Question waits for the owner's answer; Detail is the question
 	PlanClosed        EventKind = "plan_closed"        // the plan shown for approval is answered or gone; Detail says how
 	Retrying          EventKind = "retrying"           // the session is replaced; Detail is "continue" or "fresh"
@@ -135,6 +138,11 @@ type Event struct {
 	// SessionLimited (SPEC §6.9): the window, its reset and, for a hold at
 	// the threshold, the window's use; nil while the window isn't known.
 	Limit *Limit
+	// Budget is the budget on BudgetExceeded, BudgetRaised and Asked with
+	// QuestionBudget; Budgets every budget of the run on BudgetRead (SPEC
+	// §6.9).
+	Budget  *BudgetUse
+	Budgets []BudgetUse
 }
 
 // Limit is a usage limit a UI shows (SPEC §6.9, §15): a quota window at or
@@ -219,6 +227,10 @@ const (
 	// (SPEC §6.11); Output names them. CmdRetry (try again: only the
 	// fast-forward, no new session), CmdDone, CmdSkip or CmdStop.
 	QuestionFilesInTheWay Question = "files_in_the_way"
+	// QuestionBudget: a budget is reached (SPEC §6.9); Budget says which.
+	// It is the run's, not a task's. CmdBudget answers it (a new value or
+	// continue), or CmdStop.
+	QuestionBudget Question = "budget"
 )
 
 // Kind names the question in a word or two, as the Needs-you lines say
@@ -239,6 +251,8 @@ func (q Question) Kind() string {
 		return "a plan to approve"
 	case QuestionIntegration, QuestionFilesInTheWay:
 		return "integration"
+	case QuestionBudget:
+		return "budget reached"
 	}
 	return "your answer"
 }

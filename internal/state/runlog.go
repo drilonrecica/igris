@@ -79,6 +79,12 @@ const (
 	// they no longer are, Detail saying what ended it. Since 1.8.
 	EventLimitHold   EventType = "limit_hold"
 	EventLimitResume EventType = "limit_resume"
+	// EventBudgetExceeded: a budget is reached (SPEC §6.9), with Budget,
+	// Limit and Used; once per budget and value. EventBudgetRaised: the
+	// owner raised it (Limit the new value) or let it go on (Limit
+	// "continue"). Since 1.8.
+	EventBudgetExceeded EventType = "budget_exceeded"
+	EventBudgetRaised   EventType = "budget_raised"
 )
 
 // Why a task didn't integrate (SPEC §6.11): a rebase conflict, or verify
@@ -199,7 +205,14 @@ type Event struct {
 	// limit_hold (SPEC §6.9). Since 1.8.
 	Window   string `json:"window,omitempty"`
 	ResetsAt string `json:"resets_at,omitempty"`
-	Detail   string `json:"detail,omitempty"` // never secrets (AGENTS §6)
+	// Budget, Limit and Used are the budget (run, phase:<id> or
+	// rank:<rank>), its value as written (on budget_raised the new value
+	// or "continue") and what was used then (20.4M, $41.20), on
+	// budget_exceeded and budget_raised (SPEC §6.9). Since 1.8.
+	Budget string `json:"budget,omitempty"`
+	Limit  string `json:"limit,omitempty"`
+	Used   string `json:"used,omitempty"`
+	Detail string `json:"detail,omitempty"` // never secrets (AGENTS §6)
 }
 
 var runIDPattern = regexp.MustCompile(`^[0-9]{8}-[0-9]{6}-[0-9a-f]{4}$`)
@@ -443,6 +456,16 @@ func (e Event) checked() Event {
 	}
 	if _, err := time.Parse(time.RFC3339, e.ResetsAt); e.ResetsAt != "" && err != nil {
 		e.ResetsAt = ""
+	}
+	// A budget line names a budget and values of the shapes igris writes.
+	if e.Budget != "" && !ValidBudgetKey(e.Budget) {
+		e.Budget = ""
+	}
+	if e.Limit != "" && !ValidBudgetValue(e.Limit) {
+		e.Limit = ""
+	}
+	if e.Used != "" && !validUsed(e.Used) {
+		e.Used = ""
 	}
 	// A duration no run can have (negative, or over maxDurationMS) is
 	// unknown, so sums over the log can't overflow.

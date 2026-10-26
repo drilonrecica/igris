@@ -58,6 +58,11 @@ type Snapshot struct {
 	// Limited is the usage hold while it holds new starts (SPEC §6.9,
 	// since 1.8); nil otherwise.
 	Limited *Limited `json:"limited,omitempty"`
+	// Budgets are the run's budgets with what they used (SPEC §6.9, since
+	// 1.8); BudgetQuestion is the pending budget question, the budget
+	// reached that waits on the owner (the run's, not a task's).
+	Budgets        []engine.BudgetUse `json:"budgets,omitempty"`
+	BudgetQuestion *Event             `json:"budget_question,omitempty"`
 	// Feed is the last events, oldest first, without plan text or hook
 	// output.
 	Feed []Event `json:"feed,omitempty"`
@@ -173,6 +178,8 @@ type tracker struct {
 	reset                     *Event
 	quota                     *state.Quota
 	limited                   *Limited
+	budgets                   []engine.BudgetUse
+	budgetAsk                 *Event
 	feed                      []Event // a ring of the last feedLen events
 	feedNext                  int
 }
@@ -210,6 +217,24 @@ func (t *tracker) apply(raw engine.Event, ev Event) {
 	}
 	if raw.Phase != "" {
 		t.phase = raw.Phase
+	}
+	// The budgets are the run's: no task's card (SPEC §6.9).
+	switch {
+	case raw.Kind == engine.BudgetRead:
+		t.budgets = slices.Clone(raw.Budgets)
+		return
+	case raw.Kind == engine.Asked && raw.Question == engine.QuestionBudget:
+		t.addFeed(ev)
+		e := ev
+		t.budgetAsk = &e
+		return
+	case raw.Kind == engine.BudgetRaised:
+		t.addFeed(ev)
+		t.budgetAsk = nil
+		return
+	case raw.Kind == engine.BudgetExceeded:
+		t.addFeed(ev)
+		return
 	}
 	if raw.Task == "" && len(t.cards) == 1 {
 		raw.Task = t.cards[0].Task // a task's event, from a sequential run
@@ -356,7 +381,7 @@ func (t *tracker) apply(raw engine.Event, ev Event) {
 	case engine.RunStopped:
 		t.ended, t.end = true, raw.Detail
 		clear(t.asks)
-		t.reset, t.limited = nil, nil
+		t.reset, t.limited, t.budgetAsk = nil, nil, nil
 	}
 }
 
@@ -378,7 +403,7 @@ func (t *tracker) dropReset(task string) {
 
 // addFeed keeps ev in the feed, without the parts only a dialog shows.
 func (t *tracker) addFeed(ev Event) {
-	if ev.Type == EventTypeTokens || ev.Type == string(engine.QuotaRead) {
+	if ev.Type == EventTypeTokens || ev.Type == string(engine.QuotaRead) || ev.Type == string(engine.BudgetRead) {
 		return // counters, not feed lines
 	}
 	ev.Plan, ev.Output = "", nil
@@ -399,7 +424,7 @@ func (t *tracker) snapshot(phases []Phase) Snapshot {
 		V: Protocol, Type: TypeSnapshot, Protocol: Protocol,
 		Run: t.run, Started: t.started, Phase: t.phase, Slice: t.slice, Mode: t.mode,
 		Paused: t.paused, Holding: t.holding, Worktree: t.worktree, Ended: t.ended, End: t.end,
-		Reset: t.reset, Quota: t.quota,
+		Reset: t.reset, Quota: t.quota, Budgets: slices.Clone(t.budgets), BudgetQuestion: t.budgetAsk,
 	}
 	if t.limited != nil {
 		l := *t.limited
@@ -498,7 +523,7 @@ func encodeSnapshot(s Snapshot) ([]byte, error) {
 		case len(s.Phases) > 0:
 			s.Phases, s.PlanError = nil, "the plan is too large for the snapshot"
 		default:
-			s.Question, s.Questions, s.Reset = nil, nil, nil
+			s.Question, s.Questions, s.Reset, s.BudgetQuestion = nil, nil, nil, nil
 			return encode(s)
 		}
 	}

@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"slices"
 	"strings"
 	"time"
 
@@ -92,6 +93,7 @@ func (m *model) restore(s serve.Snapshot) {
 		}
 	}
 	m.resetAsk = eventOf(s.Reset)
+	m.budgets, m.budgetAsk = slices.Clone(s.Budgets), eventOf(s.BudgetQuestion)
 	m.tails = map[string][]string{}
 
 	m.log, m.scroll = nil, 0
@@ -137,8 +139,10 @@ func (m *model) askedSince() time.Time {
 			at = q.At
 		}
 	}
-	if q := m.resetAsk; q != nil && !q.At.IsZero() && q.At.Before(at) {
-		at = q.At
+	for _, q := range []*engine.Event{m.resetAsk, m.budgetAsk} {
+		if q != nil && !q.At.IsZero() && q.At.Before(at) {
+			at = q.At
+		}
 	}
 	return at
 }

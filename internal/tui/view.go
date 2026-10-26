@@ -85,7 +85,7 @@ func (m *model) statusText() string {
 // needsOwner reports whether anything waits on the owner: a task that
 // needs them, a pending question or a reset request (SPEC §15.4).
 func (m *model) needsOwner() bool {
-	if len(m.asks) > 0 || m.resetAsk != nil {
+	if len(m.asks) > 0 || m.resetAsk != nil || m.budgetAsk != nil {
 		return true
 	}
 	return slices.ContainsFunc(m.cards, (*current).needsOwner)

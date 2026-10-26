@@ -141,6 +141,8 @@ a { color: var(--accent-text); }
 .meta { color: var(--muted); font-size: .85rem; overflow-wrap: anywhere; }
 .note { color: var(--muted); }
 .warn { color: var(--ember); font-weight: var(--ember-weight); }
+.meta.budget.ember { color: var(--ember); font-weight: var(--ember-weight); }
+.meta.budget.strong { font-weight: 800; }
 .warn::before { content: "▲ "; }
 .rank-haiku { color: var(--rank-haiku); }
 .rank-sonnet { color: var(--rank-sonnet); }

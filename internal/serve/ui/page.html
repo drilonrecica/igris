@@ -74,6 +74,9 @@
 {{- end}}
 </ol>
 {{- end}}
+{{- range .Budgets}}
+<p class="meta budget{{with .Tone}} {{.}}{{end}}">{{.Line}}</p>
+{{- end}}
 <p class="meta">{{if .Phase}}<span>phase {{.Phase.ID}}{{with .Phase.Title}} · {{.}}{{end}}</span><span>{{.Done}} of {{.Total}} done{{with .Elapsed}} · <span class="ran" data-started="{{$.Snap.Started.UTC.Format "2006-01-02T15:04:05Z07:00"}}">{{.}}</span>{{end}}</span>{{else}}<span>no phase yet</span>{{end}}</p>
 </section>
 {{- range .Sheet}}

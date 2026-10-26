@@ -124,6 +124,10 @@ const (
 	actAnswerCard // a card's [Answer…]: its task's question, else the first in line
 	// The usage hold (SPEC §6.9).
 	actLimitStart // Start anyway: the next start ignores the quota threshold once
+	// A budget reached (SPEC §6.9, budget.go).
+	actBudgetRaise        // ask for the new value
+	actBudgetRaiseConfirm // raise it to the value typed
+	actBudgetContinue     // let it go on: it no longer holds this run
 )
 
 // modeActs maps the mode picker's actions to their modes, in the order

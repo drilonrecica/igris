@@ -469,6 +469,7 @@ var knownKinds = func() map[string]engine.EventKind {
 		engine.Committed, engine.NotCommitted, engine.Integrated, engine.IntegrationFailed, engine.Overlap,
 		engine.HookStarted, engine.HookFailed, engine.Warning, engine.RunFailed, engine.RunStopped,
 		engine.LimitHold, engine.LimitResume, engine.SessionLimited, engine.SessionLimitOver,
+		engine.BudgetRead, engine.BudgetExceeded, engine.BudgetRaised,
 	} {
 		m[string(k)] = k
 	}
@@ -491,6 +492,7 @@ func (ev Event) Engine() (engine.Event, bool) {
 		Session: ev.Session, ClaudeSession: textsafe.Line(ev.ClaudeSession),
 		Question: engine.Question(ev.Question), Plan: textsafe.Clean(ev.Plan), Then: textsafe.Line(ev.Then),
 		Quota: ev.Quota, Slot: slotOf(ev.Slot), Limit: limitOf(ev.Limit),
+		Budget: budgetOf(ev.Budget), Budgets: budgetsOf(ev.Budgets),
 	}
 	if kind == engine.RunStarted {
 		out.Run = textsafe.Line(ev.Run) // the envelope stamps every event; the engine this one

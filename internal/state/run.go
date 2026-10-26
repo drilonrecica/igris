@@ -35,6 +35,10 @@ const (
 	runVersion = 4
 )
 
+// maxBudgetOverrides bounds state.json's budget_overrides: more than a
+// config can set.
+const maxBudgetOverrides = 1024
+
 // MaxSlots bounds a parallel phase's slots (SPEC §6.11): an active task's
 // slot is from 0 to MaxSlots-1.
 const MaxSlots = 8
@@ -76,6 +80,11 @@ type Run struct {
 	// using the file (SPEC §13, V10-05). Cleared when the file is
 	// restored.
 	ConfigChanged bool `json:"config_changed,omitempty"`
+	// BudgetOverrides are the budgets the owner raised or let go on for
+	// this run (SPEC §6.9), by budget (run, phase:<id>, rank:<rank>), to
+	// the new value or BudgetContinue. Since 1.8; no version change: an
+	// igris that ignores it asks again at the original value.
+	BudgetOverrides map[string]string `json:"budget_overrides,omitempty"`
 }
 
 // Worktree is a run's git worktree (SPEC §6.8).
@@ -385,6 +394,14 @@ func checkReadBack(r *Run) string {
 			return "the current task's verify attempts are negative"
 		case c.ApprovedPlan != "" && !ValidPlanFile(c.ApprovedPlan, c.TaskID):
 			return "the current task's approved plan is not a file igris kept"
+		}
+	}
+	if len(r.BudgetOverrides) > maxBudgetOverrides {
+		return "too many budget overrides"
+	}
+	for k, v := range r.BudgetOverrides {
+		if !ValidBudgetKey(k) || !ValidBudgetValue(v) {
+			return "a budget override is not a budget and a value igris writes"
 		}
 	}
 	runID := ""

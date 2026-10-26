@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -245,6 +246,7 @@ type Engine struct {
 	configMoved bool
 	quota       quotaWatch        // the subscription quota last read (SPEC §6.3)
 	limit       limitWatch        // the usage hold and the hits that feed it (SPEC §6.9)
+	budget      budgetWatch       // the run's budgets (SPEC §6.9)
 	runMode     string            // the run mode chosen for this run; see CmdMode
 	overrides   map[string]string // per-task modes by task ID; see CmdTaskMode
 	yoloOK      bool              // skip-permissions mode was confirmed through CmdMode or CmdTaskMode
@@ -330,6 +332,7 @@ func New(opts Options) (*Engine, error) {
 		runMode:   opts.Mode,
 		overrides: map[string]string{},
 		limit:     limitWatch{hits: map[string]Limit{}, notified: map[string]bool{}},
+		budget:    budgetWatch{ended: map[string]*spent{}, reached: map[string]string{}},
 		work:      root,
 		secretEnv: opts.Config.SecretEnvNames(),
 	}
@@ -553,6 +556,11 @@ func (e *Engine) prepare(check bool) ([]string, error) {
 	}
 	if !sel.Empty() {
 		e.run.Selection = &sel
+	}
+	if resumed && len(prev.BudgetOverrides) > 0 {
+		// The budgets the owner raised or let go on hold for the run
+		// resumed (SPEC §6.9).
+		e.run.BudgetOverrides = maps.Clone(prev.BudgetOverrides)
 	}
 	if err := e.pickWorktree(prev, resumed, cur); err != nil {
 		return nil, err

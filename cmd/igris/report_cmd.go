@@ -171,6 +171,11 @@ func printReport(o textOut, r report.Report) {
 		printList(w, "Resume", resume)
 	}
 	printTimes(w, r.Time)
+	var budgets []string
+	for _, b := range r.Budgets {
+		budgets = append(budgets, "- "+md(b.Line()))
+	}
+	printList(w, "Budgets", budgets)
 	var errs []string
 	for _, e := range r.Errors {
 		errs = append(errs, "- "+md(e))

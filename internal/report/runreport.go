@@ -46,7 +46,10 @@ type Report struct {
 	// Estimate is the price estimate of the tasks' tokens (SPEC §6.9); nil
 	// when no attempt's usage was read. Since 1.8.
 	Estimate *Estimate `json:"estimate,omitempty"`
-	Note     string    `json:"note,omitempty"` // as History.Note
+	// Budgets are the run's budgets with what it used of them (SPEC §6.9);
+	// none when igris.toml sets none and the run reached none. Since 1.8.
+	Budgets []Budget `json:"budgets,omitempty"`
+	Note    string   `json:"note,omitempty"` // as History.Note
 }
 
 // ReportCommit is one commit the run made.
@@ -186,6 +189,12 @@ func NewReport(in HistoryInput, project, sel string) (Report, error) {
 	}
 	rep := r.report(in.Live && r == recs[len(recs)-1], in.Prices)
 	rep.Project, rep.Note = textsafe.Line(project), logNote(in)
+	if r.id != "" {
+		rep.Budgets = r.budgets(in.Budgets, in.Prices)
+		for i := range rep.Budgets {
+			rep.Budgets[i].Run = "" // the report's run
+		}
+	}
 	return rep, nil
 }
 

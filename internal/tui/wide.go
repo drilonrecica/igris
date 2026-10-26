@@ -369,8 +369,18 @@ func (m *model) renderCard(w, rows int) []string {
 		if m.heldTask != "" {
 			lines = append([]string{"held before " + m.heldTask}, lines...)
 		}
+	case m.budgetAsk != nil:
+		// A budget reached holds new starts (SPEC §6.9).
+		title := "a budget is reached"
+		if b := m.budgetAsk.Budget; b != nil {
+			title = b.Title()
+		}
+		lines = []string{"held: " + title, "Answer…: raise it, continue or stop"}
 	default:
 		lines = []string{"no task running"}
+	}
+	if !m.ended {
+		lines = append(lines, m.budgetLines(w)...)
 	}
 	if rows >= 0 && len(lines) > rows {
 		lines = lines[:rows]
@@ -437,6 +447,9 @@ func (m *model) cardBody(c *current, w, x, y, rows int, record, boxed bool) []st
 	head = append(head, fit(facts, w))
 	if line := m.tokensLine(c, w); line != "" {
 		head = append(head, line)
+	}
+	if len(m.cards) > 0 && m.cards[0] == c {
+		head = append(head, m.budgetLines(w)...) // the run's, on its first card (SPEC §6.9)
 	}
 	if c.overdue != "" && c.state != stateNeedsYou {
 		// Until the attempt ends (SPEC §6.3), in words, not color alone;

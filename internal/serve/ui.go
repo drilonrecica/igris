@@ -12,6 +12,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/look"
@@ -326,6 +328,40 @@ type pageView struct {
 	// ModeNote says the run's mode can't be chosen here.
 	ModeNote string
 	Recent   []recentView
+	// Budgets are the run's budgets with what they used (SPEC §6.9).
+	Budgets []budgetView
+}
+
+// budgetView is a budget's line, `budget 14.2M / 20M · 71%`, with its
+// tone: ember from 80%, bold ember from 95% (SPEC §6.9, §15).
+type budgetView struct {
+	Line, Tone string
+}
+
+// budgetViews are b as the page shows them.
+func budgetViews(b []engine.BudgetUse) []budgetView {
+	out := make([]budgetView, 0, len(b))
+	for _, u := range b {
+		v := budgetView{Line: u.Line()}
+		switch {
+		case u.State == engine.BudgetContinued:
+		case u.Percent >= 95:
+			v.Tone = "ember strong"
+		case u.Percent >= 80:
+			v.Tone = "ember"
+		}
+		out = append(out, v)
+	}
+	return out
+}
+
+// capitalize starts s with a capital letter, as Recent's lines do.
+func capitalize(s string) string {
+	if s == "" {
+		return s
+	}
+	r, n := utf8.DecodeRuneInString(s)
+	return string(unicode.ToUpper(r)) + s[n:]
 }
 
 // status is the page's status word, its line and its tone: "" for the
@@ -441,7 +477,7 @@ func (u *ui) view(r *http.Request) pageView {
 	snap := u.srv.Snapshot()
 	now := u.now()
 	csrf := CSRFToken(r.Context())
-	v := pageView{CSRF: csrf, Snap: snap}
+	v := pageView{CSRF: csrf, Snap: snap, Budgets: budgetViews(snap.Budgets)}
 	live := snap.Run != "" && !snap.Ended
 	for i, ph := range snap.Phases {
 		pv := phaseView{Phase: ph, Run: ph.ID == snap.Phase}
@@ -533,6 +569,9 @@ func (u *ui) view(r *http.Request) pageView {
 		}
 		if snap.Reset != nil {
 			v.Sheet = append(v.Sheet, questionOf(*snap.Reset, csrf))
+		}
+		if snap.BudgetQuestion != nil {
+			v.Sheet = append(v.Sheet, questionOf(*snap.BudgetQuestion, csrf))
 		}
 		if len(v.Sheet) > 0 {
 			v.Sheet[0].Sheet = true
@@ -629,6 +668,19 @@ func questionOf(q Event, csrf string) questionView {
 		keep.Question, reset.Question = string(engine.QuestionConfirmReset), string(engine.QuestionConfirmReset)
 		reset.Danger = true
 		v.Answers = []form{keep, reset}
+	case engine.QuestionBudget:
+		// The run's, not a task's (SPEC §6.9, §15.5): raise it for this
+		// run, let it go on, or stop.
+		v.Title = "Budget reached"
+		if b := q.Budget; b != nil {
+			v.Title = b.Title()
+		}
+		stop, _ := confirmOf(CmdStop, "")
+		v.Answers = []form{
+			{CSRF: csrf, Type: CmdBudget, Label: "Raise", Input: "New value for this run (30M, $60)", Required: true},
+			{CSRF: csrf, Type: CmdBudget, Text: state.BudgetContinue, Label: "Continue (it no longer holds this run)"},
+			{CSRF: csrf, Type: CmdStop, Label: "Stop igris", Danger: true, Confirm: &stop},
+		}
 	case engine.QuestionPlanApproval:
 		v.Title = t + " presents a plan"
 		v.NoPlan = q.Plan == ""
@@ -664,6 +716,8 @@ func questionKind(q engine.Question) string {
 		return "reset?"
 	case engine.QuestionPlanApproval:
 		return "plan"
+	case engine.QuestionBudget:
+		return "budget reached"
 	}
 	return "question"
 }
@@ -753,6 +807,9 @@ func statusOf(s Snapshot, now time.Time) status {
 	}
 	if s.Reset != nil {
 		note(*s.Reset)
+	}
+	if s.BudgetQuestion != nil {
+		note(*s.BudgetQuestion)
 	}
 	// needs counts the tasks that need the owner without a question. A
 	// card still in the question state with no question pending is an
@@ -882,6 +939,13 @@ func recentOf(ev Event, now time.Time) recentView {
 		r.Text = with("Reset", ev.Detail)
 	case engine.Asked:
 		r.Glyph, r.Text = look.GlyphNeedsYou, id+" asked: "+questionKind(engine.Question(ev.Question))
+		if engine.Question(ev.Question) == engine.QuestionBudget {
+			r.Text = "Budget reached: raise it, continue or stop"
+		}
+	case engine.BudgetExceeded:
+		r.Glyph, r.Text = look.GlyphNeedsYou, capitalize(ev.Detail)
+	case engine.BudgetRaised:
+		r.Glyph, r.Text = look.GlyphRunning, capitalize(ev.Detail)
 	case engine.YourTurn:
 		r.Glyph, r.Text = look.GlyphNeedsYou, id+" is your turn"
 	case engine.NeedsYou:

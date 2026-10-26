@@ -100,6 +100,10 @@ type model struct {
 	// heldTask the task that would start; nil otherwise.
 	limited  *engine.Limit
 	heldTask string
+	// budgets are the run's budgets with what they used, budgetAsk the
+	// budget reached that waits on the owner (SPEC §6.9); nil for none.
+	budgets   []engine.BudgetUse
+	budgetAsk *engine.Event
 	// cards are the active tasks in plan order (SPEC §15.1): one in a
 	// sequential phase, up to max in a parallel one. cur is the selected
 	// card, which o, d, s, r, t, M and y act on; nil with none.
@@ -584,6 +588,15 @@ func (m *model) pick(a action) tea.Cmd {
 		m.answered(d.task)
 		return nil
 	}
+	if a == actBudgetRaiseConfirm && d != nil && d.input != nil {
+		value := strings.TrimSpace(d.input.value)
+		if value == "" {
+			d.inField, d.input.hint = true, `Type the new value, e.g. 30M or $60.`
+			return nil
+		}
+		m.answerBudget(value)
+		return nil
+	}
 	if a == actDoneConfirm && d != nil && d.input != nil {
 		m.dialog = nil
 		m.opts.Sender.Send(engine.Command{Kind: engine.CmdDone, Text: strings.TrimSpace(d.input.value), Task: d.task})
@@ -667,6 +680,14 @@ func (m *model) activate(a action) tea.Cmd {
 		if q := m.question(); q != nil {
 			m.dialog = questionDialog(*q)
 		}
+		return nil
+	case actBudgetRaise:
+		if m.budgetAsk != nil {
+			m.dialog = budgetRaiseDialog(*m.budgetAsk)
+		}
+		return nil
+	case actBudgetContinue:
+		m.answerBudget(state.BudgetContinue)
 		return nil
 	case actAnswerCard:
 		// The selected card's own question, else the first in line.
@@ -898,6 +919,12 @@ func (m *model) event(ev engine.Event) {
 	if ev.Phase != "" {
 		m.phase = ev.Phase
 	}
+	if m.budgetEvent(ev) {
+		// The run's, not a task's (SPEC §6.9).
+		m.sum.note(ev)
+		m.sum.need(m.needsOwner() && !m.ended, ev.At)
+		return
+	}
 	if ev.Task == "" && len(m.cards) == 1 {
 		ev.Task = m.cards[0].id // a task's event, from a sequential run
 	}
@@ -1082,7 +1109,7 @@ func (m *model) event(ev engine.Event) {
 	case engine.RunStopped:
 		m.ended = true
 		m.endText = "the run stopped: " + ev.Detail
-		m.limited, m.heldTask = nil, ""
+		m.limited, m.heldTask, m.budgetAsk = nil, "", nil
 		clear(m.asks)
 		if !m.side.owns(m.dialog) {
 			m.dialog = nil // nothing left to ask or confirm; a side session isn't the run's
@@ -1179,7 +1206,10 @@ func (m *model) question() *engine.Event {
 	if m.resetAsk != nil {
 		return m.resetAsk
 	}
-	return m.firstAsk()
+	if q := m.firstAsk(); q != nil {
+		return q
+	}
+	return m.budgetAsk
 }
 
 // firstAsk is the first pending question in plan order: the cards' first,

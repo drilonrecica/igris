@@ -168,6 +168,7 @@ func (e *Engine) endUsage(ctx context.Context, l *launch) {
 	}
 	e.readUsage(ctx, l, true)
 	e.auditRank(ctx, l, true)
+	e.endSpend(l)
 	l.usage = nil
 	ev := state.Event{Type: state.EventUsage}
 	if s := l.cur.ClaudeSession; backend.ValidClaudeSession(s) {

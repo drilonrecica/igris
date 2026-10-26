@@ -213,6 +213,7 @@ func printUsage(o textOut, u report.Usage) {
 		}
 	}
 
+	printBudgets(o, u.Budgets, len(u.Runs) > 1)
 	printSideUsage(o, u.Side)
 
 	a := u.Audit
@@ -232,6 +233,24 @@ func printUsage(o textOut, u report.Usage) {
 	o.println("Tokens recorded in the session transcripts, not a bill.")
 	o.println(price.Legend())
 	o.next("igris report")
+}
+
+// printBudgets writes the budgets of the runs covered with what each used
+// (SPEC §6.9): `run 20M · 14.2M used · 71%`, with the run's ID first when
+// several runs are covered.
+func printBudgets(o textOut, budgets []report.Budget, runs bool) {
+	if len(budgets) == 0 {
+		return
+	}
+	o.blank()
+	o.println("Budgets")
+	for _, b := range budgets {
+		line := b.Line()
+		if runs {
+			line = dash(b.Run) + " · " + line
+		}
+		o.println(o.fit("  " + line))
+	}
 }
 
 // printSideUsage writes the side sessions' table (SPEC §6.10, §14): their

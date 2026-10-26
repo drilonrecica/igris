@@ -583,6 +583,7 @@ const commandHelp = `commands:
   retry [continue|fresh]     replace the session: continue its conversation, or start fresh (default)
   pause                      pause after the current task (again to resume)
   start                      start the held task anyway while a usage limit holds it (a hit still holds)
+  budget <value>|continue    answer a budget reached: a new value for this run (30M, $60), or let it go on
   stop                       stop igris now; the session stays open
   mode <m>                   run mode for the next sessions: default|accept|auto|plan[:m]|yolo|manual
   mode <task> <m>            mode for that task's next session, over its Mode column
@@ -646,6 +647,11 @@ func parseCommand(line string) (engine.Command, commandAction, error) {
 		return noArgs(engine.Command{Kind: engine.CmdPause})
 	case "start":
 		return noArgs(engine.Command{Kind: engine.CmdLimitStart})
+	case "budget":
+		if rest == "" || strings.ContainsRune(rest, ' ') {
+			return engine.Command{}, actNone, errors.New("budget takes a new value or continue: budget 30M, budget $60, budget continue")
+		}
+		return engine.Command{Kind: engine.CmdBudget, Text: rest}, actSend, nil
 	case "stop":
 		return noArgs(engine.Command{Kind: engine.CmdStop})
 	case "mode":
@@ -780,7 +786,7 @@ func formatEvent(ev engine.Event) []string {
 		return []string{id + " is working again"}
 	case engine.AgentWaiting:
 		return []string{look.GlyphWaiting + " " + id + " waits on background work; Claude Code resumes it when that is done"}
-	case engine.AgentWaitingOver, engine.UsageRead, engine.QuotaRead:
+	case engine.AgentWaitingOver, engine.UsageRead, engine.QuotaRead, engine.BudgetRead:
 		return nil // the card shows it; the next event says what followed
 	case engine.Nudged:
 		// The reminder, or why igris told it to continue after a usage limit.
@@ -796,6 +802,10 @@ func formatEvent(ev engine.Event) []string {
 		return []string{limitHoldLine(ev) + "; type `start` to start it anyway"}
 	case engine.LimitResume:
 		return []string{"resumed · " + ev.Detail}
+	case engine.BudgetExceeded:
+		return []string{look.GlyphNeedsYou + " " + ev.Detail}
+	case engine.BudgetRaised:
+		return []string{ev.Detail}
 	case engine.TaskOverdue:
 		return []string{look.GlyphWarn + " " + id + " overdue · " + ev.Detail + "; its session keeps running"}
 	case engine.RankMismatch:
@@ -823,6 +833,9 @@ func formatEvent(ev engine.Event) []string {
 			return append(lines, "  move them, then type `retry` to try again, or `done [note]`, `skip <reason>` or `stop`")
 		case engine.QuestionConfirmReset:
 			return append(lines, "  "+ev.Detail, "  type `reset yes "+id+"` or `reset no "+id+"`")
+		case engine.QuestionBudget:
+			// The run's question (SPEC §6.9): no task.
+			return []string{needsLine("", ev.Question.Kind()), "  " + ev.Detail, "  type `budget <value>` to raise it for this run (30M, $60), `budget continue` or `stop`"}
 		default:
 			return append(lines, "  "+ev.Detail+" [y/n]")
 		}
