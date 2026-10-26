@@ -4,6 +4,30 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+The heading becomes `[1.8.0]` with its date when v1.8.0 is published (V18-R).
+
+igris 1.8 makes a long unattended run safer to leave: it waits out usage limits, pauses at the budget you set, settles a conflicting task with a session of its own before rerunning it, hands a task's notes to the tasks that depend on it and asks you less often. It only adds: plans, `--json`, the run log, the webhook payload and protocol 1 are unchanged apart from additive fields ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). `state.json` stays version 4. New config values and keys are refused by igris 1.0–1.7 (below).
+
+### Added
+
+- **[Usage limits](site/docs/limits-and-budgets.md).** A session that hits a limit waits by itself and continues at the reset; its Timeout clock stops and no Needs you is raised. New tasks are held until the reset (and, with `[usage] statusline = true`, while a window is at `hold_at`, default `95`), with a countdown on the card, the header and the web UI, one `usage_limit` notification per episode and **Start anyway**. Run-log events `limit_hit`, `limit_hold` and `limit_resume`.
+- **Budgets** under `[usage.budget]`, for the run, per phase and per rank, in tokens (`"20M"`) or estimated dollars (`"$40"`). A budget reached is **Needs you** with **Raise**, **Continue** and **Stop**, and an urgent `budget_exceeded` notification; running sessions are never stopped and no model is ever switched. `igris usage` and `report` list budgets with their use.
+- **A price estimate**, `≈ $12.40`, from an embedded, dated table of API list prices (`[usage.prices]` overrides it per model; never fetched), always labelled an estimate. `igris usage --json` adds `estimate`.
+- **Time breakdown.** `igris report` and `history` split time into agent, verify, needs-you and limit wait, per task, phase and rank, with wall time where tasks overlap. `--json` adds `time`.
+- **[The conflict resolver](site/docs/resolver.md).** `[parallel] on_conflict = "resolve"`: a task that doesn't integrate gets one resolver session in its worktree (on `resolver_rank` or the task's rank), then one rerun, then Needs you. **Resolve** on the question opens one on demand. igris finishes the rebase and verifies the integrated tree; the run branch is touched only by its fast-forward. Events `resolver_opened`, `resolver_done`, `resolver_failed`; its tokens are `usage` lines with `"resolver": true`.
+- **[Handoff notes](site/docs/handoff-notes.md).** The done notes and approved plans of a task's direct dependencies go into its prompt (`.DepNotes`, bounded to 500 bytes a note, 4 KiB a plan and 12 KiB in all, cleaned, framed as context). `[run] dep_notes = false` turns it off; `--dry-run` shows them.
+- **Fewer interruptions.** `commit = "batch"` commits each task at once and asks once when the run ends whether to keep the commits (**Undo** is `git reset --soft`); **Commit all** on the per-task question; Needs-you notifications say why (`waits for a permission (Bash)`, `plan to approve`, …) and ntfy messages carry **Open**, to that task's question on the web UI. Events `commit_policy` and `commits_undone`.
+
+### Fixed
+
+- **An offline reset no longer asks for the skip-permissions phrase.** `igris reset ID` with no igris running left the task in `state.json`'s active list, and the next `arise` demanded the typed phrase for a session it would forget anyway. An interrupted skip-permissions session that is still `in progress` still needs it.
+
+### Compatibility
+
+- `commit = "batch"`, `on_conflict = "resolve"`, `dep_notes`, `resolver_rank`, `hold_at`, `[usage.budget]`, `[usage.prices]` and the notification events `usage_limit` and `budget_exceeded` are refused by igris 1.0–1.7 as invalid or unknown. `state.json` gains optional fields (`budget_overrides`, `batch_base`, `commit_override`, a resolver entry); finish a run before going back to 1.7.
+- Run-log, `--json`, snapshot and protocol additions are additive; readers of 1.5–1.7 add a resolver's tokens to its task and count one attempt more, which is harmless.
+- Threat model: risks 27 to 29 ([`docs/threat-model.md`](docs/threat-model.md)).
+
 ## [1.7.0] - 2026-10-23
 
 igris 1.7 gives the terminal UI, the web UI and the command line one design language ([`docs/design.md`](docs/design.md)) and breaks nothing that is promised: plans, `igris.toml`, `--json`, the run log, the webhook payload and protocol 1 are unchanged ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). The TUI's keys and mode picker did move; see the upgrade note below. `state.json` stays version 4.
