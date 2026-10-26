@@ -861,7 +861,7 @@ Since 1.8: `limit_hit` is logged once per hit a transcript records (§6.9), with
 Details:
 - With no phase argument the previous run's phase range (and `--through`, and the selection) is used again, unless selection flags set the range themselves (§5.5); with no previous run, `arise` opens the home screen's start-run wizard on a terminal (§14, §15.6) and otherwise exits 1 asking for a phase. A resumed run starts in the phase of the interrupted task.
 - The interrupted task is picked up before anything else, also when a different phase is named.
-- If the plan no longer says `in progress` for it (the owner settled it while igris was down), igris warns, forgets it and goes on.
+- If the plan no longer says `in progress` for it (the owner settled it while igris was down, e.g. with `igris reset`, §14), igris warns, forgets it and goes on. A task it forgets is not picked up again, so a skip-permissions session left for it needs no confirmation (§7.3); the task's next session runs in this run's mode.
 - A task the plan says is `in progress` without any record in `state.json` is treated like a lost session with nothing to continue: the owner can start a fresh session (`Resumed=true`), mark it done, skip it or stop.
 - The new run uses the config as it is now, after the confirmation below when the file changed during the last run; igris warns that it differs.
 

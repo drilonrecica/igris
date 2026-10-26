@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/drilonrecica/igris/internal/backend"
+	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/prompt"
 	"github.com/drilonrecica/igris/internal/state"
 )
@@ -289,6 +290,56 @@ func TestResumeYoloSessionNeedsConfirmation(t *testing.T) {
 			}
 			if got := h.event(TaskResumed, "A-1").Detail; got != "reattached to its session" {
 				t.Errorf("task_resumed %q", got)
+			}
+		})
+	}
+}
+
+// Found when V18-06 was reset after its run stopped: `igris reset` with no
+// igris running writes the Status cell and leaves the task in state.json.
+// The next run forgets that session (reattach), so it asks no yolo
+// confirmation for it and starts a fresh session in this run's mode; a yolo
+// task still in progress still needs the confirmation (SPEC §7.3).
+func TestResumeAfterOfflineResetOfYoloTask(t *testing.T) {
+	for _, reset := range []bool{true, false} {
+		t.Run(map[bool]string{true: "reset", false: "in progress"}[reset], func(t *testing.T) {
+			h := newHarness(t, chainPlan, "")
+			h.autoSignalExcept("A-1")
+			h.stopMidTask(6*time.Second, func(o *Options) { o.Mode, o.ConfirmedYolo = ModeYolo, true })
+			if reset {
+				w := plan.NewWriter(h.path("tasks.md"), plan.Options{Root: h.root}, h.cfg.Rules(h.root))
+				if _, err := w.Update(context.Background(), func(p *plan.Plan) ([]plan.Change, error) {
+					return p.Reset("A-1", false)
+				}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			h.signalAt(h.clock.Now().Sub(t0)+30*time.Second, "A-1")
+			res, err := h.run(resumeLast, func(o *Options) { o.Mode = ModeDefault })
+			if !reset {
+				if !errors.Is(err, ErrYoloUnconfirmed) || !strings.Contains(err.Error(), "A-1") {
+					t.Fatalf("err = %v, want ErrYoloUnconfirmed", err)
+				}
+				return
+			}
+			if err != nil || res.Outcome != Completed {
+				t.Fatalf("resumed run = %s, %v", res.Outcome, err)
+			}
+			if got := h.event(Warning, "").Detail; !strings.Contains(got, "A-1 is ready in the plan now; igris leaves it") {
+				t.Errorf("warning %q", got)
+			}
+			if h.count(TaskResumed) != 0 {
+				t.Errorf("events = %s; the reset task was picked up again", h.kinds())
+			}
+			opened := h.be.Opened()
+			if got := h.opened(); got != "A-1 A-1 A-2 A-3" {
+				t.Fatalf("sessions opened for %q, want a fresh A-1", got)
+			}
+			if args := strings.Join(opened[1].Args, " "); strings.Contains(args, "skip-permissions") {
+				t.Errorf("fresh A-1 session runs %q, want default mode", args)
+			}
+			if got := h.statuses(); !strings.HasPrefix(got, "A-1=done A-2=done A-3=done") {
+				t.Errorf("statuses = %s", got)
 			}
 		})
 	}

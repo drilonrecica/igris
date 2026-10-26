@@ -519,10 +519,15 @@ func (e *Engine) prepare(check bool) ([]string, error) {
 	}
 	// An interrupted task with a pending reset is asked about first
 	// (resumeAndRun); once the owner confirms it, it is not picked up
-	// again, so its mode and phase don't matter. cur is the first task
-	// that is picked up again: the run starts in its phase.
+	// again, so its mode and phase don't matter. Neither do those of one
+	// the owner settled while igris was not running (an offline `igris
+	// reset`): reattach forgets it. cur is the first task that is picked
+	// up again: the run starts in its phase.
 	var cur *state.Current
 	for _, c := range active {
+		if settledOffline(p, c.TaskID) {
+			continue
+		}
 		resetting := e.resetPending(c.TaskID)
 		// A session left running in skip-permissions mode is only
 		// reattached with this run's confirmation too (SPEC §7.3); new
@@ -585,6 +590,13 @@ func (e *Engine) prepare(check bool) ([]string, error) {
 		e.configMoved = true
 	}
 	return ids, e.dir.SaveRun(e.run)
+}
+
+// settledOffline reports whether the interrupted task id is gone from p or
+// no longer in progress there: reattach forgets it rather than picking it up.
+func settledOffline(p *plan.Plan, id string) bool {
+	t := p.Task(id)
+	return t == nil || t.Status != plan.InProgress
 }
 
 func yoloInterrupted(id, mode string) error {
@@ -663,8 +675,12 @@ func (e *Engine) resumeAndRun(ctx context.Context, phases []string) (Result, err
 		return Result{Outcome: Stopped, Phase: e.phase}, err
 	}
 	if e.yoloDeferred {
+		p, err := e.loadPlan()
+		if err != nil {
+			return Result{Phase: e.phase}, err
+		}
 		for _, c := range e.run.Active {
-			if SkipsPermissions(c.Mode) {
+			if SkipsPermissions(c.Mode) && !settledOffline(p, c.TaskID) {
 				// The owner kept the interrupted yolo task: it needs this
 				// run's confirmation after all.
 				return Result{Phase: e.phase}, yoloInterrupted(c.TaskID, c.Mode)
