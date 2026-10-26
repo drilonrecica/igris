@@ -1,6 +1,7 @@
 package report
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -8,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drilonrecica/igris/internal/price"
 	"github.com/drilonrecica/igris/internal/state"
 	"github.com/drilonrecica/igris/internal/usage"
 )
@@ -207,5 +209,65 @@ func TestUsageSide(t *testing.T) {
 	// Side lines are no part of a run's history.
 	if h := readRuns(events); len(h) != 2 || len(h[0].events) != 2 {
 		t.Errorf("runs hold side lines: %d runs", len(h))
+	}
+}
+
+func TestUsageEstimate(t *testing.T) {
+	day := time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC)
+	events := []state.Event{
+		runStart("r1", day),
+		// Main on opus: 1M in, 100k out ($4 + $2); a subagent on haiku: 1M out ($0.50).
+		usageLine("r1", "A-1", "opus", &usage.Counts{Input: 1_000_000, Output: 100_000, Messages: 2},
+			&usage.Counts{Output: 1_000_000, Messages: 1}, []string{"claude-opus-5-5"}, []string{"claude-haiku-5-5"}, state.AuditOK),
+		// A model without a price: its tokens are not in the dollars.
+		usageLine("r1", "A-2", "x", &usage.Counts{Input: 70, Output: 30, CacheRead: 999, Messages: 1}, nil,
+			[]string{"claude-mystery-1"}, nil, state.AuditUnchecked),
+	}
+	u, err := NewUsage(HistoryInput{Events: events}, "demo", "", time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := Estimate{USD: 6.5, AsOf: price.AsOf, Source: price.SourceEmbedded, Unpriced: 100}
+	if got := u.Totals.Estimate; got != want {
+		t.Errorf("totals estimate = %+v, want %+v", got, want)
+	}
+	byTask := map[string]Estimate{}
+	for _, tk := range u.Tasks {
+		byTask[tk.ID] = tk.Estimate
+	}
+	if byTask["A-1"].USD != 6.5 || byTask["A-1"].Unpriced != 0 || byTask["A-2"].USD != 0 || byTask["A-2"].Unpriced != 100 {
+		t.Errorf("task estimates = %+v", byTask)
+	}
+	byModel := map[string]float64{}
+	for _, m := range u.Models {
+		byModel[m.Model] = m.Estimate.USD
+	}
+	if byModel["claude-opus-5-5"] != 6 || byModel["claude-haiku-5-5"] != 0.5 || byModel["claude-mystery-1"] != 0 {
+		t.Errorf("model estimates = %+v", byModel)
+	}
+
+	// An override wins and is the source.
+	over := price.Table{}.WithOverrides(map[string]price.Rates{"claude-opus-5-5": {Input: 1, Output: 1}})
+	u, err = NewUsage(HistoryInput{Events: events, Prices: over}, "demo", "", time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := u.Totals.Estimate
+	if got.USD != 1.1+0.5 || got.Source != price.SourceConfig {
+		t.Errorf("overridden estimate = %+v, want 1.6 from config", got)
+	}
+}
+
+func TestUsageEstimateJSONShape(t *testing.T) {
+	u, err := NewUsage(HistoryInput{Events: []state.Event{runStart("r1", time.Now())}}, "demo", "", time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := json.Marshal(u.Totals)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), `"estimate":{"usd":0,"as_of":"`+price.AsOf+`","source":"embedded","unpriced":0}`) {
+		t.Errorf("totals = %s", b)
 	}
 }

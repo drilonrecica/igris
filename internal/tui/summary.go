@@ -9,6 +9,7 @@ import (
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/plan"
+	"github.com/drilonrecica/igris/internal/price"
 	"github.com/drilonrecica/igris/internal/serve"
 )
 
@@ -33,6 +34,7 @@ type summary struct {
 	failed        map[string]bool // tasks whose last attempt hit the verify limit or an error
 	in, out       int64           // tokens of the attempts folded so far
 	usage         bool            // some attempt's usage was read
+	usd           float64         // the price estimate of the priced attempts (SPEC §6.9)
 	commits       int
 	lastCommit    string // the task of the last commit
 	verifyOK      int
@@ -93,6 +95,9 @@ func (s *summary) fold(t *engine.Tokens) {
 		return
 	}
 	s.in, s.out, s.usage = s.in+t.In, s.out+t.Out, true
+	if t.Priced {
+		s.usd += t.USD
+	}
 }
 
 // need records at at whether anything waits on the owner: the time it
@@ -297,7 +302,11 @@ func (m *model) summaryFacts(w, width int) []string {
 	var left, right []string
 	left = append(left, counts)
 	if s.usage {
-		left = append(left, "tokens "+look.InOut(s.in, s.out))
+		tokens := "tokens " + look.InOut(s.in, s.out)
+		if s.usd > 0 {
+			tokens += " · " + look.Dollars(s.usd)
+		}
+		left = append(left, tokens)
 	}
 	if s.commits > 0 {
 		c := look.Count(s.commits, "commit", "commits")
@@ -326,12 +335,21 @@ func (m *model) summaryFacts(w, width int) []string {
 		for _, l := range append(left, right...) {
 			out = append(out, indent+fit(l, width))
 		}
-		return out
+		return s.withLegend(out, indent, width)
 	}
 	colW := (width - 4) / 2
 	for i := range max(len(left), len(right)) {
 		l := pad(fit(line(left, i), colW), colW)
 		out = append(out, strings.TrimRight(indent+l+"    "+fit(line(right, i), colW), " "))
+	}
+	return s.withLegend(out, indent, width)
+}
+
+// withLegend adds the estimate's legend line (SPEC §6.9) under the facts
+// when they show one.
+func (s *summary) withLegend(out []string, indent string, width int) []string {
+	if s.usd > 0 {
+		out = append(out, indent+fit(price.Legend(), width))
 	}
 	return out
 }

@@ -95,8 +95,16 @@ func (e *Engine) showUsage(u *attemptUsage) {
 		t.In = sumIn(got.Main) + sumIn(got.Sub)
 		t.Out = satAdd(got.Main.Output, got.Sub.Output)
 		t.Models = got.Models
+		table := e.cfg.Usage.PriceTable()
+		subModels := got.SubModels
+		if len(subModels) == 0 {
+			subModels = got.Models
+		}
+		cost := table.Cost(got.Main, got.Models)
+		cost.Add(table.Cost(got.Sub, subModels))
+		t.USD, t.Priced = cost.USD, cost.Unpriced == 0
 	}
-	if u.shown != nil && u.shown.In == t.In && u.shown.Out == t.Out &&
+	if u.shown != nil && u.shown.In == t.In && u.shown.Out == t.Out && u.shown.USD == t.USD && u.shown.Priced == t.Priced &&
 		u.shown.Unavailable == t.Unavailable && slices.Equal(u.shown.Models, t.Models) {
 		return
 	}

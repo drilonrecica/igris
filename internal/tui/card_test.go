@@ -350,3 +350,19 @@ func TestQuotaWarningLooks(t *testing.T) {
 		t.Errorf("quotaText = %q", got)
 	}
 }
+
+// The card's tokens line adds the price estimate after the tokens, only
+// when every token had a price (SPEC §6.9).
+func TestCardShowsTheEstimate(t *testing.T) {
+	hs := cardHarness(t, 120, 40, "M0-02")
+	hs.events(engine.Event{Kind: engine.UsageRead, Task: "M0-02",
+		Tokens: &engine.Tokens{In: 2_345_678, Out: 41_900, Models: []string{"claude-sonnet-5-5"}, USD: 3.1, Priced: true}})
+	if v := hs.m.View(); !strings.Contains(v, "tokens 2.3M in · 41k out · ≈ $3.10 · claude-sonnet-5-5") {
+		t.Errorf("card lacks the estimate:\n%s", v)
+	}
+	hs.events(engine.Event{Kind: engine.UsageRead, Task: "M0-02",
+		Tokens: &engine.Tokens{In: 2_345_678, Out: 41_900, Models: []string{"claude-mystery-1"}, USD: 1.2}})
+	if v := hs.m.View(); strings.Contains(v, "≈") {
+		t.Errorf("card shows an estimate with unpriced tokens:\n%s", v)
+	}
+}

@@ -172,6 +172,10 @@ type Tokens struct {
 	Out         int64    `json:"out"`
 	Models      []string `json:"models,omitempty"`
 	Unavailable bool     `json:"unavailable,omitempty"`
+	// USD is the price estimate of the tokens, Priced that all of them
+	// had a price (SPEC §6.9). Since 1.8.
+	USD    float64 `json:"usd,omitempty"`
+	Priced bool    `json:"priced,omitempty"`
 }
 
 // Bounds of what an event carries, so every line stays under MaxLine.
@@ -208,7 +212,7 @@ func fromEngine(ev engine.Event, run string) Event {
 		out.Output = append(out.Output, cut(l, 4<<10))
 	}
 	if t := ev.Tokens; t != nil {
-		out.Tokens = &Tokens{In: t.In, Out: t.Out, Models: head(t.Models, 32), Unavailable: t.Unavailable}
+		out.Tokens = &Tokens{In: t.In, Out: t.Out, Models: head(t.Models, 32), Unavailable: t.Unavailable, USD: t.USD, Priced: t.Priced}
 	}
 	return out
 }

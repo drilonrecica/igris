@@ -144,3 +144,16 @@ func Progress(done, total, n int) string {
 	}
 	return s
 }
+
+// Dollars is an estimated cost: "≈ $12.40", "≈ $0.00" for nothing and
+// "≈ <$0.01" for less than a cent. It is always an estimate (SPEC §6.9),
+// never a bare amount.
+func Dollars(usd float64) string {
+	switch {
+	case usd <= 0:
+		return "≈ $0.00"
+	case usd < 0.005:
+		return "≈ <$0.01"
+	}
+	return fmt.Sprintf("≈ $%.2f", usd)
+}

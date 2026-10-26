@@ -174,6 +174,10 @@ type Tokens struct {
 	Models []string
 	// Unavailable says igris can't read the transcript; In and Out are 0.
 	Unavailable bool
+	// USD is the price estimate of the tokens (SPEC §6.9), shown only when
+	// Priced: every token was of a model with a price.
+	USD    float64
+	Priced bool
 }
 
 // Question identifies what an Asked event waits for. The owner answers with

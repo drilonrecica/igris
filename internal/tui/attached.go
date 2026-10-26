@@ -155,7 +155,7 @@ func currentOf(c *serve.Current) *current {
 		session: c.Session, claudeSession: c.ClaudeSession,
 	}
 	if t := c.Tokens; t != nil {
-		cur.tokens = &engine.Tokens{In: t.In, Out: t.Out, Models: t.Models, Unavailable: t.Unavailable}
+		cur.tokens = &engine.Tokens{In: t.In, Out: t.Out, Models: t.Models, Unavailable: t.Unavailable, USD: t.USD, Priced: t.Priced}
 	}
 	return cur
 }

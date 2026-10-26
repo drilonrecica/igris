@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/drilonrecica/igris/internal/price"
 	"github.com/drilonrecica/igris/internal/state"
 	"github.com/drilonrecica/igris/internal/textsafe"
 	"github.com/drilonrecica/igris/internal/usage"
@@ -53,6 +54,38 @@ func satAdd(a, b int64) int64 {
 	return a + b
 }
 
+// Estimate is what tokens would cost at API list prices (SPEC §6.9, since
+// 1.8): never a bill, so every consumer labels it. Unpriced counts the
+// input + output tokens of attempts on a model without a price, which the
+// dollars leave out.
+type Estimate struct {
+	USD      float64 `json:"usd"`
+	AsOf     string  `json:"as_of"`
+	Source   string  `json:"source"` // price.SourceEmbedded or price.SourceConfig
+	Unpriced int64   `json:"unpriced"`
+}
+
+// NewEstimate is sum as an Estimate.
+func NewEstimate(sum price.Sum) Estimate {
+	return Estimate{USD: math.Round(sum.USD*1e6) / 1e6, AsOf: price.AsOf, Source: sum.Source(), Unpriced: sum.Unpriced}
+}
+
+// estSum is an estimate being added up.
+func (e Estimate) sum() price.Sum {
+	return price.Sum{USD: e.USD, Unpriced: e.Unpriced, Config: e.Source == price.SourceConfig}
+}
+
+// attemptCost prices an attempt: the main thread on its models, the
+// subagents on theirs, or on the main thread's when the log names none.
+func attemptCost(t price.Table, main, sub usage.Counts, models, subModels []string) price.Sum {
+	if len(subModels) == 0 {
+		subModels = models
+	}
+	s := t.Cost(main, models)
+	s.Add(t.Cost(sub, subModels))
+	return s
+}
+
 // UsageRun is one run the report covers.
 type UsageRun struct {
 	Run       string `json:"run,omitempty"` // "" for a v0 run, which logs no usage
@@ -67,6 +100,8 @@ type UsageRow struct {
 	Attempts int `json:"attempts"`
 	Tokens
 	Sub Tokens `json:"sub"`
+	// Estimate is the price estimate of the row (since 1.8).
+	Estimate Estimate `json:"estimate"`
 }
 
 // add counts an attempt's main thread and subagents.
@@ -79,6 +114,13 @@ func (r *UsageRow) add(main, sub usage.Counts) {
 func (r *UsageRow) addSub(sub usage.Counts) {
 	r.Tokens.add(sub)
 	r.Sub.add(sub)
+}
+
+// cost adds an estimate to the row.
+func (r *UsageRow) cost(s price.Sum) {
+	sum := r.Estimate.sum()
+	sum.Add(s)
+	r.Estimate = NewEstimate(sum)
 }
 
 // UsageTask is a task's usage over the runs covered.
@@ -205,7 +247,7 @@ func NewUsage(in HistoryInput, project, sel string, since time.Time) (Usage, err
 		Tasks: []UsageTask{}, Models: []UsageModel{}, Ranks: []UsageRank{}, Top: []UsageTask{},
 		Audit: UsageAudit{Mismatches: []UsageMismatch{}}, Side: []UsageSide{}, Note: logNote(in),
 	}
-	b := usageBuilder{u: &u, tasks: map[string]*UsageTask{}, models: map[string]*UsageModel{}, ranks: map[string]*UsageRank{}}
+	b := usageBuilder{u: &u, prices: in.Prices, tasks: map[string]*UsageTask{}, models: map[string]*UsageModel{}, ranks: map[string]*UsageRank{}}
 	for _, r := range picked {
 		sum := r.summary(in.Live && r == recs[len(recs)-1])
 		u.Runs = append(u.Runs, UsageRun{Run: r.id, StartedAt: sum.StartedAt, End: sum.End})
@@ -252,6 +294,7 @@ func pickRun(recs []*runRec, sel string) (*runRec, error) {
 // usageBuilder folds usage and rank_mismatch lines into a Usage.
 type usageBuilder struct {
 	u      *Usage
+	prices price.Table
 	order  []string // task IDs, first seen first
 	tasks  map[string]*UsageTask
 	models map[string]*UsageModel
@@ -315,12 +358,15 @@ func (b *usageBuilder) attempt(e state.Event) {
 	if e.Sub != nil {
 		sub = *e.Sub
 	}
+	cost := attemptCost(b.prices, main, sub, e.Models, e.SubModels)
 	t.Attempts++
 	t.add(main, sub)
+	t.cost(cost)
 	t.Models = mergeModels(t.Models, e.Models)
 	t.SubModels = mergeModels(t.SubModels, e.SubModels)
 	b.u.Totals.Attempts++
 	b.u.Totals.add(main, sub)
+	b.u.Totals.cost(cost)
 
 	// An attempt that ran on several models is counted under each of them:
 	// the transcript doesn't split its tokens, so every row gets all of
@@ -329,6 +375,7 @@ func (b *usageBuilder) attempt(e state.Event) {
 	for _, m := range b.modelRows(e.Models) {
 		m.Attempts++
 		m.Tokens.add(main)
+		m.cost(b.prices.Cost(main, []string{m.Model}))
 		counted[m] = true
 	}
 	if !sub.IsZero() {
@@ -338,6 +385,7 @@ func (b *usageBuilder) attempt(e state.Event) {
 				counted[s] = true
 			}
 			s.addSub(sub)
+			s.cost(b.prices.Cost(sub, []string{s.Model}))
 		}
 	}
 	rank := textsafe.Line(e.Rank)
@@ -351,6 +399,7 @@ func (b *usageBuilder) attempt(e state.Event) {
 	}
 	r.Attempts++
 	r.add(main, sub)
+	r.cost(cost)
 }
 
 // modelRows returns the row of each model id in ids, creating them; the
@@ -375,10 +424,13 @@ func (b *usageBuilder) modelRows(ids []string) []*UsageModel {
 // finish orders the rows and picks the top consumers.
 func (b *usageBuilder) finish() {
 	u := b.u
+	u.Totals.cost(price.Sum{})
 	for _, id := range b.order {
+		b.tasks[id].cost(price.Sum{})
 		u.Tasks = append(u.Tasks, *b.tasks[id])
 	}
 	for _, m := range b.models {
+		m.cost(price.Sum{})
 		u.Models = append(u.Models, *m)
 	}
 	sort.SliceStable(u.Models, func(i, j int) bool {
@@ -388,6 +440,7 @@ func (b *usageBuilder) finish() {
 		return u.Models[i].Model < u.Models[j].Model
 	})
 	for _, r := range b.ranks {
+		r.cost(price.Sum{})
 		u.Ranks = append(u.Ranks, *r)
 	}
 	sort.SliceStable(u.Ranks, func(i, j int) bool {

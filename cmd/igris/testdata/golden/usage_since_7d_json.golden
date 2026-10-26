@@ -33,6 +33,12 @@ exit: 0
       "cache_read": 0,
       "cache_write": 0,
       "messages": 0
+    },
+    "estimate": {
+      "usd": 0.12305,
+      "as_of": "2026-10-25",
+      "source": "embedded",
+      "unpriced": 0
     }
   },
   "unavailable": 1,
@@ -55,6 +61,12 @@ exit: 0
         "cache_read": 0,
         "cache_write": 0,
         "messages": 0
+      },
+      "estimate": {
+        "usd": 0.12305,
+        "as_of": "2026-10-25",
+        "source": "embedded",
+        "unpriced": 0
       },
       "models": [
         "claude-sonnet-5-5",
@@ -81,6 +93,12 @@ exit: 0
         "cache_write": 0,
         "messages": 0
       },
+      "estimate": {
+        "usd": 0,
+        "as_of": "2026-10-25",
+        "source": "embedded",
+        "unpriced": 0
+      },
       "unavailable": 1,
       "models": [],
       "audit": "unavailable"
@@ -103,6 +121,12 @@ exit: 0
         "cache_read": 0,
         "cache_write": 0,
         "messages": 0
+      },
+      "estimate": {
+        "usd": 0.07403,
+        "as_of": "2026-10-25",
+        "source": "embedded",
+        "unpriced": 0
       }
     },
     {
@@ -121,6 +145,12 @@ exit: 0
         "cache_read": 0,
         "cache_write": 0,
         "messages": 0
+      },
+      "estimate": {
+        "usd": 0.09804,
+        "as_of": "2026-10-25",
+        "source": "embedded",
+        "unpriced": 0
       }
     }
   ],
@@ -141,6 +171,12 @@ exit: 0
         "cache_read": 0,
         "cache_write": 0,
         "messages": 0
+      },
+      "estimate": {
+        "usd": 0.12305,
+        "as_of": "2026-10-25",
+        "source": "embedded",
+        "unpriced": 0
       }
     }
   ],
@@ -163,6 +199,12 @@ exit: 0
         "cache_read": 0,
         "cache_write": 0,
         "messages": 0
+      },
+      "estimate": {
+        "usd": 0.12305,
+        "as_of": "2026-10-25",
+        "source": "embedded",
+        "unpriced": 0
       },
       "models": [
         "claude-sonnet-5-5",

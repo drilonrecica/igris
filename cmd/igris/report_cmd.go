@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/drilonrecica/igris/internal/look"
+	"github.com/drilonrecica/igris/internal/price"
 	"github.com/drilonrecica/igris/internal/project"
 	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/state"
@@ -116,7 +117,13 @@ func printReport(o textOut, r report.Report) {
 	if r.NeedsYouS != nil {
 		counts += " · needs you " + fmtDuration(*r.NeedsYouS)
 	}
+	if r.Estimate != nil {
+		counts += " · " + look.Dollars(r.Estimate.USD)
+	}
 	fmt.Fprintln(w, counts)
+	if r.Estimate != nil {
+		fmt.Fprintln(w, price.Legend())
+	}
 
 	for _, g := range r.Groups() {
 		if g.Phase == "" {
@@ -147,7 +154,7 @@ func printReport(o textOut, r report.Report) {
 				}
 			}
 			fmt.Fprintf(w, "| %s | %s | %s | %s | %s | %s | %s | %s | %s |\n",
-				cell(strings.TrimSpace(t.ID+" "+t.Title)), result, dash(fmtSeconds(t.DurationS)), dash(agent), dash(attempts), tokensCell(t.Usage),
+				cell(strings.TrimSpace(t.ID+" "+t.Title)), result, dash(fmtSeconds(t.DurationS)), dash(agent), dash(attempts), tokensCell(t.Usage, t.Estimate),
 				dash(verify), dash(shortSHA(t.Commit)), dash(needs))
 		}
 		var notes, resume []string
@@ -301,9 +308,13 @@ func fmtDuration(s int) string {
 
 // tokensCell is a task's tokens as "2.3M in · 41k out" (in counts cache
 // reads and writes, subagents included), "—" when no usage was read.
-func tokensCell(u *report.Tokens) string {
+func tokensCell(u *report.Tokens, e *report.Estimate) string {
 	if u == nil {
 		return "—"
 	}
-	return usage.Short(u.In) + " in · " + usage.Short(u.Output) + " out"
+	cell := usage.Short(u.In) + " in · " + usage.Short(u.Output) + " out"
+	if e != nil {
+		cell += " · " + look.Dollars(e.USD)
+	}
+	return cell
 }

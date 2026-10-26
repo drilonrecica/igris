@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drilonrecica/igris/internal/price"
 	"github.com/drilonrecica/igris/internal/state"
 	"github.com/drilonrecica/igris/internal/textsafe"
 )
@@ -50,6 +51,9 @@ type HistoryInput struct {
 	// UsageOff says the project's config turns usage off ([usage] enabled
 	// = false); only `igris usage` reads it.
 	UsageOff bool
+	// Prices is the price table of the estimate (SPEC §6.9, since 1.8);
+	// the zero value is the embedded table.
+	Prices price.Table
 }
 
 // TaskRun is one task within a run: its attempts merged.

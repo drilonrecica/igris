@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/drilonrecica/igris/internal/look"
+	"github.com/drilonrecica/igris/internal/price"
 	"github.com/drilonrecica/igris/internal/project"
 	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/state"
@@ -152,7 +153,7 @@ func printUsage(o textOut, u report.Usage) {
 
 	t := u.Totals
 	o.blank()
-	o.printf("Totals · %s · in %s · out %s", look.Count(t.Attempts, "attempt", "attempts"), usage.Short(t.In), usage.Short(t.Output))
+	o.printf("Totals · %s · in %s · out %s · %s", look.Count(t.Attempts, "attempt", "attempts"), usage.Short(t.In), usage.Short(t.Output), look.Dollars(t.Estimate.USD))
 	o.printf("  input %s · cache read %s · cache write %s · output %s · %d %s",
 		usage.Short(t.Input), usage.Short(t.CacheRead), usage.Short(t.CacheWrite), usage.Short(t.Output),
 		t.Messages, look.Plural(int(min(t.Messages, 2)), "response", "responses"))
@@ -162,25 +163,28 @@ func printUsage(o textOut, u report.Usage) {
 	if u.Unavailable > 0 {
 		o.printf("  note: %s without readable usage left out (audit: unavailable)", look.Count(u.Unavailable, "attempt", "attempts"))
 	}
+	if n := t.Estimate.Unpriced; n > 0 {
+		o.printf("  note: %s in + out of models without a price are not in the estimate (give one in [usage.prices])", usage.Short(n))
+	}
 
 	if len(u.Tasks) > 0 {
 		o.blank()
 		o.println("By task")
-		tb := &look.Table{Indent: "  ", Header: []string{"TASK", "ATTEMPTS", "IN", "OUT", "SUBAGENTS", "MODELS", "AUDIT"}}
+		tb := &look.Table{Indent: "  ", Header: []string{"TASK", "ATTEMPTS", "IN", "OUT", "SUBAGENTS", "MODELS", "≈ $", "AUDIT"}}
 		for _, r := range u.Tasks {
 			tb.Row(look.TextCell(r.ID), look.TextCell(fmt.Sprint(r.Attempts)), look.TextCell(tokenCell(r.UsageRow, r.In)),
 				look.TextCell(tokenCell(r.UsageRow, r.Output)), look.TextCell(subCell(r.Sub)),
-				look.TextCell(strings.Join(allModels(r.Models, r.SubModels), ", ")), auditCell(r.Audit))
+				look.TextCell(strings.Join(allModels(r.Models, r.SubModels), ", ")), look.TextCell(dollarCell(r.UsageRow)), auditCell(r.Audit))
 		}
 		o.table(tb)
 	}
 	if len(u.Models) > 0 {
 		o.blank()
 		o.println("By model")
-		tb := &look.Table{Indent: "  ", Header: []string{"MODEL", "ATTEMPTS", "IN", "OUT", "SUBAGENTS"}}
+		tb := &look.Table{Indent: "  ", Header: []string{"MODEL", "ATTEMPTS", "IN", "OUT", "SUBAGENTS", "≈ $"}}
 		for _, r := range u.Models {
 			tb.Row(look.TextCell(r.Model), look.TextCell(fmt.Sprint(r.Attempts)), look.TextCell(usage.Short(r.In)),
-				look.TextCell(usage.Short(r.Output)), look.TextCell(subCell(r.Sub)))
+				look.TextCell(usage.Short(r.Output)), look.TextCell(subCell(r.Sub)), look.TextCell(dollarCell(r.UsageRow)))
 		}
 		o.table(tb)
 		attempts := 0
@@ -194,10 +198,10 @@ func printUsage(o textOut, u report.Usage) {
 	if len(u.Ranks) > 0 {
 		o.blank()
 		o.println("By rank")
-		tb := &look.Table{Indent: "  ", Header: []string{"RANK", "ATTEMPTS", "IN", "OUT", "SUBAGENTS"}}
+		tb := &look.Table{Indent: "  ", Header: []string{"RANK", "ATTEMPTS", "IN", "OUT", "SUBAGENTS", "≈ $"}}
 		for _, r := range u.Ranks {
 			tb.Row(look.TextCell(r.Rank), look.TextCell(fmt.Sprint(r.Attempts)), look.TextCell(usage.Short(r.In)),
-				look.TextCell(usage.Short(r.Output)), look.TextCell(subCell(r.Sub)))
+				look.TextCell(usage.Short(r.Output)), look.TextCell(subCell(r.Sub)), look.TextCell(dollarCell(r.UsageRow)))
 		}
 		o.table(tb)
 	}
@@ -226,6 +230,7 @@ func printUsage(o textOut, u report.Usage) {
 	o.printf("Quota: %s", quotaText(u.Quota))
 	o.blank()
 	o.println("Tokens recorded in the session transcripts, not a bill.")
+	o.println(price.Legend())
 	o.next("igris report")
 }
 
@@ -257,6 +262,15 @@ func tokenCell(r report.UsageRow, n int64) string {
 		return "—"
 	}
 	return usage.Short(n)
+}
+
+// dollarCell is a row's estimate without the ≈ (the column header has it),
+// "—" for a row none of whose attempts could be read.
+func dollarCell(r report.UsageRow) string {
+	if r.Attempts == 0 {
+		return "—"
+	}
+	return strings.TrimPrefix(look.Dollars(r.Estimate.USD), "≈ ")
 }
 
 // subCell is the subagents' in + out, "—" without any.

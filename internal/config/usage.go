@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/drilonrecica/igris/internal/price"
 	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
@@ -243,4 +244,20 @@ func (c *Config) usageWarnings() []string {
 		out = append(out, fmt.Sprintf("usage.hold_at = %d needs the quota, which only igris's status line records: set [usage] statusline = true, or igris holds a task only after a session hits a usage limit", *u.HoldAt))
 	}
 	return out
+}
+
+// PriceTable is the table of the estimate (SPEC §6.9): the embedded one
+// with [usage.prices] applied.
+func (u Usage) PriceTable() price.Table {
+	over := make(map[string]price.Rates, len(u.Prices))
+	v := func(f *float64) float64 { // validation guarantees every field is set
+		if f == nil {
+			return 0
+		}
+		return *f
+	}
+	for id, p := range u.Prices {
+		over[id] = price.Rates{Input: v(p.Input), CacheWrite5m: v(p.CacheWrite5m), CacheWrite1h: v(p.CacheWrite1h), CacheRead: v(p.CacheRead), Output: v(p.Output)}
+	}
+	return price.Table{}.WithOverrides(over)
 }

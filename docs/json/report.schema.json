@@ -77,6 +77,10 @@
     },
     "time": {
       "$ref": "#/$defs/time_breakdown"
+    },
+    "estimate": {
+      "$ref": "#/$defs/estimate",
+      "description": "Since 1.8: the price estimate of the run's tokens (SPEC §6.9); absent when no usage was read."
     }
   },
   "required": [
@@ -243,6 +247,10 @@
         "time": {
           "$ref": "#/$defs/times",
           "description": "Since 1.8: the task's time by what it was spent on (SPEC §14): each instant once, in the first of needs you, limit wait, verify and agent it is in; absent for a v0 run and a user task."
+        },
+        "estimate": {
+          "$ref": "#/$defs/estimate",
+          "description": "Since 1.8: the price estimate of `usage`; absent without it."
         }
       },
       "required": [
@@ -396,6 +404,37 @@
         "run",
         "phases",
         "ranks"
+      ]
+    },
+    "estimate": {
+      "type": "object",
+      "description": "Since 1.8: the price estimate of the tokens at API list prices (SPEC §6.9): never a bill. `unpriced` counts the input + output tokens of attempts on a model without a price, which `usd` leaves out.",
+      "properties": {
+        "usd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "as_of": {
+          "type": "string",
+          "description": "The date of the embedded price table."
+        },
+        "source": {
+          "enum": [
+            "embedded",
+            "config"
+          ],
+          "description": "`config` when an entry of [usage.prices] priced some of the tokens."
+        },
+        "unpriced": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "usd",
+        "as_of",
+        "source",
+        "unpriced"
       ]
     }
   }

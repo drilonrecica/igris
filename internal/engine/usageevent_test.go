@@ -44,8 +44,10 @@ func TestUsageEventsFeedTheCard(t *testing.T) {
 		}
 	}
 	// Per response: input 2/3, cache read 100, cache write 10; the subagent
-	// adds 5 + 100 + 10 in and 7 out.
-	want := Tokens{In: 2 + 3 + 200 + 20 + 115, Out: 30 + 40 + 7, Models: []string{"claude-sonnet-5-5"}}
+	// adds 5 + 100 + 10 in and 7 out. The estimate prices the main thread
+	// on sonnet (5 in, 70 out, 200 read, 20 written, unsplit so at the 5m
+	// rate: $780e-6) and the subagent on haiku ($6.25e-6).
+	want := Tokens{In: 2 + 3 + 200 + 20 + 115, Out: 30 + 40 + 7, Models: []string{"claude-sonnet-5-5"}, USD: 786.25e-6, Priced: true}
 	if last := got[len(got)-1]; !reflect.DeepEqual(last, want) {
 		t.Errorf("last usage event = %+v, want %+v", last, want)
 	}

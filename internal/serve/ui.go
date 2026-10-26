@@ -957,6 +957,9 @@ func tokensText(t *Tokens) string {
 	if t == nil || t.Unavailable || (t.In == 0 && t.Out == 0) {
 		return ""
 	}
+	if t.Priced {
+		return look.InOut(t.In, t.Out) + " · " + look.Dollars(t.USD)
+	}
 	return look.InOut(t.In, t.Out)
 }
 

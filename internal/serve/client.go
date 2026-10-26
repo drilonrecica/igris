@@ -518,9 +518,18 @@ func (ev Event) Engine() (engine.Event, bool) {
 		out.Output = append(out.Output, textsafe.Clean(l))
 	}
 	if t := ev.Tokens; t != nil {
-		out.Tokens = &engine.Tokens{In: t.In, Out: t.Out, Models: t.Models, Unavailable: t.Unavailable}
+		out.Tokens = &engine.Tokens{In: t.In, Out: t.Out, Models: t.Models, Unavailable: t.Unavailable, USD: finite(t.USD), Priced: t.Priced}
 	}
 	return out, true
+}
+
+// finite is an estimate from the wire kept to a plausible, non-negative
+// amount: a server may send anything.
+func finite(usd float64) float64 {
+	if !(usd > 0) { // also NaN
+		return 0
+	}
+	return min(usd, 1e9)
 }
 
 // slotOf is a slot the run sent, nil unless it is one (0 to

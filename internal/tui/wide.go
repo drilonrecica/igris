@@ -641,6 +641,9 @@ func (m *model) tokensLine(c *current, w int) string {
 		return ""
 	}
 	line := "tokens " + look.InOut(t.In, t.Out)
+	if t.Priced {
+		line += " · " + look.Dollars(t.USD)
+	}
 	if len(t.Models) > 0 {
 		id := strings.Join(t.Models, ", ")
 		if c.rankMismatch != "" {

@@ -81,6 +81,12 @@ exit: 0
         "verify_s": 11,
         "needs_you_s": 240,
         "limit_s": 0
+      },
+      "estimate": {
+        "usd": 0.12305,
+        "as_of": "2026-10-25",
+        "source": "embedded",
+        "unpriced": 0
       }
     },
     {
@@ -194,6 +200,12 @@ exit: 0
         }
       }
     ]
+  },
+  "estimate": {
+    "usd": 0.12305,
+    "as_of": "2026-10-25",
+    "source": "embedded",
+    "unpriced": 0
   }
 }
 --- stderr

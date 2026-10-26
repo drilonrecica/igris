@@ -285,6 +285,9 @@
         },
         "sub": {
           "$ref": "#/$defs/tokens"
+        },
+        "estimate": {
+          "$ref": "#/$defs/estimate"
         }
       },
       "required": [
@@ -295,7 +298,8 @@
         "cache_read",
         "cache_write",
         "messages",
-        "sub"
+        "sub",
+        "estimate"
       ]
     },
     "task": {
@@ -370,6 +374,9 @@
             "mismatch"
           ],
           "description": "The worst audit of the task's attempts."
+        },
+        "estimate": {
+          "$ref": "#/$defs/estimate"
         }
       },
       "required": [
@@ -382,7 +389,8 @@
         "cache_read",
         "cache_write",
         "messages",
-        "sub"
+        "sub",
+        "estimate"
       ]
     },
     "model": {
@@ -423,6 +431,9 @@
         },
         "sub": {
           "$ref": "#/$defs/tokens"
+        },
+        "estimate": {
+          "$ref": "#/$defs/estimate"
         }
       },
       "required": [
@@ -434,7 +445,8 @@
         "cache_read",
         "cache_write",
         "messages",
-        "sub"
+        "sub",
+        "estimate"
       ]
     },
     "rank": {
@@ -474,6 +486,9 @@
         },
         "sub": {
           "$ref": "#/$defs/tokens"
+        },
+        "estimate": {
+          "$ref": "#/$defs/estimate"
         }
       },
       "required": [
@@ -485,7 +500,8 @@
         "cache_read",
         "cache_write",
         "messages",
-        "sub"
+        "sub",
+        "estimate"
       ]
     },
     "side": {
@@ -570,6 +586,37 @@
         "messages",
         "sub",
         "models"
+      ]
+    },
+    "estimate": {
+      "type": "object",
+      "description": "Since 1.8: the price estimate of the tokens at API list prices (SPEC §6.9): never a bill. `unpriced` counts the input + output tokens of attempts on a model without a price, which `usd` leaves out.",
+      "properties": {
+        "usd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "as_of": {
+          "type": "string",
+          "description": "The date of the embedded price table."
+        },
+        "source": {
+          "enum": [
+            "embedded",
+            "config"
+          ],
+          "description": "`config` when an entry of [usage.prices] priced some of the tokens."
+        },
+        "unpriced": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "usd",
+        "as_of",
+        "source",
+        "unpriced"
       ]
     }
   }

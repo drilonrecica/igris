@@ -5,24 +5,24 @@ igris usage · demo
 Run
   20261001-090000-3fa2 · Oct 01 09:00 · stopped
 
-Totals · 2 attempts · in 152k · out 3k
+Totals · 2 attempts · in 152k · out 3k · ≈ $0.12
   input 15 · cache read 140k · cache write 12k · output 3k · 18 responses
   note: 1 attempt without readable usage left out (audit: unavailable)
 
 By task
-  TASK   ATTEMPTS  IN    OUT  SUBAGENTS  MODELS                              AUDIT
-  M1-03  2         152k  3k   —          claude-sonnet-5-5, claude-opus-5-5  ▲ rank
-  M2-01  0         —     —    —          —                                   unavailable
+  TASK   ATTEMPTS  IN    OUT  SUBAGENTS  MODELS                              ≈ $    AUDIT
+  M1-03  2         152k  3k   —          claude-sonnet-5-5, claude-opus-5-5  $0.12  ▲ rank
+  M2-01  0         —     —    —          —                                   —      unavailable
 
 By model
-  MODEL              ATTEMPTS  IN    OUT  SUBAGENTS
-  claude-sonnet-5-5  2         152k  3k   —
-  claude-opus-5-5    1         98k   2k   —
+  MODEL              ATTEMPTS  IN    OUT  SUBAGENTS  ≈ $
+  claude-sonnet-5-5  2         152k  3k   —          $0.07
+  claude-opus-5-5    1         98k   2k   —          $0.10
   an attempt that ran on several models is counted under each, so rows can add up to more than the totals
 
 By rank
-  RANK    ATTEMPTS  IN    OUT  SUBAGENTS
-  sonnet  2         152k  3k   —
+  RANK    ATTEMPTS  IN    OUT  SUBAGENTS  ≈ $
+  sonnet  2         152k  3k   —          $0.12
 
 Top 5 by in + out
   1. M1-03 · 155k
@@ -33,5 +33,6 @@ Rank audit · 1 ok · 0 unchecked · 1 unavailable · 1 mismatch
 Quota: quota unavailable
 
 Tokens recorded in the session transcripts, not a bill.
+≈ $ is an estimate at API list prices (as of 2026-10-25; igris.toml overrides), not a bill: a subscription includes this usage.
 next: igris report
 --- stderr

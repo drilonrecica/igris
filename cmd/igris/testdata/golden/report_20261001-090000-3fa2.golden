@@ -4,13 +4,14 @@ exit: 0
 
 Run 20261001-090000-3fa2 · Oct 01 09:00 → 09:30 (30m00s) · stopped
 Phases M1, M2 · only M1-03, M1-05, M2-01
-1 done · 1 skipped · 1 unfinished · 1 commit · needs you 11m00s
+1 done · 1 skipped · 1 unfinished · 1 commit · needs you 11m00s · ≈ $0.12
+≈ $ is an estimate at API list prices (as of 2026-10-25; igris.toml overrides), not a bill: a subscription includes this usage.
 
 ## Phase M1
 
 | Task | Result | Duration | Agent | Attempts | Tokens | Verify | Commit | Needs you |
 |---|---|---|---|---|---|---|---|---|
-| M1-03 Config \| loader | done ▲ rank | 14m02s | 9m51s | 2 | 152k in · 3k out | fast ✗ ✓ · 11s | 3fa29c1 | 4m00s |
+| M1-03 Config \| loader | done ▲ rank | 14m02s | 9m51s | 2 | 152k in · 3k out · ≈ $0.12 | fast ✗ ✓ · 11s | 3fa29c1 | 4m00s |
 | M1-05 Check the docs | skipped | 3m40s | — | 1 | — | — | — | — |
 
 Notes

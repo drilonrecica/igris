@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drilonrecica/igris/internal/price"
 	"github.com/drilonrecica/igris/internal/state"
 	"github.com/drilonrecica/igris/internal/textsafe"
 	"github.com/drilonrecica/igris/internal/usage"
@@ -42,7 +43,10 @@ type Report struct {
 	// run, each phase and each rank; nil for a v0 run or a run without an
 	// agent task (SPEC §14). Since 1.8.
 	Time *TimeBreakdown `json:"time,omitempty"`
-	Note string         `json:"note,omitempty"` // as History.Note
+	// Estimate is the price estimate of the tasks' tokens (SPEC §6.9); nil
+	// when no attempt's usage was read. Since 1.8.
+	Estimate *Estimate `json:"estimate,omitempty"`
+	Note     string    `json:"note,omitempty"` // as History.Note
 }
 
 // ReportCommit is one commit the run made.
@@ -86,6 +90,8 @@ type ReportTask struct {
 	// Time is the task's time by what it was spent on; nil for a v0 run
 	// or a user task (SPEC §14). Since 1.8.
 	Time *Times `json:"time,omitempty"`
+	// Estimate is the price estimate of Usage; nil without it. Since 1.8.
+	Estimate *Estimate `json:"estimate,omitempty"`
 }
 
 // RankMismatch reports that some attempt of the task ran on a model its
@@ -94,7 +100,7 @@ func (t ReportTask) RankMismatch() bool { return t.Audit == state.AuditMismatch 
 
 // tokens counts a usage line's tokens into the task; a line without any
 // (usage unavailable) adds nothing.
-func (t *taskRec) tokens(e state.Event) {
+func (t *taskRec) tokens(e state.Event, prices price.Table) {
 	if e.Usage == nil {
 		return
 	}
@@ -107,6 +113,7 @@ func (t *taskRec) tokens(e state.Event) {
 	}
 	t.t.Usage.add(*e.Usage)
 	t.t.Usage.add(sub)
+	t.cost.Add(attemptCost(prices, *e.Usage, sub, e.Models, e.SubModels))
 	if !sub.IsZero() {
 		if t.t.Sub == nil {
 			t.t.Sub = &Tokens{}
@@ -177,7 +184,7 @@ func NewReport(in HistoryInput, project, sel string) (Report, error) {
 	if err != nil {
 		return Report{}, err
 	}
-	rep := r.report(in.Live && r == recs[len(recs)-1])
+	rep := r.report(in.Live && r == recs[len(recs)-1], in.Prices)
 	rep.Project, rep.Note = textsafe.Line(project), logNote(in)
 	return rep, nil
 }
@@ -209,7 +216,8 @@ type taskRec struct {
 	open     bool // has a session or user turn without a result yet
 	start    time.Time
 	duration time.Duration
-	timed    bool // some result had a known duration
+	timed    bool      // some result had a known duration
+	cost     price.Sum // the estimate of the task's tokens
 	// latest is the Claude session of the task's latest session line
 	// (started, resumed, retried); "" when that line has none or an
 	// invalid one, so Resume never points at an older conversation.
@@ -217,7 +225,7 @@ type taskRec struct {
 }
 
 // report folds the run's lines into a Report.
-func (r *runRec) report(live bool) Report {
+func (r *runRec) report(live bool, prices price.Table) Report {
 	sum := r.summary(live)
 	out := Report{
 		V:   JSONVersion,
@@ -298,7 +306,7 @@ func (r *runRec) report(live bool) Report {
 		case state.EventUsage:
 			if t := byID[e.Task]; t != nil {
 				t.audit(e.Audit)
-				t.tokens(e)
+				t.tokens(e, prices)
 			}
 		case state.EventRankMismatch:
 			// Also when the run stopped before the attempt's usage line.
@@ -314,6 +322,8 @@ func (r *runRec) report(live bool) Report {
 	perTask, breakdown := r.times(waits)
 	out.Time = breakdown
 	running := sum.End == EndRunning
+	var total price.Sum
+	priced := false
 	for _, t := range tasks {
 		rt := t.t
 		if rt.Result == "" {
@@ -334,6 +344,12 @@ func (r *runRec) report(live bool) Report {
 			rt.NeedsYouS = ptr(union(waits, func(w *wait) bool { return w.task == id }))
 		}
 		rt.Time = perTask[rt.ID]
+		if rt.Usage != nil {
+			e := NewEstimate(t.cost)
+			rt.Estimate = &e
+			total.Add(t.cost)
+			priced = true
+		}
 		switch rt.Result {
 		case ResultDone:
 			out.Done++
@@ -343,6 +359,10 @@ func (r *runRec) report(live bool) Report {
 			out.Unfinished++
 		}
 		out.Tasks = append(out.Tasks, rt)
+	}
+	if priced {
+		e := NewEstimate(total)
+		out.Estimate = &e
 	}
 	return out
 }
