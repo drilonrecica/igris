@@ -32,7 +32,7 @@ Every line igris v0.5 or later writes has `"v":1`. `v`, `at` and `type` are alwa
 | `owner` | string | `agent`, `user` or `agent + user` | `task_started`, `task_resumed` |
 | `side` | string | the side session's ID, 6 lowercase hex characters (since 1.2). These lines have no `task`, and carry `run` only when the igris writing them has a run | `side_opened`, `side_closed`, `side_usage` |
 | `profile` | string | the verify profile | `verify_passed`, `verify_failed` |
-| `commit` | string | the full commit SHA (`git rev-parse HEAD` after the commit; left out, with a warning, if that fails); on `integrated` the run branch's new head (since 1.5) | `committed`, `integrated` |
+| `commit` | string | the full commit SHA (`git rev-parse HEAD` after the commit; left out, with a warning, if that fails); on `integrated` the run branch's new head (since 1.5); on `commits_undone` the base the run's commits were undone to (since 1.8) | `committed`, `integrated`, `commits_undone` |
 | `branch` | string | the run's worktree branch, `igris/<run-id>`, in worktree mode (since 0.6); since 1.5 the task's branch, `igris/<run-id>-<ID>`, in a parallel phase, and the run branch on `integrated` | `run_started`; `task_started`, `task_retried`, `integrated` |
 | `slot` | integer | the task's slot in a parallel phase, `0` to `max - 1` (SPEC §6.11; since 1.5). Absent outside a parallel phase | `task_started`, `task_resumed`, `task_retried` |
 | `duration_ms` | integer | milliseconds. `task_done`/`task_skipped`: since this run's `task_started` or `task_resumed` of the task (wall time: watching, verify, questions, everything). `verify_*`: the verify command's run time. `run_stopped`: the run's length. Readers take a negative value or one over 30 days as unknown | those events |
@@ -81,6 +81,8 @@ Every line igris v0.5 or later writes has `"v":1`. `v`, `at` and `type` are alwa
 | `resolver_opened` | a resolver session was opened for a task that didn't integrate (SPEC §6.11; since 1.8): with `[parallel] on_conflict = "resolve"`, or from the didn't-integrate question's **Resolve**. `reason` says what for: `conflict` (the rebase is left where it stopped) or `verify` (the integrated tree). `rank`, `model` and `session` are the resolver's (`[parallel] resolver_rank`, or the task's rank), `attempt` the task's: it is no attempt. Once per session opened for the resolver (a retry of its session logs it again) | the conflicting files, at most 20, comma-separated, or the verify profile |
 | `resolver_done` | the resolver ran `igris done` and igris finished the rebase (or folded its fix into the task's commit) and found the branch in shape; the integrated tree is verified next (since 1.8) | the resolver's note |
 | `resolver_failed` | the resolution failed: the resolver gave up (`igris skip`), left markers or a branch in another shape, or its resolution failed verify on the integrated tree. What follows is in the detail: the task is run again from the start (`task_retried` `fresh`, unless `on_conflict = "ask"` or the rerun was used), or it needs you (since 1.8) | why (`gave up: <reason>`, `markers left in a.go`, `the rebase stopped again`, `verify failed on the integrated tree (profile fast: exit status 2)`, `the owner skipped the task`), then `; then rerun`, `; then needs you` or `; then skipped` |
+| `commit_policy` | the owner answered a commit question with **Commit all**: `commit` is `auto` for the rest of the run, `igris.toml` untouched (SPEC §6.5; since 1.8). Run-wide, no `task` | `auto: the owner's answer to M1-03's commit question` |
+| `commits_undone` | the owner answered the batch question with **Undo**: `git reset --soft` to `commit`, the run branch's head before the run's first commit; every change stays in the tree and the index, uncommitted (SPEC §6.5; since 1.8). Run-wide, no `task` | `9 commits undone; their changes are in the tree` |
 | `overlap` | two active tasks of a parallel phase both change one file; once per pair of tasks and file, from `git status` in their worktrees at each poll. Nothing is held. `task` is the task that changed it last (since 1.5) | `<ID> and <ID> both change <path>` |
 | `error` | a task hook failed, or the run stopped with an error | the hook's reason (`before_task hook failed: exit status 1`) or the error |
 
@@ -97,7 +99,7 @@ Every line igris v0.5 or later writes has `"v":1`. `v`, `at` and `type` are alwa
 | `verify_limit` | verify failed `verify_max_attempts` times in a row |
 | `verify_not_sent` | a verify failure could not be sent to the session |
 | `hook_failed` | the `before_task` hook failed and no session was opened |
-| `commit` | the commit question under `commit = "ask"` |
+| `commit` | the commit question under `commit = "ask"`; since 1.8 also the batch question, run-wide (no `task`), once a `commit = "batch"` run ended with commits (SPEC §6.5) |
 | `reset_request` | a reset request waits for your confirmation (`task` is the task to reset, which may not be the current one) |
 | `plan_changed` | the plan changed outside igris and the run holds (SPEC §5.4); run-wide, no `task` |
 | `plan_approval` | a plan waits for your approval in igris (SPEC §6.3; since 1.1) |

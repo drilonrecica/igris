@@ -36,6 +36,8 @@ func TestParseCommand(t *testing.T) {
 		{"y", engine.Command{Kind: engine.CmdAnswer, Yes: true}, actSend, ""},
 		{"YES", engine.Command{Kind: engine.CmdAnswer, Yes: true}, actSend, ""},
 		{"n", engine.Command{Kind: engine.CmdAnswer}, actSend, ""},
+		{"all", engine.Command{Kind: engine.CmdAnswer, Yes: true, Text: engine.CommitAllText}, actSend, ""},
+		{"all of it", engine.Command{}, actNone, "takes no argument"},
 		{"no thanks", engine.Command{}, actNone, "takes no argument"},
 		{"start", engine.Command{Kind: engine.CmdLimitStart}, actSend, ""},
 		{"start now", engine.Command{}, actNone, "takes no argument"},
@@ -98,7 +100,7 @@ func TestFormatEvent(t *testing.T) {
 		{engine.Event{Kind: engine.VerifyFailed, Task: "A-1", Detail: "test failed"}, "✗ A-1 verify failed · test failed"},
 		{engine.Event{Kind: engine.TaskStarted, Task: "A-2", Title: "Buy"}, "A-2 started · user task"},
 		{engine.Event{Kind: engine.SessionOpened, Task: "A-1", Mode: "yolo"}, "A-1 session open [SKIP PERMISSIONS]"},
-		{engine.Event{Kind: engine.Asked, Question: engine.QuestionCommit, Task: "A-1", Detail: "commit?"}, "! A-1 needs you · commit?\n  commit? [y/n]"},
+		{engine.Event{Kind: engine.Asked, Question: engine.QuestionCommit, Task: "A-1", Detail: "commit?"}, "! A-1 needs you · commit?\n  commit? [y/n/all]"},
 		{engine.Event{Kind: engine.Asked, Question: engine.QuestionSessionLost, Task: "A-1", Detail: "gone"}, "! A-1 needs you · session lost\n  gone\n  type `retry continue`, `retry fresh`, `done [note]`, `skip <reason>` or `stop`"},
 		{engine.Event{Kind: engine.TaskDone, Task: "A-1"}, "✓ A-1 done"},
 		{engine.Event{Kind: engine.TaskSkipped, Task: "A-1", Detail: "why"}, "– A-1 skipped · why"},
@@ -125,6 +127,16 @@ func TestFormatEvent(t *testing.T) {
 		{engine.Event{Kind: engine.Asked, Question: engine.QuestionBudget, Detail: "run budget 20M reached · 20.4M used · A-1 keeps running; no new task starts until you raise it, let it go on, or stop the run"},
 			"! needs you · budget reached\n  run budget 20M reached · 20.4M used · A-1 keeps running; no new task starts until you raise it, let it go on, or stop the run\n  type `budget <value>` to raise it for this run (30M, $60), `budget continue` or `stop`"},
 		{engine.Event{Kind: engine.BudgetRaised, Detail: "run budget raised to 30M for this run"}, "run budget raised to 30M for this run"},
+		// Fewer interruptions (SPEC §6.5, §10): the batch question, Commit
+		// all's and Undo's lines, a blocked session's why.
+		{engine.Event{Kind: engine.Asked, Question: engine.QuestionCommitBatch, Undo: true, Detail: "Keep the 2 commits of this run?", Output: []string{"A-1: One", "A-2: Two"}},
+			"! needs you · keep the run's commits?\n  Keep the 2 commits of this run?\n  | A-1: One\n  | A-2: Two\n  type `y` to keep them or `n` to undo them (git reset --soft: the changes stay, uncommitted); leaving keeps them"},
+		{engine.Event{Kind: engine.Asked, Question: engine.QuestionCommitBatch, Detail: "Keep the 2 commits of this run? HEAD moved outside igris, so Undo is not offered"},
+			"! needs you · keep the run's commits?\n  Keep the 2 commits of this run? HEAD moved outside igris, so Undo is not offered\n  type `y` to keep them; leaving keeps them"},
+		{engine.Event{Kind: engine.CommitPolicy, Detail: "Commit all: every task is committed without asking for the rest of this run"}, "Commit all: every task is committed without asking for the rest of this run"},
+		{engine.Event{Kind: engine.CommitsUndone, Detail: "2 commits undone; their changes are in the tree"}, "2 commits undone; their changes are in the tree"},
+		{engine.Event{Kind: engine.NeedsYou, Task: "A-1", Reason: "blocked", Cause: "permission", Tool: "Bash", Detail: "the agent is blocked and has not run `igris done` for 30s"},
+			"! A-1 needs you · waits for a permission (Bash)\n  the agent is blocked and has not run `igris done` for 30s"},
 	}
 	for _, tt := range tests {
 		if got := strings.Join(formatEvent(tt.ev), "\n"); got != tt.want {

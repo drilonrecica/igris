@@ -540,6 +540,11 @@ func ownerCommands(ctx context.Context, lines <-chan string, eng *engine.Engine,
 	for {
 		line, ok := next()
 		if !ok {
+			if ctx.Err() == nil {
+				// Stdin ended: nobody is left to answer the batch question,
+				// which keeps the run's commits (SPEC §6.5).
+				eng.Unattended()
+			}
 			return
 		}
 		c, act, err := parseCommand(line)
@@ -577,6 +582,7 @@ const (
 
 const commandHelp = `commands:
   y | n                      answer the question igris asked
+  all                        answer the commit question with Commit all: commit, and no more commit questions this run
   reset yes|no [task]        answer a reset request (the oldest, or that task's)
   done [note]                mark the current task done (an agent task is not verified)
   skip <reason>              skip the current task
@@ -608,6 +614,10 @@ func parseCommand(line string) (engine.Command, commandAction, error) {
 		return noArgs(engine.Command{Kind: engine.CmdAnswer, Yes: true})
 	case "n", "no":
 		return noArgs(engine.Command{Kind: engine.CmdAnswer})
+	case "all":
+		// Commit all (SPEC §6.5): this commit, and auto for the rest of
+		// the run.
+		return noArgs(engine.Command{Kind: engine.CmdAnswer, Yes: true, Text: engine.CommitAllText})
 	case "done":
 		return engine.Command{Kind: engine.CmdDone, Text: rest}, actSend, nil
 	case "skip":
@@ -788,7 +798,14 @@ func formatEvent(ev engine.Event) []string {
 			needsLine(id, "your turn · "+ev.Detail),
 			"  do it outside igris (no session), then type `done [note]` or `skip <reason>` (or run `igris done " + id + "` anywhere in the project)",
 		}
-	case engine.NeedsYou, engine.SessionLost:
+	case engine.NeedsYou:
+		switch ev.Reason {
+		case state.ReasonBlocked, state.ReasonIdle, state.ReasonUsageLimit:
+			// Why, in the words of SPEC §10, then the agent's state.
+			return []string{needsLine(id, engine.NeedsWords(ev.Reason, ev.Cause, ev.Tool)), "  " + ev.Detail}
+		}
+		return []string{needsLine(id, ev.Detail)}
+	case engine.SessionLost:
 		return []string{needsLine(id, ev.Detail)}
 	case engine.NeedsYouClear:
 		return []string{id + " is working again"}
@@ -812,7 +829,7 @@ func formatEvent(ev engine.Event) []string {
 		return []string{"resumed · " + ev.Detail}
 	case engine.BudgetExceeded:
 		return []string{look.GlyphNeedsYou + " " + ev.Detail}
-	case engine.BudgetRaised:
+	case engine.BudgetRaised, engine.CommitPolicy, engine.CommitsUndone:
 		return []string{ev.Detail}
 	case engine.TaskOverdue:
 		return []string{look.GlyphWarn + " " + id + " overdue · " + ev.Detail + "; its session keeps running"}
@@ -847,6 +864,18 @@ func formatEvent(ev engine.Event) []string {
 		case engine.QuestionBudget:
 			// The run's question (SPEC §6.9): no task.
 			return []string{needsLine("", ev.Question.Kind()), "  " + ev.Detail, "  type `budget <value>` to raise it for this run (30M, $60), `budget continue` or `stop`"}
+		case engine.QuestionCommitBatch:
+			// The run's, once it ended (SPEC §6.5): its commits listed.
+			lines = []string{needsLine("", ev.Question.Kind()), "  " + ev.Detail}
+			for _, l := range ev.Output {
+				lines = append(lines, "  | "+l)
+			}
+			if ev.Undo {
+				return append(lines, "  type `y` to keep them or `n` to undo them (git reset --soft: the changes stay, uncommitted); leaving keeps them")
+			}
+			return append(lines, "  type `y` to keep them; leaving keeps them")
+		case engine.QuestionCommit:
+			return append(lines, "  "+ev.Detail+" [y/n/all]")
 		default:
 			return append(lines, "  "+ev.Detail+" [y/n]")
 		}

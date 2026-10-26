@@ -18,6 +18,9 @@ const (
 	CommitAsk   = "ask"
 	CommitAuto  = "auto"
 	CommitNever = "never"
+	// CommitBatch commits as auto does and asks once, when the run ends,
+	// whether to keep the run's commits (since 1.8).
+	CommitBatch = "batch"
 )
 
 // gitTimeout bounds each git call.
@@ -50,7 +53,7 @@ func parseCommitMessage(text string) (*template.Template, error) {
 // applied instead of the commit (SPEC §6.2).
 func (e *Engine) commit(ctx context.Context, l *launch, note string) (stopped, reset bool, err error) {
 	t := l.t
-	if e.cfg.Run.Commit == CommitNever {
+	if e.commitPolicy() == CommitNever {
 		return false, false, nil
 	}
 	status, err := e.git(ctx, l, "status", "--porcelain")
@@ -66,9 +69,9 @@ func (e *Engine) commit(ctx context.Context, l *launch, note string) (stopped, r
 		return false, false, err
 	}
 
-	if e.cfg.Run.Commit == CommitAsk {
-		e.waitOn(state.ReasonCommit, "commit question")
-		yes, stopped := e.ask(ctx, QuestionCommit, fmt.Sprintf("commit the changes of %s as %q?", t.ID, msg), commitWhat)
+	if e.commitPolicy() == CommitAsk {
+		e.waitOn(state.ReasonCommit, commitWhat)
+		answer, stopped := e.ask(ctx, QuestionCommit, fmt.Sprintf("commit the changes of %s as %q?", t.ID, msg), commitWhat)
 		if stopped {
 			return true, false, nil
 		}
@@ -77,17 +80,20 @@ func (e *Engine) commit(ctx context.Context, l *launch, note string) (stopped, r
 		if reset, stopped, err := e.settleResets(ctx, t.ID); err != nil || stopped || reset {
 			return stopped, reset, err
 		}
-		if !yes {
+		if !answer.Yes {
 			e.emit(Event{Kind: NotCommitted, Detail: "the owner declined"})
 			return false, false, nil
+		}
+		if isCommitAll(answer) {
+			e.commitAll(t.ID)
 		}
 	}
 
 	return false, false, e.commitChanges(ctx, l, msg, note, approved)
 }
 
-// commitWhat is what the commit question's notification says.
-const commitWhat = "needs you (commit question)"
+// commitWhat is what the commit question's notification says (SPEC §10).
+const commitWhat = "commit question"
 
 // commitMessage renders the commit subject for l's task from
 // commit_message (SPEC §6.5) and returns it with the approved plan the
@@ -112,6 +118,7 @@ func (e *Engine) commitMessage(l *launch, note string) (msg, approved string, er
 // §6.5), and logs the commit. A git failure is an error.
 func (e *Engine) commitChanges(ctx context.Context, l *launch, msg, note, approved string) error {
 	t := l.t
+	e.markBatchBase(ctx)
 	if _, err := e.git(ctx, l, "add", "-A"); err != nil {
 		return err
 	}
@@ -160,20 +167,21 @@ func (e *Engine) git(ctx context.Context, l *launch, args ...string) (string, er
 }
 
 // ask raises a yes/no question, notifies it (needs_input, a few words
-// in what) and waits for the owner's CmdAnswer. Other task commands are
-// rejected until it is answered; reset requests are asked about
-// meanwhile, never applied. stopped reports that the run stopped instead.
-func (e *Engine) ask(ctx context.Context, q Question, text, what string) (yes, stopped bool) {
+// in what) and waits for the owner's CmdAnswer, which it returns. Other
+// task commands are rejected until it is answered; reset requests are
+// asked about meanwhile, never applied. stopped reports that the run
+// stopped instead.
+func (e *Engine) ask(ctx context.Context, q Question, text, what string) (answer Command, stopped bool) {
 	e.emit(Event{Kind: Asked, Question: q, Detail: text})
 	e.toastAsking(ctx, notifyNeedsInput, what, q)
 	for {
 		e.checkConfig(ctx)
 		if e.stopping(ctx) {
-			return false, true
+			return Command{}, true
 		}
 		for _, c := range e.takeCommands(e.task) {
 			if c.Kind == CmdAnswer {
-				return c.Yes, false
+				return c, false
 			}
 			e.reject(c, "answer the question first: "+text)
 		}

@@ -165,6 +165,13 @@ type Event struct {
 	// Resolve is set on the didn't-integrate question while a resolver
 	// session may be opened for the task (SPEC §6.11), since 1.8.
 	Resolve bool `json:"resolve,omitempty"`
+	// Undo is set on the batch question while Undo is offered (SPEC §6.5),
+	// since 1.8; Output then lists the run's commit subjects.
+	Undo bool `json:"undo,omitempty"`
+	// Cause and Tool say why a blocked session is blocked, on needs_you
+	// (SPEC §6.3, §10), since 1.8.
+	Cause string `json:"cause,omitempty"`
+	Tool  string `json:"tool,omitempty"`
 }
 
 // Change is a Status cell the run wrote.
@@ -211,7 +218,7 @@ func fromEngine(ev engine.Event, run string) Event {
 		Profile: ev.Verify, Detail: cut(ev.Detail, maxDetail), Reason: ev.Reason,
 		Session: ev.Session, ClaudeSession: ev.ClaudeSession,
 		Question: string(ev.Question), Plan: cut(ev.Plan, maxPlan), Then: ev.Then, Quota: ev.Quota,
-		Slot: ev.Slot, Resolve: ev.Resolve,
+		Slot: ev.Slot, Resolve: ev.Resolve, Undo: ev.Undo, Cause: ev.Cause, Tool: ev.Tool,
 	}
 	if l := ev.Limit; l != nil {
 		lim := *l
@@ -319,6 +326,7 @@ var questions = map[engine.Question]bool{
 	"": true, engine.QuestionConfirmSkip: true, engine.QuestionSessionLost: true, engine.QuestionHookFailed: true,
 	engine.QuestionCommit: true, engine.QuestionConfirmReset: true, engine.QuestionPlanApproval: true,
 	engine.QuestionIntegration: true, engine.QuestionFilesInTheWay: true, engine.QuestionBudget: true,
+	engine.QuestionCommitBatch: true,
 }
 
 // command converts a command request into the engine's command, checking

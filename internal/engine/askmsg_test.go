@@ -100,8 +100,8 @@ func TestCommitQuestionNotified(t *testing.T) {
 	if _, err := h.run(n.use); err != nil {
 		t.Fatal(err)
 	}
-	if got := n.asking(QuestionCommit); len(got) != 3 || got[0].m.What != "needs you (commit question)" {
-		t.Fatalf("commit messages %+v, want 3 saying needs you (commit question)", got)
+	if got := n.asking(QuestionCommit); len(got) != 3 || got[0].m.What != "commit question" {
+		t.Fatalf("commit messages %+v, want 3 saying commit question", got)
 	}
 	for i, id := range []string{"A-1", "A-2", "A-3"} {
 		if s := n.asking(QuestionCommit)[i]; s.m.TaskID != id || s.m.Event != notify.NeedsInput || !s.asked {
@@ -215,7 +215,7 @@ func TestPlanApprovalNotifiedWithQuestion(t *testing.T) {
 		t.Fatal(err)
 	}
 	checkAsking(t, n, QuestionPlanApproval, "A-1", notify.NeedsInput, 1)
-	if got := n.asking(QuestionPlanApproval)[0].m.What; got != "needs you (plan awaiting approval)" {
+	if got := n.asking(QuestionPlanApproval)[0].m.What; got != "plan to approve" {
 		t.Errorf("what = %q", got)
 	}
 }
@@ -252,7 +252,7 @@ func TestParallelCommitQuestionNotified(t *testing.T) {
 		}
 		got[s.m.TaskID] = append(got[s.m.TaskID], s.m.What)
 	}
-	if a := strings.Join(got["a"], " | "); a != "needs you (commit question) | needs you (commit declined)" {
+	if a := strings.Join(got["a"], " | "); a != "commit question | commit question" {
 		t.Errorf("a's commit messages: %q", a)
 	}
 	if len(got["b"]) != 1 || len(got["c"]) != 1 {

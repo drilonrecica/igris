@@ -471,6 +471,7 @@ var knownKinds = func() map[string]engine.EventKind {
 		engine.HookStarted, engine.HookFailed, engine.Warning, engine.RunFailed, engine.RunStopped,
 		engine.LimitHold, engine.LimitResume, engine.SessionLimited, engine.SessionLimitOver,
 		engine.BudgetRead, engine.BudgetExceeded, engine.BudgetRaised,
+		engine.CommitPolicy, engine.CommitsUndone,
 	} {
 		m[string(k)] = k
 	}
@@ -493,8 +494,9 @@ func (ev Event) Engine() (engine.Event, bool) {
 		Session: ev.Session, ClaudeSession: textsafe.Line(ev.ClaudeSession),
 		Question: engine.Question(ev.Question), Plan: textsafe.Clean(ev.Plan), Then: textsafe.Line(ev.Then),
 		Quota: ev.Quota, Slot: slotOf(ev.Slot), Limit: limitOf(ev.Limit),
-		Budget: budgetOf(ev.Budget), Budgets: budgetsOf(ev.Budgets), Resolve: ev.Resolve,
+		Budget: budgetOf(ev.Budget), Budgets: budgetsOf(ev.Budgets), Resolve: ev.Resolve, Undo: ev.Undo,
 	}
+	out.Cause, out.Tool = CauseOf(ev.Cause, ev.Tool)
 	if kind == engine.RunStarted {
 		out.Run = textsafe.Line(ev.Run) // the envelope stamps every event; the engine this one
 	}
@@ -524,6 +526,21 @@ func (ev Event) Engine() (engine.Event, bool) {
 		out.Tokens = &engine.Tokens{In: t.In, Out: t.Out, Models: t.Models, Unavailable: t.Unavailable, USD: finite(t.USD), Priced: t.Priced}
 	}
 	return out, true
+}
+
+// CauseOf is a cause and tool the run sent, "" unless they have the
+// shape of one (SPEC §6.3).
+func CauseOf(cause, tool string) (string, string) {
+	switch cause {
+	case state.CauseQuestion, state.CausePlan, state.CauseNotification:
+		return cause, ""
+	case state.CausePermission:
+		if state.ValidTool(tool) {
+			return cause, tool
+		}
+		return cause, ""
+	}
+	return "", ""
 }
 
 // finite is an estimate from the wire kept to a plausible, non-negative

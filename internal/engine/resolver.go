@@ -430,8 +430,8 @@ func (e *Engine) resolverFailed(ctx context.Context, l *launch, why string, line
 	g.stage = integFailed
 	e.emit(Event{Kind: ResolverFailed, Detail: what + "; needs you", Output: lines})
 	failed := "didn't integrate: its " + what
-	e.needsYou(ctx, notifyNeedsInput, state.ReasonIntegration, id+" "+failed+"; rerun it fresh, mark it done, skip it or stop", "integration failed")
-	e.emit(Event{Kind: Asked, Question: QuestionIntegration, Detail: id + " " + failed + ": rerun it fresh, mark it done (you integrated it by hand), skip it, or stop", Output: lines})
+	e.needsYouAsking(ctx, notifyNeedsInput, state.ReasonIntegration, id+" "+failed+"; rerun it fresh, mark it done, skip it or stop", wordsIntegration,
+		&Event{Kind: Asked, Question: QuestionIntegration, Detail: id + " " + failed + ": rerun it fresh, mark it done (you integrated it by hand), skip it, or stop", Output: lines})
 	return false, false, nil
 }
 
@@ -509,7 +509,7 @@ const (
 func (e *Engine) resolvePrompt(ctx context.Context, l *launch, r *resolverRun) (string, error) {
 	t := l.t
 	v := prompt.ResolveVars{
-		Vars:    prompt.VarsFor(t, prompt.Env{Model: r.model, PlanFile: e.planFile(l), TaskFile: e.taskFile(l), CommitPolicy: e.cfg.Run.Commit}),
+		Vars:    prompt.VarsFor(t, prompt.Env{Model: r.model, PlanFile: e.planFile(l), TaskFile: e.taskFile(l), CommitPolicy: e.sessionPolicy()}),
 		Reason:  r.reason,
 		Files:   r.files,
 		Profile: r.profile,

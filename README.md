@@ -121,7 +121,7 @@ Every rule, with a larger example, is in the [plan format](docs/plan-format.md).
 1. opens a new herdr tab or tmux window and starts `claude` on the task's model and [mode](#when-it-needs-you), with igris's rules as a system prompt and the task as the first message (your own `prompt_template` can replace it);
 2. watches the session through Claude Code hooks, never by scraping the screen, and reads its token usage from the transcript;
 3. on `igris done M0-03`, runs your verify command; a failure goes back into the same session, and after three in a row igris calls you;
-4. commits (`commit = "ask"`, `"auto"` or `"never"`), marks the task `done`, unblocks what depends on it, closes the session and starts a fresh one for the next task.
+4. commits (`commit = "ask"`, `"auto"`, `"never"` or `"batch"`), marks the task `done`, unblocks what depends on it, closes the session and starts a fresh one for the next task. Under `ask`, **Commit all** commits without asking for the rest of the run; `batch` commits each task at once and asks only when the run ends whether to keep its commits (Undo is `git reset --soft`: the changes stay).
 
 ```toml
 [run]
@@ -165,7 +165,7 @@ Mark a phase `<!-- igris:parallel -->` (the plan declares `<!-- igris:format 3 -
 
 <p align="center"><img src="docs/demo/igris-phone.png" alt="The web UI on a phone: the status word Needs you, a phase bar segmented by task, a commit question with Commit and Leave uncommitted, a working task's card, and Plan, Pause after this task and Stop at the bottom" width="300"></p>
 
-With `[serve] http` set to this machine's Tailscale address (or loopback for `ssh -L`), serve also serves a web UI for a glance from the couch: one word for the run, a bar segmented by task, and whatever needs you in a sheet at your thumb, with its answers. Pair a device once with `igris serve token` (a URL and a QR code). From it you answer questions, approve plans, pause, stop, retry, mark done or skip, and change modes, all but skip-permissions. With `actions = true` under `[notify.ntfy]`, the ntfy message itself carries the buttons (Commit, Approve, Retry, …). The listener is off until you give it an address. [Control from your phone](https://drilonrecica.github.io/igris/docs/control-from-your-phone.html).
+With `[serve] http` set to this machine's Tailscale address (or loopback for `ssh -L`), serve also serves a web UI for a glance from the couch: one word for the run, a bar segmented by task, and whatever needs you in a sheet at your thumb, with its answers. Pair a device once with `igris serve token` (a URL and a QR code). From it you answer questions, approve plans, pause, stop, retry, mark done or skip, and change modes, all but skip-permissions. With `actions = true` under `[notify.ntfy]`, the ntfy message itself carries the buttons (Commit, Approve, Retry, Reset, Continue, …) and **Open**, to that task's question on the web UI; the message says what waits (`waits for a permission (Bash)`, `plan to approve`, `commit question`). The listener is off until you give it an address. [Control from your phone](https://drilonrecica.github.io/igris/docs/control-from-your-phone.html).
 
 ### Side sessions
 

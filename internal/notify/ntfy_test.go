@@ -97,8 +97,9 @@ func TestNtfyCutsDefaultBody(t *testing.T) {
 	}
 }
 
-// A question's message gets its buttons as ntfy's JSON actions; a message
-// without a question, for several tasks or a digest gets none (SPEC §10).
+// A message gets the buttons Actions makes for it as ntfy's JSON actions,
+// at most three (since 1.8 also without a question: Open, SPEC §10); a
+// digest gets none.
 func TestNtfyActions(t *testing.T) {
 	buttons := func(m Message) []Action {
 		return []Action{
@@ -108,6 +109,9 @@ func TestNtfyActions(t *testing.T) {
 		}
 	}
 	none := func(Message) []Action { return nil }
+	open := func(m Message) []Action {
+		return []Action{{View: true, Label: "Open", URL: "http://100.64.0.1:7777/?task=" + m.TaskID}}
+	}
 	q := Message{Event: NeedsInput, Project: "p", TaskID: "M1-03", What: "needs you", Question: "commit"}
 	tests := []struct {
 		name    string
@@ -119,8 +123,8 @@ func TestNtfyActions(t *testing.T) {
 			`[{"action":"http","label":"Don't commit","url":"http://100.64.0.1:7777/api/v1/action/tok-M1-03","method":"POST","clear":true},` +
 				`{"action":"view","label":"Open","url":"http://100.64.0.1:7777/","clear":false},` +
 				`{"action":"http","label":"3","url":"","method":"POST","clear":true}]`},
-		{"no question", buttons, Message{Event: NeedsInput, TaskID: "M1-03"}, ""},
-		{"several tasks", buttons, Message{Event: NeedsInput, TaskID: "M1-03", Tasks: []string{"M1-03", "M1-05"}, Question: "commit"}, ""},
+		{"no question", open, Message{Event: NeedsInput, TaskID: "M1-03"}, `[{"action":"view","label":"Open","url":"http://100.64.0.1:7777/?task=M1-03","clear":false}]`},
+		{"several tasks", open, Message{Event: NeedsInput, TaskID: "M1-03", Tasks: []string{"M1-03", "M1-05"}}, `[{"action":"view","label":"Open","url":"http://100.64.0.1:7777/?task=M1-03","clear":false}]`},
 		{"digest", buttons, Message{Event: Digest, Question: "commit"}, ""},
 		{"actions off", nil, q, ""},
 		{"no buttons made", none, q, ""},

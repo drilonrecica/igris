@@ -279,6 +279,10 @@ type Engine struct {
 	// secretEnv are the variables the snapshot's notification secrets refer
 	// to; no command igris runs gets them (SPEC §16).
 	secretEnv []string
+	// unattended: no one is left to answer (Unattended); guarded by mu.
+	unattended bool
+	// batchAsked: the batch question is asked (askBatch).
+	batchAsked bool
 }
 
 // New checks opts and returns an engine. It does no I/O.
@@ -425,6 +429,9 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 		e.endUsage(context.WithoutCancel(ctx), l)
 	}
 	e.unfocus()
+	// A batch run's commits are put to the owner before the worktree is
+	// left: Undo works where they were made (SPEC §6.5).
+	e.askBatch(ctx, detail)
 	e.leaveWorktree(context.WithoutCancel(ctx), &res)
 	// igris can't hold messages once it exits: what is left goes out now,
 	// even when the owner's stop cancelled ctx.
@@ -564,6 +571,12 @@ func (e *Engine) prepare(check bool) ([]string, error) {
 		// The budgets the owner raised or let go on hold for the run
 		// resumed (SPEC §6.9).
 		e.run.BudgetOverrides = maps.Clone(prev.BudgetOverrides)
+	}
+	if resumed {
+		// Commit all holds for the rest of the run, and a batch run asks
+		// about every commit since its base, the resumed one's too (SPEC
+		// §6.5).
+		e.run.CommitOverride, e.run.BatchBase = prev.CommitOverride, prev.BatchBase
 	}
 	if err := e.pickWorktree(prev, resumed, cur); err != nil {
 		return nil, err

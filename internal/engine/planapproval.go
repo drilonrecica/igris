@@ -103,7 +103,7 @@ func (e *Engine) presentPlan(ctx context.Context, l *launch, r state.PlanRequest
 	if strings.TrimSpace(text) == "" {
 		text = "(the session sent an empty plan)"
 	}
-	e.needsYouAsking(ctx, notifyNeedsInput, state.ReasonPlanApproval, "the session presents a plan for approval", "plan awaiting approval", &Event{
+	e.needsYouAsking(ctx, notifyNeedsInput, state.ReasonPlanApproval, "the session presents a plan for approval", NeedsWords(state.ReasonPlanApproval, "", ""), &Event{
 		Kind:     Asked,
 		Question: QuestionPlanApproval,
 		Detail:   fmt.Sprintf("approve the plan of %s? approving switches its session to mode %s", t.ID, e.planThen(l.mode)),

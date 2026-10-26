@@ -63,6 +63,10 @@ type Snapshot struct {
 	// reached that waits on the owner (the run's, not a task's).
 	Budgets        []engine.BudgetUse `json:"budgets,omitempty"`
 	BudgetQuestion *Event             `json:"budget_question,omitempty"`
+	// BatchQuestion is the batch question once a batch run ended with
+	// commits (SPEC §6.5, since 1.8): the asked event with question
+	// commit_batch, the run's.
+	BatchQuestion *Event `json:"batch_question,omitempty"`
 	// Feed is the last events, oldest first, without plan text or hook
 	// output.
 	Feed []Event `json:"feed,omitempty"`
@@ -149,6 +153,10 @@ type Current struct {
 	// verify (SPEC §6.11, since 1.8); "" without one. Detail then says it
 	// in words while the card works.
 	Resolver string `json:"resolver,omitempty"`
+	// Cause and Tool say why a blocked session is blocked (SPEC §6.3,
+	// since 1.8), while the card needs you for it.
+	Cause string `json:"cause,omitempty"`
+	Tool  string `json:"tool,omitempty"`
 }
 
 // The card's states.
@@ -185,6 +193,7 @@ type tracker struct {
 	limited                   *Limited
 	budgets                   []engine.BudgetUse
 	budgetAsk                 *Event
+	batchAsk                  *Event
 	feed                      []Event // a ring of the last feedLen events
 	feedNext                  int
 }
@@ -239,6 +248,18 @@ func (t *tracker) apply(raw engine.Event, ev Event) {
 		return
 	case raw.Kind == engine.BudgetExceeded:
 		t.addFeed(ev)
+		return
+	case raw.Kind == engine.Asked && raw.Question == engine.QuestionCommitBatch:
+		// The run's too, asked once it ended (SPEC §6.5).
+		t.addFeed(ev)
+		e := ev
+		t.batchAsk = &e
+		return
+	case raw.Kind == engine.CommitsUndone || raw.Kind == engine.CommitPolicy:
+		t.addFeed(ev)
+		if raw.Kind == engine.CommitsUndone {
+			t.batchAsk = nil
+		}
 		return
 	}
 	if raw.Task == "" && len(t.cards) == 1 {
@@ -326,7 +347,7 @@ func (t *tracker) apply(raw engine.Event, ev Event) {
 		t.limited = nil
 	case engine.NeedsYou:
 		if c != nil && c.Waiting && c.State == StateWaiting {
-			c.State, c.Detail, c.Reason = StateNeedsYou, ev.Detail, ev.Reason // the wait counts from its start
+			c.State, c.Detail, c.Reason, c.Cause, c.Tool = StateNeedsYou, ev.Detail, ev.Reason, ev.Cause, ev.Tool // the wait counts from its start
 			break
 		}
 		setState(c, StateNeedsYou, ev)
@@ -403,7 +424,7 @@ func (t *tracker) apply(raw engine.Event, ev Event) {
 	case engine.RunStopped:
 		t.ended, t.end = true, raw.Detail
 		clear(t.asks)
-		t.reset, t.limited, t.budgetAsk = nil, nil, nil
+		t.reset, t.limited, t.budgetAsk, t.batchAsk = nil, nil, nil, nil
 	}
 }
 
@@ -412,6 +433,7 @@ func setState(c *Current, s string, ev Event) {
 		return
 	}
 	c.State, c.Since, c.Detail, c.Reason = s, ev.At, ev.Detail, ev.Reason
+	c.Cause, c.Tool = ev.Cause, ev.Tool
 }
 
 // settle drops task id's question: a later event answered it.
@@ -446,7 +468,7 @@ func (t *tracker) snapshot(phases []Phase) Snapshot {
 		V: Protocol, Type: TypeSnapshot, Protocol: Protocol,
 		Run: t.run, Started: t.started, Phase: t.phase, Slice: t.slice, Mode: t.mode,
 		Paused: t.paused, Holding: t.holding, Worktree: t.worktree, Ended: t.ended, End: t.end,
-		Reset: t.reset, Quota: t.quota, Budgets: slices.Clone(t.budgets), BudgetQuestion: t.budgetAsk,
+		Reset: t.reset, Quota: t.quota, Budgets: slices.Clone(t.budgets), BudgetQuestion: t.budgetAsk, BatchQuestion: t.batchAsk,
 	}
 	if t.limited != nil {
 		l := *t.limited
@@ -545,7 +567,7 @@ func encodeSnapshot(s Snapshot) ([]byte, error) {
 		case len(s.Phases) > 0:
 			s.Phases, s.PlanError = nil, "the plan is too large for the snapshot"
 		default:
-			s.Question, s.Questions, s.Reset, s.BudgetQuestion = nil, nil, nil, nil
+			s.Question, s.Questions, s.Reset, s.BudgetQuestion, s.BatchQuestion = nil, nil, nil, nil, nil
 			return encode(s)
 		}
 	}

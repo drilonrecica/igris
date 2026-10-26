@@ -155,6 +155,12 @@ func (e *Engine) drain() {
 				e.resetAnswers = append(e.resetAnswers, c)
 				continue
 			}
+			if c.Question == QuestionCommitBatch && !e.batchAsked {
+				// Never another question's answer: a no would decline a
+				// commit.
+				e.reject(c, "the batch question is asked once the run ends")
+				continue
+			}
 			e.pending = append(e.pending, c)
 		default:
 			e.pending = append(e.pending, c)

@@ -310,7 +310,7 @@ func TestResolverThenRerunThenNeedsYou(t *testing.T) {
 		"resolver_failed:gave up: can't; then rerun",
 		"task_retried:fresh",
 		"integration_failed/conflict:main.go; then needs you",
-		"needs_you/integration:needs you (integration failed)",
+		"needs_you/integration:didn't integrate",
 		"needs_you_clear/integration",
 		"task_skipped:by hand later",
 	}
@@ -350,7 +350,7 @@ func TestResolverFromTheQuestion(t *testing.T) {
 	// The rebase done again stops and is logged as such, then resolved.
 	want := []string{
 		"integration_failed/conflict:main.go; then needs you",
-		"needs_you/integration:needs you (integration failed)",
+		"needs_you/integration:didn't integrate",
 		"needs_you_clear/integration",
 		"integration_failed/conflict:main.go; then resolve",
 		"resolver_opened/conflict:main.go",

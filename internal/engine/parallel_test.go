@@ -425,11 +425,11 @@ func TestParallelNeedsYouAlone(t *testing.T) {
 	}
 	var needs []string
 	for _, n := range h.toasts() {
-		if strings.Contains(n, "need") {
+		if strings.Contains(n, "need") || strings.Contains(n, "without igris done") {
 			needs = append(needs, n)
 		}
 	}
-	if len(needs) != 1 || !strings.HasPrefix(needs[0], "request: phase A · a One: needs you") {
+	if len(needs) != 1 || !strings.HasPrefix(needs[0], "request: phase A · a One: ended its turn without igris done") {
 		t.Errorf("needs-you toasts = %q, want a's own", needs)
 	}
 }

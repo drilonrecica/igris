@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -85,7 +86,26 @@ type Run struct {
 	// the new value or BudgetContinue. Since 1.8; no version change: an
 	// igris that ignores it asks again at the original value.
 	BudgetOverrides map[string]string `json:"budget_overrides,omitempty"`
+	// BatchBase is the run branch's head before the run's first commit
+	// under commit = "batch" (SPEC §6.5): the base the batch question's
+	// Undo resets to. Kept across a resume of the run, cleared once the
+	// question is settled. Since 1.8; no version change: an igris that
+	// ignores it never asks.
+	BatchBase string `json:"batch_base,omitempty"`
+	// CommitOverride is the commit policy the owner's Commit all set for
+	// the rest of the run (SPEC §6.5): "auto", or "" for igris.toml's.
+	// Since 1.8; no version change.
+	CommitOverride string `json:"commit_override,omitempty"`
 }
+
+// CommitAll is the only commit policy CommitOverride holds.
+const CommitAll = "auto"
+
+// commitSHA is a full SHA-1 or SHA-256 commit hash.
+var commitSHA = regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`)
+
+// ValidCommit reports whether s is a full commit hash.
+func ValidCommit(s string) bool { return commitSHA.MatchString(s) }
 
 // Worktree is a run's git worktree (SPEC §6.8).
 type Worktree struct {
@@ -414,6 +434,12 @@ func checkReadBack(r *Run) string {
 		if !ValidBudgetKey(k) || !ValidBudgetValue(v) {
 			return "a budget override is not a budget and a value igris writes"
 		}
+	}
+	switch {
+	case r.BatchBase != "" && !ValidCommit(r.BatchBase):
+		return "the batch base is not a commit hash"
+	case r.CommitOverride != "" && r.CommitOverride != CommitAll:
+		return "the commit override is not a commit policy igris writes"
 	}
 	runID := ""
 	if wt := r.Worktree; wt != nil {

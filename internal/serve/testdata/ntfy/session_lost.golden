@@ -1,0 +1,3 @@
+[{"action":"http","label":"Retry","url":"http://<listener>/api/v1/action/<token>","method":"POST","clear":true},
+{"action":"http","label":"Stop","url":"http://<listener>/api/v1/action/<token>","method":"POST","clear":true},
+{"action":"view","label":"Open","url":"http://<listener>/?task=M1-03","clear":false}]

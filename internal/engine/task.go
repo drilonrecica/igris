@@ -276,7 +276,7 @@ func (e *Engine) taskPrompt(l *launch, resumed bool) (string, error) {
 		Model:        l.model,
 		PlanFile:     e.planFile(l),
 		TaskFile:     e.taskFile(l),
-		CommitPolicy: e.cfg.Run.Commit,
+		CommitPolicy: e.sessionPolicy(),
 		Resumed:      resumed,
 	}), e.templatePath())
 }

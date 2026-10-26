@@ -74,7 +74,7 @@ func questionDialog(ev engine.Event) *dialog {
 	switch ev.Question {
 	case engine.QuestionCommit:
 		d.title = "Commit " + ev.Task + "?"
-		d.options = []option{{"Commit", actAnswerYes}, {"Leave uncommitted", actAnswerNo}}
+		d.options = []option{{"Commit", actAnswerYes}, {"Leave uncommitted", actAnswerNo}, {"Commit all (no more commit questions this run)", actCommitAll}}
 		d.cancel = actClose
 	case engine.QuestionConfirmSkip:
 		d.title = ev.Task + " asks to skip"
@@ -99,6 +99,8 @@ func questionDialog(ev engine.Event) *dialog {
 		return planDialog(ev)
 	case engine.QuestionBudget:
 		return budgetDialog(ev)
+	case engine.QuestionCommitBatch:
+		return batchDialog(ev)
 	case engine.QuestionHookFailed:
 		d.title = ev.Task + ": before_task hook failed"
 		d.options = []option{

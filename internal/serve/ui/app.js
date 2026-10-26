@@ -518,6 +518,21 @@
     }
   });
 
+  // ntfy's Open, /?task=<ID>: that task's question in the sheet, else
+  // its card (SPEC §10, §15.8). Once, on load.
+  var asked = new URLSearchParams(location.search).get("task");
+  if (asked) {
+    var entry = live.querySelector('section.question[data-task="' + CSS.escape(asked) + '"]');
+    var card = document.getElementById("card-" + asked);
+    if (entry) {
+      sheetKey = entry.dataset.key;
+    } else if (card) {
+      // No question: the sheet stays folded over what is already there.
+      live.querySelectorAll("section.question").forEach(function (q) { seen[q.dataset.key] = true; });
+      sheetOpen = false;
+      card.scrollIntoView({ block: "center" });
+    }
+  }
   tick();
   sheet();
   collapse();

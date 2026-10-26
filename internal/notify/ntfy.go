@@ -25,9 +25,10 @@ type Action struct {
 	URL   string
 }
 
-// Actions makes the answer buttons of a message that announces a pending
-// question (Message.Question, SPEC §10); none when it returns nil. It is
-// called on every attempt to send the message.
+// Actions makes the buttons of a message (SPEC §10): the answers of the
+// pending question it announces (Message.Question), and Open for a
+// message about a task; none when it returns nil. It is called on every
+// attempt to send the message.
 type Actions func(m Message) []Action
 
 // ntfyAction is an action in ntfy's JSON form.
@@ -47,8 +48,8 @@ type Ntfy struct {
 	HTTP   *http.Client // nil means a default client
 	// Template, when set, makes the body (SPEC §10).
 	Template *template.Template
-	// Actions, when set, makes the buttons of a question's message
-	// (SPEC §10): not on a message for several tasks, nor on a digest.
+	// Actions, when set, makes the buttons of a message (SPEC §10): the
+	// answers of a pending question, Open; never on a digest.
 	Actions Actions
 }
 
@@ -100,9 +101,11 @@ func ntfyPriority(ev Event) string {
 
 // actionsHeader is the Actions header of m's buttons, in ntfy's JSON form
 // (its simple form would need quoting for labels like "Leave uncommitted"); ""
-// when m gets none.
+// when m gets none. Actions decides which: answers for a pending
+// question, Open for a message about a task (SPEC §10); a digest gets
+// none.
 func (n *Ntfy) actionsHeader(m Message) string {
-	if n.Actions == nil || m.Question == "" || len(m.Tasks) > 0 || m.Event == Digest {
+	if n.Actions == nil || m.Event == Digest {
 		return ""
 	}
 	acts := n.Actions(m)

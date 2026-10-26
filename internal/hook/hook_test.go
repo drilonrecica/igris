@@ -377,3 +377,60 @@ func TestSettingsAutoContinue(t *testing.T) {
 		t.Errorf("%d top-level keys, want hooks and autoContinueAtUsageLimit", len(top))
 	}
 }
+
+// A blocked record says why (V18-P3): from the recorded payloads, a
+// question, a plan, a permission with the tool's name only (never its
+// input), another notification. Other states carry no cause.
+func TestRecordedCauses(t *testing.T) {
+	tests := []struct {
+		file        string
+		cause, tool string
+	}{
+		{"pretooluse_askuserquestion.json", state.CauseQuestion, ""},
+		{"pretooluse_exitplanmode.json", state.CausePlan, ""},
+		{"permissionrequest_exitplanmode.json", state.CausePlan, ""},
+		{"permissionrequest.json", state.CausePermission, "Bash"},
+		{"notification_permission_prompt.json", state.CauseNotification, ""},
+		{"pretooluse_bash.json", "", ""},
+		{"stop.json", "", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.file, func(t *testing.T) {
+			data, err := os.ReadFile(filepath.Join("testdata", tt.file))
+			if err != nil {
+				t.Fatal(err)
+			}
+			root := project(t)
+			if err := Run(context.Background(), root, strings.NewReader(string(data)), fixedNow); err != nil {
+				t.Fatalf("Run: %v", err)
+			}
+			got, ok, err := state.ReadAgentState(root, fixtureUUID)
+			if err != nil || !ok {
+				t.Fatalf("ReadAgentState = %v, %v", ok, err)
+			}
+			if got.Cause != tt.cause || got.Tool != tt.tool {
+				t.Errorf("cause, tool = %q, %q; want %q, %q", got.Cause, got.Tool, tt.cause, tt.tool)
+			}
+			raw, err := os.ReadFile(filepath.Join(state.AgentStateDir(root), fixtureUUID+".json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Contains(string(raw), "touch") {
+				t.Errorf("the record holds the tool's input: %s", raw)
+			}
+		})
+	}
+}
+
+// A tool name igris wouldn't write is left out; the cause stays.
+func TestCauseToolShape(t *testing.T) {
+	for _, name := range []string{"", "a b", strings.Repeat("x", 65), "mcp__srv__tool", "Bash"} {
+		cause, tool := Cause(Payload{Event: "PermissionRequest", ToolName: name})
+		if cause != state.CausePermission {
+			t.Errorf("%q: cause %q", name, cause)
+		}
+		if want := state.ValidTool(name); (tool != "") != want {
+			t.Errorf("%q: tool %q", name, tool)
+		}
+	}
+}

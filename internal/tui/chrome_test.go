@@ -175,7 +175,7 @@ func TestDialogHint(t *testing.T) {
 		d    *dialog
 		want string
 	}{
-		{"pending question", questionDialog(engine.Event{Question: engine.QuestionCommit, Task: "M0-03"}), "enter choose · 1–2 pick · esc keep asking"},
+		{"pending question", questionDialog(engine.Event{Question: engine.QuestionCommit, Task: "M0-03"}), "enter choose · 1–3 pick · esc keep asking"},
 		{"keep is the safe choice", stopDialog(), "enter choose · 1–2 pick · esc keep running"},
 		{"cancel", retryDialog("M0-03"), "enter choose · 1–2 pick · esc close"},
 		{"a field with a submit", doneDialog("M0-05"), "type · enter done · esc cancel"},

@@ -5,6 +5,7 @@ import (
 
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/look"
+	"github.com/drilonrecica/igris/internal/state"
 )
 
 // logLines renders an event for the TUI log in the design language (SPEC
@@ -29,6 +30,11 @@ func logLines(ev engine.Event) []string {
 	case engine.YourTurn:
 		return []string{needsLine(id, "your turn · do it outside igris, then d done or s skip")}
 	case engine.NeedsYou:
+		switch ev.Reason {
+		case state.ReasonBlocked, state.ReasonIdle, state.ReasonUsageLimit:
+			// Why, in the words of SPEC §10, not the agent's state.
+			return []string{needsLine(id, engine.NeedsWords(ev.Reason, ev.Cause, ev.Tool))}
+		}
 		return []string{needsLine(id, ev.Detail)}
 	case engine.NeedsYouClear:
 		return []string{id + " is working again"}
@@ -58,8 +64,11 @@ func logLines(ev engine.Event) []string {
 	case engine.SessionLost:
 		return []string{needsLine(id, ev.Detail)}
 	case engine.Asked:
-		if ev.Question == engine.QuestionBudget {
+		switch ev.Question {
+		case engine.QuestionBudget:
 			return nil // budget_exceeded said it
+		case engine.QuestionCommitBatch:
+			return []string{look.GlyphNeedsYou + " the run ended · " + ev.Detail}
 		}
 		return []string{needsLine(id, ev.Question.Kind())}
 	case engine.BudgetRead:
@@ -67,6 +76,8 @@ func logLines(ev engine.Event) []string {
 	case engine.BudgetExceeded:
 		return []string{look.GlyphNeedsYou + " " + ev.Detail}
 	case engine.BudgetRaised:
+		return []string{ev.Detail}
+	case engine.CommitPolicy, engine.CommitsUndone:
 		return []string{ev.Detail}
 	case engine.PlanClosed:
 		return []string{id + " " + ev.Detail}

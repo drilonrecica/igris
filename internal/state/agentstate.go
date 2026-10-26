@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"syscall"
 	"time"
 
@@ -32,7 +33,29 @@ type AgentState struct {
 	// Transcript is the session's transcript path the hook payload named,
 	// when ValidTranscript accepts it (SPEC §6.9); since 1.1.
 	Transcript string `json:"transcript,omitempty"`
+	// Cause says why a blocked session is blocked (a Cause* value), and
+	// Tool, for CausePermission, the tool's name only, never its input
+	// (SPEC §6.3). Igris uses them for words, never to decide anything.
+	// Since 1.8.
+	Cause string `json:"cause,omitempty"`
+	Tool  string `json:"tool,omitempty"`
 }
+
+// Why a session is blocked (SPEC §6.3): AskUserQuestion, ExitPlanMode, a
+// PermissionRequest, or another Notification.
+const (
+	CauseQuestion     = "question"
+	CausePlan         = "plan"
+	CausePermission   = "permission"
+	CauseNotification = "notification"
+)
+
+var causes = map[string]bool{CauseQuestion: true, CausePlan: true, CausePermission: true, CauseNotification: true}
+
+var toolPattern = regexp.MustCompile(`^[A-Za-z0-9_:.-]{1,64}$`)
+
+// ValidTool reports whether s may be a tool's name in an agent state.
+func ValidTool(s string) bool { return toolPattern.MatchString(s) }
 
 // ValidTranscript reports whether path may be the transcript of the
 // session uuid: absolute, clean, and named <uuid>.jsonl (SPEC §6.3, §6.9).
@@ -156,6 +179,14 @@ func ParseAgentState(data []byte) (AgentState, error) {
 	}
 	if len(s.Event) > 64 {
 		s.Event = s.Event[:64]
+	}
+	// Forgeable like the state: a cause igris doesn't know, or one on a
+	// record that isn't blocked, is dropped rather than refused.
+	if s.State != backend.Blocked || !causes[s.Cause] {
+		s.Cause = ""
+	}
+	if s.Cause != CausePermission || !ValidTool(s.Tool) {
+		s.Tool = ""
 	}
 	return s, nil
 }

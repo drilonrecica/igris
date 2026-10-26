@@ -94,6 +94,7 @@ func (m *model) restore(s serve.Snapshot) {
 	}
 	m.resetAsk = eventOf(s.Reset)
 	m.budgets, m.budgetAsk = slices.Clone(s.Budgets), eventOf(s.BudgetQuestion)
+	m.batchAsk = eventOf(s.BatchQuestion)
 	m.tails = map[string][]string{}
 
 	m.log, m.scroll = nil, 0
@@ -139,7 +140,7 @@ func (m *model) askedSince() time.Time {
 			at = q.At
 		}
 	}
-	for _, q := range []*engine.Event{m.resetAsk, m.budgetAsk} {
+	for _, q := range []*engine.Event{m.resetAsk, m.budgetAsk, m.batchAsk} {
 		if q != nil && !q.At.IsZero() && q.At.Before(at) {
 			at = q.At
 		}
@@ -158,6 +159,7 @@ func currentOf(c *serve.Current) *current {
 		overdue: c.Overdue, rankMismatch: c.RankMismatch, waiting: c.Waiting, limit: limitOf(c.Limit),
 		session: c.Session, claudeSession: c.ClaudeSession,
 	}
+	cur.cause, cur.tool = serve.CauseOf(c.Cause, c.Tool)
 	if t := c.Tokens; t != nil {
 		cur.tokens = &engine.Tokens{In: t.In, Out: t.Out, Models: t.Models, Unavailable: t.Unavailable, USD: t.USD, Priced: t.Priced}
 	}

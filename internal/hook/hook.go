@@ -184,10 +184,31 @@ func record(root string, in io.Reader, now func() time.Time) error {
 	if st == backend.Limited && p.Event == "Notification" {
 		rec.Event = p.NotificationType // which quota notification (SPEC §6.3)
 	}
+	if st == backend.Blocked {
+		rec.Cause, rec.Tool = Cause(p)
+	}
 	if state.ValidTranscript(p.TranscriptPath, p.SessionID) {
 		rec.Transcript = p.TranscriptPath
 	}
 	return state.WriteAgentState(root, p.SessionID, rec)
+}
+
+// Cause says why an event that blocks the session blocks it (SPEC §6.3):
+// a question (AskUserQuestion), a plan (ExitPlanMode), a permission with
+// the tool's name, never its input, or another notification.
+func Cause(p Payload) (cause, tool string) {
+	switch {
+	case p.ToolName == "AskUserQuestion" && (p.Event == "PreToolUse" || p.Event == "PermissionRequest"):
+		return state.CauseQuestion, ""
+	case p.ToolName == "ExitPlanMode" && (p.Event == "PreToolUse" || p.Event == "PermissionRequest"):
+		return state.CausePlan, ""
+	case p.Event == "PermissionRequest":
+		if state.ValidTool(p.ToolName) {
+			return state.CausePermission, p.ToolName
+		}
+		return state.CausePermission, ""
+	}
+	return state.CauseNotification, ""
 }
 
 // Settings returns the Claude Code settings file igris passes a session

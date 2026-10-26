@@ -129,6 +129,10 @@ const (
 	actBudgetRaise        // ask for the new value
 	actBudgetRaiseConfirm // raise it to the value typed
 	actBudgetContinue     // let it go on: it no longer holds this run
+	actCommitAll          // the commit question's Commit all (SPEC §6.5)
+	actBatchKeep          // keep a batch run's commits
+	actBatchUndo          // ask to confirm Undo
+	actBatchUndoConfirm   // undo them: git reset --soft
 )
 
 // modeActs maps the mode picker's actions to their modes, in the order
@@ -219,6 +223,8 @@ func (a action) command() (engine.Command, bool) {
 		return engine.Command{Kind: engine.CmdAnswer, Yes: true}, true
 	case actAnswerNo:
 		return engine.Command{Kind: engine.CmdAnswer}, true
+	case actCommitAll:
+		return engine.Command{Kind: engine.CmdAnswer, Yes: true, Text: engine.CommitAllText}, true
 	case actRetryFresh:
 		return engine.Command{Kind: engine.CmdRetry}, true
 	case actRetryContinue:

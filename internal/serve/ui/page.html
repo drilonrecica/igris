@@ -185,7 +185,7 @@
 {{end}}
 
 {{define "question" -}}
-<section class="question{{if .Sheet}} sheet{{end}}" aria-label="Needs you" id="q-{{.N}}" data-key="{{.Key}}">
+<section class="question{{if .Sheet}} sheet{{end}}" aria-label="Needs you" id="q-{{.N}}" data-key="{{.Key}}"{{with .Q.Task}} data-task="{{.}}"{{end}}>
 <button type="button" class="peek" aria-label="Open what needs you"><span class="glyph needs" aria-hidden="true">!</span> {{with .Q.Task}}{{.}} · {{end}}{{.Kind}}<span class="up" aria-hidden="true">▴</span></button>
 <p class="kind">{{with .Q.Task}}<span class="id">{{.}}</span> {{end}}<span class="what">{{.Kind}}</span>{{if gt .Of 1}}<a class="step" href="#q-{{.NextN}}">{{.N}} of {{.Of}} ›</a>{{end}}</p>
 <h2>{{.Title}}</h2>

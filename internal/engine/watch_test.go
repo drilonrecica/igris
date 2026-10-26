@@ -69,7 +69,7 @@ func TestNeedsYouOncePerIdleEpisode(t *testing.T) {
 	}
 	needs := 0
 	for _, toast := range h.toasts() {
-		if strings.HasPrefix(toast, "request: ") && strings.Contains(toast, "A-1 One: needs you (idle 30s without igris done)") {
+		if strings.HasPrefix(toast, "request: ") && strings.Contains(toast, "A-1 One: ended its turn without igris done") {
 			needs++
 		}
 	}
@@ -92,7 +92,7 @@ func TestNeedsYouBlockedReason(t *testing.T) {
 	if _, err := h.run(); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
-	if got := h.toasts(); len(got) == 0 || got[0] != "request: phase A · A-1 One: needs you (waiting for a permission or an answer)" {
+	if got := h.toasts(); len(got) == 0 || got[0] != "request: phase A · A-1 One: waits for you in its pane" {
 		t.Errorf("toasts = %q", got)
 	}
 	if got := h.waits(); got != "A-1#1 blocked, clear A-1#1 blocked" {

@@ -57,7 +57,7 @@ func TestWaitingLimit(t *testing.T) {
 	}
 	found := false
 	for _, toast := range h.toasts() {
-		found = found || strings.Contains(toast, "A-1 One: needs you (waiting on background work for 1m)")
+		found = found || strings.Contains(toast, "A-1 One: waiting on background work for 1m")
 	}
 	if !found {
 		t.Errorf("toasts = %q, want the waiting one", h.toasts())

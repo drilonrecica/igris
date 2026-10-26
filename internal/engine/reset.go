@@ -122,7 +122,11 @@ func (e *Engine) askReset(ctx context.Context, s state.Signal) error {
 		Detail: what + "? `igris reset` asks for it, but a session can write the request too: confirm only if you ran it"})
 	note := "a reset of " + t.ID + " waits for your confirmation"
 	e.logResetWait(ask, state.EventNeedsYou, note)
-	e.toast(ctx, notifyNeedsInput, note)
+	// About the task to reset, which may not be the current one: ntfy's
+	// Reset and Keep answer its request (SPEC §10).
+	m := e.message(notifyNeedsInput, note, QuestionConfirmReset)
+	m.TaskID, m.Title, m.Phase = t.ID, t.Title, phaseOf(t)
+	e.notified(e.notifier.Notify(ctx, m))
 	return nil
 }
 

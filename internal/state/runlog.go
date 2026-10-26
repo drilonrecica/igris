@@ -93,6 +93,12 @@ const (
 	EventResolverOpened EventType = "resolver_opened"
 	EventResolverDone   EventType = "resolver_done"
 	EventResolverFailed EventType = "resolver_failed"
+	// EventCommitPolicy: the owner's Commit all made commit auto for the
+	// rest of the run (SPEC §6.5); Detail says so. EventCommitsUndone: the
+	// owner undid a batch run's commits; Commit is the base they were
+	// undone to, Detail how many. Since 1.8.
+	EventCommitPolicy  EventType = "commit_policy"
+	EventCommitsUndone EventType = "commits_undone"
 )
 
 // Why a task didn't integrate (SPEC §6.11): a rebase conflict, or verify

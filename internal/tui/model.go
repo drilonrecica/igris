@@ -50,6 +50,7 @@ type current struct {
 	waiting                      bool           // the agent waits on background work (SPEC §6.3)
 	limit                        *engine.Limit  // the usage limit the session waits at, once known (SPEC §6.3)
 	resolver                     string         // the card's words while a resolver session works (SPEC §6.11); "" without one
+	cause, tool                  string         // why a blocked session is blocked (SPEC §6.3), for the Needs-you line
 	session                      *backend.SessionRef
 	claudeSession                string // the session's Claude UUID, for claude --resume
 }
@@ -105,6 +106,9 @@ type model struct {
 	// budget reached that waits on the owner (SPEC §6.9); nil for none.
 	budgets   []engine.BudgetUse
 	budgetAsk *engine.Event
+	// batchAsk is the batch question once a batch run ended with commits
+	// (SPEC §6.5): the run's, asked last.
+	batchAsk *engine.Event
 	// cards are the active tasks in plan order (SPEC §15.1): one in a
 	// sequential phase, up to max in a parallel one. cur is the selected
 	// card, which o, d, s, r, t, M and y act on; nil with none.
@@ -690,6 +694,14 @@ func (m *model) activate(a action) tea.Cmd {
 	case actBudgetContinue:
 		m.answerBudget(state.BudgetContinue)
 		return nil
+	case actBatchKeep, actBatchUndoConfirm:
+		m.answerBatch(a == actBatchKeep)
+		return nil
+	case actBatchUndo:
+		if m.batchAsk != nil {
+			m.dialog = batchUndoDialog(*m.batchAsk)
+		}
+		return nil
 	case actAnswerCard:
 		// The selected card's own question, else the first in line.
 		q := m.question()
@@ -920,7 +932,7 @@ func (m *model) event(ev engine.Event) {
 	if ev.Phase != "" {
 		m.phase = ev.Phase
 	}
-	if m.budgetEvent(ev) {
+	if m.budgetEvent(ev) || m.batchEvent(ev) {
 		// The run's, not a task's (SPEC §6.9).
 		m.sum.note(ev)
 		m.sum.need(m.needsOwner() && !m.ended, ev.At)
@@ -1029,7 +1041,7 @@ func (m *model) event(ev engine.Event) {
 	case engine.NeedsYou:
 		if c != nil && c.waiting && c.state == stateWaiting {
 			// Waited past waiting_limit: the time counts from the start.
-			c.state, c.detail, c.reason = stateNeedsYou, ev.Detail, ev.Reason
+			c.state, c.detail, c.reason, c.cause, c.tool = stateNeedsYou, ev.Detail, ev.Reason, ev.Cause, ev.Tool
 			break
 		}
 		setState(c, stateNeedsYou, ev)
@@ -1119,7 +1131,7 @@ func (m *model) event(ev engine.Event) {
 	case engine.RunStopped:
 		m.ended = true
 		m.endText = "the run stopped: " + ev.Detail
-		m.limited, m.heldTask, m.budgetAsk = nil, "", nil
+		m.limited, m.heldTask, m.budgetAsk, m.batchAsk = nil, "", nil, nil
 		clear(m.asks)
 		if !m.side.owns(m.dialog) {
 			m.dialog = nil // nothing left to ask or confirm; a side session isn't the run's
@@ -1199,6 +1211,7 @@ func setState(c *current, s taskState, ev engine.Event) {
 		return
 	}
 	c.state, c.since, c.detail, c.reason = s, ev.At, ev.Detail, ev.Reason
+	c.cause, c.tool = ev.Cause, ev.Tool
 }
 
 // settle drops task id's pending question: a later event answered it. A
@@ -1219,7 +1232,10 @@ func (m *model) question() *engine.Event {
 	if q := m.firstAsk(); q != nil {
 		return q
 	}
-	return m.budgetAsk
+	if m.budgetAsk != nil {
+		return m.budgetAsk
+	}
+	return m.batchAsk
 }
 
 // firstAsk is the first pending question in plan order: the cards' first,

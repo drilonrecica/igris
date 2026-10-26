@@ -255,6 +255,7 @@ func (e *Engine) checkBudgets(ctx context.Context) {
 		return
 	}
 	uses := make([]BudgetUse, 0, len(defs))
+	var reached []notify.Message
 	for _, d := range defs {
 		s := e.budgetUsed(d)
 		u := d.use(s)
@@ -264,7 +265,7 @@ func (e *Engine) checkBudgets(ctx context.Context) {
 			u.State = BudgetReached
 		case over(s, d.limit) && e.budget.reached[d.key] != d.value:
 			u.State = BudgetReached
-			e.reachBudget(ctx, u)
+			reached = append(reached, e.reachBudget(u))
 		}
 		uses = append(uses, u)
 	}
@@ -273,21 +274,31 @@ func (e *Engine) checkBudgets(ctx context.Context) {
 		e.emitRun(Event{Kind: BudgetRead, Budgets: slices.Clone(uses)})
 	}
 	e.askBudget()
+	// Sent once the question is asked, so ntfy's Continue answers the
+	// budget asked (SPEC §10); one reached while another is asked gets
+	// Open only.
+	for _, m := range reached {
+		q := ""
+		if m.Question == e.budget.asked {
+			q = string(QuestionBudget)
+		}
+		m.Question = q
+		e.notified(e.notifier.Notify(ctx, m))
+	}
 }
 
-// reachBudget records u reached: the run log's budget_exceeded, the
-// event and the urgent budget_exceeded notification; the owner is asked
-// once the budgets reached before it are answered.
-func (e *Engine) reachBudget(ctx context.Context, u BudgetUse) {
+// reachBudget records u reached: the run log's budget_exceeded and the
+// event; it returns the urgent budget_exceeded notification, its
+// Question the budget's key until checkBudgets sends it. The owner is
+// asked once the budgets reached before it are answered.
+func (e *Engine) reachBudget(u BudgetUse) notify.Message {
 	e.budget.reached[u.Budget] = u.Limit
 	e.budget.asks = append(e.budget.asks, u.Budget)
 	what := e.budgetWhat(u)
 	e.logRun(state.Event{Type: state.EventBudgetExceeded, Budget: u.Budget, Limit: u.Limit, Used: u.Used})
 	b := u
 	e.emitRun(Event{Kind: BudgetExceeded, Budget: &b, Detail: what})
-	e.notified(e.notifier.Notify(ctx, notify.Message{
-		Event: notify.BudgetExceeded, Project: filepath.Base(e.dir.Root()), What: what, RunID: e.runID, At: e.clock.Now(),
-	}))
+	return notify.Message{Event: notify.BudgetExceeded, Project: filepath.Base(e.dir.Root()), What: what, RunID: e.runID, At: e.clock.Now(), Question: u.Budget}
 }
 
 // budgetWhat says what reaching u means: `run budget 20M reached · 20.4M

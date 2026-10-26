@@ -293,13 +293,13 @@ func TestIntegrationFailureNeedsYou(t *testing.T) {
 		log      []string
 	}{
 		{"rerun", integrationTOML, 2, Command{Kind: CmdRetry, Task: "a"}, "a=done b=done c=done B-1=ready",
-			[]string{"integration_failed/conflict:main.go; then rerun", "task_retried:fresh", "integration_failed/conflict:main.go; then needs you", "needs_you/integration:needs you (integration failed)", "needs_you_clear/integration", "task_retried:fresh", "integrated:a: One", "task_done:did a"}},
+			[]string{"integration_failed/conflict:main.go; then rerun", "task_retried:fresh", "integration_failed/conflict:main.go; then needs you", "needs_you/integration:didn't integrate", "needs_you_clear/integration", "task_retried:fresh", "integrated:a: One", "task_done:did a"}},
 		{"ask", integrationTOML + "on_conflict = \"ask\"\n", 1, Command{Kind: CmdRetry, Task: "a"}, "a=done b=done c=done B-1=ready",
-			[]string{"integration_failed/conflict:main.go; then needs you", "needs_you/integration:needs you (integration failed)", "needs_you_clear/integration", "task_retried:fresh", "integrated:a: One", "task_done:did a"}},
+			[]string{"integration_failed/conflict:main.go; then needs you", "needs_you/integration:didn't integrate", "needs_you_clear/integration", "task_retried:fresh", "integrated:a: One", "task_done:did a"}},
 		{"done", integrationTOML, 2, Command{Kind: CmdDone, Task: "a", Text: "merged by hand"}, "a=done b=done c=done B-1=ready",
-			[]string{"integration_failed/conflict:main.go; then rerun", "task_retried:fresh", "integration_failed/conflict:main.go; then needs you", "needs_you/integration:needs you (integration failed)", "needs_you_clear/integration", "task_done:merged by hand"}},
+			[]string{"integration_failed/conflict:main.go; then rerun", "task_retried:fresh", "integration_failed/conflict:main.go; then needs you", "needs_you/integration:didn't integrate", "needs_you_clear/integration", "task_done:merged by hand"}},
 		{"skip", integrationTOML, 2, Command{Kind: CmdSkip, Task: "a", Text: "not worth it"}, "a=skipped b=done c=done B-1=ready",
-			[]string{"integration_failed/conflict:main.go; then rerun", "task_retried:fresh", "integration_failed/conflict:main.go; then needs you", "needs_you/integration:needs you (integration failed)", "needs_you_clear/integration", "task_skipped:not worth it"}},
+			[]string{"integration_failed/conflict:main.go; then rerun", "task_retried:fresh", "integration_failed/conflict:main.go; then needs you", "needs_you/integration:didn't integrate", "needs_you_clear/integration", "task_skipped:not worth it"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			h := newParallel(t, twoThenOne(), tc.toml)
@@ -351,8 +351,8 @@ func TestIntegrationFailureNeedsYou(t *testing.T) {
 			} else if _, ok := r.branches[branch]; ok {
 				t.Errorf("a's branch is still there")
 			}
-			if n := len(h.toasts()); n < 1 || !strings.Contains(h.toasts()[0], "needs you (integration failed)") {
-				t.Errorf("toasts %q, want needs you (integration failed) first", h.toasts())
+			if n := len(h.toasts()); n < 1 || !strings.Contains(h.toasts()[0], "didn't integrate") {
+				t.Errorf("toasts %q, want didn't integrate first", h.toasts())
 			}
 		})
 	}
@@ -408,7 +408,7 @@ func TestIntegrationVerifyFailsOnIntegratedTree(t *testing.T) {
 	for _, want := range []string{
 		"verify_failed:profile default: integrated tree: exit status 1",
 		"integration_failed/verify:profile default: exit status 1; then needs you",
-		"needs_you/integration:needs you (integration failed)",
+		"needs_you/integration:didn't integrate",
 		"task_retried:fresh",
 		"integrated:a: One",
 	} {
@@ -452,14 +452,14 @@ func TestFastForwardFailures(t *testing.T) {
 		reruns int // fresh sessions of a after the first
 	}{
 		{name: "untracked file", refuse: []string{untrackedInTheWay}, ask: true, files: []string{"new.txt", "docs/new.md"},
-			log: []string{"integration_failed/conflict:the fast-forward would overwrite uncommitted files in the project root: new.txt, docs/new.md; then needs you", "needs_you/integration:needs you (integration failed)", "needs_you_clear/integration", "integrated:a: One", "task_done:did a"},
+			log: []string{"integration_failed/conflict:the fast-forward would overwrite uncommitted files in the project root: new.txt, docs/new.md; then needs you", "needs_you/integration:didn't integrate", "needs_you_clear/integration", "integrated:a: One", "task_done:did a"},
 		},
 		{name: "changed tracked file", refuse: []string{changedInTheWay}, ask: true, files: []string{"main.go"},
-			log: []string{"integration_failed/conflict:the fast-forward would overwrite uncommitted files in the project root: main.go; then needs you", "needs_you/integration:needs you (integration failed)", "needs_you_clear/integration", "integrated:a: One", "task_done:did a"},
+			log: []string{"integration_failed/conflict:the fast-forward would overwrite uncommitted files in the project root: main.go; then needs you", "needs_you/integration:didn't integrate", "needs_you_clear/integration", "integrated:a: One", "task_done:did a"},
 		},
 		{name: "still in the way", refuse: []string{untrackedInTheWay, untrackedInTheWay}, ask: true, files: []string{"new.txt", "docs/new.md"},
-			log: []string{"integration_failed/conflict:the fast-forward would overwrite uncommitted files in the project root: new.txt, docs/new.md; then needs you", "needs_you/integration:needs you (integration failed)", "needs_you_clear/integration",
-				"integration_failed/conflict:the fast-forward would overwrite uncommitted files in the project root: new.txt, docs/new.md; then needs you", "needs_you/integration:needs you (integration failed)", "needs_you_clear/integration", "integrated:a: One", "task_done:did a"},
+			log: []string{"integration_failed/conflict:the fast-forward would overwrite uncommitted files in the project root: new.txt, docs/new.md; then needs you", "needs_you/integration:didn't integrate", "needs_you_clear/integration",
+				"integration_failed/conflict:the fast-forward would overwrite uncommitted files in the project root: new.txt, docs/new.md; then needs you", "needs_you/integration:didn't integrate", "needs_you_clear/integration", "integrated:a: One", "task_done:did a"},
 		},
 		{name: "run branch moved", move: true,
 			log:    []string{"integration_failed/conflict:the run branch moved since the rebase; fast-forward failed; then rerun", "task_retried:fresh", "integrated:a: One", "task_done:did a"},

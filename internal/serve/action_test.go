@@ -42,20 +42,21 @@ func (w *web) press(a notify.Action, hdr map[string]string) (int, string) {
 }
 
 // The buttons of each question (SPEC §10), each its own token in a URL
-// under the listener; a plan's Open is a link to the web UI.
+// under the listener, then Open, a link to the task's question on the web
+// UI (since 1.8).
 func TestActionButtonsPerQuestion(t *testing.T) {
 	tests := []struct {
 		q    engine.Question
 		want string
 	}{
-		{engine.QuestionCommit, "Commit, Leave uncommitted"},
-		{engine.QuestionConfirmSkip, "Skip, Keep working"},
-		{engine.QuestionSessionLost, "Retry, Stop"},
-		{engine.QuestionHookFailed, "Retry, Stop"},
+		{engine.QuestionCommit, "Commit, Leave uncommitted, Open (view)"},
+		{engine.QuestionConfirmSkip, "Skip, Keep working, Open (view)"},
+		{engine.QuestionSessionLost, "Retry, Stop, Open (view)"},
+		{engine.QuestionHookFailed, "Retry, Stop, Open (view)"},
 		{engine.QuestionPlanApproval, "Approve, Open (view)"},
-		{engine.QuestionIntegration, ""},
-		{engine.QuestionFilesInTheWay, ""},
-		{engine.QuestionConfirmReset, ""},
+		{engine.QuestionIntegration, "Rerun, Open (view)"},
+		{engine.QuestionFilesInTheWay, "Try again, Open (view)"},
+		{engine.QuestionConfirmReset, "Reset, Keep, Open (view)"},
 	}
 	for _, tt := range tests {
 		t.Run(string(tt.q), func(t *testing.T) {
@@ -69,7 +70,7 @@ func TestActionButtonsPerQuestion(t *testing.T) {
 				switch {
 				case a.View:
 					l += " (view)"
-					if a.URL != w.ts.URL+"/" {
+					if a.URL != w.ts.URL+"/?task=M1-03" {
 						t.Errorf("%s links to %q, want the web UI", a.Label, a.URL)
 					}
 				case !strings.HasPrefix(a.URL, w.ts.URL+PathAction):
@@ -90,22 +91,34 @@ func TestActionButtonsPerQuestion(t *testing.T) {
 	}
 }
 
-// A message gets buttons only for its task's pending question.
+// answerButtons are the buttons of acts that answer, without Open.
+func answerButtons(acts []notify.Action) []notify.Action {
+	var out []notify.Action
+	for _, a := range acts {
+		if !a.View {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+// A message gets answers only for its task's pending question; Open
+// always.
 func TestActionButtonsOnlyForThePendingQuestion(t *testing.T) {
 	w := newActionWeb(t)
-	if got := w.buttons("M1-03", engine.QuestionCommit); got != nil {
-		t.Errorf("nothing asked: %v", got)
+	if got := w.buttons("M1-03", engine.QuestionCommit); len(got) != 1 || !got[0].View {
+		t.Errorf("nothing asked: %v, want Open alone", got)
 	}
 	w.ask("M1-03", engine.QuestionCommit)
 	for _, tt := range []struct {
 		task string
 		q    engine.Question
 	}{{"M1-03", engine.QuestionConfirmSkip}, {"M1-05", engine.QuestionCommit}, {"", engine.QuestionCommit}} {
-		if got := w.buttons(tt.task, tt.q); got != nil {
+		if got := answerButtons(w.buttons(tt.task, tt.q)); got != nil {
 			t.Errorf("%s %s: %v, want none", tt.task, tt.q, got)
 		}
 	}
-	if got := w.buttons("M1-03", engine.QuestionCommit); len(got) != 2 {
+	if got := answerButtons(w.buttons("M1-03", engine.QuestionCommit)); len(got) != 2 {
 		t.Errorf("the pending question: %v", got)
 	}
 }
@@ -115,7 +128,7 @@ func TestActionButtonsOnlyForThePendingQuestion(t *testing.T) {
 func TestActionAnswersOnce(t *testing.T) {
 	w := newActionWeb(t)
 	w.ask("M1-03", engine.QuestionCommit)
-	acts := w.buttons("M1-03", engine.QuestionCommit)
+	acts := answerButtons(w.buttons("M1-03", engine.QuestionCommit))
 	code, text := w.press(acts[1], map[string]string{"Origin": "https://ntfy.sh", "Sec-Fetch-Site": "cross-site"})
 	if code != http.StatusOK || text != "Leave uncommitted sent for M1-03" {
 		t.Fatalf("press = %d %q", code, text)
@@ -147,6 +160,10 @@ func TestActionCommands(t *testing.T) {
 		{engine.QuestionSessionLost, 0, engine.Command{Kind: engine.CmdRetry, Task: "T-1"}},
 		{engine.QuestionHookFailed, 1, engine.Command{Kind: engine.CmdStop, Task: "T-1"}},
 		{engine.QuestionPlanApproval, 0, engine.Command{Kind: engine.CmdPlan, Plan: state.PlanAllow, Task: "T-1"}},
+		{engine.QuestionConfirmReset, 0, engine.Command{Kind: engine.CmdAnswer, Yes: true, Task: "T-1", Question: engine.QuestionConfirmReset}},
+		{engine.QuestionConfirmReset, 1, engine.Command{Kind: engine.CmdAnswer, Task: "T-1", Question: engine.QuestionConfirmReset}},
+		{engine.QuestionIntegration, 0, engine.Command{Kind: engine.CmdRetry, Task: "T-1"}},
+		{engine.QuestionFilesInTheWay, 0, engine.Command{Kind: engine.CmdRetry, Task: "T-1"}},
 	}
 	for _, tt := range tests {
 		w := newActionWeb(t)
@@ -283,15 +300,131 @@ func TestActionTokensBounded(t *testing.T) {
 	w := newActionWeb(t)
 	w.ask("M1-03", engine.QuestionCommit)
 	for range maxActionTokens / 2 {
-		if w.buttons("M1-03", engine.QuestionCommit) == nil {
+		if answerButtons(w.buttons("M1-03", engine.QuestionCommit)) == nil {
 			t.Fatal("no buttons below the cap")
 		}
 	}
-	if got := w.buttons("M1-03", engine.QuestionCommit); got != nil {
+	if got := answerButtons(w.buttons("M1-03", engine.QuestionCommit)); got != nil {
 		t.Errorf("past the cap: %v", got)
 	}
 	w.clock.add(actionTTL)
-	if got := w.buttons("M1-03", engine.QuestionCommit); len(got) != 2 {
+	if got := answerButtons(w.buttons("M1-03", engine.QuestionCommit)); len(got) != 2 {
 		t.Errorf("after they expired: %v", got)
+	}
+}
+
+// The run's questions (SPEC §10, since 1.8): a budget reached gets
+// Continue, the batch question Keep (Undo only on the web UI and in the
+// TUI), each then Open to the page; they send no task.
+func TestActionRunQuestions(t *testing.T) {
+	tests := []struct {
+		q     engine.Question
+		ev    notify.Event
+		ask   engine.Event
+		label string
+		want  engine.Command
+	}{
+		{engine.QuestionBudget, notify.BudgetExceeded,
+			engine.Event{Kind: engine.Asked, Question: engine.QuestionBudget, Budget: &engine.BudgetUse{Budget: "run", Limit: "20M", Used: "20.4M"}},
+			"Continue", engine.Command{Kind: engine.CmdBudget, Text: state.BudgetContinue}},
+		{engine.QuestionCommitBatch, notify.NeedsInput,
+			engine.Event{Kind: engine.Asked, Question: engine.QuestionCommitBatch, Detail: "Keep the 2 commits of this run?", Undo: true},
+			"Keep", engine.Command{Kind: engine.CmdAnswer, Yes: true, Question: engine.QuestionCommitBatch}},
+	}
+	for _, tt := range tests {
+		t.Run(string(tt.q), func(t *testing.T) {
+			w := newActionWeb(t)
+			tt.ask.At = w.clock.now()
+			w.srv.Publish(tt.ask)
+			acts := w.srv.Buttons(w.ts.URL + "/")(notify.Message{Event: tt.ev, Project: "demo", Question: string(tt.q)})
+			if len(acts) != 2 || acts[0].Label != tt.label || !acts[1].View || acts[1].URL != w.ts.URL+"/" {
+				t.Fatalf("buttons %+v, want %s and Open to the page", acts, tt.label)
+			}
+			code, text := w.press(acts[0], nil)
+			if code != http.StatusOK || text != tt.label+" sent for the run" {
+				t.Errorf("press = %d %q", code, text)
+			}
+			if got := w.send.got(); len(got) != 1 || got[0] != tt.want {
+				t.Errorf("sent %+v, want %+v", got, tt.want)
+			}
+		})
+	}
+}
+
+// A budget answered on the web UI ends its Continue button.
+func TestActionBudgetAnsweredElsewhere(t *testing.T) {
+	w := newActionWeb(t)
+	w.srv.Publish(engine.Event{At: w.clock.now(), Kind: engine.Asked, Question: engine.QuestionBudget, Budget: &engine.BudgetUse{Budget: "run", Limit: "20M", Used: "20M"}})
+	acts := w.srv.Buttons(w.ts.URL + "/")(notify.Message{Event: notify.BudgetExceeded, Project: "demo", Question: string(engine.QuestionBudget)})
+	w.srv.answering(engine.Command{Kind: engine.CmdBudget, Text: "30M"})
+	if code, text := w.press(acts[0], nil); code != http.StatusGone || text != actionAnswered {
+		t.Errorf("press = %d %q, want 410 %q", code, text, actionAnswered)
+	}
+}
+
+// verify_failed_limit asks no question: Retry, a fresh session, while the
+// task still needs the owner for it, then Open.
+func TestActionVerifyLimit(t *testing.T) {
+	w := newActionWeb(t)
+	w.srv.Publish(engine.Event{At: w.clock.now(), Kind: engine.TaskStarted, Task: "T-1", Title: "Title", Model: "opus"})
+	m := notify.Message{Event: notify.VerifyFailedLimit, Project: "demo", TaskID: "T-1"}
+	if got := answerButtons(w.srv.Buttons(w.ts.URL + "/")(m)); got != nil {
+		t.Errorf("before the limit: %v", got)
+	}
+	w.srv.Publish(engine.Event{At: w.clock.now(), Kind: engine.NeedsYou, Task: "T-1", Reason: state.ReasonVerifyLimit, Detail: "verify failed 3 times"})
+	acts := w.srv.Buttons(w.ts.URL + "/")(m)
+	if len(acts) != 2 || acts[0].Label != "Retry" || acts[1].URL != w.ts.URL+"/?task=T-1" {
+		t.Fatalf("buttons %+v", acts)
+	}
+	if code, _ := w.press(acts[0], nil); code != http.StatusOK {
+		t.Errorf("press = %d", code)
+	}
+	if got := w.send.got(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdRetry, Task: "T-1"}) {
+		t.Errorf("sent %+v", got)
+	}
+}
+
+// While a resolver session may be opened, the didn't-integrate question's
+// first option is Resolve (SPEC §6.11, §10).
+func TestActionResolveFirst(t *testing.T) {
+	w := newActionWeb(t)
+	w.srv.Publish(engine.Event{At: w.clock.now(), Kind: engine.TaskStarted, Task: "T-1", Title: "Title", Model: "opus"})
+	w.srv.Publish(engine.Event{At: w.clock.now(), Kind: engine.Asked, Task: "T-1", Question: engine.QuestionIntegration, Resolve: true, Detail: "?"})
+	acts := w.buttons("T-1", engine.QuestionIntegration)
+	if len(acts) != 2 || acts[0].Label != "Resolve" {
+		t.Fatalf("buttons %+v", acts)
+	}
+	if code, _ := w.press(acts[0], nil); code != http.StatusOK {
+		t.Errorf("press = %d", code)
+	}
+	if got := w.send.got(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdResolve, Task: "T-1"}) {
+		t.Errorf("sent %+v", got)
+	}
+}
+
+// Open goes on every message about a task, a warning's too; a grouped
+// message's goes to the page; other events get none.
+func TestActionOpen(t *testing.T) {
+	w := newActionWeb(t)
+	b := w.srv.Buttons(w.ts.URL + "/")
+	for _, tt := range []struct {
+		m    notify.Message
+		want string
+	}{
+		{notify.Message{Event: notify.TaskOverdue, TaskID: "T-1"}, w.ts.URL + "/?task=T-1"},
+		{notify.Message{Event: notify.RankMismatch, TaskID: "T-1"}, w.ts.URL + "/?task=T-1"},
+		{notify.Message{Event: notify.NeedsInput, TaskID: "T-1"}, w.ts.URL + "/?task=T-1"},
+		{notify.Message{Event: notify.SessionLost, TaskID: "T-1"}, w.ts.URL + "/?task=T-1"},
+		{notify.Message{Event: notify.NeedsInput, TaskID: "T-1", Tasks: []string{"T-1", "T-2"}}, w.ts.URL + "/"},
+		{notify.Message{Event: notify.PhaseDone}, ""},
+		{notify.Message{Event: notify.TaskDone, TaskID: "T-1"}, ""},
+	} {
+		got := b(tt.m)
+		switch {
+		case tt.want == "" && got != nil:
+			t.Errorf("%s: %+v, want none", tt.m.Event, got)
+		case tt.want != "" && (len(got) != 1 || !got[0].View || got[0].Label != "Open" || got[0].URL != tt.want):
+			t.Errorf("%s: %+v, want Open to %s", tt.m.Event, got, tt.want)
+		}
 	}
 }

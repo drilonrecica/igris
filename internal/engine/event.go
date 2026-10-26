@@ -72,6 +72,8 @@ const (
 	VerifyFailed      EventKind = "verify_failed"      // Detail says why and which attempt
 	VerifyLimit       EventKind = "verify_limit"       // verify_max_attempts failures in a row; needs the owner
 	Committed         EventKind = "committed"          // Detail is the commit subject
+	CommitPolicy      EventKind = "commit_policy"      // the owner's Commit all made commit auto for the rest of the run (SPEC §6.5); Detail says so
+	CommitsUndone     EventKind = "commits_undone"     // the owner undid a batch run's commits (SPEC §6.5); Detail says how many
 	NotCommitted      EventKind = "not_committed"      // Detail says why: nothing to commit, or the owner declined
 	Integrated        EventKind = "integrated"         // the task's commit is on the run branch (SPEC §6.11); Detail names the branch
 	IntegrationFailed EventKind = "integration_failed" // the task didn't integrate (SPEC §6.11); Detail says why and what follows
@@ -150,6 +152,14 @@ type Event struct {
 	// may open a resolver session for the task (SPEC §6.11): none ran for
 	// it in this run, and the failure is one a resolver can settle.
 	Resolve bool
+	// Undo is set on Asked with QuestionCommitBatch while Undo is offered:
+	// base..HEAD is exactly the run's commits (SPEC §6.5). Output lists
+	// their subjects.
+	Undo bool
+	// Cause and Tool are set on NeedsYou for a blocked session: why it is
+	// blocked as the hooks recorded it (a state.Cause* value) and, for a
+	// permission, the tool's name (SPEC §6.3, §10).
+	Cause, Tool string
 }
 
 // Limit is a usage limit a UI shows (SPEC §6.9, §15): a quota window at or
@@ -239,6 +249,11 @@ const (
 	// It is the run's, not a task's. CmdBudget answers it (a new value or
 	// continue), or CmdStop.
 	QuestionBudget Question = "budget"
+	// QuestionCommitBatch: commit = "batch" and the run ended with commits
+	// (SPEC §6.5); Output lists their subjects, Undo says Undo is offered.
+	// It is the run's, not a task's. CmdAnswer yes keeps them, no undoes
+	// them (git reset --soft to the base).
+	QuestionCommitBatch Question = "commit_batch"
 )
 
 // Kind names the question in a word or two, as the Needs-you lines say
@@ -261,6 +276,8 @@ func (q Question) Kind() string {
 		return "integration"
 	case QuestionBudget:
 		return "budget reached"
+	case QuestionCommitBatch:
+		return "keep the run's commits?"
 	}
 	return "your answer"
 }
@@ -479,15 +496,7 @@ func (e *Engine) toast(ctx context.Context, event notify.Event, what string) {
 // §10). It is sent after q's Asked event, so serve knows the question by
 // the time it makes them.
 func (e *Engine) toastAsking(ctx context.Context, event notify.Event, what string, q Question) {
-	m := notify.Message{
-		Event:    event,
-		Project:  filepath.Base(e.dir.Root()),
-		Phase:    e.phase,
-		What:     what,
-		RunID:    e.runID,
-		At:       e.clock.Now(),
-		Question: string(q),
-	}
+	m := e.message(event, what, q)
 	if e.task != nil {
 		m.TaskID, m.Title = e.task.t.ID, e.task.t.Title
 	}
@@ -496,6 +505,20 @@ func (e *Engine) toastAsking(ctx context.Context, event notify.Event, what strin
 		return
 	}
 	e.notified(e.notifier.Notify(ctx, m))
+}
+
+// message is a notification of the run with no task: event, what and
+// the pending question q announces ("" for none).
+func (e *Engine) message(event notify.Event, what string, q Question) notify.Message {
+	return notify.Message{
+		Event:    event,
+		Project:  filepath.Base(e.dir.Root()),
+		Phase:    e.phase,
+		What:     what,
+		RunID:    e.runID,
+		At:       e.clock.Now(),
+		Question: string(q),
+	}
 }
 
 // gather starts collecting the needs_input notifications of one poll over

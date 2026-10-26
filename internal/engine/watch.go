@@ -109,7 +109,7 @@ func (e *Engine) watchStep(ctx context.Context, l *launch) (v verdict, decided b
 	case l.skip == nil || !l.skip.At.Equal(sig.At):
 		// A skip from an agent session is only a request (SPEC §6.2).
 		l.skip = sig
-		e.needsYouAsking(ctx, notifyNeedsInput, state.ReasonSkipRequest, "the session asks to skip the task", "the session asks to skip",
+		e.needsYouAsking(ctx, notifyNeedsInput, state.ReasonSkipRequest, "the session asks to skip the task", NeedsWords(state.ReasonSkipRequest, "", ""),
 			&Event{Kind: Asked, Question: QuestionConfirmSkip, Detail: fmt.Sprintf("skip %s? the session's reason: %s", t.ID, sig.Note)})
 	}
 
@@ -203,14 +203,18 @@ func (e *Engine) observe(ctx context.Context, l *launch, st backend.AgentState, 
 			return
 		}
 		ep.needsYou, ep.reason = true, state.ReasonIdle
-		words := fmt.Sprintf("idle %s without igris done", after)
+		var cause, tool string
 		switch {
 		case st == backend.Blocked:
-			ep.reason, words = state.ReasonBlocked, "waiting for a permission or an answer"
+			ep.reason = state.ReasonBlocked
+			// Why, as the hooks recorded it: for the words only (SPEC §6.3).
+			if rec, ok := state.PeekAgentState(e.dir.Root(), l.cur.ClaudeSession); ok && rec.State == backend.Blocked {
+				cause, tool = rec.Cause, rec.Tool
+			}
 		case lim != nil:
-			ep.reason, words = state.ReasonUsageLimit, "idle after the usage limit reset"
+			ep.reason = state.ReasonUsageLimit
 		}
-		e.needsYou(ctx, notifyNeedsInput, ep.reason, fmt.Sprintf("the agent is %s and has not run `igris done` for %s", st, after), words)
+		e.needsYouCause(ctx, ep.reason, fmt.Sprintf("the agent is %s and has not run `igris done` for %s", st, after), cause, tool)
 	}
 	// Unknown tells nothing about the agent; the episode stays as it is.
 }
@@ -346,9 +350,19 @@ func (e *Engine) checkOverdue(ctx context.Context, l *launch) {
 
 // needsYou marks the task Needs you, logs it with reason (a state.Reason*)
 // and sends the notification event. why is shown in the UI; the
-// notification only says that igris waits, in words.
+// notification says what waits, in words (SPEC §10).
 func (e *Engine) needsYou(ctx context.Context, event notify.Event, reason, why, words string) {
 	e.needsYouAsking(ctx, event, reason, why, words, nil)
+}
+
+// needsYouCause is needsYou for an idle or blocked session: the words
+// say why, from the hooks' cause and tool for a blocked one (SPEC §10),
+// and the event carries them for the UIs' Needs-you line.
+func (e *Engine) needsYouCause(ctx context.Context, reason, why, cause, tool string) {
+	words := NeedsWords(reason, cause, tool)
+	e.emit(Event{Kind: NeedsYou, Detail: why, Reason: reason, Cause: cause, Tool: tool})
+	e.waitOn(reason, words)
+	e.toastAsking(ctx, notifyNeedsInput, words, "")
 }
 
 // needsYouAsking is needsYou for a wait that asks a question: asked, the
@@ -356,12 +370,14 @@ func (e *Engine) needsYou(ctx context.Context, event notify.Event, reason, why, 
 // which then carries its answer buttons (SPEC §10). Nil asks nothing.
 func (e *Engine) needsYouAsking(ctx context.Context, event notify.Event, reason, why, words string, asked *Event) {
 	e.emit(Event{Kind: NeedsYou, Detail: why, Reason: reason})
-	what := "needs you"
-	if event == notifyVerifyLimit {
+	// What waits, in a few words, so two notifications in a row can be
+	// told apart (SPEC §10).
+	what := words
+	switch {
+	case event == notifyVerifyLimit:
 		what = "verification keeps failing; needs you"
-	} else if words != "" {
-		// A few words, so two notifications in a row can be told apart.
-		what += " (" + words + ")"
+	case what == "":
+		what = "needs you"
 	}
 	e.waitOn(reason, what)
 	var q Question
@@ -434,4 +450,44 @@ func (e *Engine) reportOnce(key string, kind EventKind, detail string) {
 	}
 	e.reported[key] = true
 	e.emit(Event{Kind: kind, Detail: detail})
+}
+
+// Words of a Needs you (SPEC §10) that more than one place says.
+const wordsIntegration = "didn't integrate"
+
+// NeedsWords says what waits on the owner in the words of SPEC §10, for
+// the needs_input body and the UIs' Needs-you line: by the run log's
+// reason and, for a blocked session, the hooks' cause and tool (SPEC
+// §6.3). "" for a reason it has no words for.
+func NeedsWords(reason, cause, tool string) string {
+	switch reason {
+	case state.ReasonBlocked:
+		switch cause {
+		case state.CauseQuestion:
+			return "asks you a question in its pane"
+		case state.CausePlan:
+			return "plan to approve"
+		case state.CausePermission:
+			if tool != "" {
+				return "waits for a permission (" + tool + ")"
+			}
+			return "waits for a permission"
+		}
+		return "waits for you in its pane"
+	case state.ReasonIdle:
+		return "ended its turn without igris done"
+	case state.ReasonUsageLimit:
+		return "usage limit reset; no response"
+	case state.ReasonPlanApproval:
+		return "plan to approve"
+	case state.ReasonCommit:
+		return commitWhat
+	case state.ReasonSkipRequest:
+		return "wants to skip"
+	case state.ReasonIntegration:
+		return wordsIntegration
+	case state.ReasonBudget:
+		return "budget reached"
+	}
+	return ""
 }

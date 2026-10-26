@@ -166,7 +166,7 @@ func (e *Engine) parallelOn(ctx context.Context, ph *plan.Phase) bool {
 		return on
 	}
 	why := ""
-	switch commit := cmp.Or(e.opts.scheduleCommit, e.cfg.Run.Commit); {
+	switch commit := cmp.Or(e.opts.scheduleCommit, e.commitPolicy()); {
 	case commit == CommitNever:
 		why = fmt.Sprintf("commit = %q", commit)
 	case !e.opts.noGit && !e.hasCommit(ctx):

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/state"
 )
@@ -85,7 +86,7 @@ func (m *model) statusText() string {
 // needsOwner reports whether anything waits on the owner: a task that
 // needs them, a pending question or a reset request (SPEC §15.4).
 func (m *model) needsOwner() bool {
-	if len(m.asks) > 0 || m.resetAsk != nil || m.budgetAsk != nil {
+	if len(m.asks) > 0 || m.resetAsk != nil || m.budgetAsk != nil || m.batchAsk != nil {
 		return true
 	}
 	return slices.ContainsFunc(m.cards, (*current).needsOwner)
@@ -189,6 +190,10 @@ func (m *model) needKind(c *current) string {
 	case stateNeedsYou:
 		if what, _ := needWhat(c); what != "" {
 			return what
+		}
+		// Why, in the words of SPEC §10, as the notification says it.
+		if words := engine.NeedsWords(c.reason, c.cause, c.tool); words != "" {
+			return words
 		}
 		if c.detail != "" {
 			return strings.TrimPrefix(c.detail, "the session is ")

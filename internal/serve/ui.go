@@ -17,6 +17,7 @@ import (
 
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/look"
+	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/state"
 	"github.com/drilonrecica/igris/internal/textsafe"
 )
@@ -235,7 +236,11 @@ func (u *ui) act(w http.ResponseWriter, r *http.Request) {
 		u.message(w, http.StatusBadRequest, "Not sent", err.Error())
 		return
 	}
-	if c, ok := confirmOf(req.Type, req.Task); ok && f.Get(confirmedField) != "1" {
+	c, ok := confirmOf(req.Type, req.Task)
+	if !ok && isUndo(req) {
+		c, ok = undoConfirm, true
+	}
+	if ok && f.Get(confirmedField) != "1" {
 		u.render(w, http.StatusOK, "confirm", confirmView{Project: u.srv.opts.Project, Confirm: c, Form: f, CSRF: CSRFToken(r.Context())})
 		return
 	}
@@ -275,6 +280,19 @@ func confirmOf(typ, task string) (confirmation, bool) {
 		return confirmation{"Mark " + task + " done?", "It's your decision, so igris doesn't verify it.", "Mark " + task + " done"}, true
 	}
 	return confirmation{}, false
+}
+
+// undoConfirm is the second confirmation of the batch question's Undo
+// (SPEC §6.5, §15.8): like Stop, it moves the owner's checkout.
+var undoConfirm = confirmation{
+	"Undo the run's commits?",
+	"git reset --soft to where the run began: the commits go, every change stays in the tree and the index, uncommitted.",
+	"Undo the commits",
+}
+
+// isUndo reports whether req answers the batch question with Undo.
+func isUndo(req Request) bool {
+	return req.Type == CmdAnswer && engine.Question(req.Question) == engine.QuestionCommitBatch && !req.Yes
 }
 
 // confirmView is the confirmation page: the form again, confirmed.
@@ -573,8 +591,19 @@ func (u *ui) view(r *http.Request) pageView {
 		if snap.BudgetQuestion != nil {
 			v.Sheet = append(v.Sheet, questionOf(*snap.BudgetQuestion, csrf))
 		}
+		if snap.BatchQuestion != nil {
+			v.Sheet = append(v.Sheet, questionOf(*snap.BatchQuestion, csrf))
+		}
 		if len(v.Sheet) > 0 {
-			v.Sheet[0].Sheet = true
+			// ntfy's Open, /?task=<ID>, opens that task's question (SPEC
+			// §10, §15.8); else the first.
+			at := 0
+			if id := r.URL.Query().Get("task"); plan.ValidID(id) {
+				if i := slices.IndexFunc(v.Sheet, func(q questionView) bool { return q.Q.Task == id }); i >= 0 {
+					at = i
+				}
+			}
+			v.Sheet[at].Sheet = true
 		}
 		for i := range v.Sheet {
 			q := &v.Sheet[i]
@@ -640,7 +669,11 @@ func questionOf(q Event, csrf string) questionView {
 	switch engine.Question(q.Question) {
 	case engine.QuestionCommit:
 		v.Title = "Commit " + t + "?"
-		v.Answers = []form{answer("Commit", true), answer("Leave uncommitted", false)}
+		// Commit all: this one, and auto for the rest of the run (SPEC
+		// §6.5).
+		all := answer("Commit all (no more commit questions this run)", true)
+		all.Text = engine.CommitAllText
+		v.Answers = []form{answer("Commit", true), answer("Leave uncommitted", false), all}
 	case engine.QuestionConfirmSkip:
 		v.Title = t + " asks to skip"
 		v.Answers = []form{answer("Keep working", false), answer("Skip the task", true)}
@@ -685,6 +718,18 @@ func questionOf(q Event, csrf string) questionView {
 			{CSRF: csrf, Type: CmdBudget, Text: state.BudgetContinue, Label: "Continue (it no longer holds this run)"},
 			{CSRF: csrf, Type: CmdStop, Label: "Stop igris", Danger: true, Confirm: &stop},
 		}
+	case engine.QuestionCommitBatch:
+		// The run's, once it ended (SPEC §6.5): Keep, and Undo while the
+		// run's commits are all base..HEAD has, with a second
+		// confirmation.
+		v.Title, v.Text = engine.BatchTitle(q.Detail)
+		v.Q.Detail = ""
+		keep := form{CSRF: csrf, Type: CmdAnswer, Question: string(engine.QuestionCommitBatch), Yes: true, Label: "Keep"}
+		v.Answers = []form{keep}
+		if q.Undo {
+			undo := undoConfirm
+			v.Answers = append(v.Answers, form{CSRF: csrf, Type: CmdAnswer, Question: string(engine.QuestionCommitBatch), Label: "Undo (git reset --soft; the changes stay)", Danger: true, Confirm: &undo})
+		}
 	case engine.QuestionPlanApproval:
 		v.Title = t + " presents a plan"
 		v.NoPlan = q.Plan == ""
@@ -728,6 +773,8 @@ func questionKind(q engine.Question) string {
 		return "plan"
 	case engine.QuestionBudget:
 		return "budget reached"
+	case engine.QuestionCommitBatch:
+		return "keep commits?"
 	}
 	return "question"
 }
@@ -770,7 +817,11 @@ func sheetOf(c Current, csrf string) (questionView, bool) {
 		}
 		v.Answers = []form{a.done, a.skip}
 	case StateNeedsYou:
+		// The Needs-you line says why, in the words of SPEC §10.
 		v.Kind, v.Title = "blocked", c.Task+" waits for you in its pane"
+		if words := engine.NeedsWords(c.Reason, c.Cause, c.Tool); words != "" {
+			v.Kind = words
+		}
 		v.Text = c.Detail
 		if v.Text == "" {
 			v.Text = "The session waits for a permission or an answer; open its pane in the terminal."
@@ -820,6 +871,9 @@ func statusOf(s Snapshot, now time.Time) status {
 	}
 	if s.BudgetQuestion != nil {
 		note(*s.BudgetQuestion)
+	}
+	if s.BatchQuestion != nil {
+		note(*s.BatchQuestion)
 	}
 	// needs counts the tasks that need the owner without a question. A
 	// card still in the question state with no question pending is an
@@ -949,9 +1003,16 @@ func recentOf(ev Event, now time.Time) recentView {
 		r.Text = with("Reset", ev.Detail)
 	case engine.Asked:
 		r.Glyph, r.Text = look.GlyphNeedsYou, id+" asked: "+questionKind(engine.Question(ev.Question))
-		if engine.Question(ev.Question) == engine.QuestionBudget {
+		switch engine.Question(ev.Question) {
+		case engine.QuestionBudget:
 			r.Text = "Budget reached: raise it, continue or stop"
+		case engine.QuestionCommitBatch:
+			r.Text = "The run ended: keep its commits?"
 		}
+	case engine.CommitPolicy:
+		r.Glyph, r.Text = look.GlyphRunning, capitalize(ev.Detail)
+	case engine.CommitsUndone:
+		r.Text = capitalize(ev.Detail)
 	case engine.BudgetExceeded:
 		r.Glyph, r.Text = look.GlyphNeedsYou, capitalize(ev.Detail)
 	case engine.BudgetRaised:
@@ -960,6 +1021,11 @@ func recentOf(ev Event, now time.Time) recentView {
 		r.Glyph, r.Text = look.GlyphNeedsYou, id+" is your turn"
 	case engine.NeedsYou:
 		r.Glyph, r.Text = look.GlyphNeedsYou, with(id+" needs you", ev.Detail)
+		switch ev.Reason {
+		case state.ReasonBlocked, state.ReasonIdle, state.ReasonUsageLimit:
+			// Why, in the words of SPEC §10, not the agent's state.
+			r.Text = with(id+" needs you", engine.NeedsWords(ev.Reason, ev.Cause, ev.Tool))
+		}
 	case engine.NeedsYouClear, engine.AgentWaitingOver:
 		r.Glyph, r.Text = look.GlyphRunning, id+" is working again"
 	case engine.AgentWaiting:

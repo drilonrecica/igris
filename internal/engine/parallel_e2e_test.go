@@ -323,7 +323,7 @@ func TestParallelE2EConflictsAndTheRerun(t *testing.T) {
 	for id, want := range map[string][]string{
 		"M1-02": {"integration_failed/conflict:shared.go; then rerun", "task_retried:fresh", "integrated:M1-02: Writer", "task_done:did M1-02"},
 		"M1-04": {"integration_failed/conflict:schema.go, shared.go; then rerun", "task_retried:fresh",
-			"integration_failed/conflict:schema.go, shared.go; then needs you", "needs_you/integration:needs you (integration failed)",
+			"integration_failed/conflict:schema.go, shared.go; then needs you", "needs_you/integration:didn't integrate",
 			"needs_you_clear/integration", "task_retried:fresh", "integrated:M1-04: Schema", "task_done:did M1-04"},
 	} {
 		var got []string
@@ -353,7 +353,7 @@ func TestParallelE2EConflictsAndTheRerun(t *testing.T) {
 		t.Errorf("%d needs-you events, want only M1-04's second failure", got)
 	}
 	p.check(parAllDone(), p.logged(),
-		"request: phase M1 · M1-04 Schema: needs you (integration failed)", parToastYour, parToastM1Done, parToastM2Done)
+		"request: phase M1 · M1-04 Schema: didn't integrate", parToastYour, parToastM1Done, parToastM2Done)
 }
 
 // Verify failing on the integrated tree reruns the task fresh by itself

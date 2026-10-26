@@ -97,6 +97,9 @@ func (e *Engine) stepIntegrate(ctx context.Context, l *launch) (ended, stopped b
 		case g.stage == integAsk && c.Kind == CmdAnswer:
 			if c.Yes {
 				e.waitOver(state.ReasonCommit)
+				if isCommitAll(c) {
+					e.commitAll(l.t.ID)
+				}
 				if err := e.commitChanges(ctx, l, g.msg, g.note, g.approved); err != nil {
 					return false, false, err
 				}
@@ -105,7 +108,7 @@ func (e *Engine) stepIntegrate(ctx context.Context, l *launch) (ended, stopped b
 			}
 			e.emit(Event{Kind: NotCommitted, Detail: "the owner declined"})
 			asked := commitAsked(l, g.msg)
-			e.needsYouAsking(ctx, notifyNeedsInput, state.ReasonCommit, "the commit of "+l.t.ID+" was declined; its worktree is kept: answer the commit question again, retry, skip or stop", "commit declined", &asked)
+			e.needsYouAsking(ctx, notifyNeedsInput, state.ReasonCommit, "the commit of "+l.t.ID+" was declined; its worktree is kept: answer the commit question again, retry, skip or stop", commitWhat, &asked)
 		case g.stage == integAsk && c.Kind == CmdRetry:
 			// The owner wants more from the session: its done is withdrawn.
 			if err := e.dir.RemoveSignal(l.t.ID); err != nil {
@@ -192,7 +195,7 @@ func (e *Engine) stepIntegrate(ctx context.Context, l *launch) (ended, stopped b
 // its own to integrate: the task is marked done without a rebase.
 func (e *Engine) startIntegration(ctx context.Context, l *launch) (ended, stopped bool, err error) {
 	g := l.integ
-	if e.cfg.Run.Commit == CommitNever {
+	if e.commitPolicy() == CommitNever {
 		// A parallel phase never runs with it (parallelOn); a task that
 		// kept a worktree from such a run is marked done as is.
 		l.integ = nil
@@ -223,9 +226,9 @@ func (e *Engine) startIntegration(ctx context.Context, l *launch) (ended, stoppe
 	if g.msg, g.approved, err = e.commitMessage(l, g.note); err != nil {
 		return false, false, err
 	}
-	if e.cfg.Run.Commit == CommitAsk {
+	if e.commitPolicy() == CommitAsk {
 		g.stage = integAsk
-		e.waitOn(state.ReasonCommit, "commit question")
+		e.waitOn(state.ReasonCommit, commitWhat)
 		e.emit(commitAsked(l, g.msg))
 		e.toastAsking(ctx, notifyNeedsInput, commitWhat, QuestionCommit)
 		return false, false, nil
@@ -371,6 +374,7 @@ func (e *Engine) integrationVerified(ctx context.Context, l *launch) (ended, sto
 func (e *Engine) fastForward(ctx context.Context, l *launch) (ended, stopped bool, err error) {
 	g := l.integ
 	wt := l.cur.Worktree
+	e.markBatchBase(ctx) // a branch an earlier run committed moves the run branch first
 	if _, err := e.gitIn(ctx, e.work, "merge", "--ff-only", wt.Branch); err != nil {
 		if ctx.Err() != nil {
 			return false, false, err
@@ -489,8 +493,8 @@ func (e *Engine) integrationBlocked(ctx context.Context, l *launch, files []stri
 	l.integ.stage = integBlocked
 	what := "didn't integrate: " + why
 	e.emit(Event{Kind: IntegrationFailed, Detail: what + "; its branch is kept", Output: files})
-	e.needsYou(ctx, notifyNeedsInput, state.ReasonIntegration, id+" "+what+"; commit, move or remove them, then try again", "integration failed")
-	e.emit(Event{Kind: Asked, Question: QuestionFilesInTheWay, Detail: id + " " + what + ": commit, move or remove them, then try again (igris integrates the committed branch, no new session), mark it done (you integrated it by hand), skip it, or stop", Output: files})
+	e.needsYouAsking(ctx, notifyNeedsInput, state.ReasonIntegration, id+" "+what+"; commit, move or remove them, then try again", wordsIntegration,
+		&Event{Kind: Asked, Question: QuestionFilesInTheWay, Detail: id + " " + what + ": commit, move or remove them, then try again (igris integrates the committed branch, no new session), mark it done (you integrated it by hand), skip it, or stop", Output: files})
 	return false, false, nil
 }
 
@@ -537,8 +541,8 @@ func (e *Engine) integrationFailed(ctx context.Context, l *launch, f failure) (e
 	if canResolve {
 		choices, ask = "resolve it with a resolver session, "+choices, "resolve it with a resolver session, "+ask
 	}
-	e.needsYou(ctx, notifyNeedsInput, state.ReasonIntegration, id+" "+what+"; "+choices, "integration failed")
-	e.emit(Event{Kind: Asked, Question: QuestionIntegration, Resolve: canResolve, Detail: id + " " + what + ": " + ask, Output: f.lines})
+	e.needsYouAsking(ctx, notifyNeedsInput, state.ReasonIntegration, id+" "+what+"; "+choices, wordsIntegration,
+		&Event{Kind: Asked, Question: QuestionIntegration, Resolve: canResolve, Detail: id + " " + what + ": " + ask, Output: f.lines})
 	return false, false, nil
 }
 
