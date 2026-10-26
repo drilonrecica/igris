@@ -4,7 +4,7 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
-The heading becomes `[1.8.0]` with its date when v1.8.0 is published (V18-R).
+## [1.8.0] - 2026-10-26
 
 igris 1.8 makes a long unattended run safer to leave: it waits out usage limits, pauses at the budget you set, settles a conflicting task with a session of its own before rerunning it, hands a task's notes to the tasks that depend on it and asks you less often. It only adds: plans, `--json`, the run log, the webhook payload and protocol 1 are unchanged apart from additive fields ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). `state.json` stays version 4. New config values and keys are refused by igris 1.0–1.7 (below).
 
@@ -697,7 +697,8 @@ First release. Linux and macOS, herdr backend only. The full behavior is specifi
 - Release artifacts are not signed (checksums only); signing is planned.
 - No Homebrew tap yet.
 
-[Unreleased]: https://github.com/drilonrecica/igris/compare/v1.7.0...HEAD
+[Unreleased]: https://github.com/drilonrecica/igris/compare/v1.8.0...HEAD
+[1.8.0]: https://github.com/drilonrecica/igris/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/drilonrecica/igris/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/drilonrecica/igris/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/drilonrecica/igris/compare/v1.4.0...v1.5.0
