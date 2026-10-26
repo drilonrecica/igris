@@ -411,6 +411,9 @@ type form struct {
 	Task     string
 	Question string
 	Plan     string
+	// Text is a fixed text the command carries (limit: start); a form
+	// with a field takes its text from the owner instead.
+	Text     string
 	Continue bool
 	Yes      bool
 	Label    string
@@ -496,8 +499,17 @@ func (u *ui) view(r *http.Request) pageView {
 	carded := map[int]int{} // card → its entry
 	for _, c := range snap.Active {
 		cv := cardView{Current: c, Ran: look.Duration(now.Sub(c.Started)), Override: snap.Overrides[c.Task], Glyph: look.GlyphRunning}
-		if c.State == StateWaiting {
+		switch c.State {
+		case StateWaiting:
 			cv.Glyph = look.GlyphWaiting
+		case StateLimited:
+			// The window and the reset with its countdown, live (SPEC §15).
+			cv.Glyph = look.GlyphWaiting
+			if l := c.Limit; l != nil {
+				cv.Detail = look.Window(l.Window) + " · continues " + look.Until(l.ResetsAt.In(now.Location()), now)
+			} else {
+				cv.Detail = ""
+			}
 		}
 		if live {
 			if q, ok := asks[c.Task]; ok {
@@ -539,7 +551,12 @@ func (u *ui) view(r *http.Request) pageView {
 			pause.Label = "Resume"
 		}
 		stop, _ := confirmOf(CmdStop, "")
-		v.Header = []form{pause, {CSRF: csrf, Type: CmdStop, Label: "Stop", Danger: true, Confirm: &stop}}
+		if snap.Limited != nil {
+			// Start anyway beside Pause and Stop while the usage hold holds
+			// (SPEC §6.9, §15).
+			v.Header = append(v.Header, form{CSRF: csrf, Type: CmdLimit, Text: LimitStart, Label: "Start anyway"})
+		}
+		v.Header = append(v.Header, pause, form{CSRF: csrf, Type: CmdStop, Label: "Stop", Danger: true, Confirm: &stop})
 		if engine.SkipsPermissions(snap.Mode) {
 			v.ModeNote = "Next sessions run in " + snap.Mode + ", chosen in the terminal; a skip-permissions mode is set there only."
 		}
@@ -754,6 +771,11 @@ func statusOf(s Snapshot, now time.Time) status {
 		return status{Word: look.NeedsYou.String(), Line: fmt.Sprintf("%s %s you", look.Count(n, "task", "tasks"), look.Plural(n, "needs", "need")), Tone: "needs"}
 	case questions > 0:
 		return clock(status{Word: look.NeedsYou.String(), Line: look.Count(questions, "question", "questions"), Tone: "needs"}, oldest)
+	case s.Limited != nil:
+		// The usage hold (SPEC §6.9, §15.4): the window, its use and the
+		// reset with its countdown.
+		l := s.Limited
+		return status{Word: look.Paused.String(), Line: l.Label() + " · resumes " + look.Until(l.ResetsAt.In(now.Location()), now), Tone: "plain"}
 	case s.Paused && s.Holding:
 		return clock(status{Word: look.Paused.String(), Line: "holding", Tone: "plain"}, s.Started)
 	case s.Paused && len(s.Active) == 1:
@@ -868,6 +890,17 @@ func recentOf(ev Event, now time.Time) recentView {
 		r.Glyph, r.Text = look.GlyphRunning, id+" is working again"
 	case engine.AgentWaiting:
 		r.Glyph, r.Text = look.GlyphWaiting, id+" waits on background work"
+	case engine.SessionLimited:
+		r.Glyph, r.Text = look.GlyphWaiting, with(id+" waits at a usage limit", ev.Detail)
+		if ev.Detail != "" {
+			r.Text = id + " " + ev.Detail
+		}
+	case engine.SessionLimitOver:
+		r.Glyph, r.Text = look.GlyphRunning, id+" "+ev.Detail
+	case engine.LimitHold:
+		r.Glyph, r.Text = look.GlyphWaiting, with("Paused before "+id, ev.Detail)
+	case engine.LimitResume:
+		r.Glyph, r.Text = look.GlyphRunning, with("Resumed", ev.Detail)
 	case engine.SessionLost:
 		warn(look.GlyphFail, id+" session lost")
 	case engine.TaskOverdue:
@@ -959,6 +992,8 @@ func stateText(s string) string {
 		return "your turn"
 	case StateWaiting:
 		return "waiting on background work"
+	case StateLimited:
+		return "usage limit"
 	case StateNeedsYou:
 		return "needs you"
 	case StateVerifying:

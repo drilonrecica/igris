@@ -99,6 +99,19 @@ func (b *Backend) Script(taskID string, states ...backend.AgentState) {
 	b.scripts[taskID] = append(b.scripts[taskID], slices.Clone(states))
 }
 
+// SetState makes every live session of taskID (or SideKey) report st from
+// now on, in place of what is left of its script: for tests that change a
+// session's state at a time on the clock (a usage limit's reset).
+func (b *Backend) SetState(taskID string, st backend.AgentState) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for _, s := range b.sessions {
+		if s.taskID == taskID && !s.gone {
+			s.states = []backend.AgentState{st}
+		}
+	}
+}
+
 // SetTail sets the lines taskID's sessions show, oldest first, for Tail.
 // Sessions show nothing until it is called.
 func (b *Backend) SetTail(taskID string, lines ...string) {

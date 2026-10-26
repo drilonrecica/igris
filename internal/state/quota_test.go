@@ -86,3 +86,38 @@ func TestQuotaNeverCreatesStateAndDropsBadWindows(t *testing.T) {
 		}
 	}
 }
+
+// Since 1.8 quota.json also holds spend_limit (SPEC §13): a window whose
+// use may pass 100% once exceeded, with Claude Code's optional amounts.
+func TestQuotaSpendLimit(t *testing.T) {
+	root := t.TempDir()
+	if _, err := Open(root, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	at := time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC)
+	usd, limit := 41.2, 40.0
+	q := Quota{At: at, SpendLimit: &QuotaWindow{Used: 103, ResetsAt: 1792652400, UsedUSD: &usd, LimitUSD: &limit, Period: "monthly"}}
+	if err := WriteQuota(root, q); err != nil {
+		t.Fatal(err)
+	}
+	got, ok, err := ReadQuota(root)
+	if err != nil || !ok || got.SpendLimit == nil || got.SpendLimit.Used != 103 || *got.SpendLimit.UsedUSD != 41.2 || got.SpendLimit.Period != "monthly" {
+		t.Fatalf("got %+v ok=%v err=%v", got, ok, err)
+	}
+	if !got.SameWindows(q) || got.SameWindows(Quota{SpendLimit: &QuotaWindow{Used: 50, ResetsAt: 1792652400}}) {
+		t.Error("SameWindows ignores spend_limit")
+	}
+	// Windows is every window by name, for the hold (SPEC §6.9).
+	ws := got.Windows()
+	if len(ws) != 1 || ws[0].Name != "spend_limit" || ws[0].Used != 103 {
+		t.Errorf("Windows = %+v", ws)
+	}
+	// A spend window out of shape is dropped like the others.
+	data := `{"at":"2026-10-20T12:00:00Z","five_hour":{"used":4,"resets_at":1792518000},"spend_limit":{"used":-1,"resets_at":1}}`
+	if err := os.WriteFile(QuotaPath(root), []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got, ok, _ := ReadQuota(root); !ok || got.SpendLimit != nil || got.FiveHour == nil {
+		t.Errorf("bad spend window kept: %+v", got)
+	}
+}

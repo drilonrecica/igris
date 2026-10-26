@@ -37,7 +37,20 @@ func logLines(ev engine.Event) []string {
 	case engine.AgentWaitingOver, engine.UsageRead, engine.QuotaRead:
 		return nil // the card shows it; the next event says what followed
 	case engine.Nudged:
-		return []string{id + " stopped without igris done; igris reminded it once"}
+		// "the agent stopped without igris done; igris reminded it once",
+		// or why igris told it to continue after a usage limit.
+		if ev.Detail == "" {
+			return []string{id + " stopped without igris done; igris reminded it once"}
+		}
+		return []string{id + " " + strings.TrimPrefix(ev.Detail, "the agent ")}
+	case engine.SessionLimited:
+		return []string{look.GlyphWaiting + " " + id + " " + ev.Detail}
+	case engine.SessionLimitOver:
+		return []string{id + " " + ev.Detail}
+	case engine.LimitHold:
+		return []string{look.GlyphWaiting + " paused before " + id + " · " + ev.Detail}
+	case engine.LimitResume:
+		return []string{"resumed · " + ev.Detail}
 	case engine.TaskOverdue:
 		return []string{look.GlyphWarn + " " + id + " overdue · " + ev.Detail}
 	case engine.RankMismatch:

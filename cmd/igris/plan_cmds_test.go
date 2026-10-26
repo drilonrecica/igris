@@ -10,10 +10,12 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/drilonrecica/igris/internal/checks"
 	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/runner"
+	"github.com/drilonrecica/igris/internal/serve"
 )
 
 // Fixture paths are absolute because the tests change directory.
@@ -698,5 +700,27 @@ func TestIgrisPathWarning(t *testing.T) {
 	code, out, _ := runCmd("check")
 	if !strings.Contains(out, missing) {
 		t.Errorf("check text: exit %d, lacks %q:\n%s", code, missing, out)
+	}
+}
+
+// A served run held by a usage limit: the Run line is Paused with the
+// window, its use and the reset with its countdown (SPEC §14, §6.9).
+func TestStatusLimited(t *testing.T) {
+	reset := time.Date(2026, 10, 23, 15, 12, 0, 0, time.UTC) // textNow is 12:00
+	held := &serve.Snapshot{Type: serve.TypeSnapshot, Run: "20261023-093000-abcd", Phase: "M1", Mode: "plan",
+		Limited: &serve.Limited{Window: "five_hour", ResetsAt: reset, Percent: 96.4, Task: "M1-02", Detail: "5h at 96%"}}
+	statusProject(t, held)
+	code, out, _ := runCmd("status")
+	if code != exitOK {
+		t.Fatalf("code = %d: %s", code, out)
+	}
+	if want := "\nRun      Paused · 5h limit 96% · resumes 15:12 (≈ 3h12m)\n"; !strings.Contains(out, want) {
+		t.Errorf("missing %q:\n%s", want, out)
+	}
+	// With a task still running the run works on; the hold is noted.
+	held.Active = []serve.Current{{Task: "M1-02", Rank: "opus", Mode: "plan", State: serve.StateWorking, Started: reset.Add(-4 * time.Hour)}}
+	code, out, _ = runCmd("status")
+	if code != exitOK || !strings.Contains(out, "● Working · M1-02") || !strings.Contains(out, "5h limit 96% · next start 15:12 (≈ 3h12m)") {
+		t.Errorf("with a task running (%d):\n%s", code, out)
 	}
 }

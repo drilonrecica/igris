@@ -243,11 +243,12 @@ func TestSettings(t *testing.T) {
 	if s.Hooks["PreToolUse"][0].Matcher != "*" || s.Hooks["Stop"][0].Matcher != "" {
 		t.Error("matchers wrong")
 	}
-	// Only hooks: nothing else that could change permissions (SPEC §7.4).
+	// Hooks and the usage-limit continuation: nothing that could change
+	// permissions (SPEC §7.4).
 	var top map[string]json.RawMessage
 	_ = json.Unmarshal(data, &top)
-	if len(top) != 1 {
-		t.Errorf("%d top-level keys, want only hooks", len(top))
+	if len(top) != 2 || top["hooks"] == nil || top["autoContinueAtUsageLimit"] == nil {
+		t.Errorf("top-level keys %v, want hooks and autoContinueAtUsageLimit", top)
 	}
 }
 
@@ -313,5 +314,66 @@ func TestRunTranscript(t *testing.T) {
 		if err != nil || !ok || got.State != backend.Idle || got.Transcript != tt.want {
 			t.Errorf("%q: %+v, %v, %v; want transcript %q", tt.path, got, ok, err, tt.want)
 		}
+	}
+}
+
+// Usage limits (SPEC §6.3, V18-P1): a rate-limited turn ends in StopFailure
+// with error rate_limit, which is the limited state; any other StopFailure
+// is idle; Claude Code's quota notifications say whether it continues by
+// itself (working), waits for Enter or gave up (limited, with the type as
+// the record's event).
+func TestLimitEvents(t *testing.T) {
+	tests := []struct {
+		file  string
+		want  backend.AgentState
+		event string
+	}{
+		{"stopfailure_rate_limit.json", "limited", "StopFailure"},
+		{"stopfailure_other.json", backend.Idle, "StopFailure"},
+		{"notification_quota_auto_resume_fired.json", backend.Working, "Notification"},
+		{"notification_quota_auto_resume_stale.json", "limited", "quota_auto_resume_stale"},
+		{"notification_quota_auto_resume_disabled.json", "limited", "quota_auto_resume_disabled"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.file, func(t *testing.T) {
+			f, err := os.Open(filepath.Join("testdata", tt.file))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = f.Close() }()
+			root := project(t)
+			if err := Run(context.Background(), root, f, fixedNow); err != nil {
+				t.Fatalf("Run: %v", err)
+			}
+			got, ok, err := state.ReadAgentState(root, fixtureUUID)
+			if err != nil || !ok {
+				t.Fatalf("ReadAgentState = %v, %v", ok, err)
+			}
+			if got.State != tt.want || got.Event != tt.event || got.Transcript != fixtureTranscript {
+				t.Errorf("record = %+v, want %s %s", got, tt.want, tt.event)
+			}
+		})
+	}
+	if !slices.Contains(Events, "StopFailure") {
+		t.Error("StopFailure is not among the installed hooks")
+	}
+}
+
+// The settings file makes every task session wait at a usage limit and
+// continue by itself (SPEC §6.3), and nothing else is added.
+func TestSettingsAutoContinue(t *testing.T) {
+	data, err := Settings("/bin/igris", "/p", nil, nil, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(data, &top); err != nil {
+		t.Fatal(err)
+	}
+	if string(top["autoContinueAtUsageLimit"]) != "true" {
+		t.Errorf("autoContinueAtUsageLimit = %s", top["autoContinueAtUsageLimit"])
+	}
+	if len(top) != 2 {
+		t.Errorf("%d top-level keys, want hooks and autoContinueAtUsageLimit", len(top))
 	}
 }

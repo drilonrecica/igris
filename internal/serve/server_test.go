@@ -189,6 +189,7 @@ func TestCommandsMirrorEngine(t *testing.T) {
 		{`{"v":1,"type":"plan","id":"1","plan":"allow"}`, engine.Command{Kind: engine.CmdPlan, Plan: state.PlanAllow}},
 		{`{"v":1,"type":"plan","id":"1","plan":"deny","text":"split it"}`, engine.Command{Kind: engine.CmdPlan, Plan: state.PlanDeny, Text: "split it"}},
 		{`{"v":1,"type":"plan","id":"1","plan":"pane"}`, engine.Command{Kind: engine.CmdPlan, Plan: state.PlanPane}},
+		{`{"v":1,"type":"limit","id":"1","text":"start"}`, engine.Command{Kind: engine.CmdLimitStart, Text: "start"}},
 		// Fields a newer client adds are ignored.
 		{`{"v":1,"type":"pause","id":"1","later":{"x":1}}`, engine.Command{Kind: engine.CmdPause}},
 	}
@@ -217,6 +218,7 @@ func TestCommandsRefused(t *testing.T) {
 		{`{"v":1,"type":"answer","id":"a","question":"launch"}`, "unknown question"},
 		{`{"v":1,"type":"plan","id":"a","plan":"maybe"}`, "plan is allow"},
 		{`{"v":1,"type":"plan","id":"a","plan":"deny","text":"  "}`, "needs feedback"},
+		{`{"v":1,"type":"limit","id":"a","text":"later"}`, "limit takes text start"},
 		{`{"v":1,"type":"skip","id":"a","text":"` + strings.Repeat("x", maxText+1) + `"}`, "over 16384 bytes"},
 		{`{"v":1,"type":"hello","id":"a"}`, "already said"},
 		{`{"v":1,"type":"tail","id":"a","n":0}`, "n is 1 to 200"},

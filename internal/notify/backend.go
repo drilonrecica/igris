@@ -15,10 +15,10 @@ type Toast struct {
 func (Toast) Name() string { return "backend" }
 
 // Send implements Channel: the "request" sound when igris needs the owner,
-// "done" for completions (SPEC §10).
+// "done" for completions and a usage limit, which is not urgent (SPEC §10).
 func (t Toast) Send(ctx context.Context, m Message) error {
 	sound := backend.SoundRequest
-	if m.Event == PhaseDone || m.Event == TaskDone {
+	if m.Event == PhaseDone || m.Event == TaskDone || m.Event == UsageLimit {
 		sound = backend.SoundDone
 	}
 	return t.Backend.Notify(ctx, backend.Notification{Title: m.Subject(), Body: m.Body(), Sound: sound})

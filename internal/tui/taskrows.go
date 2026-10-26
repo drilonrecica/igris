@@ -40,10 +40,10 @@ func (m *model) rows() rows {
 	r := rows{plan: m.plan, phase: m.phase, mode: m.mode, overrides: m.overrides, th: m.th}
 	if m.cur != nil {
 		r.curID = m.cur.id
-		r.waiting = m.cur.state != stateWorking && m.cur.state != stateVerifying && m.cur.state != stateWaiting
+		r.waiting = m.cur.needsOwner()
 	}
 	for _, c := range m.cards {
-		if c != m.cur && c.state != stateWorking && c.state != stateVerifying && c.state != stateWaiting {
+		if c != m.cur && c.needsOwner() {
 			if r.waits == nil {
 				r.waits = map[string]bool{}
 			}

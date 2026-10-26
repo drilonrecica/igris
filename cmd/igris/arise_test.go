@@ -37,6 +37,8 @@ func TestParseCommand(t *testing.T) {
 		{"YES", engine.Command{Kind: engine.CmdAnswer, Yes: true}, actSend, ""},
 		{"n", engine.Command{Kind: engine.CmdAnswer}, actSend, ""},
 		{"no thanks", engine.Command{}, actNone, "takes no argument"},
+		{"start", engine.Command{Kind: engine.CmdLimitStart}, actSend, ""},
+		{"start now", engine.Command{}, actNone, "takes no argument"},
 		{"done", engine.Command{Kind: engine.CmdDone}, actSend, ""},
 		{"done  bought it, all fine ", engine.Command{Kind: engine.CmdDone, Text: "bought it, all fine"}, actSend, ""},
 		{"skip", engine.Command{}, actNone, "needs a reason"},
@@ -101,6 +103,15 @@ func TestFormatEvent(t *testing.T) {
 		{engine.Event{Kind: engine.Asked, Question: engine.QuestionFilesInTheWay, Task: "A-1", Detail: "in the way", Output: []string{"new.txt"}}, "! A-1 needs you · integration\n  in the way\n  | new.txt\n  move them, then type `retry` to try again, or `done [note]`, `skip <reason>` or `stop`"},
 		{engine.Event{Kind: engine.HookFailed, Task: "A-1", Detail: "before_task hook failed: exit status 1", Output: []string{"db is down"}}, "✗ A-1 before_task hook failed: exit status 1\n  | db is down"},
 		{engine.Event{Kind: engine.HookStarted, Task: "A-1", Detail: "after_task"}, "A-1 running after_task hook…"},
+		// Usage limits (SPEC §6.3, §6.9): the hold names the window, its use
+		// and the reset; the lines are stamped, so no countdown.
+		{engine.Event{Kind: engine.LimitHold, Task: "A-2", Detail: "5h at 96%", Limit: &engine.Limit{Window: "five_hour", ResetsAt: time.Date(2026, 10, 23, 15, 12, 0, 0, time.UTC), Percent: 96.4}},
+			"◌ paused before A-2 · 5h limit 96% · resumes 15:12; type `start` to start it anyway"},
+		{engine.Event{Kind: engine.LimitResume, Detail: "reset"}, "resumed · reset"},
+		{engine.Event{Kind: engine.SessionLimited, Task: "A-1", Detail: "waits at the 7-day limit · continues 15:12 (≈ 3h12m)"}, "◌ A-1 waits at the 7-day limit · continues 15:12 (≈ 3h12m)"},
+		{engine.Event{Kind: engine.SessionLimitOver, Task: "A-1", Detail: "works again after the usage limit"}, "A-1 works again after the usage limit"},
+		{engine.Event{Kind: engine.Nudged, Task: "A-1", Detail: "didn't continue two minutes after the usage limit's reset; igris told it to continue"}, "A-1 didn't continue two minutes after the usage limit's reset; igris told it to continue"},
+		{engine.Event{Kind: engine.Nudged, Task: "A-1"}, "A-1 stopped without igris done; igris reminded it once"},
 	}
 	for _, tt := range tests {
 		if got := strings.Join(formatEvent(tt.ev), "\n"); got != tt.want {

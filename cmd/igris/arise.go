@@ -582,6 +582,7 @@ const commandHelp = `commands:
   skip <reason>              skip the current task
   retry [continue|fresh]     replace the session: continue its conversation, or start fresh (default)
   pause                      pause after the current task (again to resume)
+  start                      start the held task anyway while a usage limit holds it (a hit still holds)
   stop                       stop igris now; the session stays open
   mode <m>                   run mode for the next sessions: default|accept|auto|plan[:m]|yolo|manual
   mode <task> <m>            mode for that task's next session, over its Mode column
@@ -643,6 +644,8 @@ func parseCommand(line string) (engine.Command, commandAction, error) {
 		return c, actSend, nil
 	case "pause":
 		return noArgs(engine.Command{Kind: engine.CmdPause})
+	case "start":
+		return noArgs(engine.Command{Kind: engine.CmdLimitStart})
 	case "stop":
 		return noArgs(engine.Command{Kind: engine.CmdStop})
 	case "mode":
@@ -666,6 +669,19 @@ func parseCommand(line string) (engine.Command, commandAction, error) {
 		return engine.Command{}, actHelp, nil
 	}
 	return engine.Command{}, actNone, fmt.Errorf("unknown command %q; type help", word)
+}
+
+// limitHoldLine is the hold's line: the window, its use and the reset as a
+// clock time (the line is stamped, so no countdown), `◌ paused before
+// M1-04 · 5h limit 96% · resumes 09:00`.
+func limitHoldLine(ev engine.Event) string {
+	s := look.GlyphWaiting + " paused before " + ev.Task
+	if l := ev.Limit; l != nil {
+		s += " · " + l.Label() + " · resumes " + look.Clock(l.ResetsAt.Local())
+	} else {
+		s += " · " + ev.Detail
+	}
+	return s
 }
 
 // printEvent writes ev as plain log lines stamped with the local time.
@@ -767,7 +783,19 @@ func formatEvent(ev engine.Event) []string {
 	case engine.AgentWaitingOver, engine.UsageRead, engine.QuotaRead:
 		return nil // the card shows it; the next event says what followed
 	case engine.Nudged:
-		return []string{id + " stopped without igris done; igris reminded it once"}
+		// The reminder, or why igris told it to continue after a usage limit.
+		if ev.Detail == "" {
+			return []string{id + " stopped without igris done; igris reminded it once"}
+		}
+		return []string{id + " " + strings.TrimPrefix(ev.Detail, "the agent ")}
+	case engine.SessionLimited:
+		return []string{look.GlyphWaiting + " " + id + " " + ev.Detail}
+	case engine.SessionLimitOver:
+		return []string{id + " " + ev.Detail}
+	case engine.LimitHold:
+		return []string{limitHoldLine(ev) + "; type `start` to start it anyway"}
+	case engine.LimitResume:
+		return []string{"resumed · " + ev.Detail}
 	case engine.TaskOverdue:
 		return []string{look.GlyphWarn + " " + id + " overdue · " + ev.Detail + "; its session keeps running"}
 	case engine.RankMismatch:

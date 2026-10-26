@@ -3,12 +3,14 @@ package engine
 import (
 	"context"
 	"fmt"
+	"math"
 	"path/filepath"
 	"slices"
 	"strings"
 	"time"
 
 	"github.com/drilonrecica/igris/internal/backend"
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/notify"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/state"
@@ -51,6 +53,10 @@ const (
 	RankMismatch      EventKind = "rank_mismatch"      // the session runs on a model its rank doesn't resolve to (SPEC §6.9); Detail names both
 	UsageRead         EventKind = "usage"              // the current attempt's token usage changed or can't be read (SPEC §6.9); Tokens holds it; not logged as a feed line
 	QuotaRead         EventKind = "quota"              // the subscription quota the status line recorded changed (SPEC §6.3); Quota holds it; not logged as a feed line
+	LimitHold         EventKind = "limit_hold"         // new starts are held for a usage limit (SPEC §6.9); Limit says which, Task the task that would start, Detail why; sent again when the window or its use changes
+	LimitResume       EventKind = "limit_resume"       // ... and no longer are; Detail says why (reset, quota fell to 71%, started anyway)
+	SessionLimited    EventKind = "session_limited"    // the task's session waits at a usage limit (SPEC §6.3); Limit says which and until when once the transcript's hit is read (nil before)
+	SessionLimitOver  EventKind = "session_limit_over" // ... and works again, or igris told it to continue
 	Asked             EventKind = "asked"              // Question waits for the owner's answer; Detail is the question
 	PlanClosed        EventKind = "plan_closed"        // the plan shown for approval is answered or gone; Detail says how
 	Retrying          EventKind = "retrying"           // the session is replaced; Detail is "continue" or "fresh"
@@ -125,7 +131,38 @@ type Event struct {
 	// Slot is the task's slot in a parallel phase (SPEC §6.11), set on the
 	// events of an active task that holds one; nil otherwise.
 	Slot *int
+	// Limit is the usage limit on LimitHold, LimitResume and
+	// SessionLimited (SPEC §6.9): the window, its reset and, for a hold at
+	// the threshold, the window's use; nil while the window isn't known.
+	Limit *Limit
 }
+
+// Limit is a usage limit a UI shows (SPEC §6.9, §15): a quota window at or
+// above the threshold, or one a session hit. Its countdown is drawn from
+// ResetsAt against the UI's clock.
+type Limit struct {
+	// Window is five_hour, seven_day or spend_limit.
+	Window string `json:"window,omitempty"`
+	// ResetsAt is when the window resets; UTC.
+	ResetsAt time.Time `json:"resets_at,omitzero"`
+	// Percent is the window's use that holds new starts; 0 after a hit.
+	Percent float64 `json:"percent,omitempty"`
+	// Task is the task whose session hit the window; "" for the quota.
+	Task string `json:"task,omitempty"`
+}
+
+// Label is the limit's words for a header or a status line: "5h limit
+// 96%", "7d limit" after a hit.
+func (l Limit) Label() string {
+	s := look.Window(l.Window) + " limit"
+	if l.Percent > 0 {
+		s += fmt.Sprintf(" %.0f%%", math.Round(l.Percent))
+	}
+	return s
+}
+
+// Episode keys one limit episode: the window and its reset (SPEC §10).
+func (l Limit) Episode() string { return l.Window + "@" + l.ResetsAt.UTC().Format(time.RFC3339) }
 
 // Tokens is what the current attempt's transcripts record so far, for the
 // run card's counter. It never carries message content.
@@ -398,6 +435,7 @@ const (
 	notifyPhaseDone    = notify.PhaseDone
 	notifyPhaseStuck   = notify.PhaseStuck
 	notifyRunError     = notify.RunError
+	notifyUsageLimit   = notify.UsageLimit
 )
 
 // toast sends a SPEC §10 notification through the router: to the backend

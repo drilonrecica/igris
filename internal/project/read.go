@@ -191,7 +191,7 @@ func (p *Project) peekLive() (live *report.LiveRun, ok bool) {
 // need the owner (pending questions first, then the cards that wait on
 // them) and whether it holds on the pause, as `igris status` reads it.
 func LiveRun(s serve.Snapshot) *report.LiveRun {
-	out := &report.LiveRun{Paused: s.Paused && (s.Holding || len(s.Active) == 0)}
+	out := &report.LiveRun{Paused: (s.Paused && (s.Holding || len(s.Active) == 0)) || s.Limited != nil}
 	seen := map[string]bool{}
 	need := func(task, kind string) {
 		if task = textsafe.Line(task); !seen[task] {

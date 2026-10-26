@@ -131,8 +131,8 @@ func (e *Engine) watchStep(ctx context.Context, l *launch) (v verdict, decided b
 		e.checkSubmitted(ctx, l, st, delivered)
 		e.checkPlanRequest(ctx, l)
 		e.observe(ctx, l, st, &l.ep)
-		e.readUsage(l, false)
-		e.readQuota()
+		e.readUsage(ctx, l, false)
+		e.readQuota(false)
 		e.auditRank(ctx, l, false)
 	}
 	e.checkOverdue(ctx, l)
@@ -145,8 +145,15 @@ func (e *Engine) watchStep(ctx context.Context, l *launch) (v verdict, decided b
 // An agent waiting on background work needs nobody until waiting_limit.
 func (e *Engine) observe(ctx context.Context, l *launch, st backend.AgentState, ep *episode) {
 	now := e.clock.Now()
+	lim := l.limit
+	// The usage-limit wait (SPEC §6.3): the hooks say limited, or the
+	// transcript's hit says the session waits while the hooks say idle;
+	// over once the fixed prompt went out, when the idle rules apply.
+	limited := lim == nil || !lim.prompted
+	limited = limited && (st == backend.Limited || (lim != nil && st.Settled()))
 	switch {
 	case st == backend.Working:
+		e.limitOver(l)
 		e.endEpisode(ep)
 		// Working again, the agent waits on nobody (Decision W, V05-P1):
 		// the owner told it about the failed verify or the verify limit
@@ -156,6 +163,9 @@ func (e *Engine) observe(ctx context.Context, l *launch, st backend.AgentState, 
 		e.waitOver(state.ReasonVerifyLimit)
 		e.waitOver(state.ReasonTaskOverdue)
 		e.waitOver(state.ReasonRankMismatch)
+	case limited:
+		e.endEpisode(ep)
+		e.limited(ctx, l)
 	case st == backend.Waiting:
 		e.endIdle(ep)
 		w := &ep.waiting
@@ -168,7 +178,9 @@ func (e *Engine) observe(ctx context.Context, l *launch, st backend.AgentState, 
 			what := "waiting on background work for " + config.Duration(limit).Short()
 			e.needsYou(ctx, notifyNeedsInput, state.ReasonWaiting, "the agent has been "+what, what)
 		}
-	case st.Settled():
+	case st.Settled(), st == backend.Limited:
+		// Limited here: the fixed prompt went out and the session still
+		// hasn't continued; the idle rules apply (SPEC §6.3).
 		e.endWaiting(ep)
 		if ep.since.IsZero() {
 			ep.since = now
@@ -184,8 +196,11 @@ func (e *Engine) observe(ctx context.Context, l *launch, st backend.AgentState, 
 		}
 		ep.needsYou, ep.reason = true, state.ReasonIdle
 		words := fmt.Sprintf("idle %s without igris done", after)
-		if st == backend.Blocked {
+		switch {
+		case st == backend.Blocked:
 			ep.reason, words = state.ReasonBlocked, "waiting for a permission or an answer"
+		case lim != nil:
+			ep.reason, words = state.ReasonUsageLimit, "idle after the usage limit reset"
 		}
 		e.needsYou(ctx, notifyNeedsInput, ep.reason, fmt.Sprintf("the agent is %s and has not run `igris done` for %s", st, after), words)
 	}
@@ -305,6 +320,9 @@ func (e *Engine) checkOverdue(ctx context.Context, l *launch) {
 	limit := l.t.Timeout
 	if limit <= 0 || l.overdue || l.attemptAt.IsZero() || !l.t.Owner.IsAgent() {
 		return
+	}
+	if l.limit != nil && !l.limit.since.IsZero() {
+		return // the clock stops while the session waits at a usage limit (SPEC §6.3)
 	}
 	if e.clock.Now().Sub(l.attemptAt) <= limit {
 		return

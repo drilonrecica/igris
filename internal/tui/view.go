@@ -56,10 +56,24 @@ func (m *model) status() (string, tone) {
 		return look.NeedsYou.Label(), lookAlert
 	case m.holding && m.cur == nil:
 		return look.Paused.String(), lookTitle
+	case m.limited != nil && m.cur == nil:
+		// The usage hold (SPEC §6.9, §15.4): the window, its use and the
+		// reset with its countdown.
+		return look.Paused.String() + " · " + m.limitText("resumes"), lookTitle
 	case m.paused && m.cur != nil:
 		return look.Working.Label() + " · pauses after " + m.cur.id, lookAccentBold
+	case m.limited != nil:
+		// Tasks still run; the next start waits for the reset.
+		return look.Working.Label() + " · " + m.limitText("next start"), lookAccentBold
 	}
 	return look.Working.Label(), lookAccentBold
+}
+
+// limitText is the hold's words, `5h limit 96% · resumes 09:00 (≈ 3h12m)`,
+// with verb before the reset.
+func (m *model) limitText(verb string) string {
+	l := m.limited
+	return l.Label() + " · " + verb + " " + look.Until(l.ResetsAt.In(m.loc), m.opts.Now())
 }
 
 // statusText is the status word, painted.
@@ -88,6 +102,14 @@ func (m *model) stateText(c *current) string {
 		return strings.Join(append([]string{look.NeedsYou.Label()}, m.needParts(c)...), " · ")
 	case stateWaiting:
 		return fmt.Sprintf("%s Waiting on background work · %s", look.GlyphWaiting, since(m.opts.Now(), c.since))
+	case stateLimited:
+		// The window and the reset with its countdown, once the
+		// transcript's hit named them (SPEC §6.3, §15).
+		s := look.GlyphWaiting + " Usage limit"
+		if l := c.limit; l != nil {
+			s += " · " + look.Window(l.Window) + " · continues " + look.Until(l.ResetsAt.In(m.loc), m.opts.Now())
+		}
+		return s
 	case stateYourTurn:
 		return look.NeedsYou.Label() + " · your turn"
 	case stateVerifying:
@@ -244,6 +266,11 @@ func (m *model) buttons() []button {
 	}
 	if m.taskModeTarget() != nil {
 		out = append(out, button{label: "Task mode", key: "M", act: actTaskMode})
+	}
+	if m.limited != nil && !m.ended {
+		// The usage hold's one action of its own (SPEC §6.9): the next
+		// start ignores the threshold once.
+		out = append(out, button{"Start anyway", "Start", "a", actLimitStart})
 	}
 	if !m.ended {
 		label := "Pause"

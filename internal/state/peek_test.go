@@ -248,6 +248,12 @@ func TestEventChecked(t *testing.T) {
 		{Event{DurationMS: maxDurationMS}, Event{DurationMS: maxDurationMS}},
 		{Event{DurationMS: maxDurationMS + 1}, Event{}},
 		{Event{Attempt: -1, Reason: "nope", Run: "x", Session: "y"}, Event{Reason: ReasonOther}},
+		// The reasons of 1.8 (SPEC §13): a usage limit's idle, a budget.
+		{Event{Type: EventNeedsYou, Reason: ReasonUsageLimit}, Event{Type: EventNeedsYou, Reason: ReasonUsageLimit}},
+		{Event{Type: EventNeedsYou, Reason: ReasonBudget}, Event{Type: EventNeedsYou, Reason: ReasonBudget}},
+		// A window or a reset out of shape is dropped (a session can write the log).
+		{Event{Type: EventLimitHold, Window: "five_hour", ResetsAt: "2026-10-26T09:00:00Z"}, Event{Type: EventLimitHold, Window: "five_hour", ResetsAt: "2026-10-26T09:00:00Z"}},
+		{Event{Type: EventLimitResume, Window: "\x1b[31m", ResetsAt: "soon"}, Event{Type: EventLimitResume}},
 		{Event{Type: EventSideUsage, Side: "../etc"}, Event{Type: EventSideUsage}},
 		{Event{Type: EventSideUsage, Side: "a1b2c3"}, Event{Type: EventSideUsage, Side: "a1b2c3"}},
 		{

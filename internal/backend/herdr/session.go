@@ -170,13 +170,16 @@ func (s *Session) State(ctx context.Context) (backend.AgentState, error) {
 		return backend.Exited, nil
 	}
 	st := agentState(p.Status)
-	switch {
-	case st == backend.Unknown:
+	switch st {
+	case backend.Unknown:
 		st = s.hookState()
-	case (st == backend.Idle || st == backend.Done) && s.hookState() == backend.Waiting:
+	case backend.Idle, backend.Done:
 		// herdr sees a finished turn; the hooks know Claude Code will
-		// resume it for a background task or a wakeup (SPEC §6.3).
-		st = backend.Waiting
+		// resume it for a background task or a wakeup, or after a usage
+		// limit's reset (SPEC §6.3).
+		if h := s.hookState(); h == backend.Waiting || h == backend.Limited {
+			st = h
+		}
 	}
 
 	if s.hasPending && (st == backend.Idle || st == backend.Done) {

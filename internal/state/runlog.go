@@ -74,6 +74,11 @@ const (
 	// EventLimitHit: a session hit a usage limit and waits for its reset
 	// (SPEC §6.9); Window and ResetsAt say which and until when. Since 1.8.
 	EventLimitHit EventType = "limit_hit"
+	// EventLimitHold: new starts are held for a usage limit (SPEC §6.9),
+	// with Window, ResetsAt and Detail saying why; EventLimitResume when
+	// they no longer are, Detail saying what ended it. Since 1.8.
+	EventLimitHold   EventType = "limit_hold"
+	EventLimitResume EventType = "limit_resume"
 )
 
 // Why a task didn't integrate (SPEC §6.11): a rebase conflict, or verify
@@ -101,6 +106,8 @@ const (
 	ReasonPlanApproval  = "plan_approval"   // a plan awaits approval in igris (SPEC §6.3); since 1.1
 	ReasonRankMismatch  = "rank_mismatch"   // the session runs on a model its rank doesn't resolve to (SPEC §6.9); since 1.1
 	ReasonIntegration   = "integration"     // the task didn't integrate and the owner decides (SPEC §6.11); since 1.5
+	ReasonUsageLimit    = "usage_limit"     // the session stayed idle after a usage limit's reset (SPEC §6.3); since 1.8
+	ReasonBudget        = "budget"          // a budget is reached (SPEC §6.9); since 1.8
 	ReasonOther         = "other"
 )
 
@@ -119,7 +126,11 @@ var reasons = map[string]bool{
 	ReasonTaskOverdue: true, ReasonVerifyLimit: true, ReasonVerifyNotSent: true, ReasonHookFailed: true,
 	ReasonCommit: true, ReasonResetRequest: true, ReasonPlanChanged: true, ReasonWaiting: true,
 	ReasonPlanApproval: true, ReasonRankMismatch: true, ReasonIntegration: true,
+	ReasonUsageLimit: true, ReasonBudget: true,
 }
+
+// windows are the quota windows a limit_* line may name (SPEC §6.9).
+var windows = map[string]bool{WindowFiveHour: true, WindowSevenDay: true, WindowSpendLimit: true}
 
 // Event is one line of .igris/runs.jsonl (SPEC §13, docs/runlog.md). Fields
 // are only ever added within a version, never removed or renamed.
@@ -424,6 +435,14 @@ func (e Event) checked() Event {
 	}
 	if e.Attempt < 0 {
 		e.Attempt = 0
+	}
+	// A limit line names a window igris knows and a reset it can parse
+	// (SPEC §6.9); anything else is unknown.
+	if e.Window != "" && !windows[e.Window] {
+		e.Window = ""
+	}
+	if _, err := time.Parse(time.RFC3339, e.ResetsAt); e.ResetsAt != "" && err != nil {
+		e.ResetsAt = ""
 	}
 	// A duration no run can have (negative, or over maxDurationMS) is
 	// unknown, so sums over the log can't overflow.

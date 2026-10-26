@@ -219,6 +219,7 @@ func (e *Engine) runPhase(ctx context.Context, id string) (Result, error) {
 			return res, nil
 		}
 		e.routeCommands()
+		e.refreshLimit(ctx)
 		if _, err := e.resets(ctx, true); err != nil {
 			return res, err
 		}
@@ -282,6 +283,11 @@ func (e *Engine) runPhase(ctx context.Context, id string) (Result, error) {
 					}
 				default:
 					held = false
+					// The usage hold (SPEC §6.9): agent tasks wait for the
+					// reset; user tasks start.
+					if s = e.gateStarts(ctx, s); len(s.start) == 0 {
+						break
+					}
 					if err := e.startAll(ctx, s); err != nil {
 						return res, err
 					}

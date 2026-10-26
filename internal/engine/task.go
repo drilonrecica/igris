@@ -55,6 +55,9 @@ type launch struct {
 	// usage counts the tokens of the attempt's session (SPEC §6.9); nil
 	// without a session, with [usage] off, or once logged.
 	usage *attemptUsage
+	// limit is the session's wait at a usage limit (SPEC §6.3); nil while
+	// it isn't waiting at one.
+	limit *sessionLimit
 	// The state watchStep keeps between polls (SPEC §6.3): the idle
 	// episode, the skip request waiting for the owner's answer and the
 	// last State error reported.

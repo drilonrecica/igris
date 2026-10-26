@@ -175,6 +175,10 @@ const (
 	// itself, for a background task or a scheduled wakeup (SPEC §6.3). Not
 	// settled: it doesn't wait for input. Only Claude Code's hooks report it.
 	Waiting AgentState = "waiting"
+	// Limited: the session waits at a usage limit and Claude Code continues
+	// it by itself at the reset (SPEC §6.3, since 1.8). Not settled: it
+	// doesn't wait for input. Only Claude Code's hooks report it.
+	Limited AgentState = "limited"
 	Unknown AgentState = "unknown"
 	Exited  AgentState = "exited"
 )

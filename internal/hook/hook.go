@@ -33,8 +33,20 @@ const (
 // appear in the settings file.
 var Events = []string{
 	"SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse",
-	"PermissionRequest", "Notification", "Stop", "SessionEnd",
+	"PermissionRequest", "Notification", "Stop", "StopFailure", "SessionEnd",
 }
+
+// Claude Code's quota notification types (SPEC §6.3, since 1.8): it
+// continues after the reset, waits for Enter, or gave up continuing.
+const (
+	QuotaResumeFired    = "quota_auto_resume_fired"
+	QuotaResumeStale    = "quota_auto_resume_stale"
+	QuotaResumeDisabled = "quota_auto_resume_disabled"
+)
+
+// RateLimitError is StopFailure's error for a turn the API rejected for a
+// usage limit.
+const RateLimitError = "rate_limit"
 
 // Payload holds the fields of a hook event igris reads; Claude Code sends
 // more, which are ignored.
@@ -44,6 +56,7 @@ type Payload struct {
 	Source           string `json:"source"`            // SessionStart
 	ToolName         string `json:"tool_name"`         // PreToolUse, PostToolUse, PermissionRequest
 	NotificationType string `json:"notification_type"` // Notification
+	Error            string `json:"error"`             // StopFailure: rate_limit, or another error Claude Code shows
 	// TranscriptPath is the session's transcript, in every event (SPEC
 	// §6.9); kept only when state.ValidTranscript accepts it.
 	TranscriptPath string `json:"transcript_path"`
@@ -101,13 +114,25 @@ func Map(p Payload) (backend.AgentState, bool) {
 	case "PermissionRequest":
 		return backend.Blocked, true
 	case "Notification":
-		if p.NotificationType == "idle_prompt" {
+		switch p.NotificationType {
+		case "idle_prompt":
 			return backend.Idle, true
+		case QuotaResumeFired:
+			return backend.Working, true
+		case QuotaResumeStale, QuotaResumeDisabled:
+			return backend.Limited, true
 		}
 		return backend.Blocked, true
 	case "Stop":
 		if p.pending() {
 			return backend.Waiting, true
+		}
+		return backend.Idle, true
+	case "StopFailure":
+		// The turn ended on an error Claude Code shows; a usage limit is
+		// the one it waits out by itself (SPEC §6.3).
+		if p.Error == RateLimitError {
+			return backend.Limited, true
 		}
 		return backend.Idle, true
 	case "SessionEnd":
@@ -156,6 +181,9 @@ func record(root string, in io.Reader, now func() time.Time) error {
 		}
 	}
 	rec := state.AgentState{State: st, Event: p.Event, At: now().UTC()}
+	if st == backend.Limited && p.Event == "Notification" {
+		rec.Event = p.NotificationType // which quota notification (SPEC §6.3)
+	}
 	if state.ValidTranscript(p.TranscriptPath, p.SessionID) {
 		rec.Transcript = p.TranscriptPath
 	}
@@ -164,7 +192,7 @@ func record(root string, in io.Reader, now func() time.Time) error {
 
 // Settings returns the Claude Code settings file igris passes a session
 // with --settings: every event in Events runs
-// '<exe>' hook --root '<root>' <Event>. exe and root come from igris and the
+// '<exe>' hook --root '<root>' <Event>, and autoContinueAtUsageLimit is on. exe and root come from igris and the
 // owner, never from the plan; they are single-quoted for the shell Claude
 // Code runs hook commands with. allow, when not empty, adds permission
 // allow rules: a session in a run's worktree gets the `igris done` rules
@@ -210,7 +238,9 @@ func Settings(exe, root string, allow []string, plan *PlanApproval, statusTask s
 			Timeout: int((wait + planGrace) / time.Second),
 		}}})
 	}
-	settings := map[string]any{"hooks": hooks}
+	// Every task session waits at a usage limit and continues by itself at
+	// the reset, whatever the owner's own setting says (SPEC §6.3, V18-P1).
+	settings := map[string]any{"hooks": hooks, "autoContinueAtUsageLimit": true}
 	if statusTask != "" {
 		if !planpkg.ValidID(statusTask) {
 			return nil, fmt.Errorf("hooks settings: invalid task ID %q for the status line", statusTask)

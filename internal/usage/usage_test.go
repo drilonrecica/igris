@@ -20,8 +20,8 @@ const uuid = "2b7f3c1e-8d4a-4f6b-9c2e-5a1d0e9f8b7c"
 // response written as three records, an API error and one opus response;
 // the subagent file one haiku response.
 var (
-	wantMain = Counts{Input: 5, Output: 214, CacheRead: 77233, CacheWrite: 25167, Messages: 2}
-	wantSub  = Counts{Input: 10, Output: 300, CacheWrite: 4000, Messages: 1}
+	wantMain = Counts{Input: 5, Output: 214, CacheRead: 77233, CacheWrite: 25167, Messages: 2, CacheWrite1h: 25167}
+	wantSub  = Counts{Input: 10, Output: 300, CacheWrite: 4000, Messages: 1, CacheWrite5m: 4000}
 )
 
 func fixture(t *testing.T, name string) []byte {
@@ -77,10 +77,10 @@ func TestReadFixtures(t *testing.T) {
 		{"whole attempt", at("2026-10-20T14:00:00Z"), time.Time{}, wantMain, wantSub,
 			[]string{"claude-sonnet-5-5", "claude-opus-5-5"}, []string{"claude-haiku-5-5"}},
 		{"a continued attempt counts from its start", at("2026-10-20T14:30:00Z"), time.Time{},
-			Counts{Input: 3, Output: 4, CacheRead: 50600, CacheWrite: 1200, Messages: 1}, Counts{},
+			Counts{Input: 3, Output: 4, CacheRead: 50600, CacheWrite: 1200, Messages: 1, CacheWrite1h: 1200}, Counts{},
 			[]string{"claude-opus-5-5"}, nil},
 		{"nothing after the attempt's end", at("2026-10-20T14:00:00Z"), at("2026-10-20T14:30:00Z"),
-			Counts{Input: 2, Output: 210, CacheRead: 26633, CacheWrite: 23967, Messages: 1}, wantSub,
+			Counts{Input: 2, Output: 210, CacheRead: 26633, CacheWrite: 23967, Messages: 1, CacheWrite1h: 23967}, wantSub,
 			[]string{"claude-sonnet-5-5"}, []string{"claude-haiku-5-5"}},
 	}
 	for _, tt := range tests {
@@ -232,5 +232,51 @@ func TestValidModel(t *testing.T) {
 		if got := ValidModel(s); got != want {
 			t.Errorf("ValidModel(%q) = %v", s, got)
 		}
+	}
+}
+
+// A rate-limited request leaves a <synthetic> record with isApiErrorMessage
+// and quotaLimits (SPEC §6.9, V18-P1): the reader records it as a hit with
+// its window and reset, counts nothing for it, and keeps nothing else.
+func TestReadHits(t *testing.T) {
+	path := layout(t, fixture(t, "limit.jsonl"), nil)
+	r := NewReader(path, at("2026-10-07T20:00:00Z"))
+	if err := r.Read(); err != nil {
+		t.Fatal(err)
+	}
+	hits := r.Hits()
+	want := []Hit{{Window: "seven_day", ResetsAt: time.Unix(1759906800, 0).UTC(), At: at("2026-10-07T20:42:11.412Z")}}
+	if !reflect.DeepEqual(hits, want) {
+		t.Errorf("hits = %+v, want %+v", hits, want)
+	}
+	// The one real response counts, with its cache writes by TTL.
+	u := r.Usage()
+	if u.Main.Messages != 1 || u.Main.CacheWrite != 1200 || u.Main.CacheWrite5m != 1000 || u.Main.CacheWrite1h != 200 {
+		t.Errorf("main = %+v", u.Main)
+	}
+	// Read again: nothing new.
+	if err := r.Read(); err != nil || len(r.Hits()) != 1 {
+		t.Errorf("second read: %v, %d hits", err, len(r.Hits()))
+	}
+}
+
+// A hit before the attempt still counts as a hit: it says until when the
+// session waits, whatever attempt it belongs to. One out of shape (no
+// window, a reset that isn't a number) is not a hit.
+func TestReadHitsShape(t *testing.T) {
+	lines := []string{
+		`{"type":"assistant","timestamp":"2026-10-07T19:00:00Z","isApiErrorMessage":true,"error":"rate_limit","message":{"model":"<synthetic>","content":[{"type":"text","text":"SECRET"}],"usage":{"input_tokens":0,"output_tokens":0}},"quotaLimits":{"status":"rejected","rateLimitType":"five_hour","resetsAt":1759906800}}`,
+		`{"type":"assistant","timestamp":"2026-10-07T20:00:00Z","isApiErrorMessage":true,"error":"rate_limit","message":{"model":"<synthetic>"},"quotaLimits":{"status":"rejected","resetsAt":1759906800}}`,
+		`{"type":"assistant","timestamp":"2026-10-07T20:00:00Z","isApiErrorMessage":true,"error":"rate_limit","message":{"model":"<synthetic>"},"quotaLimits":{"status":"rejected","rateLimitType":"seven_day","resetsAt":"soon"}}`,
+		`{"type":"assistant","timestamp":"2026-10-07T20:00:00Z","isApiErrorMessage":true,"error":"server_error","message":{"model":"<synthetic>"}}`,
+	}
+	path := layout(t, []byte(strings.Join(lines, "\n")+"\n"), nil)
+	r := NewReader(path, at("2026-10-07T19:30:00Z"))
+	if err := r.Read(); err != nil {
+		t.Fatal(err)
+	}
+	hits := r.Hits()
+	if len(hits) != 1 || hits[0].Window != "five_hour" {
+		t.Errorf("hits = %+v", hits)
 	}
 }

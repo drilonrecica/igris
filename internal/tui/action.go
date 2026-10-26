@@ -122,6 +122,8 @@ const (
 	actCardNext   // ]: select the next card
 	actCardPick   // a card or a switcher entry; the zone's option is the card's index
 	actAnswerCard // a card's [Answer…]: its task's question, else the first in line
+	// The usage hold (SPEC §6.9).
+	actLimitStart // Start anyway: the next start ignores the quota threshold once
 )
 
 // modeActs maps the mode picker's actions to their modes, in the order
@@ -222,6 +224,8 @@ func (a action) command() (engine.Command, bool) {
 		return engine.Command{Kind: engine.CmdPlan, Plan: state.PlanAllow}, true
 	case actPlanPane:
 		return engine.Command{Kind: engine.CmdPlan, Plan: state.PlanPane}, true
+	case actLimitStart:
+		return engine.Command{Kind: engine.CmdLimitStart}, true
 	}
 	return engine.Command{}, false
 }
@@ -233,6 +237,7 @@ var shortcuts = map[string]action{
 	"m":      actMode,
 	"M":      actTaskMode,
 	"p":      actPause,
+	"a":      actLimitStart,
 	"d":      actDone,
 	"s":      actSkip,
 	"r":      actRetry,
@@ -259,6 +264,7 @@ var helpActions = []helpEntry{
 	{"m", "Mode", "run mode for the sessions launched from now on; More modes… lists the plan:* modes and yolo, which needs the typed phrase"},
 	{"M", "Task mode", "mode for the selected agent task's next session, over its Mode column (not for user tasks)"},
 	{"p", "Pause / Resume", "pause after the current task; igris waits until you resume"},
+	{"a", "Start anyway", "while a usage limit holds the next task: start it anyway, ignoring the quota threshold once (a hit still holds)"},
 	{"d", "Done", "mark the current task done (your decision: verify is skipped); a user task asks for an optional note"},
 	{"s", "Skip", "skip the current task; asks for a reason and closes its session"},
 	{"S", "Side session", "a Claude Code session of your own, not a task"},

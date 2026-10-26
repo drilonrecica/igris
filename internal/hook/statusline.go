@@ -31,14 +31,19 @@ type statusPayload struct {
 		Used *float64 `json:"used_percentage"`
 	} `json:"context_window"`
 	RateLimits struct {
-		FiveHour *rateWindow `json:"five_hour"`
-		SevenDay *rateWindow `json:"seven_day"`
+		FiveHour   *rateWindow `json:"five_hour"`
+		SevenDay   *rateWindow `json:"seven_day"`
+		SpendLimit *rateWindow `json:"spend_limit"` // behind a Claude gateway (since 1.8)
 	} `json:"rate_limits"`
 }
 
 type rateWindow struct {
 	Used     *float64 `json:"used_percentage"`
 	ResetsAt *float64 `json:"resets_at"`
+	// The spend window's amounts, when Claude Code sends them (SPEC §13).
+	UsedUSD  *float64 `json:"used_usd"`
+	LimitUSD *float64 `json:"limit_usd"`
+	Period   string   `json:"period"`
 }
 
 // quotaWindow converts w, nil unless it holds a usable percentage and reset
@@ -49,6 +54,16 @@ func (w *rateWindow) quotaWindow() *state.QuotaWindow {
 		return nil
 	}
 	return &state.QuotaWindow{Used: *w.Used, ResetsAt: int64(*w.ResetsAt)}
+}
+
+// spendWindow is quotaWindow for the spend window, with its amounts.
+func (w *rateWindow) spendWindow() *state.QuotaWindow {
+	q := w.quotaWindow()
+	if q == nil {
+		return nil
+	}
+	q.UsedUSD, q.LimitUSD, q.Period = w.UsedUSD, w.LimitUSD, w.Period
+	return q
 }
 
 // StatusLine reads the status line payload on in, prints the one line igris
@@ -85,6 +100,8 @@ func statusLine(root, task string, in io.Reader, out io.Writer, now func() time.
 		At:       now().UTC(),
 		FiveHour: p.RateLimits.FiveHour.quotaWindow(),
 		SevenDay: p.RateLimits.SevenDay.quotaWindow(),
+		// Recorded for the hold (SPEC §6.9); the line leaves it out.
+		SpendLimit: p.RateLimits.SpendLimit.spendWindow(),
 	}
 	_, err = fmt.Fprintln(out, statusText(task, p, q))
 	// The line is printed first: a quota that can't be saved never blanks

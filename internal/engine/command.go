@@ -48,6 +48,10 @@ const (
 	// (SPEC §6.3): Plan is state.PlanAllow, PlanDeny (Text is the
 	// feedback, required) or PlanPane.
 	CmdPlan
+	// CmdLimitStart is Start anyway while the usage hold holds new starts
+	// (SPEC §6.9): the next start ignores the quota threshold once; a hit
+	// still holds.
+	CmdLimitStart
 )
 
 func (k CommandKind) String() string {
@@ -70,6 +74,8 @@ func (k CommandKind) String() string {
 		return "task mode"
 	case CmdPlan:
 		return "plan answer"
+	case CmdLimitStart:
+		return "start anyway"
 	}
 	return "unknown"
 }
@@ -122,6 +128,12 @@ func (e *Engine) drain() {
 			}
 		case CmdStop:
 			e.stop = true
+		case CmdLimitStart:
+			if !e.limit.on {
+				e.reject(c, "no usage limit holds the run")
+				continue
+			}
+			e.limit.startAnyway = true
 		case CmdMode, CmdTaskMode:
 			e.setMode(c)
 		case CmdAnswer:

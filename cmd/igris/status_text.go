@@ -119,6 +119,11 @@ func liveLine(s *serve.Snapshot, p *plan.Plan, lock *report.RunInfo) runLine {
 		if n := len(r.needs); n > 1 {
 			r.about = append(r.about, fmt.Sprintf("%s %s you", look.Count(n, "task", "tasks"), look.Plural(n, "needs", "need")))
 		}
+	case s.Limited != nil && len(s.Active) == 0:
+		// The usage hold (SPEC §6.9): the window, its use and the reset
+		// with its countdown.
+		set(look.Paused)
+		r.about = []string{s.Limited.Label(), "resumes " + look.Until(s.Limited.ResetsAt.Local(), textNow())}
 	case s.Paused && (s.Holding || len(s.Active) == 0):
 		set(look.Paused)
 		if s.Holding {
@@ -137,6 +142,9 @@ func liveLine(s *serve.Snapshot, p *plan.Plan, lock *report.RunInfo) runLine {
 		}
 		if lock != nil && lock.Lock == report.LockHere {
 			r.about = append(r.about, lock.LockDetail+" on this host")
+		}
+		if l := s.Limited; l != nil {
+			r.about = append(r.about, l.Label()+" · next start "+look.Until(l.ResetsAt.Local(), textNow()))
 		}
 	}
 	return r

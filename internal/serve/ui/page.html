@@ -222,6 +222,9 @@
 {{- with .Plan}}
 <input type="hidden" name="plan" value="{{.}}">
 {{- end}}
+{{- with .Text}}
+<input type="hidden" name="text" value="{{.}}">
+{{- end}}
 {{- if .Continue}}
 <input type="hidden" name="continue" value="1">
 {{- end}}

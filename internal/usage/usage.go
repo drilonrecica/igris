@@ -44,13 +44,17 @@ const (
 const synthetic = "<synthetic>"
 
 // Counts are the tokens of a thread: the four counts of the responses'
-// usage, and how many responses there were.
+// usage, and how many responses there were. Since 1.8 the cache writes
+// are also split by TTL, for the price estimate (SPEC §6.9); both are 0
+// in a transcript that doesn't split them.
 type Counts struct {
-	Input      int64 `json:"input"`
-	Output     int64 `json:"output"`
-	CacheRead  int64 `json:"cache_read"`
-	CacheWrite int64 `json:"cache_write"`
-	Messages   int64 `json:"messages"`
+	Input        int64 `json:"input"`
+	Output       int64 `json:"output"`
+	CacheRead    int64 `json:"cache_read"`
+	CacheWrite   int64 `json:"cache_write"`
+	Messages     int64 `json:"messages"`
+	CacheWrite5m int64 `json:"cache_write_5m,omitempty"`
+	CacheWrite1h int64 `json:"cache_write_1h,omitempty"`
 }
 
 // IsZero reports that nothing was counted.
@@ -61,8 +65,24 @@ func (c *Counts) add(u tokens) {
 	c.Output = sat(c.Output, u.Output)
 	c.CacheRead = sat(c.CacheRead, u.CacheRead)
 	c.CacheWrite = sat(c.CacheWrite, u.CacheWrite)
+	c.CacheWrite5m = sat(c.CacheWrite5m, u.CacheCreation.FiveMin)
+	c.CacheWrite1h = sat(c.CacheWrite1h, u.CacheCreation.OneHour)
 	c.Messages = sat(c.Messages, 1)
 }
+
+// Hit is a request the API rejected for a usage limit (SPEC §6.9, since
+// 1.8): the window and when it resets, and when the record was written.
+type Hit struct {
+	Window   string
+	ResetsAt time.Time
+	At       time.Time
+}
+
+// maxHits bounds the hits kept: a transcript records a few per episode.
+const maxHits = 16
+
+// The windows a hit may name (SPEC §6.9).
+var windows = map[string]bool{"five_hour": true, "seven_day": true}
 
 // sat adds two non-negative counts without overflowing: a forged
 // transcript can hold any number.
@@ -84,10 +104,14 @@ type Usage struct {
 
 // tokens are the counts of message.usage.
 type tokens struct {
-	Input      int64 `json:"input_tokens"`
-	Output     int64 `json:"output_tokens"`
-	CacheRead  int64 `json:"cache_read_input_tokens"`
-	CacheWrite int64 `json:"cache_creation_input_tokens"`
+	Input         int64 `json:"input_tokens"`
+	Output        int64 `json:"output_tokens"`
+	CacheRead     int64 `json:"cache_read_input_tokens"`
+	CacheWrite    int64 `json:"cache_creation_input_tokens"`
+	CacheCreation struct {
+		FiveMin int64 `json:"ephemeral_5m_input_tokens"`
+		OneHour int64 `json:"ephemeral_1h_input_tokens"`
+	} `json:"cache_creation"`
 }
 
 // record holds the only fields of a transcript line igris decodes; the
@@ -102,6 +126,13 @@ type record struct {
 		Model string `json:"model"`
 		Usage tokens `json:"usage"`
 	} `json:"message"`
+	// A request the API rejected for a usage limit (SPEC §6.9, V18-P1).
+	IsAPIError  bool   `json:"isApiErrorMessage"`
+	Error       string `json:"error"`
+	QuotaLimits struct {
+		RateLimitType string          `json:"rateLimitType"`
+		ResetsAt      json.RawMessage `json:"resetsAt"` // unix seconds; read leniently
+	} `json:"quotaLimits"`
 }
 
 // file is how far a transcript has been read.
@@ -121,6 +152,7 @@ type Reader struct {
 	files map[string]*file
 	seen  map[string]bool // message ids counted
 	u     Usage
+	hits  []Hit
 	ok    bool // the transcript was read at least once
 }
 
@@ -144,6 +176,11 @@ func (r *Reader) Finish(until time.Time) error {
 
 // Available reports whether the transcript was read at least once.
 func (r *Reader) Available() bool { return r.ok }
+
+// Hits returns the usage-limit hits the main transcript records, in file
+// order, whatever attempt they belong to: a hit says until when the
+// session waits (SPEC §6.9). The list is a copy.
+func (r *Reader) Hits() []Hit { return append([]Hit(nil), r.hits...) }
 
 // Usage returns what was counted so far. The model lists are copies.
 func (r *Reader) Usage() Usage {
@@ -266,6 +303,9 @@ func (r *Reader) record(line []byte, sub bool) {
 	if model == "" {
 		model = rec.RequestedModel
 	}
+	if rec.IsAPIError && !sub && !rec.IsSidechain {
+		r.hit(rec)
+	}
 	u := m.Usage
 	switch {
 	case m.ID == "", len(m.ID) > maxIDLen, model == synthetic, r.seen[m.ID]:
@@ -283,6 +323,28 @@ func (r *Reader) record(line []byte, sub bool) {
 	}
 	r.u.Main.add(u)
 	r.u.Models = addModel(r.u.Models, model)
+}
+
+// hit records rec as a usage-limit hit when it is one: error rate_limit,
+// a window igris knows and a reset time (SPEC §6.9). Nothing else of the
+// record is kept. The same hit written twice (one record per content
+// block) counts once.
+func (r *Reader) hit(rec record) {
+	q := rec.QuotaLimits
+	var secs float64
+	if rec.Error != "rate_limit" || !windows[q.RateLimitType] || json.Unmarshal(q.ResetsAt, &secs) != nil ||
+		math.IsNaN(secs) || secs <= 0 || secs > math.MaxInt32*4 || rec.Timestamp.IsZero() {
+		return
+	}
+	h := Hit{Window: q.RateLimitType, ResetsAt: time.Unix(int64(secs), 0).UTC(), At: rec.Timestamp}
+	for _, old := range r.hits {
+		if old == h {
+			return
+		}
+	}
+	if len(r.hits) < maxHits {
+		r.hits = append(r.hits, h)
+	}
 }
 
 // addModel adds the model id to list once, if it looks like one: it goes

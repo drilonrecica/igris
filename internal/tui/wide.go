@@ -362,6 +362,13 @@ func (m *model) renderCard(w, rows int) []string {
 		lines = wrap(m.endText, w)
 	case m.holding:
 		lines = []string{"paused before the next task", "press p to continue"}
+	case m.limited != nil:
+		// The usage hold (SPEC §6.9): what holds, until when, and the task
+		// that would start.
+		lines = []string{m.limitText("resumes"), "a: start anyway · p: pause · x: stop"}
+		if m.heldTask != "" {
+			lines = append([]string{"held before " + m.heldTask}, lines...)
+		}
 	default:
 		lines = []string{"no task running"}
 	}

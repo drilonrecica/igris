@@ -58,6 +58,13 @@ func Nudge(id string) string {
 		"If you are waiting for the owner or for something else, say in one line what it is.\n"
 }
 
+// LimitContinue returns the one fixed prompt igris sends a session that
+// waited at a usage limit and hasn't continued after the reset (SPEC
+// §6.3): Claude Code gave up continuing by itself, or two minutes passed.
+func LimitContinue() string {
+	return "igris: the usage limit has reset; continue the task.\n"
+}
+
 // Vars are the template variables of the task prompt (SPEC §6.1).
 type Vars struct {
 	ID           string

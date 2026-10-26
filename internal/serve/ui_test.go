@@ -341,6 +341,8 @@ func TestUIFormActions(t *testing.T) {
 		{"mode", url.Values{"type": {CmdMode}, "text": {"auto"}}, http.StatusSeeOther, &engine.Command{Kind: engine.CmdMode, Text: "auto"}, ""},
 		{"task mode", url.Values{"type": {CmdTaskMode}, "task": {"P1-04"}, "text": {"manual"}}, http.StatusSeeOther,
 			&engine.Command{Kind: engine.CmdTaskMode, Task: "P1-04", Text: "manual"}, ""},
+		{"start anyway", url.Values{"type": {CmdLimit}, "text": {LimitStart}}, http.StatusSeeOther, &engine.Command{Kind: engine.CmdLimitStart, Text: LimitStart}, ""},
+		{"limit takes start", url.Values{"type": {CmdLimit}, "text": {"later"}}, http.StatusBadRequest, nil, "limit takes text start"},
 		{"mode yolo", url.Values{"type": {CmdMode}, "text": {"yolo"}}, http.StatusForbidden, nil, "never set remotely"},
 		{"mode plan:yolo with yes", url.Values{"type": {CmdMode}, "text": {" Plan:Yolo "}, "yes": {"1"}}, http.StatusForbidden, nil, "never set remotely"},
 		{"task mode yolo", url.Values{"type": {CmdTaskMode}, "task": {"P1-04"}, "text": {"yolo"}}, http.StatusForbidden, nil, "never set remotely"},

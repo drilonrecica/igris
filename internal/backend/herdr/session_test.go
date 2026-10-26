@@ -652,6 +652,7 @@ func TestStateHookFillIn(t *testing.T) {
 	}
 	waiting := func(string) (backend.AgentState, bool) { return backend.Waiting, true }
 	idle := func(string) (backend.AgentState, bool) { return backend.Idle, true }
+	limited := func(string) (backend.AgentState, bool) { return backend.Limited, true }
 	tests := []struct {
 		name  string
 		res   runner.Result
@@ -671,6 +672,11 @@ func TestStateHookFillIn(t *testing.T) {
 		{"waiting beats herdr done", ok(t, "pane_get_done.json"), waiting, uuid, backend.Waiting},
 		{"herdr working beats waiting", ok(t, "pane_get_working.json"), waiting, uuid, backend.Working},
 		{"idle hooks keep herdr idle", ok(t, "pane_get_idle.json"), idle, uuid, backend.Idle},
+		// A session waiting at a usage limit is a finished turn to herdr
+		// too (SPEC §6.3, since 1.8).
+		{"limited beats herdr idle", ok(t, "pane_get_idle.json"), limited, uuid, backend.Limited},
+		{"limited beats herdr done", ok(t, "pane_get_done.json"), limited, uuid, backend.Limited},
+		{"herdr working beats limited", ok(t, "pane_get_working.json"), limited, uuid, backend.Working},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

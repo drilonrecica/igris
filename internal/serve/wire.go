@@ -56,7 +56,13 @@ const (
 	CmdMode     = "mode"
 	CmdTaskMode = "task_mode"
 	CmdPlan     = "plan"
+	// CmdLimit is Start anyway while the usage hold holds (SPEC §6.9,
+	// since 1.8): text start.
+	CmdLimit = "limit"
 )
+
+// LimitStart is the text of a limit command: the one action it takes.
+const LimitStart = "start"
 
 var commandKinds = map[string]engine.CommandKind{
 	CmdPause:    engine.CmdPause,
@@ -68,6 +74,7 @@ var commandKinds = map[string]engine.CommandKind{
 	CmdMode:     engine.CmdMode,
 	CmdTaskMode: engine.CmdTaskMode,
 	CmdPlan:     engine.CmdPlan,
+	CmdLimit:    engine.CmdLimitStart,
 }
 
 // EventTypeTokens is the socket type of engine.UsageRead: the run log's
@@ -139,6 +146,9 @@ type Event struct {
 	Quota         *state.Quota        `json:"quota,omitempty"`
 	// Slot is the task's slot in a parallel phase (SPEC §6.11), since 1.5.
 	Slot *int `json:"slot,omitempty"`
+	// Limit is the usage limit on limit_hold, limit_resume and
+	// session_limited (SPEC §6.9), since 1.8.
+	Limit *engine.Limit `json:"limit,omitempty"`
 }
 
 // Change is a Status cell the run wrote.
@@ -182,6 +192,10 @@ func fromEngine(ev engine.Event, run string) Event {
 		Session: ev.Session, ClaudeSession: ev.ClaudeSession,
 		Question: string(ev.Question), Plan: cut(ev.Plan, maxPlan), Then: ev.Then, Quota: ev.Quota,
 		Slot: ev.Slot,
+	}
+	if l := ev.Limit; l != nil {
+		lim := *l
+		out.Limit = &lim
 	}
 	for _, c := range head(ev.Changes, maxListItems) {
 		out.Changes = append(out.Changes, Change{ID: c.ID, From: c.From.String(), To: c.To.String()})
@@ -319,8 +333,29 @@ func (r Request) command() (engine.Command, error) {
 			return engine.Command{}, fmt.Errorf("plan is %s, %s or %s", state.PlanAllow, state.PlanDeny, state.PlanPane)
 		}
 		c.Plan = r.Plan
+	case engine.CmdLimitStart:
+		if strings.TrimSpace(c.Text) != LimitStart {
+			return engine.Command{}, errors.New("limit takes text start")
+		}
 	}
 	return c, nil
+}
+
+// limitWindows are the quota windows an event's limit may name.
+var limitWindows = map[string]bool{state.WindowFiveHour: true, state.WindowSevenDay: true, state.WindowSpendLimit: true}
+
+// limitOf is a limit the run sent, nil unless it has the shape of one: a
+// window igris knows, a reset, a use that is a percentage (the spend
+// window's may pass 100) and a task ID or none.
+func limitOf(l *engine.Limit) *engine.Limit {
+	if l == nil || !limitWindows[l.Window] || l.ResetsAt.IsZero() || l.Percent < 0 || l.Percent > 1e6 || l.Percent != l.Percent {
+		return nil
+	}
+	if l.Task != "" && !plan.ValidID(l.Task) {
+		return nil
+	}
+	out := *l
+	return &out
 }
 
 // cut shortens s to at most n bytes, on a rune boundary, marking the cut.

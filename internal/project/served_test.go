@@ -76,4 +76,8 @@ func TestLiveRun(t *testing.T) {
 	if got := LiveRun(serve.Snapshot{Paused: true, Holding: true}); !got.Paused || len(got.NeedsYou) > 0 {
 		t.Errorf("a holding run: %+v", got)
 	}
+	// The usage hold is a run hold too (SPEC §6.9).
+	if got := LiveRun(serve.Snapshot{Limited: &serve.Limited{Window: "five_hour"}}); !got.Paused {
+		t.Errorf("a run held by a usage limit: %+v", got)
+	}
 }

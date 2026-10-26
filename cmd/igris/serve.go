@@ -310,6 +310,8 @@ func formatServed(ev engine.Event) []string {
 		return []string{"pause after task on"}
 	case engine.Paused:
 		return []string{"paused before " + ev.Task + "; Pause in `igris attach` continues"}
+	case engine.LimitHold:
+		return []string{limitHoldLine(ev) + "; Start anyway in `igris attach` starts it now"}
 	}
 	return formatEvent(ev)
 }

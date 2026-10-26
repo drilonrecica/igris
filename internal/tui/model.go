@@ -31,6 +31,7 @@ const (
 	stateQuestion            // igris asked the owner something
 	stateLost                // the session is gone
 	stateWaiting             // the agent waits on background work Claude Code resumes it for
+	stateLimited             // the session waits at a usage limit (SPEC §6.3)
 )
 
 // current is an active task, as its card shows it (SPEC §15.3).
@@ -47,6 +48,7 @@ type current struct {
 	rankMismatch                 string         // the rank audit's detail once the attempt ran on another model (SPEC §6.9)
 	tokens                       *engine.Tokens // the attempt's token usage so far (SPEC §6.9, §15.1); nil until read
 	waiting                      bool           // the agent waits on background work (SPEC §6.3)
+	limit                        *engine.Limit  // the usage limit the session waits at, once known (SPEC §6.3)
 	session                      *backend.SessionRef
 	claudeSession                string // the session's Claude UUID, for claude --resume
 }
@@ -94,6 +96,10 @@ type model struct {
 	mode         string
 	paused       bool // pause-after-task is on
 	holding      bool // the run holds because of the pause
+	// limited is the usage hold while it holds new starts (SPEC §6.9),
+	// heldTask the task that would start; nil otherwise.
+	limited  *engine.Limit
+	heldTask string
 	// cards are the active tasks in plan order (SPEC §15.1): one in a
 	// sequential phase, up to max in a parallel one. cur is the selected
 	// card, which o, d, s, r, t, M and y act on; nil with none.
@@ -966,6 +972,32 @@ func (m *model) event(ev engine.Event) {
 				setState(c, stateWorking, ev)
 			}
 		}
+	case engine.SessionLimited:
+		if c != nil {
+			if ev.Limit != nil {
+				l := *ev.Limit
+				c.limit = &l
+			}
+			if c.state != stateLimited {
+				setState(c, stateLimited, ev)
+			} else {
+				c.detail = ev.Detail
+			}
+		}
+	case engine.SessionLimitOver:
+		if c != nil {
+			c.limit = nil
+			if c.state == stateLimited {
+				setState(c, stateWorking, ev)
+			}
+		}
+	case engine.LimitHold:
+		if ev.Limit != nil {
+			l := *ev.Limit
+			m.limited, m.heldTask = &l, ev.Task
+		}
+	case engine.LimitResume:
+		m.limited, m.heldTask = nil, ""
 	case engine.NeedsYou:
 		if c != nil && c.waiting && c.state == stateWaiting {
 			// Waited past waiting_limit: the time counts from the start.
@@ -1050,6 +1082,7 @@ func (m *model) event(ev engine.Event) {
 	case engine.RunStopped:
 		m.ended = true
 		m.endText = "the run stopped: " + ev.Detail
+		m.limited, m.heldTask = nil, ""
 		clear(m.asks)
 		if !m.side.owns(m.dialog) {
 			m.dialog = nil // nothing left to ask or confirm; a side session isn't the run's

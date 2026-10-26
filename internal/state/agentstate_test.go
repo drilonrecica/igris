@@ -153,3 +153,11 @@ func TestReadAgentStateTranscript(t *testing.T) {
 		}
 	}
 }
+
+// The states `igris hook` writes since 1.8 (SPEC §6.3): limited is one.
+func TestParseAgentStateLimited(t *testing.T) {
+	s, err := ParseAgentState([]byte(`{"state":"limited","event":"quota_auto_resume_stale","at":"2026-10-26T05:48:00Z"}`))
+	if err != nil || s.State != "limited" || s.Event != "quota_auto_resume_stale" {
+		t.Fatalf("ParseAgentState = %+v, %v", s, err)
+	}
+}

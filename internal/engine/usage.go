@@ -30,6 +30,9 @@ type attemptUsage struct {
 	mismatch bool
 	// shown is the last counter sent to the UI, so it hears of changes only.
 	shown *Tokens
+	// hits is how many of the reader's usage-limit hits were noted (SPEC
+	// §6.9).
+	hits int
 }
 
 // startUsage starts counting the usage of l's attempt from from, unless
@@ -44,7 +47,7 @@ func (e *Engine) startUsage(l *launch, from time.Time) {
 // readUsage reads what l's transcript gained, at most every usageEvery
 // unless final. A read that fails is warned about once per attempt; the
 // task and the run go on.
-func (e *Engine) readUsage(l *launch, final bool) {
+func (e *Engine) readUsage(ctx context.Context, l *launch, final bool) {
 	u := l.usage
 	if u == nil {
 		return
@@ -77,6 +80,7 @@ func (e *Engine) readUsage(l *launch, final bool) {
 		e.warn(fmt.Sprintf("can't read the transcript of %s: %v; its token usage may be incomplete", l.t.ID, err))
 	}
 	e.showUsage(u)
+	e.noteHits(ctx, l)
 }
 
 // showUsage tells the UI the attempt's counter when it changed (SPEC §15.1):
@@ -154,7 +158,7 @@ func (e *Engine) endUsage(ctx context.Context, l *launch) {
 	if u == nil {
 		return
 	}
-	e.readUsage(l, true)
+	e.readUsage(ctx, l, true)
 	e.auditRank(ctx, l, true)
 	l.usage = nil
 	ev := state.Event{Type: state.EventUsage}
@@ -199,16 +203,16 @@ type quotaWatch struct {
 }
 
 // readQuota looks at the quota the status line recorded, at most every
-// usageEvery, and tells the UI when its windows changed (SPEC §6.3). It
-// does nothing unless [usage] statusline is on; a quota.json that can't be
-// read counts as none, since a session can write it.
-func (e *Engine) readQuota() {
+// usageEvery unless fresh, and tells the UI when its windows changed (SPEC
+// §6.3). It does nothing unless [usage] statusline is on; a quota.json
+// that can't be read counts as none, since a session can write it.
+func (e *Engine) readQuota(fresh bool) {
 	if !e.cfg.Usage.Statusline {
 		return
 	}
 	now := e.clock.Now()
 	w := &e.quota
-	if !w.last.IsZero() && now.Sub(w.last) < usageEvery {
+	if !fresh && !w.last.IsZero() && now.Sub(w.last) < usageEvery {
 		return
 	}
 	w.last = now

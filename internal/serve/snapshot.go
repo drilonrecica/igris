@@ -55,9 +55,42 @@ type Snapshot struct {
 	Questions []Event      `json:"questions,omitempty"`
 	Reset     *Event       `json:"reset,omitempty"`
 	Quota     *state.Quota `json:"quota,omitempty"`
+	// Limited is the usage hold while it holds new starts (SPEC §6.9,
+	// since 1.8); nil otherwise.
+	Limited *Limited `json:"limited,omitempty"`
 	// Feed is the last events, oldest first, without plan text or hook
 	// output.
 	Feed []Event `json:"feed,omitempty"`
+}
+
+// Limited is a usage limit as the snapshot carries it (SPEC §13, since
+// 1.8): the window, its reset, the use that holds (0 after a hit), the task
+// that hit it or, on the hold, the task that would start, and the words.
+type Limited struct {
+	Window   string    `json:"window"`
+	ResetsAt time.Time `json:"resets_at"`
+	Percent  float64   `json:"percent,omitempty"`
+	Task     string    `json:"task,omitempty"`
+	Detail   string    `json:"detail,omitempty"`
+}
+
+// limitedOf is the limit of ev as the snapshot keeps it; nil without one.
+func limitedOf(raw engine.Event, ev Event) *Limited {
+	l := raw.Limit
+	if l == nil {
+		return nil
+	}
+	task := l.Task
+	if task == "" {
+		task = raw.Task
+	}
+	return &Limited{Window: l.Window, ResetsAt: l.ResetsAt, Percent: l.Percent, Task: task, Detail: ev.Detail}
+}
+
+// Label is the limit's words for a status line: "5h limit 96%", "7d
+// limit" after a hit.
+func (l Limited) Label() string {
+	return engine.Limit{Window: l.Window, Percent: l.Percent}.Label()
 }
 
 // Phase is a phase of the plan with its tasks.
@@ -104,6 +137,9 @@ type Current struct {
 	Overdue      string  `json:"overdue,omitempty"`
 	RankMismatch string  `json:"rank_mismatch,omitempty"`
 	Tokens       *Tokens `json:"tokens,omitempty"`
+	// Limit is the usage limit the session waits at (SPEC §6.3, since
+	// 1.8), once the transcript's hit named it; nil otherwise.
+	Limit *Limited `json:"limit,omitempty"`
 }
 
 // The card's states.
@@ -115,6 +151,9 @@ const (
 	StateVerifying = "verifying"
 	StateLost      = "lost"
 	StateQuestion  = "question"
+	// StateLimited: the session waits at a usage limit (SPEC §6.3, since
+	// 1.8).
+	StateLimited = "limited"
 )
 
 // feedLen is how many events the snapshot's feed keeps.
@@ -133,6 +172,7 @@ type tracker struct {
 	asks                      map[string]*Event // the pending question of each task
 	reset                     *Event
 	quota                     *state.Quota
+	limited                   *Limited
 	feed                      []Event // a ring of the last feedLen events
 	feedNext                  int
 }
@@ -232,6 +272,28 @@ func (t *tracker) apply(raw engine.Event, ev Event) {
 				setState(c, StateWorking, ev)
 			}
 		}
+	case engine.SessionLimited:
+		if c != nil {
+			if l := limitedOf(raw, ev); l != nil {
+				c.Limit = l
+			}
+			if c.State != StateLimited {
+				setState(c, StateLimited, ev)
+			} else {
+				c.Detail = ev.Detail
+			}
+		}
+	case engine.SessionLimitOver:
+		if c != nil {
+			c.Limit = nil
+			if c.State == StateLimited {
+				setState(c, StateWorking, ev)
+			}
+		}
+	case engine.LimitHold:
+		t.limited = limitedOf(raw, ev)
+	case engine.LimitResume:
+		t.limited = nil
 	case engine.NeedsYou:
 		if c != nil && c.Waiting && c.State == StateWaiting {
 			c.State, c.Detail, c.Reason = StateNeedsYou, ev.Detail, ev.Reason // the wait counts from its start
@@ -294,7 +356,7 @@ func (t *tracker) apply(raw engine.Event, ev Event) {
 	case engine.RunStopped:
 		t.ended, t.end = true, raw.Detail
 		clear(t.asks)
-		t.reset = nil
+		t.reset, t.limited = nil, nil
 	}
 }
 
@@ -339,6 +401,10 @@ func (t *tracker) snapshot(phases []Phase) Snapshot {
 		Paused: t.paused, Holding: t.holding, Worktree: t.worktree, Ended: t.ended, End: t.end,
 		Reset: t.reset, Quota: t.quota,
 	}
+	if t.limited != nil {
+		l := *t.limited
+		s.Limited = &l
+	}
 	if len(t.overrides) > 0 {
 		s.Overrides = make(map[string]string, len(t.overrides))
 		for k, v := range t.overrides {
@@ -353,7 +419,12 @@ func (t *tracker) snapshot(phases []Phase) Snapshot {
 		return len(order)
 	}
 	for _, c := range t.cards {
-		s.Active = append(s.Active, *c)
+		cc := *c
+		if c.Limit != nil {
+			l := *c.Limit
+			cc.Limit = &l
+		}
+		s.Active = append(s.Active, cc)
 	}
 	slices.SortStableFunc(s.Active, func(a, b Current) int { return rank(a.Task) - rank(b.Task) })
 	if len(s.Active) > 0 {

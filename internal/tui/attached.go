@@ -24,6 +24,15 @@ var cardStates = map[string]taskState{
 	serve.StateVerifying: stateVerifying,
 	serve.StateLost:      stateLost,
 	serve.StateQuestion:  stateQuestion,
+	serve.StateLimited:   stateLimited,
+}
+
+// limitOf is a snapshot's limit as the view keeps it; nil without one.
+func limitOf(l *serve.Limited) *engine.Limit {
+	if l == nil {
+		return nil
+	}
+	return &engine.Limit{Window: l.Window, ResetsAt: l.ResetsAt, Percent: l.Percent, Task: l.Task}
 }
 
 // restore puts the view in the state of s: the run's facts, the current
@@ -48,6 +57,10 @@ func (m *model) restore(s serve.Snapshot) {
 		m.overrides[k] = v
 	}
 	m.paused, m.holding, m.worktree, m.quota = s.Paused, s.Holding, s.Worktree, s.Quota
+	m.limited, m.heldTask = limitOf(s.Limited), ""
+	if s.Limited != nil {
+		m.heldTask = s.Limited.Task
+	}
 	m.ended, m.endText = s.Ended, ""
 	if s.Ended {
 		m.endText = "the run stopped: " + s.End
@@ -138,7 +151,7 @@ func currentOf(c *serve.Current) *current {
 	cur := &current{
 		id: c.Task, title: c.Title, rank: c.Rank, model: c.Model, mode: c.Mode, user: c.User, slot: c.Slot,
 		started: c.Started, state: cardStates[c.State], since: c.Since, detail: c.Detail, reason: c.Reason,
-		overdue: c.Overdue, rankMismatch: c.RankMismatch, waiting: c.Waiting,
+		overdue: c.Overdue, rankMismatch: c.RankMismatch, waiting: c.Waiting, limit: limitOf(c.Limit),
 		session: c.Session, claudeSession: c.ClaudeSession,
 	}
 	if t := c.Tokens; t != nil {

@@ -329,3 +329,27 @@ func TestAttachRefusesAnotherTask(t *testing.T) {
 		t.Errorf("Attach for T-1 = %v", err)
 	}
 }
+
+// SetState changes what a live session reports from now on, for tests that
+// act on the clock (a usage limit's reset) rather than on a poll count.
+func TestSetState(t *testing.T) {
+	b := New()
+	b.Script("T-1", backend.Working)
+	s, err := b.OpenSession(context.Background(), backend.SessionSpec{TaskID: "T-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st, _ := s.State(context.Background()); st != backend.Working {
+		t.Fatalf("State = %s", st)
+	}
+	b.SetState("T-1", backend.Limited)
+	for range 2 {
+		if st, _ := s.State(context.Background()); st != backend.Limited {
+			t.Fatalf("State = %s, want limited", st)
+		}
+	}
+	b.SetState("T-1", backend.Working)
+	if st, _ := s.State(context.Background()); st != backend.Working {
+		t.Fatalf("State = %s, want working", st)
+	}
+}

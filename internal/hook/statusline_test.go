@@ -119,3 +119,24 @@ func TestSettingsStatusLine(t *testing.T) {
 		t.Error("accepted a task ID that is not one")
 	}
 }
+
+// Behind a Claude gateway the status line also sends spend_limit, which is
+// recorded with the two windows since 1.8 (SPEC §6.3, §13); the printed
+// line is unchanged.
+func TestStatusLineSpendLimit(t *testing.T) {
+	root := openRoot(t)
+	in := `{"model":{"id":"claude-opus-5-5"},"rate_limits":{"five_hour":{"used_percentage":4,"resets_at":1792518000},` +
+		`"spend_limit":{"used_percentage":103.5,"resets_at":1792652400,"used_usd":41.4,"limit_usd":40,"period":"monthly"}}}`
+	var out bytes.Buffer
+	if err := StatusLine(context.Background(), root, "V18-03", strings.NewReader(in), &out, statusNow); err != nil {
+		t.Fatal(err)
+	}
+	if want := "V18-03 · claude-opus-5-5 · 5h 4%\n"; out.String() != want {
+		t.Errorf("line = %q, want %q", out.String(), want)
+	}
+	q, ok, err := state.ReadQuota(root)
+	if err != nil || !ok || q.SpendLimit == nil || q.SpendLimit.Used != 103.5 || q.SpendLimit.ResetsAt != 1792652400 ||
+		q.SpendLimit.UsedUSD == nil || *q.SpendLimit.UsedUSD != 41.4 || *q.SpendLimit.LimitUSD != 40 || q.SpendLimit.Period != "monthly" {
+		t.Fatalf("quota %+v ok=%v err=%v", q, ok, err)
+	}
+}
