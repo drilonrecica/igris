@@ -16,6 +16,7 @@ import (
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/plan"
+	"github.com/drilonrecica/igris/internal/prompt"
 	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/runner"
 	"github.com/drilonrecica/igris/internal/state"
@@ -266,6 +267,13 @@ func (w *dryWalk) event(eng *Engine, dir *state.Dir, ev Event) {
 			Rank: textsafe.Line(ev.Rank), Model: textsafe.Line(ev.Model), Mode: textsafe.Line(ev.Mode), Then: textsafe.Line(eng.planThen(ev.Mode)), Verify: textsafe.Line(verify),
 			Title: textsafe.Line(ev.Title), Resumed: w.resumed[ev.Task],
 		})
+		// The handoff notes its prompt would carry (SPEC §6.1, §14).
+		if l := eng.launchOf(ev.Task); l != nil {
+			notes, _ := eng.collectDepNotes(l.t)
+			if lines := depNoteLines(notes); len(lines) > 0 {
+				r.Steps = append(r.Steps, report.DryStep{Kind: report.StepNote, Lines: lines})
+			}
+		}
 	case YourTurn:
 		r.Users++
 		r.Steps = append(r.Steps, report.DryStep{
@@ -297,4 +305,21 @@ func newDryBackend(dir *state.Dir) backend.Backend {
 		return dir.WriteSignal(state.Signal{ID: id, Action: state.ActionDone, Note: "dry run"})
 	})
 	return be
+}
+
+// depNoteLines are the handoff notes a prompt would carry, one line per dep
+// (SPEC §14): the note as it is cut to the line, a plan as "+ approved plan".
+func depNoteLines(notes []prompt.DepNote) []string {
+	var lines []string
+	for _, n := range notes {
+		line := "notes from " + n.ID + " (" + n.Status + ")"
+		if n.Note != "" {
+			line += ": " + cutRunes(n.Note, 120)
+		}
+		if n.Plan != "" {
+			line += " + approved plan"
+		}
+		lines = append(lines, line)
+	}
+	return lines
 }

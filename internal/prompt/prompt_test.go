@@ -64,6 +64,10 @@ func TestRenderGolden(t *testing.T) {
 		{"context", "M1-04", Env{Model: "sonnet", PlanFile: "tasks.md", CommitPolicy: "auto"}},
 		{"context-resumed", "M1-04", Env{Model: "sonnet", PlanFile: "tasks.md", CommitPolicy: "ask", Resumed: true}},
 		{"commit-never-resumed", "M1-02", Env{Model: "opus", PlanFile: "tasks.md", CommitPolicy: "never", Resumed: true}},
+		{"dep-notes", "M1-03", Env{Model: "opus", PlanFile: "tasks.md", CommitPolicy: "ask", DepNotes: []DepNote{
+			{ID: "M1-01", Title: "Parse widgets", Status: "done", Note: "parser in internal/widget"},
+			{ID: "M1-02", Title: "Frob widgets", Status: "skipped", Note: "not needed", Plan: "1. Frob\n\n2. Check\n", PlanCut: true, PlanFile: "/p/.igris/plans/M1-02-a1-1.md"},
+		}}},
 		{"included-task-file", "M1-01", Env{Model: "sonnet", PlanFile: "tasks.md", TaskFile: "phases/m1.md", CommitPolicy: "ask"}},
 	}
 	for _, tt := range tests {
@@ -145,7 +149,7 @@ func TestRenderCustomTemplate(t *testing.T) {
 func TestPromptTemplateEveryVariable(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "all.tmpl")
 	const all = "{{.ID}}|{{.Title}}|{{.Text}}|{{.Phase}}|{{.PhaseTitle}}|{{.Rank}}|{{.Model}}|{{.Owner}}|{{.Deps}}|" +
-		"{{.Extra}}|{{.Context}}|{{.PlanFile}}|{{.TaskFile}}|{{.Resumed}}|{{.CommitPolicy}}|{{.DoneCommand}}\n"
+		"{{.Extra}}|{{.Context}}|{{.PlanFile}}|{{.TaskFile}}|{{.Resumed}}|{{.CommitPolicy}}|{{.DoneCommand}}|{{len .DepNotes}}\n"
 	if err := os.WriteFile(path, []byte(all), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -153,7 +157,7 @@ func TestPromptTemplateEveryVariable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(got, "M1-02|Frob widgets|") || strings.Count(got, "|") != 15 {
+	if !strings.HasPrefix(got, "M1-02|Frob widgets|") || strings.Count(got, "|") != 16 {
 		t.Errorf("got %q", got)
 	}
 }

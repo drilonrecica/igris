@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -1064,5 +1065,43 @@ func TestDryRunShowsVerifyProfiles(t *testing.T) {
 		if !strings.Contains(out.String(), w) {
 			t.Errorf("output lacks %q:\n%s", w, out.String())
 		}
+	}
+}
+
+// The dry run shows, under each task, the handoff notes its prompt would
+// carry, from the log as it is: a dep the walk only reaches has none
+// (SPEC §6.1, §14).
+func TestDryRunShowsHandoffNotes(t *testing.T) {
+	withVersions(t, "2.1.304 (Claude Code)\n", "herdr 0.9.1\n")
+	root := writeProject(t, map[string]string{
+		"tasks.md": "## A — First\n\n| ID | Task | Deps | Status | Model |\n|---|---|---|---|---|\n" +
+			"| A-1 | **One** | — | done | sonnet |\n" +
+			"| A-2 | **Two** | A-1 | ready | sonnet |\n" +
+			"| A-3 | **Three** | A-2 | blocked | sonnet |\n",
+		"igris.toml":        "[run]\nverify = \"false\"\ncommit = \"never\"\n",
+		".igris/runs.jsonl": `{"v":1,"at":"2026-10-26T10:00:00Z","type":"task_done","run":"20261026-100000-abcd","task":"A-1","attempt":1,"detail":"added the \u001b[31mschema\u001b[0m"}` + "\n",
+	})
+	before := snapshot(t, root)
+	var out, errb bytes.Buffer
+	if code := run([]string{"arise", "A", "--dry-run"}, &out, &errb); code != exitOK {
+		t.Fatalf("exit %d, stderr: %s", code, errb.String())
+	}
+	got := out.String()
+	if n := strings.Count(got, "notes from"); n != 1 || !strings.Contains(got, "notes from A-1 (done): added the schema\n") || strings.Contains(got, "\x1b") {
+		t.Errorf("output:\n%s", got)
+	}
+	if i, j := strings.Index(got, "  Two"), strings.Index(got, "notes from A-1"); i < 0 || j < i || j > strings.Index(got, "  Three") {
+		t.Errorf("the notes are not under A-2:\n%s", got)
+	}
+	if after := snapshot(t, root); !reflect.DeepEqual(before, after) {
+		t.Error("the dry run changed the project")
+	}
+	// dep_notes = false: nothing shown.
+	if err := os.WriteFile(filepath.Join(root, "igris.toml"), []byte("[run]\nverify = \"false\"\ncommit = \"never\"\ndep_notes = false\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	if code := run([]string{"arise", "A", "--dry-run"}, &out, &errb); code != exitOK || strings.Contains(out.String(), "notes from") {
+		t.Errorf("dep_notes = false: exit %d\n%s", code, out.String())
 	}
 }

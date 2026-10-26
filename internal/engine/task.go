@@ -278,6 +278,7 @@ func (e *Engine) taskPrompt(l *launch, resumed bool) (string, error) {
 		TaskFile:     e.taskFile(l),
 		CommitPolicy: e.sessionPolicy(),
 		Resumed:      resumed,
+		DepNotes:     e.depNotes(l.t),
 	}), e.templatePath())
 }
 

@@ -83,6 +83,34 @@ type Vars struct {
 	Resumed      bool
 	CommitPolicy string // "ask", "auto" or "never"
 	DoneCommand  string // e.g. "igris done M0-01"
+	// DepNotes are the handoff notes of the task's direct deps (SPEC §6.1,
+	// since 1.8), in the order of its Deps cell; empty with dep_notes off.
+	DepNotes []DepNote
+}
+
+// DepNote is what a finished dep left for the tasks that depend on it
+// (SPEC §6.1): the note of its latest done or skip, and the plan the owner
+// approved for that attempt. Both are session text, already cleaned and
+// bounded by the builder.
+type DepNote struct {
+	ID     string
+	Title  string
+	Status string // "done" or "skipped"
+	Note   string // one line
+	Plan   string // the approved plan, newlines kept; "" when there is none or it didn't fit
+	// PlanCut says Plan was cut to fit its bound; PlanFile is the plan's
+	// absolute path, to read the whole of it.
+	PlanCut  bool
+	PlanFile string
+}
+
+// Quoted is Plan as a Markdown quoted block.
+func (n DepNote) Quoted() string {
+	lines := strings.Split(strings.TrimRight(n.Plan, "\n"), "\n")
+	for i, l := range lines {
+		lines[i] = strings.TrimRight("> "+l, " ")
+	}
+	return strings.Join(lines, "\n")
 }
 
 // Env is what Vars needs besides the task itself.
@@ -93,6 +121,7 @@ type Env struct {
 	CommitPolicy string
 	DoneCommand  string // default: "igris done <ID>"
 	Resumed      bool
+	DepNotes     []DepNote
 }
 
 // VarsFor builds the template variables for task t.
@@ -112,6 +141,7 @@ func VarsFor(t *plan.Task, e Env) Vars {
 		Resumed:      e.Resumed,
 		CommitPolicy: e.CommitPolicy,
 		DoneCommand:  e.DoneCommand,
+		DepNotes:     e.DepNotes,
 	}
 	if t.Phase != nil {
 		v.Phase = t.Phase.ID
