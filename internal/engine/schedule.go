@@ -395,6 +395,7 @@ func (e *Engine) step(ctx context.Context, l *launch) (ended, stopped bool, err 
 func (e *Engine) conclude(ctx context.Context, l *launch, v verdict) (ended, stopped bool, err error) {
 	switch v.kind {
 	case verdictDone:
+		e.readUsageNow(ctx, l)
 		if l.t.Owner.IsAgent() && v.sig != nil && e.verifies(l.t) {
 			if l.isolated() {
 				// Beside the other tasks' sessions (SPEC §6.11).

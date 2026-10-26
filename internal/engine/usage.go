@@ -83,6 +83,16 @@ func (e *Engine) readUsage(ctx context.Context, l *launch, final bool) {
 	e.noteHits(ctx, l)
 }
 
+// readUsageNow reads l's transcript at once, whatever the time since the
+// last read: at its done, so the last turn's tokens are on the card and in
+// the budgets before verify and the commit question (SPEC §6.9).
+func (e *Engine) readUsageNow(ctx context.Context, l *launch) {
+	if u := l.usage; u != nil {
+		u.last = time.Time{}
+		e.readUsage(ctx, l, false)
+	}
+}
+
 // showUsage tells the UI the attempt's counter when it changed (SPEC §15.1):
 // the tokens read so far, or that the transcript can't be read.
 func (e *Engine) showUsage(u *attemptUsage) {

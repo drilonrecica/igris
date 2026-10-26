@@ -284,6 +284,23 @@ func homeAt(th *theme, w, h int, fix homeFixture) *homeScreen {
 	return m
 }
 
+// A served run whose question is the run's own (a budget reached, the
+// batch question) names no task: home leaves the gap out, as the run view
+// does (found by the V18 gate).
+func TestHomeServedRunQuestion(t *testing.T) {
+	var fix homeFixture
+	for _, st := range homeStates {
+		if st.name == "served_needs_you" {
+			fix = st.fix()
+		}
+	}
+	fix.snap.Live = &report.LiveRun{NeedsYou: []report.LiveNeed{{Task: "", Kind: "budget reached"}}}
+	v := homeAt(&theme{}, 120, 40, fix).View()
+	if !strings.Contains(v, "! needs you · budget reached") || strings.Contains(v, "!  needs you") {
+		t.Errorf("home:\n%s", v)
+	}
+}
+
 func readyHome(w, h int) *homeScreen {
 	return homeAt(&theme{}, w, h, homeStates[1].fix())
 }

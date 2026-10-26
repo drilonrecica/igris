@@ -211,3 +211,33 @@ func TestReportAudit(t *testing.T) {
 		t.Errorf("audits = %v, want %v", got, want)
 	}
 }
+
+// In a parallel phase the task's commit is rebased onto the run branch
+// before it lands: the integrated line names the commit on the branch, the
+// committed line one that no longer is (found by the V18 gate, after a
+// resolver settled a conflict).
+func TestReportCommitIsTheIntegratedOne(t *testing.T) {
+	const id = "20261026-175843-94fe"
+	const before, after = "c2691b86a84d367b3e032087042a4c4f0142672e", "94ee2e518ec072b93373c6422a7d37155a63f693"
+	at := func(min int, typ state.EventType, commit string) state.Event {
+		return state.Event{V: 1, At: t0.Add(time.Duration(min) * time.Minute), Type: typ, Run: id, Task: "A-02", Owner: "agent", Commit: commit, Detail: "A-02: Greeting two"}
+	}
+	events := []state.Event{
+		{V: 1, At: t0, Type: state.EventRunStarted, Run: id, Detail: "phase A"},
+		at(0, state.EventTaskStarted, ""),
+		at(1, state.EventCommitted, before),
+		at(2, state.EventIntegrated, after),
+		at(2, state.EventTaskDone, ""),
+		{V: 1, At: t0.Add(3 * time.Minute), Type: state.EventRunStopped, Run: id, Detail: "completed"},
+	}
+	r, err := NewReport(HistoryInput{Events: events}, "demo", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(r.Tasks) != 1 || r.Tasks[0].Commit != after {
+		t.Errorf("task commit %+v, want %s", r.Tasks, after)
+	}
+	if len(r.Commits) != 1 || r.Commits[0].SHA != after {
+		t.Errorf("commits %+v, want the one integrated", r.Commits)
+	}
+}

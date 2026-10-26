@@ -91,6 +91,9 @@ func liveLine(s *serve.Snapshot, p *plan.Plan, lock *report.RunInfo) runLine {
 			r.needs[q.Task] = true
 			if len(r.about) == 0 {
 				r.about = []string{textsafe.Line(q.Task), serve.QuestionKind(q.Question)}
+				if q.Task == "" {
+					r.about = r.about[1:] // a run's question names no task
+				}
 			}
 		}
 	}

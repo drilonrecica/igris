@@ -57,8 +57,29 @@ type fakeWT struct {
 	integrated    bool // its commits are on the run branch
 	run           bool // the run's own worktree (worktree mode), not a task's
 	// rebasing: a rebase stopped on a conflict and was neither aborted
-	// nor continued (REBASE_HEAD exists); rebased: ORIG_HEAD exists.
+	// nor continued (its state directory exists); rebased: ORIG_HEAD
+	// exists.
 	rebasing, rebased bool
+	// rebaseHead: REBASE_HEAD exists. As in git (2.56), a conflict sets it
+	// and only `rebase --abort` removes it: a finished rebase leaves it.
+	rebaseHead bool
+}
+
+// gitState is where `rev-parse --git-path` puts a worktree's git state,
+// relative to it, as git prints it for the main worktree.
+const gitState = ".git-state"
+
+// setRebasing marks wt, the worktree at the absolute dir, stopped mid-rebase
+// or not, with its state directory rebase-merge, which is how git (and
+// igris) tells a rebase in progress.
+func setRebasing(dir string, wt *fakeWT, on bool) {
+	wt.rebasing = on
+	merge := filepath.Join(dir, gitState, "rebase-merge")
+	if on {
+		_ = os.MkdirAll(merge, 0o750)
+		return
+	}
+	_ = os.RemoveAll(filepath.Join(dir, gitState))
 }
 
 type conflict struct {
@@ -137,9 +158,11 @@ func (r *repo) git(c runner.Cmd) (runner.Result, error) {
 	wt := r.wts[dir]
 	switch {
 	case a[0] == "rev-parse" && len(a) == 4 && a[3] == "REBASE_HEAD":
-		if wt == nil || !wt.rebasing {
+		if wt == nil || !wt.rebaseHead {
 			return fail, nil
 		}
+	case a[0] == "rev-parse" && len(a) == 3 && a[1] == "--git-path":
+		return out(filepath.Join(gitState, a[2]) + "\n")
 	case a[0] == "merge-base" && len(a) == 3: // merge-base <target> ORIG_HEAD
 		if wt == nil || !wt.rebased {
 			return fail, nil
@@ -174,7 +197,8 @@ func (r *repo) git(c runner.Cmd) (runner.Result, error) {
 		if wt == nil || !wt.rebasing {
 			return runner.Result{ExitCode: 128, Stderr: []byte("fatal: No rebase in progress?\n")}, nil
 		}
-		wt.rebasing, wt.base = false, r.runHead
+		setRebasing(c.Dir, wt, false)
+		wt.base = r.runHead
 		if a[1] == "--skip" {
 			wt.commits = 0
 		}
@@ -239,7 +263,8 @@ func (r *repo) git(c runner.Cmd) (runner.Result, error) {
 		return out(fmt.Sprintf("%d\n", n))
 	case a[0] == "rebase" && a[1] == "--abort":
 		if wt != nil {
-			wt.rebasing = false
+			setRebasing(c.Dir, wt, false)
+			wt.rebaseHead = false
 		}
 	case a[0] == "rebase":
 		if wt != nil {
@@ -248,7 +273,8 @@ func (r *repo) git(c runner.Cmd) (runner.Result, error) {
 		if k := r.conflicts[dir]; k != nil && k.times > 0 {
 			k.times--
 			if wt != nil {
-				wt.rebasing = true
+				setRebasing(c.Dir, wt, true)
+				wt.rebaseHead = true
 			}
 			return fail, nil
 		}

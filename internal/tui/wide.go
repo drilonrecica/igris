@@ -130,7 +130,8 @@ func (m *model) banner(x, y, w int) (string, bool) {
 	} else if q := m.question(); q != nil {
 		kind = q.Question.Kind()
 	}
-	text := look.GlyphNeedsYou + " " + id + " needs you · " + kind
+	// A question of the run (a budget, the batch question) names no task.
+	text := strings.TrimSpace(look.GlyphNeedsYou+" "+id) + " needs you · " + kind
 	n := len(m.needYou())
 	for _, q := range m.asks {
 		if m.card(q.Task) == nil {

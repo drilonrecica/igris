@@ -559,7 +559,7 @@ func (m *homeScreen) runningCard(w int) []string {
 		}
 		if live := s.Live; live != nil && len(live.NeedsYou) > 0 {
 			n := live.NeedsYou[0]
-			text := look.GlyphNeedsYou + " " + n.Task + " needs you"
+			text := strings.TrimSpace(look.GlyphNeedsYou+" "+n.Task) + " needs you" // a run's question names no task
 			if n.Kind != "needs you" {
 				text += " · " + n.Kind
 			}

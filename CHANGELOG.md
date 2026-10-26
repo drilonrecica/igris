@@ -21,6 +21,8 @@ igris 1.8 makes a long unattended run safer to leave: it waits out usage limits,
 ### Fixed
 
 - **An offline reset no longer asks for the skip-permissions phrase.** `igris reset ID` with no igris running left the task in `state.json`'s active list, and the next `arise` demanded the typed phrase for a session it would forget anyway. An interrupted skip-permissions session that is still `in progress` still needs it.
+- **A finished task's tokens show while it waits for you.** igris read a running task's transcript about every 10 s, so a short task whose tokens all came in its last seconds showed `tokens 0 in · 0 out` on its card through verify and the commit question. The done signal now takes one more read.
+- **`igris report` names the commit on the branch for a task of a parallel phase.** The Commit column took the SHA of the commit made in the task's worktree, which the rebase onto the run branch rewrites; it now takes the one the `integrated` line names.
 
 ### Compatibility
 

@@ -238,6 +238,18 @@ var needsYou = &serve.Snapshot{Type: serve.TypeSnapshot, Run: "20261023-093000-a
 	Active:    []serve.Current{{Task: "M1-02", Rank: "opus", Mode: "plan", State: serve.StateQuestion}},
 	Questions: []serve.Event{{Type: "asked", Task: "M1-02", Question: "commit"}}}
 
+// A served run whose question is the run's own (a budget reached) names
+// no task: status leaves the empty part out (found by the V18 gate:
+// `! Needs you ·  · budget reached`).
+func TestStatusRunQuestion(t *testing.T) {
+	statusProject(t, &serve.Snapshot{Type: serve.TypeSnapshot, Run: "20261023-093000-abcd", Phase: "M1", Mode: "auto",
+		Questions: []serve.Event{{Type: "asked", Question: "budget"}}})
+	_, out, _ := runCmd("status")
+	if !strings.Contains(out, "Needs you · budget reached") || strings.Contains(out, "·  ·") {
+		t.Errorf("status:\n%s", out)
+	}
+}
+
 // status and doctor drawn on a terminal: with colors, and the same text
 // without them under NO_COLOR (SPEC §14).
 func TestColorGoldens(t *testing.T) {

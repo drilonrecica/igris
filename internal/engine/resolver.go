@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -435,11 +437,25 @@ func (e *Engine) resolverFailed(ctx context.Context, l *launch, why string, line
 	return false, false, nil
 }
 
-// rebaseInProgress reports whether a rebase is stopped in dir: REBASE_HEAD
-// names the commit being replayed while one is.
+// rebaseInProgress reports whether a rebase is stopped in dir: its state
+// directory, rebase-merge (or rebase-apply), exists, which is how git
+// itself tells. REBASE_HEAD is no sign: git leaves it behind when a
+// rebase finishes (2.56), so a finished resolution read as stopped again.
 func (e *Engine) rebaseInProgress(ctx context.Context, dir string) bool {
-	_, err := e.gitIn(ctx, dir, "rev-parse", "--verify", "--quiet", "REBASE_HEAD")
-	return err == nil
+	for _, name := range []string{"rebase-merge", "rebase-apply"} {
+		out, err := e.gitIn(ctx, dir, "rev-parse", "--git-path", name)
+		p := strings.TrimSpace(out)
+		if err != nil || p == "" {
+			continue
+		}
+		if !filepath.IsAbs(p) {
+			p = filepath.Join(dir, p) // relative to dir in the main worktree
+		}
+		if fi, err := os.Lstat(p); err == nil && fi.IsDir() {
+			return true
+		}
+	}
+	return false
 }
 
 // markersLeft are the files in dir whose working tree still holds conflict

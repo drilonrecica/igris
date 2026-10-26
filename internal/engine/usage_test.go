@@ -322,3 +322,45 @@ func TestHooksFileStatusLine(t *testing.T) {
 		}
 	}
 }
+
+// The done signal takes one more read of the transcript, whatever the 10 s
+// between reads: a short task's tokens all land in its last seconds, and
+// the card, the budgets and the owner answering its commit question would
+// otherwise see 0 until the attempt ends (found by the V18 gate: `tokens 0
+// in · 0 out` on a finished task with 167k, at its commit question).
+func TestUsageReadAtDone(t *testing.T) {
+	h := newHarness(t, chainPlan, usageOn)
+	h.dirtyTree()
+	dir := h.reportTranscripts()
+	h.autoSignalExcept("A-1")
+	prev := h.onEvent
+	h.onEvent = func(ev Event) {
+		prev(ev)
+		switch {
+		case ev.Kind == SessionOpened && ev.Task == "A-1":
+			s := ev.ClaudeSession
+			h.clock.At(ev.At.Sub(t0)+5*time.Second, func() {
+				respond(t, dir, s, h.clock.Now(), "msg_1", "claude-sonnet-5-5", 2, 30, 1, false)
+			})
+			h.signalAt(ev.At.Sub(t0)+6*time.Second, "A-1")
+		case ev.Kind == Asked && ev.Question == QuestionCommit:
+			h.clock.At(ev.At.Sub(t0)+time.Minute, func() { h.eng.Send(Command{Kind: CmdAnswer, Yes: true}) })
+		}
+	}
+	if _, err := h.run(); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	read, asked := -1, -1
+	for i, ev := range h.events {
+		switch {
+		case ev.Task != "A-1":
+		case ev.Kind == UsageRead && read < 0 && ev.Tokens != nil && ev.Tokens.In > 0:
+			read = i
+		case ev.Kind == Asked && asked < 0:
+			asked = i
+		}
+	}
+	if read < 0 || asked < 0 || read > asked {
+		t.Errorf("the tokens were read at event %d, the commit asked at %d: want them read first", read, asked)
+	}
+}

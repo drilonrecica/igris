@@ -358,6 +358,19 @@ func TestBannerNamesTheFirstTask(t *testing.T) {
 	}
 }
 
+// A question of the run, not of a task (a budget reached, the batch
+// question), has no ID to name: the banner leaves the gap out, as the log
+// line does (found by the V18 gate: `!  needs you · budget reached`).
+func TestBannerOfARunQuestion(t *testing.T) {
+	hs := multiHarness(t, 120, 40)
+	hs.events(engine.Event{Kind: engine.Asked, Question: engine.QuestionBudget, Detail: "run budget 100k reached · 167k used"})
+	hs.keys("esc")
+	v := hs.m.View()
+	if !strings.Contains(v, "! needs you · budget reached") || strings.Contains(v, "!  needs you") {
+		t.Errorf("banner:\n%s", v)
+	}
+}
+
 // On the summary h opens History and y copies the report command; neither
 // does anything while the run goes on.
 func TestSummaryKeys(t *testing.T) {

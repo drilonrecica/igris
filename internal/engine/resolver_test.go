@@ -3,6 +3,8 @@ package engine
 import (
 	"context"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -541,5 +543,76 @@ func TestResolverOwnerSkips(t *testing.T) {
 	}
 	if closed, opened := len(h.be.Closed()), len(h.be.Opened()); closed != opened {
 		t.Errorf("%d of %d sessions closed; the resolver's is still open", closed, opened)
+	}
+}
+
+// A rebase stopped on a conflict is in progress until it is continued or
+// aborted, in a task's linked worktree as in the main one, with a real
+// git. git leaves REBASE_HEAD behind when the rebase finishes, so it is no
+// sign: with it, every finished resolution read as "the rebase stopped
+// again" and the task was rerun (found by the V18 gate).
+func TestRebaseInProgressRealGit(t *testing.T) {
+	h := newHarness(t, chainPlan, "")
+	h.realGit()
+	eng, err := New(Options{Config: h.cfg, Backend: h.be, State: h.dir, Clock: h.clock, Runner: h.cmds, Phase: "A"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	gitIn := func(dir string, args ...string) error {
+		cmd := exec.Command("git", args...) //nolint:gosec // the test's own arguments
+		cmd.Dir, cmd.Env = dir, append(os.Environ(), gitEnv...)
+		return cmd.Run()
+	}
+	commit := func(dir, content string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, "greeting.txt"), []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := gitIn(dir, "add", "-A"); err != nil {
+			t.Fatal(err)
+		}
+		if err := gitIn(dir, "commit", "-q", "-m", content); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// A task's worktree under .igris/, mid-rebase onto main, then continued.
+	wt := filepath.Join(h.root, ".igris", "wt")
+	h.git("worktree", "add", "-q", "-b", "task", wt)
+	commit(wt, "two\n")
+	commit(h.root, "one\n")
+	if gitIn(wt, "rebase", "main") == nil {
+		t.Fatal("the rebase did not conflict")
+	}
+	if !eng.rebaseInProgress(ctx, wt) {
+		t.Fatal("a rebase stopped on a conflict is not in progress")
+	}
+	if err := os.WriteFile(filepath.Join(wt, "greeting.txt"), []byte("one\ntwo\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := gitIn(wt, "add", "-A"); err != nil {
+		t.Fatal(err)
+	}
+	if err := gitIn(wt, "-c", "core.editor=true", "rebase", "--continue"); err != nil {
+		t.Fatalf("rebase --continue: %v", err)
+	}
+	if eng.rebaseInProgress(ctx, wt) {
+		t.Error("a finished rebase is still in progress")
+	}
+
+	// The main worktree, where git names the state directory relative to
+	// it, mid-rebase, then aborted.
+	h.git("checkout", "-q", "-b", "other", "HEAD~1")
+	commit(h.root, "three\n")
+	if gitIn(h.root, "rebase", "main") == nil {
+		t.Fatal("the rebase did not conflict")
+	}
+	if !eng.rebaseInProgress(ctx, h.root) {
+		t.Fatal("a rebase stopped in the main worktree is not in progress")
+	}
+	h.git("rebase", "--abort")
+	if eng.rebaseInProgress(ctx, h.root) {
+		t.Error("an aborted rebase is still in progress")
 	}
 }
