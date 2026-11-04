@@ -32,12 +32,14 @@ const testPlan = `## M0 — Test
 | M0-02 | **Second** | M0-01 | blocked | opus |
 `
 
-// testEnv is a world without processes or herdr: every command fails, the
-// backend is fake and only the given variables are set.
+// testEnv is a world without processes or herdr: every command fails, no
+// program is on PATH, the backend is fake and only the given variables are
+// set.
 func testEnv(vars map[string]string) (Env, *fake.Backend) {
 	be := fake.New()
 	return Env{
 		Getenv:   func(k string) string { return vars[k] },
+		LookPath: func(string) (string, error) { return "", exec.ErrNotFound },
 		Runner:   &runner.Fake{},
 		Backend:  func(*config.Config) (backend.Backend, error) { return be, nil },
 		Versions: func(context.Context, runner.Runner) []checks.Result { return nil },

@@ -139,7 +139,8 @@ func (m *homeScreen) backendName() string {
 // (why, in a few words), and where to run igris instead.
 func (m *homeScreen) needsBackend(what, why string) string {
 	if m.backendName() != "herdr" && m.backendName() != "tmux" {
-		return what + " needs herdr or tmux: run igris inside " + m.backendWhere() + "."
+		// Outside both, auto runs tmux headless once it is installed (SPEC §11.3).
+		return what + " needs herdr or tmux: install tmux 3.2 or newer, or run igris inside a herdr pane."
 	}
 	return what + " needs " + m.backendName() + " (" + why + "): run igris inside " + m.backendWhere() + "."
 }

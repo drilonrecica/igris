@@ -106,7 +106,7 @@ func execCheck(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	// check only warns: it lists ANTHROPIC_API_KEY but asks nothing.
 	cs := checks.Run(context.Background(), checks.Options{
 		IDs:    []string{checks.IDIgrisPath, checks.IDClaude, checks.IDHerdr, checks.IDTmux, checks.IDConfig, checks.IDAPIKey, checks.IDProject, checks.IDPlanHints, checks.IDDrift},
-		Runner: commandRunner(), Getenv: ariseGetenv, Versions: compatWarnings, BackendName: project.BackendName(l.cfg, ariseGetenv),
+		Runner: commandRunner(), Getenv: ariseGetenv, Versions: compatWarnings, BackendName: project.BackendName(l.cfg, ariseGetenv, ariseLookPath),
 		Self: igrisSelf, Version: igrisVersion(),
 		Config: l.cfg, NoConfig: l.noConfig, ParentConfig: l.parentConfig, Plan: l.plan,
 	})

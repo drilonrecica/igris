@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"regexp"
 	"runtime/debug"
 	"strings"
@@ -44,6 +45,9 @@ func TestMain(m *testing.M) {
 		}
 		return os.Getenv(k)
 	}
+	// Nor on the developer's tmux: outside herdr and tmux, backend auto
+	// runs headless only where tmux is installed (SPEC §11.3).
+	ariseLookPath = func(string) (string, error) { return "", exec.ErrNotFound }
 	interactiveTerm = func() bool { return false } // tests are not on a terminal
 	outTerminal = func(io.Writer) (bool, int) { return false, 0 }
 	// Text output tells local times against now: both fixed, so the

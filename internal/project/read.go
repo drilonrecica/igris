@@ -61,20 +61,23 @@ func HistoryInput(root string, n int) (report.HistoryInput, error) {
 func Doctor(ctx context.Context, dir string, env Env) []checks.Result {
 	// The backend is the one the project's config chooses here (SPEC
 	// §11.3), built from the environment; it answers from the runner.
-	cfg := config.Default()
-	if root, err := state.FindRoot(dir); err == nil {
+	cfg, root := config.Default(), dir
+	if r, err := state.FindRoot(dir); err == nil {
+		root = r
 		if c, err := config.Load(filepath.Join(root, state.ConfigFile)); err == nil {
 			cfg = c
 		}
 	}
 	o := checks.Options{Runner: env.runner(), Getenv: env.getenv(), Versions: env.versions(), Self: env.self(), Version: env.Version}
-	name, err := ResolveBackend(cfg.Backend, env.getenv())
+	name, err := ResolveBackend(cfg.Backend, env.getenv(), env.lookPath())
 	switch {
 	case err != nil:
 		o.Backend = unavailable{err}
 	case name == herdr.Name:
 		be := herdr.NewFromEnv(env.runner(), env.getenv())
 		o.BackendName, o.Backend, o.Integration = name, be, be
+	case headless(cfg, env.getenv(), false):
+		o.BackendName, o.Backend = name, tmux.NewHeadless(env.runner(), root)
 	default:
 		o.BackendName, o.Backend = name, tmux.NewFromEnv(env.runner(), env.getenv())
 	}
@@ -96,7 +99,7 @@ func (p *Project) Snapshot() *report.Snapshot {
 		Settings:  report.NewSettings(p.Cfg, p.CfgKeys, p.env.getenv()),
 		Stamp:     p.Stamp(),
 		APIKeySet: p.env.getenv()(checks.APIKeyVar) != "",
-		Backend:   BackendName(p.Cfg, p.env.getenv()),
+		Backend:   BackendName(p.Cfg, p.env.getenv(), p.env.lookPath()),
 	}
 	if s.Backend == "" {
 		s.Backend = herdr.Name + "/" + tmux.Name

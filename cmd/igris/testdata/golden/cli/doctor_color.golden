@@ -3,8 +3,8 @@ exit: 1
 [38;2;60;200;255m✓ ok  [0m igris in PATH is this igris
 [38;2;60;200;255m✓ ok  [0m Claude Code 2.1.292
 [38;2;60;200;255m✓ ok  [0m ANTHROPIC_API_KEY is not set
-[38;2;255;176;0m▲ warn[0m igris must run inside a herdr pane or a tmux session (backend = "auto" found neither HERDR_WORKSPACE_ID nor TMUX); start herdr or tmux and run igris there, or set backend in igris.toml
-       next: run igris inside a herdr pane or a tmux session
+[38;2;255;176;0m▲ warn[0m igris needs herdr or tmux (backend = "auto" found neither HERDR_WORKSPACE_ID nor TMUX, and no tmux in PATH); install tmux 3.2 or newer and igris runs its sessions in a detached tmux session, or run igris inside a herdr pane
+       next: install tmux 3.2 or newer, or run igris inside a herdr pane
 [38;2;255;176;0m▲ warn[0m this is not a git repository: sessions' changes can't be reviewed or undone with git, and commits fail unless commit = "never". Run `git init` first.
        next: git init
 [38;2;60;200;255m✓ ok  [0m igris.toml is valid

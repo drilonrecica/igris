@@ -4,8 +4,8 @@ READY · phase M2 Config & state
 next  · M2-02  Lock file   opus
 then  · M2-03  State file  sonnet
 3 left · 2 wait on M2-02
-Arise needs herdr or tmux: run igris inside a
-herdr pane or a tmux session.
+Arise needs herdr or tmux: install tmux 3.2 or
+newer, or run igris inside a herdr pane.
 ── PHASES ────────────────────────────────────────
   ✓ M0  Foundations                      3/3 done
   ✓ M1  Plan parser                      2/2 done

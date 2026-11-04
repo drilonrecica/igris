@@ -4,7 +4,7 @@ Start with `igris doctor`. It checks the machine and the project without changin
 
 ## igris says it isn't in herdr or tmux
 
-`igris arise` and `igris adapt` run inside **herdr** or **tmux**, because sessions have to outlive igris and your connection. Start one (`herdr`, or `tmux new -s work`), `cd` to the project inside it, and run igris again. `backend = "auto"` picks herdr inside a herdr pane and tmux inside tmux; pin one with `backend = "herdr"` or `"tmux"`. See [where igris runs](install.md#where-igris-runs).
+`igris arise` and `igris adapt` need **herdr** or **tmux**, because sessions have to outlive igris and your connection. Since 1.9, with `backend = "auto"` and tmux installed, `arise` works from any shell: the sessions run in a detached tmux session, `igris-<project>`. Without tmux, install tmux 3.2 or newer, or start herdr (`herdr`, or `tmux new -s work`), `cd` to the project inside it, and run igris again. `backend = "auto"` picks herdr inside a herdr pane and tmux inside tmux; pin one with `backend = "herdr"` or `"tmux"`. See [where igris runs](install.md#where-igris-runs).
 
 ## The task says "needs you: the agent is blocked"
 

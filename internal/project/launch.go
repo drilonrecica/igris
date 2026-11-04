@@ -62,7 +62,7 @@ func (p *Project) Prelaunch(ctx context.Context, be backend.Backend, req report.
 	o := checks.Options{
 		IDs:  []string{checks.IDIgrisPath, checks.IDHerdrIntegration, checks.IDClaude, checks.IDHerdr, checks.IDTmux, checks.IDConfig, checks.IDPlanHints, checks.IDAPIKey, checks.IDGit},
 		Root: p.Root, Runner: p.env.runner(), Getenv: p.env.getenv(), Versions: p.env.versions(),
-		Config: p.Cfg, BackendName: backendName(p.Cfg, p.env.getenv(), p.env.Serve), Self: p.env.self(), Version: p.env.Version,
+		Config: p.Cfg, BackendName: BackendName(p.Cfg, p.env.getenv(), p.env.lookPath()), Self: p.env.self(), Version: p.env.Version,
 	}
 	if integration, ok := be.(checks.Integration); ok {
 		o.Integration = integration
@@ -171,7 +171,7 @@ func (p *Project) DryRun(ctx context.Context, req report.RunRequest) (report.Dry
 	return engine.DryRun(ctx, engine.DryRunOptions{
 		Root: p.Root, Config: p.Cfg, Phase: req.Phase, Through: req.Through, Mode: req.Mode, Selection: req.Selection,
 		Runner: p.env.runner(), Getenv: p.env.getenv(), Versions: p.env.versions(), Format: p.env.format(),
-		BackendName: BackendName(p.Cfg, p.env.getenv()), Worktree: req.Worktree, Parallel: req.Parallel, Self: p.env.self(), Version: p.env.Version,
+		BackendName: BackendName(p.Cfg, p.env.getenv(), p.env.lookPath()), Worktree: req.Worktree, Parallel: req.Parallel, Self: p.env.self(), Version: p.env.Version,
 	})
 }
 

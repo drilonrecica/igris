@@ -37,6 +37,9 @@ var (
 	ariseBackend func(*config.Config) (backend.Backend, error)
 	ariseRunner  runner.Runner // nil means real processes
 	ariseGetenv  = os.Getenv
+	// ariseLookPath finds tmux for backend auto outside herdr and tmux
+	// (SPEC §11.3); nil is exec.LookPath.
+	ariseLookPath func(string) (string, error)
 	// compatWarnings checks the Claude Code and herdr versions (SPEC §11.4).
 	compatWarnings = checks.ToolVersions
 	// igrisSelf finds the running igris and the one in PATH, for the
@@ -51,7 +54,7 @@ var (
 // and the home screen talk to the same (in tests: fake) world.
 func projectEnv() project.Env {
 	return project.Env{
-		Getenv: ariseGetenv, Runner: ariseRunner, Backend: ariseBackend, Versions: compatWarnings,
+		Getenv: ariseGetenv, Runner: ariseRunner, Backend: ariseBackend, Versions: compatWarnings, LookPath: ariseLookPath,
 		Clock: adaptClock, Format: formatEvent, Version: igrisVersion(), Self: igrisSelf,
 		Build: updateBuild(), UpdateAPI: updateAPI, Environ: updateEnviron, Spawn: serveSpawn,
 	}

@@ -112,7 +112,7 @@ var defaultNext = map[string]string{
 	IDClaude:  "claude --version",
 	IDHerdr:   "herdr --version",
 	IDTmux:    "tmux -V",
-	IDBackend: "run igris inside a herdr pane or a tmux session",
+	IDBackend: "install tmux 3.2 or newer, or run igris inside a herdr pane",
 	IDNotify:  "igris notify test",
 }
 

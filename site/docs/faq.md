@@ -26,7 +26,7 @@ igris treats sessions as untrusted. `igris.toml` is read once per run (a mid-run
 
 ## I don't use herdr.
 
-Use tmux: run igris inside a tmux session and leave `backend = "auto"`. Running without any multiplexer isn't supported: sessions have to outlive igris and your connection.
+Use tmux: install it and leave `backend = "auto"`. Inside a tmux session the sessions open as windows there; from any other shell (since 1.9) they open in a detached tmux session, `igris-<project>`. Running without any multiplexer isn't supported: sessions have to outlive igris and your connection.
 
 ## Does it run on Windows?
 

@@ -81,7 +81,7 @@ igris completion fish > ~/.config/fish/completions/igris.fish
 
 ## Where igris runs
 
-`igris arise` runs inside **herdr** or **tmux**: sessions have to outlive igris and your connection. `igris init` writes `backend = "auto"`, which uses herdr inside a herdr pane and tmux inside tmux; set `backend = "herdr"` or `"tmux"` in `igris.toml` to pin one. Outside both, `igris arise` exits and says where to run it.
+`igris arise` runs inside **herdr** or **tmux**: sessions have to outlive igris and your connection. `igris init` writes `backend = "auto"`, which uses herdr inside a herdr pane and tmux inside tmux; set `backend = "herdr"` or `"tmux"` in `igris.toml` to pin one. Outside both (a plain terminal, an editor, cron or systemd), `auto` still works when tmux is installed: since 1.9 the sessions run in a detached tmux session, `igris-<project>`, which `tmux attach -t igris-<project>` shows; without tmux, `igris arise` exits and says what to install.
 
 Only `arise` and `adapt` need a backend. `init`, `doctor`, `check`, `phases`, `status`, `history`, `report`, `done`, `skip`, `reset` and `notify test` run in any shell.
 

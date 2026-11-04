@@ -100,7 +100,7 @@ igris arise S0 --no-tui
 
 ## Without herdr
 
-- [ ] Outside a herdr pane and outside tmux (`env -u HERDR_WORKSPACE_ID -u TMUX igris arise S0 --no-tui`) igris exits 1, saying it must run inside a herdr pane or a tmux session, and writes nothing
+- [ ] Outside a herdr pane and outside tmux, with no tmux in `PATH` (`env -u HERDR_WORKSPACE_ID -u TMUX PATH=<a PATH without tmux> igris arise S0 --no-tui`) igris exits 1, saying to install tmux or run igris inside a herdr pane, and writes nothing; with tmux installed (since 1.9) the run goes to the detached tmux session `igris-<project>` instead (SPEC §11.3)
 - [ ] With `backend = "herdr"` in `igris.toml`, outside a herdr pane, the message says to run igris inside a herdr pane, or to use tmux
 - [ ] `igris check`, `status`, `done` and `skip` still work
 

@@ -431,8 +431,8 @@ func TestAriseNeedsHerdr(t *testing.T) {
 		args []string
 		want string
 	}{
-		{[]string{"arise", "A"}, "must run inside a herdr pane"},
-		{[]string{"arise", "A", "--no-tui"}, "must run inside a herdr pane"},
+		{[]string{"arise", "A"}, "install tmux 3.2 or newer"},
+		{[]string{"arise", "A", "--no-tui"}, "install tmux 3.2 or newer"},
 	}
 	for _, tt := range tests {
 		var out, errb bytes.Buffer

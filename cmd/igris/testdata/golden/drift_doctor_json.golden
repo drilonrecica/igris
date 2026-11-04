@@ -21,8 +21,8 @@ exit: 0
     {
       "id": "backend",
       "level": "warn",
-      "message": "igris must run inside a herdr pane or a tmux session (backend = \"auto\" found neither HERDR_WORKSPACE_ID nor TMUX); start herdr or tmux and run igris there, or set backend in igris.toml",
-      "next": "run igris inside a herdr pane or a tmux session"
+      "message": "igris needs herdr or tmux (backend = \"auto\" found neither HERDR_WORKSPACE_ID nor TMUX, and no tmux in PATH); install tmux 3.2 or newer and igris runs its sessions in a detached tmux session, or run igris inside a herdr pane",
+      "next": "install tmux 3.2 or newer, or run igris inside a herdr pane"
     },
     {
       "id": "git",

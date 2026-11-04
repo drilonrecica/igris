@@ -6,6 +6,8 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ### Added
 
+- **`backend = "auto"` works outside herdr and tmux.** From a plain terminal, an editor, cron or systemd, with tmux installed, `igris arise`, `serve` and home run the sessions in the detached tmux session `igris-<project>` (as `serve` with `backend = "tmux"` already did); `igris doctor` names that session. Without tmux the error says to install it. A run from a herdr pane or inside tmux picks the same backend as before.
+
 - **A Tasks step in the start wizard.** After **Through**, home's wizard asks **All tasks** · Only… · From… · Until…, with a picker of the range's tasks (status, rank and what each waits on), so part of a phase starts from the TUI as `--only`, `--from` and `--until` start it from the shell, with the same checks. The summary names the slice (`Arise W17 · only W17-03 · mode auto · 1 task`). Dialog lists longer than the screen now scroll.
 - **Arise the next phase from the end-of-run summary.** After a completed run, while a later phase has work, the summary offers **Arise W17…** (`a`): the start-run wizard with that phase selected. From home the view goes back home and opens it there; in a view started with `igris arise` or `igris attach` the new run replaces the view.
 

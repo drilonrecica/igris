@@ -35,7 +35,7 @@ Linux and macOS (Windows through WSL2), in herdr or tmux, with your Claude Code 
 
 ## Install
 
-You need **Claude Code** (2.1.291 or later), logged in the way you normally use it, and **[herdr](https://herdr.dev)** (0.9.1) or **[tmux](https://github.com/tmux/tmux)** (3.2 or later), where the sessions live so they survive a closed terminal or a dropped ssh connection. git is recommended. igris starts ordinary interactive `claude` sessions, so they run on your login and its limits; if `ANTHROPIC_API_KEY` is set, Claude Code bills the API instead, and igris warns and asks first.
+You need **Claude Code** (2.1.291 or later), logged in the way you normally use it, and **[herdr](https://herdr.dev)** (0.9.1) or **[tmux](https://github.com/tmux/tmux)** (3.2 or later), where the sessions live so they survive a closed terminal or a dropped ssh connection. Started outside both (a plain terminal, an editor, cron), igris runs its sessions in a detached tmux session, `igris-<project>`, as long as tmux is installed (`tmux attach -t igris-<project>` shows them). git is recommended. igris starts ordinary interactive `claude` sessions, so they run on your login and its limits; if `ANTHROPIC_API_KEY` is set, Claude Code bills the API instead, and igris warns and asks first.
 
 ```sh
 brew install drilonrecica/tap/igris                        # Homebrew, Linux and macOS

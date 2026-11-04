@@ -42,7 +42,8 @@ type Env struct {
 	// system clock.
 	Clock engine.Clock
 	// LookPath finds a program on PATH: vi, offered when no editor is
-	// set. nil means exec.LookPath.
+	// set, and tmux, which backend auto runs headless outside herdr and
+	// tmux (SPEC §11.3). nil means exec.LookPath.
 	LookPath func(string) (string, error)
 	// Format renders an event as the lines the dry run shows for it; the
 	// CLI's plain log format. nil shows the event's kind and detail.
@@ -60,8 +61,9 @@ type Env struct {
 	// update.API. Tests point it at a local server.
 	UpdateAPI string
 	// Serve says the project is opened by igris serve, the headless host
-	// of a run: outside herdr and tmux, backend auto picks tmux, which
-	// runs its sessions in a detached session (SPEC §11.3, §11.5).
+	// of a run: outside herdr and tmux, an explicit backend = "tmux" runs
+	// its sessions in a detached session, as auto does everywhere since
+	// 1.9 (SPEC §11.3, §11.5).
 	Serve bool
 	// Environ is igris's environment, which the update command gets
 	// without the notification secrets' variables. nil means os.Environ.

@@ -3,8 +3,8 @@ exit: 0
 ✓ ok   igris in PATH is this igris
 ✓ ok   Claude Code 2.1.292
 ✓ ok   ANTHROPIC_API_KEY is not set
-▲ warn igris must run inside a herdr pane or a tmux session (backend = "auto" found neither HERDR_WORKSPACE_ID nor TMUX); start herdr or tmux and run igris there, or set backend in igris.toml
-       next: run igris inside a herdr pane or a tmux session
+▲ warn igris needs herdr or tmux (backend = "auto" found neither HERDR_WORKSPACE_ID nor TMUX, and no tmux in PATH); install tmux 3.2 or newer and igris runs its sessions in a detached tmux session, or run igris inside a herdr pane
+       next: install tmux 3.2 or newer, or run igris inside a herdr pane
 ▲ warn this is not a git repository: sessions' changes can't be reviewed or undone with git, and commits fail unless commit = "never". Run `git init` first.
        next: git init
 ✓ ok   no igris.toml here; using the defaults (`igris init` creates one)
@@ -19,5 +19,5 @@ exit: 0
 ✓ ok   notification channels: backend toast (igris notify test sends a sample)
 
 ▲ doctor: 4 warnings
-next: run igris inside a herdr pane or a tmux session
+next: install tmux 3.2 or newer, or run igris inside a herdr pane
 --- stderr

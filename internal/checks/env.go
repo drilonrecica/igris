@@ -63,6 +63,9 @@ func backendAvailable(ctx context.Context, b Availability) Result {
 	if err := b.Available(ctx); err != nil {
 		return Result{ID: IDBackend, Level: Fail, Message: err.Error()}
 	}
+	if h, ok := b.(interface{ Headless() string }); ok && h.Headless() != "" {
+		return Result{ID: IDBackend, Level: OK, Message: "igris is outside herdr and tmux: its sessions run in the detached tmux session " + h.Headless() + " (`tmux attach -t " + h.Headless() + "` shows them)"}
+	}
 	if b.Name() == "tmux" {
 		return Result{ID: IDBackend, Level: OK, Message: "tmux is running and igris is inside it"}
 	}
