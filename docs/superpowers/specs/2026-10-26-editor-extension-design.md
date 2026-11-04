@@ -54,6 +54,8 @@ What would make this a failure even if it works (owner's words):
 
 - `serve` started headless on the **existing tmux backend** (SPEC §11.5, since 1.4) opens a detached `igris-<project>` session. Each active task's window appears as a VS Code terminal tab attached to it, for example through a grouped tmux session per tab that selects the task's window.
 - Prompt, state, tail and submit are the existing, tested tmux paths. Users never see or learn tmux; it is only a dependency underneath, which the onboarding installs.
+- **The extension runs where the files are** (`extensionKind: ["workspace"]`, V19-P1): under Remote-WSL and Remote-SSH that is the remote, where `.igris/igris.sock`, `igris` and `git` are local to it. Nothing is tunneled.
+- **`backend = "auto"` outside herdr and tmux** (V19-P1): an extension host is outside both, and `auto` failed there. From 1.9 it runs headless on tmux when `tmux` is installed (as an explicit `tmux` already does), so an existing project keeps `auto`, picks herdr from a herdr pane and tmux from the editor. SPEC §11.3 is amended by V19-01.
 - **Rejected: a true "VS Code terminal backend".** Extensions can't reliably read what a terminal shows through the stable API, and the tail and stuck-prompt detection need it. Owning the terminal would also need a native PTY module, and it would bend igris to the editor.
 
 ### Onboarding (the setup wall)
@@ -65,14 +67,14 @@ What would make this a failure even if it works (owner's words):
 
 All behavior stays in the binary (`internal/report`, `internal/look`, the engine). The extension only renders what `serve` sends and sends protocol commands, so a later app is just another client, like the TUI and the web UI. Nothing should live only in the extension.
 
-## Open decisions (V19-P1)
+## Decided (V19-P1, owner 2026-11-04; the reasoning in docs/decisions.md)
 
-- **Where it lives.** Proposed: this repo, as `editors/vscode/`, so protocol changes, compat tests and releases move together, trunk-based.
-- **The TypeScript toolchain and its dependencies** need a P0-01-style approval: TypeScript, esbuild, `@vscode/vsce`, `ovsx`, `@vscode/test-electron`.
-- **Protocol 1 as a contract.** Whether it is frozen for the extension (SPEC §19), and how a version mismatch between the extension and igris is refused (as `compat` does today).
-- **The first release's scope.** Proposed: Part A plus onboarding first, Part B second, if the phase gets long.
-- **Publishing.** Marketplace and Open VSX publisher accounts, and an owner-only release step like `make sign`.
-- **Verification first (V19-P2):** the socket from the extension host locally, over Remote-WSL and over Remote-SSH; a terminal tab attached to one task's tmux window; installing from Open VSX in a fork.
+- **Where it lives:** this repo, `editors/vscode/`, trunk-based.
+- **Toolchain:** TypeScript 5.9, esbuild, `@types/vscode`, `@types/node`, `@vscode/vsce`, `ovsx`, `@vscode/test-electron`, mocha; all dev-only, pinned; **no runtime dependency**. No eslint/prettier, no Bun/Deno.
+- **Protocol 1** was already frozen for 1.x (SPEC §19). The extension accepts any 1.x igris at or above a stated minimum (pinned by V19-01, expected 1.8), checked with `igris --version` at activation; a snapshot `protocol` other than 1 is refused with one line. Newer igris always works; missing optional fields degrade.
+- **Scope:** the whole design in 1.9.0, Part A, Part B and onboarding (the owner chose one release over Part A first).
+- **Publishing:** owner-only `make vsix-publish` with the two store tokens in the environment; CI builds and attaches the `.vsix`, never publishes; `make vsix-check` compares the checksum with CI's. Publisher `drilonrecica`, name `igris` → `drilonrecica.igris` on the Marketplace and Open VSX.
+- **Verification (V19-P2):** the agent runs the local checks with a throwaway spike (the socket from a `--extensionDevelopmentPath` extension, a terminal tab on a task's tmux window, `--version` and `doctor --json` shapes); the owner does Remote-WSL, Remote-SSH and the installs from Open VSX in Kiro and Cursor, listed as owner checks.
 
 ## Testing
 
