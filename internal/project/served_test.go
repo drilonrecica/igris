@@ -81,3 +81,16 @@ func TestLiveRun(t *testing.T) {
 		t.Errorf("a run held by a usage limit: %+v", got)
 	}
 }
+
+// A question of the run (a budget, the commit batch) is a need with no
+// task, so home counts it apart from the tasks (SPEC §15.4).
+func TestLiveRunHasTheRunsQuestionsApart(t *testing.T) {
+	s := serve.Snapshot{
+		Questions:      []serve.Event{{Task: "M1-03", Question: string(engine.QuestionCommit)}},
+		BudgetQuestion: &serve.Event{Task: "M1-03", Question: string(engine.QuestionBudget)},
+	}
+	got := LiveRun(s).NeedsYou
+	if len(got) != 2 || got[0].Task != "M1-03" || got[1].Task != "" {
+		t.Errorf("NeedsYou = %+v, want M1-03's question and one for the run", got)
+	}
+}

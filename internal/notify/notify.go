@@ -8,7 +8,6 @@ package notify
 import (
 	"context"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -80,7 +79,20 @@ type Message struct {
 // NeedYou is what a needs_input message for several tasks says:
 // "2 tasks need you: M1-03, M1-05".
 func NeedYou(ids []string) string {
-	return strconv.Itoa(len(ids)) + " tasks need you: " + strings.Join(ids, ", ")
+	var tasks []string
+	run := false
+	for _, id := range ids {
+		if id == "" {
+			run = true // a question of the run is not a task (SPEC §15.4)
+		} else {
+			tasks = append(tasks, id)
+		}
+	}
+	what := look.NeedYou(len(tasks), run)
+	if len(tasks) > 0 {
+		what += ": " + strings.Join(tasks, ", ")
+	}
+	return what
 }
 
 // NeedsYou reports whether the event is igris waiting on the owner: the

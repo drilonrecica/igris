@@ -554,9 +554,12 @@ func (e *Engine) sendNeeds(ctx context.Context) {
 		return
 	}
 	last := needs[len(needs)-1]
+	// A question of the run (a budget, the commit batch) has no task: it
+	// is worded as "the run" and kept out of the task list.
+	tasks := slices.DeleteFunc(slices.Clone(ids), func(id string) bool { return id == "" })
 	e.notifyAs(ctx, notify.Message{
 		Event: notifyNeedsInput, Project: last.Project, Phase: last.Phase,
-		TaskID: ids[0], Tasks: ids, What: notify.NeedYou(ids),
+		TaskID: tasks[0], Tasks: tasks, What: notify.NeedYou(ids),
 		RunID: last.RunID, At: last.At,
 	})
 }

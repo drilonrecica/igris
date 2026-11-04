@@ -869,11 +869,16 @@ func statusOf(s Snapshot, now time.Time) status {
 	if s.Reset != nil {
 		note(*s.Reset)
 	}
+	// A question of the run (a budget, the commit batch) is not a task
+	// (SPEC §15.4): it counts as "the run".
+	runQuestions := 0
 	if s.BudgetQuestion != nil {
 		note(*s.BudgetQuestion)
+		runQuestions++
 	}
 	if s.BatchQuestion != nil {
 		note(*s.BatchQuestion)
+		runQuestions++
 	}
 	// needs counts the tasks that need the owner without a question. A
 	// card still in the question state with no question pending is an
@@ -888,8 +893,7 @@ func statusOf(s Snapshot, now time.Time) status {
 	working := func(line string) status { return clock(status{Word: look.Working.String(), Line: line}, s.Started) }
 	switch {
 	case needs > 0:
-		n := needs + questions
-		return status{Word: look.NeedsYou.String(), Line: fmt.Sprintf("%s %s you", look.Count(n, "task", "tasks"), look.Plural(n, "needs", "need")), Tone: "needs"}
+		return status{Word: look.NeedsYou.String(), Line: look.NeedYou(needs+questions-runQuestions, runQuestions > 0), Tone: "needs"}
 	case questions > 0:
 		return clock(status{Word: look.NeedsYou.String(), Line: look.Count(questions, "question", "questions"), Tone: "needs"}, oldest)
 	case s.Limited != nil:

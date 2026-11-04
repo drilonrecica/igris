@@ -233,6 +233,22 @@ func jsonText(s string) string {
 
 // A needs_input message for several tasks (SPEC §10) names them all and no
 // title; templates still get the first task's ID.
+func TestNeedYouWordsTheRunApart(t *testing.T) {
+	for _, tt := range []struct {
+		ids  []string
+		want string
+	}{
+		{[]string{"M1-03", "M1-05"}, "2 tasks need you: M1-03, M1-05"},
+		{[]string{"M1-03", ""}, "1 task and the run need you: M1-03"},
+		{[]string{"", "M1-03", "M1-05"}, "2 tasks and the run need you: M1-03, M1-05"},
+		{[]string{""}, "the run needs you"},
+	} {
+		if got := NeedYou(tt.ids); got != tt.want {
+			t.Errorf("NeedYou(%q) = %q, want %q", tt.ids, got, tt.want)
+		}
+	}
+}
+
 func TestSeveralTasksNeedYou(t *testing.T) {
 	m := Message{Event: NeedsInput, Project: "p", Phase: "M1", TaskID: "M1-03", Tasks: []string{"M1-03", "M1-05"}, What: NeedYou([]string{"M1-03", "M1-05"})}
 	if got, want := m.Body(), "phase M1: 2 tasks need you: M1-03, M1-05"; got != want {

@@ -203,6 +203,12 @@ func LiveRun(s serve.Snapshot) *report.LiveRun {
 	for _, q := range s.Questions {
 		need(q.Task, serve.QuestionKind(q.Question))
 	}
+	// The run's own questions (a budget, the commit batch) name no task.
+	for _, q := range []*serve.Event{s.BudgetQuestion, s.BatchQuestion} {
+		if q != nil {
+			need("", serve.QuestionKind(q.Question))
+		}
+	}
 	for _, c := range s.Active {
 		switch c.State {
 		case serve.StateYourTurn:

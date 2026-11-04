@@ -563,8 +563,16 @@ func (m *homeScreen) runningCard(w int) []string {
 			if n.Kind != "needs you" {
 				text += " · " + n.Kind
 			}
-			if k := len(live.NeedsYou); k > 1 {
-				text += " · " + look.Count(k, "task needs", "tasks need") + " you"
+			k, run := 0, false
+			for _, need := range live.NeedsYou {
+				if need.Task == "" {
+					run = true // a question of the run is not a task (SPEC §15.4)
+				} else {
+					k++
+				}
+			}
+			if k > 1 || k > 0 && run {
+				text += " · " + look.NeedYou(k, run)
 			}
 			out = append(out, m.th.paint(lookAlert, fit(text, w)))
 		}

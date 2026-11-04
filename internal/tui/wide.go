@@ -132,14 +132,16 @@ func (m *model) banner(x, y, w int) (string, bool) {
 	}
 	// A question of the run (a budget, the batch question) names no task.
 	text := strings.TrimSpace(look.GlyphNeedsYou+" "+id) + " needs you · " + kind
-	n := len(m.needYou())
+	// A question of the run (a budget, the commit batch) is not a task
+	// (SPEC §15.4): the count is of tasks, and the run is named beside it.
+	n, run := len(m.needYou()), m.budgetAsk != nil || m.batchAsk != nil
 	for _, q := range m.asks {
-		if m.card(q.Task) == nil {
+		if q.Task != "" && m.card(q.Task) == nil {
 			n++ // a question for a task no card shows
 		}
 	}
-	if n > 1 {
-		text += " · " + look.Count(n, "task needs", "tasks need") + " you"
+	if n > 1 || n > 0 && run {
+		text += " · " + look.NeedYou(n, run)
 	}
 	btn := ""
 	if m.question() != nil && m.dialog == nil {

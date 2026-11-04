@@ -327,6 +327,25 @@ func TestCount(t *testing.T) {
 	}
 }
 
+func TestNeedYou(t *testing.T) {
+	for _, tt := range []struct {
+		tasks int
+		run   bool
+		want  string
+	}{
+		{0, false, ""},
+		{1, false, "1 task needs you"},
+		{2, false, "2 tasks need you"},
+		{0, true, "the run needs you"},
+		{1, true, "1 task and the run need you"},
+		{3, true, "3 tasks and the run need you"},
+	} {
+		if got := NeedYou(tt.tasks, tt.run); got != tt.want {
+			t.Errorf("NeedYou(%d, %v) = %q, want %q", tt.tasks, tt.run, got, tt.want)
+		}
+	}
+}
+
 func TestProgress(t *testing.T) {
 	for _, tt := range []struct {
 		done, total, n int

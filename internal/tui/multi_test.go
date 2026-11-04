@@ -358,3 +358,19 @@ func TestRestoreSeveralActive(t *testing.T) {
 		t.Errorf("after a reconnect selected %s, want M1-05 still", hs.m.cur.id)
 	}
 }
+
+// A question of the run (a budget, the commit batch) is not a task: the
+// banner counts tasks only and names the run (SPEC §15.4).
+func TestARunQuestionIsNotATaskInTheBanner(t *testing.T) {
+	hs := multiHarness(t, 120, 40)
+	hs.events(engine.Event{Kind: engine.Asked, Phase: "M1", Question: engine.QuestionBudget, Detail: "budget"})
+	hs.keys("esc") // the question's dialog hides the banner
+	if v := hs.m.View(); !strings.Contains(v, "needs you · budget reached") || strings.Contains(v, "task need") {
+		t.Errorf("a budget alone should read as the run's question, not a task:\n%s", v)
+	}
+	hs.events(engine.Event{Kind: engine.Asked, Phase: "M1", Task: "M1-03", Question: engine.QuestionConfirmSkip, Detail: "M1-03 asks"})
+	hs.keys("esc")
+	if v := hs.m.View(); !strings.Contains(v, " · 1 task and the run need you") {
+		t.Errorf("banner lacks `1 task and the run need you`:\n%s", v)
+	}
+}

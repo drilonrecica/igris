@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -86,7 +87,16 @@ func liveLine(s *serve.Snapshot, p *plan.Plan, lock *report.RunInfo) runLine {
 		r.next = "igris report"
 		return r
 	}
-	for _, q := range s.Questions {
+	// The run's own questions (a budget, the commit batch) name no task.
+	qs := slices.Clone(s.Questions)
+	for _, q := range []*serve.Event{s.BudgetQuestion, s.BatchQuestion} {
+		if q != nil {
+			e := *q
+			e.Task = ""
+			qs = append(qs, e)
+		}
+	}
+	for _, q := range qs {
 		if !r.needs[q.Task] {
 			r.needs[q.Task] = true
 			if len(r.about) == 0 {
@@ -119,8 +129,13 @@ func liveLine(s *serve.Snapshot, p *plan.Plan, lock *report.RunInfo) runLine {
 	switch {
 	case len(r.needs) > 0:
 		set(look.NeedsYou)
-		if n := len(r.needs); n > 1 {
-			r.about = append(r.about, fmt.Sprintf("%s %s you", look.Count(n, "task", "tasks"), look.Plural(n, "needs", "need")))
+		tasks := len(r.needs)
+		run := r.needs[""] // a question of the run is not a task (SPEC §15.4)
+		if run {
+			tasks--
+		}
+		if tasks > 1 || tasks > 0 && run {
+			r.about = append(r.about, look.NeedYou(tasks, run))
 		}
 	case s.Limited != nil && len(s.Active) == 0:
 		// The usage hold (SPEC §6.9): the window, its use and the reset

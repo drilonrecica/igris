@@ -110,6 +110,22 @@ func Plural(n int, one, many string) string {
 // without its noun.
 func Count(n int, one, many string) string { return fmt.Sprintf("%d %s", n, Plural(n, one, many)) }
 
+// NeedYou is how many things wait on the owner, counting tasks only: a
+// question of the run (a budget, the commit batch) is "the run", never a
+// task (SPEC §15.4). "1 task needs you", "2 tasks need you", "1 task and
+// the run need you", "the run needs you"; "" when nothing waits.
+func NeedYou(tasks int, run bool) string {
+	switch {
+	case tasks > 0 && run:
+		return Count(tasks, "task", "tasks") + " and the run need you"
+	case tasks > 0:
+		return Count(tasks, "task needs", "tasks need") + " you"
+	case run:
+		return "the run needs you"
+	}
+	return ""
+}
+
 // Percent is done of total in percent, rounded down; 0 for no total.
 func Percent(done, total int) int {
 	if total <= 0 {
