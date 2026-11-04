@@ -31,6 +31,11 @@ Work in progress for v1.9. What it does so far:
 - **Plan CodeLens.** On the rows of the plan file (`tasks.md`) each task igris knows shows its status, **Run this task**
   (after one confirmation: `igris serve --only <ID>` in the project's own mode, never skip-permissions; not offered
   while a run is attached) and **Open its changes**.
+- **Onboarding.** **Igris: Set up** is a first-run checklist: igris's own install check and each check of
+  `igris doctor --json`. A missing tool shows its install command (fixed text); choosing it puts the command in a
+  terminal for you to read and run, the extension never runs it. In a folder with no project it offers `igris init`.
+  When nothing fails, **Start a run…** (the play button in the view's title, or the empty state) asks for a phase and a
+  mode, confirms once and starts `igris serve`. It never offers `yolo` or `plan:yolo`.
 - **Never skip permissions.** The mode pickers leave out `yolo` and `plan:yolo`, the extension never sends one nor
   says you typed the phrase: a skip-permissions run is started and changed in the terminal only (SPEC §7.3).
 

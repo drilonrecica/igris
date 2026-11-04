@@ -116,6 +116,15 @@
       {
         "command": "igris.runTask",
         "title": "Igris: Run this task alone"
+      },
+      {
+        "command": "igris.onboarding",
+        "title": "Igris: Set up (first-run checklist)"
+      },
+      {
+        "command": "igris.startRun",
+        "title": "Igris: Start a run…",
+        "icon": "$(play)"
       }
     ],
     "menus": {
@@ -129,6 +138,11 @@
           "command": "igris.refresh",
           "when": "view == igris.run",
           "group": "navigation@9"
+        },
+        {
+          "command": "igris.startRun",
+          "when": "view == igris.run && igris.project && !igris.live && !igris.refused",
+          "group": "navigation@1"
         },
         {
           "command": "igris.pause",
@@ -259,7 +273,19 @@
           "when": "false"
         }
       ]
-    }
+    },
+    "viewsWelcome": [
+      {
+        "view": "igris.run",
+        "contents": "Igris needs igris installed and a project here.\n[Set up igris](command:igris.onboarding)",
+        "when": "igris.refused || !igris.project"
+      },
+      {
+        "view": "igris.run",
+        "contents": "No run is attached.\n[Start a run](command:igris.startRun)",
+        "when": "igris.project && !igris.live && !igris.refused"
+      }
+    ]
   },
   "scripts": {
     "build": "node esbuild.mjs",

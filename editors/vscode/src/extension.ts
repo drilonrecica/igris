@@ -7,6 +7,7 @@ import { PlanLens, startOnly } from "./lensView";
 import { editorUi } from "./prompts";
 import { readStatus } from "./idle";
 import { checkInstall } from "./igris";
+import { onboarding, startRun } from "./onboardView";
 import { findRoot, socketPath } from "./socket";
 import { line, short } from "./textsafe";
 import type { Task } from "./protocol";
@@ -58,6 +59,18 @@ const deps: Deps = {
   ui: () => ui,
   send: (cmd) => controller?.send(cmd) ?? Promise.resolve({ type: "error", error: "not connected to the run" }),
   asks: currentAsks,
+};
+
+/** What onboarding reads of the workspace; a started run or an init has the
+ * run view look again. */
+const onboardEnv = {
+  root: () => projectRoot(),
+  folder: () => vscode.workspace.workspaceFolders?.find((f) => f.uri.scheme === "file")?.uri.fsPath,
+  changed: () => {
+    if (refused) return;
+    if (controller) controller.refresh();
+    else startRunView(String((vscode.extensions.getExtension("drilonrecica.igris")?.packageJSON as { version?: unknown } | undefined)?.version ?? ""));
+  },
 };
 
 /** Answers what node asks, or the one thing that waits, or one of them. */
@@ -161,6 +174,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<Api> {
     vscode.workspace.registerTextDocumentContentProvider(SCHEME_NAME, gitContent),
     vscode.commands.registerCommand("igris.viewChanges", changesCommand),
     vscode.commands.registerCommand("igris.runTask", runTaskCommand),
+    vscode.commands.registerCommand("igris.onboarding", async () => {
+      await onboarding(onboardEnv);
+      await verify();
+      if (!refused && !controller) startRunView(version);
+    }),
+    vscode.commands.registerCommand("igris.startRun", async () => {
+      if (refused) return onboarding(onboardEnv);
+      if (liveRun() && !liveRun()?.ended) return ui.told(false, "Igris: a run is already attached; use the run view.");
+      await startRun(onboardEnv);
+    }),
     planLens,
     vscode.languages.registerCodeLensProvider({ scheme: "file", language: "markdown" }, planLens),
     vscode.commands.registerCommand("igris.answer", answerCommand),
@@ -239,8 +262,9 @@ function startRunView(version: string): void {
   const root = projectRoot();
   gitContent.setRoot(root);
   projectDir = root;
+  void vscode.commands.executeCommand("setContext", "igris.project", root !== undefined);
   if (!root) {
-    treeView.message = "No igris project in this workspace: open a folder with an igris.toml, or run igris init in one.";
+    treeView.message = "No igris project in this workspace.";
     tree.set([]);
     bar.hide();
     return;
