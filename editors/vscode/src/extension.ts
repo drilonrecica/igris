@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { announce, answer, offer, perform, type Deps, type Ui } from "./act";
 import { asksOf, cardActions, modeChoice, runActions, taskModable, taskModeChoice, type Ask, type Choice } from "./answers";
+import { GitContent, SCHEME_NAME, viewChanges } from "./changesView";
 import { Controller } from "./controller";
 import { editorUi } from "./prompts";
 import { readStatus } from "./idle";
@@ -33,6 +34,8 @@ let watchers: vscode.Disposable[] = [];
 let watchedFiles = "";
 let fileWatcher: vscode.Disposable | undefined;
 let ui: Ui = editorUi;
+const gitContent = new GitContent();
+let projectDir: string | undefined;
 /** The asks a notification has told the owner about, by key. */
 let announced = new Set<string>();
 
@@ -88,6 +91,21 @@ async function taskActions(node?: Node): Promise<void> {
   await offer(deps, choices, id, card ? card.title || id : id);
 }
 
+/** Opens a task's changes: node's task, else the task that asks, else an
+ * active one (SPEC §15.9). */
+async function changesCommand(node?: Node): Promise<void> {
+  const rootDir = projectDir;
+  if (!rootDir) return ui.told(false, "Igris: no igris project in this workspace.");
+  const run = liveRun();
+  let task = node?.task;
+  if (!task) {
+    const tasks = [...new Set([...currentAsks().map((a) => a.task), ...(run?.active.map((c) => c.task) ?? [])].filter((t) => t !== ""))];
+    task = tasks.length === 1 ? tasks[0] : tasks.length > 1 ? await vscode.window.showQuickPick(tasks, { title: "Igris: whose changes?", ignoreFocusOut: true }) : undefined;
+  }
+  if (!task) return ui.told(false, "Igris: choose a task in the run view to read its changes.");
+  await viewChanges(rootDir, task, run?.run ? [run.run] : [], (l) => ui.told(false, l));
+}
+
 /** Sends one of the run's actions by its command type. */
 async function runAction(pickOf: (cs: Choice[]) => Choice | undefined): Promise<void> {
   const run = liveRun();
@@ -121,6 +139,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<Api> {
       else startRunView(version);
     }),
     vscode.commands.registerCommand("igris.showRun", showRun),
+    vscode.workspace.registerTextDocumentContentProvider(SCHEME_NAME, gitContent),
+    vscode.commands.registerCommand("igris.viewChanges", changesCommand),
     vscode.commands.registerCommand("igris.answer", answerCommand),
     vscode.commands.registerCommand("igris.taskActions", taskActions),
     vscode.commands.registerCommand("igris.runActions", async () => {
@@ -195,6 +215,8 @@ function projectRoot(): string | undefined {
 
 function startRunView(version: string): void {
   const root = projectRoot();
+  gitContent.setRoot(root);
+  projectDir = root;
   if (!root) {
     treeView.message = "No igris project in this workspace: open a folder with an igris.toml, or run igris init in one.";
     tree.set([]);

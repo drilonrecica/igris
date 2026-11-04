@@ -24,6 +24,10 @@ Work in progress for v1.9. What it does so far:
   usage hold holds, and the mode of the next sessions; an active task's row has Mark done, Skip and Retry (fresh or
   continuing), a task still to do its next session's mode. Stop, Skip, Mark done and Undo ask a second time, as in the
   web UI.
+- **Reading a task's changes.** A task's row (and a row that needs you) has **Read this task's changes**, also in the
+  command palette: its commits (`<ID>: …`, from the run log) or, in a parallel phase, its worktree branch
+  `igris/<run-id>-<ID>`, then its files, each opened in the editor's own diff. It reads with `git` in the project and
+  changes nothing.
 - **Never skip permissions.** The mode pickers leave out `yolo` and `plan:yolo`, the extension never sends one nor
   says you typed the phrase: a skip-permissions run is started and changed in the terminal only (SPEC §7.3).
 

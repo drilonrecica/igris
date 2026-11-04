@@ -25,5 +25,6 @@ describe("activation", () => {
   it("contributes its command", async () => {
     const cmds = await vscode.commands.getCommands(true);
     assert.ok(cmds.includes("igris.checkInstall"));
+    assert.ok(cmds.includes("igris.viewChanges"));
   });
 });

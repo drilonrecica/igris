@@ -108,6 +108,10 @@
       {
         "command": "igris.setTaskMode",
         "title": "Igris: Mode of this task's next session…"
+      },
+      {
+        "command": "igris.viewChanges",
+        "title": "Igris: Read a task's changes"
       }
     ],
     "menus": {
@@ -193,6 +197,16 @@
           "command": "igris.stop",
           "when": "view == igris.run && viewItem =~ /^igris\\.run/ && igris.live",
           "group": "3_run@9"
+        },
+        {
+          "command": "igris.viewChanges",
+          "when": "view == igris.run && viewItem =~ /^igris\\.(task|active|question)/",
+          "group": "1_answer@3"
+        },
+        {
+          "command": "igris.viewChanges",
+          "when": "view == igris.run && viewItem =~ /^igris\\.question/",
+          "group": "inline"
         }
       ],
       "commandPalette": [
@@ -231,6 +245,10 @@
         {
           "command": "igris.stop",
           "when": "igris.live"
+        },
+        {
+          "command": "igris.viewChanges",
+          "when": "igris.live || igris.needs"
         }
       ]
     }
