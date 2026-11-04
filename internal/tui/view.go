@@ -253,9 +253,12 @@ func (m *model) buttons() []button {
 		quit = "Home"
 	}
 	if m.ended {
-		// The summary (SPEC §15.3): Home first and focused, History, the
-		// report command, ?.
+		// The summary (SPEC §15.3): Home first and focused, Arise the
+		// next phase after a completed run, History, the report command, ?.
 		out := []button{{label: quit, key: "q", act: actQuit}}
+		if next := m.ariseNext(); next != "" {
+			out = append(out, button{"Arise " + next + "…", "Arise", "a", actAriseNext})
+		}
 		if m.opts.History != nil {
 			out = append(out, button{label: "History", key: "h", act: actHistory})
 		}

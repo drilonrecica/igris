@@ -1105,3 +1105,42 @@ func TestDryRunShowsHandoffNotes(t *testing.T) {
 		t.Errorf("dep_notes = false: exit %d\n%s", code, out.String())
 	}
 }
+
+// The end-of-run summary's Arise in a view started from the shell (SPEC
+// §15.3): once A completes, Arise B quits the view and the new run
+// replaces it, through the start-run wizard with B selected.
+func TestAriseTUIAriseNextPhase(t *testing.T) {
+	const twoPhases = oneTaskPlan + `
+## B
+
+| ID | Task | Deps | Status | Model | Owner |
+|---|---|---|---|---|---|
+| B-1 | **Two** | A-1 | blocked | sonnet | agent |
+`
+	saved := ariseNext
+	t.Cleanup(func() { ariseNext = saved })
+	var wizard string
+	ariseNext = func(phase string, _, _ io.Writer) int {
+		wizard = phase
+		return exitOK
+	}
+	code, output, _ := noTUIRun{
+		plan: twoPhases,
+		args: []string{"A"},
+		ui: func(_ context.Context, o tui.Options) error {
+			<-o.Feed.Ended()
+			if o.Arise == nil {
+				t.Error("the view offers no Arise")
+				return nil
+			}
+			o.Arise("B") // the summary's a
+			return nil
+		},
+	}.run(t)
+	if code != exitOK || !strings.Contains(output, "run completed") {
+		t.Fatalf("exit %d; output:\n%s", code, output)
+	}
+	if wizard != "B" {
+		t.Errorf("the wizard opened on %q, want B", wizard)
+	}
+}

@@ -430,3 +430,118 @@ func TestTasksColumnIsAsWideAsItsRows(t *testing.T) {
 		t.Errorf("divider at %d without a plan, want %d", got, want)
 	}
 }
+
+// ariseNextMsg is what the harness's Arise hands the program holding the view.
+type ariseNextMsg struct{ phase string }
+
+// After a completed run with a later phase that has work, the summary
+// offers Arise <phase>… under a (SPEC §15.3); a leaves with that phase. It
+// is not offered after a stuck, failed, stopped or interrupted run, when
+// no later phase has work, or when the view has nowhere to start a run.
+func TestSummaryAriseNext(t *testing.T) {
+	ended := func(t *testing.T, plan, outcome string, arise bool) *harness {
+		hs := newHarness(t, 120, 40)
+		hs.withPlan(plan)
+		hs.m.opts.Leave = func() tea.Msg { return "home" }
+		if arise {
+			hs.m.opts.Arise = func(p string) tea.Msg { return ariseNextMsg{p} }
+		}
+		hs.events(engine.Event{Kind: engine.RunStarted, Run: "20261006-094100-3fa2", Detail: "phase M0"}, engine.Event{Kind: engine.RunStopped, Detail: outcome})
+		return hs
+	}
+	hs := ended(t, demoPlan, "completed", true)
+	if v := hs.m.View(); !strings.Contains(v, "[›q Home‹] [a Arise P0…] [y Copy report command] [?]") {
+		t.Errorf("summary bar:\n%s", v)
+	}
+	if hs.m.focusedButton() != actQuit {
+		t.Errorf("focus on %v, want Home", hs.m.focusedButton())
+	}
+	if got := hs.m.nextCommands(); !slices.Equal(got, []string{"igris arise P0", "igris report 20261006-094100-3fa2"}) {
+		t.Errorf("next %v, want it unchanged", got)
+	}
+	if msg := hs.key("a"); msg != (ariseNextMsg{"P0"}) {
+		t.Errorf("a returned %v, want Arise P0", msg)
+	}
+	// Focused and entered, as clicked.
+	hs = ended(t, demoPlan, "completed", true)
+	hs.m.View() // the bar's buttons are the last frame's
+	hs.keys("right")
+	if msg := hs.key("enter"); msg != (ariseNextMsg{"P0"}) {
+		t.Errorf("enter on the bar's second button returned %v, want Arise P0", msg)
+	}
+
+	for _, outcome := range []string{"stuck", "error", "stopped"} {
+		hs := ended(t, demoPlan, outcome, true)
+		if v := hs.m.View(); strings.Contains(v, "Arise P0") {
+			t.Errorf("%s: Arise offered:\n%s", outcome, v)
+		}
+		if msg := hs.key("a"); msg != nil {
+			t.Errorf("%s: a returned %v", outcome, msg)
+		}
+	}
+	// Interrupted: serve died without ending the run.
+	hs = newHarness(t, 120, 40)
+	hs.withPlan(demoPlan)
+	hs.m.opts.Arise = func(p string) tea.Msg { return ariseNextMsg{p} }
+	hs.events(engine.Event{Kind: engine.RunStarted, Detail: "phase M0"})
+	hs.m.opts.Feed.End(engine.Result{}, serve.ErrGone)
+	hs.m.Update(batch{ended: true})
+	if msg := hs.key("a"); msg != nil || strings.Contains(hs.m.View(), "Arise P0") {
+		t.Errorf("interrupted: Arise offered (%v)", msg)
+	}
+	// No later phase with work.
+	hs = ended(t, strings.ReplaceAll(demoPlan, "| P0-05 | **Create repo** | — | ready |", "| P0-05 | **Create repo** | — | done |"), "completed", true)
+	if msg := hs.key("a"); msg != nil || strings.Contains(hs.m.View(), "Arise") {
+		t.Errorf("no next phase: Arise offered (%v)", msg)
+	}
+	// A view with nowhere to start a run.
+	hs = ended(t, demoPlan, "completed", false)
+	if msg := hs.key("a"); msg != nil || strings.Contains(hs.m.View(), "Arise P0") {
+		t.Errorf("no Arise hook: Arise offered (%v)", msg)
+	}
+}
+
+// While the run goes on, a is still Start anyway, and only while a usage
+// limit holds (SPEC §15.5): the summary's Arise takes the key only once the
+// run is over.
+func TestAriseKeyDuringTheRun(t *testing.T) {
+	hs := newHarness(t, 120, 40)
+	hs.withPlan(demoPlan)
+	hs.m.opts.Arise = func(p string) tea.Msg { return ariseNextMsg{p} }
+	hs.events(engine.Event{Kind: engine.RunStarted, Detail: "phase M0"}, started("M0-03"), opened("M0-03"))
+	if msg := hs.key("a"); msg != nil {
+		t.Errorf("a during the run returned %v", msg)
+	}
+	if strings.Contains(hs.m.View(), "[a Arise") {
+		t.Errorf("Arise offered during the run")
+	}
+}
+
+// The summary with Arise at the three sizes.
+func TestSummaryAriseGoldens(t *testing.T) {
+	for _, size := range [][2]int{{120, 40}, {80, 24}, {50, 20}} {
+		t.Run(fmt.Sprint(size), func(t *testing.T) {
+			hs := newHarness(t, size[0], size[1])
+			hs.m.loc = time.UTC
+			hs.withPlan(demoPlan)
+			hs.m.opts.Leave = func() tea.Msg { return "home" }
+			hs.m.opts.History = func() tea.Msg { return "history" }
+			hs.m.opts.Arise = func(p string) tea.Msg { return ariseNextMsg{p} }
+			runEnd(hs)
+			v := hs.m.View()
+			checkFits(t, v, size[0], size[1])
+			golden(t, fmt.Sprintf("summary_arise_%dx%d", size[0], size[1]), v)
+		})
+	}
+}
+
+// AriseNext, for a view started from the shell, quits the view with the
+// phase left for the caller.
+func TestOptionsAriseNext(t *testing.T) {
+	var o Options
+	var next string
+	o.AriseNext(&next)
+	if msg := o.Arise("M3"); msg != (tea.QuitMsg{}) || next != "M3" {
+		t.Errorf("Arise returned %v, next %q", msg, next)
+	}
+}

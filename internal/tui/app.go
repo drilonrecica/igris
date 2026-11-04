@@ -55,6 +55,9 @@ type Home struct{}
 // Wizard opens the start-run wizard over home, prefilled with arise's
 // flags.
 type Wizard struct {
+	// Phase, when set, is the phase the wizard opens on, selected, without
+	// asking about a resume: the end-of-run summary's Arise (SPEC §15.3).
+	Phase       string
 	Mode        string // --mode; "" is as planned
 	Through     string // --through
 	ForceUnlock bool   // --force-unlock

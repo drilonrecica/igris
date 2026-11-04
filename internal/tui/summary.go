@@ -171,13 +171,15 @@ const summaryWide = 72
 // bar with Home focused.
 func (m *model) summaryScreen(w, h int) []string {
 	out := []string{m.header(w), m.th.rule(w, "")}
-	rows := max(h-chromeRows, 0)
+	// The bar first: on a narrow screen it takes two rows, which the
+	// body gives up.
+	bar := m.fitBar(w, barRows)
+	rows := max(h-chromeRows-max(len(bar.text)-1, 0), 0)
 	body := m.summaryBody(w, h, rows)
 	for i := range rows {
 		out = append(out, fit(line(body, i), w))
 	}
 	out = append(out, m.th.rule(w, ""))
-	bar := m.fitBar(w, barRows)
 	bar.barZones(&m.zones, len(out), m.modal())
 	out = append(out, bar.text...)
 	return out[:min(len(out), h)]
@@ -378,6 +380,17 @@ func (m *model) nextCommands() []string {
 		out = append(out, "igris doctor")
 	}
 	return append(out, m.sum.reportCommand())
+}
+
+// ariseNext is the phase the summary's Arise… opens the wizard with
+// (SPEC §15.3): the next phase with work, once the run completed and the
+// view has somewhere to start it; "" when Arise isn't offered. A stuck,
+// failed, stopped or interrupted run keeps only its next: line.
+func (m *model) ariseNext() string {
+	if !m.ended || m.lost || m.opts.Arise == nil || m.sum.outcome != look.Completed {
+		return ""
+	}
+	return m.nextPhase()
 }
 
 // nextPhase is the first phase after the run's with a task left to do,

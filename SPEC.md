@@ -1171,6 +1171,7 @@ Each button carries its key (`[o Open session]`, since 1.7); the bar shows only 
 | Mode | `m` | Change run mode for upcoming sessions (the mode picker, §15.5; `yolo` and `plan:yolo` need the typed confirmation) |
 | Task mode | `M` | Override mode for the selected agent task (the same picker); hidden for user tasks |
 | Start anyway | `a` | Since 1.8: while a usage limit holds the next task (§6.9), start it anyway; the quota threshold is ignored for this one start, a hit still holds. Shown only while the hold holds |
+| Arise W17… | `a` | Since 1.9, on the end-of-run summary: the start-run wizard (§15.6) with the next phase with work selected. Shown only after a completed run, while a later phase has work |
 | Pause / Resume | `p` | Pause after the current task (toggle): the task finishes normally, then igris launches nothing and waits — the run stays alive — until pause is toggled off. The button label shows the current state |
 | Done… | `d` | Mark the current task done (a user task, or an agent task as the owner's decision, §6.4). For a user task it asks first, with an optional note (§8) |
 | Skip… | `s` | Skip the current task: asks for a reason; for agent tasks also closes the session after confirmation |
@@ -1204,9 +1205,11 @@ igris · sinjal                     phase M1 · 8/8 · 100% ██████�
 
                         next: igris arise M2  ·  igris report
 ────────────────────────────────────────────────────────────────────────────────────────────────────
-[›q Home‹] [h History] [y Copy report command] [?]
+[›q Home‹] [a Arise M2…] [h History] [y Copy report command] [?]
 ```
 The helm (§15.4), `Done` and the outcome with its glyph (`Done ✓ completed`, `Done – stopped`, `Done ▲ stuck` with the tasks that wait and on what, `Done ✗ failed` with the error, and since 1.7 `Done ▲ interrupted` in a view whose igris serve died without ending the run, killed or crashed, with `next: igris status`), the phase, the counts (done, skipped, and `failed`, the tasks whose last attempt hit the verify limit or an error, only when it isn't zero), wall time, needs-you time, tokens, commits, verify, the skip reasons, and `next:` with the commands that follow. Short of rows, the helm shrinks from L to S and is then dropped, before the blank lines; narrow, the two columns stack. A Stop the owner confirmed (`x`) returns to home on its own once igris has stopped.
+
+**Arise the next phase** (since 1.9). After a completed run, while a later phase in the plan has a task left to do, the summary offers **Arise M2…** (`a`; the phase is the one `next:` names): the start-run wizard (§15.6) opens with that phase selected and goes on through its steps (Through, Tasks, Mode, Summary) as when opened from home; Cancel starts nothing. In a view pushed by home the view closes, home reads the project again and the wizard opens over it. In a view started from the shell (`igris arise`, `igris attach`) the view closes and the wizard opens over home as `igris arise` without a phase opens it, so the new run replaces the view; the shell's `arise` prints how the finished run ended first. It is not offered after a stuck, failed, stopped or interrupted run, whose summary keeps its `next:`, nor while the view is reconnecting.
 
 **Attached clients** (since 1.4). Several run views may show one run at once (§13); each sends its owner's actions, and a question is answered by the first one: in the others its dialog closes as the answer's events arrive. The header names the serving igris when it is another version (`served by igris 1.4.0`, with the note that the run keeps that igris until it ends). When the connection to serve is lost the header says `▲ reconnecting…` in Ember and the view reconnects with a fresh snapshot; while it is gone the bar offers only Quit. In a view attached by `igris attach`, `ctrl+c` (like SIGINT, SIGTERM and SIGHUP) detaches without asking: the run goes on in serve.
 
@@ -1304,7 +1307,7 @@ Modelled on Claude Code's choice prompts and herdr's clickable UI.
   | `o` | **o**pen session | the selected task's pane | the running task's pane (a run elsewhere) |
   | `t` | de**t**ails | the selected task | the selected phase or task |
   | `p` | **p**ause / resume | toggle pause after the current task | — |
-  | `a` | start **a**nyway | since 1.8: start the task a usage limit holds, ignoring the quota threshold once (§6.9) | — |
+  | `a` | start **a**nyway · **a**rise | since 1.8: start the task a usage limit holds, ignoring the quota threshold once (§6.9); since 1.9, on the end-of-run summary of a completed run, **Arise W17…** (§15.3). The two never show together: the hold ends with the run | — |
   | `r` | **r**etry | Retry… | — |
   | `x` | stop, close, reject | Stop… the run | Close… a side session (§15.7), Reject the proposal (the adapt and draft review, §9) |
   | `v` `c` `h` | pre**v**iew · **c**heck · **h**istory | `h` History on the end-of-run summary | the pages (§15.6) |
@@ -1395,7 +1398,7 @@ A header (the wordmark, the project, the plan file, the backend's name — `herd
 
 Focus regions in tab order: PHASES → action bar → HEALTH/RECENT (each line opens its page). The selected phase is the wizard's default. Mouse as in §15.5: a click selects a phase and a second click opens it; a click on a HEALTH or RECENT line opens its page.
 
-**Start-run wizard** (`a`, or `igris arise` with nothing to resume, §14). A sequence of dialogs over home (full-screen when narrow), each with the CLI's default and meaning:
+**Start-run wizard** (`a`, `igris arise` with nothing to resume, §14, or since 1.9 the end-of-run summary's **Arise W17…**, which opens it on its Phase step with that phase selected and no resume question, §15.3). A sequence of dialogs over home (full-screen when narrow), each with the CLI's default and meaning:
 1. **What to run** — only when something can be resumed: **Resume last run (T first)** · Start a phase…. Resume continues the previous range, and its slice, with the interrupted task first (§13), skipping Phase, Through and Tasks; the session-lost question then comes in the run view.
 2. **Phase** — phases with work first, each with `n/m` and its outcome word; complete phases last, labelled `complete`. Default: the selected phase if it has work, else the first with work.
 3. **Through** — **Only P** · P through Q … (later phases only); skipped when there is no later phase (since 1.7).

@@ -129,6 +129,9 @@ const (
 	actAnswerCard // a card's [Answer…]: its task's question, else the first in line
 	// The usage hold (SPEC §6.9).
 	actLimitStart // Start anyway: the next start ignores the quota threshold once
+	// The end-of-run summary's Arise (SPEC §15.3): the next phase with
+	// work, in the start-run wizard.
+	actAriseNext
 	// A budget reached (SPEC §6.9, budget.go).
 	actBudgetRaise        // ask for the new value
 	actBudgetRaiseConfirm // raise it to the value typed
@@ -282,6 +285,7 @@ var helpActions = []helpEntry{
 	{"M", "Task mode", "mode for the selected agent task's next session, over its Mode column (not for user tasks)"},
 	{"p", "Pause / Resume", "pause after the current task; igris waits until you resume"},
 	{"a", "Start anyway", "while a usage limit holds the next task: start it anyway, ignoring the quota threshold once (a hit still holds)"},
+	{"a", "Arise", "on the end-of-run summary of a completed run: the next phase with work, in the start-run wizard"},
 	{"d", "Done", "mark the current task done (your decision: verify is skipped); a user task asks for an optional note"},
 	{"s", "Skip", "skip the current task; asks for a reason and closes its session"},
 	{"S", "Side session", "a Claude Code session of your own, not a task"},

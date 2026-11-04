@@ -7,6 +7,7 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 ### Added
 
 - **A Tasks step in the start wizard.** After **Through**, home's wizard asks **All tasks** · Only… · From… · Until…, with a picker of the range's tasks (status, rank and what each waits on), so part of a phase starts from the TUI as `--only`, `--from` and `--until` start it from the shell, with the same checks. The summary names the slice (`Arise W17 · only W17-03 · mode auto · 1 task`). Dialog lists longer than the screen now scroll.
+- **Arise the next phase from the end-of-run summary.** After a completed run, while a later phase has work, the summary offers **Arise W17…** (`a`): the start-run wizard with that phase selected. From home the view goes back home and opens it there; in a view started with `igris arise` or `igris attach` the new run replaces the view.
 
 ## [1.8.0] - 2026-10-26
 

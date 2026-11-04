@@ -50,7 +50,10 @@ func execAttach(_ *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 		}
 		return fail(exitFail, "%v", err)
 	}
-	uiErr := attachUI(ctx, proj.AttachOptions(feed, client, igrisVersion()))
+	opts := proj.AttachOptions(feed, client, igrisVersion())
+	var next string // the summary's Arise (SPEC §15.3)
+	opts.AriseNext(&next)
+	uiErr := attachUI(ctx, opts)
 	client.Close()
 	if uiErr != nil {
 		return fail(exitFail, "the TUI failed: %v; the run goes on (`igris stop` stops it)", uiErr)
@@ -59,6 +62,10 @@ func execAttach(_ *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	case <-feed.Ended():
 		waitLockFree(ctx, proj.Root) // so arise right after finds the project free
 		res, err := feed.Result()
+		if next != "" && err == nil {
+			fmt.Fprintln(stdout, tui.ExitText(res, nil))
+			return ariseNext(next, stdout, stderr)
+		}
 		if err != nil {
 			fmt.Fprintln(stdout, err)
 			return exitOK

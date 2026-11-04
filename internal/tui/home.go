@@ -322,7 +322,7 @@ func (m *homeScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.setStatus("attach: " + textsafe.Line(msg.err.Error()))
 		return m, m.refresh()
 	case leaveRunMsg:
-		return m, m.leaveRun(msg.history)
+		return m, m.leaveRun(msg)
 	case runEndedMsg:
 		return m, m.runEnded(msg.r)
 	case doctorMsg:

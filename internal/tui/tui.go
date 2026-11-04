@@ -74,6 +74,11 @@ type Options struct {
 	// leaves for the History page (SPEC §15.3): the message it returns goes
 	// to the program holding the view. Nil offers no History.
 	History func() tea.Msg
+	// Arise, when set, is how the end-of-run summary's Arise <phase>…
+	// (a) leaves for the start-run wizard with the next phase with work
+	// selected (SPEC §15.3): the message it returns goes to the program
+	// holding the view. Nil offers no Arise.
+	Arise func(phase string) tea.Msg
 	// Attached says the run is served by igris serve and fed through a
 	// serve.Client (SPEC §13, §14): q asks Detach · Stop run · Cancel
 	// (§15.3), and the view says when the connection is lost.
@@ -81,6 +86,16 @@ type Options struct {
 	// Version is this igris's version, e.g. "1.4.0": an attached view
 	// names the igris serving the run when its version is another.
 	Version string
+}
+
+// AriseNext makes the end-of-run summary offer Arise <phase>… in a view
+// started from the shell (SPEC §15.3): picking it quits the view and
+// leaves the phase in *next, for the caller to open the wizard with.
+func (o *Options) AriseNext(next *string) {
+	o.Arise = func(phase string) tea.Msg {
+		*next = phase
+		return tea.QuitMsg{}
+	}
 }
 
 // Run shows the TUI until the owner quits or ctx ends. Quitting never stops

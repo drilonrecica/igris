@@ -370,7 +370,10 @@ func runServed(ctx context.Context, proj *project.Project, l *project.Launch, co
 	if err != nil {
 		return 0, false, err
 	}
-	uiErr := ariseUI(ctx, proj.AttachOptions(feed, s, igrisVersion()))
+	opts := proj.AttachOptions(feed, s, igrisVersion())
+	var next string // the summary's Arise (SPEC §15.3)
+	opts.AriseNext(&next)
+	uiErr := ariseUI(ctx, opts)
 	s.Close()
 	if uiErr != nil {
 		fmt.Fprintf(stderr, "igris arise: the TUI failed: %v; the run goes on in igris serve (`igris attach` shows it, `igris stop` stops it)\n", uiErr)
@@ -380,11 +383,22 @@ func runServed(ctx context.Context, proj *project.Project, l *project.Launch, co
 	case <-feed.Ended():
 		waitLockFree(ctx, proj.Root)
 		res, err := feed.Result()
-		return tuiExit(res, err, out, stderr), true, nil
+		code := tuiExit(res, err, out, stderr)
+		if next != "" {
+			code = ariseNext(next, out, stderr)
+		}
+		return code, true, nil
 	default:
 	}
 	fmt.Fprintln(out, tui.ExitText(engine.Result{}, tui.ErrDetached))
 	return exitOK, true, nil
+}
+
+// ariseNext is the end-of-run summary's Arise in a view started from the
+// shell (SPEC §15.3): the new run replaces the view, through the start-run
+// wizard with phase selected, over home as `igris arise` opens it.
+var ariseNext = func(phase string, stdout, stderr io.Writer) int {
+	return runApp(tui.Wizard{Phase: phase}, stdout, stderr)
 }
 
 // servedHint adds to a lock held by a live igris serve here how to reach

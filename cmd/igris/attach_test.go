@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -132,5 +133,44 @@ func TestAttachUsage(t *testing.T) {
 		if code := run(args, &out, &errb); code != exitUsage {
 			t.Errorf("%v: exit %d, want %d; stderr %q", args, code, exitUsage, errb.String())
 		}
+	}
+}
+
+// The end-of-run summary's Arise in `igris attach` (SPEC §15.3): the view
+// quits and the start-run wizard opens on the phase.
+func TestAttachAriseNextPhase(t *testing.T) {
+	withTerminal(t, true)
+	saved := ariseNext
+	t.Cleanup(func() { ariseNext = saved })
+	wizard := make(chan string, 1)
+	ariseNext = func(phase string, _, _ io.Writer) int {
+		wizard <- phase
+		return exitOK
+	}
+	withAttachUI(t, func(_ context.Context, o tui.Options) error {
+		checkAttached(t, o)
+		<-o.Feed.Ended()
+		if o.Arise == nil {
+			t.Error("the view offers no Arise")
+			return nil
+		}
+		o.Arise("B") // the summary's a
+		return nil
+	})
+	attached := make(chan stopResult, 1)
+	code, got, _ := noTUIRun{
+		cmd: "serve", plan: servePlan + "\n## B\n\n| ID | Task | Deps | Status | Model | Owner |\n|---|---|---|---|---|---|\n| B-1 | **Two** | A-1 | blocked | sonnet | agent |\n",
+		args:    []string{"A"},
+		actions: map[string]func(){"A-1 session open": attachAction(attached)},
+	}.run(t)
+	if code != exitOK {
+		t.Fatalf("serve exit %d; output:\n%s", code, got)
+	}
+	a := <-attached
+	if a.code != exitOK || !strings.Contains(a.out, "completed") {
+		t.Errorf("attach: exit %d, %q %q", a.code, a.out, a.err)
+	}
+	if p := <-wizard; p != "B" {
+		t.Errorf("the wizard opened on %q, want B", p)
 	}
 }

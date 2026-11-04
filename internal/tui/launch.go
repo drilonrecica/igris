@@ -105,8 +105,12 @@ type (
 		err error
 	}
 	// leaveRunMsg: the owner left the run view; history says for the
-	// History page (the summary's h, SPEC §15.3).
-	leaveRunMsg struct{ history bool }
+	// History page (the summary's h, SPEC §15.3), arise names the phase
+	// for the start-run wizard (the summary's a).
+	leaveRunMsg struct {
+		history bool
+		arise   string
+	}
 	runEndedMsg struct{ r *liveRun } // the run home started ended
 	// attachedMsg: home's Attach reached the run igris serve hosts.
 	attachedMsg struct {
@@ -127,6 +131,12 @@ func (m *homeScreen) openWizard(pre Wizard) tea.Cmd {
 	m.launch = &launch{
 		req:  report.RunRequest{Through: pre.Through, Mode: pre.Mode, Worktree: pre.Worktree, Parallel: pre.Parallel},
 		conf: report.Confirmations{ForceUnlock: pre.ForceUnlock},
+	}
+	if pre.Phase != "" {
+		// The end-of-run summary's Arise (SPEC §15.3): that phase,
+		// selected; resume isn't what was asked for.
+		m.launch.req.Phase = pre.Phase
+		return m.phaseStep()
 	}
 	if m.resumable() {
 		m.launch.step = wizWhat
@@ -524,6 +534,7 @@ func (m *homeScreen) runView(req report.RunRequest, r *liveRun) tea.Model {
 		Side:     m.svc.Side(),
 		Leave:    func() tea.Msg { return ownedMsg{m, leaveRunMsg{}} },
 		History:  func() tea.Msg { return ownedMsg{m, leaveRunMsg{history: true}} },
+		Arise:    func(phase string) tea.Msg { return ownedMsg{m, leaveRunMsg{arise: phase}} },
 		// The ETA's history, as read by the snapshot the run started from
 		// (SPEC §15.3), as `igris arise` reads it at its start.
 		RankDurations: s.RankDurations,
@@ -737,11 +748,17 @@ func (m *homeScreen) closeWizard() {
 
 // leaveRun is the run view's Home: an attached run is detached from (it
 // goes on in igris serve), an in-process engine is stopped (the session
-// keeps running); the view closes once that is done.
-func (m *homeScreen) leaveRun(history bool) tea.Cmd {
+// keeps running); the view closes once that is done. The summary's Arise
+// (msg.arise) opens the wizard over home once home has read the project
+// again, so it sees the run's end (SPEC §15.3).
+func (m *homeScreen) leaveRun(msg leaveRunMsg) tea.Cmd {
 	r := m.run
 	if r == nil {
 		return nil
+	}
+	history := msg.history
+	if msg.arise != "" {
+		m.pending = &Wizard{Phase: msg.arise}
 	}
 	if r.ended {
 		if history {

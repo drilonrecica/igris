@@ -43,6 +43,7 @@ No plan yet? `igris init --example` writes an example one. A plan in another for
 `igris arise M0` takes the first ready task, opens a new herdr tab or tmux window, starts Claude Code with that task's model, and hands it the task, the plan and your project rules. When Claude runs `igris done M0-01`, igris runs your checks if you set them, commits if you want, marks the task `done`, unblocks what depends on it and starts a fresh session for the next task, until the phase is finished.
 
 - `--through M2` continues through later phases. `--only M1-03,M1-05`, `--from` and `--until` run part of a phase; on home, the start wizard's **Tasks** step does the same.
+- When the phase completes, the summary's **Arise M1…** (`a`) opens the start wizard on the next phase with work.
 - Quitting igris leaves the session running. `igris arise` with no phase resumes exactly where it left off.
 - If a task needs a decision, igris waits and [notifies you](notifications.md). Press `o` in the TUI to jump to the session.
 

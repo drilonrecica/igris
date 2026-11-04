@@ -131,7 +131,7 @@ commit = "ask"
 
 <p align="center"><img src="docs/demo/igris-run.png" alt="The run screen: the header with the phase's progress and the status word Needs you; TASKS with each task's glyph, ID, title and rank; a banner naming M0-03; M0-03's card with its state, rank → model, mode, tokens and buttons; the LOG; and the key-hint bar" width="900"></p>
 
-The **run screen** leads with one status word (`● Working`, `! Needs you`, `Paused`, `Done`), lists the tasks with their glyphs and ranks, and gives the running task a card: its state, rank → model and mode, tokens, the session's last lines and its buttons. When a run ends on its own, a summary takes over: the outcome, the counts, wall time, the time it waited on you, tokens, commits, and the command to run next.
+The **run screen** leads with one status word (`● Working`, `! Needs you`, `Paused`, `Done`), lists the tasks with their glyphs and ranks, and gives the running task a card: its state, rank → model and mode, tokens, the session's last lines and its buttons. When a run ends on its own, a summary takes over: the outcome, the counts, wall time, the time it waited on you, tokens, commits, and the command to run next; after a completed run, `a` opens the start wizard on the next phase with work, so `igris arise W16` can go on to W17 without leaving the TUI.
 
 - **Resume anywhere.** Quitting leaves the sessions running. `igris arise` with no phase picks up where the run left off: it reattaches the session, or offers to continue its conversation or start fresh.
 - **Signals from anywhere.** `igris done ID`, `igris skip ID --reason …` and `igris reset ID` work from any terminal in the project. A session's skip or reset is only a request, which igris asks you to confirm.
@@ -194,7 +194,7 @@ Every action is a button with its key on it, which you can also click or tap (ov
 
 | Key | Home | Run screen |
 |---|---|---|
-| `a` | Arise… (or Resume…, or Attach to a live run) | — |
+| `a` | Arise… (or Resume…, or Attach to a live run) | Start anyway, while a usage limit holds; on the summary of a completed run, Arise the next phase |
 | `v` `c` `i` `h` | Preview, Check, Doctor, History | `h`: History, on the summary |
 | `o` | the running task's session | Open the selected task's session |
 | `t` | Details of the selected phase or task | Details of the selected task |

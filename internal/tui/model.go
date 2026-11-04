@@ -661,6 +661,9 @@ func (m *model) activate(a action) tea.Cmd {
 	if m.lost && !whileLost(a) {
 		return nil // nothing reaches the run until the view reconnects
 	}
+	if a == actLimitStart && m.ended {
+		a = actAriseNext // a is Start anyway only while a hold holds (SPEC §15.5)
+	}
 	switch a {
 	case actNone, actOption:
 		return nil
@@ -726,6 +729,12 @@ func (m *model) activate(a action) tea.Cmd {
 		return nil
 	case actHelp:
 		m.page = helpPage(m.th, m.opts.Attached)
+		return nil
+	case actAriseNext:
+		if next := m.ariseNext(); next != "" {
+			arise := m.opts.Arise
+			return func() tea.Msg { return arise(next) }
+		}
 		return nil
 	case actHistory:
 		if m.ended && m.opts.History != nil {
