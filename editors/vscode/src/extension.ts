@@ -7,7 +7,8 @@ import { PlanLens, startOnly } from "./lensView";
 import { editorUi } from "./prompts";
 import { readStatus } from "./idle";
 import { checkInstall } from "./igris";
-import { onboarding, startRun } from "./onboardView";
+import { createPlan, onboarding, readDoctor, startRun } from "./onboardView";
+import { planMissing } from "./onboard";
 import { findRoot, socketPath } from "./socket";
 import { line, short } from "./textsafe";
 import type { Task } from "./protocol";
@@ -29,6 +30,7 @@ export interface Api {
 /** The one line of the current refusal, if any (SPEC §15.9): while it holds
  * nothing else of the extension runs. */
 let refused: string | undefined;
+let extensionVersion = "";
 let controller: Controller | undefined;
 let tree: RunTree;
 let treeView: vscode.TreeView<Node>;
@@ -66,11 +68,7 @@ const deps: Deps = {
 const onboardEnv = {
   root: () => projectRoot(),
   folder: () => vscode.workspace.workspaceFolders?.find((f) => f.uri.scheme === "file")?.uri.fsPath,
-  changed: () => {
-    if (refused) return;
-    if (controller) controller.refresh();
-    else startRunView(String((vscode.extensions.getExtension("drilonrecica.igris")?.packageJSON as { version?: unknown } | undefined)?.version ?? ""));
-  },
+  changed: lookAgain,
 };
 
 /** Answers what node asks, or the one thing that waits, or one of them. */
@@ -155,7 +153,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Api> {
   bar = vscode.window.createStatusBarItem("igris.status", vscode.StatusBarAlignment.Left, 10);
   bar.name = "Igris";
   bar.command = "igris.showRun";
-  const version = String((context.extension.packageJSON as { version?: unknown }).version ?? "");
+  extensionVersion = String((context.extension.packageJSON as { version?: unknown }).version ?? "");
   context.subscriptions.push(
     tree,
     treeView,
@@ -163,13 +161,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<Api> {
     { dispose: stopRunView },
     vscode.commands.registerCommand("igris.checkInstall", async () => {
       await verify();
-      if (!refused && !controller) startRunView(version);
+      lookAgain();
     }),
-    vscode.commands.registerCommand("igris.refresh", () => {
-      if (refused) return;
-      if (controller) controller.refresh();
-      else startRunView(version);
-    }),
+    vscode.commands.registerCommand("igris.refresh", lookAgain),
     vscode.commands.registerCommand("igris.showRun", showRun),
     vscode.workspace.registerTextDocumentContentProvider(SCHEME_NAME, gitContent),
     vscode.commands.registerCommand("igris.viewChanges", changesCommand),
@@ -177,7 +171,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<Api> {
     vscode.commands.registerCommand("igris.onboarding", async () => {
       await onboarding(onboardEnv);
       await verify();
-      if (!refused && !controller) startRunView(version);
+      lookAgain();
+    }),
+    vscode.commands.registerCommand("igris.createPlan", async () => {
+      if (refused) return onboarding(onboardEnv);
+      await createPlan(onboardEnv);
     }),
     vscode.commands.registerCommand("igris.startRun", async () => {
       if (refused) return onboarding(onboardEnv);
@@ -207,13 +205,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<Api> {
       if (!run || !node?.task || !taskModable(run, node.task)) return;
       await perform(deps, taskModeChoice(run, node.task), node.task);
     }),
-    vscode.workspace.onDidChangeWorkspaceFolders(() => {
-      stopRunView();
-      if (!refused) startRunView(version);
-    }),
+    vscode.workspace.onDidChangeWorkspaceFolders(lookAgain),
   );
   await verify();
-  if (!refused) startRunView(version);
+  lookAgain();
   return {
     refusal: () => refused,
     view: () => ({
@@ -240,12 +235,52 @@ async function verify(): Promise<void> {
   }
 }
 
+/** The refusal: the line as a notification, the view empty. VS Code shows a
+ * view's welcome content (here *Set up igris*) only while its tree is empty
+ * AND its message is empty, so the view sets no message. */
 function showRefusal(line: string): void {
-  treeView.message = line;
+  treeView.message = "";
   tree.set([]);
   bar.hide();
   lastBar = undefined;
   void vscode.window.showWarningMessage(line);
+}
+
+let noPlanProbe = 0;
+let noPlanShown = false;
+
+/** The first failure a new user meets: `igris status` fails because the
+ * project has no plan yet. Doctor says so (its plan-valid check); then the
+ * view shows the welcome content with *Create a starter plan* instead of
+ * igris's error line (no message: the content shows only without one). */
+async function probeNoPlan(s: ViewState): Promise<void> {
+  const root = projectDir;
+  if (s.mode !== "idle" || s.idleError === undefined || root === undefined) {
+    if (noPlanShown) {
+      noPlanShown = false;
+      void vscode.commands.executeCommand("setContext", "igris.noPlan", false);
+    }
+    return;
+  }
+  const n = ++noPlanProbe;
+  const missing = planMissing(await readDoctor(root));
+  if (n !== noPlanProbe || controller?.state !== s) return;
+  noPlanShown = missing;
+  void vscode.commands.executeCommand("setContext", "igris.noPlan", missing);
+  if (missing) treeView.message = "";
+}
+
+/** Looks at the workspace again: while a refusal holds nothing runs; a
+ * project that appeared (`igris init`) or went swaps the view; otherwise
+ * the view it has refreshes. */
+function lookAgain(): void {
+  if (refused) return;
+  if (controller && projectRoot() === projectDir) {
+    controller.refresh();
+    return;
+  }
+  stopRunView();
+  startRunView(extensionVersion);
 }
 
 /** The project of the first workspace folder that has one. */
@@ -264,9 +299,12 @@ function startRunView(version: string): void {
   projectDir = root;
   void vscode.commands.executeCommand("setContext", "igris.project", root !== undefined);
   if (!root) {
-    treeView.message = "No igris project in this workspace.";
+    // No message: the welcome content (*Set up igris*, package.json
+    // viewsWelcome) shows only while the tree is empty and the message is.
+    treeView.message = "";
     tree.set([]);
     bar.hide();
+    lastBar = undefined;
     return;
   }
   const c = new Controller({
@@ -352,6 +390,7 @@ function render(s: ViewState): void {
   const now = Date.now();
   tree.set(treeOf(s, now));
   treeView.message = messageOf(s) ?? "";
+  void probeNoPlan(s);
   lastBar = barOf(s, now);
   if (!lastBar) {
     bar.hide();

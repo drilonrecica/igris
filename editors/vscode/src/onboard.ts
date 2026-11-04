@@ -87,7 +87,17 @@ export function installHint(id: string): string | undefined {
   return id === "herdr" ? "Install herdr from https://herdr.dev, or use tmux." : undefined;
 }
 
-export type RowAction = { kind: "install"; command: string } | { kind: "init" } | { kind: "docs"; url: string } | { kind: "none" };
+export type RowAction =
+  | { kind: "install"; command: string }
+  | { kind: "init" }
+  | { kind: "plan" }
+  | { kind: "docs"; url: string }
+  | { kind: "terminal"; command: string }
+  | { kind: "none" };
+
+/** The commands doctor's `next` may name that the checklist offers as fixed
+ * text (never doctor's output itself) in a terminal, not run. */
+const TERMINAL_NEXT: Record<string, string> = { "git init": "git init", "git status": "git status" };
 
 export interface Row {
   id: string;
@@ -97,18 +107,40 @@ export interface Row {
   action: RowAction;
 }
 
-/** What to do about a check: its install command when it is not ok. */
+/** What to do about a check. An install command only when doctor says the
+ * tool is not found in PATH (SPEC §11.4's wording), never for a warning
+ * about its version or, for git, about the tree; `igris init` and the
+ * starter plan when doctor's `next` names them; a git command from the
+ * fixed list; else nothing, the line is information. */
 function rowOf(c: DoctorCheck, platform: string, osRelease: string): Row {
-  const cmd = c.level === "ok" ? undefined : installCommand(c.id, platform, osRelease);
-  const hint = c.level === "ok" ? undefined : installHint(c.id);
+  const notOk = c.level !== "ok";
+  const missing = notOk && c.message.includes("not found in PATH");
+  const cmd = missing ? installCommand(c.id, platform, osRelease) : undefined;
+  const hint = missing ? installHint(c.id) : undefined;
   const detail = cmd ? `Install: ${cmd}` : (hint ?? c.next);
-  const action: RowAction = cmd ? { kind: "install", command: cmd } : c.level !== "ok" && c.id === "herdr" ? { kind: "docs", url: "https://herdr.dev" } : { kind: "none" };
+  let action: RowAction = { kind: "none" };
+  if (cmd) action = { kind: "install", command: cmd };
+  else if (missing && c.id === "herdr") action = { kind: "docs", url: "https://herdr.dev" };
+  else if (notOk && c.next === "igris init") action = { kind: "init" };
+  else if (noPlan(c)) action = { kind: "plan" };
+  else if (notOk && TERMINAL_NEXT[c.next] !== undefined) action = { kind: "terminal", command: TERMINAL_NEXT[c.next]! };
   return { id: c.id, level: c.level, label: c.message || c.id, detail, action };
 }
 
-/** The checklist: igris itself first (the activation check's verdict), then
- * doctor's checks in its order, then `igris init` when the folder has no
- * project. `doctor` is undefined when igris could not be asked. */
+/** The rows the owner can act on first (failures before warnings, each in
+ * doctor's order), then the warnings with nothing to offer, then the ok
+ * rows: the picker's first line is the thing to do, and Enter on it does
+ * it. */
+function ordered(rows: Row[]): Row[] {
+  const rank = (r: Row): number => (r.action.kind !== "none" ? (r.level === "fail" ? 0 : 1) : r.level === "fail" ? 2 : r.level === "warn" ? 3 : 4);
+  return rows.map((r, i) => ({ r, i })).sort((a, b) => rank(a.r) - rank(b.r) || a.i - b.i).map((x) => x.r);
+}
+
+/** The checklist: igris itself (the activation check's verdict), doctor's
+ * checks, and `igris init` when the folder has no project (a doctor check
+ * whose `next` is `igris init` offers it itself), ordered with what the
+ * owner can act on first. `doctor` is undefined when igris could not be
+ * asked. */
 export function checklist(opts: { install: Check; doctor: DoctorResult | undefined; hasProject: boolean; platform?: string; osRelease?: string }): Row[] {
   const platform = opts.platform ?? process.platform;
   const osRelease = opts.osRelease ?? "";
@@ -123,16 +155,53 @@ export function checklist(opts: { install: Check; doctor: DoctorResult | undefin
   }
   if (opts.doctor?.ok) for (const c of opts.doctor.checks) rows.push(rowOf(c, platform, osRelease));
   else if (opts.doctor) rows.push({ id: "doctor", level: "warn", label: opts.doctor.line, detail: "", action: { kind: "none" } });
-  if (!opts.hasProject && opts.install.ok) {
+  if (!opts.hasProject && opts.install.ok && !rows.some((r) => r.action.kind === "init")) {
     rows.push({ id: "init", level: "warn", label: "This folder is not an igris project yet", detail: "igris init creates igris.toml and .igris/ here", action: { kind: "init" } });
   }
-  return rows;
+  return ordered(rows);
 }
 
-/** Whether a run can be started: igris is accepted and nothing failed that
- * stops one. A warning does not stop it. */
+/** Whether a run can be started: igris is accepted, nothing failed that
+ * stops one, and there is a project with a plan. A warning does not stop
+ * it. */
 export function readyToStart(rows: Row[]): boolean {
-  return rows.length > 0 && rows.every((r) => r.level !== "fail") && !rows.some((r) => r.action.kind === "init");
+  return rows.length > 0 && rows.every((r) => r.level !== "fail") && !rows.some((r) => r.action.kind === "init" || r.action.kind === "plan");
+}
+
+/** The starter plans `igris init` writes when the project has none (SPEC
+ * §14): its templates and its example. */
+export const PLAN_CHOICES = [
+  { id: "go-cli", label: "Go CLI", detail: "a starter plan for a command-line tool in Go" },
+  { id: "library", label: "Library", detail: "a starter plan for a library" },
+  { id: "web-app", label: "Web app", detail: "a starter plan for a web application" },
+  { id: "example", label: "The example plan", detail: "igris's own example, to see how a plan reads" },
+] as const;
+
+/** The argv that writes the starter plan id, fixed text; undefined for an
+ * id that is not one of PLAN_CHOICES. `init` never overwrites a plan. */
+export function planArgs(id: string): string[] | undefined {
+  switch (id) {
+    case "go-cli":
+    case "library":
+    case "web-app":
+      return ["init", "--template", id];
+    case "example":
+      return ["init", "--example"];
+    default:
+      return undefined;
+  }
+}
+
+/** Whether a doctor check says the plan file is missing: `plan-valid`, not
+ * ok, `no plan at <plan>` (internal/checks/doctor.go; its `next` differs
+ * with and without igris.toml). An invalid plan is another message. */
+export function noPlan(c: DoctorCheck): boolean {
+  return c.id === "plan-valid" && c.level !== "ok" && c.message.startsWith("no plan at ");
+}
+
+/** Whether doctor says the project has no plan file. */
+export function planMissing(doctor: DoctorResult | undefined): boolean {
+  return doctor !== undefined && doctor.ok && doctor.checks.some(noPlan);
 }
 
 /** The argv of `igris init` (SPEC §14): run in the folder, no flags. */

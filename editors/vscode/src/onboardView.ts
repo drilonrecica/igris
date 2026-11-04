@@ -9,7 +9,7 @@ import * as vscode from "vscode";
 import { OFFERED_MODES } from "./answers";
 import { readStatus } from "./idle";
 import { checkInstall } from "./igris";
-import { checklist, initArgs, parseDoctor, readyToStart, startArgs, type DoctorResult, type Row } from "./onboard";
+import { checklist, initArgs, parseDoctor, PLAN_CHOICES, planArgs, readyToStart, startArgs, type DoctorResult, type Row } from "./onboard";
 import { line, short } from "./textsafe";
 
 /** Runs igris with argv in dir and gives what it printed (stdout, stderr)
@@ -26,7 +26,7 @@ function runIgris(args: string[], dir: string, timeout: number): Promise<{ stdou
 
 /** `igris doctor --json` in dir: it exits 1 on a failed check and still
  * prints the document. */
-async function readDoctor(dir: string): Promise<DoctorResult> {
+export async function readDoctor(dir: string): Promise<DoctorResult> {
   const got = await runIgris(["doctor", "--json"], dir, 20_000);
   if (!got) return { ok: false, line: "igris is not in PATH" };
   const parsed = parseDoctor(got.stdout);
@@ -93,36 +93,52 @@ export async function onboarding(env: OnboardEnv): Promise<void> {
       return checklist({ install, doctor, hasProject: env.root() !== undefined, osRelease: osRelease() });
     });
     const ready = readyToStart(rows);
-    const items: (vscode.QuickPickItem & { row?: Row; again?: boolean; start?: boolean })[] = rows.map((r) => ({
-      label: `${ICON[r.level]} ${line(r.label)}`,
-      ...(r.detail ? { detail: line(r.detail) } : {}),
-      description: r.action.kind === "install" ? "install" : r.action.kind === "init" ? "igris init" : r.action.kind === "docs" ? "open" : "",
-      row: r,
-    }));
+    // The first line is the thing to do: Start a run when ready, else the
+    // first row the owner can act on (checklist() puts those first).
+    const items: (vscode.QuickPickItem & { row?: Row; again?: boolean; start?: boolean })[] = [];
     if (ready) items.push({ label: "$(play) Start a run…", detail: "Choose a phase and a mode", start: true });
+    for (const r of rows) {
+      items.push({
+        label: `${ICON[r.level]} ${line(r.label)}`,
+        ...(r.detail ? { detail: line(r.detail) } : {}),
+        description: r.action.kind === "install" ? "install" : r.action.kind === "init" ? "igris init" : r.action.kind === "docs" ? "open" : "",
+        row: r,
+      });
+    }
     items.push({ label: "$(refresh) Check again", again: true });
-    const pick = await vscode.window.showQuickPick(items, {
-      title: ready ? "Igris: ready" : "Igris: set up",
-      placeHolder: "Choose a line to act on it; an install command goes to a terminal for you to run",
-      ignoreFocusOut: true,
-    });
-    if (!pick) return;
-    if (pick.start) return startRun(env);
-    const a = pick.row?.action;
-    if (a?.kind === "install") {
-      offerInTerminal(a.command);
-      void vscode.window.showInformationMessage(`Igris: run it in the terminal (press Enter), then choose Check again. ${a.command}`);
-      return;
+    for (;;) {
+      const pick = await vscode.window.showQuickPick(items, {
+        title: ready ? "Igris: ready" : "Igris: set up",
+        placeHolder: ready ? "Everything is in place" : "Pick a line to act on it: an install command goes to a terminal for you to run; ✓ lines are information",
+        ignoreFocusOut: true,
+      });
+      if (!pick) return;
+      if (pick.start) return startRun(env);
+      if (pick.again) break;
+      const a = pick.row?.action;
+      if (a?.kind === "install") {
+        offerInTerminal(a.command);
+        void vscode.window.showInformationMessage(`Igris: run it in the terminal (press Enter), then choose Check again. ${a.command}`);
+        return;
+      }
+      if (a?.kind === "docs") {
+        await vscode.env.openExternal(vscode.Uri.parse(a.url));
+        return;
+      }
+      if (a?.kind === "init") {
+        await runInit(env);
+        break;
+      }
+      if (a?.kind === "plan") {
+        if (!(await createPlan(env))) return;
+        break;
+      }
+      if (a?.kind === "terminal") {
+        offerInTerminal(a.command);
+        return;
+      }
+      // An information line: show the list again, nothing to check anew.
     }
-    if (a?.kind === "docs") {
-      await vscode.env.openExternal(vscode.Uri.parse(a.url));
-      return;
-    }
-    if (a?.kind === "init") {
-      await runInit(env);
-      continue;
-    }
-    // Nothing to act on (or Check again): ask again.
   }
 }
 
@@ -139,6 +155,33 @@ async function runInit(env: OnboardEnv): Promise<void> {
   }
   void vscode.window.setStatusBarMessage("$(check) igris init: done", 4000);
   env.changed();
+}
+
+/** The starter plan (SPEC §14): asks which, then `igris init --template X`
+ * or `igris init --example` in the project, which never overwrites a plan.
+ * True when a plan was written. */
+export async function createPlan(env: OnboardEnv): Promise<boolean> {
+  const dir = env.root() ?? env.folder();
+  if (!dir) {
+    void vscode.window.showErrorMessage("Igris: open a folder first.");
+    return false;
+  }
+  const pick = await vscode.window.showQuickPick(
+    PLAN_CHOICES.map((c) => ({ label: c.label, detail: c.detail, id: c.id as string })),
+    { title: "Igris: which starter plan?", placeHolder: "Written to tasks.md, for you to edit", ignoreFocusOut: true },
+  );
+  if (!pick) return false;
+  const args = planArgs(pick.id);
+  if (!args) return false;
+  const got = await runIgris(args, dir, 30_000);
+  if (!got || got.code !== 0) {
+    const said = (got?.stderr ?? "").trim().split("\n").filter(Boolean).pop() ?? `igris ${args.join(" ")} failed`;
+    void vscode.window.showErrorMessage(`Igris: ${short(said, 300)}`);
+    return false;
+  }
+  void vscode.window.setStatusBarMessage(`$(check) igris ${args.join(" ")}: done`, 4000);
+  env.changed();
+  return true;
 }
 
 /** The one button: pick a phase and a mode (never a skip-permissions one),

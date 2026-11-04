@@ -1,0 +1,29 @@
+#!/bin/sh
+# A stand-in for the igris binary in the editor tests (AGENTS §5: tests never
+# start the real igris). Prints the version in $FAKE_IGRIS_VERSION; for
+# `status --json` the file $FAKE_IGRIS_STATUS, or igris's error for a
+# missing plan while .igris/fake-no-plan exists in the working directory;
+# for `doctor --json` a small document whose plan-valid check follows the
+# same marker.
+if [ "$1" = "--version" ]; then
+  echo "igris ${FAKE_IGRIS_VERSION:-1.8.1}"
+  exit 0
+fi
+if [ "$1" = "status" ] && [ "$2" = "--json" ] && [ -n "${FAKE_IGRIS_STATUS:-}" ]; then
+  if [ -e .igris/fake-no-plan ]; then
+    echo "igris status: read plan tasks.md: open tasks.md: no such file or directory; pass --plan PATH or set plan in igris.toml" >&2
+    exit 1
+  fi
+  cat "$FAKE_IGRIS_STATUS"
+  exit 0
+fi
+if [ "$1" = "doctor" ] && [ "$2" = "--json" ]; then
+  if [ -e .igris/fake-no-plan ]; then
+    echo '{"v":1,"checks":[{"id":"git","level":"ok","message":"git repository"},{"id":"plan-valid","level":"fail","message":"no plan at tasks.md","next":"igris adapt"}]}'
+  else
+    echo '{"v":1,"checks":[{"id":"git","level":"ok","message":"git repository"},{"id":"plan-valid","level":"ok","message":"tasks.md: OK"}]}'
+  fi
+  exit 0
+fi
+echo "fake igris: only --version, status --json and doctor --json" >&2
+exit 2

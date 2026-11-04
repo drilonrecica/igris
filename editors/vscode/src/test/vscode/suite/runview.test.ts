@@ -157,3 +157,45 @@ describe("answering from the editor", () => {
     await eventually("the run's end", () => (api.view().bar?.text.includes("stopped") ? true : undefined));
   });
 });
+
+describe("without a project", () => {
+  it("sets no message, so the view's welcome content with Set up igris shows", async () => {
+    const api = await vscode.extensions.getExtension<Api>("drilonrecica.igris")!.activate();
+    // The suites above removed .igris; refresh has the view look at the
+    // workspace again. VS Code shows a view's welcome content (the Set up
+    // button) only while the tree is empty AND its message is empty.
+    fs.rmSync(path.join(workspaceDir(), ".igris"), { recursive: true, force: true });
+    await vscode.commands.executeCommand("igris.refresh");
+    await eventually("the empty view", () => (api.view().mode === "none" ? true : undefined));
+    const v = api.view();
+    assert.deepEqual(v.tree, []);
+    assert.equal(v.message, undefined);
+  });
+
+  it("picks the project up again on refresh once it exists", async () => {
+    const api = await vscode.extensions.getExtension<Api>("drilonrecica.igris")!.activate();
+    fs.mkdirSync(path.join(workspaceDir(), ".igris"), { recursive: true });
+    await vscode.commands.executeCommand("igris.refresh");
+    await eventually("the plan", () => (api.view().mode !== "none" ? true : undefined));
+    fs.rmSync(path.join(workspaceDir(), ".igris"), { recursive: true, force: true });
+    await vscode.commands.executeCommand("igris.refresh");
+    await eventually("the empty view again", () => (api.view().mode === "none" ? true : undefined));
+  });
+});
+
+describe("without a plan", () => {
+  it("shows the Create a starter plan content instead of igris's error line", async () => {
+    const api = await vscode.extensions.getExtension<Api>("drilonrecica.igris")!.activate();
+    fs.mkdirSync(path.join(workspaceDir(), ".igris"), { recursive: true });
+    fs.writeFileSync(path.join(workspaceDir(), ".igris", "fake-no-plan"), "");
+    await vscode.commands.executeCommand("igris.refresh");
+    // The stand-in's status fails as igris does without a plan; doctor says
+    // the plan is missing; the view then clears its message so the welcome
+    // content (Create a starter plan) shows.
+    await eventually("the no-plan view", () => (api.view().mode === "idle" && api.view().message === undefined ? true : undefined));
+    assert.deepEqual(api.view().tree, []);
+    fs.rmSync(path.join(workspaceDir(), ".igris"), { recursive: true, force: true });
+    await vscode.commands.executeCommand("igris.refresh");
+    await eventually("the empty view", () => (api.view().mode === "none" ? true : undefined));
+  });
+});

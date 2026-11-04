@@ -122,6 +122,10 @@
         "title": "Igris: Set up (first-run checklist)"
       },
       {
+        "command": "igris.createPlan",
+        "title": "Igris: Create a starter plan…"
+      },
+      {
         "command": "igris.startRun",
         "title": "Igris: Start a run…",
         "icon": "$(play)"
@@ -277,13 +281,23 @@
     "viewsWelcome": [
       {
         "view": "igris.run",
-        "contents": "Igris needs igris installed and a project here.\n[Set up igris](command:igris.onboarding)",
-        "when": "igris.refused || !igris.project"
+        "contents": "The igris in PATH is missing or older than this extension needs; the checklist says which version to install.\n[Set up igris](command:igris.onboarding)",
+        "when": "igris.refused"
+      },
+      {
+        "view": "igris.run",
+        "contents": "This folder is not an igris project yet. The checklist checks igris, Claude Code and tmux, then runs igris init here.\n[Set up igris](command:igris.onboarding)",
+        "when": "!igris.refused && !igris.project"
+      },
+      {
+        "view": "igris.run",
+        "contents": "This project has no plan yet. A starter plan gives you phases and tasks to edit.\n[Create a starter plan](command:igris.createPlan)",
+        "when": "igris.project && igris.noPlan && !igris.refused"
       },
       {
         "view": "igris.run",
         "contents": "No run is attached.\n[Start a run](command:igris.startRun)",
-        "when": "igris.project && !igris.live && !igris.refused"
+        "when": "igris.project && !igris.live && !igris.noPlan && !igris.refused"
       }
     ]
   },

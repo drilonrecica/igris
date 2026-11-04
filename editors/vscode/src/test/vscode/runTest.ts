@@ -3,13 +3,21 @@
 // only --version and status --json (AGENTS §5); the run comes from a fake
 // serve socket (src/test/support/fakeServe.ts). The VS Code under test is
 // the oldest the extension claims.
+import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import { runTests } from "@vscode/test-electron";
 
 async function main(): Promise<void> {
   const root = path.resolve(__dirname, "../../..");
   const bin = path.join(root, "testdata/bin");
-  const workspace = path.join(root, "testdata/workspace");
+  // A copy of testdata/workspace under the temp dir: inside this repository
+  // the extension would find the repository's own igris.toml above the
+  // scratch folder (findRoot walks up), so "no project here" could never
+  // be tested, and the suite would leave its .igris/ in the tree.
+  const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "igris-vscode-test-"));
+  fs.cpSync(path.join(root, "testdata/workspace"), workspace, { recursive: true });
+  process.on("exit", () => fs.rmSync(workspace, { recursive: true, force: true }));
   await runTests({
     version: process.env["IGRIS_TEST_VSCODE"] ?? "1.100.0",
     extensionDevelopmentPath: root,
