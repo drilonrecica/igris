@@ -72,7 +72,7 @@ export function apply(run: Run, ev: Event): void {
     case "task_started":
     case "task_resumed":
       if (!c) {
-        c = { task, title: "", rank: "", model: "", mode: "", user: false, state: "", since: 0, detail: "", reason: "", cause: "", tool: "", resolver: "" };
+        c = { task, title: "", rank: "", model: "", mode: "", user: false, state: "", since: 0, detail: "", reason: "", cause: "", tool: "", resolver: "", session: undefined };
         run.active.push(c);
         sortActive(run);
       }
@@ -81,12 +81,16 @@ export function apply(run: Run, ev: Event): void {
       c.model = ev.model;
       c.mode = ev.mode;
       c.user = ev.model === "";
+      if (ev.session) c.session = ev.session; // a resume reattached it
       setState(c, State.working, ev);
       run.holding = false;
       settle(run, task);
       break;
     case "session_opened":
-      if (c) c.mode = ev.mode;
+      if (c) {
+        c.mode = ev.mode;
+        c.session = ev.session;
+      }
       break;
     case "your_turn":
       setState(c, State.yourTurn, ev);
@@ -141,6 +145,7 @@ export function apply(run: Run, ev: Event): void {
       break;
     case "session_lost":
       setState(c, State.lost, ev);
+      if (c) c.session = undefined;
       break;
     case "asked":
       if (ev.question === "confirm_reset") {
@@ -160,6 +165,7 @@ export function apply(run: Run, ev: Event): void {
       dropReset(run, task);
       break;
     case "retrying":
+      if (c) c.session = undefined; // a new attempt opens its own
       setState(c, State.working, ev);
       settle(run, task);
       break;

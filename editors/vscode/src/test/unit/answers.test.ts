@@ -23,7 +23,7 @@ import type { Card } from "../../protocol";
 import { ev, recorded } from "../support/transcripts";
 
 function card(fields: Partial<Card> & { task: string; state: string }): Card {
-  return { title: "", rank: "", model: "", mode: "", user: false, since: 0, detail: "", reason: "", cause: "", tool: "", resolver: "", ...fields };
+  return { title: "", rank: "", model: "", mode: "", user: false, since: 0, detail: "", reason: "", cause: "", tool: "", resolver: "", session: undefined, ...fields };
 }
 
 const labels = (cs: Choice[]): string[] => cs.map((c) => c.label);

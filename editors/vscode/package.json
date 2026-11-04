@@ -114,6 +114,11 @@
         "title": "Igris: Read a task's changes"
       },
       {
+        "command": "igris.openSession",
+        "title": "Igris: Open the task's session",
+        "icon": "$(terminal)"
+      },
+      {
         "command": "igris.runTask",
         "title": "Igris: Run this task alone"
       },
@@ -229,6 +234,16 @@
           "command": "igris.viewChanges",
           "when": "view == igris.run && viewItem =~ /^igris\\.question/",
           "group": "inline"
+        },
+        {
+          "command": "igris.openSession",
+          "when": "view == igris.run && igris.live && viewItem =~ /^igris\\.active/",
+          "group": "inline"
+        },
+        {
+          "command": "igris.openSession",
+          "when": "view == igris.run && igris.live && viewItem =~ /^igris\\.active/",
+          "group": "1_answer@4"
         }
       ],
       "commandPalette": [
@@ -271,6 +286,10 @@
         {
           "command": "igris.viewChanges",
           "when": "igris.live || igris.needs"
+        },
+        {
+          "command": "igris.openSession",
+          "when": "igris.live"
         },
         {
           "command": "igris.runTask",

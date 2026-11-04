@@ -9,7 +9,10 @@ import { readStatus } from "./idle";
 import { checkInstall } from "./igris";
 import { createPlan, onboarding, readDoctor, startRun } from "./onboardView";
 import { planMissing } from "./onboard";
+import { attachCommand, whereIs } from "./sessions";
 import { findRoot, socketPath } from "./socket";
+import { SessionTabs, type TabMaker } from "./tabs";
+import { EditorTabs } from "./terminals";
 import { line, short } from "./textsafe";
 import type { Task } from "./protocol";
 import { RunTree } from "./tree";
@@ -23,8 +26,13 @@ export interface Api {
   view(): { mode: ViewState["mode"] | "none"; bar: Bar | undefined; tree: Node[]; message: string | undefined };
   /** What waits on the owner right now. */
   asks(): Ask[];
+  /** The sessions with a terminal tab open right now. */
+  tabs(): { task: string; name: string }[];
   /** Answers through ui instead of the editor's prompts (tests). */
   useUi(ui: Ui | undefined): void;
+  /** Opens the session tabs through maker instead of the editor's
+   * terminals (tests: no tmux client is started). */
+  useTabs(maker: TabMaker | undefined): void;
 }
 
 /** The one line of the current refusal, if any (SPEC §15.9): while it holds
@@ -42,6 +50,10 @@ let fileWatcher: vscode.Disposable | undefined;
 let ui: Ui = editorUi;
 const gitContent = new GitContent();
 const planLens = new PlanLens();
+let editorTabs: EditorTabs;
+let tabMaker: TabMaker;
+/** The session tabs of the attached run (SPEC §15.9). */
+let tabs: SessionTabs | undefined;
 let projectDir: string | undefined;
 /** The asks a notification has told the owner about, by key. */
 let announced = new Set<string>();
@@ -136,6 +148,23 @@ async function runTaskCommand(node?: Node): Promise<void> {
   controller?.refresh();
 }
 
+/** Shows a task's session in its terminal tab, opening the tab again when
+ * it was closed; when no tab can show it (herdr, another backend, an older
+ * serve, no session yet) a line says where it is (SPEC §15.9). */
+async function openSessionCommand(node?: Node): Promise<void> {
+  const run = liveRun();
+  if (!run || run.ended) return ui.told(false, "Igris: no run is attached.");
+  let task = node?.task;
+  if (!task) {
+    const ids = run.active.map((c) => c.task);
+    task = ids.length === 1 ? ids[0] : ids.length > 1 ? await vscode.window.showQuickPick(ids, { title: "Igris: whose session?", ignoreFocusOut: true }) : undefined;
+  }
+  const card = task !== undefined ? run.active.find((c) => c.task === task) : undefined;
+  if (!card) return ui.told(false, task !== undefined ? `Igris: ${line(task)} is not active.` : "Igris: no task is active.");
+  if (tabs?.focus(run, card.task)) return;
+  await ui.notify(`Igris: ${whereIs(run, card)}`, []);
+}
+
 /** Sends one of the run's actions by its command type. */
 async function runAction(pickOf: (cs: Choice[]) => Choice | undefined): Promise<void> {
   const run = liveRun();
@@ -154,11 +183,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<Api> {
   bar.name = "Igris";
   bar.command = "igris.showRun";
   extensionVersion = String((context.extension.packageJSON as { version?: unknown }).version ?? "");
+  editorTabs = new EditorTabs(vscode.Uri.joinPath(context.extensionUri, "resources", "igris.svg"));
+  tabMaker = editorTabs;
   context.subscriptions.push(
     tree,
     treeView,
     bar,
     { dispose: stopRunView },
+    vscode.window.onDidCloseTerminal((t) => {
+      const c = editorTabs.closed(t);
+      if (c) tabs?.closed(c.handle, c.failed);
+    }),
+    vscode.commands.registerCommand("igris.openSession", openSessionCommand),
     vscode.commands.registerCommand("igris.checkInstall", async () => {
       await verify();
       lookAgain();
@@ -218,8 +254,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<Api> {
       message: treeView.message || undefined,
     }),
     asks: currentAsks,
+    tabs: () => tabs?.tabs().map((s) => ({ task: s.task, name: s.name })) ?? [],
     useUi: (u) => {
       ui = u ?? editorUi;
+    },
+    useTabs: (m) => {
+      tabMaker = m ?? editorTabs;
     },
   };
 }
@@ -313,6 +353,11 @@ function startRunView(version: string): void {
     readStatus: () => readStatus(root),
   });
   controller = c;
+  tabs = new SessionTabs(
+    () => tabMaker,
+    String(process.pid),
+    (s, code) => ui.told(false, `Igris: the tab for ${s.name} couldn't attach to tmux session ${line(s.host.session)} (tmux exited with code ${code}); run ${attachCommand(s.host)} in a terminal to see why.`),
+  );
   announced = new Set();
   let wasRefused = false;
   c.onChange((s) => {
@@ -334,6 +379,8 @@ function startRunView(version: string): void {
 function stopRunView(): void {
   controller?.dispose();
   controller = undefined;
+  tabs?.dispose();
+  tabs = undefined;
   for (const w of watchers) w.dispose();
   watchers = [];
   fileWatcher?.dispose();
@@ -387,6 +434,8 @@ function setLenses(s: ViewState): void {
 function render(s: ViewState): void {
   setContext(s);
   setLenses(s);
+  // The tabs follow the run while it is shown, through a reconnect too.
+  tabs?.sync(s.mode === "live" || s.mode === "reconnecting" ? s.run : undefined);
   const now = Date.now();
   tree.set(treeOf(s, now));
   treeView.message = messageOf(s) ?? "";

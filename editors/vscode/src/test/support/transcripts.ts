@@ -42,6 +42,7 @@ export function ev(fields: Partial<Event> & { type: string }): Event {
     plan: "",
     then: "",
     budget: undefined,
+    session: undefined,
     ...fields,
   };
 }

@@ -33,6 +33,23 @@ export interface Limited {
   detail: string;
 }
 
+/** A session's identity (SPEC §13 `session`): its backend and, on tmux,
+ * its window and pane ids (`@N`, `%N`). */
+export interface SessionRef {
+  backend: string;
+  tabId: string;
+  paneId: string;
+}
+
+/** Where the run's sessions live (SPEC §13 `session_host`, since 1.9): the
+ * backend and, for tmux, the server's socket path and the session the
+ * windows open in. Absent from an older serve. */
+export interface SessionHost {
+  backend: string;
+  socket: string;
+  session: string;
+}
+
 /** An active task, as its card shows it (the snapshot's `active`). */
 export interface Card {
   task: string;
@@ -49,6 +66,9 @@ export interface Card {
   cause: string;
   tool: string;
   resolver: string;
+  /** The task's session while it has one (SPEC §13); its tmux window is
+   * what a terminal tab shows (§15.9). */
+  session: SessionRef | undefined;
 }
 
 /** An event: the run log's v1 envelope and the socket-only fields the
@@ -80,6 +100,8 @@ export interface Event {
   then: string;
   /** The budget question's budget (§6.9). */
   budget: { budget: string; limit: string } | undefined;
+  /** The session a `session_opened` or a resumed task carries (§13). */
+  session: SessionRef | undefined;
 }
 
 export interface Snapshot {
@@ -87,6 +109,7 @@ export interface Snapshot {
   server: string;
   project: string;
   backend: string;
+  sessionHost: SessionHost | undefined;
   run: string;
   started: number;
   phase: string;
@@ -167,6 +190,18 @@ function parseLimited(v: unknown): Limited | undefined {
   return { window: str(o["window"]), resetsAt, percent: num(o["percent"]), task: str(o["task"]), detail: str(o["detail"]) };
 }
 
+function parseSessionRef(v: unknown): SessionRef | undefined {
+  const o = obj(v);
+  if (!o || str(o["backend"]) === "") return undefined;
+  return { backend: str(o["backend"]), tabId: str(o["tab_id"]), paneId: str(o["pane_id"]) };
+}
+
+function parseSessionHost(v: unknown): SessionHost | undefined {
+  const o = obj(v);
+  if (!o || str(o["backend"]) === "") return undefined;
+  return { backend: str(o["backend"]), socket: str(o["socket_path"]), session: str(o["session"]) };
+}
+
 function parseCard(v: unknown): Card | undefined {
   const o = obj(v);
   if (!o || str(o["task"]) === "") return undefined;
@@ -184,6 +219,7 @@ function parseCard(v: unknown): Card | undefined {
     cause: str(o["cause"]),
     tool: str(o["tool"]),
     resolver: str(o["resolver"]),
+    session: parseSessionRef(o["session"]),
   };
 }
 
@@ -219,6 +255,7 @@ export function parseEvent(v: unknown): Event | undefined {
     plan: str(o["plan"]),
     then: str(o["then"]),
     budget: parseBudget(o["budget"]),
+    session: parseSessionRef(o["session"]),
   };
 }
 
@@ -254,6 +291,7 @@ export function parseSnapshot(o: Obj): Snapshot {
     server: str(o["server"]),
     project: str(o["project"]),
     backend: str(o["backend"]),
+    sessionHost: parseSessionHost(o["session_host"]),
     run: str(o["run"]),
     started: time(o["started"]),
     phase: str(o["phase"]),

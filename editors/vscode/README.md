@@ -31,6 +31,13 @@ Work in progress for v1.9. What it does so far:
 - **Plan CodeLens.** On the rows of the plan file (`tasks.md`) each task igris knows shows its status, **Run this task**
   (after one confirmation: `igris serve --only <ID>` in the project's own mode, never skip-permissions; not offered
   while a run is attached) and **Open its changes**.
+- **Sessions as terminal tabs.** A run started from the editor runs headless on tmux (`backend = "auto"`), and each
+  active task's Claude Code session opens as a terminal tab of its own, named `<ID> · <rank>`, attached to the run's
+  tmux session and showing that task's window. The tab's first line names the task and says that a folder-trust
+  question, if Claude Code asks one, is Claude Code's: answer it there. Closing the tab leaves nothing behind in tmux
+  and the task runs on; **Igris: Open the task's session** (on an active task's row, or in the command palette) brings
+  the tab back. A task's end closes its tab. You never handle tmux. On herdr, or with an `igris serve` older than 1.9,
+  the command says where the session is instead. Side sessions stay in the terminal.
 - **Onboarding.** **Igris: Set up** (also the button in the empty run view) is a first-run checklist: igris's own
   install check and each check of `igris doctor --json`, what you can act on first. A tool not found in PATH shows its
   install command (fixed text); choosing it puts the command in a terminal for you to read and run, the extension
