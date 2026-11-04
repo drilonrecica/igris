@@ -28,6 +28,9 @@ Work in progress for v1.9. What it does so far:
   command palette: its commits (`<ID>: …`, from the run log) or, in a parallel phase, its worktree branch
   `igris/<run-id>-<ID>`, then its files, each opened in the editor's own diff. It reads with `git` in the project and
   changes nothing.
+- **Plan CodeLens.** On the rows of the plan file (`tasks.md`) each task igris knows shows its status, **Run this task**
+  (after one confirmation: `igris serve --only <ID>` in the project's own mode, never skip-permissions; not offered
+  while a run is attached) and **Open its changes**.
 - **Never skip permissions.** The mode pickers leave out `yolo` and `plan:yolo`, the extension never sends one nor
   says you typed the phrase: a skip-permissions run is started and changed in the terminal only (SPEC §7.3).
 

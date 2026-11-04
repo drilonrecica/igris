@@ -112,6 +112,10 @@
       {
         "command": "igris.viewChanges",
         "title": "Igris: Read a task's changes"
+      },
+      {
+        "command": "igris.runTask",
+        "title": "Igris: Run this task alone"
       }
     ],
     "menus": {
@@ -249,6 +253,10 @@
         {
           "command": "igris.viewChanges",
           "when": "igris.live || igris.needs"
+        },
+        {
+          "command": "igris.runTask",
+          "when": "false"
         }
       ]
     }

@@ -3,10 +3,13 @@ import { announce, answer, offer, perform, type Deps, type Ui } from "./act";
 import { asksOf, cardActions, modeChoice, runActions, taskModable, taskModeChoice, type Ask, type Choice } from "./answers";
 import { GitContent, SCHEME_NAME, viewChanges } from "./changesView";
 import { Controller } from "./controller";
+import { PlanLens, startOnly } from "./lensView";
 import { editorUi } from "./prompts";
 import { readStatus } from "./idle";
 import { checkInstall } from "./igris";
 import { findRoot, socketPath } from "./socket";
+import { line, short } from "./textsafe";
+import type { Task } from "./protocol";
 import { RunTree } from "./tree";
 import { barOf, firstNeeds, messageOf, treeOf, type Bar, type Node, type ViewState } from "./view";
 
@@ -35,6 +38,7 @@ let watchedFiles = "";
 let fileWatcher: vscode.Disposable | undefined;
 let ui: Ui = editorUi;
 const gitContent = new GitContent();
+const planLens = new PlanLens();
 let projectDir: string | undefined;
 /** The asks a notification has told the owner about, by key. */
 let announced = new Set<string>();
@@ -106,6 +110,21 @@ async function changesCommand(node?: Node): Promise<void> {
   await viewChanges(rootDir, task, run?.run ? [run.run] : [], (l) => ui.told(false, l));
 }
 
+/** Starts a run of one task from its plan row (SPEC §15.9): asks once,
+ * then `igris serve --only ID` in the project, in the project's own mode. */
+async function runTaskCommand(node?: Node): Promise<void> {
+  const rootDir = projectDir;
+  const task = node?.task;
+  if (!rootDir || !task) return ui.told(false, "Igris: choose a task row in the plan to run it.");
+  if (liveRun() && !liveRun()?.ended) return ui.told(false, "Igris: a run is already attached; use the run view.");
+  const ok = await vscode.window.showInformationMessage(`Igris: run ${line(task)} alone?`, { modal: true, detail: `Starts igris serve --only ${line(task)} in this project, in the mode igris.toml says.` }, "Run");
+  if (ok !== "Run") return;
+  const err = await startOnly(rootDir, task);
+  if (err !== undefined) ui.told(false, `Igris: couldn't start the run: ${short(err, 200)}`);
+  else ui.told(true, `igris: running ${line(task)}`);
+  controller?.refresh();
+}
+
 /** Sends one of the run's actions by its command type. */
 async function runAction(pickOf: (cs: Choice[]) => Choice | undefined): Promise<void> {
   const run = liveRun();
@@ -141,6 +160,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<Api> {
     vscode.commands.registerCommand("igris.showRun", showRun),
     vscode.workspace.registerTextDocumentContentProvider(SCHEME_NAME, gitContent),
     vscode.commands.registerCommand("igris.viewChanges", changesCommand),
+    vscode.commands.registerCommand("igris.runTask", runTaskCommand),
+    planLens,
+    vscode.languages.registerCodeLensProvider({ scheme: "file", language: "markdown" }, planLens),
     vscode.commands.registerCommand("igris.answer", answerCommand),
     vscode.commands.registerCommand("igris.taskActions", taskActions),
     vscode.commands.registerCommand("igris.runActions", async () => {
@@ -291,8 +313,18 @@ function setContext(s: ViewState): void {
   void vscode.commands.executeCommand("setContext", "igris.needs", run !== undefined && asksOf(run).length > 0);
 }
 
+/** What the plan's lenses draw from: the tasks the view knows. */
+function setLenses(s: ViewState): void {
+  const run = s.mode === "live" || s.mode === "reconnecting" ? s.run : undefined;
+  const phases = run ? run.phases : (s.idle?.phases ?? []);
+  const tasks = new Map<string, Task>();
+  for (const p of phases) for (const t of p.tasks) tasks.set(t.id, t);
+  planLens.set(projectDir, s.idle?.files, { tasks, live: s.mode === "live" && run !== undefined && !run.ended });
+}
+
 function render(s: ViewState): void {
   setContext(s);
+  setLenses(s);
   const now = Date.now();
   tree.set(treeOf(s, now));
   treeView.message = messageOf(s) ?? "";
