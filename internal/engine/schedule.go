@@ -396,6 +396,10 @@ func (e *Engine) conclude(ctx context.Context, l *launch, v verdict) (ended, sto
 	switch v.kind {
 	case verdictDone:
 		e.readUsageNow(ctx, l)
+		// The budgets too, so their line is current before verify and
+		// the commit question, which block the loop's own check; one
+		// reached here is asked beside them (SPEC §6.9).
+		e.checkBudgets(ctx)
 		if l.t.Owner.IsAgent() && v.sig != nil && e.verifies(l.t) {
 			if l.isolated() {
 				// Beside the other tasks' sessions (SPEC §6.11).

@@ -146,8 +146,8 @@ func TestAttachedSnapshotGoldens(t *testing.T) {
 	}{{120, 40, "wide_"}, {50, 20, "narrow_50x20_"}, {80, 24, "narrow_80x24_"}}
 	for _, sz := range sizes {
 		for _, st := range layoutStates {
-			if st.name == "question_closed" {
-				continue
+			if st.name == "question_closed" || st.name == "budget_at_commit" {
+				continue // closed with esc, which a new client doesn't share
 			}
 			t.Run(sz.prefix+st.name, func(t *testing.T) {
 				hs := attachedHarness(t, sz.w, sz.h)

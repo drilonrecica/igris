@@ -206,3 +206,123 @@ func TestBudgetAnswerWithoutABudgetReached(t *testing.T) {
 		t.Errorf("events: %s", h.kinds())
 	}
 }
+
+// A budget reached at a task's done read, with commit = "ask" in a
+// sequential phase (docs/check-v18.md Needs a decision 4): the budgets are
+// checked at the done read, so the line is current while the commit
+// question waits, the budget is asked once beside it, and Raise, Continue
+// and Stop still work from there.
+func TestBudgetReachedAtTheDoneRead(t *testing.T) {
+	for _, tc := range []struct {
+		name, answer string
+		outcome      Outcome
+		lines        string
+	}{
+		{"raise", "2k", Completed, "budget_exceeded run 1k 1.4k; budget_raised run 2k 1.4k"},
+		{"continue", "continue", Completed, "budget_exceeded run 1k 1.4k; budget_raised run continue 1.4k"},
+		{"stop", "", Stopped, "budget_exceeded run 1k 1.4k"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newHarness(t, chainPlan, usageOn+"\n[usage.budget]\nrun = \"1k\"\n")
+			h.dirtyTree()
+			dir := h.reportTranscripts()
+			h.autoSignalExcept("A-1")
+			var committedAt time.Time
+			var lineAtCommit string
+			h.on(func(ev Event) {
+				switch {
+				case ev.Kind == SessionOpened && ev.Task == "A-1":
+					// All of A-1's tokens come in its last seconds, after
+					// the last throttled read.
+					s := ev.ClaudeSession
+					h.clock.At(ev.At.Sub(t0)+58*time.Second, func() {
+						respond(t, dir, s, h.clock.Now(), "msg_1", "claude-sonnet-5-5", 2, 600, 1, false)
+						respond(t, dir, s, h.clock.Now(), "msg_2", "claude-sonnet-5-5", 2, 600, 1, false)
+					})
+					h.signalAt(ev.At.Sub(t0)+time.Minute, "A-1")
+				case ev.Kind == Asked && ev.Question == QuestionCommit && ev.Task != "A-1":
+					h.eng.Send(Command{Kind: CmdAnswer, Yes: true})
+				case ev.Kind == Asked && ev.Question == QuestionCommit:
+					at := ev.At.Sub(t0)
+					h.clock.At(at+30*time.Second, func() {
+						if tc.answer == "" {
+							h.eng.Send(Command{Kind: CmdStop})
+							return
+						}
+						h.eng.Send(Command{Kind: CmdBudget, Text: tc.answer})
+					})
+					h.clock.At(at+time.Minute, func() {
+						for _, ev := range h.events {
+							if ev.Kind == BudgetRead && len(ev.Budgets) == 1 {
+								lineAtCommit = ev.Budgets[0].Line()
+							}
+						}
+						committedAt = h.clock.Now()
+						h.eng.Send(Command{Kind: CmdAnswer, Yes: true})
+					})
+				}
+			})
+			res, err := h.run()
+			if err != nil || res.Outcome != tc.outcome {
+				t.Fatalf("Run = %s, %v", res.Outcome, err)
+			}
+			if got := h.budgetLines(); got != tc.lines {
+				t.Errorf("budget lines = %q, want %q", got, tc.lines)
+			}
+			// Asked once, before the commit question, beside it.
+			budgetAsked, commitAsked := -1, -1
+			n := 0
+			for i, ev := range h.events {
+				if ev.Kind != Asked {
+					continue
+				}
+				switch ev.Question {
+				case QuestionBudget:
+					n++
+					if budgetAsked < 0 {
+						budgetAsked = i
+					}
+				case QuestionCommit:
+					if commitAsked < 0 {
+						commitAsked = i
+					}
+				}
+			}
+			if n != 1 || budgetAsked < 0 || commitAsked < 0 || budgetAsked > commitAsked {
+				t.Errorf("budget asked %d times (first at %d), the commit at %d: %s", n, budgetAsked, commitAsked, h.kinds())
+			}
+			if got := h.count(BudgetExceeded); got != 1 {
+				t.Errorf("budget exceeded %d times", got)
+			}
+			// One notification, before the commit question's.
+			var budgetToasts, commitToast []int
+			for i, s := range h.toasts() {
+				switch s {
+				case "request: run budget 1k reached · 1.4k used · A-1 keeps running":
+					budgetToasts = append(budgetToasts, i)
+				case "request: phase A · A-1 One: commit question":
+					commitToast = append(commitToast, i)
+				}
+			}
+			if len(budgetToasts) != 1 || len(commitToast) != 1 || budgetToasts[0] > commitToast[0] {
+				t.Errorf("toasts = %q", h.toasts())
+			}
+			if tc.outcome == Stopped {
+				if got := h.opened(); got != "A-1" {
+					t.Errorf("opened = %q", got)
+				}
+				return
+			}
+			// The line was current while the commit question waited.
+			if lineAtCommit == "" || lineAtCommit != "budget 1.4k / 1k · 142%" {
+				t.Errorf("budget line at the commit answer = %q, want 1.4k of 1k", lineAtCommit)
+			}
+			if started := h.event(TaskStarted, "A-2").At; started.Before(committedAt) {
+				t.Errorf("A-2 started at %s, before the commit answer at %s", started, committedAt)
+			}
+			if got := h.statuses(); !strings.HasPrefix(got, "A-1=done A-2=done") {
+				t.Errorf("statuses = %s", got)
+			}
+		})
+	}
+}

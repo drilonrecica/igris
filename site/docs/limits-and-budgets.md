@@ -35,7 +35,7 @@ m2 = "$15"                   # estimated dollars, by the price table
 fable = "5M"
 ```
 
-igris checks them about every ten seconds against the attempts of this run (side sessions don't count; a resolver session counts as its task's). When one is reached the run is **Needs you** (`budget`), you get an urgent `budget_exceeded` notification, and no new task starts. Running sessions keep running. Then you choose, in the terminal or on the web UI:
+igris checks them about every ten seconds, and when a task says it's done, against the attempts of this run (side sessions don't count; a resolver session counts as its task's). When one is reached the run is **Needs you** (`budget`), you get an urgent `budget_exceeded` notification, and no new task starts. Running sessions keep running. Then you choose, in the terminal or on the web UI:
 
 - **Raise**: a new value for this run only; `igris.toml` is untouched.
 - **Continue**: this budget no longer holds this run.

@@ -1,0 +1,40 @@
+igris · sinjal · phase M0 · 3/7 · 42% ████░░░░░░ · mode plan · herdr                                         ! Needs you
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+TASKS                           │ ! M0-03 needs you · commit? · 1 task and the run need you                    [Answer…]
+ ✓ M0-01  Go module      sonnet │ ┌─ M0-03 Makefile ───────────────────────────────────────────────────────────────────┐
+ ✓ M0-02  Entrypoint     sonnet │ │ ! Needs you · your answer                                                          │
+ ! M0-03  Makefile       sonnet │ │ sonnet → sonnet · mode plan · 4m12s                                                │
+ · M0-04  Config loader  opus   │ │ tokens 110k in · 267 out · ≈ $0.13 · claude-sonnet-5-5                             │
+ · M0-05  Buy the domain user   │ │ budget 110k / 100k · 110%                                                          │
+ ⨯ M0-13  Static assets  sonnet │ │ fmt, lint, test                                                                    │
+   waits on P0-05               │ │ [Answer…] [o Open session] [t Details]                                             │
+ – M0-14  Old idea       haiku  │ └────────────────────────────────────────────────────────────────────────────────────┘
+── LOG ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+09:41 M0-03 started · sonnet · mode plan
+09:41 M0-03 session open
+09:41 ! run budget 100k reached · 110k used · M0-03 keeps running
+09:41 ! M0-03 needs you · commit?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[›Answer…‹] [o Open session] [m Mode] [M Task mode] [p Pause] [d Done] [r Retry…] [s Skip…] [x Stop…] [?] [q Quit]

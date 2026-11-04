@@ -155,6 +155,20 @@ var layoutStates = []struct {
 			engine.Event{Kind: engine.NeedsYou, Task: "M0-03", Reason: state.ReasonTaskOverdue, Detail: "running longer than its Timeout 45m; igris leaves its session running", At: t0.Add(46 * time.Minute)})
 		hs.now = t0.Add(52 * time.Minute)
 	}},
+	{"budget_at_commit", func(hs *harness) {
+		// A budget reached at the done read of a sequential task (SPEC
+		// §6.9): the line is current and the run's question waits beside
+		// the commit question: the engine's events, in order.
+		b := engine.BudgetUse{Budget: "run", Limit: "100k", Used: "110k", Percent: 110.3, State: engine.BudgetReached}
+		hs.events(started("M0-03"), opened("M0-03"),
+			engine.Event{Kind: engine.UsageRead, Task: "M0-03", Tokens: &engine.Tokens{In: 110_000, Out: 267, Models: []string{"claude-sonnet-5-5"}, USD: 0.13, Priced: true}},
+			engine.Event{Kind: engine.BudgetRead, Budgets: []engine.BudgetUse{b}},
+			engine.Event{Kind: engine.BudgetExceeded, Budget: &b, Detail: "run budget 100k reached · 110k used · M0-03 keeps running"},
+			engine.Event{Kind: engine.Asked, Question: engine.QuestionBudget, Budget: &b, Detail: "run budget 100k reached · 110k used · M0-03 keeps running; no new task starts until you raise it, let it go on, or stop the run"},
+			asked(engine.QuestionCommit, `commit the changes of M0-03 as "M0-03: Makefile"?`))
+		hs.now = t0.Add(4*time.Minute + 12*time.Second)
+		hs.key("esc")
+	}},
 }
 
 func TestWideLayoutGolden(t *testing.T) {

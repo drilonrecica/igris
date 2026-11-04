@@ -143,13 +143,17 @@ func colorPieces(view string) []piece {
 
 var (
 	quotaPiece = regexp.MustCompile(`^\d+[hd] \d+%$`)
+	// budgetPiece is a budget line (SPEC §6.9), Ember from 80% like the
+	// quota: `budget 110k / 100k · 110%`, `rank opus budget $33.10 / $40 · 82%`.
+	budgetPiece = regexp.MustCompile(`^(?:(?:run|phase \S+|rank \S+) )?budget \S+ / \S+ · \d+%$`)
 	// emberOK says a piece in Ember is a warning: it carries ▲ or ✗, or is
-	// a quota past 80% or a model the rank doesn't expect.
+	// a quota or a budget past 80% or a model the rank doesn't expect.
 	needsPiece = regexp.MustCompile(`(?i)needs you|^!|\[SKIP PERMISSIONS\]`)
 )
 
 func emberOK(text string) bool {
-	return strings.ContainsAny(text, look.GlyphWarn+look.GlyphFail) || quotaPiece.MatchString(strings.TrimSpace(text)) || strings.HasPrefix(strings.TrimSpace(text), "claude-")
+	return strings.ContainsAny(text, look.GlyphWarn+look.GlyphFail) || quotaPiece.MatchString(strings.TrimSpace(text)) ||
+		budgetPiece.MatchString(strings.TrimSpace(text)) || strings.HasPrefix(strings.TrimSpace(text), "claude-")
 }
 
 // plumeOK says a piece in plume belongs to Needs you or to skip
