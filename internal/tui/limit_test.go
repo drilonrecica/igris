@@ -30,7 +30,7 @@ func TestLimitHoldHeaderAndStartAnyway(t *testing.T) {
 		hs.events(holdEvent())
 		view := hs.m.View()
 		checkFits(t, view, size[0], size[1])
-		for _, want := range []string{"Paused · 5h limit 96% · resumes 12:53 (≈ 3h12m)", "[a Start anyway]", "M0-02"} {
+		for _, want := range []string{"Paused · 5h limit 96% · resumes 12:54 (≈ 3h13m)", "[a Start anyway]", "M0-02"} {
 			if !strings.Contains(view, want) {
 				t.Errorf("%dx%d: view lacks %q:\n%s", size[0], size[1], want, view)
 			}
@@ -70,7 +70,7 @@ func TestLimitedCard(t *testing.T) {
 		hs.events(engine.Event{Kind: engine.SessionLimited, Task: "M0-03", Detail: "waits at the 7-day limit · continues 12:53",
 			Limit: &engine.Limit{Window: state.WindowSevenDay, ResetsAt: limitReset, Task: "M0-03"}})
 		hs.now = hs.now.Add(time.Minute)
-		if view := hs.m.View(); !strings.Contains(view, "◌ Usage limit · 7d · continues 12:53 (≈ 3h11m)") {
+		if view := hs.m.View(); !strings.Contains(view, "◌ Usage limit · 7d · continues 12:54 (≈ 3h12m)") {
 			t.Errorf("%dx%d: with the window:\n%s", size[0], size[1], view)
 		}
 		hs.events(engine.Event{Kind: engine.SessionLimitOver, Task: "M0-03", Detail: "works again after the usage limit"})
@@ -114,7 +114,7 @@ func TestRestoreLimited(t *testing.T) {
 	if c == nil || c.state != stateLimited || c.limit == nil || c.limit.Window != state.WindowSevenDay {
 		t.Errorf("card = %+v", c)
 	}
-	if view := hs.m.View(); !strings.Contains(view, "◌ Usage limit · 7d · continues 12:53") || !strings.Contains(view, "[a Start anyway]") {
+	if view := hs.m.View(); !strings.Contains(view, "◌ Usage limit · 7d · continues 12:54") || !strings.Contains(view, "[a Start anyway]") {
 		t.Errorf("view:\n%s", view)
 	}
 }

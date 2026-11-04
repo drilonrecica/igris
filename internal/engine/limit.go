@@ -30,7 +30,7 @@ import (
 const (
 	// resumeGrace is how long after a window's reset held starts resume:
 	// Claude Code's own continuation came 56–105 s after the minute.
-	resumeGrace = 60 * time.Second
+	resumeGrace = look.ResumeGrace
 	// continueAfter is how long after the reset a session still not
 	// working gets the fixed prompt.
 	continueAfter = 2 * time.Minute
@@ -184,7 +184,7 @@ func (e *Engine) showHold(ctx context.Context, lim Limit) {
 	e.emit(ev)
 	if lim.Task == "" {
 		// A hit's episode was notified when the hit was read.
-		e.limitNotify(ctx, lim, fmt.Sprintf("%s at %.0f%% · %s held until %s", look.WindowName(lim.Window), math.Round(lim.Percent), id, look.UntilIn(lim.ResetsAt.Local(), e.clock.Now())))
+		e.limitNotify(ctx, lim, fmt.Sprintf("%s at %.0f%% · %s held until %s", look.WindowName(lim.Window), math.Round(lim.Percent), id, look.UntilIn(lim.ResumesAt().Local(), e.clock.Now())))
 	}
 }
 
@@ -266,7 +266,7 @@ func (e *Engine) noteHit(ctx context.Context, l *launch, h usage.Hit, fresh bool
 	}
 	if fresh {
 		e.log(state.Event{Type: state.EventLimitHit, Window: h.Window, ResetsAt: rfc3339(h.ResetsAt)})
-		e.limitNotify(ctx, lim, fmt.Sprintf("%s · %s waits, resumes %s", look.WindowName(h.Window), l.t.ID, look.UntilIn(h.ResetsAt.Local(), now)))
+		e.limitNotify(ctx, lim, fmt.Sprintf("%s · %s waits, resumes %s", look.WindowName(h.Window), l.t.ID, look.UntilIn(look.ResumeAt(h.ResetsAt).Local(), now)))
 	}
 	if fresh || l.limit != nil {
 		// The session waits at it.

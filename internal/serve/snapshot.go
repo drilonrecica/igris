@@ -96,6 +96,10 @@ func limitedOf(raw engine.Event, ev Event) *Limited {
 	return &Limited{Window: l.Window, ResetsAt: l.ResetsAt, Percent: l.Percent, Task: task, Detail: ev.Detail}
 }
 
+// ResumesAt is when igris resumes: the reset plus the grace. ResetsAt stays
+// the window's own time on the wire.
+func (l Limited) ResumesAt() time.Time { return engine.Limit{ResetsAt: l.ResetsAt}.ResumesAt() }
+
 // Label is the limit's words for a status line: "5h limit 96%", "7d
 // limit" after a hit.
 func (l Limited) Label() string {

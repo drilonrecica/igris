@@ -34,6 +34,16 @@ func WindowName(window string) string {
 	return "usage limit"
 }
 
+// ResumeGrace is how long after a window's reset igris resumes held starts:
+// Claude Code's own continuation came 56–105 s after the minute (decisions.md
+// V18-P1). The engine waits it out and every screen counts down to it.
+const ResumeGrace = 60 * time.Second
+
+// ResumeAt is when igris resumes a hold on a window that resets at reset: the
+// time every screen shows, so the line never reads a past time without a
+// countdown. Run log, snapshot and --json keep the reset itself.
+func ResumeAt(reset time.Time) time.Time { return reset.Add(ResumeGrace) }
+
 // Until is a reset as the screens show it: the clock time and, while it
 // is ahead, the countdown as an estimate, "09:00 (≈ 3h12m)". Both times
 // are taken in reset's location, so the caller passes the zone to show.

@@ -714,13 +714,13 @@ func TestStatusLimited(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("code = %d: %s", code, out)
 	}
-	if want := "\nRun      Paused · 5h limit 96% · resumes 15:12 (≈ 3h12m)\n"; !strings.Contains(out, want) {
+	if want := "\nRun      Paused · 5h limit 96% · resumes 15:13 (≈ 3h13m)\n"; !strings.Contains(out, want) {
 		t.Errorf("missing %q:\n%s", want, out)
 	}
 	// With a task still running the run works on; the hold is noted.
 	held.Active = []serve.Current{{Task: "M1-02", Rank: "opus", Mode: "plan", State: serve.StateWorking, Started: reset.Add(-4 * time.Hour)}}
 	code, out, _ = runCmd("status")
-	if code != exitOK || !strings.Contains(out, "● Working · M1-02") || !strings.Contains(out, "5h limit 96% · next start 15:12 (≈ 3h12m)") {
+	if code != exitOK || !strings.Contains(out, "● Working · M1-02") || !strings.Contains(out, "5h limit 96% · next start 15:13 (≈ 3h13m)") {
 		t.Errorf("with a task running (%d):\n%s", code, out)
 	}
 }

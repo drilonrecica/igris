@@ -560,7 +560,7 @@ func (u *ui) view(r *http.Request) pageView {
 			// The window and the reset with its countdown, live (SPEC §15).
 			cv.Glyph = look.GlyphWaiting
 			if l := c.Limit; l != nil {
-				cv.Detail = look.Window(l.Window) + " · continues " + look.Until(l.ResetsAt.In(now.Location()), now)
+				cv.Detail = look.Window(l.Window) + " · continues " + look.Until(l.ResumesAt().In(now.Location()), now)
 			} else {
 				cv.Detail = ""
 			}
@@ -896,7 +896,7 @@ func statusOf(s Snapshot, now time.Time) status {
 		// The usage hold (SPEC §6.9, §15.4): the window, its use and the
 		// reset with its countdown.
 		l := s.Limited
-		return status{Word: look.Paused.String(), Line: l.Label() + " · resumes " + look.Until(l.ResetsAt.In(now.Location()), now), Tone: "plain"}
+		return status{Word: look.Paused.String(), Line: l.Label() + " · resumes " + look.Until(l.ResumesAt().In(now.Location()), now), Tone: "plain"}
 	case s.Paused && s.Holding:
 		return clock(status{Word: look.Paused.String(), Line: "holding", Tone: "plain"}, s.Started)
 	case s.Paused && len(s.Active) == 1:

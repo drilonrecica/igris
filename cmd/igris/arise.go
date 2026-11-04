@@ -715,7 +715,7 @@ func parseCommand(line string) (engine.Command, commandAction, error) {
 func limitHoldLine(ev engine.Event) string {
 	s := look.GlyphWaiting + " paused before " + ev.Task
 	if l := ev.Limit; l != nil {
-		s += " · " + l.Label() + " · resumes " + look.Clock(l.ResetsAt.Local())
+		s += " · " + l.Label() + " · resumes " + look.Clock(l.ResumesAt().Local())
 	} else {
 		s += " · " + ev.Detail
 	}

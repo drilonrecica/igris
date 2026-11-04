@@ -137,7 +137,7 @@ func TestLimitHoldAtThresholdResumesAtReset(t *testing.T) {
 	if h.count(NeedsYou) != 0 || h.count(PauseOn) != 0 || h.count(Paused) != 0 {
 		t.Errorf("events: %s", h.kinds())
 	}
-	want := "done: 5h limit at 96% · A-2 held until " + look.UntilIn(reset.Local(), hold.At)
+	want := "done: 5h limit at 96% · A-2 held until " + look.UntilIn(look.ResumeAt(reset).Local(), hold.At)
 	if got := h.limitToasts(); len(got) != 1 || got[0] != want {
 		t.Errorf("toasts = %q, want %q", got, want)
 	}
@@ -363,7 +363,7 @@ func TestLimitHitMidTask(t *testing.T) {
 	if got := h.limitLines(); got != "limit_hit seven_day" {
 		t.Errorf("limit lines = %s", got)
 	}
-	want := "done: 7-day limit · A-1 waits, resumes " + look.UntilIn(reset.Local(), lim.At)
+	want := "done: 7-day limit · A-1 waits, resumes " + look.UntilIn(look.ResumeAt(reset).Local(), lim.At)
 	if got := h.limitToasts(); len(got) != 1 || got[0] != want {
 		t.Errorf("toasts = %q, want %q", got, want)
 	}

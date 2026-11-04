@@ -117,7 +117,7 @@ func TestFormatEvent(t *testing.T) {
 		// Usage limits (SPEC §6.3, §6.9): the hold names the window, its use
 		// and the reset; the lines are stamped, so no countdown.
 		{engine.Event{Kind: engine.LimitHold, Task: "A-2", Detail: "5h at 96%", Limit: &engine.Limit{Window: "five_hour", ResetsAt: time.Date(2026, 10, 23, 15, 12, 0, 0, time.UTC), Percent: 96.4}},
-			"◌ paused before A-2 · 5h limit 96% · resumes 15:12; type `start` to start it anyway"},
+			"◌ paused before A-2 · 5h limit 96% · resumes 15:13; type `start` to start it anyway"},
 		{engine.Event{Kind: engine.LimitResume, Detail: "reset"}, "resumed · reset"},
 		{engine.Event{Kind: engine.SessionLimited, Task: "A-1", Detail: "waits at the 7-day limit · continues 15:12 (≈ 3h12m)"}, "◌ A-1 waits at the 7-day limit · continues 15:12 (≈ 3h12m)"},
 		{engine.Event{Kind: engine.SessionLimitOver, Task: "A-1", Detail: "works again after the usage limit"}, "A-1 works again after the usage limit"},

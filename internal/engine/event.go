@@ -186,6 +186,11 @@ func (l Limit) Label() string {
 	return s
 }
 
+// ResumesAt is when igris resumes: the reset plus the grace (look.ResumeAt).
+// Screens draw this; ResetsAt stays the window's own time in the run log,
+// the snapshot and --json.
+func (l Limit) ResumesAt() time.Time { return look.ResumeAt(l.ResetsAt) }
+
 // Episode keys one limit episode: the window and its reset (SPEC §10).
 func (l Limit) Episode() string { return l.Window + "@" + l.ResetsAt.UTC().Format(time.RFC3339) }
 

@@ -82,11 +82,11 @@ func TestUIStatusLimited(t *testing.T) {
 	now := uiT0.Add(4*time.Minute + 12*time.Second)
 	lim := &Limited{Window: state.WindowFiveHour, ResetsAt: limitReset, Percent: 96.4, Detail: "5h at 96%"}
 	got := statusOf(Snapshot{Run: "r", Started: uiT0, Limited: lim}, now)
-	if got.Word != look.Paused.String() || got.Line != "5h limit 96% · resumes 12:12 (≈ 3h08m)" || got.Tone != "plain" {
+	if got.Word != look.Paused.String() || got.Line != "5h limit 96% · resumes 12:13 (≈ 3h09m)" || got.Tone != "plain" {
 		t.Errorf("statusOf = %+v", got)
 	}
 	hit := &Limited{Window: state.WindowSevenDay, ResetsAt: limitReset, Task: "P1-03", Detail: "after P1-03 hit the 7-day limit"}
-	if got := statusOf(Snapshot{Run: "r", Started: uiT0, Limited: hit}, now); got.Line != "7d limit · resumes 12:12 (≈ 3h08m)" {
+	if got := statusOf(Snapshot{Run: "r", Started: uiT0, Limited: hit}, now); got.Line != "7d limit · resumes 12:13 (≈ 3h09m)" {
 		t.Errorf("after a hit: %+v", got)
 	}
 	got = statusOf(Snapshot{Run: "r", Started: uiT0, Limited: lim, Active: []Current{{Task: "A", State: StateLost}}}, now)
@@ -114,9 +114,9 @@ func TestUILimitPage(t *testing.T) {
 	}
 	for _, want := range []string{
 		`<h1 class="word plain">Paused</h1>`,
-		"5h limit 96% · resumes 12:12 (≈ 3h08m)",
+		"5h limit 96% · resumes 12:13 (≈ 3h09m)",
 		`name="type" value="limit"`, `name="text" value="start"`, ">Start anyway<",
-		"usage limit: 7d · continues 12:12 (≈ 3h08m)",
+		"usage limit: 7d · continues 12:13 (≈ 3h09m)",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("page lacks %q:\n%s", want, body)

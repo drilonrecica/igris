@@ -74,7 +74,7 @@ func (m *model) status() (string, tone) {
 // with verb before the reset.
 func (m *model) limitText(verb string) string {
 	l := m.limited
-	return l.Label() + " · " + verb + " " + look.Until(l.ResetsAt.In(m.loc), m.opts.Now())
+	return l.Label() + " · " + verb + " " + look.Until(l.ResumesAt().In(m.loc), m.opts.Now())
 }
 
 // statusText is the status word, painted.
@@ -108,7 +108,7 @@ func (m *model) stateText(c *current) string {
 		// transcript's hit named them (SPEC §6.3, §15).
 		s := look.GlyphWaiting + " Usage limit"
 		if l := c.limit; l != nil {
-			s += " · " + look.Window(l.Window) + " · continues " + look.Until(l.ResetsAt.In(m.loc), m.opts.Now())
+			s += " · " + look.Window(l.Window) + " · continues " + look.Until(l.ResumesAt().In(m.loc), m.opts.Now())
 		}
 		return s
 	case stateYourTurn:

@@ -11,6 +11,7 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ### Fixed
 
+- **The usage hold counts down to the time igris resumes.** The header, the card, `igris status`, the web UI and the notification showed the window's reset while igris resumes 60 s later, so for a minute the line showed a past time with no countdown. They now show the reset plus the 60 s grace, computed in one place (`look.ResumeAt`). `resets_at` is unchanged in `--json`, the run log and the snapshot.
 - **Commits are counted as kept, not as made.** In a parallel phase a task rerun after a failed resolution commits twice, and the summary said `3 commits · last A-02` while the branch and the batch question had 2. The end-of-run summary, `igris report` and `igris history` now count a parallel task's commits by its `integrated` lines (what is on the branch); a sequential phase counts as before. `--json` fields keep their names.
 
 ## [1.8.0] - 2026-10-26

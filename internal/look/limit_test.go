@@ -40,3 +40,16 @@ func TestUntil(t *testing.T) {
 		t.Errorf("Until past = %q", got)
 	}
 }
+
+// Screens show when igris resumes, the reset plus the grace, so a line is
+// never a past time without a countdown (decisions.md V18-P1, V19-13).
+func TestResumeAt(t *testing.T) {
+	reset := time.Date(2026, 11, 4, 18, 43, 0, 0, time.UTC)
+	if got := ResumeAt(reset); !got.Equal(reset.Add(60 * time.Second)) {
+		t.Fatalf("ResumeAt = %v", got)
+	}
+	// 30 s after the reset the hold still counts down, to the resume.
+	if got := Until(ResumeAt(reset), reset.Add(30*time.Second)); got != "18:44 (≈ 1m)" {
+		t.Errorf("Until(ResumeAt) = %q", got)
+	}
+}
