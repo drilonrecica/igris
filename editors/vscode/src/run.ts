@@ -27,6 +27,8 @@ function setState(c: Card | undefined, state: string, ev: Event): void {
   c.since = ev.at;
   c.detail = ev.detail;
   c.reason = ev.reason;
+  c.cause = ev.cause;
+  c.tool = ev.tool;
 }
 
 /** Applies one event to run, as serve's tracker does. */
@@ -70,7 +72,7 @@ export function apply(run: Run, ev: Event): void {
     case "task_started":
     case "task_resumed":
       if (!c) {
-        c = { task, title: "", rank: "", model: "", mode: "", user: false, state: "", since: 0, detail: "", reason: "", resolver: "" };
+        c = { task, title: "", rank: "", model: "", mode: "", user: false, state: "", since: 0, detail: "", reason: "", cause: "", tool: "", resolver: "" };
         run.active.push(c);
         sortActive(run);
       }
@@ -116,6 +118,8 @@ export function apply(run: Run, ev: Event): void {
         c.state = State.needsYou;
         c.detail = ev.detail;
         c.reason = ev.reason;
+        c.cause = ev.cause;
+        c.tool = ev.tool;
         break;
       }
       setState(c, State.needsYou, ev);

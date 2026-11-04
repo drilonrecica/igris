@@ -45,6 +45,9 @@ export interface Card {
   since: number;
   detail: string;
   reason: string;
+  /** Why a blocked session is blocked (SPEC §6.3), since 1.8. */
+  cause: string;
+  tool: string;
   resolver: string;
 }
 
@@ -66,6 +69,17 @@ export interface Event {
   changes: { id: string; to: string }[];
   limit: Limited | undefined;
   budgets: unknown[] | undefined;
+  cause: string;
+  tool: string;
+  /** An `asked` integration question: a resolver may be opened (§6.11). */
+  resolve: boolean;
+  /** The batch question: Undo is offered (§6.5). */
+  undo: boolean;
+  /** A plan shown for approval and the mode an approval switches to. */
+  plan: string;
+  then: string;
+  /** The budget question's budget (§6.9). */
+  budget: { budget: string; limit: string } | undefined;
 }
 
 export interface Snapshot {
@@ -167,6 +181,8 @@ function parseCard(v: unknown): Card | undefined {
     since: time(o["since"]),
     detail: str(o["detail"]),
     reason: str(o["reason"]),
+    cause: str(o["cause"]),
+    tool: str(o["tool"]),
     resolver: str(o["resolver"]),
   };
 }
@@ -196,7 +212,20 @@ export function parseEvent(v: unknown): Event | undefined {
     changes,
     limit: parseLimited(o["limit"]),
     budgets: Array.isArray(o["budgets"]) ? o["budgets"] : undefined,
+    cause: str(o["cause"]),
+    tool: str(o["tool"]),
+    resolve: bool(o["resolve"]),
+    undo: bool(o["undo"]),
+    plan: str(o["plan"]),
+    then: str(o["then"]),
+    budget: parseBudget(o["budget"]),
   };
+}
+
+function parseBudget(v: unknown): { budget: string; limit: string } | undefined {
+  const o = obj(v);
+  if (!o || str(o["budget"]) === "") return undefined;
+  return { budget: str(o["budget"]), limit: str(o["limit"]) };
 }
 
 function parseEventOpt(v: unknown): Event | undefined {

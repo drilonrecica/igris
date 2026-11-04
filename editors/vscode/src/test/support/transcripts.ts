@@ -35,6 +35,13 @@ export function ev(fields: Partial<Event> & { type: string }): Event {
     changes: [],
     limit: undefined,
     budgets: undefined,
+    cause: "",
+    tool: "",
+    resolve: false,
+    undo: false,
+    plan: "",
+    then: "",
+    budget: undefined,
     ...fields,
   };
 }

@@ -4,6 +4,7 @@
 // only, no runtime dependency. Its hello never carries `yolo` (SPEC §7.3).
 
 import * as net from "node:net";
+import { guard } from "./answers";
 import { head, MAX_LINE, obj, parseEvent, parseSnapshot, PROTOCOL, type Event, type Snapshot } from "./protocol";
 import { short } from "./textsafe";
 
@@ -89,8 +90,11 @@ export class Client {
   }
 
   /** Sends a command with a fresh id and resolves with its ack or error
-   * (an error when the connection drops first). */
+   * (an error when the connection drops first). A command that would set a
+   * skip-permissions mode is never sent (SPEC §7.3). */
   send(cmd: Record<string, unknown>): Promise<Reply> {
+    const refused = guard(cmd);
+    if (refused !== undefined) return Promise.resolve({ type: "error", error: refused });
     if (!this.sock || !this.connected) return Promise.resolve({ type: "error", error: "not connected to the run" });
     const id = `vscode-${++this.seq}`;
     const sock = this.sock;

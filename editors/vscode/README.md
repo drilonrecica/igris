@@ -14,6 +14,18 @@ Work in progress for v1.9. What it does so far:
 - **Reconnecting.** It attaches to the run's `igris serve` over `.igris/igris.sock` as soon as one starts. A dropped
   connection shows `▲ reconnecting…` and comes back with a fresh snapshot, as `igris attach` does; when the serve has
   gone, the view goes back to the plan and the status bar keeps how the run ended.
+- **Answering.** Whatever waits on you arrives as a notification whose buttons are its first answers (`Commit`,
+  `Leave uncommitted`, `Answer…`); a button for a question already answered elsewhere sends nothing. Click a row that
+  needs you, or run **Igris: Answer what needs you**, for every answer in a QuickPick; a reason, a note, feedback on a
+  plan or a new budget is typed in an InputBox. The answers are the web UI's: commit, skip requests, lost sessions,
+  failed hooks, tasks that didn't integrate (Resolve, Rerun), reset requests, plans to approve (read the plan in an
+  editor tab), a budget reached (Raise, Continue) and the commit batch (Keep, Undo).
+- **Steering.** The run's row and the view's title bar have Pause after this task / Resume, Stop, Start anyway while a
+  usage hold holds, and the mode of the next sessions; an active task's row has Mark done, Skip and Retry (fresh or
+  continuing), a task still to do its next session's mode. Stop, Skip, Mark done and Undo ask a second time, as in the
+  web UI.
+- **Never skip permissions.** The mode pickers leave out `yolo` and `plan:yolo`, the extension never sends one nor
+  says you typed the phrase: a skip-permissions run is started and changed in the terminal only (SPEC §7.3).
 
 A snapshot of another protocol than 1 is refused with one line in the tree's place and nothing else runs, as is an
 `igris` below 1.8.0 at activation.

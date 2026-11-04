@@ -52,6 +52,18 @@ describe("the run view", () => {
     assert.equal(bar.text, "igris ! Needs you · 2 questions");
     assert.equal(bar.tone, "needs");
     assert.equal(firstNeeds(tree)?.id, "run/active/P1-01");
+    // A row that waits on the owner names what it asks (a click answers it);
+    // a task still to do of the run's phase can have its mode set.
+    const run = tree[0]!.children;
+    assert.match(run[0]!.ask ?? "", /^q\/P1-01\/commit\//);
+    assert.equal(run[1]!.ask, undefined);
+    assert.match(run[2]!.ask ?? "", /^b\//);
+    const tasks = tree[1]!.children;
+    assert.equal(tasks[0]!.ask, run[0]!.ask);
+    assert.deepEqual(
+      tasks.map((t) => t.modable === true),
+      [true, true, true, false],
+    );
   });
 
   it("cleans the plan's text before drawing it", () => {

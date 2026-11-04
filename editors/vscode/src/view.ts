@@ -4,6 +4,7 @@
 // tree.ts and statusBar.ts hand it to the editor. Every text that came from
 // the plan, a session or igris passes textsafe on its way out.
 
+import { asksOf, taskModable, type Ask } from "./answers";
 import type { Idle } from "./idle";
 import { cardNeeds, Glyph, idleStatus, label, liveStatus, stateText, taskGlyph, type Status, type Tone } from "./look";
 import type { Phase, Task } from "./protocol";
@@ -53,6 +54,17 @@ export interface Node {
   /** The kind of row, for menus: run, active, question, phase, task. */
   kind: "run" | "active" | "question" | "phase" | "task";
   task?: string;
+  /** The key of what it asks the owner (answers.ts), if anything. */
+  ask?: string;
+  /** A task whose next session's mode can be set (live run only). */
+  modable?: boolean;
+}
+
+/** The asks of the run by task: the first for each. */
+function asksByTask(asks: Ask[]): Map<string, Ask> {
+  const m = new Map<string, Ask>();
+  for (const a of asks) if (a.task !== "" && !m.has(a.task)) m.set(a.task, a);
+  return m;
 }
 
 /** The status the status bar shows; undefined while a refusal holds. */
@@ -169,8 +181,11 @@ function needsOf(run: Run): Set<string> {
 function runNode(v: ViewState, run: Run, now: number): Node {
   const s = statusOf(v, now)!;
   const needs = needsOf(run);
+  const asks = asksOf(run);
+  const byTask = asksByTask(asks);
   const children: Node[] = [];
   for (const c of run.active) {
+    const a = byTask.get(c.task);
     const n = needs.has(c.task);
     const state = run.questions.some((q) => q.task === c.task) ? State.question : c.state;
     children.push({
@@ -183,17 +198,30 @@ function runNode(v: ViewState, run: Run, now: number): Node {
       children: [],
       kind: "active",
       task: c.task,
+      ...(a ? { ask: a.key } : {}),
     });
   }
-  const ask = (id: string, label: string, detail: string, task?: string): void => {
-    children.push({ id, label, description: short(detail, 200), tooltip: short(detail, 600), icon: "needs", needs: true, children: [], kind: "question", ...(task ? { task } : {}) });
+  const ask = (id: string, label: string, detail: string, key: string | undefined, task?: string): void => {
+    children.push({
+      id,
+      label,
+      description: short(detail, 200),
+      tooltip: short(detail, 600),
+      icon: "needs",
+      needs: true,
+      children: [],
+      kind: "question",
+      ...(task ? { task } : {}),
+      ...(key ? { ask: key } : {}),
+    });
   };
+  const keyOf = (prefix: string): string | undefined => asks.find((a) => a.key.startsWith(prefix))?.key;
   for (const q of run.questions) {
-    if (!run.active.some((c) => c.task === q.task)) ask(`run/question/${q.task}`, `${line(q.task)} asks you`, q.detail, q.task);
+    if (!run.active.some((c) => c.task === q.task)) ask(`run/question/${q.task}`, `${line(q.task)} asks you`, q.detail, byTask.get(q.task)?.key, q.task);
   }
-  if (run.reset) ask("run/reset", `Reset ${line(run.reset.task)}?`, run.reset.detail, run.reset.task);
-  if (run.budgetQuestion) ask("run/budget", "Budget reached", run.budgetQuestion.detail);
-  if (run.batchQuestion) ask("run/batch", "Keep this run's commits?", run.batchQuestion.detail);
+  if (run.reset) ask("run/reset", `Reset ${line(run.reset.task)}?`, run.reset.detail, keyOf("r/"), run.reset.task);
+  if (run.budgetQuestion) ask("run/budget", "Budget reached", run.budgetQuestion.detail, keyOf("b/"));
+  if (run.batchQuestion) ask("run/batch", "Keep this run's commits?", run.batchQuestion.detail, keyOf("c/"));
   return {
     id: "run",
     label: label(s),
@@ -212,7 +240,8 @@ function phaseNode(ph: Phase, run: Run | undefined, expanded: boolean): Node {
   const finished = ph.tasks.filter((t) => !open(t.status)).length;
   const current = run !== undefined && !run.ended && run.phase === ph.id;
   const needs = run ? needsOf(run) : new Set<string>();
-  const children = ph.tasks.map((t) => taskNode(t, run, needs));
+  const byTask = run ? asksByTask(asksOf(run)) : new Map<string, Ask>();
+  const children = ph.tasks.map((t) => taskNode(t, run, needs, byTask));
   return {
     id: `phase/${ph.id}`,
     label: title(line(ph.id), line(ph.title)),
@@ -226,7 +255,8 @@ function phaseNode(ph: Phase, run: Run | undefined, expanded: boolean): Node {
   };
 }
 
-function taskNode(t: Task, run: Run | undefined, needs: Set<string>): Node {
+function taskNode(t: Task, run: Run | undefined, needs: Set<string>, byTask: Map<string, Ask>): Node {
+  const a = byTask.get(t.id);
   const card = run?.active.find((c) => c.task === t.id);
   const n = needs.has(t.id);
   const mode = card?.mode || run?.overrides[t.id] || t.mode;
@@ -242,6 +272,8 @@ function taskNode(t: Task, run: Run | undefined, needs: Set<string>): Node {
     children: [],
     kind: "task",
     task: t.id,
+    ...(a ? { ask: a.key } : {}),
+    ...(run && taskModable(run, t.id) ? { modable: true } : {}),
   };
 }
 

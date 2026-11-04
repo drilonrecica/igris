@@ -68,14 +68,169 @@
       {
         "command": "igris.showRun",
         "title": "Igris: Show what needs you"
+      },
+      {
+        "command": "igris.answer",
+        "title": "Igris: Answer what needs you",
+        "icon": "$(bell-dot)"
+      },
+      {
+        "command": "igris.taskActions",
+        "title": "Igris: Task actions…"
+      },
+      {
+        "command": "igris.runActions",
+        "title": "Igris: Run actions…"
+      },
+      {
+        "command": "igris.pause",
+        "title": "Igris: Pause after this task",
+        "icon": "$(debug-pause)"
+      },
+      {
+        "command": "igris.resume",
+        "title": "Igris: Resume",
+        "icon": "$(debug-continue)"
+      },
+      {
+        "command": "igris.stop",
+        "title": "Igris: Stop the run",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "igris.startAnyway",
+        "title": "Igris: Start anyway (usage hold)"
+      },
+      {
+        "command": "igris.setMode",
+        "title": "Igris: Mode of the next sessions…"
+      },
+      {
+        "command": "igris.setTaskMode",
+        "title": "Igris: Mode of this task's next session…"
       }
     ],
     "menus": {
       "view/title": [
         {
+          "command": "igris.answer",
+          "when": "view == igris.run && igris.needs",
+          "group": "navigation@0"
+        },
+        {
           "command": "igris.refresh",
           "when": "view == igris.run",
-          "group": "navigation"
+          "group": "navigation@9"
+        },
+        {
+          "command": "igris.pause",
+          "when": "view == igris.run && igris.live && !igris.paused",
+          "group": "run@1"
+        },
+        {
+          "command": "igris.resume",
+          "when": "view == igris.run && igris.live && igris.paused",
+          "group": "run@1"
+        },
+        {
+          "command": "igris.startAnyway",
+          "when": "view == igris.run && igris.live && igris.limited",
+          "group": "run@2"
+        },
+        {
+          "command": "igris.setMode",
+          "when": "view == igris.run && igris.live",
+          "group": "run@3"
+        },
+        {
+          "command": "igris.stop",
+          "when": "view == igris.run && igris.live",
+          "group": "run@9"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "igris.answer",
+          "when": "view == igris.run && viewItem =~ /\\.ask\\b/",
+          "group": "inline"
+        },
+        {
+          "command": "igris.answer",
+          "when": "view == igris.run && viewItem =~ /\\.ask\\b/",
+          "group": "1_answer@1"
+        },
+        {
+          "command": "igris.taskActions",
+          "when": "view == igris.run && igris.live && viewItem =~ /^igris\\.active/",
+          "group": "1_answer@2"
+        },
+        {
+          "command": "igris.setTaskMode",
+          "when": "view == igris.run && viewItem =~ /\\.mode\\b/",
+          "group": "2_mode@1"
+        },
+        {
+          "command": "igris.pause",
+          "when": "view == igris.run && viewItem =~ /^igris\\.run/ && igris.live && !igris.paused",
+          "group": "3_run@1"
+        },
+        {
+          "command": "igris.resume",
+          "when": "view == igris.run && viewItem =~ /^igris\\.run/ && igris.live && igris.paused",
+          "group": "3_run@1"
+        },
+        {
+          "command": "igris.startAnyway",
+          "when": "view == igris.run && viewItem =~ /^igris\\.run/ && igris.limited",
+          "group": "3_run@2"
+        },
+        {
+          "command": "igris.setMode",
+          "when": "view == igris.run && viewItem =~ /^igris\\.run/ && igris.live",
+          "group": "3_run@3"
+        },
+        {
+          "command": "igris.stop",
+          "when": "view == igris.run && viewItem =~ /^igris\\.run/ && igris.live",
+          "group": "3_run@9"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "igris.answer",
+          "when": "igris.needs"
+        },
+        {
+          "command": "igris.taskActions",
+          "when": "false"
+        },
+        {
+          "command": "igris.setTaskMode",
+          "when": "false"
+        },
+        {
+          "command": "igris.runActions",
+          "when": "igris.live"
+        },
+        {
+          "command": "igris.pause",
+          "when": "igris.live && !igris.paused"
+        },
+        {
+          "command": "igris.resume",
+          "when": "igris.live && igris.paused"
+        },
+        {
+          "command": "igris.startAnyway",
+          "when": "igris.live && igris.limited"
+        },
+        {
+          "command": "igris.setMode",
+          "when": "igris.live"
+        },
+        {
+          "command": "igris.stop",
+          "when": "igris.live"
         }
       ]
     }

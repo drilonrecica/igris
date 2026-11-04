@@ -4,7 +4,8 @@
 // start. No VS Code here; extension.ts draws what it says.
 
 import * as fs from "node:fs";
-import { Client, type End } from "./client";
+import type { Command } from "./answers";
+import { Client, type End, type Reply } from "./client";
 import type { IdleResult } from "./idle";
 import type { Snapshot } from "./protocol";
 import { apply } from "./run";
@@ -69,6 +70,12 @@ export class Controller {
     if (this.state.mode !== "idle") return;
     clearTimeout(this.reread);
     this.reread = setTimeout(() => void this.readIdle(), 300);
+  }
+
+  /** Sends cmd to the run this view is attached to. */
+  send(cmd: Command): Promise<Reply> {
+    if (!this.client || this.state.mode !== "live") return Promise.resolve({ type: "error", error: "not connected to the run" });
+    return this.client.send({ ...cmd });
   }
 
   dispose(): void {

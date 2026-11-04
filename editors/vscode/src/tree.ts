@@ -62,7 +62,10 @@ export class RunTree implements vscode.TreeDataProvider<Node> {
     item.id = n.id;
     item.description = n.description;
     item.tooltip = n.tooltip;
-    item.contextValue = `igris.${n.kind}`;
+    // igris.<kind>, then .ask when it asks the owner something and .mode
+    // when its next session's mode can be set: the menus match on these.
+    item.contextValue = `igris.${n.kind}${n.ask !== undefined ? ".ask" : ""}${n.modable ? ".mode" : ""}`;
+    if (n.ask !== undefined) item.command = { command: "igris.answer", title: "Answer", arguments: [n] };
     const [icon, color] = icons[n.icon];
     item.iconPath = new vscode.ThemeIcon(icon, color ? new vscode.ThemeColor(color) : undefined);
     return item;
