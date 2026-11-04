@@ -10,11 +10,11 @@ out=${1:-.}
 epoch=${SOURCE_DATE_EPOCH:-$(git log -1 --format=%ct)}
 rm -rf dist
 node esbuild.mjs
-for f in dist/extension.js package.json README.md LICENSE; do
+for f in dist/extension.js package.json README.md LICENSE resources/igris.svg; do
   chmod 644 "$f"
   touch -d "@$epoch" "$f"
 done
-touch -d "@$epoch" dist
+touch -d "@$epoch" dist resources
 mkdir -p "$out"
 name=$(node -p "const p=require('./package.json'); p.name+'-'+p.version+'.vsix'")
 rm -f "$out/$name"

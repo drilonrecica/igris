@@ -36,12 +36,49 @@
     "workspaceContains:igris.toml"
   ],
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "igris",
+          "title": "Igris",
+          "icon": "resources/igris.svg"
+        }
+      ]
+    },
+    "views": {
+      "igris": [
+        {
+          "id": "igris.run",
+          "name": "Run",
+          "icon": "resources/igris.svg",
+          "contextualTitle": "Igris"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "igris.checkInstall",
         "title": "Igris: Check the igris install"
+      },
+      {
+        "command": "igris.refresh",
+        "title": "Igris: Refresh the run view",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "igris.showRun",
+        "title": "Igris: Show what needs you"
       }
-    ]
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "igris.refresh",
+          "when": "view == igris.run",
+          "group": "navigation"
+        }
+      ]
+    }
   },
   "scripts": {
     "build": "node esbuild.mjs",

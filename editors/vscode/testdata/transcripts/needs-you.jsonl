@@ -1,5 +1,5 @@
 {"expect":{"v":1,"type":"hello"}}
 {"send":{"v":1,"type":"snapshot","protocol":1,"server":"igris 1.8.1","project":"demo","backend":"tmux","run":"20261104-100000-cd34","phase":"S1","mode":"manual","phases":[{"id":"S1","title":"Scratch phase","tasks":[{"id":"S1-01","title":"First task","rank":"sonnet","status":"in progress"}]}],"active":[{"task":"S1-01","rank":"sonnet","mode":"manual"}],"question":{"v":1,"type":"asked","at":"2026-11-04T10:01:00Z","task":"S1-01","question":"permission","detail":"Allow the session to edit the scratch file?"},"questions":[{"v":1,"type":"asked","at":"2026-11-04T10:01:00Z","task":"S1-01","question":"permission","detail":"Allow the session to edit the scratch file?"}]}}
 {"expect":{"v":1,"type":"answer","yes":true}}
-{"send":{"v":1,"type":"ack"}}
+{"send":{"v":1,"type":"ack","id":"$last"}}
 {"close":true}

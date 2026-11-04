@@ -1,0 +1,4 @@
+{"expect":{"v":1,"type":"hello"}}
+{"send":{"v":1,"type":"snapshot","protocol":1,"server":"igris 1.9.0","project":"demo","backend":"tmux","run":"20261104-110000-ef56","started":"2026-11-04T11:00:00Z","phase":"S1","mode":"auto","phases":[{"id":"S1","title":"Scratch phase","tasks":[{"id":"S1-01","title":"First task","rank":"sonnet","status":"in progress","owner":"agent"},{"id":"S1-02","title":"Second task","rank":"opus","status":"blocked","owner":"agent","mode":"plan"}]}],"active":[{"task":"S1-01","title":"First task","rank":"sonnet","model":"claude-sonnet-5-5","mode":"auto","state":"working","since":"2026-11-04T11:00:02Z","started":"2026-11-04T11:00:02Z"}]}}
+{"send":{"v":1,"type":"task_done","at":"2026-11-04T11:05:00Z","run":"20261104-110000-ef56","task":"S1-01","detail":"scratch change","changes":[{"id":"S1-01","from":"in progress","to":"done"},{"id":"S1-02","from":"blocked","to":"ready"}]}}
+{"close":true}

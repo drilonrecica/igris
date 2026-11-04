@@ -1,0 +1,5 @@
+{"expect":{"v":1,"type":"hello"}}
+{"send":{"v":1,"type":"snapshot","protocol":1,"server":"igris 1.9.0","project":"demo","backend":"tmux","run":"20261104-110000-ef56","started":"2026-11-04T11:00:00Z","phase":"S1","mode":"auto","phases":[{"id":"S1","title":"Scratch phase","tasks":[{"id":"S1-01","title":"First task","rank":"sonnet","status":"done","owner":"agent"},{"id":"S1-02","title":"Second task","rank":"opus","status":"in progress","owner":"agent","mode":"plan"}]}],"active":[{"task":"S1-02","title":"Second task","rank":"opus","model":"claude-opus-5-5","mode":"plan","state":"working","since":"2026-11-04T11:05:10Z","started":"2026-11-04T11:05:10Z"}]}}
+{"send":{"v":1,"type":"task_done","at":"2026-11-04T11:09:00Z","run":"20261104-110000-ef56","task":"S1-02","detail":"second change","changes":[{"id":"S1-02","from":"in progress","to":"done"}]}}
+{"send":{"v":1,"type":"run_stopped","at":"2026-11-04T11:09:05Z","run":"20261104-110000-ef56","phase":"S1","detail":"completed"}}
+{"close":true}
