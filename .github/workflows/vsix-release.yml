@@ -1,0 +1,32 @@
+name: vsix-release
+
+# Attaches the extension's .vsix to a GitHub release the owner has published
+# (decisions.md V19-P1). It never publishes to a store: `make vsix-publish`
+# runs on the owner's machine with the store tokens, after `make vsix-check`
+# matches this file. No secrets; the only write scope is this release.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  attach:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.release.tag_name }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - run: make vsix
+      - name: Attach
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" bin/*.vsix --clobber

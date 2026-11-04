@@ -35,6 +35,7 @@ These rules apply to every coding agent working in this repository (Claude Code 
   - `internal/side/` — side sessions (SPEC §6.10): open, list and reattach, focus, close; records under `.igris/side/` through `internal/state`
   - `internal/fsafe/` — reads files an untrusted party may have replaced (the plan, `igris.toml`, `.igris/`) as regular files of bounded size, never blocking
   - `internal/look/` — the design language as data (SPEC §15.4, docs/design.md): glyphs, status words, severities, palette and rank colors, and how counts, durations, times and tokens are written; the TUI and the CLI draw with it, the web UI's CSS tokens are tested against it
+  - `editors/vscode/` — the VS Code extension (SPEC §15.9, TypeScript): a client of `igris serve`, no runtime dependency; `make lint` runs `tsc --noEmit` on it, `make test` its unit tests, `make test-vscode` the tests in a real VS Code, `make vsix` builds the `.vsix`. Its tests replay recorded protocol-1 transcripts through a fake socket (`editors/vscode/testdata/`) and never start the real igris
   - `internal/textsafe/` — cleans untrusted text (plan cells, notes, command output) of escape sequences before it is drawn or typed into a pane
 - Small concrete types, plain functions. Interfaces only at real seams (`Backend`, `Session`, notifier, clock, command runner).
 - Every external process call goes through one injectable command runner with a timeout. Never build shell strings from plan text; pass argv.

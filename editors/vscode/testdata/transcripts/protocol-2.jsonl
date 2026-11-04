@@ -1,0 +1,3 @@
+{"expect":{"v":1,"type":"hello"}}
+{"send":{"v":1,"type":"snapshot","protocol":2,"server":"igris 2.0.0","project":"demo"}}
+{"close":true}

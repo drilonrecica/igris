@@ -1,7 +1,7 @@
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -X main.version=$(VERSION)
 
-.PHONY: build install fmt lint test test-race config-ref fuzz release-local sign sign-check demo demo-screens site
+.PHONY: build install fmt lint test test-race vscode-deps lint-vscode test-vscode-unit test-vscode vsix vsix-check config-ref fuzz release-local sign sign-check demo demo-screens site
 
 build:
 	go build -ldflags "$(LDFLAGS)" -o bin/igris ./cmd/igris
@@ -16,11 +16,13 @@ lint:
 	@test -z "$$(gofmt -l .)" || { echo "gofmt needed on:"; gofmt -l .; exit 1; }
 	go vet ./...
 	golangci-lint run
+	$(MAKE) lint-vscode
 
 # -timeout: a test that hangs, or a process it started, fails instead of
 # running on (AGENTS.md §5: tests never start the real igris).
 test:
 	go test -timeout 120s ./...
+	$(MAKE) test-vscode-unit
 
 test-race:
 	go test -race -timeout 120s ./...
@@ -95,3 +97,39 @@ demo-screens: install
 # the same output. Preview: python3 -m http.server -d _site
 site:
 	sh site/build.sh
+
+# The VS Code extension (editors/vscode, SPEC §15.9, decisions.md V19-P1).
+# Needs Node and npm; dependencies come from package-lock.json with `npm ci`.
+# No formatter is approved for TypeScript, so `make fmt` leaves it alone.
+VSCODE := editors/vscode
+
+$(VSCODE)/node_modules/.package-lock.json: $(VSCODE)/package-lock.json $(VSCODE)/package.json
+	cd $(VSCODE) && npm ci
+
+vscode-deps: $(VSCODE)/node_modules/.package-lock.json
+
+# tsc --noEmit over the extension and its tests (part of `make lint`).
+lint-vscode: vscode-deps
+	cd $(VSCODE) && npx --no-install tsc --noEmit
+
+# The extension's unit tests, with no VS Code and a fake `igris serve` socket
+# (part of `make test`).
+test-vscode-unit: vscode-deps
+	cd $(VSCODE) && npm test
+
+# The tests in a real VS Code (@vscode/test-electron, downloaded once into
+# $(VSCODE)/.vscode-test). Needs a display: on a headless Linux box run it as
+# `xvfb-run -a make test-vscode`, as CI does.
+test-vscode: vscode-deps
+	cd $(VSCODE) && npm run test:vscode
+
+# Builds bin/igris-X.Y.Z.vsix, byte for byte the same from the same commit.
+# Never publishes (the owner does, make vsix-publish).
+vsix: vscode-deps
+	sh $(VSCODE)/scripts/vsix.sh $(CURDIR)/bin
+
+# Rebuilds the .vsix from tag TAG and compares its checksum with the one CI
+# attached to the release.
+vsix-check:
+	@test -n "$(TAG)" || { echo "usage: make vsix-check TAG=vX.Y.Z"; exit 1; }
+	sh tools/vsix-check.sh $(TAG)

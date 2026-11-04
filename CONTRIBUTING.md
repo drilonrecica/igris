@@ -18,6 +18,8 @@ make build        # bin/igris
 make fmt lint test
 make test-race    # go test -race ./...
 make fuzz         # every fuzz target, FUZZTIME=1m each (10m before a release)
+make vsix         # bin/igris-X.Y.Z.vsix, the VS Code extension (editors/vscode; needs Node 22+; `make lint test` also check it)
+xvfb-run -a make test-vscode   # its tests in a real VS Code (drop xvfb-run where you have a display)
 ```
 
 `make test` never needs herdr or Claude Code: the herdr backend replays recorded JSON fixtures, and the engine runs against a fake backend and a fake clock. Please keep it that way — no sleeps in tests, no network, no real sessions.

@@ -1,0 +1,65 @@
+{
+  "name": "igris",
+  "displayName": "Igris",
+  "description": "Watch and steer an igris run from the editor: the plan's phases and tasks, what needs you, and what each task changed.",
+  "version": "1.9.0",
+  "publisher": "drilonrecica",
+  "license": "MIT",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/drilonrecica/igris.git",
+    "directory": "editors/vscode"
+  },
+  "homepage": "https://github.com/drilonrecica/igris",
+  "bugs": {
+    "url": "https://github.com/drilonrecica/igris/issues"
+  },
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "extensionKind": [
+    "workspace"
+  ],
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "igris",
+    "claude code",
+    "task plan",
+    "agents"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "workspaceContains:.igris/igris.sock",
+    "workspaceContains:igris.toml"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "igris.checkInstall",
+        "title": "Igris: Check the igris install"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "build:tests": "node esbuild.mjs --tests",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build:tests && mocha --config .mocharc.json",
+    "test:vscode": "npm run build && npm run build:tests && node out/test/vscode/runTest.js",
+    "package": "sh scripts/vsix.sh"
+  },
+  "devDependencies": {
+    "@types/mocha": "10.0.10",
+    "@types/node": "20.19.43",
+    "@types/vscode": "1.100.0",
+    "@vscode/test-electron": "3.1.0",
+    "@vscode/vsce": "4.1.0",
+    "esbuild": "0.28.2",
+    "mocha": "12.0.3",
+    "ovsx": "1.3.0",
+    "typescript": "5.9.3"
+  }
+}
