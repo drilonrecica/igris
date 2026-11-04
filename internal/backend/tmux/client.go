@@ -228,10 +228,47 @@ func (c *Client) CapturePane(ctx context.Context, pane string, lines int) (strin
 	return string(out), nil
 }
 
-// SelectWindow makes window the current window of its session.
-func (c *Client) SelectWindow(ctx context.Context, window string) error {
-	_, err := c.exec(ctx, nil, "select-window", "-t", window)
+// SwitchClient moves igris's tmux client to pane: its session, window
+// and pane, whichever session the client shows now (SPEC §11.5, since
+// 1.9). `prefix L` goes back. tmux 3.2 selects the window this way too (its
+// cmd-switch-client.c: a target with % is a pane, and the session's current
+// window is set to it).
+func (c *Client) SwitchClient(ctx context.Context, pane string) error {
+	_, err := c.exec(ctx, nil, "switch-client", "-t", pane)
 	return err
+}
+
+// SessionName is the name of the session igris's pane is in (inside tmux).
+func (c *Client) SessionName(ctx context.Context) (string, error) {
+	return c.format(ctx, "", "#{session_name}")
+}
+
+// SocketPath is the server's socket path, asked of session (matched
+// exactly), or of the current session for "".
+func (c *Client) SocketPath(ctx context.Context, session string) (string, error) {
+	target := ""
+	if session != "" {
+		target = "=" + session + ":"
+	}
+	return c.format(ctx, target, "#{socket_path}")
+}
+
+// format is `display-message -p` of format at target ("" for none), one
+// line, cleaned.
+func (c *Client) format(ctx context.Context, target, format string) (string, error) {
+	args := []string{"display-message", "-p"}
+	if target != "" {
+		args = append(args, "-t", target)
+	}
+	out, err := c.exec(ctx, nil, append(args, format)...)
+	if err != nil {
+		return "", err
+	}
+	v := textsafe.Line(strings.TrimSpace(string(out)))
+	if v == "" {
+		return "", fmt.Errorf("tmux display-message: nothing for %s", format)
+	}
+	return v, nil
 }
 
 // KillWindow closes window and its pane.

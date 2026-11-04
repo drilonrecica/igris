@@ -278,7 +278,7 @@ type helpEntry struct{ key, name, what string }
 // helpActions are the run view's bindings the help page lists (SPEC
 // §15.3, §15.5), a capital beside its lowercase.
 var helpActions = []helpEntry{
-	{"o", "Open session", "bring the current session's pane to the front"},
+	{"o", "Open session", "bring the current session's pane to the front: its herdr tab, or its tmux window on this tmux server (switching this client to its session); elsewhere the card says where it is"},
 	{"[ ]", "Select card", "with several active tasks: the previous or next card; o d s r t M y act on its task"},
 	{"t", "Details", "the selected task's full text and facts: the current one unless you picked another"},
 	{"m", "Mode", "run mode for the sessions launched from now on; More modes… lists the plan:* modes and yolo, which needs the typed phrase"},
@@ -291,7 +291,7 @@ var helpActions = []helpEntry{
 	{"S", "Side session", "a Claude Code session of your own, not a task"},
 	{"r", "Retry", "close the session and start fresh or continue the conversation"},
 	{"x", "Stop", "stop igris after confirming; the session stays open"},
-	{"y", "Copy", "copy claude --resume for the current session, the log line at the bottom when the log has the focus, or the igris report command on the end-of-run summary"},
+	{"y", "Copy", "copy claude --resume for the current session (the tmux attach command while the card says where the session is), the log line at the bottom when the log has the focus, or the igris report command on the end-of-run summary"},
 	{"h", "History", "on the end-of-run summary: the History page"},
 	{"?", "Help", "this page"},
 	{"q", "Home / Quit", "leave the run view; sessions keep running, igris arise resumes"},

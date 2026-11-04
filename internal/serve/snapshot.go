@@ -21,6 +21,11 @@ type Snapshot struct {
 	Server  string `json:"server"`
 	Project string `json:"project,omitempty"`
 	Backend string `json:"backend,omitempty"`
+	// SessionHost is where the sessions live (since 1.9, decisions.md
+	// V141-P1): the backend and, for tmux, the server's socket path and
+	// the session. A client focuses a session only from there (SPEC
+	// §15.3); without it (an older serve) as igris 1.4 did.
+	SessionHost *backend.Host `json:"session_host,omitempty"`
 
 	Run string `json:"run,omitempty"`
 	// Started is when the run started (since 1.6); zero before a run.

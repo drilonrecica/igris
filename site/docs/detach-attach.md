@@ -31,6 +31,7 @@ Bare `igris` opens home, which shows the live run with **Attach** as its first a
 - **Several terminals at once.** Each can do everything the run view can. A question is answered by the first terminal that answers it; the others see the answer arrive and the dialog closes.
 - **A lost connection.** The header says `reconnecting…` and the view comes back with a fresh snapshot of the run, with the last lines of the feed.
 - **After `igris update`.** A run keeps the igris that started it until it ends. A newer or older igris can still attach, and its header says `served by igris X.Y.Z`.
+- **Open session.** `o` brings a session to the front only where it lives: from herdr for a herdr run, and for tmux from a client on the run's tmux server, whichever session that client shows (it switches the client there; `prefix L` goes back). From another tmux server, another multiplexer or a plain ssh shell, `o` isn't offered and the card says where the session is, e.g. `Session: tmux session igris-p3 — tmux attach -t igris-p3` (with `-S <socket>` for a server that isn't the default one); `y` copies the command.
 - **Skip-permissions mode.** Switching the run to it from an attached terminal asks for the typed phrase in that terminal, as everywhere.
 
 ## Stop from a script
@@ -45,7 +46,7 @@ asks the live run to stop, as **Stop run** does, waits until it has, and exits 0
 
 `igris serve [PHASE]` takes the same run flags as `arise` and prints plain log lines to stdout; it reads no commands, so its questions are answered in `igris attach`. Use it on a machine you reach over ssh, or from a service, then attach when you want to look. Start-up questions are asked on stdin; a closed stdin declines them. `--mode yolo` asks for the typed phrase on a terminal and refuses without one.
 
-Outside herdr and tmux, serve with the tmux backend runs the sessions in a detached tmux session named `igris-<project>`. `tmux attach -t igris-<project>` shows them. SIGHUP, SIGINT and SIGTERM stop the run, and a second one exits at once.
+Outside herdr and tmux, serve with the tmux backend runs the sessions in a detached tmux session named `igris-<project>`. `tmux attach -t igris-<project>` shows them, and from a tmux client on the same server **Open session** switches to them. SIGHUP, SIGINT and SIGTERM stop the run, and a second one exits at once.
 
 ## If something is off
 

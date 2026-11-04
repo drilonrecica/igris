@@ -149,6 +149,10 @@ func TestAttachAriseNextPhase(t *testing.T) {
 	}
 	withAttachUI(t, func(_ context.Context, o tui.Options) error {
 		checkAttached(t, o)
+		// The session never signals, so the run completes only once this
+		// view is attached: a run that ended before attach connected left
+		// nothing to attach to, and the wizard was waited for forever.
+		o.Sender.Send(engine.Command{Kind: engine.CmdDone, Task: "A-1", Text: "done from the view"})
 		<-o.Feed.Ended()
 		if o.Arise == nil {
 			t.Error("the view offers no Arise")
@@ -160,8 +164,9 @@ func TestAttachAriseNextPhase(t *testing.T) {
 	attached := make(chan stopResult, 1)
 	code, got, _ := noTUIRun{
 		cmd: "serve", plan: servePlan + "\n## B\n\n| ID | Task | Deps | Status | Model | Owner |\n|---|---|---|---|---|---|\n| B-1 | **Two** | A-1 | blocked | sonnet | agent |\n",
-		args:    []string{"A"},
-		actions: map[string]func(){"A-1 session open": attachAction(attached)},
+		args:     []string{"A"},
+		noSignal: true,
+		actions:  map[string]func(){"A-1 session open": attachAction(attached)},
 	}.run(t)
 	if code != exitOK {
 		t.Fatalf("serve exit %d; output:\n%s", code, got)

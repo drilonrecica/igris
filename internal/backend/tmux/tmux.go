@@ -41,6 +41,8 @@ const (
 type Backend struct {
 	c      *Client
 	inside bool // igris runs inside tmux ($TMUX set)
+	// socket is the server's socket path from $TMUX, "" when unset.
+	socket string
 	// headless is the detached session the windows open in when igris
 	// runs outside tmux (igris serve, SPEC §11.5), and dir its directory;
 	// "" inside tmux.
@@ -49,9 +51,49 @@ type Backend struct {
 	hooks         backend.HookStates                               // nil: agent state unknown
 }
 
-// NewFromEnv is New with "inside tmux" taken from $TMUX.
+// NewFromEnv is New with "inside tmux" and the server's socket taken
+// from $TMUX.
 func NewFromEnv(r runner.Runner, getenv func(string) string) *Backend {
-	return New(r, getenv(Env) != "")
+	b := New(r, getenv(Env) != "")
+	b.socket = SocketOf(getenv(Env))
+	return b
+}
+
+// SocketOf is the server's socket path in a $TMUX value, its first field
+// ("/tmp/tmux-1000/default,4242,0"); "" for "".
+func SocketOf(tmuxEnv string) string {
+	socket, _, _ := strings.Cut(tmuxEnv, ",")
+	return socket
+}
+
+var _ backend.Hoster = (*Backend)(nil)
+
+// Host says where the sessions live (SPEC §13 session_host, since 1.9):
+// inside tmux the server from $TMUX and the session igris's pane is in;
+// headless the session igris-<project>, created now if it doesn't exist,
+// and its server's socket path.
+func (b *Backend) Host(ctx context.Context) (backend.Host, error) {
+	h := backend.Host{Backend: Name}
+	if b.headless != "" {
+		if err := b.c.EnsureSession(ctx, b.headless, b.dir); err != nil {
+			return h, fmt.Errorf("open the tmux session %s: %w", b.headless, err)
+		}
+		socket, err := b.c.SocketPath(ctx, b.headless)
+		if err != nil {
+			return h, fmt.Errorf("the tmux session %s's server: %w", b.headless, err)
+		}
+		h.Socket, h.Session = socket, b.headless
+		return h, nil
+	}
+	if b.socket == "" {
+		return h, fmt.Errorf("igris doesn't run inside tmux (%s is not set)", Env)
+	}
+	name, err := b.c.SessionName(ctx)
+	if err != nil {
+		return h, fmt.Errorf("the tmux session igris runs in: %w", err)
+	}
+	h.Socket, h.Session = b.socket, name
+	return h, nil
 }
 
 // New returns a tmux backend that runs tmux through r; inside says whether

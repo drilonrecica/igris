@@ -347,6 +347,9 @@ func (s *Services) Focus(ctx context.Context, ref backend.SessionRef, taskID str
 	return Focus(be)(ctx, ref, taskID)
 }
 
+// Place implements tui.Services.
+func (s *Services) Place() backend.Host { return Place(s.env.getenv()) }
+
 // CheckUpdate implements tui.Services.
 func (s *Services) CheckUpdate(ctx context.Context) (update.Check, error) {
 	return CheckUpdate(ctx, s.env)

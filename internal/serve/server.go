@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/textsafe"
@@ -28,7 +29,10 @@ type Options struct {
 	Version string
 	Project string // shown in the clients' header
 	Backend string // the backend's name
-	Mode    string // the run mode chosen for the run; "" for none
+	// Host is where the sessions live (session_host, since 1.9); nil
+	// sends none, and clients then focus as igris 1.4 did.
+	Host *backend.Host
+	Mode string // the run mode chosen for the run; "" for none
 
 	// Sender gets every valid command. Nil drops them, still answered
 	// with an ack (a run that hasn't started yet).
@@ -479,6 +483,10 @@ func (s *Server) phases() (phases []Phase, planErr string) {
 func (s *Server) snapshotLocked(phases []Phase, planErr string) Snapshot {
 	snap := s.track.snapshot(phases)
 	snap.Server, snap.Project, snap.Backend = "igris "+s.opts.Version, textsafe.Line(s.opts.Project), s.opts.Backend
+	if h := s.opts.Host; h != nil {
+		clean := h.Clean()
+		snap.SessionHost = &clean
+	}
 	snap.Phases, snap.PlanError = phases, planErr
 	return snap
 }

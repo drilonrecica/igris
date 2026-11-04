@@ -70,8 +70,22 @@ func TestClientCommands(t *testing.T) {
 			[]string{"paste-buffer", "-p", "-d", "-b", "igris-b", "-t", "%1"}},
 		{"enter", runner.Result{}, func(c *Client) error { return c.SendEnter(ctx, "%1") },
 			[]string{"send-keys", "-t", "%1", "Enter"}},
-		{"select", runner.Result{}, func(c *Client) error { return c.SelectWindow(ctx, "@1") },
-			[]string{"select-window", "-t", "@1"}},
+		{"switch the client to a pane", runner.Result{}, func(c *Client) error { return c.SwitchClient(ctx, "%1") },
+			[]string{"switch-client", "-t", "%1"}},
+		{"session name", ok(t, "session_name.txt"), func(c *Client) error {
+			v, err := c.SessionName(ctx)
+			if err == nil && v != "main" {
+				t.Errorf("session %q", v)
+			}
+			return err
+		}, []string{"display-message", "-p", "#{session_name}"}},
+		{"socket path of a session, matched exactly", ok(t, "socket_path.txt"), func(c *Client) error {
+			v, err := c.SocketPath(ctx, "igris-proj")
+			if err == nil && v != "/tmp/tmux-1000/default" {
+				t.Errorf("socket %q", v)
+			}
+			return err
+		}, []string{"display-message", "-p", "-t", "=igris-proj:", "#{socket_path}"}},
 		{"kill", runner.Result{}, func(c *Client) error { return c.KillWindow(ctx, "@1") },
 			[]string{"kill-window", "-t", "@1"}},
 		{"toast escaped", runner.Result{}, func(c *Client) error { return c.DisplayMessage(ctx, "needs you: #(rm -rf ~)\x1b[31m") },

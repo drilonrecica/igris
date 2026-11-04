@@ -181,9 +181,15 @@ func execServe(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 	if started {
 		onHello = func(r serve.Request) { helloOnce.Do(func() { firstHello <- r }) }
 	}
+	// Where the sessions live, so a client focuses one only from there
+	// (SPEC §13 session_host; headless this starts igris-<project>).
+	where, err := project.SessionHost(ctx, l.Backend)
+	if err != nil {
+		fmt.Fprintf(out, "warning: where the sessions live is unknown (%v); clients open them as igris 1.4 did\n", err)
+	}
 	srv := serve.New(serve.Options{
 		Hello:   onHello,
-		Version: igrisVersion(), Project: proj.Name(), Backend: l.Backend.Name(), Mode: f.mode,
+		Version: igrisVersion(), Project: proj.Name(), Backend: l.Backend.Name(), Host: where, Mode: f.mode,
 		Sender: host, Tail: host.tail,
 		Plan: func() (*plan.Plan, error) { return plan.Load(proj.PlanPath, proj.Cfg.PlanOptions(proj.Root)) },
 		Logf: func(format string, a ...any) {

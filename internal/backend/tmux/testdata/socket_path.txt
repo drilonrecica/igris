@@ -1,0 +1,1 @@
+/tmp/tmux-1000/default

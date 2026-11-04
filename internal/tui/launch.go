@@ -531,6 +531,7 @@ func (m *homeScreen) runView(req report.RunRequest, r *liveRun) tea.Model {
 		Feed:     r.h.feed,
 		Sender:   r.sender,
 		Focus:    m.svc.Focus,
+		Place:    m.svc.Place(),
 		Side:     m.svc.Side(),
 		Leave:    func() tea.Msg { return ownedMsg{m, leaveRunMsg{}} },
 		History:  func() tea.Msg { return ownedMsg{m, leaveRunMsg{history: true}} },

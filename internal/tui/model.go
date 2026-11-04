@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"maps"
 	"slices"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/side"
 	"github.com/drilonrecica/igris/internal/state"
+	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
 // maxLog caps the log kept in memory; the full record is .igris/runs.jsonl.
@@ -173,8 +175,10 @@ type model struct {
 	servedBy   string
 	leaveOnEnd bool
 	// backend is the backend serve's sessions run on, from its snapshot;
-	// "" means Options.Backend.
+	// "" means Options.Backend. host is where they live (session_host,
+	// since 1.9); nil from an older serve and for a run in this process.
 	backend string
+	host    *backend.Host
 
 	zones zones // of the last frame
 	th    *theme
@@ -197,8 +201,11 @@ func newModel(ctx context.Context, opts Options) *model {
 // Messages besides the feed's batches.
 type (
 	tickMsg     struct{}
-	focusErrMsg struct{ err error }
-	planMsg     struct {
+	focusErrMsg struct {
+		ref backend.SessionRef
+		err error
+	}
+	planMsg struct {
 		p   *plan.Plan
 		err error
 	}
@@ -305,7 +312,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.gotTail(msg)
 		}
 	case focusErrMsg:
-		m.addLog(m.opts.Now(), "could not open the session: "+msg.err.Error(), lookTitle)
+		m.addLog(m.opts.Now(), focusErrText(msg.ref, msg.err), lookTitle)
 	case sideMsg:
 		if msg.ui != m.side {
 			break
@@ -906,11 +913,36 @@ func sessionPlace(backend string) string {
 }
 
 // canOpen says whether Open session would do something for c: its
-// session exists and this igris can reach its backend. An attached client
-// outside herdr and tmux (ssh from a phone) can't, so it isn't offered
-// (SPEC §15.3).
+// session exists and this igris can reach it, on its backend and, for
+// tmux, its server (the snapshot's session_host, SPEC §15.3). An attached
+// client outside herdr and tmux (ssh from a phone) can't, so it isn't
+// offered. Without session_host (an older serve) it is offered whenever
+// this igris has a backend, as in 1.4.
 func (m *model) canOpen(c *current) bool {
-	return c != nil && c.session != nil && m.opts.Focus != nil
+	if c == nil || c.session == nil || m.opts.Focus == nil {
+		return false
+	}
+	return m.host == nil || m.host.Reaches(m.opts.Place)
+}
+
+// sessionWhere is the card's line for c's session when Open session isn't
+// offered for it, `Session: tmux session igris-p3 — tmux attach -t
+// igris-p3`, and the command `y` copies ("" for herdr); "" without a
+// session_host or when it is offered (SPEC §15.3, since 1.9).
+func (m *model) sessionWhere(c *current) (line, command string) {
+	if m.host == nil || c == nil || c.session == nil || c.user || m.canOpen(c) {
+		return "", ""
+	}
+	tab := c.id
+	if c.rank != "" {
+		tab += " · " + c.rank // the tab's name, as the engine labels it
+	}
+	place, command := m.host.Where(tab)
+	line = "Session: " + place
+	if command != "" {
+		line += " — " + command
+	}
+	return line, command
 }
 
 // focusSession brings c's session's pane to the front.
@@ -923,7 +955,7 @@ func (m *model) focusSession(c *current) tea.Cmd {
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 		if err := focus(ctx, ref, id); err != nil {
-			return focusErrMsg{err}
+			return focusErrMsg{ref, err}
 		}
 		return nil
 	}
@@ -1309,4 +1341,19 @@ func (m *model) scrollTasks(by int) {
 		m.taskTop = m.autoTaskTop
 	}
 	m.taskTop = max(m.taskTop+by, 0)
+}
+
+// focusErrText is the log's line for a failed Open session. A pane here
+// that igris didn't start for the task is another server's or another
+// session's pane with the same ID, not a gone session (decisions.md
+// V141-P1): the run's sessions live where this view can't reach them.
+func focusErrText(ref backend.SessionRef, err error) string {
+	if errors.Is(err, backend.ErrSessionForeign) {
+		what := "tmux pane " + ref.PaneID
+		if ref.Backend != "tmux" {
+			what = "herdr agent " + ref.Agent
+		}
+		return "could not open the session: " + textsafe.Line(what) + " here is not this run's session (the run's sessions are on another server)"
+	}
+	return "could not open the session: " + err.Error()
 }

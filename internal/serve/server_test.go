@@ -172,6 +172,23 @@ func TestHelloSnapshotThenEvents(t *testing.T) {
 	}
 }
 
+// The snapshot says where the sessions live (SPEC §13 session_host, since
+// 1.9), cleaned; without a host, as from igris 1.8, it has none.
+func TestSnapshotSessionHost(t *testing.T) {
+	host := &backend.Host{Backend: "tmux", Socket: "/tmp/tmux-1000/default", Session: "igris-p3\x1b[2J"}
+	p := attach(t, New(Options{Version: "1.9.0", Backend: "tmux", Host: host}))
+	p.send(`{"v":1,"type":"hello","client":"igris 1.9.0"}`)
+	got, _ := p.next()["session_host"].(map[string]any)
+	if got["backend"] != "tmux" || got["socket_path"] != "/tmp/tmux-1000/default" || got["session"] != "igris-p3" {
+		t.Errorf("session_host = %v", got)
+	}
+	p = attach(t, New(Options{Version: "1.9.0", Backend: "tmux"}))
+	p.send(`{"v":1,"type":"hello","client":"igris 1.9.0"}`)
+	if snap := p.next(); snap["session_host"] != nil {
+		t.Errorf("session_host without a host = %v", snap["session_host"])
+	}
+}
+
 func TestCommandsMirrorEngine(t *testing.T) {
 	tests := []struct {
 		req  string

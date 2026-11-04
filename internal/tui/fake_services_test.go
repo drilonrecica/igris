@@ -21,6 +21,7 @@ import (
 // holds and is counted. A nil func field gives the zero answer. Calls are
 // safe from the program's goroutines.
 type fakeServices struct {
+	place backend.Host // what Place says
 	mu    sync.Mutex
 	calls map[string]int
 
@@ -220,6 +221,8 @@ func (f *fakeServices) Focus(context.Context, backend.SessionRef, string) error 
 	f.count("Focus")
 	return f.focusErr
 }
+
+func (f *fakeServices) Place() backend.Host { return f.place }
 
 func (f *fakeServices) Side() SideSessions { return f.side }
 

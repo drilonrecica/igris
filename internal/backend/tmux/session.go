@@ -253,9 +253,11 @@ func (s *Session) Tail(ctx context.Context, n int) ([]string, error) {
 	return backend.TailLines(out, n), nil
 }
 
-// Focus makes the session's window the current one.
+// Focus moves igris's tmux client to the session's pane, in this session
+// or another one on the same server (SPEC §11.5, since 1.9; before it
+// select-window, which changed a session the client might not show).
 func (s *Session) Focus(ctx context.Context) error {
-	err := s.c.SelectWindow(ctx, s.ref.TabID)
+	err := s.c.SwitchClient(ctx, s.ref.PaneID)
 	switch {
 	case IsGone(err):
 		return s.goneErr("focus", err)

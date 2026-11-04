@@ -435,8 +435,57 @@ func TestHeadless(t *testing.T) {
 	if err := b.Notify(ctx, backend.Notification{Title: "igris", Body: "needs you"}); err != nil || len(s.toasts) != 0 {
 		t.Errorf("Notify = %v, toasts %q: no client to show on", err, s.toasts)
 	}
-	if err := sess.Focus(ctx); err != nil {
-		t.Errorf("Focus: %v", err)
+	if err := sess.Focus(ctx); err != nil || len(s.switched) != 1 || s.switched[0] != sess.Ref().PaneID {
+		t.Errorf("Focus = %v, switched to %v, want %s", err, s.switched, sess.Ref().PaneID)
+	}
+	// Where its sessions live: the session, created if it isn't there,
+	// and its server (SPEC §13 session_host).
+	s.mu.Lock()
+	delete(s.sessions, "igris-proj")
+	s.mu.Unlock()
+	h, err := b.Host(ctx)
+	if err != nil || h != (backend.Host{Backend: Name, Socket: "/tmp/tmux-1000/default", Session: "igris-proj"}) || s.sessions["igris-proj"] != 1 {
+		t.Errorf("Host = %+v, %v; session created %d times", h, err, s.sessions["igris-proj"])
+	}
+}
+
+// Inside tmux, the sessions live on the server $TMUX names, in the session
+// igris's pane is in (SPEC §13 session_host).
+func TestHostInsideTmux(t *testing.T) {
+	ctx := context.Background()
+	s := newSim()
+	env := map[string]string{Env: "/tmp/tmux-1000/work,4242,3"}
+	b := NewFromEnv(s.runner(), func(k string) string { return env[k] })
+	h, err := b.Host(ctx)
+	if err != nil || h != (backend.Host{Backend: Name, Socket: "/tmp/tmux-1000/work", Session: "main"}) {
+		t.Errorf("Host = %+v, %v", h, err)
+	}
+	if _, err := New(s.runner(), false).Host(ctx); err == nil {
+		t.Error("Host outside tmux and not headless: no error")
+	}
+}
+
+func TestSocketOf(t *testing.T) {
+	for in, want := range map[string]string{
+		"/tmp/tmux-1000/default,4242,0": "/tmp/tmux-1000/default",
+		"/private/tmp/tmux-501/x,1,2":   "/private/tmp/tmux-501/x",
+		"":                              "",
+		"/no/fields":                    "/no/fields",
+	} {
+		if got := SocketOf(in); got != want {
+			t.Errorf("SocketOf(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+// switch-client without a client says so; that is not a gone session.
+func TestFocusWithoutClient(t *testing.T) {
+	ctx := context.Background()
+	f := &runner.Fake{}
+	f.On([]string{Program, "switch-client"}, fail(t, "err_no_client.txt"), nil)
+	sess := &Session{c: NewClient(f), id: "T-01", ref: backend.SessionRef{Backend: Name, TabID: "@1", PaneID: "%1"}}
+	if err := sess.Focus(ctx); err == nil || errors.Is(err, backend.ErrSessionGone) || !strings.Contains(err.Error(), "no current client") {
+		t.Errorf("Focus = %v", err)
 	}
 }
 
@@ -446,5 +495,16 @@ func TestHeadlessWithoutTmux(t *testing.T) {
 	f.Func(func(runner.Cmd) (runner.Result, error) { return runner.Result{}, exec.ErrNotFound })
 	if err := NewHeadless(f, "/w/p").Available(context.Background()); err == nil || !strings.Contains(err.Error(), "not installed") {
 		t.Errorf("Available = %v", err)
+	}
+}
+
+// backend.Host knows this backend by its name.
+func TestHostKnowsTmux(t *testing.T) {
+	h := backend.Host{Backend: Name, Socket: "/s", Session: "x"}
+	if !h.Reaches(backend.Host{Backend: Name, Socket: "/s"}) {
+		t.Error("a tmux host doesn't reach the same server")
+	}
+	if place, _ := h.Where(""); place != "tmux session x" {
+		t.Errorf("Where = %q", place)
 	}
 }

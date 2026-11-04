@@ -1,6 +1,7 @@
 package project
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/drilonrecica/igris/internal/backend"
@@ -70,4 +71,33 @@ func NewBackend(cfg *config.Config, root string, env Env) (backend.Backend, erro
 		return tmux.NewFromEnv(env.runner(), env.getenv()).WithHookStates(hooks), nil
 	}
 	return herdr.NewFromEnv(env.runner(), env.getenv()).WithHookStates(hooks), nil
+}
+
+// SessionHost is where be's sessions live, for the snapshot's session_host
+// (SPEC §13, since 1.9): what a backend that can say (backend.Hoster)
+// says, else its name. A Hoster that can't tell gives nil and the error:
+// clients then focus as igris 1.4 did.
+func SessionHost(ctx context.Context, be backend.Backend) (*backend.Host, error) {
+	hb, ok := be.(backend.Hoster)
+	if !ok {
+		return &backend.Host{Backend: be.Name()}, nil
+	}
+	h, err := hb.Host(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &h, nil
+}
+
+// Place is where a client runs, for comparing with a run's session_host
+// (SPEC §15.3): herdr in a herdr pane, tmux with its server's socket in a
+// tmux client (herdr first, as auto chooses), else nowhere.
+func Place(getenv func(string) string) backend.Host {
+	switch {
+	case getenv(herdr.WorkspaceEnv) != "":
+		return backend.Host{Backend: herdr.Name}
+	case getenv(tmux.Env) != "":
+		return backend.Host{Backend: tmux.Name, Socket: tmux.SocketOf(getenv(tmux.Env))}
+	}
+	return backend.Host{}
 }

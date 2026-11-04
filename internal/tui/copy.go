@@ -40,8 +40,8 @@ func copyNotice(out io.Writer, text string) string {
 
 // copySelected copies the item under the owner's focus: the report
 // command on the end-of-run summary, the log line at the bottom of the
-// view when the log has the focus, else the command that resumes the
-// current session.
+// view when the log has the focus, else the command that shows the current
+// session where the card says it is, else the one that resumes it.
 func (m *model) copySelected() {
 	text := ""
 	switch {
@@ -51,8 +51,18 @@ func (m *model) copySelected() {
 		if i := len(m.log) - 1 - min(m.scroll, max(len(m.log)-1, 0)); i >= 0 {
 			text = textsafe.Line(m.log[i].text)
 		}
+	case m.cur != nil && m.sessionCommand(m.cur) != "":
+		// Where the card says the session is (SPEC §15.3, since 1.9).
+		text = m.sessionCommand(m.cur)
 	case m.cur != nil && m.cur.session != nil && engine.ValidSessionID(m.cur.claudeSession):
 		text = "claude --resume " + m.cur.claudeSession
 	}
 	m.notice, m.noticeAt = copyNotice(m.opts.Out, text), m.opts.Now()
+}
+
+// sessionCommand is the command that shows c's session when the card says
+// where it is, "" otherwise.
+func (m *model) sessionCommand(c *current) string {
+	_, command := m.sessionWhere(c)
+	return command
 }

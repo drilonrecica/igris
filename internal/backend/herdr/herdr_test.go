@@ -119,3 +119,10 @@ func TestNotify(t *testing.T) {
 		t.Errorf("err = %v, want it wrapped with \"show herdr toast\"", err)
 	}
 }
+
+// backend.Host knows this backend by its name.
+func TestHostKnowsHerdr(t *testing.T) {
+	if place, _ := (backend.Host{Backend: Name}).Where("T-01 · opus"); place != "herdr tab T-01 · opus" {
+		t.Errorf("Where = %q", place)
+	}
+}

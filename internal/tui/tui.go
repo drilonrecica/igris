@@ -45,6 +45,11 @@ type Options struct {
 	// Focus brings a session's pane to the front (Open session); the task
 	// ID is the one the ref was recorded for (backend.Backend.Attach).
 	Focus func(context.Context, backend.SessionRef, string) error
+	// Place is where this view runs: its multiplexer and, in tmux, its
+	// server's socket (project.Place). With a served run's session_host
+	// it decides whether Open session is offered or the card says where
+	// the session is (SPEC §15.3, since 1.9).
+	Place backend.Host
 	// Out is where the clipboard sequence goes (OSC 52); nil means
 	// os.Stdout, the terminal the program draws on.
 	Out io.Writer

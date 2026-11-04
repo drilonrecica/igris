@@ -23,6 +23,8 @@ type sim struct {
 	buffers map[string]string
 	hooks   map[string]backend.AgentState // by Claude session UUID
 	toasts  []string
+	// switched are the panes switch-client moved the client to.
+	switched []string
 	// sessions are the tmux sessions by name, each with how often it was
 	// created (headless, SPEC §11.5).
 	sessions map[string]int
@@ -232,19 +234,29 @@ func (s *sim) run(c runner.Cmd) (runner.Result, error) {
 		}
 		// The screen shows what was submitted, then its empty rows.
 		return runner.Result{Stdout: []byte(strings.Join(p.pasted, "\n") + "\n\n\n\n")}, nil
-	case "select-window", "kill-window":
+	case "switch-client":
+		p := s.panes[flag(a, "-t")]
+		if p == nil {
+			return errResult("can't find pane: " + flag(a, "-t"))
+		}
+		s.switched = append(s.switched, p.pane)
+		return runner.Result{}, nil
+	case "kill-window":
 		p := s.windows[flag(a, "-t")]
 		if p == nil {
 			return errResult("can't find window: " + flag(a, "-t"))
 		}
-		if a[0] == "kill-window" {
-			delete(s.windows, p.window)
-			delete(s.panes, p.pane)
-		}
+		delete(s.windows, p.window)
+		delete(s.panes, p.pane)
 		return runner.Result{}, nil
 	case "display-message":
-		if flag(a, "-p") == "#{version}" {
+		switch a[len(a)-1] {
+		case "#{version}":
 			return runner.Result{Stdout: []byte("3.7c\n")}, nil
+		case "#{socket_path}":
+			return runner.Result{Stdout: []byte("/tmp/tmux-1000/default\n")}, nil
+		case "#{session_name}":
+			return runner.Result{Stdout: []byte("main\n")}, nil
 		}
 		if pane := flag(a, "-t"); pane != "" {
 			p := s.panes[pane]

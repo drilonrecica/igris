@@ -448,6 +448,16 @@ func (m *model) cardBody(c *current, w, x, y, rows int, record, boxed bool) []st
 		}
 	}
 	head = append(head, fit(facts, w))
+	if line, command := m.sessionWhere(c); line != "" {
+		// Where the session is when this view can't open it (SPEC
+		// §15.3); y copies the command, which gets a line of its own
+		// rather than be cut.
+		if textWidth(line) > w && command != "" {
+			head = append(head, fit(strings.TrimSuffix(line, " — "+command), w))
+			line = command
+		}
+		head = append(head, fit(line, w))
+	}
 	if line := m.tokensLine(c, w); line != "" {
 		head = append(head, line)
 	}

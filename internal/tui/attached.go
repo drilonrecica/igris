@@ -45,7 +45,11 @@ func (m *model) restore(s serve.Snapshot) {
 	if m.opts.Version != "" && s.Server != "" && s.Server != "igris "+m.opts.Version {
 		m.servedBy = s.Server
 	}
-	m.phase, m.mode, m.backend = s.Phase, s.Mode, s.Backend
+	m.phase, m.mode, m.backend, m.host = s.Phase, s.Mode, s.Backend, nil
+	if h := s.SessionHost; h != nil {
+		clean := h.Clean() // drawn on the card (SPEC §16)
+		m.host = &clean
+	}
 	m.slice = nil
 	if s.Slice != nil {
 		m.slice = map[string]bool{}

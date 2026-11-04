@@ -26,6 +26,7 @@ func (p *Project) AttachOptions(feed *tui.Feed, c tui.Sender, version string) tu
 		RankDurations: rankDurations(p.Root),
 		Attached:      true,
 		Version:       version,
+		Place:         Place(p.env.getenv()),
 	}
 	if be, err := p.Backend(); err == nil {
 		o.Backend, o.Focus = be.Name(), Focus(be)

@@ -1,9 +1,12 @@
 package project
 
 import (
+	"context"
 	"errors"
 	"testing"
 
+	"github.com/drilonrecica/igris/internal/backend"
+	"github.com/drilonrecica/igris/internal/backend/fake"
 	"github.com/drilonrecica/igris/internal/backend/tmux"
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/runner"
@@ -84,5 +87,43 @@ func TestResolveBackend(t *testing.T) {
 		if tb, ok := be.(*tmux.Backend); ok && (tb.Headless() != "") != tt.headless {
 			t.Errorf("%s: headless session %q", tt.name, tb.Headless())
 		}
+	}
+}
+
+// A client's place: herdr first, as auto chooses, then tmux with its
+// server's socket, else nowhere (SPEC §15.3).
+func TestPlace(t *testing.T) {
+	get := func(vars map[string]string) func(string) string { return func(k string) string { return vars[k] } }
+	for _, tt := range []struct {
+		vars map[string]string
+		want backend.Host
+	}{
+		{map[string]string{"TMUX": "/tmp/tmux-1000/work,4242,1"}, backend.Host{Backend: "tmux", Socket: "/tmp/tmux-1000/work"}},
+		{map[string]string{"HERDR_WORKSPACE_ID": "w1", "TMUX": "/s,1,0"}, backend.Host{Backend: "herdr"}},
+		{nil, backend.Host{}},
+	} {
+		if got := Place(get(tt.vars)); got != tt.want {
+			t.Errorf("Place(%v) = %+v, want %+v", tt.vars, got, tt.want)
+		}
+	}
+}
+
+// serve says where the sessions live: a tmux backend inside tmux asks its
+// server; a backend that can't say is named; one that fails gives none.
+func TestSessionHost(t *testing.T) {
+	ctx := context.Background()
+	f := &runner.Fake{}
+	f.On([]string{"tmux", "display-message", "-p", "#{session_name}"}, runner.Result{Stdout: []byte("main\n")}, nil)
+	be := tmux.NewFromEnv(f, func(k string) string { return map[string]string{"TMUX": "/tmp/tmux-1000/default,1,0"}[k] })
+	if h, err := SessionHost(ctx, be); err != nil || *h != (backend.Host{Backend: "tmux", Socket: "/tmp/tmux-1000/default", Session: "main"}) {
+		t.Errorf("tmux: %+v, %v", h, err)
+	}
+	if h, err := SessionHost(ctx, fake.New()); err != nil || *h != (backend.Host{Backend: "fake"}) {
+		t.Errorf("fake: %+v, %v", h, err)
+	}
+	broken := &runner.Fake{}
+	broken.On([]string{"tmux"}, runner.Result{Stderr: []byte("no server running on /tmp/tmux-1000/default\n"), ExitCode: 1}, nil)
+	if h, err := SessionHost(ctx, tmux.NewFromEnv(broken, func(string) string { return "/tmp/tmux-1000/default,1,0" })); err == nil || h != nil {
+		t.Errorf("unreachable server: %+v, %v", h, err)
 	}
 }
