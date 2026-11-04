@@ -72,7 +72,11 @@ export function groupedName(task: string, tag: string): string {
 /** The tmux argv that attaches a tab to s through the grouped session
  * named grouped: one tmux process, its commands separated by `;` arguments,
  * never a shell. An error in the sequence drops the rest of it, so every
- * option target is the grouped session's plain name. */
+ * option target is the grouped session's plain name. The status line is
+ * `status-format[0]`, the whole line as a session option: a window option
+ * (`window-status-format`) set on the grouped session would land on its
+ * current window at that moment, not on the task's window selected after,
+ * and tmux's window list would show after the text. */
 export function argvOf(s: Session, grouped: string): string[] {
   const opt = (name: string, value: string): string[] => ["set-option", "-t", grouped, name, value, ";"];
   return [
@@ -86,11 +90,7 @@ export function argvOf(s: Session, grouped: string): string[] {
     ";",
     ...opt("destroy-unattached", "on"),
     ...opt("status-position", "top"),
-    ...opt("status-left", format(` ${s.name} │ ${TRUST} `)),
-    ...opt("status-left-length", "200"),
-    ...opt("status-right", ""),
-    ...opt("window-status-format", ""),
-    ...opt("window-status-current-format", ""),
+    ...opt("status-format[0]", format(` ${s.name} │ ${TRUST} `)),
     "select-window",
     "-t",
     s.tabId,

@@ -50,6 +50,7 @@ var pages = []page{
 	{"limits-and-budgets", "Limits and budgets", "Usage-limit holds, budgets, the price estimate and where the time went.", "site/docs/limits-and-budgets.md"},
 	{"resolver", "The conflict resolver", "A session that settles a task that didn't integrate, before a rerun.", "site/docs/resolver.md"},
 	{"handoff-notes", "Handoff notes", "What a task's dependencies hand over, and commits asked once.", "site/docs/handoff-notes.md"},
+	{"editor", "igris in your editor", "The VS Code extension: watch a run, answer it, read a task's changes and open its session as a terminal tab.", "site/docs/editor.md"},
 	{"control-from-your-phone", "Control from your phone", "Follow a run and answer its questions from a browser or an ntfy button, over Tailscale or ssh -L.", "site/docs/control-from-your-phone.md"},
 	{"side-sessions", "Side sessions", "A Claude Code session of your own next to a run.", "site/docs/side-sessions.md"},
 	{"adapt", "Adapt a plan", "Convert a plan in another format, and review it first.", "site/docs/adapt.md"},

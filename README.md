@@ -167,6 +167,10 @@ Mark a phase `<!-- igris:parallel -->` (the plan declares `<!-- igris:format 3 -
 
 With `[serve] http` set to this machine's Tailscale address (or loopback for `ssh -L`), serve also serves a web UI for a glance from the couch: one word for the run, a bar segmented by task, and whatever needs you in a sheet at your thumb, with its answers. Pair a device once with `igris serve token` (a URL and a QR code). From it you answer questions, approve plans, pause, stop, retry, mark done or skip, and change modes, all but skip-permissions. With `actions = true` under `[notify.ntfy]`, the ntfy message itself carries the buttons (Commit, Approve, Retry, Reset, Continue, …) and **Open**, to that task's question on the web UI; the message says what waits (`waits for a permission (Bash)`, `plan to approve`, `commit question`). The listener is off until you give it an address. [Control from your phone](https://drilonrecica.github.io/igris/docs/control-from-your-phone.html).
 
+### In your editor
+
+The **Igris** extension for VS Code, Cursor, Kiro, Antigravity and Windsurf (`drilonrecica.igris`, on the Marketplace and Open VSX) is one more client of `igris serve`: a tree of the plan's phases and tasks with the live run on top, the status word in the status bar, what needs you answered from notifications and QuickPick, a task's commits or branch in the editor's diff, a CodeLens on the plan's rows, and each active task's session as a terminal tab, so you never handle tmux. **Igris: Set up** checks igris, Claude Code and tmux and starts a first run with one button. It needs igris 1.8.0 or newer, never offers skip-permissions mode and is not part of what 1.x freezes. [In your editor](https://drilonrecica.github.io/igris/docs/editor.html), [`editors/vscode/`](editors/vscode/).
+
 ### Side sessions
 
 `S`, on home or during a run, opens a Claude Code session of your own next to the run's, for a question or a look into something: blank, about the selected task, or about an igris problem, on the model and mode you pick, in the shared tree or a worktree of its own. igris doesn't watch it or count it as a task, and `igris done` refuses inside it. [Side sessions](https://drilonrecica.github.io/igris/docs/side-sessions.html).
@@ -223,7 +227,7 @@ What it can't prevent: a session edits files, and verify runs your project's cod
 
 ## Development
 
-Bug reports and pull requests are welcome; see [`CONTRIBUTING.md`](CONTRIBUTING.md). `make fmt lint test` is the bar for every change. Releases are built with `make release-local` (GoReleaser and syft: the four static binaries, SBOMs and checksums in `dist/`, never published by it) and signed by the maintainer; what changed is in [`CHANGELOG.md`](CHANGELOG.md). The [site](https://drilonrecica.github.io/igris/) is [`site/`](site/) plus docs pages rendered from markdown (`make site`). The GIF and screenshots above are recorded with VHS from synthetic projects (`make demo`, `make demo-screens`; see [`docs/demo/`](docs/demo/README.md)).
+Bug reports and pull requests are welcome; see [`CONTRIBUTING.md`](CONTRIBUTING.md). `make fmt lint test` is the bar for every change. Releases are built with `make release-local` (GoReleaser and syft: the four static binaries, SBOMs and checksums in `dist/`, never published by it) and signed by the maintainer; the editor extension (`editors/vscode/`) is built by `make vsix` (reproducibly; CI builds it, only the maintainer publishes it); what changed is in [`CHANGELOG.md`](CHANGELOG.md). The [site](https://drilonrecica.github.io/igris/) is [`site/`](site/) plus docs pages rendered from markdown (`make site`). The GIF and screenshots above are recorded with VHS from synthetic projects (`make demo`, `make demo-screens`; see [`docs/demo/`](docs/demo/README.md)).
 
 ## License
 

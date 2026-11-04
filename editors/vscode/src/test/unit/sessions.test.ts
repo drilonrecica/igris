@@ -60,11 +60,8 @@ describe("sessions as terminal tabs", () => {
       "new-session", "-t", "=igris-demo", "-s", g, ";",
       "set-option", "-t", g, "destroy-unattached", "on", ";",
       "set-option", "-t", g, "status-position", "top", ";",
-      "set-option", "-t", g, "status-left", ` S1-01 · sonnet │ ${TRUST} `, ";",
-      "set-option", "-t", g, "status-left-length", "200", ";",
-      "set-option", "-t", g, "status-right", "", ";",
-      "set-option", "-t", g, "window-status-format", "", ";",
-      "set-option", "-t", g, "window-status-current-format", "", ";",
+      // The whole line as a session option: no window list after the text.
+      "set-option", "-t", g, "status-format[0]", ` S1-01 · sonnet │ ${TRUST} `, ";",
       "select-window", "-t", "@1",
     ]);
     assert.match(TRUST, /folder.*Claude Code's/);
@@ -79,7 +76,7 @@ describe("sessions as terminal tabs", () => {
   it("writes the first line as tmux format text: # doubled, control characters cleaned", () => {
     const c = card({ task: "S1-01", rank: "son#{kill-server}net\u001b[31m" });
     const s = { key: "k", task: c.task, name: labelOf(c), host: { backend: "tmux", socket: "", session: "x" }, tabId: "@1" };
-    const status = argvOf(s, "g")[argvOf(s, "g").indexOf("status-left") + 1]!;
+    const status = argvOf(s, "g")[argvOf(s, "g").indexOf("status-format[0]") + 1]!;
     assert.ok(status.includes("S1-01 · son##{kill-server}net"), status);
     assert.ok(!status.includes("\u001b"), status);
     assert.equal(labelOf(card({ task: "S1-02" })), "S1-02");

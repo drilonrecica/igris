@@ -3,7 +3,7 @@
 Watch and steer an [igris](https://github.com/drilonrecica/igris) run from the editor: the plan's phases and tasks,
 what needs you, and what each task changed. It is a client of `igris serve`; the engine stays in the `igris` binary.
 
-Work in progress for v1.9. What it does so far:
+What it does:
 
 - **The run view.** The Igris icon in the activity bar opens a tree of the plan's phases and tasks, each with its
   status, rank and mode, and the live run on top: the status word, the active tasks and what waits on you (a task's
@@ -54,3 +54,19 @@ A snapshot of another protocol than 1 is refused with one line in the tree's pla
 
 Needs `igris` 1.8.0 or newer in `PATH` (SPEC §15.9). The extension runs where the workspace's files are
 (`extensionKind: ["workspace"]`), so it works under Remote-WSL and Remote-SSH.
+
+## Safety
+
+The extension is one more client of the run's socket, which only your own user can reach; it adds no listener and no
+credential, never reads Claude credentials and never sets `ANTHROPIC_API_KEY`. It runs `igris`, `git` and `tmux`
+as you, never through a shell on plan text, and cleans plan text, notes and command output of escape sequences before
+drawing them. Its one dependency-free bundle is built reproducibly from the tag (`make vsix`), and the maintainer checks
+it against CI's build (`make vsix-check`) before publishing; CI never publishes. See igris's
+[threat model](https://github.com/drilonrecica/igris/blob/master/docs/threat-model.md) (B10).
+
+## More
+
+- [igris in your editor](https://drilonrecica.github.io/igris/docs/editor.html), the guide.
+- [igris](https://github.com/drilonrecica/igris), its README, SPEC (§15.9) and compatibility promises: the extension's
+  views, commands and settings are not frozen; what it relies on in igris is.
+- Issues: https://github.com/drilonrecica/igris/issues. MIT licensed.

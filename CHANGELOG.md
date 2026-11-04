@@ -4,7 +4,13 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+The heading becomes `[1.9.0]` with its date when v1.9.0 is published (V19-R).
+
+igris 1.9 puts igris in your editor: an extension for VS Code and its forks, a client of `igris serve`, and the TUI's start wizard and end-of-run summary can go from one phase, or part of one, to the next. It only adds: plans, `--json`, the run log, the webhook payload and protocol 1 are unchanged apart from additive fields ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). `state.json` stays version 4. It also fixes the four small things the v1.8 gate left.
+
 ### Added
+
+- **[The Igris editor extension](site/docs/editor.md)** (`drilonrecica.igris`, source in `editors/vscode/`; the VS Code Marketplace and Open VSX, so VS Code, Cursor, Kiro, Antigravity and Windsurf). A client of `igris serve` over the socket, with no runtime dependency, no proposed API and no webview: a sidebar tree of the plan's phases and tasks with the live run on top; the status word in the status bar; answers from notifications, QuickPick and InputBox, with the web UI's confirmations; pause, resume, stop, retry, done, skip and modes; a task's commits (or, in a parallel phase, its branch) in the editor's diff; a CodeLens on the plan's rows (status, **Run this task**, open its changes); each active task's Claude Code session as a terminal tab; a first-run checklist from `igris doctor --json` with `igris init`, a starter plan and **Start a run…**. It works under Remote-WSL and Remote-SSH, needs igris 1.8.0 or newer (it says so in one line otherwise, as it does for a protocol other than 1), and never offers skip-permissions mode (§7.3). Not frozen under 1.x; what it relies on in igris is ([compatibility](docs/compatibility.md)). The `.vsix` is built reproducibly by `make vsix`, checked against CI's build with `make vsix-check` before the owner publishes it, and CI never publishes ([threat model](docs/threat-model.md) B10).
 
 - **`backend = "auto"` works outside herdr and tmux.** From a plain terminal, an editor, cron or systemd, with tmux installed, `igris arise`, `serve` and home run the sessions in the detached tmux session `igris-<project>` (as `serve` with `backend = "tmux"` already did); `igris doctor` names that session. Without tmux the error says to install it. A run from a herdr pane or inside tmux picks the same backend as before.
 

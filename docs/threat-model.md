@@ -1,6 +1,6 @@
 # Threat model
 
-What igris protects, from whom, where the boundaries are, and which test enforces each safety rule. SPEC §16 is normative; this document explains it and keeps its rules tied to tests. It is updated with each security review (V06-07, then V10-05, V2R-04, V2X-03, V16-05) and with every change to SPEC §16. Written for v0.6 (task V06-06).
+What igris protects, from whom, where the boundaries are, and which test enforces each safety rule. SPEC §16 is normative; this document explains it and keeps its rules tied to tests. It is updated with each security review (V06-07, then V10-05, V2R-04, V2X-03, V16-05, V19-09 for the extension) and with every change to SPEC §16. Written for v0.6 (task V06-06).
 
 ## Trust model
 
@@ -26,7 +26,7 @@ What igris protects, from whom, where the boundaries are, and which test enforce
 | Each task's model and permission mode | The real safety boundary (above). |
 | The owner's terminal | Escape sequences in drawn text could rewrite the screen, set the clipboard or fake prompts. |
 | The owner's attention | Needs you and notifications: a forged or suppressed one costs the owner time or hides a problem. |
-| Release artifacts | Users run the binary; a replaced one runs as them. |
+| Release artifacts | Users run the binary; a replaced one runs as them. Since 1.9 also the editor extension's `.vsix`, which every installed editor runs as the owner and auto-updates. |
 
 ## Actors
 
@@ -39,6 +39,7 @@ What igris protects, from whom, where the boundaries are, and which test enforce
 | Notification endpoint, network | Read what is sent to it; delay or drop it | Make igris block (requests have timeouts); read a secret over plain http without a warning |
 | GitHub's releases API, or whoever answers in its place (since 1.2; only when the owner checks for updates) | Answer with any status, body or tag; delay or drop it | Show the owner text (only a `vX.Y.Z` tag is used), make igris read more than 1 MiB or wait more than 10 s, put anything but a version into the update command, or replace the binary (the package manager installs it) |
 | Remote caller of serve's HTTP listener (since 1.6; only when the owner turns it on) | Reach the address it binds (loopback through `ssh -L`, the tailnet, or with `--listen-public` whatever routes to it); with the serve token, do what an attached client does | Reach a listener the owner didn't turn on, guess the token (rate-limited, 256 bits), forge a cookie-authenticated request from another site, or set skip-permissions mode |
+| The Igris editor extension (since 1.9) | Do what any attached client does (B8, B10): answer, pause, stop, skip, read the run | Offer or accept skip-permissions mode; run a shell command; read credentials |
 | Another local user | Read world-readable files | Read `.igris/` (`0700`/`0600`) |
 | Supply chain | — | Replace a release unnoticed (signed `checksums.txt` and tags, SBOM, govulncheck, reproducible build) |
 
@@ -153,7 +154,7 @@ Since 1.5 the same boundary holds for the task worktrees of a parallel phase (`.
 |---|---|
 | A replaced download | `checksums.txt` and the tag are signed with the owner's SSH release key, kept with a passphrase only the owner types; users verify with `ssh-keygen -Y verify` and `allowed_signers` (SPEC §18). The trust root is the repository: `allowed_signers` and the README's copy of the key live there, so write access to it could replace key, tag and signature together (accepted, below). |
 | A vulnerable dependency or toolchain | Pinned Go toolchain, govulncheck on push and weekly, an SBOM per archive (SPEC §18). |
-| A build that isn't what the source says | The reproducible-build check builds the same commit on Linux and macOS and compares (SPEC §18). |
+| A build that isn't what the source says | The reproducible-build check builds the same commit on Linux and macOS and compares (SPEC §18). The extension's `.vsix` is reproducible too and checked against CI's before publishing (B10). |
 
 ### B8 — `igris serve` ↔ attached clients (since 1.4)
 
@@ -182,6 +183,22 @@ Off unless the owner sets an address (`[serve] http`, `serve --http`). A remote 
 | Another web service on the listener's host receives the cookie | Browsers scope cookies by host, not port: a service on another port of the same address (a dev server the project starts; a local app on the laptop behind `ssh -L`) gets `igris_token` from a paired browser and can set one in its place (a nuisance: a wrong cookie is a wrong token, `401`). On the serve machine that is risk 24; through `ssh -L` the services are the laptop's own. A bearer client sends no cookie; a loopback address of its own (`127.0.0.2`) keeps the cookie to igris (accepted, risk 25). |
 | An ISP's CGNAT address binds like a Tailscale one | `100.64.0.0/10` is Tailscale's range and the carrier-grade NAT range: an interface of the machine that holds such an address from its ISP binds without `--listen-public` or TLS (accepted, risk 26). The token guards every request either way. |
 | The pairing URL stays in the browser's history, or a messaging app previews it | Whoever sees the pairing URL pairs (risk 24); `igris serve token --rotate` unpairs everyone. A preview's `HEAD` is refused (`405`) and its `GET` pairs a server that never uses the cookie. |
+
+### B10 — the editor extension ↔ `igris serve` and the workspace (since 1.9)
+
+The Igris extension (`editors/vscode/`, SPEC §15.9, decisions.md V19-P1) is one more attached client of the socket, under B8's rules and V14-P1's accepted risk (risk 22): it runs as the owner, in the owner's editor, and anything it can do over the socket a process of the owner's user can already do. It adds no listener and no credential, and tunnels nothing (`extensionKind: ["workspace"]`: under Remote-WSL and Remote-SSH it runs where the socket is).
+
+| Threat | Mitigation |
+|---|---|
+| The extension switches a run to skip-permissions mode, or confirms it for the owner | It never sends `yolo` in its `hello`, its mode pickers omit `yolo` and `plan:yolo`, and a run that would need the typed phrase says to start it in the terminal; the engine refuses the rest as for any client (SPEC §7.3, §15.9). |
+| Plan text, a done note, a task title or command output reaches the editor with escape sequences or control characters | Everything it draws (tree, status bar, notifications, QuickPick and CodeLens text, the first line of a session's terminal tab) goes through a TypeScript port of `textsafe`, tested against the same cases (`editors/vscode/src/test/unit/textsafe.test.ts`). |
+| The extension starts a shell command built from plan text | It starts `igris` and `git` as argv (no shell) with fixed arguments and shape-checked task IDs and refs, and `tmux` for a session's tab with a window ID and session names it checked (`@N`, `[A-Za-z0-9_-]`), shell-quoted where a terminal's command line needs it; a tool's install command is shown as fixed text and put in a terminal for the owner to read and run, never run by the extension. |
+| A malformed or hostile snapshot (a session can influence what serve relays) crashes or misleads the extension | Unknown fields and message types are ignored, a snapshot whose `protocol` isn't 1 is refused with one line and nothing else runs, and an `igris` below 1.8.0 is refused at activation (SPEC §15.9, §19). |
+| The extension leaks a credential | It never reads Claude credentials, never sets `ANTHROPIC_API_KEY`, and has no token of its own to log: it reads the socket (0600 in a 0700 directory) and never the HTTP listener's serve token (B9). |
+| A session's terminal tab outlives the run or leaves tmux state behind | The tab attaches through a grouped tmux session that ends when the tab closes (`destroy-unattached on`); a task's end closes its tab; the run itself is hosted by serve, not by the tab. A folder-trust question stays Claude Code's, and the tab's first line says so. |
+| The extension is a way to run other code at install time | It has no runtime dependency (Node's builtins and the VS Code API) and no proposed API; the bundle is one `dist/extension.js` built from a lockfile (`npm ci`) of the dependencies approved in V19-P1. |
+| A tampered `.vsix` reaches installed editors | The `.vsix` is reproducible: `make vsix` gives the same bytes from the same commit (times set to the commit's, modes normalized), CI builds it from every push and attaches it to the release, and the owner's `make vsix-check TAG=…` rebuilds it from the tag and refuses to go on when its checksum differs from CI's before publishing. |
+| The store tokens (`VSCE_PAT` for the Marketplace, `OVSX_PAT` for Open VSX) leak, or are used to ship an extension under the owner's name | CI never publishes and holds neither token: publishing is the owner's step on their own machine, with the tokens in the environment, never in a file of the repository and never echoed (decisions.md V19-P1). A leaked token is revoked at the store. Accepted: whoever holds one can publish as the owner until it is revoked (risk 30). |
 
 ## Accepted risks
 
@@ -222,6 +239,9 @@ Off unless the owner sets an address (`[serve] http`, `serve --http`). A remote 
 28. **A resolver session can do anything in its task's worktree** (V18-P2): it is a session like any other, so it can abort the rebase, rewrite the task's commit or produce a resolution that drops one side's intent. igris checks the branch's shape after its done (no rebase in progress, no unmerged paths or markers, one commit ahead of the target), runs verify on the integrated tree, and only igris's fast-forward touches the run branch; a hostile resolver can at worst produce a bad commit that passes verify, as a task session can (risk 1).
 
 29. **A dep's handoff note can carry instructions into the next session** (V18-P3): `.DepNotes` puts a session's done note and its approved plan into a dependent task's first message. They are bounded (500 bytes a note, 4 KiB a plan, 12 KiB in all), cleaned with `textsafe`, read only from the run log and from a plan file whose sha256 matches its `plan_approved` line, and framed as context, not instructions. The next session reads that session's code and commits anyway; the task and the rules come first. `dep_notes = false` turns them off.
+
+30. **The extension's store tokens are the release trust root for editors** (V19-P1, V19-09): the Marketplace and Open VSX tokens live with the owner, as the release signing key does (risk 15), and a holder of either can publish an `igris` extension that every installed editor auto-updates to. The `.vsix` being reproducible lets anyone compare a published build with the tag's, but an editor's auto-update is not checked against it. Mitigations: CI holds no token, the tokens are short-lived PATs scoped to publishing, and a leak is revoked at the store.
+31. **The extension is one more same-user socket client** (V19-P1): it adds nothing to risk 22. A process of the owner's user can already do through the socket everything the extension does, and the extension is stricter than the engine in one respect, never offering skip-permissions mode.
 
 ## Reviews
 
@@ -368,5 +388,8 @@ One row per safety rule. The tests are named `package.TestName`; `tools/threatmo
 | R75 | A session can forge a usage-limit hit, the quota or its token count | §6.9, §16 | accepted (see Accepted risks 27) |
 | R76 | A resolver session can do anything in its task's worktree | §6.11, §16 | accepted (see Accepted risks 28) |
 | R77 | A dep's handoff note can carry instructions into the next session | §6.1, §16 | accepted (see Accepted risks 29) |
+| R78 | The extension is one more same-user socket client and never offers skip-permissions mode | §7.3, §15.9, §16 | accepted (see Accepted risks 31); the engine's refusal is R70's tests, the extension's pickers are tested in `editors/vscode/src/test/unit/answers.test.ts` |
+| R79 | The extension cleans what it draws as `textsafe` does | §15.9, §16 | `internal/textsafe.TestClean` is the rules' test; the extension's port is accepted as a port, with its own cases in `editors/vscode/src/test/unit/textsafe.test.ts` (TypeScript, `make test`) |
+| R80 | The `.vsix` is reproducible and checked against CI's build before it is published; the store tokens stay with the owner | §15.9, §16 | `make vsix-check` (the owner's step before `make vsix-publish`), accepted (see Accepted risks 30) |
 | R29 | Verify and git hooks run session-written code as the owner | §16 | accepted (see Accepted risks 1) |
 | R30 | A session can forge hook state, moving Needs you within `waiting_limit` | §6.3 | accepted (see Accepted risks 3) |

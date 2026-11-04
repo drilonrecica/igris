@@ -113,3 +113,11 @@ Install the new igris (or run `igris update`) and you are done: nothing in your 
 What is new, all additive: [usage-limit holds, budgets, a price estimate and a time breakdown](limits-and-budgets.md), [a conflict resolver session](resolver.md) (`on_conflict = "resolve"`, off by default), [handoff notes](handoff-notes.md) in a dependent task's prompt (on by default, `dep_notes = false` turns them off), `commit = "batch"` and Commit all, and notifications that say what waits.
 
 **Three things to know:** the new keys and values (`commit = "batch"`, `on_conflict = "resolve"`, `dep_notes`, `resolver_rank`, `hold_at`, `[usage.budget]`, `[usage.prices]`) and the events `usage_limit` and `budget_exceeded` are refused by igris 1.0 to 1.7, so finish a run (or delete `.igris/state.json`) before going back; igris sets `autoContinueAtUsageLimit` in the settings file of its task sessions, so a session that hits a limit continues by itself; and a task's first message now carries its dependencies' notes unless you set `dep_notes = false`.
+
+## From 1.8 to 1.9
+
+Install the new igris (or run `igris update`) and you are done: nothing in your plan, `igris.toml`, scripts, `--json` or `.igris/` changes, and a run interrupted under 1.8 resumes. `state.json` stays version 4.
+
+What is new, all additive: [the Igris editor extension](editor.md) for VS Code and its forks; `backend = "auto"` running headless on tmux from a plain terminal, an editor, cron or systemd (an error before); a Tasks step in home's start wizard and **Arise W17…** on the end-of-run summary; the snapshot's `session_host`, which makes **Open session** go where the session lives; and four fixes to 1.8 (commits counted as kept, the hold's resume time, `1 task and the run need you`, a current budget line at a sequential commit question). [CHANGELOG](../../CHANGELOG.md).
+
+**One thing to know:** the extension needs igris 1.8.0 or newer. With `backend = "auto"` igris 1.0–1.8 still refuses to start from outside herdr and tmux, so an editor-started run needs 1.9.
