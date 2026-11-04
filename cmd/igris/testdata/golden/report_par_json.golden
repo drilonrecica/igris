@@ -15,7 +15,13 @@ exit: 0
   "skipped": 0,
   "unfinished": 0,
   "needs_you_s": 300,
-  "commits": [],
+  "commits": [
+    {
+      "task": "P-1",
+      "sha": "4b1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d",
+      "subject": "P-1: Parser"
+    }
+  ],
   "errors": [],
   "tasks": [
     {
@@ -35,6 +41,7 @@ exit: 0
           "duration_s": 90
         }
       ],
+      "commit": "4b1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d",
       "note": "parser done",
       "sessions": [],
       "needs_you_s": 120,

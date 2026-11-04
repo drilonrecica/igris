@@ -11,6 +11,7 @@ Run 20261005-100000-beef · Oct 05 10:00 · phases P, S · ✓ completed · 40m0
   phase S: agent 11m20s · verify 30s · needs you 0s
   rank opus: agent 12m25s · verify 1m30s · needs you 2m00s
   rank sonnet: agent 21m14s · verify 2m30s · needs you 3m00s · limit wait 13m00s
+  commit: P-1: Parser
 
 next: igris report
 --- stderr

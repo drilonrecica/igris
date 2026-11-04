@@ -35,8 +35,9 @@ type summary struct {
 	in, out       int64           // tokens of the attempts folded so far
 	usage         bool            // some attempt's usage was read
 	usd           float64         // the price estimate of the priced attempts (SPEC §6.9)
-	commits       int
-	lastCommit    string // the task of the last commit
+	commits       int             // commits kept: a parallel task's by its integrated line, a sequential task's by its commit
+	parallel      map[string]bool // tasks seen in a parallel slot (SPEC §6.11)
+	lastCommit    string          // the task of the last commit
 	verifyOK      int
 	verifyFail    int
 	waiting       []string // what waits, on a stuck phase or a slice not run
@@ -48,6 +49,12 @@ type summary struct {
 // note folds ev into the summary; the model folds the tokens itself, as
 // it knows each attempt's count (fold).
 func (s *summary) note(ev engine.Event) {
+	if ev.Slot != nil && ev.Task != "" {
+		if s.parallel == nil {
+			s.parallel = map[string]bool{}
+		}
+		s.parallel[ev.Task] = true
+	}
 	switch ev.Kind {
 	case engine.RunStarted:
 		s.start, s.run = ev.At, ev.Run
@@ -71,8 +78,16 @@ func (s *summary) note(ev engine.Event) {
 		}
 		s.failed[ev.Task] = true
 	case engine.Committed:
+		// A parallel phase's commit is on the task's branch until it is
+		// integrated, and is thrown away with its worktree when the task
+		// reruns: it counts by its integrated line (SPEC §6.11).
+		if !s.parallel[ev.Task] {
+			s.commits++
+			s.lastCommit = ev.Task // the event carries no SHA: the task names the commit
+		}
+	case engine.Integrated:
 		s.commits++
-		s.lastCommit = ev.Task // the event carries no SHA: the task names the commit
+		s.lastCommit = ev.Task
 	case engine.PhaseStuck:
 		for _, w := range ev.Waiting {
 			s.waiting = append(s.waiting, w.String())

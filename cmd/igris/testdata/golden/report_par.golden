@@ -4,13 +4,13 @@ exit: 0
 
 Run 20261005-100000-beef · Oct 05 10:00 → 10:40 (40m05s) · completed
 Phases P, S
-3 done · 0 skipped · 0 unfinished · 0 commits · needs you 5m00s
+3 done · 0 skipped · 0 unfinished · 1 commit · needs you 5m00s
 
 ## Phase P
 
 | Task | Result | Duration | Agent | Attempts | Tokens | Verify | Commit | Needs you |
 |---|---|---|---|---|---|---|---|---|
-| P-1 Parser | done | 15m55s | 12m25s | 1 | — | fast ✓ · 1m30s | — | 2m00s |
+| P-1 Parser | done | 15m55s | 12m25s | 1 | — | fast ✓ · 1m30s | 4b1d2e3 | 2m00s |
 | P-2 Printer | done | 27m54s | 9m54s | 1 | — | fast ✗ ✓ · 2m00s | — | 3m00s |
 
 Notes

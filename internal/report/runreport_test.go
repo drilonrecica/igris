@@ -3,6 +3,7 @@ package report
 import (
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -222,9 +223,12 @@ func TestReportCommitIsTheIntegratedOne(t *testing.T) {
 	at := func(min int, typ state.EventType, commit string) state.Event {
 		return state.Event{V: 1, At: t0.Add(time.Duration(min) * time.Minute), Type: typ, Run: id, Task: "A-02", Owner: "agent", Commit: commit, Detail: "A-02: Greeting two"}
 	}
+	slot := 1
+	started := at(0, state.EventTaskStarted, "")
+	started.Slot = &slot
 	events := []state.Event{
 		{V: 1, At: t0, Type: state.EventRunStarted, Run: id, Detail: "phase A"},
-		at(0, state.EventTaskStarted, ""),
+		started,
 		at(1, state.EventCommitted, before),
 		at(2, state.EventIntegrated, after),
 		at(2, state.EventTaskDone, ""),
@@ -239,5 +243,45 @@ func TestReportCommitIsTheIntegratedOne(t *testing.T) {
 	}
 	if len(r.Commits) != 1 || r.Commits[0].SHA != after {
 		t.Errorf("commits %+v, want the one integrated", r.Commits)
+	}
+}
+
+// A parallel task rerun after a failed resolution commits twice and
+// integrates once: the thrown-away commit is not counted (V19-12), in the
+// report and in the history; a sequential task's commits count as before.
+func TestParallelRerunCountsKeptCommits(t *testing.T) {
+	const id = "20261104-100000-aaaa"
+	slot := 1
+	ev := func(min int, typ state.EventType, task, commit string) state.Event {
+		e := state.Event{V: 1, At: t0.Add(time.Duration(min) * time.Minute), Type: typ, Run: id, Task: task, Owner: "agent", Commit: commit, Detail: task + ": work"}
+		if task == "A-02" && typ == state.EventTaskStarted {
+			e.Slot = &slot
+		}
+		return e
+	}
+	sha := func(c string) string { return strings.Repeat(c, 40) }
+	events := []state.Event{
+		{V: 1, At: t0, Type: state.EventRunStarted, Run: id, Detail: "phase A"},
+		ev(0, state.EventTaskStarted, "A-01", ""),
+		ev(1, state.EventCommitted, "A-01", sha("1")),
+		ev(1, state.EventTaskDone, "A-01", ""),
+		ev(2, state.EventTaskStarted, "A-02", ""),
+		ev(3, state.EventCommitted, "A-02", sha("2")),
+		ev(4, state.EventTaskRetried, "A-02", ""),
+		ev(5, state.EventCommitted, "A-02", sha("3")),
+		ev(6, state.EventIntegrated, "A-02", sha("4")),
+		ev(6, state.EventTaskDone, "A-02", ""),
+		{V: 1, At: t0.Add(7 * time.Minute), Type: state.EventRunStopped, Run: id, Detail: "completed"},
+	}
+	r, err := NewReport(HistoryInput{Events: events}, "demo", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(r.Commits) != 2 || r.Commits[0].Task != "A-01" || r.Commits[1].SHA != sha("4") {
+		t.Errorf("commits %+v, want A-01's and the integrated A-02's", r.Commits)
+	}
+	h := NewHistory(HistoryInput{Events: events, N: 5})
+	if len(h.Runs) != 1 || len(h.Runs[0].Commits) != 2 {
+		t.Errorf("history commits %+v, want 2", h.Runs)
 	}
 }

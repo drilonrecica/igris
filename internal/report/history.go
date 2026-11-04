@@ -145,6 +145,7 @@ type runRec struct {
 	attempts   []*attempt
 	open       map[string]*attempt // the attempts without a result yet, by task
 	commits    []string
+	parallel   map[string]bool // tasks seen in a parallel slot: their commits count by integrated (SPEC §6.11)
 	errors     []string
 	events     []state.Event // the run's lines, in log order, for NewReport
 }
@@ -263,6 +264,12 @@ func (r *runRec) add(e state.Event) {
 		delete(r.open, a.id)
 	}
 	e.Task = textsafe.Line(e.Task)
+	if e.Slot != nil {
+		if r.parallel == nil {
+			r.parallel = map[string]bool{}
+		}
+		r.parallel[e.Task] = true
+	}
 	switch e.Type {
 	case state.EventRunStarted:
 		r.start, r.phases = e.At, scopePhases(e.Detail)
@@ -302,6 +309,11 @@ func (r *runRec) add(e state.Event) {
 			a.verify = append(a.verify, line)
 		}
 	case state.EventCommitted:
+		// A parallel task's commit counts by its integrated line.
+		if !r.parallel[e.Task] {
+			r.commits = append(r.commits, textsafe.Line(e.Detail))
+		}
+	case state.EventIntegrated:
 		r.commits = append(r.commits, textsafe.Line(e.Detail))
 	case state.EventError:
 		r.errors = append(r.errors, textsafe.Line(e.Detail))

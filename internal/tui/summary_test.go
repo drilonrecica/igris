@@ -545,3 +545,25 @@ func TestOptionsAriseNext(t *testing.T) {
 		t.Errorf("Arise returned %v, next %q", msg, next)
 	}
 }
+
+// A parallel task rerun after a failed resolution commits twice and
+// integrates once: the summary counts the commit kept (V19-12), a
+// sequential task's commit as before.
+func TestSummaryCountsCommitsKept(t *testing.T) {
+	slot := 1
+	var s summary
+	for _, ev := range []engine.Event{
+		{Kind: engine.TaskStarted, Task: "A-01"},
+		{Kind: engine.Committed, Task: "A-01"},
+		{Kind: engine.TaskStarted, Task: "A-02", Slot: &slot},
+		{Kind: engine.Committed, Task: "A-02", Slot: &slot}, // thrown away with its worktree
+		{Kind: engine.Retrying, Task: "A-02", Slot: &slot},
+		{Kind: engine.Committed, Task: "A-02", Slot: &slot},
+		{Kind: engine.Integrated, Task: "A-02", Slot: &slot},
+	} {
+		s.note(ev)
+	}
+	if s.commits != 2 || s.lastCommit != "A-02" {
+		t.Errorf("commits %d (last %q), want 2 (A-02)", s.commits, s.lastCommit)
+	}
+}

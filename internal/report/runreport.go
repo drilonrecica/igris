@@ -254,8 +254,12 @@ func (r *runRec) report(live bool, prices price.Table) Report {
 		return t
 	}
 	waits := r.waits()
+	parallel := map[string]bool{} // tasks run in a parallel slot (SPEC §6.11)
 	for _, e := range r.events {
 		e.Task = textsafe.Line(e.Task)
+		if e.Slot != nil {
+			parallel[e.Task] = true
+		}
 		switch e.Type {
 		case state.EventRunStopped:
 			if e.DurationMS > 0 {
@@ -307,27 +311,28 @@ func (r *runRec) report(live bool, prices price.Table) Report {
 			if shaPattern.MatchString(e.Commit) {
 				c.SHA = e.Commit
 			}
-			out.Commits = append(out.Commits, c)
 			if t := byID[e.Task]; t != nil {
 				// The task's last commit, also when its SHA is unknown.
 				t.t.Commit = c.SHA
 			}
-		case state.EventIntegrated:
-			// A parallel phase rebases the task's commit onto the run
-			// branch first: the commit on the branch is this one (SPEC
-			// §6.11). Only a commit the report has is replaced.
-			if !shaPattern.MatchString(e.Commit) {
+			if parallel[e.Task] {
+				// On the task's branch until it integrates, and thrown
+				// away with its worktree when the task reruns: counted by
+				// its integrated line (SPEC §6.11).
 				break
 			}
-			for i := len(out.Commits) - 1; i >= 0; i-- {
-				if out.Commits[i].Task == e.Task {
-					out.Commits[i].SHA = e.Commit
-					if t := byID[e.Task]; t != nil {
-						t.t.Commit = e.Commit
-					}
-					break
+			out.Commits = append(out.Commits, c)
+		case state.EventIntegrated:
+			// A parallel phase rebases the task's commit onto the run
+			// branch first: the commit on the branch is this one.
+			c := ReportCommit{Task: e.Task, Subject: textsafe.Line(e.Detail)}
+			if shaPattern.MatchString(e.Commit) {
+				c.SHA = e.Commit
+				if t := byID[e.Task]; t != nil {
+					t.t.Commit = e.Commit
 				}
 			}
+			out.Commits = append(out.Commits, c)
 		case state.EventUsage:
 			if t := byID[e.Task]; t != nil {
 				t.audit(e.Audit)
