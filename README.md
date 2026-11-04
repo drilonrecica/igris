@@ -227,7 +227,7 @@ What it can't prevent: a session edits files, and verify runs your project's cod
 
 ## Development
 
-Bug reports and pull requests are welcome; see [`CONTRIBUTING.md`](CONTRIBUTING.md). `make fmt lint test` is the bar for every change. Releases are built with `make release-local` (GoReleaser and syft: the four static binaries, SBOMs and checksums in `dist/`, never published by it) and signed by the maintainer; the editor extension (`editors/vscode/`) is built by `make vsix` (reproducibly; CI builds it, only the maintainer publishes it); what changed is in [`CHANGELOG.md`](CHANGELOG.md). The [site](https://drilonrecica.github.io/igris/) is [`site/`](site/) plus docs pages rendered from markdown (`make site`). The GIF and screenshots above are recorded with VHS from synthetic projects (`make demo`, `make demo-screens`; see [`docs/demo/`](docs/demo/README.md)).
+Bug reports and pull requests are welcome; see [`CONTRIBUTING.md`](CONTRIBUTING.md). `make fmt lint test` is the bar for every change. Releases are built with `make release-local` (GoReleaser and syft: the four static binaries, SBOMs and checksums in `dist/`, never published by it) and signed by the maintainer; the editor extension (`editors/vscode/`) is built by `make vsix` (reproducibly; CI builds it; only the maintainer publishes it, with `make vsix-publish TAG=vX.Y.Z` after `make vsix-check`, `DRY=1` to rehearse); what changed is in [`CHANGELOG.md`](CHANGELOG.md). The [site](https://drilonrecica.github.io/igris/) is [`site/`](site/) plus docs pages rendered from markdown (`make site`). The GIF and screenshots above are recorded with VHS from synthetic projects (`make demo`, `make demo-screens`; see [`docs/demo/`](docs/demo/README.md)).
 
 ## License
 

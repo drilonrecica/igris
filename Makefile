@@ -1,7 +1,7 @@
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -X main.version=$(VERSION)
 
-.PHONY: build install fmt lint test test-race vscode-deps lint-vscode test-vscode-unit test-vscode vsix vsix-check config-ref fuzz release-local sign sign-check demo demo-screens site
+.PHONY: build install fmt lint test test-race vscode-deps lint-vscode test-vscode-unit test-vscode vsix vsix-check vsix-publish config-ref fuzz release-local sign sign-check demo demo-screens site
 
 build:
 	go build -ldflags "$(LDFLAGS)" -o bin/igris ./cmd/igris
@@ -133,3 +133,11 @@ vsix: vscode-deps
 vsix-check:
 	@test -n "$(TAG)" || { echo "usage: make vsix-check TAG=vX.Y.Z"; exit 1; }
 	sh tools/vsix-check.sh $(TAG)
+
+# The owner's step (decisions.md V19-P1): vsix-check first, then vsce and ovsx
+# publish bin/igris-X.Y.Z.vsix. VSCE_PAT and OVSX_PAT come from the environment
+# only (never a file in the repo, never echoed). DRY=1 prints the two commands
+# with the tokens masked and publishes nothing.
+vsix-publish: vscode-deps
+	@test -n "$(TAG)" || { echo "usage: make vsix-publish TAG=vX.Y.Z [DRY=1]"; exit 1; }
+	@sh tools/vsix-publish.sh $(TAG) $(if $(DRY),dry)
