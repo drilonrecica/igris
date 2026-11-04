@@ -96,7 +96,7 @@ func TestOnboardingFirstRunReachesArise(t *testing.T) {
 	seen(t, tm, "igris · sinjal · Preview", "[v Preview again]")
 	tm.Type("a")
 	seen(t, tm, "Which phase to run.") // the wizard, over home
-	for range 3 {                      // phase, through, mode
+	for range 4 {                      // phase, through, tasks, mode
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 	}
 	seen(t, tm, "Arise M2 · mode as planned")

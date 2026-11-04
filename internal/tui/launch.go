@@ -19,8 +19,8 @@ import (
 )
 
 // The start-run wizard (SPEC §15.6) is a sequence of dialogs over home:
-// what to run, phase, through, mode, a summary, the start-up questions
-// and the launch. Each question has `igris arise`'s default and meaning.
+// what to run, phase, through, tasks, mode, a summary, the start-up
+// questions and the launch. Each question has `igris arise`'s default and meaning.
 // Everything the owner answers lives in one launch value, thrown away when
 // the launch is over: nothing carries over to the next run (§7.3).
 //
@@ -38,6 +38,11 @@ const (
 	wizWhat       wizStep = iota // resume, or start a phase
 	wizPhase                     // which phase
 	wizThrough                   // through which phase
+	wizTasks                     // all tasks, or a slice of them (§5.5)
+	wizOnly                      // the tasks to run only
+	wizFrom                      // the task to start at
+	wizUntil                     // the task to stop after
+	wizSlice                     // the slice can't run: why
 	wizMode                      // the run mode
 	wizYolo                      // the typed phrase for a yolo pick
 	wizChecking                  // arise's start-up checks are running
@@ -61,11 +66,15 @@ type launch struct {
 	// phases and throughs are the phase and through dialogs' options, in
 	// order; "" in throughs is "only the phase".
 	phases, throughs []string
-	pre              *report.Prelaunch // the start-up checks, once back
-	confirm          int               // the warning to ask about next
-	run              *runHandle        // the engine starting, if any
-	runner           chan Runner       // hands the built engine to the wait
-	cancelled        bool              // Cancel was picked while starting
+	// tasks are a task picker's IDs by option ("" for Until's "to the
+	// end"); only holds Only's picks while they are made.
+	tasks     []string
+	only      map[string]bool
+	pre       *report.Prelaunch // the start-up checks, once back
+	confirm   int               // the warning to ask about next
+	run       *runHandle        // the engine starting, if any
+	runner    chan Runner       // hands the built engine to the wait
+	cancelled bool              // Cancel was picked while starting
 }
 
 // liveRun is the run home started, while its run view is on the stack.
@@ -136,8 +145,8 @@ func (m *homeScreen) openWizard(pre Wizard) tea.Cmd {
 }
 
 // ariseFrom opens the wizard with the choices of a previewed request: its
-// phase is selected (resume stays the first choice), its through and mode
-// are the ones to start on.
+// phase is selected (resume stays the first choice), its through, slice
+// and mode are the ones to start on.
 func (m *homeScreen) ariseFrom(req report.RunRequest) tea.Cmd {
 	if !m.offers(actArise) {
 		m.setStatus("Arise isn't available here; the card says why")
@@ -149,7 +158,7 @@ func (m *homeScreen) ariseFrom(req report.RunRequest) tea.Cmd {
 	if m.launch != nil || m.run != nil {
 		return nil
 	}
-	m.launch = &launch{req: report.RunRequest{Phase: req.Phase, Through: req.Through, Mode: req.Mode, Worktree: req.Worktree, Parallel: req.Parallel}}
+	m.launch = &launch{req: report.RunRequest{Phase: req.Phase, Through: req.Through, Mode: req.Mode, Selection: req.Selection, Worktree: req.Worktree, Parallel: req.Parallel}}
 	return m.phaseStep()
 }
 
@@ -233,7 +242,7 @@ func (m *homeScreen) throughStep() tea.Cmd {
 	at := slices.Index(ids, l.req.Phase)
 	if at < 0 || at == len(ids)-1 {
 		l.req.Through = ""
-		return m.modeStep()
+		return m.tasksStep()
 	}
 	l.step = wizThrough
 	d := &dialog{title: "Through", detail: "Run the following phases too, up to and including the one picked; a stuck phase ends the run early.", cancel: actClose}
@@ -319,16 +328,24 @@ func (m *homeScreen) summaryStep() {
 }
 
 // summary is the run in one line: "Arise M2 through M3 · mode plan · 9
-// tasks · first M2-04 sonnet".
+// tasks · first M2-04 sonnet", with the slice after the phases ("Arise
+// W17 · only W17-03 · mode auto · 1 task"); the tasks are the slice's.
 func (m *homeScreen) summary() string {
 	l := m.launch
-	verb, from, through := "Arise", l.req.Phase, l.req.Through
+	verb, from, through, sel := "Arise", l.req.Phase, l.req.Through, l.req.Selection
 	if l.resume {
-		verb, from, through = "Resume", m.snap.Run.Phases[0], m.snap.Run.Through
+		r := m.snap.Run
+		verb, from, through, sel = "Resume", r.Phases[0], r.Through, state.Selection{}
+		if r.Selection != nil {
+			sel = *r.Selection // a bare arise resumes the same slice (§5.5)
+		}
 	}
 	scope := from
 	if through != "" && through != from {
 		scope += " through " + through
+	}
+	if !sel.Empty() {
+		scope += " · " + textsafe.Line(sel.String())
 	}
 	mode := l.req.Mode
 	if mode == "" {
@@ -336,26 +353,27 @@ func (m *homeScreen) summary() string {
 	}
 	out := verb + " " + scope + " · mode " + mode + badge(l.req.Mode)
 	p := m.snap.Plan
-	phases, err := p.PhasesThrough(from, through)
+	rng, err := engine.ResolveRange(p, from, through, sel)
 	if err != nil {
 		return out
 	}
 	left := 0
-	for _, ph := range phases {
+	for _, ph := range rng.Phases {
 		for _, t := range ph.Tasks {
-			if !t.Status.Satisfied() {
+			if rng.In(t) && !t.Status.Satisfied() {
 				left++
 			}
 		}
 	}
 	out += " · " + plural(left, "task")
 	first := l.pre.Interrupted
-	for _, ph := range m.phases() {
+	for _, ph := range rng.Phases {
 		if first != "" {
 			break
 		}
-		if slices.ContainsFunc(phases, func(x *plan.Phase) bool { return x.ID == ph.ID }) {
-			first = ph.Next
+		// §5.1 among the slice's tasks, as the run selects.
+		if s, err := p.SelectIn(ph.ID, rng.In); err == nil && s.Outcome == plan.Next {
+			first = s.Task.ID
 		}
 	}
 	if t := p.Task(first); t != nil {
@@ -614,7 +632,9 @@ func (m *homeScreen) wizardPick(a action) tea.Cmd {
 		return m.throughStep()
 	case wizThrough:
 		l.req.Through = l.throughs[d.selected]
-		return m.modeStep()
+		return m.tasksStep()
+	case wizTasks, wizOnly, wizFrom, wizUntil, wizSlice:
+		return m.slicePick(a)
 	case wizMode:
 		if a == actWizPlanned {
 			l.req.Mode = ""

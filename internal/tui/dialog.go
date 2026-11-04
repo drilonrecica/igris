@@ -44,6 +44,9 @@ type dialog struct {
 	// scroll is how many detail lines are scrolled away (pgup/pgdown, the
 	// wheel), for a detail longer than the box.
 	scroll int
+	// optTop is the first option in view when the options are longer than
+	// the box (a task picker); render keeps the selected one in view.
+	optTop int
 	// pre keeps the detail's line breaks and indentation (a plan in
 	// markdown); wide lets the box grow past the usual width.
 	pre, wide bool
@@ -435,6 +438,17 @@ func (d *dialog) render(th *theme, w, h int) ([]string, zones) {
 			input = append(input, fit(d.input.hint, inner))
 		}
 	}
+	// Options longer than the box scroll with the selection: the borders,
+	// the title, the blank lines around them, the field and the key hint
+	// keep their rows.
+	optRoom := h - 2 - len(title) - 1 - 2
+	if len(input) > 0 {
+		optRoom -= len(input) + 1
+	}
+	lo, hi := d.optWindow(opts, optRoom)
+	if lo > 0 || hi < len(opts) {
+		optLines = optRoom // the detail gets no room
+	}
 	text := d.detail
 	if d.echo != "" && d.input != nil {
 		text = d.echo
@@ -496,13 +510,20 @@ func (d *dialog) render(th *theme, w, h int) ([]string, zones) {
 		add(lookPlain, input[1:]...) // the hint
 		add(lookPlain, "")
 	}
-	for i, lines := range opts {
+	if lo > 0 {
+		add(lookDim, fit("  ↑ "+strconv.Itoa(lo)+" more", inner))
+	}
+	for i := lo; i < hi; i++ {
+		lines := opts[i]
 		z.add(rect{x: 0, y: len(body) + 1, w: 1, h: len(lines)}, target{act: actOption, option: i})
 		if i == d.selected && !d.inField {
 			add(lookFocus, lines...)
 		} else {
 			add(lookPlain, lines...)
 		}
+	}
+	if hi < len(opts) {
+		add(lookDim, fit("  ↓ "+strconv.Itoa(len(opts)-hi)+" more", inner))
 	}
 	add(lookPlain, "")
 	add(lookDim, fit(d.hint(), inner))
@@ -526,6 +547,48 @@ func (d *dialog) render(th *theme, w, h int) ([]string, zones) {
 		z.list[i].r.w = width + 4
 	}
 	return out, z
+}
+
+// optWindow is the options in view, [lo, hi), when opts (each option's
+// lines) take room lines at most: all of them when they fit, else a window
+// around the selected option, a line on either side saying how many more
+// there are. The window moves only as far as the selection needs.
+func (d *dialog) optWindow(opts [][]string, room int) (lo, hi int) {
+	total := 0
+	for _, o := range opts {
+		total += len(o)
+	}
+	if total <= room || len(opts) == 0 {
+		d.optTop = 0
+		return 0, len(opts)
+	}
+	sel := min(max(d.selected, 0), len(opts)-1)
+	// end is where a window starting at lo ends.
+	end := func(lo int) int {
+		budget := room
+		if lo > 0 {
+			budget-- // ↑ N more
+		}
+		hi := lo
+		for hi < len(opts) {
+			more := 0
+			if hi+1 < len(opts) {
+				more = 1 // ↓ N more, unless this is the last option
+			}
+			if len(opts[hi])+more > budget {
+				break
+			}
+			budget -= len(opts[hi])
+			hi++
+		}
+		return max(hi, lo+1) // the selected option shows, cut if need be
+	}
+	lo = min(d.optTop, sel)
+	for lo < sel && end(lo) <= sel {
+		lo++
+	}
+	d.optTop = lo
+	return lo, end(lo)
 }
 
 // hint is the dialog's last line, its keys (SPEC §15.5): what enter does,

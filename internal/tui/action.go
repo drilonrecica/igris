@@ -92,6 +92,10 @@ const (
 	actWizResume   // resume the last run
 	actWizPhase    // start a phase: pick it next, or the picked phase
 	actWizThrough  // the picked last phase
+	actWizTasks    // the Tasks step's All tasks, Only…, From… or Until…
+	actWizTask     // a task in a picker of the Tasks step (Only: picks it or drops it)
+	actWizTasksOK  // Only's Continue: run the tasks picked
+	actWizBack     // a picker's Back: the step before
 	actWizPlanned  // run mode as planned
 	actWizArise    // the summary's Arise
 	actWizConfirm  // the confirming choice of a start-up question

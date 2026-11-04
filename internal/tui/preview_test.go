@@ -155,8 +155,8 @@ func TestPreviewOfAResumableRunIsTheLastRunsPhases(t *testing.T) {
 
 func TestPreviewAriseOpensTheWizardPrefilled(t *testing.T) {
 	a, home, _ := previewApp(t, nil)
-	// Wizard → phase M2, only it, mode plan → summary → Preview.
-	press(a, "a", "enter", "enter", "down", "down", "down", "enter")
+	// Wizard → phase M2, only it, all tasks, mode plan → summary → Preview.
+	press(a, "a", "enter", "enter", "enter", "down", "down", "down", "enter")
 	wantMode := home.launch.req.Mode
 	if wantMode == "" {
 		t.Fatalf("no mode picked: %+v", home.launch.req)
@@ -172,7 +172,7 @@ func TestPreviewAriseOpensTheWizardPrefilled(t *testing.T) {
 	if home.launch.step != wizPhase || home.launch.phases[home.dialog.selected] != "M2" {
 		t.Errorf("wizard at step %d selecting %v, want the phase dialog on M2", home.launch.step, home.dialog.selected)
 	}
-	press(a, "enter", "enter") // M2, only it → the mode is next
+	press(a, "enter", "enter", "enter") // M2, only it, all tasks → the mode is next
 	if home.launch.step != wizMode {
 		t.Fatalf("step %d, want the mode", home.launch.step)
 	}

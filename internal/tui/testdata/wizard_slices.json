@@ -1,0 +1,59 @@
+[
+  {
+    "name": "all tasks",
+    "args": ["M2"],
+    "keys": ["a", "enter", "enter", "1", "1"],
+    "phase": "M2",
+    "slice": ["M2-01", "M2-02", "M2-03", "M2-04"],
+    "summary": "Arise M2 · mode as planned · 3 tasks · first M2-02 opus"
+  },
+  {
+    "name": "only two of a phase",
+    "args": ["--only", "M2-02,M2-04", "M2"],
+    "keys": ["a", "enter", "enter", "2", "enter", "down", "down", "enter", "4", "1"],
+    "phase": "M2",
+    "only": ["M2-02", "M2-04"],
+    "slice": ["M2-02", "M2-04"],
+    "summary": "Arise M2 · only M2-02, M2-04 · mode as planned · 2 tasks · first M2-02 opus"
+  },
+  {
+    "name": "only the last phase's last task",
+    "args": ["--only", "M4-02", "M4"],
+    "keys": ["a", "3", "2", "2", "3", "1"],
+    "phase": "M4",
+    "only": ["M4-02"],
+    "slice": ["M4-02"],
+    "summary": "Arise M4 · only M4-02 · mode as planned · 1 task"
+  },
+  {
+    "name": "from a task to the end of the range",
+    "args": ["--through", "M3", "--from", "M2-04", "M2"],
+    "keys": ["a", "enter", "down", "enter", "3", "3", "1", "1"],
+    "phase": "M2",
+    "through": "M3",
+    "from": "M2-04",
+    "slice": ["M2-04", "M3-01", "M3-02", "M3-03"],
+    "summary": "Arise M2 through M3 · from M2-04 · mode as planned · 4 tasks"
+  },
+  {
+    "name": "from and until",
+    "args": ["--through", "M3", "--from", "M2-03", "--until", "M3-02", "M2"],
+    "keys": ["a", "enter", "down", "enter", "3", "2", "5", "1"],
+    "phase": "M2",
+    "through": "M3",
+    "from": "M2-03",
+    "until": "M3-02",
+    "slice": ["M2-03", "M2-04", "M3-01", "M3-02"],
+    "summary": "Arise M2 through M3 · from M2-03 until M3-02 · mode as planned · 4 tasks"
+  },
+  {
+    "name": "until a task of a later phase",
+    "args": ["--through", "M4", "--until", "M3-01", "M2"],
+    "keys": ["a", "enter", "3", "4", "4", "1"],
+    "phase": "M2",
+    "through": "M4",
+    "until": "M3-01",
+    "slice": ["M2-01", "M2-02", "M2-03", "M2-04", "M3-01"],
+    "summary": "Arise M2 through M4 · until M3-01 · mode as planned · 4 tasks · first M2-02 opus"
+  }
+]

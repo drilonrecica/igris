@@ -1,0 +1,40 @@
+igris · sinjal · tasks.md · herdr ✓ · mode auto                                                                     Idle
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+PHASES                                      │ READY · phase M2 Config & state
+  ✓ M0  Foundations    ██████████ 3/3 done  │ next  · M2-02  Lock file   opus
+  ✓ M1  Plan parser    ██████████ 2/2 done  │ then  · M2-03  State file  sonnet
+› · M2  Config & state ██░░░░░░░░ 1/4 next  │ 3 left · 2 wait on M2-02
+  ◌ M3  Engine         ░░░░░░░░░░ 0/3 wait  │ ── HEALTH ────────────────────────────────────────────────────────────────
+  ◌ M4  TUI            ░░░░░░░░░░ 0/2 wait  │ ✓ plan valid · 5 phases · 14 tasks
+                                            │ ✓ doctor: ok
+                                            │ ── RECENT ────────────────────────────────────────────────────────────────
+                                            │ Oct 06 21:10  M2  3 done · 1 skipped · stopped
+                                            │ Oct 05 18:02  M1  6 done · completed
+                             ╭────────────────────────────────────────────────────────────╮
+                             │ Until                                                      │
+                             │                                                            │
+                             │ The run starts at M2-03 and stops after the task you pick. │
+                             │                                                            │
+                             │ › 1. To the end of the range                               │
+                             │   2. M2-03 State file · ready · sonnet · waits on M2-02    │
+                             │   3. M2-04 Signals · ready · haiku · waits on M2-02, M2-03 │
+                             │   4. M3-01 Scheduler · ready · opus · waits on M2-04       │
+                             │   5. M3-02 Run loop · ready · opus · waits on M3-01        │
+                             │   6. M3-03 Verify · ready · sonnet · waits on M3-02        │
+                             │   7. Back                                                  │
+                             │                                                            │
+                             │ enter choose · 1–7 pick · esc back                         │
+                             ╰────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[a Arise…] [v Preview] [c Check] [D Draft…] [i Doctor] [h History] [e Edit] [, Settings] [n Notify] [More…] [?] [q Quit]

@@ -14,7 +14,7 @@
 │ › 7. plan:default — plan, then default        │
 │   8. plan:accept — plan, then accept          │
 │   9. plan:auto — plan, then auto              │
-│   10. yolo [SKIP PERMISSIONS] — no permission │
-│       prompts                                 │
-│   11. plan:yolo — then [SKIP PERMISSIONS]     │
+│   ↓ 2 more                                    │
 │                                               │
+│ enter choose · 1–9 pick · esc close           │
+╰───────────────────────────────────────────────╯

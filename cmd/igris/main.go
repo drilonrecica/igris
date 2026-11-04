@@ -112,7 +112,7 @@ const synopses = `
         [--mode default|accept|auto|plan[:MODE]|yolo|manual] [--no-tui]
         [--dry-run] [--force-unlock] [--worktree] [--parallel N]
         [--only ID[,ID...] | [--from ID] [--until ID]]
-                                        run only part of the phases
+                                        run only part of the phases (on home: the wizard's Tasks step)
   serve [PHASE] [--through PHASE]       run (or resume) headless, hosting the run on .igris/igris.sock;
         [--mode MODE] [--worktree]      arise's run flags, plain log lines on stdout
         [--force-unlock] [--parallel N]

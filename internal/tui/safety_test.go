@@ -214,7 +214,11 @@ func TestHomeCleansEveryTextSource(t *testing.T) {
 		noControl(t, "wizard what to run", view())
 		press(a, "2") // Start a phase…
 		noControl(t, "wizard phase", view())
-		press(a, "enter", "enter", "enter")
+		press(a, "enter", "enter")
+		noControl(t, "wizard tasks", view())
+		press(a, "2") // Only…: the range's tasks, their titles from the plan
+		noControl(t, "wizard tasks picker", view())
+		press(a, "esc", "1", "enter") // back, All tasks, the mode
 		shows(t, "wizard summary", view())
 		press(a, "enter") // Arise
 		shows(t, "wizard confirmation", view())
@@ -284,7 +288,7 @@ func TestHomeCleansEveryTextSource(t *testing.T) {
 func TestYoloNeverOneClick(t *testing.T) {
 	st := &starts{}
 	a, home := wizardApp(t, st, report.Prelaunch{}, nil)
-	press(a, "a", "enter", "enter", "7", "down", "down", "down", "enter") // More modes…, yolo
+	press(a, "a", "enter", "enter", "enter", "7", "down", "down", "down", "enter") // More modes…, yolo
 	d := home.dialog
 	if d == nil || d.title != "Skip permissions?" || !d.inField {
 		t.Fatalf("dialog %+v, want the phrase field", d)

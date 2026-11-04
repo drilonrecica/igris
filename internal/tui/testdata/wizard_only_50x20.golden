@@ -1,0 +1,20 @@
+╭────────────────────────────────────────────────╮
+│ Only · 2 tasks picked                          │
+│                                                │
+│   ↑ 2 more                                     │
+│   3. [x] M2-04 Signals · ready · haiku · waits │
+│      on M2-02, M2-03                           │
+│   4. [ ] M3-01 Scheduler · ready · opus ·      │
+│      waits on M2-04                            │
+│   5. [ ] M3-02 Run loop · ready · opus · waits │
+│      on M3-01                                  │
+│   6. [ ] M3-03 Verify · ready · sonnet · waits │
+│      on M3-02                                  │
+│   7. [ ] M4-01 Layout · ready · fable · waits  │
+│      on M3-03                                  │
+│ › 8. [ ] M4-02 Dialogs · ready · sonnet ·      │
+│      waits on M4-01                            │
+│   ↓ 2 more                                     │
+│                                                │
+│ enter choose · 1–9 pick · esc back             │
+╰────────────────────────────────────────────────╯

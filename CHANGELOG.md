@@ -4,6 +4,10 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+### Added
+
+- **A Tasks step in the start wizard.** After **Through**, home's wizard asks **All tasks** · Only… · From… · Until…, with a picker of the range's tasks (status, rank and what each waits on), so part of a phase starts from the TUI as `--only`, `--from` and `--until` start it from the shell, with the same checks. The summary names the slice (`Arise W17 · only W17-03 · mode auto · 1 task`). Dialog lists longer than the screen now scroll.
+
 ## [1.8.0] - 2026-10-26
 
 igris 1.8 makes a long unattended run safer to leave: it waits out usage limits, pauses at the budget you set, settles a conflicting task with a session of its own before rerunning it, hands a task's notes to the tasks that depend on it and asks you less often. It only adds: plans, `--json`, the run log, the webhook payload and protocol 1 are unchanged apart from additive fields ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). `state.json` stays version 4. New config values and keys are refused by igris 1.0–1.7 (below).

@@ -214,6 +214,14 @@ func TestWizardSteps(t *testing.T) {
 
 	press(a, "down", "enter")
 	d = home.dialog
+	// The Tasks step (SPEC §5.5): All tasks is the default.
+	want = []string{"All tasks", "Only…", "From…", "Until…"}
+	if d.title != "Tasks" || strings.Join(labels(d), "|") != strings.Join(want, "|") || d.selected != 0 {
+		t.Fatalf("tasks dialog %q %q (selected %d), want %q with All tasks selected", d.title, labels(d), d.selected, want)
+	}
+
+	press(a, "enter")
+	d = home.dialog
 	// The mode picker (SPEC §15.5): As planned, the common modes, then
 	// More modes….
 	want = []string{"As planned", "plan", "auto", "accept", "manual", "default", "More modes…"}
@@ -316,7 +324,7 @@ func TestWizardYoloNeedsThePhrasePerLaunch(t *testing.T) {
 	a, home := wizardApp(t, st, report.Prelaunch{}, nil)
 	// yolo is under More modes… (SPEC §15.5): 7, then down to it.
 	yolo := []string{"7", "down", "down", "down", "enter"}
-	press(a, append([]string{"a", "enter", "enter"}, yolo...)...)
+	press(a, append([]string{"a", "enter", "enter", "enter"}, yolo...)...)
 	d := home.dialog
 	if d.input == nil || !d.inField || d.options[len(d.options)-1].label != "Cancel" {
 		t.Fatalf("yolo opened %q %q, want the typed phrase with Cancel last", d.title, labels(d))
@@ -345,7 +353,7 @@ func TestWizardYoloNeedsThePhrasePerLaunch(t *testing.T) {
 	press(a, "enter") // OK on the error
 
 	// The next launch asks again: nothing is remembered.
-	press(a, "a", "enter", "enter", "enter", "enter")
+	press(a, "a", "enter", "enter", "enter", "enter", "enter")
 	if c := st.conf(1); c.Yolo {
 		t.Errorf("the second launch carried the phrase over: %+v", c)
 	}
@@ -390,7 +398,7 @@ func TestWizardParity(t *testing.T) {
 	// toQuestion opens the wizard and answers it up to the case's question.
 	toQuestion := func(t *testing.T, st *starts, pre report.Prelaunch) (*appModel, *homeScreen) {
 		a, home := wizardApp(t, st, pre, nil)
-		press(a, "a", "enter", "enter", "enter", "enter")
+		press(a, "a", "enter", "enter", "enter", "enter", "enter")
 		return a, home
 	}
 	for _, tt := range tests {
@@ -466,7 +474,7 @@ func TestWizardDriftListsTheChangesAndScrolls(t *testing.T) {
 	st := &starts{answers: []error{&engine.DriftError{Changes: changes}}}
 	a, home := wizardApp(t, st, report.Prelaunch{}, nil)
 	a.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-	press(a, "a", "enter", "enter", "enter", "enter")
+	press(a, "a", "enter", "enter", "enter", "enter", "enter")
 	view := home.View()
 	if !strings.Contains(view, "· M2-00: ready → blocked") || strings.Contains(view, "M2-29") {
 		t.Fatalf("drift dialog:\n%s", view)
@@ -499,7 +507,7 @@ func TestWizardPrefilledFromArise(t *testing.T) {
 	if d := home.dialog; d.title != "Through" || d.options[d.selected].label != "M2 through M3" {
 		t.Errorf("through %q, want --through M3 selected", d.options[d.selected].label)
 	}
-	press(a, "enter")
+	press(a, "enter", "enter") // through, All tasks
 	if d := home.dialog; d.options[d.selected].label != modeActs[0].label {
 		t.Errorf("mode %q, want --mode plan selected", d.options[d.selected].label)
 	}
@@ -573,7 +581,7 @@ func launchProgram(t *testing.T, st *starts) (*teatest.TestModel, *fakeServices)
 func ariseM2(t *testing.T, tm *teatest.TestModel) {
 	t.Helper()
 	tm.Type("a")
-	for range 3 {
+	for range 4 { // M2, Only M2, All tasks, as planned
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 	}
 	seen(t, tm, "Arise M2 · mode as planned") // the checks are back
@@ -705,13 +713,19 @@ func TestWizardGolden(t *testing.T) {
 	}{
 		{name: "phase", keys: []string{"a"}},
 		{name: "through", keys: []string{"a", "enter"}},
-		{name: "mode", keys: []string{"a", "enter", "down", "enter"}},
-		{name: "more_modes", keys: []string{"a", "enter", "down", "enter", "7"}},
-		{name: "yolo", keys: []string{"a", "enter", "down", "enter", "7", "down", "down", "down", "enter"}},
-		{name: "summary", keys: []string{"a", "enter", "down", "enter", "enter"}},
-		{name: "confirm", keys: []string{"a", "enter", "down", "enter", "enter", "enter"}},
-		{name: "drift", answers: []error{drift}, keys: []string{"a", "enter", "down", "enter", "enter", "enter", "1"}},
-		{name: "failed", answers: []error{errors.New("backend herdr is not available: no socket")}, keys: []string{"a", "enter", "down", "enter", "enter", "enter", "1"}},
+		{name: "tasks", keys: []string{"a", "enter", "down", "enter"}},
+		{name: "mode", keys: []string{"a", "enter", "down", "enter", "enter"}},
+		{name: "more_modes", keys: []string{"a", "enter", "down", "enter", "enter", "7"}},
+		{name: "yolo", keys: []string{"a", "enter", "down", "enter", "enter", "7", "down", "down", "down", "enter"}},
+		{name: "summary", keys: []string{"a", "enter", "down", "enter", "enter", "enter"}},
+		{name: "confirm", keys: []string{"a", "enter", "down", "enter", "enter", "enter", "enter"}},
+		{name: "drift", answers: []error{drift}, keys: []string{"a", "enter", "down", "enter", "enter", "enter", "enter", "1"}},
+		{name: "failed", answers: []error{errors.New("backend herdr is not available: no socket")}, keys: []string{"a", "enter", "down", "enter", "enter", "enter", "enter", "1"}},
+		// The Tasks step's pickers (SPEC §5.5): M2 through M4 has 8 tasks
+		// with work, longer than a narrow box, so the list scrolls.
+		{name: "only", keys: []string{"a", "enter", "3", "2", "enter", "down", "down", "enter", "down", "down", "down", "down", "down"}},
+		{name: "until", keys: []string{"a", "enter", "down", "enter", "3", "down", "enter"}},
+		{name: "summary_slice", keys: []string{"a", "enter", "1", "2", "down", "enter", "down", "down", "enter", "enter"}},
 	}
 	for _, s := range steps {
 		for _, size := range [][2]int{{120, 40}, {80, 24}, {50, 20}} {

@@ -77,7 +77,7 @@ igris          # the home screen
 
 1. **No plan yet?** Home is a **GET STARTED** list that names the next step and its key (`I` does `igris init` for you, too). `E` writes the example plan or a starter template, `D` has Claude [draft one](#a-plan-from-a-goal-a-spec-or-your-issues) with you, and a plan igris can't read gets `A` to [adapt it](#different-format-igris-adapt).
 2. **Look first.** `c` checks the plan, `i` runs the doctor, `v` previews the run: every task in order with its rank → model and mode, without starting anything.
-3. **Arise.** `a` opens the start wizard: the phase, then the mode (**As planned**, plan, auto, accept, manual, default, and **More modes…**), then **Arise**, **Preview** or **Cancel**. The run screen opens on **Arise.**
+3. **Arise.** `a` opens the start wizard: the phase, how far to run (**Through**), which of its tasks (**All tasks**, or **Only…**, **From…** and **Until…** to pick some, as `--only`, `--from` and `--until` do), then the mode (**As planned**, plan, auto, accept, manual, default, and **More modes…**), then **Arise**, **Preview** or **Cancel**. The run screen opens on **Arise.**
 
 The same from the command line: `igris check`, `igris status`, `igris arise M0 --dry-run`, then `igris arise M0`.
 

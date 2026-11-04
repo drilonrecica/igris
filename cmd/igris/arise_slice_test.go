@@ -2,11 +2,16 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"flag"
+	"os"
+	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/state"
 )
 
@@ -165,5 +170,40 @@ func TestDryRunWalksTheSlice(t *testing.T) {
 	if code := run([]string{"arise", "A", "--until", "B-1", "--dry-run"}, &out, &errb); code != exitFail ||
 		!strings.Contains(errb.String(), "--until B-1 is in phase B, outside the run's phase A; widen --through or drop it") {
 		t.Errorf("exit %d, stderr %q", code, errb.String())
+	}
+}
+
+// The cases of internal/tui's start-run wizard (SPEC §15.6): arise's flags
+// ask for the same request as the wizard's Tasks step, which
+// internal/tui.TestWizardSliceEqualsTheFlags holds the wizard to.
+func TestAriseFlagsEqualWizardSlices(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join("..", "..", "internal", "tui", "testdata", "wizard_slices.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cases []struct {
+		Name, Phase, Through, From, Until string
+		Args, Only                        []string
+	}
+	if err := json.Unmarshal(b, &cases); err != nil {
+		t.Fatal(err)
+	}
+	if len(cases) == 0 {
+		t.Fatal("no cases")
+	}
+	for _, c := range cases {
+		fs := flag.NewFlagSet("arise", flag.ContinueOnError)
+		validate := runFlags(fs)
+		if err := fs.Parse(c.Args); err != nil {
+			t.Fatalf("%s: %v", c.Name, err)
+		}
+		if err := validate(fs.Args()); err != nil {
+			t.Fatalf("%s: %q: %v", c.Name, c.Args, err)
+		}
+		got := runFlagValues(fs, fs.Args()).request()
+		want := report.RunRequest{Phase: c.Phase, Through: c.Through, Selection: state.Selection{Only: c.Only, From: c.From, Until: c.Until}}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("%s: arise %q asks for %+v, the wizard for %+v", c.Name, c.Args, got, want)
+		}
 	}
 }

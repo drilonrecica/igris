@@ -1,0 +1,15 @@
+╭────────────────────────────────────────────────────────────╮
+│ Until                                                      │
+│                                                            │
+│ The run starts at M2-03 and stops after the task you pick. │
+│                                                            │
+│ › 1. To the end of the range                               │
+│   2. M2-03 State file · ready · sonnet · waits on M2-02    │
+│   3. M2-04 Signals · ready · haiku · waits on M2-02, M2-03 │
+│   4. M3-01 Scheduler · ready · opus · waits on M2-04       │
+│   5. M3-02 Run loop · ready · opus · waits on M3-01        │
+│   6. M3-03 Verify · ready · sonnet · waits on M3-02        │
+│   7. Back                                                  │
+│                                                            │
+│ enter choose · 1–7 pick · esc back                         │
+╰────────────────────────────────────────────────────────────╯
