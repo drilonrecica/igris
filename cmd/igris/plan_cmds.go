@@ -146,7 +146,8 @@ func execPhases(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 }
 
 // parallelLines renders the parallelism of every phase with work left: its
-// critical path and width, and the sets of tasks that could run together.
+// critical path and width, and the sets of tasks arise would start together
+// (a parallel phase only).
 func parallelLines(rows []report.PhaseRow) []string {
 	var out []string
 	for _, ph := range rows {

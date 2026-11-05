@@ -20,15 +20,18 @@ type Phase struct {
 	Counts map[string]int `json:"counts"`
 }
 
-// Parallelism is how much of a phase's remaining work could run at once
-// (SPEC §14 `phases`): read-only, since igris runs one task at a time.
+// Parallelism is how much of a phase's remaining work arise would run at
+// once (SPEC §14 `phases`): read-only, and computed as the scheduler
+// schedules (§5.1): sets only in a parallel phase, never two tasks of a
+// Group in one.
 type Parallelism struct {
 	// CriticalPath is the longest chain of unfinished tasks, in order.
 	CriticalPath []string `json:"critical_path"`
-	// Width is the most tasks that could run together; 0 when none is left.
+	// Width is the most tasks that would run together (1 in a phase that
+	// isn't parallel); 0 when none is left.
 	Width int `json:"width"`
-	// Together lists the sets of tasks that would run together, per level
-	// of the dependency graph with two or more.
+	// Together lists the sets of two or more tasks arise would start
+	// together; empty in a phase without the parallel marker.
 	Together [][]string `json:"together"`
 }
 

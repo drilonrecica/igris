@@ -2,9 +2,14 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
+	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/drilonrecica/igris/internal/report"
+	"github.com/drilonrecica/igris/internal/runner"
 )
 
 // --parallel N takes a whole number from 1 to 8; anything else is a usage
@@ -89,5 +94,67 @@ func TestDryRunParallelPhase(t *testing.T) {
 	}
 	if got := out.String(); !strings.Contains(got, "  1  · A-1 ") || !strings.Contains(got, "  2  · A-2 ") || !strings.Contains(got, "  3  · A-3 ") || !strings.Contains(got, "  4  ! A-4 ") {
 		t.Errorf("--parallel 1 output:\n%s", got)
+	}
+}
+
+// The parallelism report and the dry run agree on the `parallel` fixture
+// (V110-01): the tasks the dry run gives one step number are the report's
+// sets, a Group's tasks never share one, and `phases` and `--dry-run` print
+// the same sets.
+func TestParallelismMatchesDryRunSteps(t *testing.T) {
+	withVersions(t, "2.1.304 (Claude Code)\n", "herdr 0.9.1\n")
+	saved := ariseRunner
+	t.Cleanup(func() { ariseRunner = saved })
+	ariseRunner = &runner.Fake{}
+	writeProject(t, map[string]string{"tasks.md": string(readFixture(t, "testdata/plans/parallel.md")["tasks.md"])})
+
+	var out, errb bytes.Buffer
+	if code := run([]string{"phases", "--json"}, &out, &errb); code != exitOK {
+		t.Fatalf("phases: exit %d, stderr: %s", code, errb.String())
+	}
+	var rep struct {
+		Phases []struct {
+			ID          string
+			Parallelism report.Parallelism
+		}
+	}
+	if err := json.Unmarshal(out.Bytes(), &rep); err != nil {
+		t.Fatal(err)
+	}
+	var want [][]string
+	width := 0
+	for _, ph := range rep.Phases {
+		if ph.ID == "B" {
+			want, width = ph.Parallelism.Together, ph.Parallelism.Width
+		}
+	}
+
+	out.Reset()
+	if code := run([]string{"arise", "B", "--dry-run"}, &out, &errb); code != exitOK {
+		t.Fatalf("dry run: exit %d, stderr: %s", code, errb.String())
+	}
+	steps := map[string][]string{}
+	var order []string
+	for _, ln := range strings.Split(out.String(), "\n") {
+		f := strings.Fields(ln)
+		if len(f) < 3 || strings.Trim(f[0], "0123456789") != "" || !strings.HasPrefix(f[2], "B-") {
+			continue
+		}
+		if _, ok := steps[f[0]]; !ok {
+			order = append(order, f[0])
+		}
+		steps[f[0]] = append(steps[f[0]], f[2])
+	}
+	var got [][]string
+	for _, n := range order {
+		if len(steps[n]) > 1 {
+			got = append(got, steps[n])
+		}
+	}
+	if !reflect.DeepEqual(got, want) || len(want) != 1 || width != 2 {
+		t.Errorf("dry run shares steps %v; the report says together %v, width %d", got, want, width)
+	}
+	if !strings.Contains(out.String(), "width 2\n    could run together: B-1, B-3\n") {
+		t.Errorf("dry run summary:\n%s", out.String())
 	}
 }

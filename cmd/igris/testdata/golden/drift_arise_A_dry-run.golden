@@ -3,8 +3,7 @@ exit: 0
 warning: this is not a git repository: sessions' changes can't be reviewed or undone with git, and commits fail unless commit = "never". Run `git init` first.
 warning: drift: A-2: blocked → ready, A-3: ready → blocked, B-2: ready → blocked (a real run asks you before fixing them)
 dry run of phase A: nothing is written and no session starts
-  phase A: critical path A-2 → A-3 (2), width 2
-    could run together: A-2, A-4
+  phase A: critical path A-2 → A-3 (2), width 1
   #  TASK   RANK    MODEL      MODE         TITLE
   1  · A-2  sonnet  sonnet     auto         Next
   2  · A-3  opus    opus       plan → auto  Later

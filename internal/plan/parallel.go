@@ -1,17 +1,22 @@
 package plan
 
-// Parallelism describes how much of a phase's remaining work could run at
-// once (SPEC §14 `phases`). It is a read-only view of the dependency graph;
-// igris runs tasks together only in a phase marked parallel (§3.8).
+import "strings"
+
+// Parallelism describes how much of a phase's remaining work arise would run
+// at once (SPEC §14 `phases`). It is a read-only view that agrees with the
+// scheduler (§5.1): only a phase marked parallel (§3.8) has tasks running
+// together, and tasks sharing a Group (§3.8) never do.
 type Parallelism struct {
 	// CriticalPath is the longest chain of unfinished tasks, each depending
 	// on the one before it, in dependency order. Empty when nothing is left.
 	CriticalPath []string
-	// Width is the size of the widest level: the most tasks that could run
-	// together. 0 when nothing is left.
+	// Width is the size of the largest set of tasks that would run together:
+	// 1 in a phase that isn't parallel or whose tasks all wait on each other
+	// or share a Group. 0 when nothing is left.
 	Width int
-	// Together holds, per level with two or more tasks, the IDs that would
-	// run together once the level before it is done, in file order.
+	// Together holds the sets of two or more tasks that arise would start
+	// together once the level before is done, in level then file order;
+	// always empty in a phase without the parallel marker.
 	Together [][]string
 }
 
@@ -20,7 +25,10 @@ type Parallelism struct {
 // those tasks count: a finished dependency is met, and one in another phase
 // (or outside the slice) is not this phase's to schedule. A task's level is
 // one more than the deepest of the dependencies it waits on in the phase,
-// so the tasks of one level depend on none of each other.
+// so the tasks of one level depend on none of each other. In a parallel
+// phase a level is split into rounds, each holding at most one task of a
+// Group (compared without case, as the scheduler does); a round of two or
+// more is a Together set, and Width is the largest round.
 func (ph *Phase) ParallelismOf(in func(*Task) bool) Parallelism {
 	var tasks []*Task
 	member := map[string]*Task{}
@@ -64,10 +72,18 @@ func (ph *Phase) ParallelismOf(in func(*Task) bool) Parallelism {
 			deepest = t
 		}
 	}
+	if len(tasks) > 0 {
+		out.Width = 1
+	}
 	for _, ids := range byLevel {
-		out.Width = max(out.Width, len(ids))
-		if len(ids) > 1 {
-			out.Together = append(out.Together, ids)
+		if !ph.Parallel {
+			continue
+		}
+		for _, set := range rounds(ids, member) {
+			out.Width = max(out.Width, len(set))
+			if len(set) > 1 {
+				out.Together = append(out.Together, set)
+			}
 		}
 	}
 	for id := ""; deepest != nil; id = via[id] {
@@ -78,6 +94,29 @@ func (ph *Phase) ParallelismOf(in func(*Task) bool) Parallelism {
 		if via[id] == "" {
 			break
 		}
+	}
+	return out
+}
+
+// rounds splits one level's tasks, in file order, into sets that hold at
+// most one task of each Group: the first set takes every task whose Group
+// isn't taken yet, the next one the tasks left over, and so on.
+func rounds(ids []string, member map[string]*Task) [][]string {
+	var out [][]string
+	for len(ids) > 0 {
+		var set, rest []string
+		groups := map[string]bool{}
+		for _, id := range ids {
+			g := strings.ToLower(member[id].Group)
+			if g != "" && groups[g] {
+				rest = append(rest, id)
+				continue
+			}
+			groups[g] = g != ""
+			set = append(set, id)
+		}
+		out = append(out, set)
+		ids = rest
 	}
 	return out
 }

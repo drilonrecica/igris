@@ -6,6 +6,7 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ### Fixed
 
+- **The parallelism report now agrees with the scheduler.** `igris phases` and the summary of `igris arise --dry-run` ignored `Group` and listed tasks as `together` in phases without the parallel marker, so `B-1, B-2, B-3` could be shown together while the dry run started `B-2` after `B-1` (same Group). Tasks sharing a `Group` now take one slot, never together; a phase without the marker has width 1, no `together` sets and its critical path only; the sets are what `arise` would start together. `--json` keeps its shape (`width` and `together` change value only).
 - **`igris doctor` no longer says `next: igris adapt` for a missing plan.** After `igris init` without a plan, `adapt` has nothing to adapt; the `next` is now `igris init --example` (or `--template NAME`), which writes a starter plan and never overwrites one. The levels are unchanged; an invalid plan still says `igris adapt`.
 
 ## [1.9.0] - 2026-11-05

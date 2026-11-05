@@ -23,13 +23,8 @@ exit: 0
           "A-2",
           "A-3"
         ],
-        "width": 2,
-        "together": [
-          [
-            "A-2",
-            "A-4"
-          ]
-        ]
+        "width": 1,
+        "together": []
       }
     },
     {
