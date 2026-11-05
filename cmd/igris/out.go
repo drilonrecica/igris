@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/look"
+	"github.com/drilonrecica/igris/internal/state"
 )
 
 // textOut draws a command's text output on its stdout through
@@ -18,6 +21,8 @@ type textOut struct {
 	color bool
 	dark  bool
 	width int // 0 off a terminal: nothing is cut
+	// words says glyphs and bars in words, one fact per line (SPEC §15.4).
+	words bool
 }
 
 // outTerminal says whether w is a terminal and how many columns it has
@@ -36,7 +41,37 @@ var outTerminal = func(w io.Writer) (bool, int) {
 
 func newOut(w io.Writer) textOut {
 	term, width := outTerminal(w)
-	return textOut{w: w, color: look.ColorOn(term, os.Getenv), dark: darkGround(os.Getenv), width: width}
+	return textOut{w: w, color: look.ColorOn(term, os.Getenv), dark: darkGround(os.Getenv), width: width, words: screenReader(os.Getenv, configScreenReader)}
+}
+
+// screenReader says the text output speaks (SPEC §15.4): IGRIS_SCREEN_READER
+// decides when it is set (0, false, no or off: no; anything else: yes),
+// else igris.toml's `[tui] screen_reader`, read through fromConfig only
+// then.
+func screenReader(getenv func(string) string, fromConfig func() bool) bool {
+	switch strings.ToLower(strings.TrimSpace(getenv("IGRIS_SCREEN_READER"))) {
+	case "":
+		return fromConfig()
+	case "0", "false", "no", "off":
+		return false
+	}
+	return true
+}
+
+// configScreenReader is `[tui] screen_reader` of the igris.toml of the
+// project the working directory is in; false without one, or with one that
+// can't be read (doctor and check say what is wrong with it).
+func configScreenReader() bool {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return false
+	}
+	root, err := state.FindRoot(cwd)
+	if err != nil {
+		root = cwd
+	}
+	cfg, err := config.Load(filepath.Join(root, configFile))
+	return err == nil && cfg.TUI.ScreenReader
 }
 
 // darkGround guesses the terminal's ground from COLORFGBG ("15;0": light
@@ -65,9 +100,28 @@ func (o textOut) painter() look.Painter {
 	return o.paint
 }
 
-// mark is a glyph drawn with sev and the plain text after it: "✓ ok".
-func (o textOut) mark(sev look.Severity, glyph, text string) string {
-	return look.Mark(sev, glyph, text).Draw(o.painter())
+// marked is a glyph drawn with sev and the plain text after it: "✓ ok",
+// with the word to say for the glyph when the output speaks (look.Unsaid:
+// none, the text says it).
+func (o textOut) marked(sev look.Severity, glyph, word, text string) string {
+	return o.draw(look.MarkAs(sev, glyph, word, text))
+}
+
+// draw is c painted, its glyph said as a word when the output speaks.
+func (o textOut) draw(c look.Cell) string {
+	if o.words {
+		c = c.Spoken()
+	}
+	return c.Draw(o.painter())
+}
+
+// rankMark is the mark of a rank mismatch: "▲ rank", or "rank mismatch"
+// when the output speaks.
+func (o textOut) rankMark() string {
+	if o.words {
+		return "rank mismatch"
+	}
+	return rankMark
 }
 
 // printf writes a line; the format carries no "\n".
@@ -83,6 +137,7 @@ func (o textOut) blank() { fmt.Fprintln(o.w) }
 
 // table writes t fitted to the terminal.
 func (o textOut) table(t *look.Table) {
+	t.Spoken = o.words
 	for _, l := range t.Lines(o.width, o.painter()) {
 		fmt.Fprintln(o.w, l)
 	}
@@ -99,6 +154,9 @@ func (o textOut) fit(s string) string {
 // fitCell draws c cut to what is left of the terminal's width after used
 // cells.
 func (o textOut) fitCell(c look.Cell, used int) string {
+	if o.words {
+		c = c.Spoken()
+	}
 	if o.width > 0 {
 		c = look.Cell{Text: look.Cut(c.Text, o.width-used), Sev: c.Sev, Span: min(c.Span, len(look.Cut(c.Text, o.width-used)))}
 	}

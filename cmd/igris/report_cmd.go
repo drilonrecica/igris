@@ -144,9 +144,9 @@ func printReport(o textOut, r report.Report) {
 			}
 			result := t.Result
 			if t.RankMismatch() {
-				result += " " + o.paint(look.Warn, rankMark)
+				result += " " + o.paint(look.Warn, o.rankMark())
 			}
-			agent, verify := "", cell(verifyMarks(t.Verify))
+			agent, verify := "", cell(verifyMarks(t.Verify, o.words))
 			if t.Time != nil {
 				agent = fmtDuration(t.Time.AgentS)
 				if verify != "" && t.Time.VerifyS > 0 {
@@ -256,7 +256,8 @@ func printList(w io.Writer, title string, lines []string) {
 
 // verifyMarks is the verify results as "fast ✗ ✓": the profile, then one ✗
 // per failure and ✓ per pass in order; a profile change names the new one.
-func verifyMarks(vs []report.ReportVerify) string {
+// Spoken (words), "fast failed passed".
+func verifyMarks(vs []report.ReportVerify, words bool) string {
 	var parts []string
 	prev := ""
 	for i, v := range vs {
@@ -264,9 +265,14 @@ func verifyMarks(vs []report.ReportVerify) string {
 			parts = append(parts, v.Profile)
 		}
 		prev = v.Profile
-		if v.Passed {
+		switch {
+		case v.Passed && words:
+			parts = append(parts, "passed")
+		case v.Passed:
 			parts = append(parts, "✓")
-		} else {
+		case words:
+			parts = append(parts, "failed")
+		default:
 			parts = append(parts, "✗")
 		}
 	}

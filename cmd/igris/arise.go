@@ -736,10 +736,14 @@ func printEvent(out io.Writer, ev engine.Event, start runStart) {
 type runStart struct {
 	proj *project.Project
 	mode string // "" when the flags don't say, as for a resumed run
+	// words says the log's lines say words where they would draw glyphs
+	// (SPEC §15.4).
+	words bool
 }
 
 func newRunStart(proj *project.Project, f ariseFlags) runStart {
-	return runStart{proj: proj, mode: runMode(f, proj.Cfg)}
+	return runStart{proj: proj, mode: runMode(f, proj.Cfg),
+		words: screenReader(os.Getenv, func() bool { return proj.Cfg.TUI.ScreenReader })}
 }
 
 // tasks counts the run's tasks: its slice's, else the unfinished tasks
@@ -778,6 +782,9 @@ func logLines(out io.Writer, ev engine.Event, lines []string, start runStart) {
 		}
 	}
 	for _, line := range lines {
+		if start.words {
+			line = look.Words(line)
+		}
 		fmt.Fprintf(out, "%s %s\n", look.ClockSeconds(ev.At.Local()), line)
 	}
 }
@@ -1129,6 +1136,7 @@ func printDryRun(o textOut, r report.DryRun) {
 	}
 	flush()
 	if tb.Len() > 0 {
+		tb.Spoken = o.words
 		for _, l := range tb.Lines(o.width, o.painter()) {
 			if n, ok := strings.CutPrefix(strings.TrimSpace(l), promptMark); ok {
 				i, _ := strconv.Atoi(n)

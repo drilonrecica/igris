@@ -43,7 +43,7 @@ func execNotify(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 	}
 	o := newOut(stdout)
 	if skipped != nil {
-		o.println(o.mark(look.Plain, look.GlyphSkipped, fmt.Sprintf("backend toast skipped (%v)", skipped)))
+		o.println(o.marked(look.Plain, look.GlyphSkipped, look.Unsaid, fmt.Sprintf("backend toast skipped (%v)", skipped)))
 	}
 	if !sendTestMessages(ctx, router, proj.Name(), only, o) {
 		return exitFail
@@ -69,10 +69,10 @@ func sendTestMessages(ctx context.Context, r *notify.Router, name string, only n
 	tb := &look.Table{Header: []string{"EVENT", "CHANNEL", "RESULT"}}
 	for _, m := range project.TestMessages(r, name, only) {
 		for _, res := range r.Notify(ctx, m) {
-			result := look.Cell{Text: look.GlyphDone + " ok", Sev: look.Accent}
+			result := look.Cell{Text: look.GlyphDone + " ok", Sev: look.Accent, Word: look.Unsaid}
 			if res.Err != nil {
 				ok = false
-				result = look.Cell{Text: fmt.Sprintf("%s FAILED: %v", look.GlyphFail, res.Err), Sev: look.Fail, Span: len(look.GlyphFail + " FAILED")}
+				result = look.Cell{Text: fmt.Sprintf("%s FAILED: %v", look.GlyphFail, res.Err), Sev: look.Fail, Span: len(look.GlyphFail + " FAILED"), Word: look.Unsaid}
 			}
 			tb.Row(look.TextCell(string(m.Event)), look.TextCell(res.Channel), result)
 		}

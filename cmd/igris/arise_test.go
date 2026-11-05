@@ -156,6 +156,43 @@ func TestFormatEvent(t *testing.T) {
 	}
 }
 
+// With the screen reader on (SPEC §15.4) the log's lines say words where
+// they would draw glyphs; lines without a glyph are left as they are.
+func TestEventLinesSpoken(t *testing.T) {
+	at := time.Date(2026, 10, 23, 9, 41, 7, 0, time.Local)
+	for _, tt := range []struct {
+		ev   engine.Event
+		want string
+	}{
+		{engine.Event{Kind: engine.TaskDone, Task: "A-1", Detail: "wrote it"}, "A-1 done · wrote it"},
+		{engine.Event{Kind: engine.TaskSkipped, Task: "A-1"}, "A-1 skipped"},
+		{engine.Event{Kind: engine.VerifyPassed, Task: "A-1", Verify: "fast"}, "done A-1 verify passed (fast)"},
+		{engine.Event{Kind: engine.VerifyFailed, Task: "A-1", Detail: "lint"}, "A-1 verify failed · lint"},
+		{engine.Event{Kind: engine.PhaseDone, Phase: "M1"}, "done phase M1 complete"},
+		{engine.Event{Kind: engine.Warning, Detail: "disk is low"}, "warning disk is low"},
+		{engine.Event{Kind: engine.AgentWaiting, Task: "A-1"}, "waiting A-1 waits on background work; Claude Code resumes it when that is done"},
+		{engine.Event{Kind: engine.NeedsYou, Task: "A-1", Reason: "blocked", Cause: "permission", Tool: "Bash", Detail: "blocked for 30s"},
+			"A-1 needs you · waits for a permission (Bash)\n09:41:07   blocked for 30s"},
+		{engine.Event{Kind: engine.Asked, Question: engine.QuestionBudget, Detail: "budget"},
+			"needs you · budget reached\n09:41:07   budget\n09:41:07   type `budget <value>` to raise it for this run (30M, $60), `budget continue` or `stop`"},
+		{engine.Event{Kind: engine.TaskReset, Detail: "A-1"}, "reset A-1"},
+	} {
+		var buf bytes.Buffer
+		tt.ev.At = at
+		logLines(&buf, tt.ev, formatEvent(tt.ev), runStart{words: true})
+		want := "09:41:07 " + tt.want + "\n"
+		if got := buf.String(); got != want {
+			t.Errorf("%s spoken:\n%q\nwant\n%q", tt.ev.Kind, got, want)
+		}
+		// Off, the lines are the glyph ones.
+		buf.Reset()
+		logLines(&buf, tt.ev, formatEvent(tt.ev), runStart{})
+		if strings.Contains(tt.want, "done A-1 verify") && !strings.Contains(buf.String(), "✓") {
+			t.Errorf("%s: no glyph with the screen reader off: %q", tt.ev.Kind, buf.String())
+		}
+	}
+}
+
 const dryPlan = `## A — First
 
 | ID | Task | Deps | Status | Model | Owner | Mode |

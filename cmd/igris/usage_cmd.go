@@ -174,7 +174,7 @@ func printUsage(o textOut, u report.Usage) {
 		for _, r := range u.Tasks {
 			tb.Row(look.TextCell(r.ID), look.TextCell(fmt.Sprint(r.Attempts)), look.TextCell(tokenCell(r.UsageRow, r.In)),
 				look.TextCell(tokenCell(r.UsageRow, r.Output)), look.TextCell(subCell(r.Sub)),
-				look.TextCell(strings.Join(allModels(r.Models, r.SubModels), ", ")), look.TextCell(dollarCell(r.UsageRow)), auditCell(r.Audit))
+				look.TextCell(strings.Join(allModels(r.Models, r.SubModels), ", ")), look.TextCell(dollarCell(r.UsageRow)), auditCell(o, r.Audit))
 		}
 		o.table(tb)
 	}
@@ -225,7 +225,7 @@ func printUsage(o textOut, u report.Usage) {
 			want = m.Rank + " → " + m.Model
 		}
 		line := fmt.Sprintf("rank mismatch: %s %s ran on %s, not its rank %s", dash(m.Run), m.Task, dash(strings.Join(m.Models, ", ")), dash(want))
-		o.println(o.fit("  " + o.mark(look.Warn, look.GlyphWarn, line)))
+		o.println(o.fit("  " + o.marked(look.Warn, look.GlyphWarn, look.Unsaid, line)))
 	}
 	o.blank()
 	o.printf("Quota: %s", quotaText(u.Quota))
@@ -302,9 +302,9 @@ func subCell(s report.Tokens) string {
 
 // auditCell is an audit result; a mismatch is the rank mark, in Ember on a
 // terminal with colors.
-func auditCell(audit string) look.Cell {
+func auditCell(o textOut, audit string) look.Cell {
 	if audit == state.AuditMismatch {
-		return look.Cell{Text: rankMark, Sev: look.Warn}
+		return look.Cell{Text: o.rankMark(), Sev: look.Warn}
 	}
 	return look.TextCell(audit)
 }

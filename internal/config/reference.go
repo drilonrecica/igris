@@ -73,6 +73,7 @@ var keyDocs = map[string]keyDoc{
 	"tui.theme":                      {desc: "Which colors to use (SPEC §15.4). `auto` goes by the terminal's background.", values: "`auto`, `dark`, `light`"},
 	"tui.rank_colors":                {desc: "Rank to color: `\"#rrggbb\"` or an ANSI color number `\"0\"`–`\"255\"` (SPEC §15.4). Ranks not listed keep the built-in colors."},
 	"tui.tail":                       {desc: "Live tail of the current session in the task card (SPEC §15.3). `false` makes no tail calls."},
+	"tui.screen_reader":              {desc: "The CLI's text output says words instead of glyphs and bars (`needs you M1-03` for `! M1-03`, `3 of 7 done` for a bar) and puts one fact per line (SPEC §15.4). `IGRIS_SCREEN_READER=1` (or `0`) overrides it. The TUI ignores it."},
 	"notify.quiet":                   {desc: "Quiet hours as `HH:MM-HH:MM`, local time, may cross midnight; held messages go out as a digest (SPEC §10). Start and end must differ.", def: "`\"\"` (none)"},
 	"notify.break_through":           {desc: "Events never held in quiet hours. `[]` holds everything.", values: "event names (see below)"},
 	"notify.task_done_digest":        {desc: "How `task_done` messages are grouped: `0` or `1` one per task, N ≥ 2 one per N tasks (at most 1000000), `\"phase\"` one per phase.", values: "integer, or `\"phase\"`"},

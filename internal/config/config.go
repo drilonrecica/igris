@@ -615,19 +615,28 @@ type TUI struct {
 	// refreshed every poll_interval (SPEC §15.3). Off makes no tail calls.
 	// It is left out of the hash while on (MarshalJSON).
 	Tail bool `toml:"tail"`
+	// ScreenReader makes the CLI's text output say words where it would
+	// draw glyphs and bars (SPEC §15.4). IGRIS_SCREEN_READER wins over it;
+	// the TUI ignores it. It is left out of the hash while off.
+	ScreenReader bool `toml:"screen_reader"`
 }
 
-// MarshalJSON encodes t for the config hash with Tail only when it is off:
-// on is the default, so a v0.4 config, which has no tail key, keeps the
-// hash it had (like the other v0.5 keys while unset).
+// MarshalJSON encodes t for the config hash with Tail only when it is off
+// and ScreenReader only when it is on: those are the defaults, so a v0.4
+// config, which has neither key, keeps the hash it had (like the other
+// v0.5 keys while unset).
 func (t TUI) MarshalJSON() ([]byte, error) {
 	type plain TUI // without this method
 	v := struct {
 		plain
-		Tail *bool `json:",omitempty"`
+		Tail         *bool `json:",omitempty"`
+		ScreenReader *bool `json:",omitempty"`
 	}{plain: plain(t)}
 	if !t.Tail {
 		v.Tail = &t.Tail
+	}
+	if t.ScreenReader {
+		v.ScreenReader = &t.ScreenReader
 	}
 	return json.Marshal(v)
 }

@@ -124,6 +124,7 @@
 | `theme` | string | `"auto"` | Which colors to use (SPEC §15.4). `auto` goes by the terminal's background. Allowed: `auto`, `dark`, `light`. |
 | `rank_colors` | table | empty | Rank to color: `"#rrggbb"` or an ANSI color number `"0"`–`"255"` (SPEC §15.4). Ranks not listed keep the built-in colors. |
 | `tail` | boolean | `true` | Live tail of the current session in the task card (SPEC §15.3). `false` makes no tail calls. |
+| `screen_reader` | boolean | `false` | The CLI's text output says words instead of glyphs and bars (`needs you M1-03` for `! M1-03`, `3 of 7 done` for a bar) and puts one fact per line (SPEC §15.4). `IGRIS_SCREEN_READER=1` (or `0`) overrides it. The TUI ignores it. |
 
 ## `[notify]`
 

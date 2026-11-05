@@ -66,8 +66,10 @@ func lastRuns(root string) []report.HistoryRun {
 type runLine struct {
 	word  look.Status
 	label string // the word with its glyph, or a Done line
-	sev   look.Severity
-	about []string
+	// spoken is the label without its glyph; "" says look.Words(label).
+	spoken string
+	sev    look.Severity
+	about  []string
 	// needs are the tasks that need the owner, from a live run.
 	needs map[string]bool
 	// next is the command that follows from the run's state; "" when the
@@ -80,10 +82,10 @@ func (r runLine) String() string { return strings.Join(append([]string{r.label},
 // liveLine reads the status word from a served run's snapshot.
 func liveLine(s *serve.Snapshot, p *plan.Plan, lock *report.RunInfo) runLine {
 	r := runLine{needs: map[string]bool{}, next: "igris attach"}
-	set := func(w look.Status) { r.word, r.label, r.sev = w, w.Label(), w.Severity() }
+	set := func(w look.Status) { r.word, r.label, r.spoken, r.sev = w, w.Label(), w.String(), w.Severity() }
 	if s.Ended {
 		o := endedOutcome(s.End)
-		r.word, r.label, r.sev = look.Done, o.Line(), o.Severity()
+		r.word, r.label, r.spoken, r.sev = look.Done, o.Line(), look.Done.String()+" "+o.String(), o.Severity()
 		r.next = "igris report"
 		return r
 	}
@@ -215,14 +217,14 @@ func stateLine(r *report.RunInfo, p *plan.Plan, recent []report.HistoryRun) runL
 	about := taskAbout(p, r.Task, "", r.Mode, when(r.Since))
 	switch r.Lock {
 	case report.LockHere:
-		return runLine{word: look.Working, label: look.Working.Label(), sev: look.Working.Severity(), about: append(about, r.LockDetail+" on this host"), next: "igris history"}
+		return runLine{word: look.Working, label: look.Working.Label(), spoken: look.Working.String(), sev: look.Working.Severity(), about: append(about, r.LockDetail+" on this host"), next: "igris history"}
 	case report.LockElsewhere:
-		return runLine{word: look.Working, label: look.Working.Label(), sev: look.Working.Severity(), about: append(about, r.LockDetail), next: "igris history"}
+		return runLine{word: look.Working, label: look.Working.Label(), spoken: look.Working.String(), sev: look.Working.Severity(), about: append(about, r.LockDetail), next: "igris history"}
 	case report.LockNone:
 		if report.Interrupted(r, recent) {
 			break
 		}
-		l := runLine{word: look.Idle, label: look.Idle.Label(), sev: look.Idle.Severity(), about: about[:1]}
+		l := runLine{word: look.Idle, label: look.Idle.Label(), spoken: look.Idle.String(), sev: look.Idle.Severity(), about: about[:1]}
 		if len(recent) > 0 {
 			l.about = []string{endedOutcome(recent[0].End).String()}
 			if r.Task != "" {
@@ -234,7 +236,7 @@ func stateLine(r *report.RunInfo, p *plan.Plan, recent []report.HistoryRun) runL
 		}
 		return l
 	}
-	l := runLine{word: look.Interrupted, label: look.Interrupted.Label(), sev: look.Interrupted.Severity(), about: about[:1], next: "igris arise"}
+	l := runLine{word: look.Interrupted, label: look.Interrupted.Label(), spoken: look.Interrupted.String(), sev: look.Interrupted.Severity(), about: about[:1], next: "igris arise"}
 	if r.Lock == report.LockStale {
 		l.next = "igris arise --force-unlock"
 	}
@@ -335,8 +337,17 @@ func printRun(o textOut, r *report.RunInfo, line *runLine, p *plan.Plan, recent 
 		l := stateLine(r, p, recent)
 		line = &l
 	}
-	head := look.Cell{Text: line.String(), Sev: line.sev, Span: len(line.label)}
-	o.println("Run      " + o.fitCell(head, 9))
+	if o.words {
+		// One fact per line, the word first (SPEC §15.4).
+		word := cmp.Or(line.spoken, look.Words(line.label))
+		o.println("Run      " + o.fitCell(look.Cell{Text: word, Sev: line.sev, Span: len(word)}, 9))
+		for _, a := range line.about {
+			o.println(o.fit("         " + a))
+		}
+	} else {
+		head := look.Cell{Text: line.String(), Sev: line.sev, Span: len(line.label)}
+		o.println("Run      " + o.fitCell(head, 9))
+	}
 	if r.Unreadable == "" {
 		phases := strings.Join(r.Phases, ", ")
 		if r.Through != "" {
@@ -376,7 +387,11 @@ func printPhaseStatus(o textOut, r report.PhaseStatus, opt report.Optional, line
 	if r.Next != "" {
 		outcome += " " + r.Next
 	}
-	o.println(o.fit(fmt.Sprintf("%s · %d/%d · %s", head, satisfied, r.Total, outcome)))
+	count := fmt.Sprintf("%d/%d", satisfied, r.Total)
+	if o.words {
+		count = look.ProgressWords(satisfied, r.Total)
+	}
+	o.println(o.fit(fmt.Sprintf("%s · %s · %s", head, count, outcome)))
 	// The optional columns are shown only when some task of the plan sets
 	// them (SPEC §14).
 	header := []string{"ID", "STATUS", "RANK", "OWNER", "MODE"}

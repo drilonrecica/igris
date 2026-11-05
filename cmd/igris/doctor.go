@@ -57,6 +57,10 @@ func execDoctor(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 func printDoctor(o textOut, rs []checks.Result) {
 	// next is the first failure's command, else the first warning's.
 	warns, fails, next, warnNext := 0, 0, "", ""
+	indent := "       " // under the message, past the glyph and the level
+	if o.words {
+		indent = "     " // past the level
+	}
 	for _, r := range rs {
 		msg := r.Message
 		if r.Line != 0 { // a located plan or config problem: file:line first
@@ -64,7 +68,8 @@ func printDoctor(o textOut, rs []checks.Result) {
 		}
 		m := levelMarks[r.Level]
 		level := fmt.Sprintf("%-4s", r.Level)
-		o.println(look.Cell{Text: m.glyph + " " + level + " " + msg, Sev: m.sev, Span: len(m.glyph) + 1 + len(level)}.Draw(o.painter()))
+		// The level is a word already: said, the glyph before it goes.
+		o.println(o.draw(look.Cell{Text: m.glyph + " " + level + " " + msg, Sev: m.sev, Span: len(m.glyph) + 1 + len(level), Word: look.Unsaid}))
 		if r.Level == checks.OK {
 			continue
 		}
@@ -74,7 +79,7 @@ func printDoctor(o textOut, rs []checks.Result) {
 			fails++
 		}
 		if r.Next != "" {
-			o.printf("       next: %s", r.Next)
+			o.printf("%snext: %s", indent, r.Next)
 			if r.Level == checks.Fail && next == "" {
 				next = r.Next
 			}
@@ -90,11 +95,11 @@ func printDoctor(o textOut, rs []checks.Result) {
 		if warns > 0 {
 			summary += " · " + look.Count(warns, "warning", "warnings")
 		}
-		o.println(o.mark(look.Fail, look.GlyphFail, "doctor: "+summary))
+		o.println(o.marked(look.Fail, look.GlyphFail, look.Unsaid, "doctor: "+summary))
 	case warns > 0:
-		o.println(o.mark(look.Warn, look.GlyphWarn, "doctor: "+look.Count(warns, "warning", "warnings")))
+		o.println(o.marked(look.Warn, look.GlyphWarn, look.Unsaid, "doctor: "+look.Count(warns, "warning", "warnings")))
 	default:
-		o.println(o.mark(look.Accent, look.GlyphDone, "doctor: ok"))
+		o.println(o.marked(look.Accent, look.GlyphDone, look.Unsaid, "doctor: ok"))
 	}
 	o.next(cmp.Or(next, warnNext, "igris status"))
 }

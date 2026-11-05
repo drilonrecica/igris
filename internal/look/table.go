@@ -41,6 +41,9 @@ type Cell struct {
 	Text string
 	Sev  Severity
 	Span int
+	// Word is what a screen reader hears for the leading glyph in place
+	// of the glyph's own word (GlyphWord), or Unsaid.
+	Word string
 }
 
 // TextCell is a cell drawn plain.
@@ -97,7 +100,9 @@ type Table struct {
 	// as "<header in lower case> <text>", when the table is too wide. Its
 	// empty cells stay blank instead of showing Empty.
 	Fold bool
-	rows []tableRow
+	// Spoken says the marks in its cells with words (Cell.Spoken).
+	Spoken bool
+	rows   []tableRow
 }
 
 type tableRow struct {
@@ -123,6 +128,9 @@ func (t *Table) Lines(width int, p Painter) []string {
 		var c Cell
 		if i < len(r.cells) {
 			c = r.cells[i]
+		}
+		if t.Spoken {
+			c = c.Spoken()
 		}
 		c.Text = strings.TrimRight(c.Text, " ")
 		if folds := t.Fold && i == n-1; c.Text == "" && !folds {
@@ -207,6 +215,9 @@ func (t *Table) Lines(width int, p Painter) []string {
 	for _, r := range t.rows {
 		if r.line != nil {
 			c := *r.line
+			if t.Spoken {
+				c = c.Spoken()
+			}
 			if width > 0 {
 				c = c.cut(width - Width(t.Indent))
 			}

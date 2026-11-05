@@ -1511,3 +1511,29 @@ func TestQuietWindowNextStart(t *testing.T) {
 		}
 	}
 }
+
+// [tui] screen_reader is off by default, out of the hash while off, in it
+// once on, and kept by Write and Load.
+func TestScreenReaderKey(t *testing.T) {
+	if Default().TUI.ScreenReader {
+		t.Error("screen_reader is on by default")
+	}
+	on, err := Parse([]byte("[tui]\nscreen_reader = true\n"), "igris.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !on.TUI.ScreenReader || on.Hash() == v04DefaultHash {
+		t.Errorf("screen_reader = true: %v, hash unchanged = %v", on.TUI.ScreenReader, on.Hash() == v04DefaultHash)
+	}
+	off, err := Parse([]byte("[tui]\nscreen_reader = false\n"), "igris.toml")
+	if err != nil || off.Hash() != v04DefaultHash {
+		t.Errorf("screen_reader = false changed the hash (%v)", err)
+	}
+	path := filepath.Join(t.TempDir(), "igris.toml")
+	if err := Write(path, on); err != nil {
+		t.Fatal(err)
+	}
+	if back, err := Load(path); err != nil || !back.TUI.ScreenReader || back.Hash() != on.Hash() {
+		t.Errorf("round trip: %v", err)
+	}
+}

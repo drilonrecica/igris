@@ -111,6 +111,24 @@ igris doesn't run natively on Windows. It runs inside [WSL2](https://learn.micro
 
 Plans and `igris.toml` saved by Windows editors work: CRLF line endings and a UTF-8 byte order mark are fine, and igris keeps both when it writes a Status cell.
 
+## Accessibility
+
+igris's command line can be read by a screen reader. Set `screen_reader = true` under `[tui]` in `igris.toml`, or `IGRIS_SCREEN_READER=1` in your shell (the variable wins; `IGRIS_SCREEN_READER=0` turns it off again), and the text output of `status`, `check`, `phases`, `history`, `report`, `usage`, `doctor`, `igris arise --no-tui` and `igris serve` says words instead of glyphs and bars:
+
+```text
+Run      Needs you
+         M1-02
+         commit?
+
+M1 — Basics · 1 of 3 done · next M1-02
+  ID               STATUS       RANK    OWNER
+  done M1-01       done         sonnet  agent
+  needs you M1-02  in progress  opus    agent
+  next M1-03       ready        —       user
+```
+
+`✓ · ● ! ⨯ – ▲ ✗ ◌` become `done`, `next`, `running`, `needs you`, `blocked`, `skipped`, `warning`, `failed` and `waiting`; a bar becomes a count; the Run block of `status` puts one fact on each line. `--json` is unchanged, so scripts see no difference. The terminal UI (`igris` with no arguments) ignores the setting: it is a full-screen display, not a stream of text. To run a plan without it, use `igris arise --no-tui`, which logs one line per event.
+
 ## Next
 
 [Quick start](quick-start.md) takes a project from nothing to a finished phase.

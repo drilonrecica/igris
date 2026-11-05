@@ -152,7 +152,7 @@ func printHistory(w io.Writer, h report.History) {
 			head = append(head, look.Plural(len(r.Phases), "phase ", "phases ")+strings.Join(r.Phases, ", "))
 		}
 		glyph, sev := endMark(r.End)
-		end := look.Mark(sev, glyph, r.End).Draw(o.painter())
+		end := o.marked(sev, glyph, look.Unsaid, r.End)
 		if r.DurationS > 0 {
 			end += " · " + fmtSeconds(r.DurationS)
 		}
@@ -200,7 +200,7 @@ func printHistory(w io.Writer, h report.History) {
 			o.println(o.fit("  commit: " + c))
 		}
 		for _, e := range r.Errors {
-			o.println(o.fit("  " + look.Mark(look.Fail, look.GlyphFail, "error: "+e).Draw(o.painter())))
+			o.println(o.fit("  " + o.marked(look.Fail, look.GlyphFail, look.Unsaid, "error: "+e)))
 		}
 	}
 	o.blank()
@@ -247,7 +247,7 @@ func printTaskHistory(w io.Writer, h report.TaskHistory) {
 		}
 		head := []string{h.Task, "run " + cmp.Or(a.Run, when(a.RunStartedAt))}
 		glyph, sev := resultMark(a.Result)
-		res := look.Mark(sev, glyph, a.Result).Draw(o.painter())
+		res := o.marked(sev, glyph, look.Unsaid, a.Result)
 		if a.DurationS > 0 {
 			res += " · " + fmtSeconds(a.DurationS)
 		}
@@ -273,7 +273,7 @@ func printTaskHistory(w io.Writer, h report.TaskHistory) {
 			if strings.HasPrefix(v, "failed") {
 				glyph, sev = look.GlyphFail, look.Fail
 			}
-			o.println(o.fit("  " + look.Mark(sev, glyph, "verify "+v).Draw(o.painter())))
+			o.println(o.fit("  " + o.marked(sev, glyph, look.Unsaid, "verify "+v)))
 		}
 	}
 	o.blank()

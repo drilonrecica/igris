@@ -73,7 +73,7 @@ func execUpdate(fs *flag.FlagSet, _ []string, stdout, stderr io.Writer) int {
 		o.next("igris doctor")
 		return exitOK
 	case upd.UpToDate:
-		fmt.Fprintf(stdout, "%s igris %s is up to date (the latest release is %s)\n", o.paint(look.Accent, look.GlyphDone), current, c.Latest)
+		o.println(o.marked(look.Accent, look.GlyphDone, look.Unsaid, fmt.Sprintf("igris %s is up to date (the latest release is %s)", current, c.Latest)))
 		if fs.Lookup("check").Value.String() == "true" {
 			fmt.Fprintf(stdout, "installed with %s\n", upd.Detect(env.Build))
 		}
