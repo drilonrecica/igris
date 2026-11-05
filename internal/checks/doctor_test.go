@@ -262,7 +262,7 @@ func TestDoctorProject(t *testing.T) {
 	if err := os.Remove(filepath.Join(dir, "tasks.md")); err != nil {
 		t.Fatal(err)
 	}
-	if pv := byID(doctorIn(t, dir), IDPlanValid); len(pv) != 1 || pv[0].Level != Fail {
+	if pv := byID(doctorIn(t, dir), IDPlanValid); len(pv) != 1 || pv[0].Level != Fail || pv[0].Next != "igris init --example" {
 		t.Errorf("missing plan in a project: %+v", pv)
 	}
 }

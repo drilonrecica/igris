@@ -172,10 +172,13 @@ func doctorPlan(root string, cfg *config.Config, noConfig bool) (*plan.Plan, []R
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			// Without igris.toml there may simply be no project here.
-			level, next := Fail, "igris adapt"
+			// igris adapt needs a plan to adapt; init --example writes a
+			// starter plan and never overwrites one (SPEC §14).
+			level := Fail
 			if noConfig {
-				level, next = Warn, "igris init --example"
+				level = Warn
 			}
+			next := "igris init --example"
 			return nil, []Result{{ID: IDPlanValid, Level: level, Message: fmt.Sprintf("no plan at %s", cfg.Plan), Next: next}}
 		}
 		return nil, []Result{{ID: IDPlanValid, Level: Fail, Message: err.Error(), Next: "igris adapt"}}

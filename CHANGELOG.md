@@ -2,6 +2,12 @@
 
 All notable changes to igris are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and igris uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Until 1.0, minor versions may change the plan format, config or CLI; such changes are called out here.
 
+## [Unreleased]
+
+### Fixed
+
+- **`igris doctor` no longer says `next: igris adapt` for a missing plan.** After `igris init` without a plan, `adapt` has nothing to adapt; the `next` is now `igris init --example` (or `--template NAME`), which writes a starter plan and never overwrites one. The levels are unchanged; an invalid plan still says `igris adapt`.
+
 ## [1.9.0] - 2026-11-05
 
 igris 1.9 puts igris in your editor: an extension for VS Code and its forks, a client of `igris serve`, and the TUI's start wizard and end-of-run summary can go from one phase, or part of one, to the next. It only adds: plans, `--json`, the run log, the webhook payload and protocol 1 are unchanged apart from additive fields ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). `state.json` stays version 4. It also fixes the four small things the v1.8 gate left.
