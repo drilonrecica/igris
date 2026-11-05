@@ -64,7 +64,7 @@ Inspect
   check          validate the plan                              --strict  --plan PATH  --json
   phases         phases, counts and parallelism                 --json
   status         tasks, the current run, unmet deps             [PHASE]  --json
-  history        past runs, or one task's attempts              [TASK-ID]  -n N  --json
+  history        past runs, or one task's attempts              [TASK-ID]  -n N  --stats  --json
   report         one run as markdown                            [RUN]  --json
   usage          tokens and the rank audit                      [RUN | --since D]  --json
 
@@ -105,6 +105,7 @@ const synopses = `
   phases [--plan PATH] [--json]         list phases with task counts per status and their parallelism
   status [PHASE] [--plan PATH] [--json] tasks with status/rank/owner, current run, unmet deps
   history [TASK-ID] [-n N] [--json]     past runs from .igris/runs.jsonl; with a task ID, its attempts
+          --stats [-n N] [--json]       plan health over the runs: per rank, and the tasks to rewrite
   report [RUN] [--json]                 one run as markdown (or JSON): RUN is 1 (the newest, default), 2, … or a run ID
   usage [RUN | --since D] [--json]      token usage and the rank audit of one run (RUN as for report) or of the runs
                                         started since D (7d, 36h, 2026-10-01); with the last subscription quota

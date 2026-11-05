@@ -1,0 +1,11 @@
+exit: 0
+--- stdout
+note: runs.jsonl has lines from a newer igris (v2); some details may be missing
+
+4 runs
+  RANK    TASKS  ATTEMPTS  VERIFY FAIL   AGENT  NEEDS YOU
+  sonnet  2      1.0       —             4m00s  0s
+  opus    2      1.5       50% (1 of 2)  5m35s  30s
+
+next: igris history TASK-ID
+--- stderr

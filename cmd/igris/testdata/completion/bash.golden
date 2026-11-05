@@ -51,7 +51,7 @@ _igris() {
             check) COMPREPLY=($(compgen -W "--json --plan --strict" -- "$cur")) ;;
             phases) COMPREPLY=($(compgen -W "--json --plan" -- "$cur")) ;;
             status) COMPREPLY=($(compgen -W "--json --plan" -- "$cur")) ;;
-            history) COMPREPLY=($(compgen -W "--json -n" -- "$cur")) ;;
+            history) COMPREPLY=($(compgen -W "--json -n --stats" -- "$cur")) ;;
             report) COMPREPLY=($(compgen -W "--json" -- "$cur")) ;;
             usage) COMPREPLY=($(compgen -W "--json --since" -- "$cur")) ;;
             arise) COMPREPLY=($(compgen -W "--dry-run --force-unlock --from --mode --no-tui --only --parallel --through --until --worktree" -- "$cur")) ;;

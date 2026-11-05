@@ -1,0 +1,23 @@
+{"v":1,"at":"2026-10-07T09:00:00Z","type":"run_started","run":"20261007-090000-aaaa","detail":"phase P1, P2"}
+{"v":1,"at":"2026-10-07T09:00:00Z","type":"task_started","run":"20261007-090000-aaaa","task":"A-1","rank":"sonnet","model":"sonnet","phase":"P1","attempt":1}
+{"v":1,"at":"2026-10-07T09:10:00Z","type":"verify_failed","run":"20261007-090000-aaaa","task":"A-1","detail":"no","duration_ms":30000}
+{"v":1,"at":"2026-10-07T09:11:00Z","type":"task_retried","run":"20261007-090000-aaaa","task":"A-1","rank":"sonnet","attempt":2}
+{"v":1,"at":"2026-10-07T09:20:00Z","type":"verify_passed","run":"20261007-090000-aaaa","task":"A-1","duration_ms":30000}
+{"v":1,"at":"2026-10-07T09:20:00Z","type":"task_done","run":"20261007-090000-aaaa","task":"A-1","duration_ms":1200000}
+{"v":1,"at":"2026-10-07T09:21:00Z","type":"task_started","run":"20261007-090000-aaaa","task":"A-2","rank":"opus","model":"opus","phase":"P2","attempt":1}
+{"v":1,"at":"2026-10-07T09:31:00Z","type":"verify_passed","run":"20261007-090000-aaaa","task":"A-2"}
+{"v":1,"at":"2026-10-07T09:31:00Z","type":"task_done","run":"20261007-090000-aaaa","task":"A-2"}
+{"v":1,"at":"2026-10-07T09:32:00Z","type":"task_started","run":"20261007-090000-aaaa","task":"U-1","rank":"","phase":"P2","owner":"user"}
+{"v":1,"at":"2026-10-07T09:33:00Z","type":"run_stopped","run":"20261007-090000-aaaa","detail":"completed"}
+{"v":1,"at":"2026-10-08T09:00:00Z","type":"run_started","run":"20261008-090000-bbbb","detail":"phase P1"}
+{"v":1,"at":"2026-10-08T09:00:00Z","type":"task_started","run":"20261008-090000-bbbb","task":"A-1","rank":"sonnet","model":"sonnet","phase":"P1","attempt":1}
+{"v":1,"at":"2026-10-08T09:05:00Z","type":"verify_failed","run":"20261008-090000-bbbb","task":"A-1","detail":"no"}
+{"v":1,"at":"2026-10-08T09:10:00Z","type":"verify_passed","run":"20261008-090000-bbbb","task":"A-1"}
+{"v":1,"at":"2026-10-08T09:10:00Z","type":"task_done","run":"20261008-090000-bbbb","task":"A-1"}
+{"v":1,"at":"2026-10-08T09:11:00Z","type":"task_started","run":"20261008-090000-bbbb","task":"A-3","rank":"sonnet","model":"sonnet","phase":"P1","attempt":1}
+{"v":1,"at":"2026-10-08T09:13:00Z","type":"verify_passed","run":"20261008-090000-bbbb","task":"A-3"}
+{"v":1,"at":"2026-10-08T09:13:00Z","type":"task_done","run":"20261008-090000-bbbb","task":"A-3"}
+{"v":1,"at":"2026-10-08T09:14:00Z","type":"task_started","run":"20261008-090000-bbbb","task":"A-2","rank":"opus","model":"opus","phase":"P2","attempt":1}
+{"v":1,"at":"2026-10-08T09:20:00Z","type":"verify_passed","run":"20261008-090000-bbbb","task":"A-2"}
+{"v":1,"at":"2026-10-08T09:20:00Z","type":"task_done","run":"20261008-090000-bbbb","task":"A-2"}
+{"v":1,"at":"2026-10-08T09:21:00Z","type":"run_stopped","run":"20261008-090000-bbbb","detail":"completed"}

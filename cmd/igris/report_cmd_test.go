@@ -124,7 +124,7 @@ func TestReportHistoryHelp(t *testing.T) {
 		want []string
 	}{
 		{[]string{"report", "-h"}, []string{"igris report [RUN] [--json]", "  --json  "}},
-		{[]string{"history", "--help"}, []string{"igris history [TASK-ID] [-n N] [--json]", "-n N    number of runs to show (default 10)"}},
+		{[]string{"history", "--help"}, []string{"igris history [TASK-ID] [-n N] [--json]", "-n N     number of runs to show (default 10)"}},
 	} {
 		var out, errb bytes.Buffer
 		if code := run(c.args, &out, &errb); code != exitOK {

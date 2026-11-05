@@ -133,6 +133,8 @@ type attempt struct {
 	start, end                    time.Time
 	verify                        []string
 	failed, passed                int
+	phase                         string
+	retries                       int // task_retried lines: new sessions of the same attempt
 }
 
 // runRec is a HistoryRun while the log is read.
@@ -281,9 +283,14 @@ func (r *runRec) add(e state.Event) {
 		if a := r.open[e.Task]; a != nil && e.Type == state.EventTaskResumed {
 			return
 		}
-		a := &attempt{id: e.Task, rank: textsafe.Line(e.Rank), model: textsafe.Line(e.Model), start: e.At}
+		a := &attempt{id: e.Task, rank: textsafe.Line(e.Rank), model: textsafe.Line(e.Model), start: e.At, phase: textsafe.Line(e.Phase)}
 		r.attempts = append(r.attempts, a)
 		r.open[e.Task] = a
+	case state.EventTaskRetried:
+		// As in `report`: a retry is one more attempt of the open task.
+		if a := r.open[e.Task]; a != nil {
+			a.retries++
+		}
 	case state.EventTaskDone:
 		finish(r.open[e.Task], ResultDone)
 	case state.EventTaskSkipped:
@@ -362,7 +369,7 @@ func (r *runRec) summary(live bool) HistoryRun {
 			out.Tasks = append(out.Tasks, TaskRun{ID: a.id, Rank: a.rank, Model: a.model})
 		}
 		t := &out.Tasks[i]
-		t.Attempts++
+		t.Attempts += 1 + a.retries
 		t.Result = a.resultOr(out.End == EndRunning)
 		t.DurationS += seconds(a.start, a.end)
 		t.VerifyFailed += a.failed

@@ -48,6 +48,7 @@ complete -c igris -n '__fish_seen_subcommand_from status' -l plan -r -F
 complete -c igris -n '__fish_seen_subcommand_from status' -a '(__igris_ids phases)'
 complete -c igris -n '__fish_seen_subcommand_from history' -l json
 complete -c igris -n '__fish_seen_subcommand_from history' -s n -x
+complete -c igris -n '__fish_seen_subcommand_from history' -l stats
 complete -c igris -n '__fish_seen_subcommand_from history' -a '(__igris_ids tasks)'
 complete -c igris -n '__fish_seen_subcommand_from report' -l json
 complete -c igris -n '__fish_seen_subcommand_from report' -k -a '(__igris_ids runs)'

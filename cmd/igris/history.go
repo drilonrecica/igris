@@ -20,7 +20,11 @@ import (
 func historyArgs(fs *flag.FlagSet) func([]string) error {
 	n := fs.Int("n", report.DefaultHistoryRuns, "number of runs to show")
 	fs.Bool("json", false, "machine-readable output")
+	stats := fs.Bool("stats", false, "plan health over the runs: per rank, and the tasks to rewrite")
 	return func(args []string) error {
+		if *stats && len(args) > 0 {
+			return fmt.Errorf("--stats covers the runs, not one task; drop %s, or use igris history %s", args[0], args[0])
+		}
 		if *n < 1 {
 			return fmt.Errorf("invalid -n %d (want 1 or more)", *n)
 		}
@@ -38,6 +42,15 @@ func historyArgs(fs *flag.FlagSet) func([]string) error {
 // lock and never creates .igris/.
 func execHistory(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 	n := fs.Lookup("n").Value.(flag.Getter).Get().(int)
+	stats := fs.Lookup("stats").Value.String() == "true"
+	if stats {
+		// --stats reads every run unless -n narrows it.
+		set := false
+		fs.Visit(func(f *flag.Flag) { set = set || f.Name == "n" })
+		if !set {
+			n = 0
+		}
+	}
 	in := report.HistoryInput{N: n}
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -49,6 +62,15 @@ func execHistory(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int 
 			fmt.Fprintf(stderr, "igris history: %v\n", err)
 			return exitFail
 		}
+	}
+	if stats {
+		st := report.NewStats(in)
+		if jsonFlag(fs) {
+			writeJSON(stdout, st)
+		} else {
+			printStats(stdout, st)
+		}
+		return exitOK
 	}
 	if len(args) == 1 {
 		h := report.NewTaskHistory(in, args[0])
@@ -66,6 +88,47 @@ func execHistory(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int 
 		printHistory(stdout, h)
 	}
 	return exitOK
+}
+
+// printStats prints `history --stats` (SPEC §14): a table per rank, then a
+// `rewrite:` line per task that took 2 or more attempts, or failed verify,
+// in every run that ran it.
+func printStats(w io.Writer, s report.Stats) {
+	o := newOut(w)
+	if len(s.Ranks) == 0 {
+		o.println("no tasks recorded yet")
+		o.next("igris status")
+		return
+	}
+	printNote(o, s.Note)
+	o.println(look.Count(s.Runs, "run", "runs"))
+	tb := &look.Table{Indent: "  ", Header: []string{"RANK", "TASKS", "ATTEMPTS", "VERIFY FAIL", "AGENT", "NEEDS YOU"}}
+	for _, r := range s.Ranks {
+		fail, agent, needs := "", "", ""
+		if r.VerifyFailRate != nil {
+			fail = fmt.Sprintf("%d%% (%d of %d)", int(*r.VerifyFailRate*100+0.5), r.VerifyFailed, r.VerifyRuns)
+		}
+		if r.AgentS != nil {
+			agent, needs = fmtDuration(*r.AgentS), fmtDuration(*r.NeedsYouS)
+		}
+		tb.Row(look.TextCell(r.Rank), look.TextCell(fmt.Sprint(r.Tasks)), look.TextCell(fmt.Sprintf("%.1f", r.Attempts)),
+			look.TextCell(fail), look.TextCell(agent), look.TextCell(needs))
+	}
+	o.table(tb)
+	for _, c := range s.Rewrite {
+		about := c.Rank
+		if c.Phase != "" {
+			about = c.Phase + ", " + about
+		}
+		line := fmt.Sprintf("rewrite: %s (%s) · %s in %s", c.Task, about,
+			look.Count(c.Attempts, "attempt", "attempts"), look.Count(c.Runs, "run", "runs"))
+		if c.VerifyFailed > 0 {
+			line += fmt.Sprintf(" · %d verify failed", c.VerifyFailed)
+		}
+		o.println(o.fit("  " + line))
+	}
+	o.blank()
+	o.next("igris history TASK-ID")
 }
 
 func printHistory(w io.Writer, h report.History) {

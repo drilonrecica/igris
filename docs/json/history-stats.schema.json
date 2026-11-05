@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "igris history --stats --json",
+  "description": "Plan health over the runs in the log: per rank, and the tasks that are candidates for a rewrite.",
+  "type": "object",
+  "properties": {
+    "v": {
+      "const": 1,
+      "description": "Document version. Changes only with a breaking change (igris 2.0); fields may be added in 1.x, and readers ignore fields they don't know."
+    },
+    "runs": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Runs read: all of them, or the last N with -n."
+    },
+    "ranks": {
+      "type": "array",
+      "description": "One entry per rank, in order of first appearance. A task still running and a user task take no part.",
+      "items": {
+        "$ref": "#/$defs/rank"
+      }
+    },
+    "rewrite": {
+      "type": "array",
+      "description": "Tasks with 2 or more attempts, or a verify failure, in every run that ran them; most attempts first.",
+      "items": {
+        "$ref": "#/$defs/candidate"
+      }
+    },
+    "note": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "v",
+    "runs",
+    "ranks",
+    "rewrite"
+  ],
+  "$defs": {
+    "rank": {
+      "type": "object",
+      "properties": {
+        "rank": {
+          "type": "string"
+        },
+        "tasks": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Task runs: a task that ran in two runs counts twice."
+        },
+        "attempts": {
+          "type": "number",
+          "description": "Mean attempts per task run, retries included."
+        },
+        "verify_runs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Verify results, failed and passed."
+        },
+        "verify_failed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "verify_fail_rate": {
+          "type": "number",
+          "minimum": 0,
+          "description": "From 0 to 1: verify_failed over verify_runs; left out when verify never ran."
+        },
+        "agent_s": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Mean agent time per task run, over the runs that record times (since 1.8); left out when none does."
+        },
+        "needs_you_s": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Mean time waiting on the owner per task run; as agent_s."
+        }
+      },
+      "required": [
+        "rank",
+        "tasks",
+        "attempts",
+        "verify_runs",
+        "verify_failed"
+      ]
+    },
+    "candidate": {
+      "type": "object",
+      "properties": {
+        "task": {
+          "type": "string"
+        },
+        "phase": {
+          "type": "string"
+        },
+        "rank": {
+          "type": "string",
+          "description": "The rank of the task's newest run."
+        },
+        "runs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Over those runs."
+        },
+        "verify_failed": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "task",
+        "runs",
+        "attempts",
+        "verify_failed"
+      ]
+    }
+  }
+}

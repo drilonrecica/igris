@@ -1,0 +1,34 @@
+exit: 0
+--- stdout
+{
+  "v": 1,
+  "runs": 3,
+  "ranks": [
+    {
+      "rank": "sonnet",
+      "tasks": 4,
+      "attempts": 1,
+      "verify_runs": 3,
+      "verify_failed": 1,
+      "verify_fail_rate": 0.3333333333333333
+    },
+    {
+      "rank": "opus",
+      "tasks": 1,
+      "attempts": 1,
+      "verify_runs": 0,
+      "verify_failed": 0
+    }
+  ],
+  "rewrite": [
+    {
+      "task": "A-1",
+      "rank": "sonnet",
+      "runs": 1,
+      "attempts": 1,
+      "verify_failed": 1
+    }
+  ],
+  "note": "1 unreadable line in runs.jsonl skipped"
+}
+--- stderr

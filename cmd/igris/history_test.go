@@ -28,10 +28,12 @@ func TestHistoryGoldens(t *testing.T) {
 			{"history", "-n", "1"},
 			{"history", "B-1"}, {"history", "B-1", "--json"},
 			{"history", "A-9"},
+			{"history", "--stats"}, {"history", "--stats", "--json"}, {"history", "--stats", "-n", "1"},
 		}},
 		{"runs_v1.jsonl", "history_v1", [][]string{
 			{"history"}, {"history", "--json"},
 			{"history", "A-2"}, {"history", "A-2", "--json"},
+			{"history", "--stats"}, {"history", "--stats", "--json"},
 		}},
 	} {
 		log, err := os.ReadFile(filepath.Join("testdata/history", tc.log))
@@ -103,7 +105,7 @@ func TestHistoryReadOnlyAndUsage(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, ".igris")); !os.IsNotExist(err) {
 		t.Errorf("history created .igris/: %v", err)
 	}
-	for _, args := range [][]string{{"history", "-n", "0"}, {"history", "bad id"}, {"history", "A-1", "A-2"}} {
+	for _, args := range [][]string{{"history", "-n", "0"}, {"history", "bad id"}, {"history", "A-1", "A-2"}, {"history", "--stats", "A-1"}} {
 		errb.Reset()
 		if code := run(args, &out, &errb); code != exitUsage {
 			t.Errorf("%v: code %d, want usage error", args, code)

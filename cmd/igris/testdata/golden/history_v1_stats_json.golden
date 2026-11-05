@@ -1,0 +1,30 @@
+exit: 0
+--- stdout
+{
+  "v": 1,
+  "runs": 4,
+  "ranks": [
+    {
+      "rank": "sonnet",
+      "tasks": 2,
+      "attempts": 1,
+      "verify_runs": 0,
+      "verify_failed": 0,
+      "agent_s": 240,
+      "needs_you_s": 0
+    },
+    {
+      "rank": "opus",
+      "tasks": 2,
+      "attempts": 1.5,
+      "verify_runs": 2,
+      "verify_failed": 1,
+      "verify_fail_rate": 0.5,
+      "agent_s": 335,
+      "needs_you_s": 30
+    }
+  ],
+  "rewrite": [],
+  "note": "runs.jsonl has lines from a newer igris (v2); some details may be missing"
+}
+--- stderr

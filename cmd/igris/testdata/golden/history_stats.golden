@@ -1,0 +1,12 @@
+exit: 0
+--- stdout
+note: 1 unreadable line in runs.jsonl skipped
+
+3 runs
+  RANK    TASKS  ATTEMPTS  VERIFY FAIL   AGENT  NEEDS YOU
+  sonnet  4      1.0       33% (1 of 3)  —      —
+  opus    1      1.0       —             —      —
+  rewrite: A-1 (sonnet) · 1 attempt in 1 run · 1 verify failed
+
+next: igris history TASK-ID
+--- stderr

@@ -158,7 +158,7 @@ exit: 0
           "rank": "opus",
           "model": "opus",
           "result": "done",
-          "attempts": 1,
+          "attempts": 2,
           "duration_s": 725,
           "verify_failed": 1,
           "verify_passed": 1,
