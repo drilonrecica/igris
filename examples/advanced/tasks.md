@@ -26,5 +26,5 @@ igris arise P1 --dry-run
 
 | ID | Task | Deps | Status | Model | Owner | Verify | Timeout | Context |
 |---|---|---|---|---|---|---|---|---|
-| P2-01 | **Greeting engine** — implement the design from P1-03 | P1-G | blocked | opus | agent | — | 1h30m | `docs/cli.md`, docs/ |
+| P2-01 | **Greeting engine** — implement the design from P1-03 | P1-03, P1-G | blocked | opus | agent | — | 1h30m | `docs/cli.md`, docs/ |
 | P2-02 | **README** — usage, flags, examples | P2-01 | blocked | sonnet | agent | fast | 20m | docs/cli.md |

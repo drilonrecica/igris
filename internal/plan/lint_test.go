@@ -37,7 +37,7 @@ func TestLintFixtures(t *testing.T) {
 				t.Fatalf("fixture drifted: %v", drift)
 			}
 			var got []string
-			for _, l := range p.Lint() {
+			for _, l := range p.Lint(lintRules) {
 				got = append(got, fmt.Sprintf("%d %s: %s", l.Line, l.Name, l.Msg))
 			}
 			if fmt.Sprint(got) != fmt.Sprint(tt.want) {
@@ -58,7 +58,7 @@ func TestLintSkipsFinishedTasks(t *testing.T) {
 	if issues := p.Validate(testRules); len(issues) > 0 {
 		t.Fatalf("invalid: %v", issueMsgs(issues))
 	}
-	if got := p.Lint(); len(got) != 0 {
+	if got := p.Lint(lintRules); len(got) != 0 {
 		t.Errorf("lint = %+v, want none", got)
 	}
 }
@@ -83,7 +83,7 @@ func TestLintTitle(t *testing.T) {
 				t.Fatalf("invalid: %v", issueMsgs(issues))
 			}
 			var got []string
-			for _, l := range p.Lint() {
+			for _, l := range p.Lint(lintRules) {
 				if l.Name == LintTitle {
 					got = append(got, l.Msg)
 				}
@@ -92,5 +92,56 @@ func TestLintTitle(t *testing.T) {
 				t.Errorf("title hints = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+// lintRules is a config with a verify command, so only the plan decides.
+var lintRules = Rules{Models: testModels, HasVerify: true}
+
+// One plan per agent-ready hint (SPEC §14), a clean one, and the rows the
+// hints leave alone.
+func TestLintAgentReady(t *testing.T) {
+	words := strings.Repeat("word ", 251)
+	hdr := "| ID | Task | Deps | Status | Model | Owner | Mode | Verify | Spec |\n|---|---|---|---|---|---|---|---|---|\n"
+	tests := []struct {
+		name  string
+		rows  string
+		rules Rules
+		want  []string // "name: message"
+	}{
+		{"clean", "| M1-01 | **A** | — | ready | sonnet | agent | — | fast | §1 |\n| M1-02 | **B** — after M1-01 | M1-01 | blocked | sonnet | agent | — | — | §2 |\n", Rules{Models: testModels, Verify: []string{"fast"}, HasVerify: true}, nil},
+		{"spec", "| M1-01 | **A** | — | ready | sonnet | agent | — | — | — |\n| M1-02 | **U** | — | ready | — | user | — | — | — |\n",
+			lintRules, []string{"spec: M1-01: the Spec cell is empty; name the spec section the agent must read (a — counts as empty)"}},
+		{"verify", "| M1-01 | **A** | — | ready | sonnet | agent | — | — | §1 |\n",
+			Rules{Models: testModels}, []string{"verify: M1-01: no Verify cell and no [verify] command in igris.toml, so nothing checks this task; set a verify command or a Verify cell"}},
+		{"deps", "| M1-01 | **A** | — | ready | sonnet | agent | — | — | §1 |\n| M1-02 | **B** — builds on M1-01, X-9 | — | ready | sonnet | agent | — | — | §1 |\n",
+			lintRules, []string{"deps: M1-02: the Task cell names M1-01, which Deps does not list; add them to Deps or reword the cell"}},
+		{"words", "| M1-01 | **A** " + words + " | — | ready | sonnet | agent | — | — | §1 |\n",
+			lintRules, []string{"words: M1-01: the Task cell is 252 words (over 250); an agent reads the whole cell, so move the details to a spec and point to it",
+				"long: M1-01: the Task cell is 1260 characters (over 400); keep the row short and point to a spec for the details"}},
+		{"finished rows", "| M1-01 | **A** | — | done | sonnet | agent | — | — | — |\n| M1-02 | **B** M1-01 " + words + " | — | skipped | sonnet | agent | — | — | — |\n", Rules{Models: testModels}, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := Parse("tasks.md", []byte("## M1\n\n"+hdr+tt.rows), Options{})
+			if issues := p.Validate(tt.rules); len(issues) > 0 {
+				t.Fatalf("invalid: %v", issueMsgs(issues))
+			}
+			var got []string
+			for _, l := range p.Lint(tt.rules) {
+				got = append(got, l.Name+": "+l.Msg)
+			}
+			if fmt.Sprint(got) != fmt.Sprint(tt.want) {
+				t.Errorf("lint =\n%q\nwant\n%q", got, tt.want)
+			}
+		})
+	}
+}
+
+// Without a Spec column the spec hint stays quiet.
+func TestLintSpecNeedsColumn(t *testing.T) {
+	p := Parse("tasks.md", []byte("## M1\n\n| ID | Task | Status | Model | Owner |\n|---|---|---|---|---|\n| M1-01 | **A** | ready | sonnet | agent |\n"), Options{})
+	if got := p.Lint(lintRules); len(got) != 0 {
+		t.Errorf("lint = %+v, want none", got)
 	}
 }

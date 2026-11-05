@@ -81,6 +81,9 @@ type Rules struct {
 	// §3.2): the project root for arise and home, the working directory
 	// for check, phases and status. "" is the working directory.
 	Root string
+	// HasVerify says the config defines a verify command ([verify] or
+	// run.verify); only the `verify` lint hint reads it.
+	HasVerify bool
 }
 
 // VerifyNone in a Verify cell (or [phases.<id>] verify) turns verification

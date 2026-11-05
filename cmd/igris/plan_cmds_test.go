@@ -40,6 +40,16 @@ func inDir(t *testing.T) string {
 	return dir
 }
 
+// withVerifyConfig gives the current directory an igris.toml with a verify
+// command, as a project has once it followed the template's step line; the
+// `verify` lint hint (SPEC §14) is about a config without one.
+func withVerifyConfig(t *testing.T) {
+	t.Helper()
+	if err := os.WriteFile("igris.toml", []byte("[run]\nverify = \"make test\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func runCmd(args ...string) (code int, stdout, stderr string) {
 	var out, errb bytes.Buffer
 	code = run(args, &out, &errb)

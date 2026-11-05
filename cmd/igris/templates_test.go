@@ -108,6 +108,7 @@ func TestTemplates(t *testing.T) {
 				}
 			}
 
+			withVerifyConfig(t) // the step line's "set [run] verify"
 			code, out, errb := runCmd("check", "--strict")
 			if code != exitOK || strings.Contains(out, "warning:") {
 				t.Errorf("check --strict: exit %d\n%s%s", code, out, errb)

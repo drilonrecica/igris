@@ -27,6 +27,7 @@ func TestCheckStrictLintFixtures(t *testing.T) {
 	} {
 		t.Run(c.file, func(t *testing.T) {
 			inDir(t)
+			withVerifyConfig(t)
 			withVersions(t, "2.1.292 (Claude Code)\n", "herdr 0.9.1\n")
 			path := lintFixture(c.file)
 			code, out, _ := runCmd("check", "--strict", "--plan", path)
@@ -47,6 +48,7 @@ func TestCheckStrictLintFixtures(t *testing.T) {
 // warnings other than lint hints do.
 func TestCheckStrictWarningKinds(t *testing.T) {
 	inDir(t)
+	withVerifyConfig(t)
 	savedGetenv := ariseGetenv
 	t.Cleanup(func() { ariseGetenv = savedGetenv })
 	ariseGetenv = func(k string) string {
@@ -74,7 +76,7 @@ func TestCheckStrictWarningKinds(t *testing.T) {
 	}
 	// A deprecated or ignored config setting is one too.
 	dir := inDir(t)
-	if err := os.WriteFile(filepath.Join(dir, configFile), []byte("[phases.Z9]\nverify = \"none\"\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, configFile), []byte("[run]\nverify = \"make test\"\n[phases.Z9]\nverify = \"none\"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	code, out, _ = runCmd("check", "--strict", "--plan", clean)
@@ -85,6 +87,7 @@ func TestCheckStrictWarningKinds(t *testing.T) {
 
 func TestCheckStrictJSON(t *testing.T) {
 	inDir(t)
+	withVerifyConfig(t)
 	withVersions(t, "2.1.292 (Claude Code)\n", "herdr 0.9.1\n")
 	var doc struct {
 		Valid    bool             `json:"valid"`

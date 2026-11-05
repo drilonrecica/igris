@@ -116,7 +116,7 @@ func Check(in CheckInput) CheckReport {
 		}
 	}
 	if in.Strict && r.Valid {
-		for _, l := range p.Lint() {
+		for _, l := range p.Lint(in.Rules) {
 			r.Warnings = append(r.Warnings, Warning{File: textsafe.Line(l.File), Line: l.Line, Message: textsafe.Line(l.Msg), Lint: l.Name})
 			r.Failing++
 		}

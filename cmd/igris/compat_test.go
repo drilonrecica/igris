@@ -113,6 +113,7 @@ func TestCompatTemplates(t *testing.T) {
 			name := filepath.Base(filepath.Dir(src))
 			t.Run(filepath.Base(rel)+"/"+name, func(t *testing.T) {
 				root := compatProject(t, filepath.Dir(src))
+				withVerifyConfig(t)
 				runJSON(t, "check", "check", "--strict", "--json")
 				var out, errb bytes.Buffer
 				if code := run([]string{"arise", "M0", "--dry-run"}, &out, &errb); code != exitOK {

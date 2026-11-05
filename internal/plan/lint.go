@@ -2,6 +2,7 @@ package plan
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -15,7 +16,19 @@ const (
 	LintGate      = "gate"
 	LintYolo      = "yolo"
 	LintFable     = "fable"
+	LintSpec      = "spec"
+	LintVerify    = "verify"
+	LintDeps      = "deps"
+	LintWords     = "words"
 )
+
+// lintWords is the most words an agent task's Task cell may have before
+// the `words` hint.
+const lintWords = 250
+
+// taskIDRe finds task-ID-shaped words in a Task cell; only those naming a
+// task of the plan count.
+var taskIDRe = regexp.MustCompile(`\b[A-Z][A-Z0-9]*-[0-9A-Z]+\b`)
 
 // lintLongRunes is the longest Task cell that is not a `long` hint.
 const lintLongRunes = 400
@@ -32,15 +45,36 @@ type Lint struct {
 
 // Lint returns the lint hints of a valid plan (SPEC §14 `check --strict`),
 // sorted by line. Done and skipped tasks are not linted. Only `check
-// --strict` reports them.
-func (p *Plan) Lint() []Lint {
+// --strict` reports them. r.HasVerify says whether the config defines a
+// verify command (the `verify` hint).
+func (p *Plan) Lint(r Rules) []Lint {
 	var out []Lint
 	add := func(t *Task, name, format string, a ...any) {
 		out = append(out, Lint{Name: name, Issue: Issue{File: t.Phase.File, Line: t.Line, Msg: fmt.Sprintf(format, a...)}})
 	}
+	hasSpecCol := false
+	for _, t := range p.Tasks {
+		if _, ok := t.Extra["Spec"]; ok {
+			hasSpecCol = true
+			break
+		}
+	}
 	for _, t := range p.Tasks {
 		if t.Status.Satisfied() {
 			continue
+		}
+		agent := t.Owner != OwnerUser
+		if agent && hasSpecCol && unset(t.Extra["Spec"]) {
+			add(t, LintSpec, "%s: the Spec cell is empty; name the spec section the agent must read (a — counts as empty)", t.ID)
+		}
+		if agent && t.Verify == "" && !r.HasVerify {
+			add(t, LintVerify, "%s: no Verify cell and no [verify] command in igris.toml, so nothing checks this task; set a verify command or a Verify cell", t.ID)
+		}
+		if ids := p.undeclaredDeps(t); len(ids) > 0 {
+			add(t, LintDeps, "%s: the Task cell names %s, which Deps does not list; add them to Deps or reword the cell", t.ID, strings.Join(ids, ", "))
+		}
+		if n := len(strings.Fields(t.Text)); agent && n > lintWords {
+			add(t, LintWords, "%s: the Task cell is %d words (over %d); an agent reads the whole cell, so move the details to a spec and point to it", t.ID, n, lintWords)
 		}
 		if msg := titleHint(t); msg != "" {
 			add(t, LintTitle, "%s: %s; start the cell with **Title**", t.ID, msg)
@@ -68,6 +102,23 @@ func (p *Plan) Lint() []Lint {
 	}
 	less := p.issueOrder()
 	sort.SliceStable(out, func(i, j int) bool { return less(out[i].Issue, out[j].Issue) })
+	return out
+}
+
+// undeclaredDeps returns the IDs of the plan's tasks that t's Task cell
+// names but its Deps cell doesn't list (directly), in first-mention order.
+func (p *Plan) undeclaredDeps(t *Task) []string {
+	var out []string
+	seen := map[string]bool{t.ID: true}
+	for _, d := range t.Deps {
+		seen[d] = true
+	}
+	for _, id := range taskIDRe.FindAllString(t.Text, -1) {
+		if !seen[id] && p.Task(id) != nil {
+			seen[id] = true
+			out = append(out, id)
+		}
+	}
 	return out
 }
 

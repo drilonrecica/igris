@@ -350,7 +350,7 @@ func (c *Config) VerifyProfiles() map[string]string {
 // ranks and the verify profile names, with root as the directory Context
 // paths are checked against (SPEC §3.2).
 func (c *Config) Rules(root string) plan.Rules {
-	return plan.Rules{Models: c.Models, Verify: sortedKeys(c.VerifyProfiles()), Root: root}
+	return plan.Rules{Models: c.Models, Verify: sortedKeys(c.VerifyProfiles()), Root: root, HasVerify: len(c.VerifyProfiles()) > 0}
 }
 
 // PlanOptions are the options the plan is parsed with: the [columns]
