@@ -40,6 +40,7 @@ var pages = []page{
 	{"plan-format", "Plan format", "Phases, task tables, every column and what igris writes.", "docs/plan-format.md"},
 	{"config", "Configuration", "Every igris.toml key with its type and default.", "docs/config.md"},
 	{"modes", "Modes", "The permission modes, and which one a task gets.", "site/docs/modes.md"},
+	{"container", "In a box", "Run igris and Claude Code in a container, so skip-permissions can only reach what you mount.", "site/docs/container.md"},
 	{"notifications", "Notifications", "Toasts, ntfy, Discord, Slack, Gotify and a signed webhook.", "site/docs/notifications.md"},
 	{"usage", "Usage and plans", "Approve plans in igris, token usage, the rank audit and quota.", "site/docs/usage.md"},
 	{"split-plans", "Split plans", "Spread a long plan over several files with includes.", "site/docs/split-plans.md"},

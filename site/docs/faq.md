@@ -18,7 +18,7 @@ Claude asks in its pane like it always does. igris notices the stalled session, 
 
 ## Is skip-permissions safe?
 
-Only where you'd trust an unattended agent: a container, or with worktree mode (`--worktree`), so the run's changes stay on a branch of their own. It needs a typed confirmation every run, by design. See [modes](modes.md#skip-permissions).
+Only where you'd trust an unattended agent: a [container](container.md), or with worktree mode (`--worktree`), so the run's changes stay on a branch of their own. It needs a typed confirmation every run, by design. See [modes](modes.md#skip-permissions).
 
 ## What stops a session from changing the plan or igris itself?
 

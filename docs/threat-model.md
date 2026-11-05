@@ -203,7 +203,7 @@ The Igris extension (`editors/vscode/`, SPEC §15.9, decisions.md V19-P1) is one
 ## Accepted risks
 
 1. **Verify and git hooks run session-written code as the owner.** That is what verifying means. The permission mode the owner chooses limits what a session may write; worktree mode keeps it on a branch; the env rules keep the notification secrets out.
-2. **Skip-permissions mode lets a session do anything the owner can.** It needs a typed confirmation every run and shows a red badge; use it in a container or with worktree mode.
+2. **Skip-permissions mode lets a session do anything the owner can.** It needs a typed confirmation every run and shows a red badge; use it in a [container](../site/docs/container.md) or with worktree mode.
 3. **A session can forge hook state** (`.igris/agent-state/`): at worst it raises or clears Needs you, or delays it by up to `waiting_limit`. It never changes Status, mode or verification.
 4. **A session can read `igris.toml`**, including the names of the variables the secrets come from, but not their values (they never reach its commands).
 5. **The sessions' own environment** comes from the herdr or tmux server, not from igris, so the env rules don't apply to Claude Code itself.

@@ -145,6 +145,8 @@ The **run screen** leads with one status word (`● Working`, `! Needs you`, `Pa
 
 `igris arise --worktree` (or `worktree = true` under `[run]`) runs the whole run in `.igris/worktrees/<run-id>` on a new branch, `igris/<run-id>`, so your checkout and your branch stay as they are; the plan's Status cells are still written in your checkout. When the run completes, igris removes the worktree, keeps the branch and tells you how to merge it, which it never does itself. It is the safe way to leave a run unattended.
 
+For skip-permissions runs, [`examples/container/`](examples/container/) is a container recipe (a `Containerfile`, built with podman or docker) with igris, Claude Code, tmux and git: mount your project at `/work` and `~/.claude` for the login, and run `igris arise --mode yolo` inside. The box protects your machine, not the project, so keep `--worktree`. [In a box](https://drilonrecica.github.io/igris/docs/container.html).
+
 ## When it needs you
 
 A session stuck on a permission prompt, a question in its pane, a plan to approve, a commit to confirm, a task past its Timeout: each turns the task to **Needs you**, the loudest thing on the screen. igris never answers Claude for you; it tells you, and you answer:

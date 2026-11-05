@@ -1,0 +1,41 @@
+# A box to run igris and Claude Code in, so `igris arise --mode yolo` can only
+# reach what you mount into it. See README.md next to this file.
+#
+#   podman build -t igris-box examples/container     (or: docker build ...)
+FROM debian:bookworm-slim
+
+# The igris release this image installs. Bump it with each release.
+ARG IGRIS_VERSION=1.9.0
+ARG TARGETARCH
+
+# tmux 3.2+ (bookworm has 3.3a) hosts the sessions; git is what igris commits with.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends bash ca-certificates curl git tmux \
+ && rm -rf /var/lib/apt/lists/*
+
+# igris from the GitHub release tarball, checked against the release's checksums.txt.
+RUN set -eu; \
+    arch="${TARGETARCH:-$(dpkg --print-architecture)}"; \
+    base="https://github.com/drilonrecica/igris/releases/download/v${IGRIS_VERSION}"; \
+    tarball="igris_${IGRIS_VERSION}_linux_${arch}.tar.gz"; \
+    cd /tmp; \
+    curl -fsSLO "${base}/${tarball}"; \
+    curl -fsSLO "${base}/checksums.txt"; \
+    grep " ${tarball}\$" checksums.txt | sha256sum -c -; \
+    tar -xzf "${tarball}" igris; \
+    install -m 0755 igris /usr/local/bin/igris; \
+    rm -f igris "${tarball}" checksums.txt
+
+# A user of its own, not root. No ANTHROPIC_API_KEY is set: Claude Code uses the
+# login mounted from ~/.claude.
+RUN useradd --create-home --shell /bin/bash igris \
+ && mkdir /work \
+ && chown igris:igris /work
+USER igris
+ENV HOME=/home/igris PATH=/home/igris/.local/bin:$PATH
+
+# Claude Code's own installer.
+RUN curl -fsSL https://claude.ai/install.sh | bash
+
+WORKDIR /work
+ENTRYPOINT ["/bin/bash"]
