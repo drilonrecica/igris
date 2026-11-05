@@ -44,6 +44,7 @@
 | `env` | list of strings | unset | The only variables verify commands and task hooks get, besides `PATH` and `HOME`: names, or prefixes ending in `*` (SPEC §6.4). Unset passes igris's whole environment. |
 | `worktree` | boolean | `false` | Run sessions, verify and commits in a git worktree on branch `igris/<run-id>` (SPEC §6.8). |
 | `dep_notes` | boolean | `true` | Put the done notes and approved plans of a task's direct deps in its prompt, bounded and cleaned (SPEC §6.1, `.DepNotes`). `false` leaves them out. |
+| `hours` | string | `""` (always) | Working hours as `HH:MM-HH:MM`, local time, may cross midnight (SPEC §6.9): outside them no agent task starts; user tasks start and running sessions go on. Start and end must differ. |
 
 ## `[hooks]`
 

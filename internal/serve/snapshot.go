@@ -81,7 +81,7 @@ type Snapshot struct {
 // 1.8): the window, its reset, the use that holds (0 after a hit), the task
 // that hit it or, on the hold, the task that would start, and the words.
 type Limited struct {
-	Window   string    `json:"window"`
+	Window   string    `json:"window"` // a quota window, or "hours" (since 1.10)
 	ResetsAt time.Time `json:"resets_at"`
 	Percent  float64   `json:"percent,omitempty"`
 	Task     string    `json:"task,omitempty"`
@@ -101,9 +101,12 @@ func limitedOf(raw engine.Event, ev Event) *Limited {
 	return &Limited{Window: l.Window, ResetsAt: l.ResetsAt, Percent: l.Percent, Task: task, Detail: ev.Detail}
 }
 
-// ResumesAt is when igris resumes: the reset plus the grace. ResetsAt stays
+// ResumesAt is when igris resumes: the reset plus the grace, or the working
+// hours' opening. ResetsAt stays
 // the window's own time on the wire.
-func (l Limited) ResumesAt() time.Time { return engine.Limit{ResetsAt: l.ResetsAt}.ResumesAt() }
+func (l Limited) ResumesAt() time.Time {
+	return engine.Limit{Window: l.Window, ResetsAt: l.ResetsAt}.ResumesAt()
+}
 
 // Label is the limit's words for a status line: "5h limit 96%", "7d
 // limit" after a hit.

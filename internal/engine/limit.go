@@ -69,9 +69,13 @@ type sessionLimit struct {
 // rfc3339 is t for the run log: RFC 3339, UTC.
 func rfc3339(t time.Time) string { return t.UTC().Format(time.RFC3339) }
 
-// holdDetail is the run log's detail of a hold by l: `5h at 96%`, or
-// `after M1-03 hit the 7-day limit`.
-func (l Limit) holdDetail() string {
+// holdDetail is the run log's detail of a hold by l: `5h at 96%`, `after
+// M1-03 hit the 7-day limit`, or `outside hours 09:00–22:00`; hours is the
+// working-hours window as configured.
+func (l Limit) holdDetail(hours string) string {
+	if l.Hours() {
+		return "outside hours " + hours
+	}
 	if l.Task != "" {
 		return "after " + l.Task + " hit the " + look.WindowName(l.Window)
 	}
@@ -111,9 +115,40 @@ func (e *Engine) holding(now time.Time) (Limit, bool) {
 	return best, found
 }
 
-// gateStarts holds s's agent tasks while a usage limit holds new starts
-// (SPEC §6.9) and returns what may start: user tasks need no session and
-// start. It begins and ends the hold as the windows say.
+// hoursHold is the working-hours hold ([run] hours, SPEC §6.9): outside the
+// window, in local time, no agent task starts until it opens. Start anyway
+// lifts it for one start.
+func (e *Engine) hoursHold(now time.Time) (Limit, bool) {
+	w, ok := e.cfg.Run.WorkingHours()
+	if !ok || e.limit.startAnyway {
+		return Limit{}, false
+	}
+	local := now.Local()
+	if w.Contains(local) {
+		return Limit{}, false
+	}
+	return Limit{Window: state.WindowHours, ResetsAt: w.NextStart(local).UTC()}, true
+}
+
+// holdNow is what holds new starts now: the working hours first, then the
+// usage limits (holding).
+func (e *Engine) holdNow(now time.Time) (Limit, bool) {
+	if lim, ok := e.hoursHold(now); ok {
+		return lim, true
+	}
+	return e.holding(now)
+}
+
+// hoursText is [run] hours as the run log names it, "09:00–22:00".
+func (e *Engine) hoursText() string {
+	w, _ := e.cfg.Run.WorkingHours()
+	return w.String()
+}
+
+// gateStarts holds s's agent tasks while the working hours or a usage
+// limit hold new starts (SPEC §6.9) and returns what may start: user tasks
+// need no session and start. It begins and ends the hold as the windows
+// say.
 func (e *Engine) gateStarts(ctx context.Context, s schedule) schedule {
 	agent := func(t *plan.Task) bool { return t.Owner.IsAgent() }
 	i := slices.IndexFunc(s.start, agent)
@@ -121,11 +156,11 @@ func (e *Engine) gateStarts(ctx context.Context, s schedule) schedule {
 		return s
 	}
 	now := e.clock.Now()
-	lim, holds := e.holding(now)
+	lim, holds := e.holdNow(now)
 	switch {
 	case holds:
 		if e.limit.startAnyway {
-			e.warn(fmt.Sprintf("start anyway: %s still holds new starts until %s", lim.holdDetail(), look.Until(lim.ResetsAt.Local(), now)))
+			e.warn(fmt.Sprintf("start anyway: %s still holds new starts until %s", lim.holdDetail(e.hoursText()), look.Until(lim.ResetsAt.Local(), now)))
 		}
 		e.beginHold(ctx, lim, s.start[i])
 		s.start = slices.DeleteFunc(slices.Clone(s.start), agent)
@@ -144,7 +179,7 @@ func (e *Engine) refreshLimit(ctx context.Context) {
 		return
 	}
 	now := e.clock.Now()
-	lim, holds := e.holding(now)
+	lim, holds := e.holdNow(now)
 	if !holds {
 		e.endHold(e.resumeDetail(now))
 		return
@@ -164,7 +199,9 @@ func (e *Engine) beginHold(ctx context.Context, lim Limit, t *plan.Task) {
 }
 
 // showHold records lim as the window that holds: a new episode (another
-// window or reset) is logged and notified, a changed use only shown.
+// window or reset) is logged and notified, a changed use only shown. The
+// working hours and a usage limit taking over from each other end the one
+// in the run log before the other begins, so each hold has its resume.
 func (e *Engine) showHold(ctx context.Context, lim Limit) {
 	cur := e.limit.cur
 	if cur == lim {
@@ -172,38 +209,65 @@ func (e *Engine) showHold(ctx context.Context, lim Limit) {
 	}
 	e.limit.cur = lim
 	id := e.limit.held
+	detail := lim.holdDetail(e.hoursText())
 	if cur.Episode() != lim.Episode() {
-		e.logRun(state.Event{Type: state.EventLimitHold, Window: lim.Window, ResetsAt: rfc3339(lim.ResetsAt), Detail: lim.holdDetail()})
+		if cur.Window != "" && cur.Hours() != lim.Hours() {
+			why := "window opened"
+			switch {
+			case lim.Hours():
+				why = "outside hours"
+			case e.limit.startAnyway:
+				why = "started anyway" // a hit still holds
+			}
+			e.logRun(state.Event{Type: resumeType(cur), Window: cur.Window, ResetsAt: rfc3339(cur.ResetsAt), Detail: why})
+		}
+		typ := state.EventLimitHold
+		if lim.Hours() {
+			typ = state.EventHoursHold
+		}
+		e.logRun(state.Event{Type: typ, Window: lim.Window, ResetsAt: rfc3339(lim.ResetsAt), Detail: detail})
 	}
-	ev := Event{Kind: LimitHold, Task: id, Limit: &lim, Detail: lim.holdDetail()}
+	ev := Event{Kind: LimitHold, Task: id, Limit: &lim, Detail: detail}
 	if p, err := plan.Load(e.planPath, e.planOpts); err == nil {
 		if t := p.Task(id); t != nil {
 			ev.Title, ev.Rank, ev.Phase = t.Title, t.Rank, phaseOf(t)
 		}
 	}
 	e.emit(ev)
-	if lim.Task == "" {
-		// A hit's episode was notified when the hit was read.
+	if lim.Task == "" && !lim.Hours() {
+		// A hit's episode was notified when the hit was read; the working
+		// hours are the owner's own and notify nobody.
 		e.limitNotify(ctx, lim, fmt.Sprintf("%s at %.0f%% · %s held until %s", look.WindowName(lim.Window), math.Round(lim.Percent), id, look.UntilIn(lim.ResumesAt().Local(), e.clock.Now())))
 	}
 }
 
 // endHold ends the hold; detail says why (SPEC §13: reset, quota fell to
-// 71%, started anyway).
+// 71%, window opened, started anyway).
 func (e *Engine) endHold(detail string) {
 	lim := e.limit.cur
 	e.limit.on, e.limit.cur, e.limit.held = false, Limit{}, ""
-	e.logRun(state.Event{Type: state.EventLimitResume, Window: lim.Window, ResetsAt: rfc3339(lim.ResetsAt), Detail: detail})
+	e.logRun(state.Event{Type: resumeType(lim), Window: lim.Window, ResetsAt: rfc3339(lim.ResetsAt), Detail: detail})
 	e.emit(Event{Kind: LimitResume, Limit: &lim, Detail: detail})
 }
 
-// resumeDetail says why the hold ends now: Start anyway, the quota fell
-// below the threshold before the reset, or the reset.
+// resumeType is the run log's type for the end of a hold by l.
+func resumeType(l Limit) state.EventType {
+	if l.Hours() {
+		return state.EventHoursResume
+	}
+	return state.EventLimitResume
+}
+
+// resumeDetail says why the hold ends now: Start anyway, the working hours'
+// window opened, the quota fell below the threshold before the reset, or
+// the reset.
 func (e *Engine) resumeDetail(now time.Time) string {
 	cur := e.limit.cur
 	switch {
 	case e.limit.startAnyway:
 		return "started anyway"
+	case cur.Hours():
+		return "window opened"
 	case cur.Task == "" && now.Before(cur.ResetsAt):
 		if q := e.quota.shown; q != nil {
 			for _, w := range q.Windows() {

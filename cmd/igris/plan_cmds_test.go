@@ -736,3 +736,15 @@ func TestStatusLimited(t *testing.T) {
 		t.Errorf("with a task running (%d):\n%s", code, out)
 	}
 }
+
+// A served run held outside the working hours (since 1.10): Paused with
+// the opening and its countdown, no grace (SPEC §6.9).
+func TestStatusOutsideHours(t *testing.T) {
+	open := time.Date(2026, 10, 23, 19, 12, 0, 0, time.UTC) // textNow is 12:00
+	statusProject(t, &serve.Snapshot{Type: serve.TypeSnapshot, Run: "20261023-093000-abcd", Phase: "M1", Mode: "plan",
+		Limited: &serve.Limited{Window: "hours", ResetsAt: open, Task: "M1-02", Detail: "outside hours 19:12–23:00"}})
+	code, out, _ := runCmd("status")
+	if want := "\nRun      Paused · outside hours · resumes 19:12 (≈ 7h12m)\n"; code != exitOK || !strings.Contains(out, want) {
+		t.Errorf("exit %d, missing %q:\n%s", code, want, out)
+	}
+}

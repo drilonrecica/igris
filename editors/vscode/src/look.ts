@@ -91,9 +91,11 @@ export function until(t: number, now: number): string {
 /** The grace after a window's reset before igris resumes (V18-P1). */
 export const RESUME_GRACE = 60_000;
 
-/** A quota window's short label. */
+/** A quota window's short label; "outside hours" for the working hours. */
 export function windowLabel(w: string): string {
   switch (w) {
+    case "hours":
+      return "outside hours";
     case "five_hour":
       return "5h";
     case "seven_day":
@@ -172,6 +174,8 @@ export function liveStatus(run: Run, now: number): Status {
   }
   if (run.limited) {
     const l = run.limited;
+    // The working hours ([run] hours, since 1.10) resume at the opening.
+    if (l.window === "hours") return paused(`${windowLabel(l.window)} · resumes ${until(l.resetsAt, now)}`);
     const pct = l.percent > 0 ? ` ${Math.round(l.percent)}%` : "";
     return paused(`${windowLabel(l.window)} limit${pct} · resumes ${until(l.resetsAt + RESUME_GRACE, now)}`);
   }

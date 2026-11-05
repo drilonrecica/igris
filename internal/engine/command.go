@@ -48,9 +48,9 @@ const (
 	// (SPEC §6.3): Plan is state.PlanAllow, PlanDeny (Text is the
 	// feedback, required) or PlanPane.
 	CmdPlan
-	// CmdLimitStart is Start anyway while the usage hold holds new starts
-	// (SPEC §6.9): the next start ignores the quota threshold once; a hit
-	// still holds.
+	// CmdLimitStart is Start anyway while the usage hold or the working
+	// hours hold new starts (SPEC §6.9): the next start ignores the quota
+	// threshold and the working hours once; a hit still holds.
 	CmdLimitStart
 	// CmdBudget answers the budget reached (SPEC §6.9): Text is a new
 	// value for this run, or continue (the budget no longer holds it).
@@ -141,7 +141,7 @@ func (e *Engine) drain() {
 			e.stop = true
 		case CmdLimitStart:
 			if !e.limit.on {
-				e.reject(c, "no usage limit holds the run")
+				e.reject(c, "nothing holds new starts: no usage limit, and within working hours")
 				continue
 			}
 			e.limit.startAnyway = true

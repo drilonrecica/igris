@@ -28,6 +28,11 @@ const (
 	WindowSpendLimit = "spend_limit"
 )
 
+// WindowHours is the working-hours hold's window ([run] hours, SPEC §6.9;
+// since 1.10): no quota, the run's own; its "reset" is the window's
+// opening, igris resumes then without the grace.
+const WindowHours = "hours"
+
 // QuotaWindow is how much of one subscription rate-limit window is used.
 type QuotaWindow struct {
 	Used     float64 `json:"used"`      // percent, 0 to 100 (spend_limit: above 100 once exceeded)

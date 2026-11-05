@@ -12,6 +12,7 @@ func TestWindowLabels(t *testing.T) {
 		{"five_hour", "5h", "5h limit"},
 		{"seven_day", "7d", "7-day limit"},
 		{"spend_limit", "spend", "spend limit"},
+		{"hours", "outside hours", "working hours"},
 		{"", "limit", "usage limit"},
 		{"weird\x1b[31m", "limit", "usage limit"},
 	} {

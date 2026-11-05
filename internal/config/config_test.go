@@ -214,6 +214,9 @@ func TestParseErrors(t *testing.T) {
 		{"quiet one digit", "[notify]\nquiet = \"9:00-17:00\"", []string{"notify.quiet"}},
 		{"quiet signed", "[notify]\nquiet = \"+1:00-07:00\"", []string{"notify.quiet"}},
 		{"quiet empty window", "[notify]\nquiet = \"07:00-07:00\"", []string{"starts and ends at the same time"}},
+		{"hours not a window", "[run]\nhours = \"09:00\"", []string{`run.hours = "09:00" is invalid`, "HH:MM-HH:MM", `"09:00-22:00"`}},
+		{"hours bad hour", "[run]\nhours = \"09:00-24:00\"", []string{`run.hours = "09:00-24:00" is invalid`}},
+		{"hours empty window", "[run]\nhours = \"09:00-09:00\"", []string{`run.hours = "09:00-09:00" starts and ends at the same time`}},
 		{"break_through bad event", "[notify]\nbreak_through = [\"needs_input\", \"nope\"]", []string{"notify.break_through", `"nope"`}},
 		{"digest negative", "[notify]\ntask_done_digest = -2", []string{"notify.task_done_digest is invalid", `"phase"`}},
 		{"digest minus one", "[notify]\ntask_done_digest = -1", []string{"notify.task_done_digest is invalid"}},
@@ -1458,6 +1461,53 @@ func TestParseHTTPAddr(t *testing.T) {
 		got, err := ParseHTTPAddr(in)
 		if err != nil || got.String() != want {
 			t.Errorf("ParseHTTPAddr(%q) = %v, %v; want %s", in, got, err, want)
+		}
+	}
+}
+
+// [run] hours (SPEC §6.9, since 1.10): parsed like [notify] quiet, the
+// window may cross midnight, and the key stays out of the hash while unset.
+func TestRunHours(t *testing.T) {
+	if _, ok := Default().Run.WorkingHours(); ok {
+		t.Error("default config has working hours")
+	}
+	c, err := Parse([]byte("[run]\nhours = \"22:00-06:00\"\n"), "igris.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	w, ok := c.Run.WorkingHours()
+	if !ok || w != (QuietWindow{Start: 22 * 60, End: 6 * 60}) {
+		t.Errorf("hours = %+v, %v", w, ok)
+	}
+	if c.Hash() == Default().Hash() {
+		t.Error("run.hours left the hash unchanged")
+	}
+	b, err := json.Marshal(Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(b), "Hours") {
+		t.Errorf("config JSON has Hours while unset: %s", b)
+	}
+	c, err = Parse([]byte("[run]\nhours = \"\"\n"), "igris.toml")
+	if err != nil || c.Hash() != Default().Hash() {
+		t.Errorf("hours = \"\" changed the hash (%v)", err)
+	}
+}
+
+func TestQuietWindowNextStart(t *testing.T) {
+	loc := time.FixedZone("X", 2*3600)
+	at := func(d, hh, mm int) time.Time { return time.Date(2026, 3, d, hh, mm, 0, 0, loc) }
+	w := QuietWindow{Start: 9 * 60, End: 22 * 60}
+	for _, tt := range []struct{ now, want time.Time }{
+		{at(10, 23, 0), at(11, 9, 0)},
+		{at(11, 2, 0), at(11, 9, 0)},
+		{at(11, 8, 59), at(11, 9, 0)},
+		{at(11, 9, 0), at(12, 9, 0)},
+		{at(31, 23, 30), time.Date(2026, 4, 1, 9, 0, 0, 0, loc)},
+	} {
+		if got := w.NextStart(tt.now); !got.Equal(tt.want) || got.Location() != loc {
+			t.Errorf("NextStart(%s) = %s, want %s", tt.now, got, tt.want)
 		}
 	}
 }

@@ -137,6 +137,10 @@ The **run screen** leads with one status word (`● Working`, `! Needs you`, `Pa
 - **Signals from anywhere.** `igris done ID`, `igris skip ID --reason …` and `igris reset ID` work from any terminal in the project. A session's skip or reset is only a request, which igris asks you to confirm.
 - **Without the TUI,** `--no-tui` prints plain log lines and reads your answers from stdin. `--dry-run` shows the launch order and writes nothing; add `--prompts` to see each session's first prompt.
 
+### Working hours
+
+`hours = "09:00-22:00"` under `[run]` (local time; the window may cross midnight) keeps agent tasks to those hours: outside them no agent task starts, and the run shows `Paused · outside hours · resumes 09:00 (≈ 7h12m)` until the window opens. Your own tasks still start, a session already running goes on past the end of the window, and **Start anyway** (`a`) starts the next one now. Nothing is sent to your phone for it.
+
 ### Worktree mode
 
 `igris arise --worktree` (or `worktree = true` under `[run]`) runs the whole run in `.igris/worktrees/<run-id>` on a new branch, `igris/<run-id>`, so your checkout and your branch stay as they are; the plan's Status cells are still written in your checkout. When the run completes, igris removes the worktree, keeps the branch and tells you how to merge it, which it never does itself. It is the safe way to leave a run unattended.
@@ -198,7 +202,7 @@ Every action is a button with its key on it, which you can also click or tap (ov
 
 | Key | Home | Run screen |
 |---|---|---|
-| `a` | Arise… (or Resume…, or Attach to a live run) | Start anyway, while a usage limit holds; on the summary of a completed run, Arise the next phase |
+| `a` | Arise… (or Resume…, or Attach to a live run) | Start anyway, while a usage limit or the working hours hold; on the summary of a completed run, Arise the next phase |
 | `v` `c` `i` `h` | Preview, Check, Doctor, History | `h`: History, on the summary |
 | `o` | the running task's session | Open the selected task's session |
 | `t` | Details of the selected phase or task | Details of the selected task |

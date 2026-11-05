@@ -49,6 +49,24 @@ func TestLimitHoldHeaderAndStartAnyway(t *testing.T) {
 	}
 }
 
+// The working hours' hold (since 1.10) is drawn as the usage hold, resuming
+// at the window's opening.
+func TestHoursHoldHeader(t *testing.T) {
+	hs := newHarness(t, 120, 40)
+	hs.m.loc = time.UTC
+	hs.withPlan(cardPlan)
+	open := t0.Add(7*time.Hour + 12*time.Minute)
+	hs.events(engine.Event{Kind: engine.LimitHold, Phase: "M0", Task: "M0-02", Title: "Config loader", Rank: "opus", Detail: "outside hours 16:53–22:00",
+		Limit: &engine.Limit{Window: state.WindowHours, ResetsAt: open}})
+	view := hs.m.View()
+	want := "Paused · outside hours · resumes " + open.Format("15:04") + " (≈ 7h12m)"
+	for _, w := range []string{want, "[a Start anyway]"} {
+		if !strings.Contains(view, w) {
+			t.Errorf("view lacks %q:\n%s", w, view)
+		}
+	}
+}
+
 // A session waiting at a usage limit is shown calmly with the window and
 // the reset once they are known; it needs nobody (SPEC §6.3, §15).
 func TestLimitedCard(t *testing.T) {

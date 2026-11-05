@@ -166,7 +166,9 @@ type Event struct {
 // above the threshold, or one a session hit. Its countdown is drawn from
 // ResetsAt against the UI's clock.
 type Limit struct {
-	// Window is five_hour, seven_day or spend_limit.
+	// Window is five_hour, seven_day or spend_limit, or state.WindowHours
+	// for the working-hours hold (since 1.10; ResetsAt is the window's
+	// opening).
 	Window string `json:"window,omitempty"`
 	// ResetsAt is when the window resets; UTC.
 	ResetsAt time.Time `json:"resets_at,omitzero"`
@@ -179,6 +181,9 @@ type Limit struct {
 // Label is the limit's words for a header or a status line: "5h limit
 // 96%", "7d limit" after a hit.
 func (l Limit) Label() string {
+	if l.Hours() {
+		return look.Window(l.Window) // "outside hours"
+	}
 	s := look.Window(l.Window) + " limit"
 	if l.Percent > 0 {
 		s += fmt.Sprintf(" %.0f%%", math.Round(l.Percent))
@@ -186,10 +191,18 @@ func (l Limit) Label() string {
 	return s
 }
 
-// ResumesAt is when igris resumes: the reset plus the grace (look.ResumeAt).
-// Screens draw this; ResetsAt stays the window's own time in the run log,
-// the snapshot and --json.
-func (l Limit) ResumesAt() time.Time { return look.ResumeAt(l.ResetsAt) }
+// ResumesAt is when igris resumes: the reset plus the grace (look.ResumeAt),
+// or the working hours' opening itself. Screens draw this; ResetsAt stays
+// the window's own time in the run log, the snapshot and --json.
+func (l Limit) ResumesAt() time.Time {
+	if l.Hours() {
+		return l.ResetsAt
+	}
+	return look.ResumeAt(l.ResetsAt)
+}
+
+// Hours reports the working-hours hold ([run] hours, SPEC §6.9).
+func (l Limit) Hours() bool { return l.Window == state.WindowHours }
 
 // Episode keys one limit episode: the window and its reset (SPEC §10).
 func (l Limit) Episode() string { return l.Window + "@" + l.ResetsAt.UTC().Format(time.RFC3339) }

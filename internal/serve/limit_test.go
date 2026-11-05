@@ -95,6 +95,22 @@ func TestUIStatusLimited(t *testing.T) {
 	}
 }
 
+// The working hours' hold (since 1.10) crosses the wire and reads as any
+// hold, resuming at the opening without the grace.
+func TestUIStatusOutsideHours(t *testing.T) {
+	open := uiT0.Add(7*time.Hour + 12*time.Minute)
+	ev := engine.Event{At: uiT0, Kind: engine.LimitHold, Task: "P1-04", Detail: "outside hours 09:00–22:00", Limit: &engine.Limit{Window: state.WindowHours, ResetsAt: open}}
+	back, ok := fromEngine(ev, "r").Engine()
+	if !ok || back.Limit == nil || *back.Limit != *ev.Limit {
+		t.Fatalf("back = %+v (%+v)", back, back.Limit)
+	}
+	lim := &Limited{Window: state.WindowHours, ResetsAt: open, Detail: ev.Detail}
+	got := statusOf(Snapshot{Run: "r", Started: uiT0, Limited: lim}, uiT0)
+	if want := "outside hours · resumes " + open.Format("15:04") + " (≈ 7h12m)"; got.Word != look.Paused.String() || got.Line != want {
+		t.Errorf("status = %+v, want line %q", got, want)
+	}
+}
+
 // The page offers Start anyway while the hold holds, says the hold in its
 // status, and a limited session's card its window and reset.
 func TestUILimitPage(t *testing.T) {

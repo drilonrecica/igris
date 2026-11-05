@@ -158,6 +158,15 @@ describe("the status word", () => {
     assert.equal(minutes(reset + RESUME_GRACE - now), "3h12m");
   });
 
+  it("shows the working hours' hold as any hold, resuming at the opening", () => {
+    const run = recorded("working.jsonl").snapshot;
+    const open = now + 7 * 3600_000 + 12 * 60_000;
+    run.limited = { window: "hours", resetsAt: open, percent: 0, task: "S1-02", detail: "outside hours 09:00–22:00" };
+    const s = liveStatus(run, now);
+    assert.equal(s.word, "Paused");
+    assert.match(s.line, /^outside hours · resumes \d\d:\d\d \(≈ 7h12m\)$/);
+  });
+
   it("reads a run without a socket from the lock", () => {
     assert.deepEqual(idleStatus({ task: "S1-02", lock: "running here", lockDetail: "pid 42" }, undefined), { word: "Working", glyph: "●", line: "pid 42", tone: "accent" });
     assert.deepEqual(idleStatus({ task: "S1-02", lock: "stale", lockDetail: "" }, undefined), { word: "Interrupted", glyph: "▲", line: "during S1-02", tone: "warn" });

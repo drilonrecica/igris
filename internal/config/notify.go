@@ -23,10 +23,16 @@ type QuietWindow struct {
 // ParseQuiet reads "HH:MM-HH:MM" (24-hour). ok is false for "", which
 // means no quiet hours.
 func ParseQuiet(s string) (w QuietWindow, ok bool, err error) {
+	return parseWindow("notify.quiet", "22:00-07:00", s)
+}
+
+// parseWindow reads key's "HH:MM-HH:MM" value s; example is the window its
+// errors suggest.
+func parseWindow(key, example, s string) (w QuietWindow, ok bool, err error) {
 	if s == "" {
 		return QuietWindow{}, false, nil
 	}
-	bad := fmt.Errorf("notify.quiet = %q is invalid; use \"HH:MM-HH:MM\" in 24-hour local time, e.g. \"22:00-07:00\", or \"\" for none", s)
+	bad := fmt.Errorf("%s = %q is invalid; use \"HH:MM-HH:MM\" in 24-hour local time, e.g. %q, or \"\" for none", key, s, example)
 	from, to, found := strings.Cut(s, "-")
 	if !found {
 		return QuietWindow{}, false, bad
@@ -38,7 +44,7 @@ func ParseQuiet(s string) (w QuietWindow, ok bool, err error) {
 		return QuietWindow{}, false, bad
 	}
 	if w.Start == w.End {
-		return QuietWindow{}, false, fmt.Errorf("notify.quiet = %q starts and ends at the same time; give a window such as \"22:00-07:00\", or \"\" for none", s)
+		return QuietWindow{}, false, fmt.Errorf("%s = %q starts and ends at the same time; give a window such as %q, or \"\" for none", key, s, example)
 	}
 	return w, true, nil
 }
@@ -68,6 +74,17 @@ func (w QuietWindow) Contains(t time.Time) bool {
 		return m >= w.Start && m < w.End
 	}
 	return m >= w.Start || m < w.End
+}
+
+// NextStart is the first time after t at which the window opens, in t's
+// location: today's Start when it is still ahead, else tomorrow's.
+func (w QuietWindow) NextStart(t time.Time) time.Time {
+	y, m, d := t.Date()
+	s := time.Date(y, m, d, w.Start/60, w.Start%60, 0, 0, t.Location())
+	if !s.After(t) {
+		s = time.Date(y, m, d+1, w.Start/60, w.Start%60, 0, 0, t.Location())
+	}
+	return s
 }
 
 // String is the window as a digest names it, "22:00–07:00".

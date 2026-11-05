@@ -6,10 +6,13 @@ import "time"
 // quota window's short label for a card or a header and its name for a
 // notification body, and a reset told as a clock time with its countdown.
 
-// Window is a quota window's short label: 5h, 7d, spend; "limit" for one
-// igris doesn't know (the window comes from a file a session can write).
+// Window is a quota window's short label: 5h, 7d, spend; "outside hours"
+// for the working-hours hold; "limit" for one igris doesn't know (the
+// window comes from a file a session can write).
 func Window(window string) string {
 	switch window {
+	case "hours": // the working hours ([run] hours, since 1.10)
+		return "outside hours"
 	case "five_hour":
 		return "5h"
 	case "seven_day":
@@ -24,6 +27,8 @@ func Window(window string) string {
 // limit", "spend limit"; "usage limit" for one igris doesn't know.
 func WindowName(window string) string {
 	switch window {
+	case "hours":
+		return "working hours"
 	case "five_hour":
 		return "5h limit"
 	case "seven_day":

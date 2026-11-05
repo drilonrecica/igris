@@ -32,6 +32,7 @@ Every line igris v0.5 or later writes has `"v":1`. `v`, `at` and `type` are alwa
 | `owner` | string | `agent`, `user` or `agent + user` | `task_started`, `task_resumed` |
 | `side` | string | the side session's ID, 6 lowercase hex characters (since 1.2). These lines have no `task`, and carry `run` only when the igris writing them has a run | `side_opened`, `side_closed`, `side_usage` |
 | `profile` | string | the verify profile | `verify_passed`, `verify_failed` |
+| `window`, `resets_at` | string | the quota window (`five_hour`, `seven_day` or `spend_limit`) and when it resets, RFC 3339 UTC (SPEC §6.9; since 1.8); since 1.10 `hours` and the working hours' opening | `limit_hit`, `limit_hold`, `limit_resume`; `hours_hold`, `hours_resume` |
 | `commit` | string | the full commit SHA (`git rev-parse HEAD` after the commit; left out, with a warning, if that fails); on `integrated` the run branch's new head (since 1.5); on `commits_undone` the base the run's commits were undone to (since 1.8) | `committed`, `integrated`, `commits_undone` |
 | `branch` | string | the run's worktree branch, `igris/<run-id>`, in worktree mode (since 0.6); since 1.5 the task's branch, `igris/<run-id>-<ID>`, in a parallel phase, and the run branch on `integrated` | `run_started`; `task_started`, `task_retried`, `integrated` |
 | `slot` | integer | the task's slot in a parallel phase, `0` to `max - 1` (SPEC §6.11; since 1.5). Absent outside a parallel phase | `task_started`, `task_resumed`, `task_retried` |
@@ -84,6 +85,8 @@ Every line igris v0.5 or later writes has `"v":1`. `v`, `at` and `type` are alwa
 | `commit_policy` | the owner answered a commit question with **Commit all**: `commit` is `auto` for the rest of the run, `igris.toml` untouched (SPEC §6.5; since 1.8). Run-wide, no `task` | `auto: the owner's answer to M1-03's commit question` |
 | `commits_undone` | the owner answered the batch question with **Undo**: `git reset --soft` to `commit`, the run branch's head before the run's first commit; every change stays in the tree and the index, uncommitted (SPEC §6.5; since 1.8). Run-wide, no `task` | `9 commits undone; their changes are in the tree` |
 | `overlap` | two active tasks of a parallel phase both change one file; once per pair of tasks and file, from `git status` in their worktrees at each poll. Nothing is held. `task` is the task that changed it last (since 1.5) | `<ID> and <ID> both change <path>` |
+| `hours_hold` | outside the working hours (`[run] hours`, SPEC §6.9; since 1.10) an agent task would start and is held until the window opens; run-wide, no `task`. Once per window opening | `outside hours 09:00–22:00` |
+| `hours_resume` | that hold ended: the window opened, the owner chose **Start anyway** (for one start), or a usage limit took over the hold (its `limit_hold` follows) (since 1.10) | `window opened` or `started anyway` |
 | `error` | a task hook failed, or the run stopped with an error | the hook's reason (`before_task hook failed: exit status 1`) or the error |
 
 ### Needs-you reasons

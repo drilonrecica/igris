@@ -155,6 +155,17 @@ type Run struct {
 	// its prompt (SPEC §6.1, since 1.8); nil is on. Left out of the config
 	// hash while unset or true.
 	DepNotes *bool `toml:"dep_notes,omitempty" json:",omitempty"`
+	// Hours is the working-hours window, "HH:MM-HH:MM" local time, which
+	// may cross midnight (SPEC §6.9, since 1.10): outside it no agent task
+	// starts. "" is always. Left out of the config hash while unset.
+	Hours string `toml:"hours,omitempty" json:",omitempty"`
+}
+
+// WorkingHours returns the [run] hours window; ok is false when there is
+// none (or the setting is invalid, which Validate reports).
+func (r Run) WorkingHours() (QuietWindow, bool) {
+	w, ok, err := parseWindow("run.hours", "09:00-22:00", r.Hours)
+	return w, ok && err == nil
 }
 
 // WorktreeOn reports whether runs use a worktree (SPEC §6.8); off unless
@@ -950,6 +961,9 @@ func (c *Config) Validate() error {
 	positive("run.verify_timeout", c.Run.VerifyTimeout)
 	if c.Run.VerifyMaxAttempts < 1 {
 		add("run.verify_max_attempts must be at least 1")
+	}
+	if _, _, err := parseWindow("run.hours", "09:00-22:00", c.Run.Hours); err != nil {
+		add("%v", err)
 	}
 	if c.Run.Env != nil && len(c.Run.Env) == 0 {
 		// A written config leaves an empty list out, which would pass

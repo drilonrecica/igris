@@ -41,6 +41,7 @@ var keyDocs = map[string]keyDoc{
 	"run.env":                        {desc: "The only variables verify commands and task hooks get, besides `PATH` and `HOME`: names, or prefixes ending in `*` (SPEC §6.4). Unset passes igris's whole environment.", def: "unset"},
 	"run.worktree":                   {desc: "Run sessions, verify and commits in a git worktree on branch `igris/<run-id>` (SPEC §6.8).", def: "`false`"},
 	"run.dep_notes":                  {desc: "Put the done notes and approved plans of a task's direct deps in its prompt, bounded and cleaned (SPEC §6.1, `.DepNotes`). `false` leaves them out.", def: "`true`"},
+	"run.hours":                      {desc: "Working hours as `HH:MM-HH:MM`, local time, may cross midnight (SPEC §6.9): outside them no agent task starts; user tasks start and running sessions go on. Start and end must differ.", def: "`\"\"` (always)"},
 	"verify":                         {desc: "Verify profiles: name to shell command (SPEC §6.4). Names match `[a-z0-9_-]+`, `none` is reserved, commands must not be empty.", def: "no profiles"},
 	"phases":                         {desc: "Per-phase settings under `[phases.<id>]` (SPEC §6.4); the id matches a plan phase case-insensitively. `verify` is its only key: a profile name, or `none`.", def: "no phases"},
 	"hooks.before_task":              {desc: "Argv list run before every agent session, never through a shell (SPEC §6.7). A non-empty list needs a non-empty first element.", def: "`[]`"},
