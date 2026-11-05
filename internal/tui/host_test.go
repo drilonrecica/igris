@@ -49,8 +49,10 @@ func TestSessionHost(t *testing.T) {
 	}{
 		{"same server", run, backend.Host{Backend: "tmux", Socket: "/tmp/tmux-1000/default"}, true, "", "claude --resume 0b6c3f9e-2d4a-4c1b-9e7f-5a8d1c2b3e4f"},
 		{"another server", run, backend.Host{Backend: "tmux", Socket: "/tmp/tmux-1000/work"}, false,
-			"Session: tmux session igris-p3 — tmux attach -t igris-p3", "tmux attach -t igris-p3"},
+			"Session: tmux session igris-p3 — tmux attach -t igris-p3 (from a shell outside tmux)", "tmux attach -t igris-p3"},
 		{"outside tmux", run, backend.Host{}, false, "Session: tmux session igris-p3 — tmux attach -t igris-p3", "tmux attach -t igris-p3"},
+		{"another server, not the default", &backend.Host{Backend: "tmux", Socket: "/tmp/tmux-1000/gate", Session: "igris-p3"}, backend.Host{Backend: "tmux", Socket: "/tmp/tmux-1000/work"}, false,
+			"Session: tmux session igris-p3 — tmux -S /tmp/tmux-1000/gate attach -t igris-p3 (from a shell outside tmux)", "tmux -S /tmp/tmux-1000/gate attach -t igris-p3"},
 		{"herdr", run, backend.Host{Backend: "herdr"}, false, "Session: tmux session igris-p3", "tmux attach -t igris-p3"},
 		{"not the default server", &backend.Host{Backend: "tmux", Socket: "/tmp/tmux-1000/gate", Session: "main"}, backend.Host{}, false,
 			"Session: tmux session main — tmux -S /tmp/tmux-1000/gate attach -t main", "tmux -S /tmp/tmux-1000/gate attach -t main"},
@@ -79,6 +81,10 @@ func TestSessionHost(t *testing.T) {
 				}
 				if tt.line != "" && size[0] >= 100 {
 					place, command, _ := strings.Cut(tt.line, " — ")
+					command, note, _ := strings.Cut(command, " (")
+					if note != "" && !strings.Contains(v, "("+note) {
+						t.Errorf("the card lacks the note %q:\n%s", note, v)
+					}
 					if !strings.Contains(v, tt.line) && (!strings.Contains(v, place+" ") || !strings.Contains(v, command)) {
 						t.Errorf("the card lacks %q:\n%s", tt.line, v)
 					}

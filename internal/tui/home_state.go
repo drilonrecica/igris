@@ -8,10 +8,12 @@ import (
 	"time"
 
 	"github.com/drilonrecica/igris/internal/checks"
+	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/report"
 	"github.com/drilonrecica/igris/internal/side"
+	"github.com/drilonrecica/igris/internal/state"
 	"github.com/drilonrecica/igris/internal/textsafe"
 )
 
@@ -164,11 +166,16 @@ func (m *homeScreen) backendWhere() string {
 	return "a herdr pane or a tmux session"
 }
 
-// lastRunComplete says the recorded run stopped between tasks and every
-// phase it covered is complete, so there is nothing to resume.
+// lastRunComplete says the recorded run stopped between tasks and all it
+// was to do is done, so there is nothing to resume: every phase it covered
+// is complete or, for a slice (`only`, `from … until`), every task of the
+// slice is (SPEC §15.6, decisions.md V19-G).
 func (m *homeScreen) lastRunComplete() bool {
 	if m.snap == nil || m.snap.Run == nil || m.snap.Run.Task != "" || len(m.snap.Run.Phases) == 0 {
 		return false
+	}
+	if sel := m.snap.Run.Selection; sel != nil && !sel.Empty() {
+		return m.sliceComplete(*sel)
 	}
 	outcome := map[string]string{}
 	for _, ph := range m.phases() {
@@ -177,6 +184,27 @@ func (m *homeScreen) lastRunComplete() bool {
 	for _, id := range m.snap.Run.Phases {
 		if outcome[id] != plan.Complete.String() {
 			return false
+		}
+	}
+	return true
+}
+
+// sliceComplete says every task of the recorded run's slice is done or
+// skipped. A slice that no longer resolves against the plan is not.
+func (m *homeScreen) sliceComplete(sel state.Selection) bool {
+	r := m.snap.Run
+	if m.snap.Plan == nil {
+		return false
+	}
+	rng, err := engine.ResolveRange(m.snap.Plan, r.Phases[0], r.Through, sel)
+	if err != nil || rng.Slice == nil {
+		return false
+	}
+	for _, ph := range rng.Phases {
+		for _, t := range ph.Tasks {
+			if rng.In(t) && !t.Status.Satisfied() {
+				return false
+			}
 		}
 	}
 	return true

@@ -928,21 +928,32 @@ func (m *model) canOpen(c *current) bool {
 // sessionWhere is the card's line for c's session when Open session isn't
 // offered for it, `Session: tmux session igris-p3 — tmux attach -t
 // igris-p3`, and the command `y` copies ("" for herdr); "" without a
-// session_host or when it is offered (SPEC §15.3, since 1.9).
+// session_host or when it is offered (SPEC §15.3, since 1.9). Read inside
+// another tmux server the line ends `(from a shell outside tmux)`.
 func (m *model) sessionWhere(c *current) (line, command string) {
+	line, command, _ = m.sessionWhereNote(c)
+	return line, command
+}
+
+// sessionWhereNote is sessionWhere with the note its line ends with, "" or
+// backend.OutsideTmux, so a long line can be cut before the command.
+func (m *model) sessionWhereNote(c *current) (line, command, note string) {
 	if m.host == nil || c == nil || c.session == nil || c.user || m.canOpen(c) {
-		return "", ""
+		return "", "", ""
 	}
 	tab := c.id
 	if c.rank != "" {
 		tab += " · " + c.rank // the tab's name, as the engine labels it
 	}
-	place, command := m.host.Where(tab)
+	place, command, note := m.host.WhereFrom(tab, m.opts.Place)
 	line = "Session: " + place
 	if command != "" {
 		line += " — " + command
 	}
-	return line, command
+	if note != "" {
+		line += " (" + note + ")"
+	}
+	return line, command, note
 }
 
 // focusSession brings c's session's pane to the front.

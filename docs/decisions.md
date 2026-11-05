@@ -1032,3 +1032,9 @@ The twelve points put to the owner on 2026-11-04 (where it lives; the 1.9.0 scop
 5. **A real usage-limit hit** (carried from docs/check-v18.md, Owner checks left 1, same steps) until one is seen.
 
 None of 1–4 blocks V19-01…V19-06 or V19-10…V19-16; 1 and 2 must be in before V19-07 is built, 3 before V19-02 pins `engines.vscode` (a placeholder of VS Code 1.100 until then), 4 before V19-R.
+
+## V19-G — The gate's two decisions (v1.9)
+**Approved by owner** (2026-11-05), from docs/check-v19.md "Needs a decision"; built by V19-18 before the release.
+
+- **Open session from inside another tmux server.** The card's command is for the shell it is read in: outside tmux `tmux attach -t igris-<project>` as today; inside another tmux server `tmux -S <socket> attach -t igris-<project>` with the note *from a shell outside tmux*, because a plain `tmux` there addresses that server and `-S` refuses to nest. Rejected: the nesting form `TMUX= tmux -S … attach` (a client inside a client confuses keys and detach); leaving the command as it was (it fails where it is read).
+- **A completed slice is a completed run.** After `only …` or `from … until …` ends with every task of the slice done, home says `READY · last run W1 completed` and offers Arise…, where the wizard picks the next work; Resume is not offered, since it would run the task the owner left out of the slice. STOPPED and Resume stay for a run that stopped itself (§15.6). Rejected: keeping STOPPED with a reworded Resume (the summary and history already say completed).

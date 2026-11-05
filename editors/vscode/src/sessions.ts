@@ -107,7 +107,7 @@ function format(s: string): string {
  * it (SPEC §15.3): the herdr tab, the tmux attach command for a window the
  * snapshot doesn't name, what an older serve leaves unsaid, or that the
  * task has no session right now. */
-export function whereIs(run: Run, c: Card): string {
+export function whereIs(run: Run, c: Card, viewerTmux = ""): string {
   const h = run.sessionHost;
   const name = labelOf(c);
   if (!h) return `${name}: this run's igris serve is older than 1.9 and doesn't say where its sessions are; open it from the TUI (igris attach).`;
@@ -116,12 +116,24 @@ export function whereIs(run: Run, c: Card): string {
       if (!c.session) return `${name} has no session open right now.`;
       const socket = line(h.socket);
       const session = line(h.session);
-      return `Session: ${session !== "" ? `tmux session ${session}` : `tmux server ${socket}`} — ${attachCommand(h)}`;
+      return `Session: ${session !== "" ? `tmux session ${session}` : `tmux server ${socket}`} — ${attachCommand(h)}${insideOtherServer(h, viewerTmux) ? ` (${OUTSIDE_TMUX})` : ""}`;
     }
     case HERDR:
       return `Session: herdr tab ${name}`;
   }
   return `Session: ${line(h.backend)}`;
+}
+
+/** The note on a tmux command read inside another tmux server (SPEC §15.3). */
+export const OUTSIDE_TMUX = "from a shell outside tmux";
+
+/** Whether the viewer, whose `$TMUX` is viewerTmux (`<socket>,<pid>,<id>`),
+ * is a client of a tmux server other than h's: a plain `tmux` there reaches
+ * that server and `-S` refuses to nest, so the command is for a shell
+ * outside tmux. An unset `$TMUX` is outside tmux. */
+export function insideOtherServer(h: SessionHost, viewerTmux: string): boolean {
+  const viewer = viewerTmux.split(",")[0] ?? "";
+  return viewer !== "" && viewer !== line(h.socket);
 }
 
 /** The command that shows h's tmux session in a terminal, as the TUI's

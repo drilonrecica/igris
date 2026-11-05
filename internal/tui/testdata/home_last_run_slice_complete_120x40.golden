@@ -1,0 +1,40 @@
+igris · sinjal · tasks.md · herdr ✓ · mode auto                                                                     Idle
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+PHASES                                      │ READY · phase M2 Config & state
+  ✓ M0  Foundations    ██████████ 3/3 done  │ next  · M2-03  State file  sonnet
+  ✓ M1  Plan parser    ██████████ 2/2 done  │ then  · M2-04  Signals     haiku
+› · M2  Config & state █████░░░░░ 2/4 next  │ 2 left · 1 wait on M2-03
+  ◌ M3  Engine         ░░░░░░░░░░ 0/3 wait  │ last run M2 completed
+  ◌ M4  TUI            ░░░░░░░░░░ 0/2 wait  │ ── HEALTH ────────────────────────────────────────────────────────────────
+                                            │ ✓ plan valid · 5 phases · 14 tasks
+                                            │ ▲ doctor: 1 warning · uncommitted changes
+                                            │ ── RECENT ────────────────────────────────────────────────────────────────
+                                            │ Oct 06 21:10  M2  3 done · 1 skipped · stopped
+                                            │ Oct 05 18:02  M1  6 done · completed
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[›a Arise…‹] [v Preview] [c Check] [D Draft…] [i Doctor] [h History] [e Edit plan] [, Settings] [More…] [?] [q Quit]

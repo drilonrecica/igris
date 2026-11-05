@@ -56,6 +56,34 @@ func TestHostWhere(t *testing.T) {
 	}
 }
 
+// Read inside another tmux server the command is for a shell outside tmux
+// (SPEC §15.3, decisions.md V19-G); everywhere else there is no note.
+func TestHostWhereFrom(t *testing.T) {
+	run := Host{Backend: "tmux", Socket: "/tmp/tmux-1000/gate", Session: "igris-p3"}
+	dflt := Host{Backend: "tmux", Socket: "/tmp/tmux-1000/default", Session: "igris-p3"}
+	tests := []struct {
+		name string
+		h    Host
+		from Host
+		note string
+	}{
+		{"another tmux server", run, Host{Backend: "tmux", Socket: "/tmp/tmux-1000/work"}, OutsideTmux},
+		{"the default server, from another", dflt, Host{Backend: "tmux", Socket: "/tmp/tmux-1000/work"}, OutsideTmux},
+		{"outside tmux", run, Host{}, ""},
+		{"herdr", run, Host{Backend: "herdr"}, ""},
+		{"unknown socket", run, Host{Backend: "tmux"}, ""},
+		{"the same server", run, run, ""},
+		{"a herdr run", Host{Backend: "herdr"}, Host{Backend: "tmux", Socket: "/s"}, ""},
+	}
+	for _, tt := range tests {
+		place, command, note := tt.h.WhereFrom("T", tt.from)
+		wp, wc := tt.h.Where("T")
+		if place != wp || command != wc || note != tt.note {
+			t.Errorf("%s: WhereFrom = %q, %q, %q; want %q, %q, %q", tt.name, place, command, note, wp, wc, tt.note)
+		}
+	}
+}
+
 // What comes from the socket is cleaned before it is drawn.
 func TestHostClean(t *testing.T) {
 	h := Host{Backend: "tmux\x1b[31m", Socket: "/s\x07", Session: "a\nb"}.Clean()

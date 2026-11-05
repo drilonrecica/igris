@@ -73,6 +73,22 @@ func (h Host) Where(tab string) (place, command string) {
 	return h.Backend, ""
 }
 
+// OutsideTmux is the note on a tmux command read inside another tmux server
+// (SPEC §15.3): a plain `tmux` there addresses that server through $TMUX,
+// and `-S` refuses to nest, so the command is for a shell outside tmux.
+const OutsideTmux = "from a shell outside tmux"
+
+// WhereFrom is Where for a client at from, and the note to put after the
+// command: OutsideTmux when from is a client of another tmux server, "" in
+// every other view (SPEC §15.3, decisions.md V19-G).
+func (h Host) WhereFrom(tab string, from Host) (place, command, note string) {
+	place, command = h.Where(tab)
+	if h.Backend == hostTmux && command != "" && from.Backend == hostTmux && from.Socket != "" && from.Socket != h.Socket {
+		note = OutsideTmux
+	}
+	return place, command, note
+}
+
 // defaultSocket reports whether socket is a default tmux server's, the one
 // a plain `tmux` reaches: tmux-<uid>/default in tmux's directory.
 func defaultSocket(socket string) bool {

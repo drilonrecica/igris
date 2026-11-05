@@ -100,6 +100,10 @@ describe("sessions as terminal tabs", () => {
     assert.equal(whereIs(dflt, snapshot.active[0]!), "Session: tmux session igris-demo — tmux attach -t igris-demo");
     const odd: Run = { ...snapshot, sessionHost: { backend: "tmux", socket: "/tmp/my sock/t", session: "igris-demo" } };
     assert.equal(whereIs(odd, snapshot.active[0]!), "Session: tmux session igris-demo — tmux -S '/tmp/my sock/t' attach -t igris-demo");
+    // Inside another tmux server the command is for a shell outside tmux (SPEC §15.3).
+    assert.equal(whereIs(snapshot, snapshot.active[0]!, "/tmp/tmux-1000/work,4242,0"), `Session: tmux session igris-demo — tmux -S ${SOCKET} attach -t igris-demo (from a shell outside tmux)`);
+    assert.equal(whereIs(dflt, snapshot.active[0]!, "/tmp/tmux-1000/work,4242,0"), "Session: tmux session igris-demo — tmux attach -t igris-demo (from a shell outside tmux)");
+    assert.equal(whereIs(snapshot, snapshot.active[0]!, `${SOCKET},4242,0`), `Session: tmux session igris-demo — tmux -S ${SOCKET} attach -t igris-demo`);
     const other: Run = { ...snapshot, sessionHost: { backend: "zellij\u001b[31m", socket: "", session: "" } };
     assert.equal(whereIs(other, snapshot.active[0]!), "Session: zellij");
   });

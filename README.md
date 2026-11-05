@@ -155,7 +155,7 @@ How much a session may do without asking is its **mode**: `plan`, `auto` (the de
 
 ### Detach and attach
 
-`igris arise` hosts the run in a background `igris serve`, so a closed terminal or a dropped ssh connection only detaches you: the run goes on. `igris attach`, or bare `igris` (home then offers **Attach** first and shows when the run needs you), opens it again from any terminal on the machine; several can be attached at once. `q` asks **Detach** · Stop run · Cancel. **Open session** (`o`) works from wherever the session lives (herdr, or any session on the run's tmux server); elsewhere the card says where it is (`tmux attach -t igris-p3`) and `y` copies that. `igris serve` also runs headless outside herdr and tmux, and `igris stop` stops a run from a script. [Detach and attach](https://drilonrecica.github.io/igris/docs/detach-attach.html).
+`igris arise` hosts the run in a background `igris serve`, so a closed terminal or a dropped ssh connection only detaches you: the run goes on. `igris attach`, or bare `igris` (home then offers **Attach** first and shows when the run needs you), opens it again from any terminal on the machine; several can be attached at once. `q` asks **Detach** · Stop run · Cancel. **Open session** (`o`) works from wherever the session lives (herdr, or any session on the run's tmux server); elsewhere the card says where it is (`tmux attach -t igris-p3`, with `(from a shell outside tmux)` after it when you are in another tmux server) and `y` copies that. `igris serve` also runs headless outside herdr and tmux, and `igris stop` stops a run from a script. [Detach and attach](https://drilonrecica.github.io/igris/docs/detach-attach.html).
 
 ### Parallel phases
 

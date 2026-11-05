@@ -162,7 +162,7 @@ async function openSessionCommand(node?: Node): Promise<void> {
   const card = task !== undefined ? run.active.find((c) => c.task === task) : undefined;
   if (!card) return ui.told(false, task !== undefined ? `Igris: ${line(task)} is not active.` : "Igris: no task is active.");
   if (tabs?.focus(run, card.task)) return;
-  await ui.notify(`Igris: ${whereIs(run, card)}`, []);
+  await ui.notify(`Igris: ${whereIs(run, card, process.env["TMUX"] ?? "")}`, []);
 }
 
 /** Sends one of the run's actions by its command type. */

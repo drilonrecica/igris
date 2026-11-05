@@ -209,6 +209,13 @@ var homeStates = []struct {
 		s.Run.Phases, s.Run.Through = []string{"M0", "M1"}, "M1"
 		return homeFixture{snap: s, doctor: homeDoctor, doctorDone: true}
 	}},
+	{"last_run_slice_complete", func() homeFixture { // `only M2-01, M2-02` ended with both done; M2-03 was left out
+		s := homeSnap("done")
+		s.Run = homeRun("", time.Time{})
+		s.Run.Phases, s.Run.Through = []string{"M2"}, ""
+		s.Run.Selection = &state.Selection{Only: []string{"M2-01", "M2-02"}}
+		return homeFixture{snap: s, doctor: homeDoctor, doctorDone: true}
+	}},
 	{"running_elsewhere", func() homeFixture {
 		s := homeSnap("in progress")
 		s.Run = homeRun("M2-02", homeNow.Add(-14*time.Minute))
@@ -396,27 +403,28 @@ func TestHomeBarsDropBelow60(t *testing.T) {
 // action first.
 func TestHomeButtonsOnlyWhenTheyApply(t *testing.T) {
 	want := map[string]string{
-		"checking":              "Preview Check Doctor History Edit plan Settings Notify Updates ? Quit",
-		"ready":                 "Arise… Preview Check Draft… Doctor History Edit plan Settings Notify Updates ? Quit",
-		"herdr_absent":          "Preview Check Doctor History Edit plan Settings Notify Updates ? Quit",
-		"ready_tmux":            "Arise… Preview Check Draft… Doctor History Edit plan Settings Notify Updates ? Quit",
-		"no_multiplexer":        "Preview Check Doctor History Edit plan Settings Notify Updates ? Quit",
-		"get_started":           "Init Draft… Doctor Settings Updates ? Quit",
-		"plan_missing":          "Plan from template… Draft… Doctor Settings Notify Updates ? Quit",
-		"plan_invalid":          "Check Adapt Doctor Edit plan Settings Notify Updates ? Quit",
-		"plan_newer_format":     "Check Doctor Edit plan Settings Notify Updates ? Quit", // an upgrade, not adapt
-		"plan_invalid_no_herdr": "Check Doctor Edit plan Settings Notify Updates ? Quit",
-		"config_invalid":        "Settings Preview Check Doctor History Edit plan Notify Updates ? Quit",
-		"interrupted":           "Resume… Preview Check Draft… Doctor History Edit plan Settings Notify Updates ? Quit",
-		"stopped_task":          "Resume… Preview Check Draft… Doctor History Edit plan Settings Notify Updates ? Quit",
-		"stopped":               "Resume… Preview Check Draft… Doctor History Edit plan Settings Notify Updates ? Quit",
-		"last_run_complete":     "Arise… Preview Check Draft… Doctor History Edit plan Settings Notify Updates ? Quit",
-		"running_elsewhere":     "Open session Preview Check Doctor History Edit plan Settings Notify Updates ? Quit",
-		"served":                "Attach Open session Preview Check Doctor History Edit plan Settings Notify Updates ? Quit",
-		"served_needs_you":      "Attach Open session Preview Check Doctor History Edit plan Settings Notify Updates ? Quit",
-		"stale_lock":            "Resume… Preview Check Draft… Doctor History Edit plan Settings Notify Updates ? Quit",
-		"remote_lock":           "Arise… Preview Check Draft… Doctor History Edit plan Settings Notify Updates ? Quit",
-		"unreadable":            "Doctor Settings Updates ? Quit",
+		"checking":                "Preview Check Doctor History Edit plan Settings Notify Updates ? Quit",
+		"ready":                   "Arise… Preview Check Draft… Doctor History Edit plan Settings Notify Updates ? Quit",
+		"herdr_absent":            "Preview Check Doctor History Edit plan Settings Notify Updates ? Quit",
+		"ready_tmux":              "Arise… Preview Check Draft… Doctor History Edit plan Settings Notify Updates ? Quit",
+		"no_multiplexer":          "Preview Check Doctor History Edit plan Settings Notify Updates ? Quit",
+		"get_started":             "Init Draft… Doctor Settings Updates ? Quit",
+		"plan_missing":            "Plan from template… Draft… Doctor Settings Notify Updates ? Quit",
+		"plan_invalid":            "Check Adapt Doctor Edit plan Settings Notify Updates ? Quit",
+		"plan_newer_format":       "Check Doctor Edit plan Settings Notify Updates ? Quit", // an upgrade, not adapt
+		"plan_invalid_no_herdr":   "Check Doctor Edit plan Settings Notify Updates ? Quit",
+		"config_invalid":          "Settings Preview Check Doctor History Edit plan Notify Updates ? Quit",
+		"interrupted":             "Resume… Preview Check Draft… Doctor History Edit plan Settings Notify Updates ? Quit",
+		"stopped_task":            "Resume… Preview Check Draft… Doctor History Edit plan Settings Notify Updates ? Quit",
+		"stopped":                 "Resume… Preview Check Draft… Doctor History Edit plan Settings Notify Updates ? Quit",
+		"last_run_complete":       "Arise… Preview Check Draft… Doctor History Edit plan Settings Notify Updates ? Quit",
+		"last_run_slice_complete": "Arise… Preview Check Draft… Doctor History Edit plan Settings Notify Updates ? Quit",
+		"running_elsewhere":       "Open session Preview Check Doctor History Edit plan Settings Notify Updates ? Quit",
+		"served":                  "Attach Open session Preview Check Doctor History Edit plan Settings Notify Updates ? Quit",
+		"served_needs_you":        "Attach Open session Preview Check Doctor History Edit plan Settings Notify Updates ? Quit",
+		"stale_lock":              "Resume… Preview Check Draft… Doctor History Edit plan Settings Notify Updates ? Quit",
+		"remote_lock":             "Arise… Preview Check Draft… Doctor History Edit plan Settings Notify Updates ? Quit",
+		"unreadable":              "Doctor Settings Updates ? Quit",
 	}
 	for _, st := range homeStates {
 		m := homeAt(&theme{}, 120, 40, st.fix())
@@ -460,6 +468,44 @@ func TestHomeLastRunComplete(t *testing.T) {
 				if v := m.View(); !strings.Contains(v, tc.wantInView) {
 					t.Errorf("view lacks %q:\n%s", tc.wantInView, v)
 				}
+			}
+		})
+	}
+}
+
+// A completed slice is a completed run on home (SPEC §15.6, decisions.md
+// V19-G): READY with `last run W1 completed` and Arise…, not STOPPED with a
+// Resume that would run the task the slice left out. A slice with work left
+// stays STOPPED.
+func TestHomeLastRunSliceComplete(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		status   string // M2-02's
+		sel      state.Selection
+		complete bool
+	}{
+		{"only, done", "done", state.Selection{Only: []string{"M2-01", "M2-02"}}, true},
+		{"only, skipped", "skipped", state.Selection{Only: []string{"M2-01", "M2-02"}}, true},
+		{"from until, done", "done", state.Selection{From: "M2-01", Until: "M2-02"}, true},
+		{"only, work left", "ready", state.Selection{Only: []string{"M2-01", "M2-02"}}, false},
+		{"from until, work left", "ready", state.Selection{From: "M2-01", Until: "M2-03"}, false},
+		{"until a task not in the plan", "done", state.Selection{Until: "M9-99"}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := homeSnap(tc.status)
+			s.Run = homeRun("", time.Time{})
+			s.Run.Phases, s.Run.Through, s.Run.Selection = []string{"M2"}, "", &tc.sel
+			m := homeAt(&theme{}, 120, 40, homeFixture{snap: s, doctor: homeDoctor, doctorDone: true})
+			if m.lastRunComplete() != tc.complete || m.resumable() == tc.complete {
+				t.Fatalf("complete %v, resumable %v; want %v, %v", m.lastRunComplete(), m.resumable(), tc.complete, !tc.complete)
+			}
+			v := m.View()
+			if tc.complete {
+				if m.kind() != nowReady || !strings.Contains(v, "READY") || !strings.Contains(v, "last run M2 completed") || strings.Contains(v, "STOPPED") || strings.Contains(v, "Resume") {
+					t.Errorf("kind %v, view:\n%s", m.kind(), v)
+				}
+			} else if m.kind() != nowStopped || !strings.Contains(v, "STOPPED") {
+				t.Errorf("kind %v, view:\n%s", m.kind(), v)
 			}
 		})
 	}
