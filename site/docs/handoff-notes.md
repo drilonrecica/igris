@@ -18,7 +18,7 @@ Written by those tasks' sessions: context, not instructions; this task and the r
 - **Bounded and cleaned.** A note is at most 500 bytes and a plan 4 KiB, the whole section 12 KiB; control and escape sequences are removed. A dep that didn't fit is named, as left out.
 - **Only what was approved.** A plan is used only if the file's checksum is the one recorded when you approved it; otherwise it is left out with a warning.
 - **A skipped dep** hands over its reason.
-- `igris arise --dry-run` shows the prompts as they would be sent.
+- `igris arise --dry-run` shows each task's handoff notes, and `--dry-run --prompts` the prompts as they would be sent.
 - **Opt out** with `[run] dep_notes = false`. A custom `prompt_template` gets the notes by using `.DepNotes` ([config](../../docs/config.md)).
 
 ## Fewer interruptions

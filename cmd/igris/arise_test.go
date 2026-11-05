@@ -1144,3 +1144,16 @@ func TestAriseTUIAriseNextPhase(t *testing.T) {
 		t.Errorf("the wizard opened on %q, want B", wizard)
 	}
 }
+
+// --prompts without --dry-run is a usage error (SPEC §14).
+func TestArisePromptsNeedsDryRun(t *testing.T) {
+	root := writeProject(t, map[string]string{"tasks.md": dryPlan})
+	t.Chdir(root)
+	var out, errb bytes.Buffer
+	if code := run([]string{"arise", "A", "--prompts"}, &out, &errb); code != exitUsage {
+		t.Fatalf("exit %d, want %d; stderr:\n%s", code, exitUsage, errb.String())
+	}
+	if !strings.Contains(errb.String(), "add --dry-run") {
+		t.Errorf("stderr = %q", errb.String())
+	}
+}

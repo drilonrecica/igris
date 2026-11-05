@@ -24,6 +24,9 @@ type RunRequest struct {
 	// Parallel is --parallel N: how many tasks a parallel phase of this run
 	// runs at once in place of [parallel] max (SPEC §5.1); 0 is unset.
 	Parallel int
+	// Prompts is `--dry-run --prompts`: the dry run carries each session's
+	// first prompt (SPEC §14).
+	Prompts bool
 }
 
 // Confirmations are the owner's answers to arise's start-up questions for

@@ -135,7 +135,7 @@ The **run screen** leads with one status word (`● Working`, `! Needs you`, `Pa
 
 - **Resume anywhere.** Quitting leaves the sessions running. `igris arise` with no phase picks up where the run left off: it reattaches the session, or offers to continue its conversation or start fresh.
 - **Signals from anywhere.** `igris done ID`, `igris skip ID --reason …` and `igris reset ID` work from any terminal in the project. A session's skip or reset is only a request, which igris asks you to confirm.
-- **Without the TUI,** `--no-tui` prints plain log lines and reads your answers from stdin. `--dry-run` shows the launch order and writes nothing.
+- **Without the TUI,** `--no-tui` prints plain log lines and reads your answers from stdin. `--dry-run` shows the launch order and writes nothing; add `--prompts` to see each session's first prompt.
 
 ### Worktree mode
 

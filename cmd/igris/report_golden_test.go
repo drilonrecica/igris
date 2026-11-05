@@ -43,6 +43,10 @@ func TestReportGoldens(t *testing.T) {
 		cmds := cmds
 		for _, ph := range fx.dryPhases {
 			cmds = append(cmds[:len(cmds):len(cmds)], []string{"arise", ph, "--dry-run"})
+			// The prompts a few fixtures would send (V110-05).
+			if fx.name == "valid" || fx.name == "split" || fx.name == "parallel" {
+				cmds = append(cmds[:len(cmds):len(cmds)], []string{"arise", ph, "--dry-run", "--prompts"})
+			}
 		}
 		files := readFixture(t, fx.src) // read before the subtests change directory
 		for _, args := range cmds {

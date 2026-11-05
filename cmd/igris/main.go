@@ -185,7 +185,14 @@ func commands() []command {
 		{name: "arise", setup: func(fs *flag.FlagSet) func([]string) error {
 			fs.Bool("no-tui", false, "plain log output, owner commands from stdin")
 			fs.Bool("dry-run", false, "walk the phase with the fake backend, write nothing")
-			return runFlags(fs)
+			fs.Bool("prompts", false, "with --dry-run: show each session's first prompt")
+			validate := runFlags(fs)
+			return func(args []string) error {
+				if fs.Lookup("prompts").Value.String() == "true" && fs.Lookup("dry-run").Value.String() != "true" {
+					return errors.New("--prompts shows what --dry-run would send; add --dry-run")
+				}
+				return validate(args)
+			}
 		}, exec: execArise},
 		{name: "serve", setup: serveFlags, exec: execServe},
 		{name: "attach", setup: func(fs *flag.FlagSet) func([]string) error { return maxArgs(fs, 0) }, exec: execAttach},

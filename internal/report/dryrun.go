@@ -26,9 +26,13 @@ type DryStep struct {
 	Then    string
 	Verify  string // the task's verify profile; "none" when its cell or phase turns it off, "" when nothing applies (SPEC §6.4)
 	Title   string
-	Resumed bool   // the task was in progress: it gets a fresh session
-	Phase   string // StepPhaseDone
-	Lines   []string
+	Resumed bool // the task was in progress: it gets a fresh session
+	// Prompt is the first prompt the session would get (SPEC §6.1), with the
+	// owner's plan and task file paths; "" unless the dry run was asked for
+	// prompts.
+	Prompt string
+	Phase  string // StepPhaseDone
+	Lines  []string
 }
 
 // ModeText is the step's mode as the dry run shows it: plain plan with
@@ -67,6 +71,9 @@ type DryRun struct {
 	// project root.
 	Worktree string
 	Steps    []DryStep
+	// Inlined says the plan is split and the walk read it as one file, so
+	// the prompts name the real files all the same (--prompts).
+	Inlined bool
 	// Parallelism holds, per phase walked, the critical path, the widest
 	// level and the sets of tasks that could run together (SPEC §14).
 	Parallelism []PhaseParallelism

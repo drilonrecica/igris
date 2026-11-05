@@ -52,6 +52,8 @@ type DryRunOptions struct {
 	Worktree bool
 	// Parallel is --parallel N (SPEC §5.1); 0 takes [parallel] max.
 	Parallel int
+	// Prompts collects each session's first prompt (DryStep.Prompt).
+	Prompts bool
 }
 
 // DryRun walks the phases on a copy of the plan with the fake backend and
@@ -151,11 +153,14 @@ func DryRun(ctx context.Context, o DryRunOptions) (report.DryRun, error) {
 	if err != nil {
 		return r, err
 	}
-	w := &dryWalk{r: &r, format: f.Format, resumed: map[string]bool{}}
+	w := &dryWalk{r: &r, format: f.Format, resumed: map[string]bool{}, prompts: f.Prompts, realPlan: f.Config.Plan, plan: p}
+	be := newDryBackend(dir)
+	w.be = be
+	r.Inlined = f.Prompts && p.Split()
 	var eng *Engine
 	eng, err = New(Options{
 		Config:         cfg,
-		Backend:        newDryBackend(dir),
+		Backend:        be,
 		State:          dir,
 		Clock:          clock,
 		Runner:         &runner.Fake{}, // verify and commits are off; nothing may run
@@ -191,6 +196,7 @@ func DryRun(ctx context.Context, o DryRunOptions) (report.DryRun, error) {
 		r.Parallelism = append(r.Parallelism, report.PhaseParallelism{Phase: textsafe.Line(ph.ID), Parallelism: report.ParallelismOf(ph, rng.In)})
 	}
 	_, err = eng.Run(ctx)
+	w.fillPrompts()
 	return r, err
 }
 
@@ -251,6 +257,30 @@ type dryWalk struct {
 	r       *report.DryRun
 	format  func(Event) []string
 	resumed map[string]bool
+	// prompts: collect each session's first prompt once the walk is over.
+	prompts  bool
+	be       *fake.Backend
+	realPlan string // the owner's plan path, as the config names it
+	plan     *plan.Plan
+	sessions []dryPrompt
+}
+
+// dryPrompt remembers a session step whose prompt is filled in after the
+// walk, and how the copy's file names read in the owner's project.
+type dryPrompt struct {
+	step int
+	ref  backend.SessionRef
+	swap *strings.Replacer
+}
+
+// fillPrompts puts each session's first prompt on its step, the copy's plan
+// and task file paths replaced by the owner's.
+func (w *dryWalk) fillPrompts() {
+	for _, s := range w.sessions {
+		if ps := w.be.SessionPrompts(s.ref); len(ps) > 0 {
+			w.r.Steps[s.step].Prompt = textsafe.Clean(s.swap.Replace(ps[0]))
+		}
+	}
 }
 
 func (w *dryWalk) event(eng *Engine, dir *state.Dir, ev Event) {
@@ -267,6 +297,18 @@ func (w *dryWalk) event(eng *Engine, dir *state.Dir, ev Event) {
 			Rank: textsafe.Line(ev.Rank), Model: textsafe.Line(ev.Model), Mode: textsafe.Line(ev.Mode), Then: textsafe.Line(eng.planThen(ev.Mode)), Verify: textsafe.Line(verify),
 			Title: textsafe.Line(ev.Title), Resumed: w.resumed[ev.Task],
 		})
+		if l := eng.launchOf(ev.Task); w.prompts && l != nil && ev.Session != nil {
+			realTask := w.realPlan
+			// The copy is one file; the owner's plan says where the row is.
+			if ph := w.plan.Phase(l.t.Phase.ID); ph != nil && ph.Include != "" {
+				realTask = filepath.Join(filepath.Dir(w.realPlan), filepath.FromSlash(ph.Include))
+			}
+			// The task file first: it may start with the plan file's name.
+			w.sessions = append(w.sessions, dryPrompt{
+				step: len(r.Steps) - 1, ref: *ev.Session,
+				swap: strings.NewReplacer(eng.taskFile(l), realTask, eng.planFile(l), w.realPlan),
+			})
+		}
 		// The handoff notes its prompt would carry (SPEC §6.1, §14).
 		if l := eng.launchOf(ev.Task); l != nil {
 			notes, _ := eng.collectDepNotes(l.t)
@@ -299,7 +341,7 @@ func (w *dryWalk) event(eng *Engine, dir *state.Dir, ev Event) {
 }
 
 // newDryBackend is a fake backend whose sessions report done right away.
-func newDryBackend(dir *state.Dir) backend.Backend {
+func newDryBackend(dir *state.Dir) *fake.Backend {
 	be := fake.New()
 	be.SetAutoSignal(func(_ context.Context, id string) error {
 		return dir.WriteSignal(state.Signal{ID: id, Action: state.ActionDone, Note: "dry run"})

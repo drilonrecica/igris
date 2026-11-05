@@ -63,14 +63,14 @@ func projectEnv() project.Env {
 type ariseFlags struct {
 	phase, through, mode       string
 	noTUI, dryRun, forceUnlock bool
-	worktree                   bool
+	worktree, prompts          bool
 	parallel                   int             // --parallel N; 0 is unset
 	sel                        state.Selection // --only, --from, --until
 	lines                      <-chan string   // --no-tui: the owner's stdin lines
 }
 
 func (f ariseFlags) request() report.RunRequest {
-	return report.RunRequest{Phase: f.phase, Through: f.through, Mode: f.mode, Selection: f.sel, Worktree: f.worktree, Parallel: f.parallel}
+	return report.RunRequest{Phase: f.phase, Through: f.through, Mode: f.mode, Selection: f.sel, Worktree: f.worktree, Parallel: f.parallel, Prompts: f.prompts}
 }
 
 // parseSelection reads --only, --from and --until (SPEC §5.5). Combining
@@ -184,6 +184,7 @@ func execArise(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 	f := runFlagValues(fs, args)
 	f.noTUI = fs.Lookup("no-tui").Value.String() == "true"
 	f.dryRun = fs.Lookup("dry-run").Value.String() == "true"
+	f.prompts = fs.Lookup("prompts").Value.String() == "true"
 	fail := func(format string, a ...any) int {
 		fmt.Fprintf(stderr, "igris arise: %s\n", fmt.Sprintf(format, a...))
 		return exitFail
@@ -1088,9 +1089,27 @@ func printDryRun(o textOut, r report.DryRun) {
 		}
 		tb.Row(append(cells, look.TextCell(title))...)
 	}
-	for _, s := range r.Steps {
+	// A prompt is drawn whole under its task, never cut to the width: the
+	// table gets a marker line, replaced by the block once it is fitted.
+	var blocks [][]string
+	pending := -1 // the session whose prompt waits for its handoff notes
+	flush := func() {
+		if pending < 0 {
+			return
+		}
+		tb.Line(look.TextCell(promptMark + fmt.Sprint(len(blocks))))
+		blocks = append(blocks, promptBlock(r.Steps[pending].Prompt, r.Inlined))
+		pending = -1
+	}
+	for i, s := range r.Steps {
+		if s.Kind != report.StepNote {
+			flush()
+		}
 		switch s.Kind {
 		case report.StepSession:
+			if s.Prompt != "" {
+				pending = i
+			}
 			title := s.Title + yoloBadge(s.Mode)
 			if s.Resumed {
 				title += " (resumed: fresh session)"
@@ -1108,7 +1127,45 @@ func printDryRun(o textOut, r report.DryRun) {
 			}
 		}
 	}
+	flush()
 	if tb.Len() > 0 {
-		o.table(tb)
+		for _, l := range tb.Lines(o.width, o.painter()) {
+			if n, ok := strings.CutPrefix(strings.TrimSpace(l), promptMark); ok {
+				i, _ := strconv.Atoi(n)
+				for _, bl := range blocks[i] {
+					fmt.Fprintln(o.w, bl)
+				}
+				continue
+			}
+			fmt.Fprintln(o.w, l)
+		}
 	}
+}
+
+// promptMark stands in a table for a prompt block (printDryRun).
+const promptMark = "\x00prompt:"
+
+// promptBlock is a first prompt as `--dry-run --prompts` shows it: fenced
+// (longer than any run of backticks in it) and indented under its task.
+func promptBlock(prompt string, inlined bool) []string {
+	const indent = "    "
+	fence := "```"
+	for run, n := 0, 0; n < len(prompt); n++ {
+		if prompt[n] != '`' {
+			run = 0
+			continue
+		}
+		if run++; run >= len(fence) {
+			fence += "`"
+		}
+	}
+	lines := []string{}
+	if inlined {
+		lines = append(lines, indent+"(split plan inlined)")
+	}
+	lines = append(lines, indent+fence)
+	for _, l := range strings.Split(strings.TrimRight(prompt, "\n"), "\n") {
+		lines = append(lines, strings.TrimRight(indent+l, " "))
+	}
+	return append(lines, indent+fence)
 }

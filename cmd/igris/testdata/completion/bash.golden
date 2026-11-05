@@ -54,7 +54,7 @@ _igris() {
             history) COMPREPLY=($(compgen -W "--json -n --stats" -- "$cur")) ;;
             report) COMPREPLY=($(compgen -W "--json" -- "$cur")) ;;
             usage) COMPREPLY=($(compgen -W "--json --since" -- "$cur")) ;;
-            arise) COMPREPLY=($(compgen -W "--dry-run --force-unlock --from --mode --no-tui --only --parallel --through --until --worktree" -- "$cur")) ;;
+            arise) COMPREPLY=($(compgen -W "--dry-run --force-unlock --from --mode --no-tui --only --parallel --prompts --through --until --worktree" -- "$cur")) ;;
             serve) COMPREPLY=($(compgen -W "--force-unlock --from --http --listen-public --mode --only --parallel --rotate --through --until --worktree" -- "$cur")) ;;
             done) COMPREPLY=($(compgen -W "--note" -- "$cur")) ;;
             skip) COMPREPLY=($(compgen -W "--reason" -- "$cur")) ;;
