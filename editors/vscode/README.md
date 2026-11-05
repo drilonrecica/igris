@@ -53,7 +53,7 @@ A snapshot of another protocol than 1 is refused with one line in the tree's pla
 `igris` below 1.8.0 at activation.
 
 Needs `igris` 1.8.0 or newer in `PATH` (SPEC §15.9). The extension runs where the workspace's files are
-(`extensionKind: ["workspace"]`), so it works under Remote-WSL and Remote-SSH.
+(`extensionKind: ["workspace"]`), so under Remote-WSL and Remote-SSH it should run on the remote, next to the socket; not yet verified on a real remote. Verified in VS Code 1.100; Cursor, Kiro, Antigravity and Windsurf take the same `.vsix` and are not yet tried.
 
 ## Safety
 

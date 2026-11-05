@@ -10,7 +10,7 @@ Install **igris 1.8.0 or newer** first ([install](install.md)), so `igris` is in
 
 Without igris, or with one older than 1.8.0, the extension says so in one line and does nothing else. A run whose `igris serve` speaks another protocol than 1 is refused the same way, never guessed at. A newer igris always works.
 
-It runs where the workspace's files are, so under Remote-WSL and Remote-SSH it runs on the remote, next to the socket. Windows works through WSL, as igris does.
+It runs where the workspace's files are, so under Remote-WSL and Remote-SSH it should run on the remote, next to the socket; this is not yet verified on a real remote. Windows works through WSL, as igris does.
 
 ## First run
 
