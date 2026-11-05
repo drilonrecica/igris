@@ -62,12 +62,20 @@ func budgetDialog(ev engine.Event) *dialog {
 }
 
 // budgetRaiseDialog asks for the budget's new value for this run; igris.toml
-// is untouched. Back and esc return to the question.
-func budgetRaiseDialog(ev engine.Event) *dialog {
+// is untouched. Back and esc return to the question. It says what the
+// budget has used by now, from now (the run's latest budget lines), not
+// when it was reached: the sessions running then went on.
+func budgetRaiseDialog(ev engine.Event, now []engine.BudgetUse) *dialog {
 	title, detail := "Raise the budget", "A new value for this run; igris.toml is untouched."
 	if b := ev.Budget; b != nil {
+		used := b.Used
+		for _, u := range now {
+			if u.Budget == b.Budget && u.Used != "" {
+				used = u.Used
+			}
+		}
 		title = "Raise the " + b.Name() + "?"
-		detail = b.Used + " used of " + b.Limit + ". " + detail + ` A token count (30M, 500k) or an amount ($60).`
+		detail = used + " used of " + b.Limit + ". " + detail + ` A token count (30M, 500k) or an amount ($60).`
 	}
 	return &dialog{
 		title:   title,

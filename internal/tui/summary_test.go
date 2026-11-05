@@ -567,3 +567,28 @@ func TestSummaryCountsCommitsKept(t *testing.T) {
 		t.Errorf("commits %d (last %q), want 2 (A-02)", s.commits, s.lastCommit)
 	}
 }
+
+// The facts never cut the estimate: the tokens line takes what the right
+// column leaves (V19-G: `tokens 900k in · 2.4k out · ≈ $0.…` at 160×45).
+func TestSummaryKeepsTheEstimateWhole(t *testing.T) {
+	for _, size := range [][2]int{{160, 45}, {120, 40}, {80, 24}} {
+		t.Run(fmt.Sprint(size), func(t *testing.T) {
+			hs := newHarness(t, size[0], size[1])
+			hs.withPlan(demoPlan)
+			hs.events(
+				engine.Event{Kind: engine.RunStarted, Run: "20261105-091221-3640", Detail: "phase M0", At: at(0)},
+				started("M0-03"), opened("M0-03"),
+				engine.Event{Kind: engine.UsageRead, Task: "M0-03", Tokens: &engine.Tokens{In: 950_000, Out: 2_400, Models: []string{"claude-sonnet-5-5"}, USD: 123.45, Priced: true}},
+				engine.Event{Kind: engine.VerifyPassed, Task: "M0-03", Verify: "fast", At: at(2 * time.Minute)},
+				engine.Event{Kind: engine.Committed, Task: "M0-03", Detail: "M0-03: Makefile", At: at(2 * time.Minute)},
+				engine.Event{Kind: engine.TaskDone, Task: "M0-03", At: at(2 * time.Minute)},
+				engine.Event{Kind: engine.RunStopped, Detail: "completed", At: at(3 * time.Minute)},
+			)
+			v := hs.m.View()
+			checkFits(t, v, size[0], size[1])
+			if want := "tokens 950k in · 2.4k out · ≈ $123.45"; !strings.Contains(v, want) {
+				t.Errorf("the summary lacks %q:\n%s", want, v)
+			}
+		})
+	}
+}

@@ -135,9 +135,11 @@ vsix-check:
 	sh tools/vsix-check.sh $(TAG)
 
 # The owner's step (decisions.md V19-P1): vsix-check first, then vsce and ovsx
-# publish bin/igris-X.Y.Z.vsix. VSCE_PAT and OVSX_PAT come from the environment
-# only (never a file in the repo, never echoed). DRY=1 prints the two commands
-# with the tokens masked and publishes nothing.
-vsix-publish: vscode-deps
+# publish the .vsix it checked. VSCE_PAT and OVSX_PAT come from the environment
+# only (never a file in the repo, never echoed), and no npm step runs while
+# they are set: no vscode-deps prerequisite here (the script says to run it
+# when vsce or ovsx is missing). DRY=1 prints the two commands with the tokens
+# masked and publishes nothing.
+vsix-publish:
 	@test -n "$(TAG)" || { echo "usage: make vsix-publish TAG=vX.Y.Z [DRY=1]"; exit 1; }
 	@sh tools/vsix-publish.sh $(TAG) $(if $(DRY),dry)

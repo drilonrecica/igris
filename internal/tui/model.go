@@ -698,7 +698,7 @@ func (m *model) activate(a action) tea.Cmd {
 		return nil
 	case actBudgetRaise:
 		if m.budgetAsk != nil {
-			m.dialog = budgetRaiseDialog(*m.budgetAsk)
+			m.dialog = budgetRaiseDialog(*m.budgetAsk, m.budgets)
 		}
 		return nil
 	case actBudgetContinue:

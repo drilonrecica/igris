@@ -347,19 +347,35 @@ func (m *model) summaryFacts(w, width int) []string {
 	}
 	indent := strings.Repeat(" ", max((w-width)/2, 0))
 	var out []string
-	if w < summaryWide || len(right) == 0 {
+	// Two halves; a fact longer than its half (the tokens with the
+	// estimate) takes what the other column leaves, and when the two
+	// don't fit side by side they stack, so no fact is cut.
+	lw, rw := (width-4)/2, (width-4)/2
+	wl, wr := widest(left), widest(right)
+	if wl > lw || wr > rw {
+		lw, rw = width-4-wr, wr
+	}
+	if w < summaryWide || len(right) == 0 || wl+4+wr > width {
 		// One column, on the block's left edge with the notes.
 		for _, l := range append(left, right...) {
 			out = append(out, indent+fit(l, width))
 		}
 		return s.withLegend(out, indent, width)
 	}
-	colW := (width - 4) / 2
 	for i := range max(len(left), len(right)) {
-		l := pad(fit(line(left, i), colW), colW)
-		out = append(out, strings.TrimRight(indent+l+"    "+fit(line(right, i), colW), " "))
+		l := pad(fit(line(left, i), lw), lw)
+		out = append(out, strings.TrimRight(indent+l+"    "+fit(line(right, i), rw), " "))
 	}
 	return s.withLegend(out, indent, width)
+}
+
+// widest is the width of the widest of lines, in cells.
+func widest(lines []string) int {
+	n := 0
+	for _, l := range lines {
+		n = max(n, textWidth(l))
+	}
+	return n
 }
 
 // withLegend adds the estimate's legend line (SPEC §6.9) under the facts

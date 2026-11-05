@@ -98,3 +98,23 @@ func TestBudgetRestored(t *testing.T) {
 		}
 	}
 }
+
+// Raise says what the budget has used by now, not when it was reached:
+// the sessions running then went on (V19-G: a budget reached at a task's
+// done read said `50k used of 50k` while the card read `160k / 50k`).
+func TestBudgetRaiseSaysWhatIsUsedNow(t *testing.T) {
+	hs := newHarness(t, 120, 40)
+	hs.events(started("M0-03"), opened("M0-03"))
+	hs.events(budgetAsked()...)
+	later := runReached
+	later.Used, later.Percent = "25.1M", 125.5
+	hs.events(engine.Event{Kind: engine.BudgetRead, Budgets: []engine.BudgetUse{later}})
+	hs.key("1")
+	d := hs.m.dialog
+	if d == nil || d.input == nil {
+		t.Fatalf("Raise opened %+v", d)
+	}
+	if !strings.Contains(d.detail, "25.1M used of 20M.") {
+		t.Errorf("Raise says %q, want what is used now, 25.1M", d.detail)
+	}
+}
