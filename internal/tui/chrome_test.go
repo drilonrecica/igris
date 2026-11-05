@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/drilonrecica/igris/internal/engine"
+	"github.com/drilonrecica/igris/internal/look"
 )
 
 // The open screen's pieces (chrome.go): the header keeps its status word
@@ -38,7 +39,7 @@ func TestHeader(t *testing.T) {
 		t.Errorf("plain wordmark = %q", got)
 	}
 	// With color the second i is the brand's red; the word reads the same.
-	th := colorTheme(t, true, nil)
+	th := colorTheme(t, look.Dark, nil)
 	if got := strip(th.wordmark()); got != "igris" {
 		t.Errorf("colored wordmark reads %q", got)
 	}

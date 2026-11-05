@@ -145,7 +145,7 @@ func TestReportRankMarkColor(t *testing.T) {
 		Tasks: []report.ReportTask{{ID: "A-1", Result: report.ResultDone, Audit: "mismatch"}, {ID: "A-2", Result: report.ResultDone, Audit: "ok"}}}
 	var plain, color strings.Builder
 	printReport(textOut{w: &plain}, r)
-	printReport(textOut{w: &color, color: true, dark: true}, r)
+	printReport(textOut{w: &color, color: true}, r)
 	if !strings.Contains(plain.String(), "| A-1 | done ▲ rank |") || strings.Contains(plain.String(), "\x1b") {
 		t.Errorf("plain report:\n%s", plain.String())
 	}

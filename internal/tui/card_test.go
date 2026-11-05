@@ -12,6 +12,7 @@ import (
 
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/engine"
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/state"
 )
 
@@ -298,7 +299,7 @@ func TestCardShowsTokenUsage(t *testing.T) {
 // words stay the same.
 func TestCardTokenModelIsEmberOnMismatch(t *testing.T) {
 	hs := cardHarness(t, 120, 40, "M0-02")
-	hs.m.th = colorTheme(t, true, nil)
+	hs.m.th = colorTheme(t, look.Dark, nil)
 	hs.events(engine.Event{Kind: engine.UsageRead, Task: "M0-02", Tokens: &engine.Tokens{In: 5, Out: 1, Models: []string{"claude-opus-5-5"}}})
 	plain := hs.m.View()
 	hs.events(engine.Event{Kind: engine.RankMismatch, Task: "M0-02", Detail: "on claude-opus-5-5, not its rank sonnet"})
@@ -343,7 +344,7 @@ func TestQuotaWarningLooks(t *testing.T) {
 	if got := m.quotaText(); got != "5h 96% · 7d 81%" {
 		t.Errorf("quotaText = %q", got)
 	}
-	m.th = newTheme(lipgloss.NewRenderer(io.Discard), true, nil)
+	m.th = newTheme(lipgloss.NewRenderer(io.Discard), look.Dark, nil)
 	m.th.r.SetColorProfile(termenv.TrueColor)
 	got := m.quotaText()
 	if !strings.Contains(got, m.th.paint(lookFail, "5h 96%")) || !strings.Contains(got, m.th.paint(lookWarn, "7d 81%")) {

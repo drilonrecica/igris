@@ -16,14 +16,16 @@ const Tagline = "Arise. One task, one fresh session, the right rank."
 // core, chin bars and the plume's inner stroke (docs/brand). The outline
 // and the visor are Glow, the plume is Plume. The light ground takes the
 // light mark's face and visor core, and the ridges and chin bars mixed
-// from its Glow as the dark ones are.
+// from its Glow as the dark ones are. High contrast stands on black, as
+// dark does, and keeps the dark art: only its outline, visor and plume
+// take the brighter high-contrast Glow and Plume.
 var (
-	HelmFace        = Shade{"#0A1124", "#0E1730"} // the face's left half
-	HelmFaceShadow  = Shade{"#05070F", "#05070F"} // the face's right half
-	HelmRidge       = Shade{"#236C92", "#0C4F7C"}
-	HelmVisorCore   = Shade{"#B8F0FF", "#8FE3FF"}
-	HelmChin        = Shade{"#32A3D3", "#0B70AA"}
-	HelmPlumeStroke = Shade{"#F05A6E", "#F05A6E"}
+	HelmFace        = Shade{"#0A1124", "#0E1730", "#0A1124"} // the face's left half
+	HelmFaceShadow  = Shade{"#05070F", "#05070F", "#05070F"} // the face's right half
+	HelmRidge       = Shade{"#236C92", "#0C4F7C", "#236C92"}
+	HelmVisorCore   = Shade{"#B8F0FF", "#8FE3FF", "#B8F0FF"}
+	HelmChin        = Shade{"#32A3D3", "#0B70AA", "#32A3D3"}
+	HelmPlumeStroke = Shade{"#F05A6E", "#F05A6E", "#F05A6E"}
 )
 
 // HelmL is the mark, 24 × 26 pixels (24 × 13 cells): glow outline, the

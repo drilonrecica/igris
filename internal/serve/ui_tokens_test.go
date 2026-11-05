@@ -12,6 +12,12 @@ import (
 
 var cssToken = regexp.MustCompile(`(--[a-z-]+):\s*([^;]+);`)
 
+// The heads of the light and the high-contrast blocks of app.css.
+const (
+	lightHead = "@media (prefers-color-scheme: light) {\n  :root {"
+	highHead  = "@media (prefers-contrast: more) {\n  :root {"
+)
+
 // cssBlock is the custom properties of the first block that opens with
 // head.
 func cssBlock(t *testing.T, css, head string) map[string]string {
@@ -35,11 +41,12 @@ func TestCSSTokensMatchLook(t *testing.T) {
 	css := appCSS(t)
 	themes := []struct {
 		name   string
-		dark   bool
+		kind   look.Theme
 		tokens map[string]string
 	}{
-		{"dark", true, cssBlock(t, css, ":root {")},
-		{"light", false, cssBlock(t, css, "@media (prefers-color-scheme: light) {\n  :root {")},
+		{"dark", look.Dark, cssBlock(t, css, ":root {")},
+		{"light", look.Light, cssBlock(t, css, lightHead)},
+		{"high contrast", look.High, cssBlock(t, css, highHead)},
 	}
 	want := map[string]look.Shade{
 		"--text":        look.Text,
@@ -67,7 +74,7 @@ func TestCSSTokensMatchLook(t *testing.T) {
 				t.Errorf("%s: app.css has no %s", th.name, token)
 				continue
 			}
-			if w := shade.Pick(th.dark); !strings.EqualFold(got, w) {
+			if w := shade.Pick(th.kind); !strings.EqualFold(got, w) {
 				t.Errorf("%s: %s is %s, internal/look has %s", th.name, token, got, w)
 			}
 		}
@@ -139,30 +146,36 @@ func TestCSSRadii(t *testing.T) {
 	}
 }
 
-// Text is AA in both themes (SPEC §15.8): every text token measures 4.5:1
-// on the ground and on a card, the primary button's text on the accent
-// too. Ember on the light ground is drawn bold, where 4.3 is enough.
+// Text is AA in the dark and light themes (SPEC §15.8): every text token
+// measures 4.5:1 on the ground and on a card, the primary button's text on
+// the accent too. Ember on the light ground is drawn bold, where 4.3 is
+// enough. The high-contrast block (prefers-contrast: more) is AAA: 7:1 for
+// every one, Ember included.
 func TestCSSContrastAA(t *testing.T) {
 	css := appCSS(t)
-	themes := map[string]map[string]string{
-		"dark":  cssBlock(t, css, ":root {"),
-		"light": cssBlock(t, css, "@media (prefers-color-scheme: light) {\n  :root {"),
+	themes := map[string]struct {
+		tokens map[string]string
+		aa     float64
+	}{
+		"dark":          {cssBlock(t, css, ":root {"), 4.5},
+		"light":         {cssBlock(t, css, lightHead), 4.5},
+		"high contrast": {cssBlock(t, css, highHead), 7},
 	}
 	text := []string{"--text", "--muted", "--accent-text", "--needs-text", "--ember", "--rank-haiku", "--rank-sonnet", "--rank-opus", "--rank-fable"}
 	for name, th := range themes {
 		for _, fg := range text {
 			for _, bg := range []string{"--ground", "--card"} {
-				want := 4.5
-				if fg == "--ember" && th["--ember-weight"] == "700" {
+				want := th.aa
+				if fg == "--ember" && th.tokens["--ember-weight"] == "700" && want < 7 {
 					want = 4.3
 				}
-				if c := contrast(t, th[fg], th[bg]); c < want {
+				if c := contrast(t, th.tokens[fg], th.tokens[bg]); c < want {
 					t.Errorf("%s: %s on %s is %.2f:1, want %.1f", name, fg, bg, c, want)
 				}
 			}
 		}
-		if c := contrast(t, th["--on-accent"], th["--accent"]); c < 4.5 {
-			t.Errorf("%s: the primary button's text is %.2f:1", name, c)
+		if c := contrast(t, th.tokens["--on-accent"], th.tokens["--accent"]); c < th.aa {
+			t.Errorf("%s: the primary button's text is %.2f:1, want %.1f", name, c, th.aa)
 		}
 	}
 	// A colour used for words is a text token: the mark shades are not.

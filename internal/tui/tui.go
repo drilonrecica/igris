@@ -15,6 +15,7 @@ import (
 
 	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/engine"
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/plan"
 )
 
@@ -29,8 +30,8 @@ type Options struct {
 	Backend string // backend name for the header
 	Mode    string // the run mode chosen for the run; "" for none
 	Mouse   bool   // [tui] mouse: click, tap, wheel and hover (SPEC §15.5)
-	// Theme is [tui] theme: "dark" or "light" colors, or "auto" (also "")
-	// to go by the terminal's background (SPEC §15.4).
+	// Theme is [tui] theme: "dark", "light" or "high-contrast" colors, or
+	// "auto" (also "") to go by the terminal's background (SPEC §15.4).
 	Theme string
 	// RankColors is [tui.rank_colors]: rank -> "#rrggbb" or an ANSI number.
 	RankColors map[string]string
@@ -111,25 +112,13 @@ func Run(ctx context.Context, opts Options) error {
 	m := newModel(ctx, opts)
 	// Bubble Tea asked the terminal for its background when the process
 	// started, so "auto" costs no query here.
-	m.th = newTheme(lipgloss.NewRenderer(os.Stdout), darkTheme(opts.Theme, lipgloss.HasDarkBackground), opts.RankColors)
+	m.th = newTheme(lipgloss.NewRenderer(os.Stdout), look.ThemeFor(opts.Theme, lipgloss.HasDarkBackground), opts.RankColors)
 	p := tea.NewProgram(newHover(m), programOptions(ctx, opts.Mouse)...)
 	_, err := p.Run()
 	if errors.Is(err, tea.ErrProgramKilled) && ctx.Err() != nil {
 		return nil // ctx ended: not a failure of the TUI
 	}
 	return err
-}
-
-// darkTheme reports whether to use the colors for a dark terminal: as the
-// owner set it, else as detected.
-func darkTheme(setting string, detect func() bool) bool {
-	switch setting {
-	case "dark":
-		return true
-	case "light":
-		return false
-	}
-	return detect()
 }
 
 // programOptions are the Bubble Tea options for a run, the home screen and

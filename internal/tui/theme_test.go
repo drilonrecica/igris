@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/drilonrecica/igris/internal/engine"
+	"github.com/drilonrecica/igris/internal/look"
 )
 
 var sgr = regexp.MustCompile(`\x1b\[([0-9;]*)m`)
@@ -18,12 +19,12 @@ var sgr = regexp.MustCompile(`\x1b\[([0-9;]*)m`)
 func strip(s string) string { return sgr.ReplaceAllString(s, "") }
 
 // colorTheme is a theme that draws colors although no terminal is there.
-func colorTheme(t *testing.T, dark bool, ranks map[string]string) *theme {
+func colorTheme(t *testing.T, kind look.Theme, ranks map[string]string) *theme {
 	t.Helper()
 	t.Setenv("NO_COLOR", "")
 	t.Setenv("CLICOLOR", "")
 	t.Setenv("CLICOLOR_FORCE", "1")
-	return newTheme(lipgloss.NewRenderer(io.Discard), dark, ranks)
+	return newTheme(lipgloss.NewRenderer(io.Discard), kind, ranks)
 }
 
 // noColorTheme is the theme of a terminal under NO_COLOR.
@@ -31,7 +32,7 @@ func noColorTheme(t *testing.T) *theme {
 	t.Helper()
 	t.Setenv("NO_COLOR", "1")
 	t.Setenv("CLICOLOR_FORCE", "1")
-	return newTheme(lipgloss.NewRenderer(io.Discard), true, nil)
+	return newTheme(lipgloss.NewRenderer(io.Discard), look.Dark, nil)
 }
 
 // styledStates are states that draw every painted part: the layout
@@ -78,9 +79,9 @@ func TestStylingKeepsTheLayout(t *testing.T) {
 		name string
 		th   func(t *testing.T) *theme
 	}{
-		{"dark", func(t *testing.T) *theme { return colorTheme(t, true, nil) }},
+		{"dark", func(t *testing.T) *theme { return colorTheme(t, look.Dark, nil) }},
 		{"light", func(t *testing.T) *theme {
-			return colorTheme(t, false, map[string]string{"opus": "#FF00FF", "user": "3"})
+			return colorTheme(t, look.Light, map[string]string{"opus": "#FF00FF", "user": "3"})
 		}},
 		{"no color", noColorTheme},
 	}
@@ -149,7 +150,7 @@ func TestColorsAreDrawn(t *testing.T) {
 	hs := newHarness(t, 120, 30)
 	hs.withPlan(demoPlan)
 	hs.events(started("M0-03"), opened("M0-03"))
-	hs.m.th = colorTheme(t, true, nil)
+	hs.m.th = colorTheme(t, look.Dark, nil)
 	if v := hs.m.View(); !colored(v) {
 		t.Errorf("no color in the view:\n%q", v)
 	}
@@ -162,7 +163,7 @@ func TestFocusIsMarkedWithoutColor(t *testing.T) {
 			hs := newHarness(t, size[0], size[1])
 			hs.withPlan(demoPlan)
 			hs.events(started("M0-03"), opened("M0-03"))
-			hs.m.th = colorTheme(t, true, nil)
+			hs.m.th = colorTheme(t, look.Dark, nil)
 			// Narrow, the bar has room for the verb only.
 			if v := hs.m.View(); !strings.Contains(v, focus+"[›o Open session‹]"+sgrReset) && !strings.Contains(v, focus+"[›o Open‹]"+sgrReset) {
 				t.Errorf("focused button:\n%q", v)
@@ -211,7 +212,7 @@ func TestButtonStates(t *testing.T) {
 }
 
 func TestRankColors(t *testing.T) {
-	th := colorTheme(t, true, map[string]string{"opus": "1", "wizard": "2"})
+	th := colorTheme(t, look.Dark, map[string]string{"opus": "1", "wizard": "2"})
 	for rank, want := range map[string]string{
 		"opus":   "\x1b[31mopus" + sgrReset, // the owner's color replaces the built-in one
 		"wizard": "\x1b[32mwizard" + sgrReset,
@@ -243,29 +244,44 @@ func TestRankColors(t *testing.T) {
 }
 
 func TestThemeForLightAndDark(t *testing.T) {
-	dark, light := colorTheme(t, true, nil), colorTheme(t, false, nil)
-	if dark.looks[lookAccent].color != "#3CC8FF" || light.looks[lookAccent].color != "#0A6FA8" {
-		t.Errorf("accent: dark %q, light %q", dark.looks[lookAccent].color, light.looks[lookAccent].color)
-	}
-	if dark.ranks["fable"] == light.ranks["fable"] || light.ranks["fable"] == "" {
-		t.Errorf("fable: dark %q, light %q", dark.ranks["fable"], light.ranks["fable"])
-	}
-
-	detected := func() bool { return true }
-	for setting, want := range map[string]bool{"dark": true, "light": false, "auto": true, "": true} {
-		if got := darkTheme(setting, detected); got != want {
-			t.Errorf("darkTheme(%q) = %v", setting, got)
+	dark, light, high := colorTheme(t, look.Dark, nil), colorTheme(t, look.Light, nil), colorTheme(t, look.High, nil)
+	for name, tt := range map[string]struct {
+		th     *theme
+		accent string
+	}{"dark": {dark, "#3CC8FF"}, "light": {light, "#0A6FA8"}, "high": {high, "#5CD3FF"}} {
+		if got := tt.th.looks[lookAccent].color; got != tt.accent {
+			t.Errorf("%s: accent %q, want %q", name, got, tt.accent)
 		}
 	}
-	if darkTheme("auto", func() bool { return false }) {
-		t.Error("auto ignores a light terminal")
+	if dark.ranks["fable"] == light.ranks["fable"] || light.ranks["fable"] == "" || high.ranks["fable"] == dark.ranks["fable"] || high.ranks["fable"] == "" {
+		t.Errorf("fable: dark %q, light %q, high %q", dark.ranks["fable"], light.ranks["fable"], high.ranks["fable"])
+	}
+	// High contrast: dim is Muted rather than faint, and the focus is
+	// still reverse video, no color.
+	if got := high.paint(lookDim, "x"); strings.Contains(got, "\x1b[2m") || !colored(got) {
+		t.Errorf("high contrast dim = %q", got)
+	}
+	if high.looks[lookFocus] != dark.looks[lookFocus] {
+		t.Errorf("high contrast focus = %+v", high.looks[lookFocus])
+	}
+
+	for _, detected := range []bool{true, false} {
+		auto := look.Light
+		if detected {
+			auto = look.Dark
+		}
+		for setting, want := range map[string]look.Theme{"dark": look.Dark, "light": look.Light, "high-contrast": look.High, "auto": auto, "": auto} {
+			if got := look.ThemeFor(setting, func() bool { return detected }); got != want {
+				t.Errorf("ThemeFor(%q), dark terminal %v = %d, want %d", setting, detected, got, want)
+			}
+		}
 	}
 }
 
 func TestSkipPermissionsBadgeIsPainted(t *testing.T) {
 	hs := newHarness(t, 120, 30)
 	hs.events(started("M0-03"), opened("M0-03"), engine.Event{Kind: engine.ModeChanged, Detail: engine.ModeYolo})
-	hs.m.th = colorTheme(t, true, nil)
+	hs.m.th = colorTheme(t, look.Dark, nil)
 	v := hs.m.View()
 	if n := strings.Count(v, skipBadge+sgrReset); n < 2 { // the header and the log
 		t.Errorf("%d painted badges, want the header's and the log's:\n%q", n, v)

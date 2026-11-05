@@ -16,6 +16,7 @@ import (
 
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/engine"
+	"github.com/drilonrecica/igris/internal/look"
 )
 
 // The app (SPEC §15, §15.6) is one Bubble Tea program holding a stack of
@@ -31,8 +32,9 @@ type AppOptions struct {
 	// `igris arise` with nothing to resume. Nil means Home{}.
 	Start Start
 	Mouse bool // [tui] mouse
-	// Theme is [tui] theme: "dark", "light", or "auto" (also "") to go by
-	// the terminal's background, detected once for the whole app.
+	// Theme is [tui] theme: "dark", "light", "high-contrast", or "auto"
+	// (also "") to go by the terminal's background, detected once for the
+	// whole app.
 	Theme      string
 	RankColors map[string]string // [tui.rank_colors]
 	// Poll is how often home looks at the project's files for changes:
@@ -89,7 +91,7 @@ func App(ctx context.Context, o AppOptions) (AppResult, error) {
 	// Bubble Tea asked the terminal for its background when the process
 	// started; this is the only time igris looks at it.
 	dark := lipgloss.HasDarkBackground()
-	th := newTheme(lipgloss.NewRenderer(os.Stdout), darkTheme(o.Theme, func() bool { return dark }), o.RankColors)
+	th := newTheme(lipgloss.NewRenderer(os.Stdout), look.ThemeFor(o.Theme, func() bool { return dark }), o.RankColors)
 	a := newApp(ctx, o, th)
 	a.dark = dark
 	// Focus reports make home look at the project again when the owner
@@ -370,7 +372,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // on or off.
 func (a *appModel) applyConfig(c config.TUI) tea.Cmd {
 	if a.th != nil && a.th.r != nil && (c.Theme != a.o.Theme || !maps.Equal(c.RankColors, a.o.RankColors)) {
-		*a.th = *newTheme(a.th.r, darkTheme(c.Theme, func() bool { return a.dark }), c.RankColors)
+		*a.th = *newTheme(a.th.r, look.ThemeFor(c.Theme, func() bool { return a.dark }), c.RankColors)
 	}
 	a.o.Theme, a.o.RankColors = c.Theme, c.RankColors
 	if c.Mouse == a.o.Mouse {

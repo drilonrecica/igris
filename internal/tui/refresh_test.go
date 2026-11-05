@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/drilonrecica/igris/internal/config"
+	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/plan"
 	"github.com/drilonrecica/igris/internal/report"
 )
@@ -147,7 +148,7 @@ func TestAppRefreshesOnFocusAndReturn(t *testing.T) {
 }
 
 func TestAppAppliesTheConfigLive(t *testing.T) {
-	th := newTheme(lipgloss.NewRenderer(io.Discard), true, nil)
+	th := newTheme(lipgloss.NewRenderer(io.Discard), look.Dark, nil)
 	a := newApp(context.Background(), AppOptions{Services: &fakeServices{}, Poll: -1, Mouse: true, Theme: "dark"}, th)
 	dark := th.looks[lookAccent].color
 
@@ -212,7 +213,7 @@ func largeHome(tb testing.TB) *homeScreen {
 	if len(s.Plan.Tasks) < 150 {
 		tb.Fatalf("large fixture has %d tasks, want 150+", len(s.Plan.Tasks))
 	}
-	return homeAt(newTheme(lipgloss.NewRenderer(io.Discard), true, nil), 120, 40, homeFixture{snap: s, doctor: homeDoctor, doctorDone: true})
+	return homeAt(newTheme(lipgloss.NewRenderer(io.Discard), look.Dark, nil), 120, 40, homeFixture{snap: s, doctor: homeDoctor, doctorDone: true})
 }
 
 func BenchmarkHomeView(b *testing.B) {

@@ -138,6 +138,16 @@ func TestParseModelsMergeOverDefaults(t *testing.T) {
 	}
 }
 
+// Every [tui] theme of SPEC §15.4 parses, high-contrast since 1.10.
+func TestThemes(t *testing.T) {
+	for _, th := range []string{"auto", "dark", "light", "high-contrast"} {
+		c, err := Parse([]byte("[tui]\ntheme = \""+th+"\"\n"), "igris.toml")
+		if err != nil || c.TUI.Theme != th {
+			t.Errorf("theme %q: %+v, %v", th, c.TUI.Theme, err)
+		}
+	}
+}
+
 func TestParseErrors(t *testing.T) {
 	tests := []struct {
 		name string
@@ -150,7 +160,7 @@ func TestParseErrors(t *testing.T) {
 		{"unknown table", "[nope]\nx = 1", []string{"nope"}},
 		{"unknown tui key", "[tui]\nmice = false", []string{"tui.mice"}},
 		{"tui mouse not bool", "[tui]\nmouse = \"no\"", []string{"parse igris.toml"}},
-		{"bad theme", "[tui]\ntheme = \"neon\"", []string{`tui.theme = "neon"`, "auto, dark, light"}},
+		{"bad theme", "[tui]\ntheme = \"neon\"", []string{`tui.theme = "neon"`, "auto, dark, light, high-contrast"}},
 		{"bad backend", `backend = "zellij"`, []string{`backend = "zellij"`, "auto, herdr, tmux"}},
 		{"rank color by name", "[tui.rank_colors]\nopus = \"purple\"", []string{`tui.rank_colors.opus = "purple"`, "#rrggbb"}},
 		{"rank color short hex", "[tui.rank_colors]\nopus = \"#fff\"", []string{"tui.rank_colors.opus"}},

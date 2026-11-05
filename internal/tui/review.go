@@ -20,7 +20,7 @@ import (
 // proposal.
 type ReviewOptions struct {
 	Mouse bool
-	Theme string // "auto", "dark" or "light", as [tui] theme
+	Theme string // "auto", "dark", "light" or "high-contrast", as [tui] theme
 	// Command names the review in its title: "igris draft"; "" is
 	// "igris adapt".
 	Command string
@@ -56,7 +56,7 @@ type ReviewOptions struct {
 // any other way rejects it.
 func Review(ctx context.Context, o ReviewOptions) (bool, error) {
 	m := newReview(o)
-	m.th = newTheme(lipgloss.NewRenderer(os.Stdout), darkTheme(o.Theme, lipgloss.HasDarkBackground), nil)
+	m.th = newTheme(lipgloss.NewRenderer(os.Stdout), look.ThemeFor(o.Theme, lipgloss.HasDarkBackground), nil)
 	final, err := tea.NewProgram(newHover(m), programOptions(ctx, o.Mouse)...).Run()
 	if errors.Is(err, tea.ErrProgramKilled) && ctx.Err() != nil {
 		return false, nil // ctx ended: nothing was accepted

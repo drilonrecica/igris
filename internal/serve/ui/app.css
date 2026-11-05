@@ -95,6 +95,43 @@
   }
 }
 
+/* High contrast (SPEC §15.4, since 1.10): the phone asks for more
+   contrast, light or dark, and gets [tui] theme = "high-contrast": a black
+   ground, white text, every text token 7:1 (TestCSSContrastAA), the same
+   tokens as internal/look's third shade (TestCSSTokensMatchLook). Plume
+   is still Needs you only; strong borders carry the cards. */
+@media (prefers-contrast: more) {
+  :root {
+    --ground: #000000;
+    --card: #000000;
+    --line: #A9C1E8;
+    --line-soft: #A9C1E8;
+    --text: #FFFFFF;
+    --muted: #BAC6DA;
+    --accent: #5CD3FF;
+    --accent-text: #5CD3FF;
+    --plume: #FF3348;
+    --needs-text: #FF7A8A;
+    --ember: #FFC233;
+    --ember-weight: 600;
+    --rank-haiku: #B4C5D8;
+    --rank-sonnet: #8DBBFF;
+    --rank-opus: #C6A6FF;
+    --rank-fable: #FF9EDF;
+    --helm-face: #0A1124;
+    --helm-face-shadow: #05070F;
+    --helm-ridge: #236C92;
+    --helm-visor-core: #B8F0FF;
+    --helm-chin: #32A3D3;
+    --helm-plume-stroke: #F05A6E;
+    --on-accent: #000000;
+    --glow: rgba(92, 211, 255, .6);
+    --needs-glow: rgba(255, 51, 72, .5);
+    --scrim: rgba(0, 0, 0, .85);
+    color-scheme: dark;
+  }
+}
+
 * { box-sizing: border-box; }
 
 html { background: var(--ground); }

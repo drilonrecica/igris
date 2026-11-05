@@ -19,8 +19,8 @@ import (
 type textOut struct {
 	w     io.Writer
 	color bool
-	dark  bool
-	width int // 0 off a terminal: nothing is cut
+	theme look.Theme // the ground colors are picked for
+	width int        // 0 off a terminal: nothing is cut
 	// words says glyphs and bars in words, one fact per line (SPEC §15.4).
 	words bool
 }
@@ -41,7 +41,11 @@ var outTerminal = func(w io.Writer) (bool, int) {
 
 func newOut(w io.Writer) textOut {
 	term, width := outTerminal(w)
-	return textOut{w: w, color: look.ColorOn(term, os.Getenv), dark: darkGround(os.Getenv), width: width, words: screenReader(os.Getenv, configScreenReader)}
+	o := textOut{w: w, color: look.ColorOn(term, os.Getenv), width: width, words: screenReader(os.Getenv, configScreenReader)}
+	if o.color { // without colors there is no ground to pick for
+		o.theme = ground(os.Getenv, configTheme)
+	}
+	return o
 }
 
 // screenReader says the text output speaks (SPEC §15.4): IGRIS_SCREEN_READER
@@ -62,25 +66,47 @@ func screenReader(getenv func(string) string, fromConfig func() bool) bool {
 // project the working directory is in; false without one, or with one that
 // can't be read (doctor and check say what is wrong with it).
 func configScreenReader() bool {
+	tui, ok := projectTUI()
+	return ok && tui.ScreenReader
+}
+
+// configTheme is `[tui] theme` of the project the working directory is in,
+// as configScreenReader reads it; "" (auto) without one.
+func configTheme() string {
+	tui, _ := projectTUI()
+	return tui.Theme
+}
+
+// projectTUI is the [tui] section of the igris.toml of the project the
+// working directory is in; false without one, or with one that can't be
+// read.
+func projectTUI() (config.TUI, bool) {
 	cwd, err := os.Getwd()
 	if err != nil {
-		return false
+		return config.TUI{}, false
 	}
 	root, err := state.FindRoot(cwd)
 	if err != nil {
 		root = cwd
 	}
 	cfg, err := config.Load(filepath.Join(root, configFile))
-	return err == nil && cfg.TUI.ScreenReader
+	if err != nil {
+		return config.TUI{}, false
+	}
+	return cfg.TUI, true
 }
 
-// darkGround guesses the terminal's ground from COLORFGBG ("15;0": light
-// text on black), which some terminals set; without it the ground is
-// dark. Asking the terminal would write to it and wait for an answer.
-func darkGround(getenv func(string) string) bool {
-	v := getenv("COLORFGBG")
-	bg := v[strings.LastIndex(v, ";")+1:]
-	return bg != "7" && bg != "15"
+// ground is the theme the text output's colors are picked for (SPEC
+// §15.4): `[tui] theme` as the TUI takes it, read through fromConfig; for
+// auto the ground guessed from COLORFGBG ("15;0": light text on black),
+// which some terminals set, and dark without it. Asking the terminal would
+// write to it and wait for an answer.
+func ground(getenv func(string) string, fromConfig func() string) look.Theme {
+	return look.ThemeFor(fromConfig(), func() bool {
+		v := getenv("COLORFGBG")
+		bg := v[strings.LastIndex(v, ";")+1:]
+		return bg != "7" && bg != "15"
+	})
 }
 
 // paint draws s with sev when colors are on; s as it is otherwise, byte
@@ -89,7 +115,7 @@ func (o textOut) paint(sev look.Severity, s string) string {
 	if !o.color {
 		return s
 	}
-	return look.Paint(true, o.dark, sev, s)
+	return look.Paint(true, o.theme, sev, s)
 }
 
 // painter is paint for look.Table, nil without colors.

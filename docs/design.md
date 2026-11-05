@@ -62,16 +62,18 @@ The rest of the run's states map onto the seven words: a hold (the plan or `igri
 
 ### Severity and color
 
-| Severity | Dark | Light | Used for |
-|---|---|---|---|
-| **Plume** (needs you) | `#E3172B`, words `#FF5C74` | `#E3172B`, words `#B3122E` | `!`, the Needs-you banner's edge, the sheet's edge, the phase bar's segment, the `[SKIP PERMISSIONS]` badge; the words Needs you in the text shade. Nothing else |
-| **Ember** (warning) | `#FFB000` | `#9A6700` | `▲` and `✗` and their lines: warnings, failures, Interrupted, Overdue, Rank mismatch, reconnecting…, the quota from 80% |
-| **Glow** (accent) | `#3CC8FF` | `#0A86C8`, words `#0A6FA8` | `●`, `✓`, the working word, the focused region, the primary button, **Arise.**, the helm's outline and visor; words on the light ground in the text shade |
-| **Text** | `#EAF4FF` | `#05070F` | everything that is read |
-| **Dim** | faint | faint | done, skipped and blocked rows, secondary text, inactive buttons; on the web `#9DB0D3` / `#4A5B7A` |
-| **Frame** | `#2C5AA0` | `#8FA9CC` | rules, column lines, card borders |
+| Severity | Dark | Light | High contrast | Used for |
+|---|---|---|---|---|
+| **Plume** (needs you) | `#E3172B`, words `#FF5C74` | `#E3172B`, words `#B3122E` | `#FF3348`, words `#FF7A8A` | `!`, the Needs-you banner's edge, the sheet's edge, the phase bar's segment, the `[SKIP PERMISSIONS]` badge; the words Needs you in the text shade. Nothing else |
+| **Ember** (warning) | `#FFB000` | `#9A6700` | `#FFC233` | `▲` and `✗` and their lines: warnings, failures, Interrupted, Overdue, Rank mismatch, reconnecting…, the quota from 80% |
+| **Glow** (accent) | `#3CC8FF` | `#0A86C8`, words `#0A6FA8` | `#5CD3FF` | `●`, `✓`, the working word, the focused region, the primary button, **Arise.**, the helm's outline and visor; words on the light ground in the text shade |
+| **Text** | `#EAF4FF` | `#05070F` | `#FFFFFF` | everything that is read |
+| **Dim** | faint | faint | `#BAC6DA` | done, skipped and blocked rows, secondary text, inactive buttons; on the web `#9DB0D3` / `#4A5B7A` / `#BAC6DA` |
+| **Frame** | `#2C5AA0` | `#8FA9CC` | `#A9C1E8` | rules, column lines, card borders |
 
-The helm adds shades of its own, art and never text, named in `internal/look` and mirrored by the web UI's tokens (dark / light): face `#0A1124` / `#0E1730` and its shadow half `#05070F`, ridges `#236C92` / `#0C4F7C`, visor core `#B8F0FF` / `#8FE3FF`, chin bars `#32A3D3` / `#0B70AA`, the plume's stroke `#F05A6E`. Its outline and visor are Glow and its plume is Plume. The S tile is the app icon and keeps its dark shades on a light terminal.
+High contrast (since 1.10) is for eyes that need more than AA: `[tui] theme = "high-contrast"` in the TUI and the command line's text, `prefers-contrast: more` on the web. It is a black ground with white text; the terminal keeps its own ground and its own plain text color, which igris expects to be black and white. Every color that words are drawn in measures 7:1 (WCAG AAA) on black, the rank colors included, so the theme has no faint: dim words are drawn in their own grey, because a terminal draws faint at about half intensity. The rules stay the same: Plume is Needs you and the badge only, warnings are Ember, focus is reverse video and `›…‹`. `auto` never picks it; you ask for it.
+
+The helm adds shades of its own, art and never text, named in `internal/look` and mirrored by the web UI's tokens (dark / light): face `#0A1124` / `#0E1730` and its shadow half `#05070F`, ridges `#236C92` / `#0C4F7C`, visor core `#B8F0FF` / `#8FE3FF`, chin bars `#32A3D3` / `#0B70AA`, the plume's stroke `#F05A6E`. Its outline and visor are Glow and its plume is Plume. The S tile is the app icon and keeps its dark shades on a light terminal. High contrast keeps the dark helm on black, with its own brighter Glow and Plume.
 
 Ember is the functional brand color for warnings on every surface: amber on dark, dark gold on light. It replaces the red that warnings wore in the TUI and the amber that only the quota wore. A failure (`✗`) is the strongest warning and uses Ember in bold, not red: it is a condition to fix, not igris waiting for your answer. The quota is Ember from 80% and bold Ember from 95%: running low is a warning, not igris waiting on you.
 
@@ -83,12 +85,12 @@ Terminal colors are drawn only on a terminal, with `NO_COLOR` unset and `TERM` n
 
 One scheme for the TUI, the web UI and the site. A rank's name is always written next to its color.
 
-| Rank | Name | Dark | Light |
-|---|---|---|---|
-| `haiku` | Steel | `#9FB3C8` | `#52657A` |
-| `sonnet` | Sky | `#6EA8FF` | `#1D5FD1` |
-| `opus` | Violet | `#B48CFF` | `#6D3FD6` |
-| `fable` | Orchid | `#FF8AD8` | `#B0237A` |
+| Rank | Name | Dark | Light | High contrast |
+|---|---|---|---|---|
+| `haiku` | Steel | `#9FB3C8` | `#52657A` | `#B4C5D8` |
+| `sonnet` | Sky | `#6EA8FF` | `#1D5FD1` | `#8DBBFF` |
+| `opus` | Violet | `#B48CFF` | `#6D3FD6` | `#C6A6FF` |
+| `fable` | Orchid | `#FF8AD8` | `#B0237A` | `#FF9EDF` |
 
 The ladder runs from grey through blue and violet to orchid: cooler and dimmer for the small ranks, warmer and brighter for the big ones, and never cyan (the accent), amber (Ember) or red (plume). Fable was gold before 1.7; gold is now Ember and means a warning, so fable moves (the upgrade note says so). `[tui.rank_colors]` still overrides any of them, and a rank without a color is drawn plain.
 

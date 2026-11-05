@@ -1,6 +1,8 @@
 package look
 
 import (
+	"fmt"
+	"math"
 	"regexp"
 	"strings"
 	"testing"
@@ -88,46 +90,117 @@ func TestOutcomes(t *testing.T) {
 func TestSeverityStyles(t *testing.T) {
 	for _, tt := range []struct {
 		sev        Severity
-		dark       bool
+		th         Theme
 		want       Style
 		mark       string
 		sgr, plain string
 	}{
-		{Plain, true, Style{}, "", "", ""},
-		{Accent, true, Style{Color: "#3CC8FF"}, "#3CC8FF", "38;2;60;200;255", ""},
-		{Accent, false, Style{Color: "#0A6FA8"}, "#0A86C8", "38;2;10;111;168", ""},
-		{Needs, true, Style{Color: "#FF5C74", Bold: true}, "#E3172B", "1;38;2;255;92;116", "1"},
-		{Needs, false, Style{Color: "#B3122E", Bold: true}, "#E3172B", "1;38;2;179;18;46", "1"},
-		{Warn, true, Style{Color: "#FFB000"}, "#FFB000", "38;2;255;176;0", ""},
-		{Warn, false, Style{Color: "#9A6700", Bold: true}, "#9A6700", "1;38;2;154;103;0", "1"},
-		{Fail, true, Style{Color: "#FFB000", Bold: true}, "#FFB000", "1;38;2;255;176;0", "1"},
-		{Dim, false, Style{Faint: true}, "", "2", "2"},
+		{Plain, Dark, Style{}, "", "", ""},
+		{Plain, High, Style{}, "", "", ""},
+		{Accent, Dark, Style{Color: "#3CC8FF"}, "#3CC8FF", "38;2;60;200;255", ""},
+		{Accent, Light, Style{Color: "#0A6FA8"}, "#0A86C8", "38;2;10;111;168", ""},
+		{Accent, High, Style{Color: "#5CD3FF"}, "#5CD3FF", "38;2;92;211;255", ""},
+		{Needs, Dark, Style{Color: "#FF5C74", Bold: true}, "#E3172B", "1;38;2;255;92;116", "1"},
+		{Needs, Light, Style{Color: "#B3122E", Bold: true}, "#E3172B", "1;38;2;179;18;46", "1"},
+		{Needs, High, Style{Color: "#FF7A8A", Bold: true}, "#FF3348", "1;38;2;255;122;138", "1"},
+		{Warn, Dark, Style{Color: "#FFB000"}, "#FFB000", "38;2;255;176;0", ""},
+		{Warn, Light, Style{Color: "#9A6700", Bold: true}, "#9A6700", "1;38;2;154;103;0", "1"},
+		{Warn, High, Style{Color: "#FFC233"}, "#FFC233", "38;2;255;194;51", ""},
+		{Fail, Dark, Style{Color: "#FFB000", Bold: true}, "#FFB000", "1;38;2;255;176;0", "1"},
+		{Fail, High, Style{Color: "#FFC233", Bold: true}, "#FFC233", "1;38;2;255;194;51", "1"},
+		{Dim, Light, Style{Faint: true}, "", "2", "2"},
+		{Dim, High, Style{Color: "#BAC6DA"}, "", "38;2;186;198;218", ""},
 	} {
-		st := tt.sev.Style(tt.dark)
+		st := tt.sev.Style(tt.th)
 		if st != tt.want {
-			t.Errorf("%d dark=%v: style %+v, want %+v", tt.sev, tt.dark, st, tt.want)
+			t.Errorf("%d theme %d: style %+v, want %+v", tt.sev, tt.th, st, tt.want)
 		}
-		if got := tt.sev.Mark(tt.dark); got != tt.mark {
-			t.Errorf("%d dark=%v: mark %q, want %q", tt.sev, tt.dark, got, tt.mark)
+		if got := tt.sev.Mark(tt.th); got != tt.mark {
+			t.Errorf("%d theme %d: mark %q, want %q", tt.sev, tt.th, got, tt.mark)
 		}
 		if got := st.SGR(true); got != tt.sgr {
-			t.Errorf("%d dark=%v: SGR %q, want %q", tt.sev, tt.dark, got, tt.sgr)
+			t.Errorf("%d theme %d: SGR %q, want %q", tt.sev, tt.th, got, tt.sgr)
 		}
 		if got := st.SGR(false); got != tt.plain {
-			t.Errorf("%d dark=%v: SGR without color %q, want %q", tt.sev, tt.dark, got, tt.plain)
+			t.Errorf("%d theme %d: SGR without color %q, want %q", tt.sev, tt.th, got, tt.plain)
 		}
 	}
 }
 
-// Red means you: plume is the mark of Needs and nothing else.
+var themes = []Theme{Dark, Light, High}
+
+// Red means you: plume is the mark of Needs and nothing else, in every
+// theme.
 func TestOnlyNeedsIsPlume(t *testing.T) {
 	for sev := Plain; sev <= Dim; sev++ {
-		for _, dark := range []bool{true, false} {
-			isPlume := sev.Mark(dark) == Plume.Pick(dark) || sev.Style(dark).Color == PlumeText.Pick(dark)
+		for _, th := range themes {
+			isPlume := sev.Mark(th) == Plume.Pick(th) || sev.Style(th).Color == PlumeText.Pick(th)
 			if isPlume != (sev == Needs) {
-				t.Errorf("severity %d dark=%v: plume %v", sev, dark, isPlume)
+				t.Errorf("severity %d theme %d: plume %v", sev, th, isPlume)
 			}
 		}
+	}
+}
+
+// High contrast (SPEC §15.4): every severity's words, the text, the muted
+// text and the rank colors are 7:1 (WCAG AAA) on its black ground.
+func TestHighContrastIsAAA(t *testing.T) {
+	words := map[string]string{"text": Text.High, "muted": Muted.High}
+	for sev := Accent; sev <= Dim; sev++ {
+		if c := sev.Style(High).Color; c != "" {
+			words[fmt.Sprintf("severity %d", sev)] = c
+		} else {
+			t.Errorf("severity %d has no color in high contrast", sev)
+		}
+	}
+	for _, r := range Ranks {
+		words["rank "+r.Rank] = r.High
+	}
+	for name, c := range words {
+		if r := contrast(c, "#000000"); r < 7 {
+			t.Errorf("%s %s is %.2f:1 on black, want 7", name, c, r)
+		}
+	}
+	if Dim.Style(High).Faint {
+		t.Error("Dim is faint in high contrast, below 7:1")
+	}
+}
+
+// contrast is the WCAG contrast ratio of two "#RRGGBB" colors.
+func contrast(a, b string) float64 {
+	lum := func(hex string) float64 {
+		r, g, b, _ := rgb(hex)
+		var l float64
+		for i, v := range []uint8{r, g, b} {
+			c := float64(v) / 255
+			if c <= 0.03928 {
+				c /= 12.92
+			} else {
+				c = math.Pow((c+0.055)/1.055, 2.4)
+			}
+			l += []float64{0.2126, 0.7152, 0.0722}[i] * c
+		}
+		return l
+	}
+	la, lb := lum(a), lum(b)
+	return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+}
+
+func TestThemeFor(t *testing.T) {
+	for _, tt := range []struct {
+		setting string
+		dark    bool
+		want    Theme
+	}{
+		{"dark", false, Dark}, {"light", true, Light}, {"high-contrast", false, High}, {"high-contrast", true, High},
+		{"auto", true, Dark}, {"auto", false, Light}, {"", true, Dark}, {"", false, Light},
+	} {
+		if got := ThemeFor(tt.setting, func() bool { return tt.dark }); got != tt.want {
+			t.Errorf("ThemeFor(%q, dark %v) = %d, want %d", tt.setting, tt.dark, got, tt.want)
+		}
+	}
+	if s := (Shade{"#000001", "#000002", "#000003"}); s.Pick(Dark) != s.Dark || s.Pick(Light) != s.Light || s.Pick(High) != s.High {
+		t.Errorf("Pick: %q %q %q", s.Pick(Dark), s.Pick(Light), s.Pick(High))
 	}
 }
 
@@ -144,7 +217,7 @@ func TestPaint(t *testing.T) {
 		{true, Plain, "plain", "plain"},
 		{true, Needs, "", ""},
 	} {
-		if got := Paint(tt.color, true, tt.sev, tt.in); got != tt.want {
+		if got := Paint(tt.color, Dark, tt.sev, tt.in); got != tt.want {
 			t.Errorf("Paint(%v, %d, %q) = %q, want %q", tt.color, tt.sev, tt.in, got, tt.want)
 		}
 	}
@@ -156,12 +229,14 @@ func TestPaletteIsHex(t *testing.T) {
 	shades := map[string]Shade{
 		"plume": Plume, "plume text": PlumeText, "ember": Ember, "glow": Glow,
 		"glow text": GlowText, "text": Text, "muted": Muted, "frame": Frame,
+		"helm face": HelmFace, "helm face shadow": HelmFaceShadow, "helm ridge": HelmRidge,
+		"helm visor core": HelmVisorCore, "helm chin": HelmChin, "helm plume stroke": HelmPlumeStroke,
 	}
 	for _, r := range Ranks {
 		shades["rank "+r.Rank] = r.Shade
 	}
 	for name, s := range shades {
-		for _, c := range []string{s.Dark, s.Light} {
+		for _, c := range []string{s.Dark, s.Light, s.High} {
 			if !hexColor.MatchString(c) {
 				t.Errorf("%s: %q is not #RRGGBB", name, c)
 			}
@@ -170,11 +245,11 @@ func TestPaletteIsHex(t *testing.T) {
 }
 
 // The ranks never take the accent, Ember or plume, and Ember is the one
-// warning color in both themes.
+// warning color in every theme.
 func TestRanks(t *testing.T) {
 	want := map[string]Shade{
-		"haiku": {"#9FB3C8", "#52657A"}, "sonnet": {"#6EA8FF", "#1D5FD1"},
-		"opus": {"#B48CFF", "#6D3FD6"}, "fable": {"#FF8AD8", "#B0237A"},
+		"haiku": {"#9FB3C8", "#52657A", "#B4C5D8"}, "sonnet": {"#6EA8FF", "#1D5FD1", "#8DBBFF"},
+		"opus": {"#B48CFF", "#6D3FD6", "#C6A6FF"}, "fable": {"#FF8AD8", "#B0237A", "#FF9EDF"},
 	}
 	for rank, s := range want {
 		got, ok := RankShade(rank)
@@ -188,7 +263,7 @@ func TestRanks(t *testing.T) {
 	reserved := []Shade{Glow, GlowText, Ember, Plume, PlumeText}
 	for _, r := range Ranks {
 		for _, s := range reserved {
-			if r.Dark == s.Dark || r.Light == s.Light {
+			if r.Dark == s.Dark || r.Light == s.Light || r.High == s.High {
 				t.Errorf("rank %s uses a reserved color %+v", r.Rank, s)
 			}
 		}

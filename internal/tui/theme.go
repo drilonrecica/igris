@@ -59,32 +59,33 @@ type paintStyle struct {
 // which is what the layout tests compare.
 type theme struct {
 	on    bool
-	dark  bool
+	kind  look.Theme         // dark, light or high contrast
 	r     *lipgloss.Renderer // turns colors into what the terminal takes
 	looks [lookCount]paintStyle
 	ranks map[string]string // rank -> color
 }
 
-// newTheme is the theme for a dark or light terminal that r writes to.
-// rankColors are the owner's colors by rank ("#rrggbb" or an ANSI number).
-// Under NO_COLOR r renders no colors; the attributes stay.
-func newTheme(r *lipgloss.Renderer, dark bool, rankColors map[string]string) *theme {
-	th := &theme{on: true, dark: dark, r: r, ranks: map[string]string{}}
-	accent := look.Accent.Style(dark).Color // the word shade, AA on the ground
+// newTheme is the theme of kind (dark, light or high contrast) for the
+// terminal that r writes to. rankColors are the owner's colors by rank
+// ("#rrggbb" or an ANSI number). Under NO_COLOR r renders no colors; the
+// attributes stay. Focus is reverse video in every kind, never a color.
+func newTheme(r *lipgloss.Renderer, kind look.Theme, rankColors map[string]string) *theme {
+	th := &theme{on: true, kind: kind, r: r, ranks: map[string]string{}}
+	accent := look.Accent.Style(kind).Color // the word shade, AA on the ground (AAA in high contrast)
 	th.looks = [lookCount]paintStyle{
 		lookAccent:     {color: accent},
 		lookAccentBold: {color: accent, attrs: sgrBold},
-		lookAlert:      fromStyle(look.Needs.Style(dark)),
-		lookWarn:       fromStyle(look.Warn.Style(dark)),
-		lookFail:       fromStyle(look.Fail.Style(dark)),
-		lookFrame:      {color: frameShade.Pick(dark)},
+		lookAlert:      fromStyle(look.Needs.Style(kind)),
+		lookWarn:       fromStyle(look.Warn.Style(kind)),
+		lookFail:       fromStyle(look.Fail.Style(kind)),
+		lookFrame:      {color: frameShade.Pick(kind)},
 		lookTitle:      {attrs: sgrBold},
-		lookDim:        {attrs: sgrFaint},
+		lookDim:        fromStyle(look.Dim.Style(kind)), // faint; Muted in high contrast
 		lookFocus:      {attrs: sgrBold + ";" + sgrReverse},
-		lookBrand:      {color: brandShade.Pick(dark), attrs: sgrBold},
+		lookBrand:      {color: brandShade.Pick(kind), attrs: sgrBold},
 	}
 	for _, r := range look.Ranks {
-		th.ranks[r.Rank] = r.Pick(dark)
+		th.ranks[r.Rank] = r.Pick(kind)
 	}
 	for rank, c := range rankColors {
 		th.ranks[rank] = c
@@ -96,9 +97,14 @@ func newTheme(r *lipgloss.Renderer, dark bool, rankColors map[string]string) *th
 // weight come from internal/look, so the TUI never spells its own.
 func fromStyle(st look.Style) paintStyle {
 	p := paintStyle{color: st.Color}
+	var attrs []string
 	if st.Bold {
-		p.attrs = sgrBold
+		attrs = append(attrs, sgrBold)
 	}
+	if st.Faint {
+		attrs = append(attrs, sgrFaint)
+	}
+	p.attrs = strings.Join(attrs, ";")
 	return p
 }
 
@@ -190,10 +196,13 @@ func (th *theme) helm(grid []string) []string {
 	if !th.colored() {
 		return look.HelmPlain()
 	}
-	dark := th.dark || &grid[0] == &look.HelmS[0]
+	kind := th.kind // high contrast stands on black and takes its own
+	if kind == look.Light && &grid[0] == &look.HelmS[0] {
+		kind = look.Dark
+	}
 	shade := func(p byte) string {
 		s, _ := look.HelmShade(p)
-		return s.Pick(dark)
+		return s.Pick(kind)
 	}
 	// A run of cells drawn alike is painted once.
 	type run struct{ glyph, fg, bg string }

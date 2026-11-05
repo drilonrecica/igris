@@ -17,9 +17,9 @@ import (
 
 // truecolorTheme is a theme with the profile fixed to 24-bit color, so a
 // colored golden is the same on every machine and in CI.
-func truecolorTheme(t *testing.T, dark bool) *theme {
+func truecolorTheme(t *testing.T, kind look.Theme) *theme {
 	t.Helper()
-	th := colorTheme(t, dark, nil)
+	th := colorTheme(t, kind, nil)
 	th.r = lipgloss.NewRenderer(io.Discard)
 	th.r.SetColorProfile(termenv.TrueColor)
 	return th
@@ -32,52 +32,64 @@ func sgrColor(hex string) string {
 	return fmt.Sprintf("38;2;%d;%d;%d", r, g, b)
 }
 
+// themeKinds are the TUI's theme kinds (SPEC §15.4).
+var themeKinds = []look.Theme{look.Dark, look.Light, look.High}
+
 // Each look of the theme is internal/look's: the severities' colors and
-// weights for a dark and a light ground, the brand's plume, the frame.
+// weights for a dark, a light and a high-contrast ground, the brand's
+// plume, the frame.
 func TestEachLookIsInternalLooks(t *testing.T) {
-	for _, dark := range []bool{true, false} {
-		th := truecolorTheme(t, dark)
+	for _, kind := range themeKinds {
+		th := truecolorTheme(t, kind)
 		want := map[tone]paintStyle{
-			lookAccent:     {color: look.Accent.Style(dark).Color},
-			lookAccentBold: {color: look.Accent.Style(dark).Color, attrs: sgrBold},
-			lookAlert:      {color: look.Needs.Style(dark).Color, attrs: sgrBold},
-			lookWarn:       fromStyle(look.Warn.Style(dark)),
-			lookFail:       {color: look.Fail.Style(dark).Color, attrs: sgrBold},
-			lookFrame:      {color: look.Frame.Pick(dark)},
+			lookAccent:     {color: look.Accent.Style(kind).Color},
+			lookAccentBold: {color: look.Accent.Style(kind).Color, attrs: sgrBold},
+			lookAlert:      {color: look.Needs.Style(kind).Color, attrs: sgrBold},
+			lookWarn:       fromStyle(look.Warn.Style(kind)),
+			lookFail:       {color: look.Fail.Style(kind).Color, attrs: sgrBold},
+			lookFrame:      {color: look.Frame.Pick(kind)},
 			lookTitle:      {attrs: sgrBold},
-			lookDim:        {attrs: sgrFaint},
+			lookDim:        fromStyle(look.Dim.Style(kind)),
 			lookFocus:      {attrs: sgrBold + ";" + sgrReverse},
-			lookBrand:      {color: look.Plume.Pick(dark), attrs: sgrBold},
+			lookBrand:      {color: look.Plume.Pick(kind), attrs: sgrBold},
 		}
 		for l := tone(0); l < lookCount; l++ {
 			if l == lookPlain {
 				if got := th.paint(l, "x"); got != "x" {
-					t.Errorf("dark %v: plain = %q", dark, got)
+					t.Errorf("theme %d: plain = %q", kind, got)
 				}
 				continue
 			}
 			w, ok := want[l]
 			if !ok {
-				t.Errorf("dark %v: look %d has no expectation", dark, l)
+				t.Errorf("theme %d: look %d has no expectation", kind, l)
 				continue
 			}
 			if got := th.looks[l]; got != w {
-				t.Errorf("dark %v: look %d = %+v, want %+v", dark, l, got, w)
+				t.Errorf("theme %d: look %d = %+v, want %+v", kind, l, got, w)
 			}
 			p := th.paint(l, "x")
 			if p == "x" || strip(p) != "x" || !strings.HasSuffix(p, sgrReset) {
-				t.Errorf("dark %v: look %d paints %q", dark, l, p)
+				t.Errorf("theme %d: look %d paints %q", kind, l, p)
 			}
 			if got := colorPieces(p); w.color != "" && (len(got) != 1 || !sameColor(got[0].color, sgrColor(w.color))) {
-				t.Errorf("dark %v: look %d lacks its color %s: %q", dark, l, w.color, p)
+				t.Errorf("theme %d: look %d lacks its color %s: %q", kind, l, w.color, p)
 			}
 		}
 		// Red means you: Ember is not plume, and a failure is Ember in bold.
 		if th.looks[lookWarn].color == th.looks[lookAlert].color || th.looks[lookFail].color != th.looks[lookWarn].color {
-			t.Errorf("dark %v: Ember and plume: warn %q, fail %q, alert %q", dark, th.looks[lookWarn].color, th.looks[lookFail].color, th.looks[lookAlert].color)
+			t.Errorf("theme %d: Ember and plume: warn %q, fail %q, alert %q", kind, th.looks[lookWarn].color, th.looks[lookFail].color, th.looks[lookAlert].color)
 		}
 		if th.looks[lookFail].attrs != sgrBold {
-			t.Errorf("dark %v: a failure isn't bold", dark)
+			t.Errorf("theme %d: a failure isn't bold", kind)
+		}
+		// High contrast draws dim words in Muted, not faint (below 7:1),
+		// and still marks the focus without color.
+		if kind == look.High && th.looks[lookDim] != (paintStyle{color: look.Muted.High}) {
+			t.Errorf("high contrast: dim is %+v, want Muted", th.looks[lookDim])
+		}
+		if th.looks[lookFocus].color != "" {
+			t.Errorf("theme %d: focus is a color", kind)
 		}
 	}
 	// Under NO_COLOR every look keeps its weight and loses its color.
@@ -186,23 +198,25 @@ func severityViews(t *testing.T) map[string]string {
 			hs.m.loc = time.UTC
 			hs.withPlan(demoPlan)
 			st.setup(hs)
-			hs.m.th = truecolorTheme(t, true)
+			hs.m.th = truecolorTheme(t, look.Dark)
 			views[fmt.Sprintf("run %dx%d %s", size[0], size[1], st.name)] = hs.m.View()
 		}
 		hs := loadedRun(t, size[0], size[1])
-		hs.m.th = truecolorTheme(t, true)
+		hs.m.th = truecolorTheme(t, look.Dark)
 		views[fmt.Sprintf("run %dx%d warnings", size[0], size[1])] = hs.m.View()
-		hs.m.th = truecolorTheme(t, false)
+		hs.m.th = truecolorTheme(t, look.Light)
 		views[fmt.Sprintf("run %dx%d warnings light", size[0], size[1])] = hs.m.View()
+		hs.m.th = truecolorTheme(t, look.High)
+		views[fmt.Sprintf("run %dx%d warnings high", size[0], size[1])] = hs.m.View()
 		// Working again, the warnings are lines of their own: while the
 		// task needed the owner they were on its Needs-you line.
 		hs.events(engine.Event{Kind: engine.NeedsYouClear, Task: "M0-03"})
-		hs.m.th = truecolorTheme(t, true)
+		hs.m.th = truecolorTheme(t, look.Dark)
 		views[fmt.Sprintf("run %dx%d warnings working", size[0], size[1])] = hs.m.View()
 	}
 	for _, st := range homeStates {
-		views["home "+st.name] = homeAt(truecolorTheme(t, true), 120, 40, st.fix()).View()
-		views["home narrow "+st.name] = homeAt(truecolorTheme(t, true), 50, 20, st.fix()).View()
+		views["home "+st.name] = homeAt(truecolorTheme(t, look.Dark), 120, 40, st.fix()).View()
+		views["home narrow "+st.name] = homeAt(truecolorTheme(t, look.Dark), 50, 20, st.fix()).View()
 	}
 	return views
 }
@@ -229,10 +243,18 @@ func loadedRun(t *testing.T, w, h int) *harness {
 // Plume appears only on Needs you and skip-permissions pieces, and Ember
 // only on warnings and failures (SPEC §15.4): red means you.
 func TestPlumeOnlyForNeedsYouAndEmberOnlyForWarnings(t *testing.T) {
-	plume, ember := map[bool]string{}, map[bool]string{}
-	for _, dark := range []bool{true, false} {
-		plume[dark] = sgrColor(look.PlumeText.Pick(dark))
-		ember[dark] = sgrColor(look.Ember.Pick(dark))
+	var plume, ember []string
+	for _, kind := range themeKinds {
+		plume = append(plume, sgrColor(look.PlumeText.Pick(kind)))
+		ember = append(ember, sgrColor(look.Ember.Pick(kind)))
+	}
+	in := func(c string, set []string) bool {
+		for _, s := range set {
+			if sameColor(c, s) {
+				return true
+			}
+		}
+		return false
 	}
 	seenPlume, seenEmber := map[string]bool{}, map[string]bool{}
 	for name, view := range severityViews(t) {
@@ -241,14 +263,14 @@ func TestPlumeOnlyForNeedsYouAndEmberOnlyForWarnings(t *testing.T) {
 		okPlume, okEmber := map[int]bool{}, map[int]bool{}
 		for _, p := range colorPieces(view) {
 			switch {
-			case sameColor(p.color, plume[true]) || sameColor(p.color, plume[false]):
+			case in(p.color, plume):
 				seenPlume[strings.TrimSpace(p.text)] = true
 				ok := plumeOK(p.text)
 				if !ok && !okPlume[p.line-1] {
 					t.Errorf("%s: plume on %q, which isn't Needs you or skip permissions", name, p.text)
 				}
 				okPlume[p.line] = okPlume[p.line] || ok
-			case sameColor(p.color, ember[true]) || sameColor(p.color, ember[false]):
+			case in(p.color, ember):
 				seenEmber[strings.TrimSpace(p.text)] = true
 				ok := emberOK(p.text)
 				if !ok && !okEmber[p.line-1] {
@@ -288,10 +310,10 @@ func escVisible(s string) string { return strings.ReplaceAll(s, "\x1b", "␛") }
 
 // The colored goldens (SPEC §15.4): the run screen wide and narrow, home,
 // a floating dialog and the end-of-run summary, each at one size with the
-// theme on and the profile fixed to truecolor, apart from the plain layout
+// theme on (and a few again in high contrast) and the profile fixed to truecolor, apart from the plain layout
 // goldens. The escape character is drawn as ␛.
 func TestColorGoldens(t *testing.T) {
-	th := func() *theme { return truecolorTheme(t, true) }
+	th := func() *theme { return truecolorTheme(t, look.Dark) }
 	cases := []struct {
 		name string
 		w, h int
@@ -351,6 +373,39 @@ func TestColorGoldens(t *testing.T) {
 			view func(w, h int) string
 		}{"home_" + st.name, 120, 40, func(w, h int) string { return homeAt(th(), w, h, st.fix()).View() }})
 	}
+	// The high-contrast theme (SPEC §15.4) on the screens that draw the
+	// most: every severity, the end-of-run helm, GET STARTED.
+	high := func() *theme { return truecolorTheme(t, look.High) }
+	cases = append(cases, []struct {
+		name string
+		w, h int
+		view func(w, h int) string
+	}{
+		{"wide_needs_you_high", 120, 40, func(w, h int) string {
+			hs := loadedRun(t, w, h)
+			hs.m.lost = false
+			hs.m.th = high()
+			return hs.m.View()
+		}},
+		{"ended_high", 120, 40, func(w, h int) string {
+			hs := newHarness(t, w, h)
+			hs.m.loc = time.UTC
+			hs.withPlan(demoPlan)
+			hs.events(started("M0-03"), opened("M0-03"), engine.Event{Kind: engine.TaskDone, Task: "M0-03", Detail: "ok"},
+				engine.Event{Kind: engine.RunStopped, Detail: "completed"})
+			hs.m.th = high()
+			return hs.m.View()
+		}},
+	}...)
+	for _, st := range homeStates {
+		if st.name == "get_started" || st.name == "interrupted" {
+			cases = append(cases, struct {
+				name string
+				w, h int
+				view func(w, h int) string
+			}{"home_" + st.name + "_high", 120, 40, func(w, h int) string { return homeAt(high(), w, h, st.fix()).View() }})
+		}
+	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			view := c.view(c.w, c.h)
@@ -368,24 +423,27 @@ func TestColorGoldens(t *testing.T) {
 var helmColor = regexp.MustCompile(`[34]8(;2;\d+;\d+;\d+)`)
 
 // The helm (SPEC §15.4) is drawn pixel for pixel in internal/look's
-// shades: the mark in the ground's, the S tile always in the dark ones (it
-// carries its own ground); 256 colors take the nearest; without color it
+// shades: the mark in the ground's, the S tile in the dark ones on a light
+// ground (it carries its own) and in high contrast's own on black; 256 colors take the nearest; without color it
 // is the plain S shape.
 func TestHelmDrawing(t *testing.T) {
-	for _, dark := range []bool{true, false} {
-		th := truecolorTheme(t, dark)
+	for _, kind := range themeKinds {
+		th := truecolorTheme(t, kind)
 		for _, grid := range [][]string{look.HelmL, look.HelmS} {
 			lines := th.helm(grid)
 			if len(lines) != look.HelmRows(grid) {
-				t.Fatalf("dark %v: %d lines, want %d", dark, len(lines), look.HelmRows(grid))
+				t.Fatalf("theme %d: %d lines, want %d", kind, len(lines), look.HelmRows(grid))
 			}
 			view := strings.Join(lines, "\n")
 			for i, l := range lines {
 				if n := textWidth(strip(l)); n != look.HelmWidth(grid) {
-					t.Errorf("dark %v: line %d is %d cells, want %d", dark, i, n, look.HelmWidth(grid))
+					t.Errorf("theme %d: line %d is %d cells, want %d", kind, i, n, look.HelmWidth(grid))
 				}
 			}
-			ground := dark || len(grid) == len(look.HelmS)
+			ground := kind
+			if kind == look.Light && len(grid) == len(look.HelmS) {
+				ground = look.Dark
+			}
 			for _, p := range []byte(strings.Join(grid, "")) {
 				s, ok := look.HelmShade(p)
 				if !ok {
@@ -396,12 +454,12 @@ func TestHelmDrawing(t *testing.T) {
 					drawn = drawn || sameColor("38"+c[1], sgrColor(s.Pick(ground)))
 				}
 				if !drawn {
-					t.Errorf("dark %v: %q isn't drawn in %s", dark, p, s.Pick(ground))
+					t.Errorf("theme %d: %q isn't drawn in %s", kind, p, s.Pick(ground))
 				}
 			}
 		}
 	}
-	th := truecolorTheme(t, true)
+	th := truecolorTheme(t, look.Dark)
 	th.r.SetColorProfile(termenv.ANSI256)
 	if v := strings.Join(th.helm(look.HelmL), ""); !strings.Contains(v, "38;5;") || strings.Contains(v, "38;2;") {
 		t.Errorf("256 colors aren't the nearest: %q", v)

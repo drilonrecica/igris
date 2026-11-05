@@ -7,29 +7,66 @@ import (
 	"strings"
 )
 
-// Shade is a color for a dark and for a light ground, as "#RRGGBB".
-type Shade struct{ Dark, Light string }
+// Theme is the kind of ground colors are picked for (SPEC §15.4): a dark
+// or a light terminal, or high contrast, a black ground with white text
+// where every severity's words are 7:1 (WCAG AAA). igris never paints the
+// ground: high contrast takes the terminal's own, which it expects black.
+type Theme int
 
-// Pick is the shade's color for a dark or a light ground.
-func (s Shade) Pick(dark bool) string {
-	if dark {
-		return s.Dark
+// The theme kinds. The zero value is Dark, the ground igris assumes when
+// it can't tell.
+const (
+	Dark Theme = iota
+	Light
+	High
+)
+
+// ThemeFor is the theme for `[tui] theme` (SPEC §12): "dark", "light" or
+// "high-contrast" as set; "auto" (also "") by the ground detect reports,
+// dark or light.
+func ThemeFor(setting string, detectDark func() bool) Theme {
+	switch setting {
+	case "dark":
+		return Dark
+	case "light":
+		return Light
+	case "high-contrast":
+		return High
 	}
-	return s.Light
+	if detectDark() {
+		return Dark
+	}
+	return Light
+}
+
+// Shade is a color for a dark, a light and a high-contrast ground, as
+// "#RRGGBB".
+type Shade struct{ Dark, Light, High string }
+
+// Pick is the shade's color for the theme's ground.
+func (s Shade) Pick(th Theme) string {
+	switch th {
+	case Light:
+		return s.Light
+	case High:
+		return s.High
+	}
+	return s.Dark
 }
 
 // The palette (docs/brand, SPEC §15.4). Plume and the light Glow are mark
 // shades, for glyphs, edges and segments; words in those colors use the
-// text shade of the same name, which is AA against the ground.
+// text shade of the same name, which is AA against the ground (AAA on the
+// high-contrast one).
 var (
-	Plume     = Shade{"#E3172B", "#E3172B"} // needs you, the skip-permissions badge
-	PlumeText = Shade{"#FF5C74", "#B3122E"}
-	Ember     = Shade{"#FFB000", "#9A6700"} // warnings and failures
-	Glow      = Shade{"#3CC8FF", "#0A86C8"} // the working accent
-	GlowText  = Shade{"#3CC8FF", "#0A6FA8"}
-	Text      = Shade{"#EAF4FF", "#05070F"} // everything that is read
-	Muted     = Shade{"#9DB0D3", "#4A5B7A"} // dim text on the web; the terminal uses faint
-	Frame     = Shade{"#2C5AA0", "#8FA9CC"} // rules, column lines, card borders
+	Plume     = Shade{"#E3172B", "#E3172B", "#FF3348"} // needs you, the skip-permissions badge
+	PlumeText = Shade{"#FF5C74", "#B3122E", "#FF7A8A"}
+	Ember     = Shade{"#FFB000", "#9A6700", "#FFC233"} // warnings and failures
+	Glow      = Shade{"#3CC8FF", "#0A86C8", "#5CD3FF"} // the working accent
+	GlowText  = Shade{"#3CC8FF", "#0A6FA8", "#5CD3FF"}
+	Text      = Shade{"#EAF4FF", "#05070F", "#FFFFFF"} // everything that is read
+	Muted     = Shade{"#9DB0D3", "#4A5B7A", "#BAC6DA"} // dim text on the web and in high contrast; the terminal's dark and light use faint
+	Frame     = Shade{"#2C5AA0", "#8FA9CC", "#A9C1E8"} // rules, column lines, card borders
 )
 
 // Severity is how loud a piece of text is drawn.
@@ -55,31 +92,36 @@ type Style struct {
 
 // Mark is the severity's mark shade, for glyphs and edges; "" for one
 // without a color of its own.
-func (s Severity) Mark(dark bool) string {
+func (s Severity) Mark(th Theme) string {
 	switch s {
 	case Accent:
-		return Glow.Pick(dark)
+		return Glow.Pick(th)
 	case Needs:
-		return Plume.Pick(dark)
+		return Plume.Pick(th)
 	case Warn, Fail:
-		return Ember.Pick(dark)
+		return Ember.Pick(th)
 	}
 	return ""
 }
 
 // Style is how the severity's words are drawn. Ember words are bold on
-// the light ground, where Ember alone is just under AA.
-func (s Severity) Style(dark bool) Style {
+// the light ground, where Ember alone is just under AA. Dim is faint, but
+// in high contrast Muted: a terminal draws faint at about half intensity,
+// below 7:1.
+func (s Severity) Style(th Theme) Style {
 	switch s {
 	case Accent:
-		return Style{Color: GlowText.Pick(dark)}
+		return Style{Color: GlowText.Pick(th)}
 	case Needs:
-		return Style{Color: PlumeText.Pick(dark), Bold: true}
+		return Style{Color: PlumeText.Pick(th), Bold: true}
 	case Warn:
-		return Style{Color: Ember.Pick(dark), Bold: !dark}
+		return Style{Color: Ember.Pick(th), Bold: th == Light}
 	case Fail:
-		return Style{Color: Ember.Pick(dark), Bold: true}
+		return Style{Color: Ember.Pick(th), Bold: true}
 	case Dim:
+		if th == High {
+			return Style{Color: Muted.Pick(th)}
+		}
 		return Style{Faint: true}
 	}
 	return Style{}
@@ -105,13 +147,13 @@ func (st Style) SGR(color bool) string {
 }
 
 // Paint draws s with severity sev for a terminal with or without color,
-// on a dark or light ground. Plain text and empty text are left as they
-// are, so an uncolored output stays byte for byte the plain one.
-func Paint(color, dark bool, sev Severity, s string) string {
+// on the theme's ground. Plain text and empty text are left as they are,
+// so an uncolored output stays byte for byte the plain one.
+func Paint(color bool, th Theme, sev Severity, s string) string {
 	if s == "" {
 		return s
 	}
-	p := sev.Style(dark).SGR(color)
+	p := sev.Style(th).SGR(color)
 	if p == "" {
 		return s
 	}
@@ -136,7 +178,8 @@ func rgb(hex string) (r, g, b uint8, ok bool) {
 
 // RankColor is a stock rank's color: one scheme for the TUI, the web UI
 // and the site, grey through blue and violet to orchid, never the accent's
-// cyan, Ember or plume. [tui.rank_colors] overrides them in the TUI.
+// cyan, Ember or plume; in high contrast the same hues, lighter, 7:1 on
+// black. [tui.rank_colors] overrides them in the TUI.
 type RankColor struct {
 	Rank, Name string
 	Shade
@@ -144,10 +187,10 @@ type RankColor struct {
 
 // Ranks are the stock ranks' colors, smallest rank first.
 var Ranks = []RankColor{
-	{"haiku", "Steel", Shade{"#9FB3C8", "#52657A"}},
-	{"sonnet", "Sky", Shade{"#6EA8FF", "#1D5FD1"}},
-	{"opus", "Violet", Shade{"#B48CFF", "#6D3FD6"}},
-	{"fable", "Orchid", Shade{"#FF8AD8", "#B0237A"}},
+	{"haiku", "Steel", Shade{"#9FB3C8", "#52657A", "#B4C5D8"}},
+	{"sonnet", "Sky", Shade{"#6EA8FF", "#1D5FD1", "#8DBBFF"}},
+	{"opus", "Violet", Shade{"#B48CFF", "#6D3FD6", "#C6A6FF"}},
+	{"fable", "Orchid", Shade{"#FF8AD8", "#B0237A", "#FF9EDF"}},
 }
 
 // RankShade is the stock color of rank; false for a rank without one,

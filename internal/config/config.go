@@ -605,8 +605,9 @@ type TUI struct {
 	// Mouse turns on click/tap, wheel and hover support (SPEC §15.5). Off keeps the
 	// terminal's own text selection without shift+drag.
 	Mouse bool `toml:"mouse"`
-	// Theme picks the colors for a dark or a light terminal; "auto" goes by
-	// the terminal's background (SPEC §15.4).
+	// Theme picks the colors for a dark or a light terminal, or since 1.10
+	// "high-contrast" (black ground, white text, every severity 7:1); "auto"
+	// goes by the terminal's background (SPEC §15.4).
 	Theme string `toml:"theme"`
 	// RankColors maps a rank to its color in the TUI: "#rrggbb" or an ANSI
 	// color number 0-255. Ranks not listed keep the built-in colors.
@@ -747,7 +748,7 @@ var (
 	validModes   = []string{"default", "accept", "auto", "plan", "plan:default", "plan:accept", "plan:auto", "plan:yolo", "yolo", "manual"}
 	validCommit  = []string{CommitAsk, CommitAuto, CommitNever, CommitBatch}
 	validAdapt   = []string{"sonnet", "opus"}
-	validThemes  = []string{"auto", "dark", "light"}
+	validThemes  = []string{"auto", "dark", "light", "high-contrast"}
 	validEvents  = []string{"needs_input", "session_lost", "task_overdue", "rank_mismatch", "verify_failed_limit", "task_done", "phase_done", "phase_stuck", "run_error", "usage_limit", "budget_exceeded"}
 	forbiddenArg = []string{
 		"--model", "--fallback-model", "--permission-mode",

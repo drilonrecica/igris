@@ -90,7 +90,7 @@ func TestTableEmptyAndLines(t *testing.T) {
 // The painter gets the glyph only, and the padding is measured without
 // the escape sequences.
 func TestTablePaints(t *testing.T) {
-	paint := func(sev Severity, s string) string { return Paint(true, true, sev, s) }
+	paint := func(sev Severity, s string) string { return Paint(true, Dark, sev, s) }
 	got := statusTable().Lines(0, paint)
 	if want := "  \x1b[38;2;60;200;255m✓\x1b[0m M2-01  done     agent"; got[1] != want {
 		t.Errorf("painted row = %q, want %q", got[1], want)

@@ -129,6 +129,8 @@ M1 — Basics · 1 of 3 done · next M1-02
 
 `✓ · ● ! ⨯ – ▲ ✗ ◌` become `done`, `next`, `running`, `needs you`, `blocked`, `skipped`, `warning`, `failed` and `waiting`; a bar becomes a count; the Run block of `status` puts one fact on each line. `--json` is unchanged, so scripts see no difference. The terminal UI (`igris` with no arguments) ignores the setting: it is a full-screen display, not a stream of text. To run a plan without it, use `igris arise --no-tui`, which logs one line per event.
 
+For more contrast, set `theme = "high-contrast"` under `[tui]`: a black ground with white text, where every warning, failure, Needs you, dim line and rank color measures 7:1 (WCAG AAA). It applies to the terminal UI and to the command line's colored text; set your terminal to black and white, since igris doesn't paint the ground. The web UI does the same on its own when your phone asks for more contrast.
+
 ## Next
 
 [Quick start](quick-start.md) takes a project from nothing to a finished phase.
