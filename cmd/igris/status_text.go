@@ -262,8 +262,37 @@ func printStatus(o textOut, r report.StatusReport, p *plan.Plan, root string, li
 		o.blank()
 		printPhaseStatus(o, ph, r.Optional, line)
 	}
+	if r.SinceLastRun != nil {
+		o.blank()
+		printSinceLastRun(o, *r.SinceLastRun)
+	}
 	o.blank()
 	o.next(statusNext(r, line))
+}
+
+// printSinceLastRun writes the `--since-last-run` block (SPEC §14): the
+// Status cells igris wrote, then everyone else's edits, or no changes.
+func printSinceLastRun(o textOut, s report.SinceLastRun) {
+	if !s.Baseline {
+		o.println("Since the last run")
+		why := "no baseline yet; igris keeps one from the next run on"
+		if s.Why != "" {
+			why = "no baseline: " + s.Why
+		}
+		o.println(o.fit("  " + why))
+		return
+	}
+	o.println(o.fit(fmt.Sprintf("Since the last run (%s · %s)", s.Run, whenTime(*s.At))))
+	if s.Empty() {
+		o.println("  no changes")
+		return
+	}
+	for _, w := range s.Igris {
+		o.println(o.fit(fmt.Sprintf("  %s %s → %s", w.Task, w.From, w.To)))
+	}
+	for _, e := range s.Others {
+		o.println(o.fit(fmt.Sprintf("  %s %s", e.Task, e.What)))
+	}
 }
 
 // statusNext is the command that follows from what status showed: the

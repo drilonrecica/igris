@@ -129,6 +129,10 @@ func (p *Project) Snapshot() *report.Snapshot {
 		return s // no .igris/ to read
 	}
 	s.Run = RunInfo(p.Root)
+	if s.Status != nil {
+		since := SinceLastRun(p.Root, s.Plan)
+		s.SinceLastRun = &since
+	}
 	if l, err := state.PeekLock(p.Root); err == nil {
 		l.Info.Host, l.Reason, l.Path = textsafe.Line(l.Info.Host), textsafe.Line(l.Reason), textsafe.Line(l.Path)
 		s.Lock = l

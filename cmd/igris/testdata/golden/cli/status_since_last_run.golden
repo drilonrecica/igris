@@ -1,0 +1,19 @@
+exit: 0
+--- stdout
+igris · 001 · tasks.md
+
+M1 — Basics · 2/4 · next M1-03
+  ID       STATUS  RANK    OWNER  MODE  WAITS ON
+  ✓ M1-01  done    sonnet  agent  —
+  ✓ M1-02  done    opus    agent  —
+  · M1-03  ready   —       user   auto
+  · M1-04  ready   sonnet  agent  —
+
+Since the last run (20261023-090000-ab12 · 09:00)
+  M1-02 ready → done
+  M1-01 Task text changed
+  M1-03 Mode — → auto
+  M1-04 added
+
+next: igris arise M1
+--- stderr

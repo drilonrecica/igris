@@ -913,3 +913,27 @@ func TestHomeUserTaskHasNoMode(t *testing.T) {
 		})
 	}
 }
+
+// Rows edited outside igris since the last run's baseline get one line on
+// the card (SPEC §5.4); igris's own Status writes don't.
+func TestHomeCardPlanEdited(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		since *report.SinceLastRun
+		want  string
+	}{
+		{"no baseline", nil, ""},
+		{"igris only", &report.SinceLastRun{Baseline: true, Igris: []report.StatusEdit{{Task: "M1-01", From: "ready", To: "done"}}}, ""},
+		{"two rows", &report.SinceLastRun{Baseline: true, Others: []report.PlanEdit{{Task: "M1-02", What: "added"}, {Task: "M1-03", What: "Mode — → auto"}, {Task: "M1-03", What: "Task text changed"}}}, "plan edited since the last run: 2 rows"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := homeSnap("ready")
+			s.SinceLastRun = tc.since
+			m := homeAt(&theme{}, 120, 40, homeFixture{snap: s, doctor: homeDoctor, doctorDone: true})
+			card := strings.Join(m.cardLines(80), "\n")
+			if got := strings.Contains(card, "plan edited since the last run"); got != (tc.want != "") || !strings.Contains(card, tc.want) {
+				t.Errorf("card:\n%s\nwant line %q", card, tc.want)
+			}
+		})
+	}
+}

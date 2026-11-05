@@ -1,0 +1,87 @@
+exit: 0
+--- stdout
+{
+  "v": 1,
+  "files": [
+    "tasks.md"
+  ],
+  "phases": [
+    {
+      "id": "M1",
+      "title": "Basics",
+      "file": "tasks.md",
+      "total": 4,
+      "counts": {
+        "blocked": 0,
+        "done": 2,
+        "in_progress": 0,
+        "ready": 2,
+        "skipped": 0
+      },
+      "outcome": "next",
+      "next": "M1-03",
+      "tasks": [
+        {
+          "id": "M1-01",
+          "title": "Config loader",
+          "status": "done",
+          "rank": "sonnet",
+          "owner": "agent",
+          "waits_on": []
+        },
+        {
+          "id": "M1-02",
+          "title": "Lock file",
+          "status": "done",
+          "rank": "opus",
+          "owner": "agent",
+          "waits_on": []
+        },
+        {
+          "id": "M1-03",
+          "title": "Pick a license",
+          "status": "ready",
+          "owner": "user",
+          "mode": "auto",
+          "waits_on": []
+        },
+        {
+          "id": "M1-04",
+          "title": "Release",
+          "status": "ready",
+          "rank": "sonnet",
+          "owner": "agent",
+          "waits_on": []
+        }
+      ]
+    }
+  ],
+  "plan": "tasks.md",
+  "since_last_run": {
+    "baseline": true,
+    "run": "20261023-090000-ab12",
+    "at": "2026-10-23T09:00:00Z",
+    "igris": [
+      {
+        "task": "M1-02",
+        "from": "ready",
+        "to": "done"
+      }
+    ],
+    "others": [
+      {
+        "task": "M1-01",
+        "what": "Task text changed"
+      },
+      {
+        "task": "M1-03",
+        "what": "Mode — → auto"
+      },
+      {
+        "task": "M1-04",
+        "what": "added"
+      }
+    ]
+  }
+}
+--- stderr

@@ -151,6 +151,9 @@ type StatusReport struct {
 	Phases []PhaseStatus `json:"phases"`
 	Plan   string        `json:"plan"`
 	Run    *RunInfo      `json:"run,omitempty"` // set by the caller; nil when there is no run
+	// SinceLastRun is set by the caller for `status --since-last-run`
+	// (SPEC §14); nil otherwise.
+	SinceLastRun *SinceLastRun `json:"since_last_run,omitempty"`
 	// Optional is computed over every task of the plan, not only the
 	// phases shown.
 	Optional Optional `json:"-"`

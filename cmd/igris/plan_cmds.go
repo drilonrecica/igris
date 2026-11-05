@@ -186,6 +186,10 @@ func execStatus(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		return exitFail
 	}
 	r.Run = currentRun()
+	if fs.Lookup("since-last-run").Value.String() == "true" {
+		since := project.SinceLastRun(projectRoot(), l.plan)
+		r.SinceLastRun = &since
+	}
 	var live *serve.Snapshot
 	if r.Run != nil && r.Run.Lock == report.LockHere {
 		live, _ = peekRun(projectRoot())

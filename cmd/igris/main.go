@@ -63,7 +63,7 @@ Start
 Inspect
   check          validate the plan                              --strict  --plan PATH  --json
   phases         phases, counts and parallelism                 --json
-  status         tasks, the current run, unmet deps             [PHASE]  --json
+  status         tasks, the current run, unmet deps             [PHASE]  --since-last-run  --json
   history        past runs, or one task's attempts              [TASK-ID]  -n N  --stats  --json
   report         one run as markdown                            [RUN]  --json
   usage          tokens and the rank audit                      [RUN | --since D]  --json
@@ -104,6 +104,7 @@ const synopses = `
         [--strict]                      also lint the plan; exit 1 on any plan or config warning
   phases [--plan PATH] [--json]         list phases with task counts per status and their parallelism
   status [PHASE] [--plan PATH] [--json] tasks with status/rank/owner, current run, unmet deps
+         [--since-last-run]             also the plan's changes since the last run: igris's Status writes, then others' edits
   history [TASK-ID] [-n N] [--json]     past runs from .igris/runs.jsonl; with a task ID, its attempts
           --stats [-n N] [--json]       plan health over the runs: per rank, and the tasks to rewrite
   report [RUN] [--json]                 one run as markdown (or JSON): RUN is 1 (the newest, default), 2, … or a run ID
@@ -178,7 +179,10 @@ func commands() []command {
 			return planFlags(0)(fs)
 		}, exec: execCheck},
 		{name: "phases", setup: planFlags(0), exec: execPhases},
-		{name: "status", setup: planFlags(1), exec: execStatus},
+		{name: "status", setup: func(fs *flag.FlagSet) func([]string) error {
+			fs.Bool("since-last-run", false, "also what changed in the plan since the last run, by igris and by others")
+			return planFlags(1)(fs)
+		}, exec: execStatus},
 		{name: "history", setup: historyArgs, exec: execHistory},
 		{name: "report", setup: reportArgs, exec: execReport},
 		{name: "usage", setup: usageArgs, exec: execUsage},

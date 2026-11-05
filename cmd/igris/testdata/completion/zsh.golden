@@ -43,7 +43,7 @@ _igris() {
             doctor) compadd -- --json ;;
             check) compadd -- --json --plan --strict ;;
             phases) compadd -- --json --plan ;;
-            status) compadd -- --json --plan ;;
+            status) compadd -- --json --plan --since-last-run ;;
             history) compadd -- --json -n --stats ;;
             report) compadd -- --json ;;
             usage) compadd -- --json --since ;;

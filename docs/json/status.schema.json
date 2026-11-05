@@ -26,6 +26,9 @@
     },
     "run": {
       "$ref": "#/$defs/run"
+    },
+    "since_last_run": {
+      "$ref": "#/$defs/since_last_run"
     }
   },
   "required": [
@@ -312,6 +315,72 @@
       "required": [
         "task",
         "action"
+      ]
+    },
+    "since_last_run": {
+      "description": "With --since-last-run (since 1.10): the plan compared with the baseline the last run left in .igris/plan-cells.json (SPEC §5.4, §14). Absent without the flag.",
+      "type": "object",
+      "properties": {
+        "baseline": {
+          "type": "boolean",
+          "description": "Whether there is a baseline; false when the file is missing or not igris's, and then igris and others are empty."
+        },
+        "run": {
+          "type": "string",
+          "description": "The run that wrote the baseline; absent without one."
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the baseline was written (at a run's start or end), RFC 3339 UTC; absent without one."
+        },
+        "igris": {
+          "type": "array",
+          "description": "The Status cells igris wrote since the baseline, as the run log tells them: per task its first status and its last.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "task": {
+                "type": "string"
+              },
+              "from": {
+                "type": "string"
+              },
+              "to": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "task",
+              "from",
+              "to"
+            ]
+          }
+        },
+        "others": {
+          "type": "array",
+          "description": "Every other edit, in plan order, then the removed rows: what is \"Mode — → auto\", \"Task text changed\", \"added\" or \"removed\". Ready/blocked changes igris recomputes are never listed.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "task": {
+                "type": "string"
+              },
+              "what": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "task",
+              "what"
+            ]
+          }
+        }
+      },
+      "required": [
+        "baseline",
+        "igris",
+        "others"
       ]
     }
   }

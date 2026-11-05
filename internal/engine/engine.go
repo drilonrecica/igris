@@ -436,6 +436,7 @@ func (e *Engine) Run(ctx context.Context) (Result, error) {
 	// igris can't hold messages once it exits: what is left goes out now,
 	// even when the owner's stop cancelled ctx.
 	e.flushAll(context.WithoutCancel(ctx))
+	e.keepEndBaseline()
 	e.logRun(state.Event{Type: state.EventRunStopped, Detail: detail, DurationMS: e.sinceMS(e.runStart)})
 	e.emit(Event{Kind: RunStopped, Detail: detail})
 	return res, err
@@ -589,7 +590,40 @@ func (e *Engine) prepare(check bool) ([]string, error) {
 	if prev != nil && len(active) > 0 && prev.ConfigHash != e.run.ConfigHash {
 		e.configMoved = true
 	}
-	return ids, e.dir.SaveRun(e.run)
+	if err := e.dir.SaveRun(e.run); err != nil {
+		return nil, err
+	}
+	// The baseline is the plan as this run takes it, its drifted
+	// ready/blocked cells as the first write fixes them (SPEC §5.2, §5.4).
+	e.keepBaseline(p, p.Readiness())
+	return ids, nil
+}
+
+// keepBaseline records p's cells, with the Status changes fix applied, as
+// the plan the run left (.igris/plan-cells.json, SPEC §5.4, §13): `igris
+// status --since-last-run` compares the plan with it. The file is a
+// record, not state: a failed write is a warning and the run goes on.
+func (e *Engine) keepBaseline(p *plan.Plan, fix []plan.Change) {
+	cells := state.CellsOf(p)
+	for _, c := range fix {
+		if x, ok := cells[c.ID]; ok {
+			x.Status = c.To.String()
+			cells[c.ID] = x
+		}
+	}
+	if err := e.dir.WritePlanCells(state.PlanCells{Run: e.runID, At: e.clock.Now(), Tasks: cells}); err != nil {
+		e.warn(err.Error())
+	}
+}
+
+// keepEndBaseline records the plan as the run ends.
+func (e *Engine) keepEndBaseline() {
+	p, err := plan.Load(e.planPath, e.planOpts)
+	if err != nil {
+		e.warn("plan baseline not updated: " + err.Error())
+		return
+	}
+	e.keepBaseline(p, nil)
 }
 
 // settledOffline reports whether the interrupted task id is gone from p or

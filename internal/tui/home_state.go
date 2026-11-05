@@ -691,10 +691,26 @@ func (m *homeScreen) interruptedCard(w int) []string {
 	}
 	out := []string{m.th.paint(l, fit(head, w))}
 	out = append(out, m.runLines(w)...)
+	out = append(out, m.planEditedLines(w)...)
 	if r.Task != "" {
 		return append(out, wrap("Resume picks "+r.Task+" up first, then the rest of "+rangeText(r.Phases, r.Through)+".", w)...)
 	}
 	return append(out, wrap("Resume continues "+rangeText(r.Phases, r.Through)+".", w)...)
+}
+
+// planEditedLines is the card's line when rows were edited outside igris
+// since the last run's baseline (SPEC §5.4); `igris status
+// --since-last-run` lists them.
+func (m *homeScreen) planEditedLines(w int) []string {
+	since := m.snap.SinceLastRun
+	if since == nil {
+		return nil
+	}
+	n := since.EditedRows()
+	if n == 0 {
+		return nil
+	}
+	return []string{m.th.paint(lookWarn, fit("plan edited since the last run: "+plural(n, "row"), w))}
 }
 
 // modeTail is " · mode M" for a task line, or "" when the run recorded no
@@ -756,6 +772,7 @@ func (m *homeScreen) readyCard(w int) []string {
 		r := m.snap.Run
 		out = append(out, m.th.paint(lookDim, fit("last run "+rangeText(r.Phases, r.Through)+" completed", w)))
 	}
+	out = append(out, m.planEditedLines(w)...)
 	switch {
 	case !m.backendKnown:
 		out = append(out, m.th.paint(lookDim, "checking "+m.backendName()+"…"))

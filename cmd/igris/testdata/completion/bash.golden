@@ -50,7 +50,7 @@ _igris() {
             doctor) COMPREPLY=($(compgen -W "--json" -- "$cur")) ;;
             check) COMPREPLY=($(compgen -W "--json --plan --strict" -- "$cur")) ;;
             phases) COMPREPLY=($(compgen -W "--json --plan" -- "$cur")) ;;
-            status) COMPREPLY=($(compgen -W "--json --plan" -- "$cur")) ;;
+            status) COMPREPLY=($(compgen -W "--json --plan --since-last-run" -- "$cur")) ;;
             history) COMPREPLY=($(compgen -W "--json -n --stats" -- "$cur")) ;;
             report) COMPREPLY=($(compgen -W "--json" -- "$cur")) ;;
             usage) COMPREPLY=($(compgen -W "--json --since" -- "$cur")) ;;
