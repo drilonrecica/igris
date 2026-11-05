@@ -6,7 +6,7 @@ It is a client of `igris serve`, like `igris attach` and the [web UI](control-fr
 
 ## Install
 
-Install **igris 1.8.0 or newer** first ([install](install.md)), so `igris` is in the editor's `PATH`, then the extension, `drilonrecica.igris`, from the VS Code Marketplace, or from Open VSX in an editor that uses it. A `.vsix` is also attached to each GitHub release (`code --install-extension igris-1.9.0.vsix`).
+Install **igris 1.8.0 or newer** first ([install](install.md)), so `igris` is in the editor's `PATH`, then the extension, `drilonrecica.igris`. It is not in the VS Code Marketplace or Open VSX for now: download `igris-1.9.0.vsix` from the [GitHub release](https://github.com/drilonrecica/igris/releases/latest) and run `code --install-extension igris-1.9.0.vsix` (Cursor, Kiro, Antigravity and Windsurf take the same file through their own install-from-VSIX command), or build it from the tag with `make vsix`.
 
 Without igris, or with one older than 1.8.0, the extension says so in one line and does nothing else. A run whose `igris serve` speaks another protocol than 1 is refused the same way, never guessed at. A newer igris always works.
 

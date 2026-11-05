@@ -61,7 +61,7 @@ The extension is one more client of the run's socket, which only your own user c
 credential, never reads Claude credentials and never sets `ANTHROPIC_API_KEY`. It runs `igris`, `git` and `tmux`
 as you, never through a shell on plan text, and cleans plan text, notes and command output of escape sequences before
 drawing them. Its one dependency-free bundle is built reproducibly from the tag (`make vsix`), and the maintainer checks
-it against CI's build (`make vsix-check`) before publishing; CI never publishes. See igris's
+it against CI's build (`make vsix-check`); CI attaches it to the GitHub release and never publishes to a store. The extension is not in the Marketplace or Open VSX for now: install the release's `.vsix` with `code --install-extension igris-1.9.0.vsix`, or build it with `make vsix`. See igris's
 [threat model](https://github.com/drilonrecica/igris/blob/master/docs/threat-model.md) (B10).
 
 ## More
