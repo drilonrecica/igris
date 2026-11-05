@@ -37,6 +37,13 @@ func (h *harness) limitedEvent(task string) Event {
 
 const statuslineOn = "[usage]\nenabled = true\nstatusline = true\n"
 
+// coarsePoll makes the engine poll every 30 fake seconds instead of 2: a
+// hold test waits fake hours for a reset or an opening, the engine runs the
+// scheduler on every poll of it, and with the default the hold tests alone
+// took the package past CI's 120 s on macOS under -race. The tests measure
+// their tolerances in polls (h.cfg.PollInterval), so the value is free.
+const coarsePoll = "poll_interval = \"30s\"\n"
+
 // writeQuota records a quota as the status line would: window used percent,
 // resetting at reset.
 func (h *harness) writeQuota(window string, used float64, reset time.Time) {
@@ -104,7 +111,7 @@ func (h *harness) limitLines() string {
 // run log, the UI event and one notification say so, and the run goes on
 // at the reset plus 60 s (SPEC §6.9).
 func TestLimitHoldAtThresholdResumesAtReset(t *testing.T) {
-	h := newHarness(t, chainPlan, statuslineOn)
+	h := newHarness(t, chainPlan, coarsePoll+statuslineOn)
 	reset := t0.Add(3*time.Hour + 12*time.Minute)
 	h.on(func(ev Event) {
 		if ev.Kind == TaskDone && ev.Task == "A-1" {
@@ -145,7 +152,7 @@ func TestLimitHoldAtThresholdResumesAtReset(t *testing.T) {
 
 // A fresh quota under the threshold ends the hold before the reset.
 func TestLimitHoldEndsWhenTheQuotaFalls(t *testing.T) {
-	h := newHarness(t, chainPlan, statuslineOn)
+	h := newHarness(t, chainPlan, coarsePoll+statuslineOn)
 	reset := t0.Add(3 * time.Hour)
 	h.on(func(ev Event) {
 		switch {
@@ -168,7 +175,7 @@ func TestLimitHoldEndsWhenTheQuotaFalls(t *testing.T) {
 
 // Start anyway starts the held task once, ignoring the threshold.
 func TestLimitHoldStartAnyway(t *testing.T) {
-	h := newHarness(t, chainPlan, statuslineOn)
+	h := newHarness(t, chainPlan, coarsePoll+statuslineOn)
 	reset := t0.Add(3 * time.Hour)
 	h.on(func(ev Event) {
 		switch {
@@ -198,7 +205,7 @@ func TestLimitHoldStartAnyway(t *testing.T) {
 // hold_at = 0 turns the hold-ahead off; a window that has reset holds
 // nothing either.
 func TestLimitHoldOff(t *testing.T) {
-	h := newHarness(t, chainPlan, statuslineOn+"hold_at = 0\n")
+	h := newHarness(t, chainPlan, coarsePoll+statuslineOn+"hold_at = 0\n")
 	h.writeQuota(state.WindowFiveHour, 100, t0.Add(time.Hour))
 	if _, err := h.run(); err != nil {
 		t.Fatalf("Run: %v", err)
@@ -206,7 +213,7 @@ func TestLimitHoldOff(t *testing.T) {
 	if h.count(LimitHold) != 0 {
 		t.Errorf("held with hold_at = 0: %s", h.kinds())
 	}
-	h = newHarness(t, chainPlan, statuslineOn)
+	h = newHarness(t, chainPlan, coarsePoll+statuslineOn)
 	h.writeQuota(state.WindowFiveHour, 100, t0.Add(-time.Minute))
 	if _, err := h.run(); err != nil {
 		t.Fatalf("Run: %v", err)
@@ -231,7 +238,7 @@ const heldUserPlan = `# Demo plan
 
 // A user task needs no session and starts while agent tasks are held.
 func TestLimitHoldLetsUserTasksStart(t *testing.T) {
-	h := newHarness(t, heldUserPlan, statuslineOn)
+	h := newHarness(t, heldUserPlan, coarsePoll+statuslineOn)
 	reset := t0.Add(2 * time.Hour)
 	h.writeQuota(state.WindowFiveHour, 95, reset)
 	h.on(func(ev Event) {
@@ -266,7 +273,7 @@ const userFirstPlan = `# Demo plan
 `
 
 func TestLimitHoldStartsUserTaskBesideHeldAgentTask(t *testing.T) {
-	h := newHarness(t, userFirstPlan, statuslineOn)
+	h := newHarness(t, userFirstPlan, coarsePoll+statuslineOn)
 	reset := t0.Add(time.Hour)
 	h.writeQuota(state.WindowFiveHour, 98, reset)
 	h.on(func(ev Event) {
@@ -329,7 +336,7 @@ func (h *harness) limitedSession(hitAt time.Duration, reset time.Time) string {
 // card, notifies once, raises no Needs you, stops the Timeout clock, and
 // holds the next task until the reset (SPEC §6.3, §6.9).
 func TestLimitHitMidTask(t *testing.T) {
-	h := newHarness(t, limitPlan, usageOn)
+	h := newHarness(t, limitPlan, coarsePoll+usageOn)
 	reset := t0.Add(2 * time.Hour)
 	h.limitedSession(5*time.Minute, reset)
 	h.on(func(ev Event) {
@@ -376,7 +383,7 @@ func TestLimitHitMidTask(t *testing.T) {
 // the next task is held until the reset, with or without the status line,
 // as the hit's episode: one notification for the hit and the hold.
 func TestLimitHitHoldsNewStarts(t *testing.T) {
-	h := newHarness(t, limitPlan, usageOn)
+	h := newHarness(t, limitPlan, coarsePoll+usageOn)
 	reset := t0.Add(time.Hour)
 	h.limitedSession(5*time.Minute, reset)
 	h.on(func(ev Event) {
@@ -406,7 +413,7 @@ func TestLimitHitHoldsNewStarts(t *testing.T) {
 // prompt once; then the ordinary idle rules apply, with the reason
 // usage_limit (SPEC §6.3).
 func TestLimitFixedPromptAfterReset(t *testing.T) {
-	h := newHarness(t, limitPlan, usageOn)
+	h := newHarness(t, limitPlan, coarsePoll+usageOn)
 	reset := t0.Add(time.Hour)
 	h.limitedSession(5*time.Minute, reset)
 	h.on(func(ev Event) {
@@ -452,7 +459,7 @@ func TestLimitResumeDisabledAndStale(t *testing.T) {
 		{"quota_auto_resume_stale", 1, 1},
 	} {
 		t.Run(tt.event, func(t *testing.T) {
-			h := newHarness(t, limitPlan, usageOn)
+			h := newHarness(t, limitPlan, coarsePoll+usageOn)
 			reset := t0.Add(time.Hour)
 			dir := h.limitedSession(5*time.Minute, reset)
 			h.on(func(ev Event) {
@@ -487,7 +494,7 @@ func TestLimitResumeDisabledAndStale(t *testing.T) {
 // A hit whose reset is in the past or over 8 days ahead is no hit (a
 // session can forge the transcript): a warning, no hold.
 func TestLimitHitOutOfRange(t *testing.T) {
-	h := newHarness(t, limitPlan, usageOn)
+	h := newHarness(t, limitPlan, coarsePoll+usageOn)
 	dir := h.reportTranscripts()
 	h.autoSignalExcept("A-1")
 	h.on(func(ev Event) {

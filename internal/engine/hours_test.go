@@ -17,10 +17,10 @@ import (
 
 // hoursConfig is [run] hours from t0+from to t0+to in local time, the
 // engine's clock: the window as igris.toml writes it and as the run log
-// names it.
+// names it, polling coarsely (coarsePoll, limit_test.go).
 func hoursConfig(from, to time.Duration) (toml, shown string) {
 	a, b := t0.Add(from).Local().Format("15:04"), t0.Add(to).Local().Format("15:04")
-	return "[run]\nhours = \"" + a + "-" + b + "\"\n", a + "–" + b
+	return coarsePoll + "[run]\nhours = \"" + a + "-" + b + "\"\n", a + "–" + b
 }
 
 // hoursLines returns the run log's hold lines, hours_* and limit_*, as
@@ -130,9 +130,12 @@ func TestHoursHoldStartAnyway(t *testing.T) {
 
 // Within the window nothing is held; a session still running at the close
 // goes on, and only the next start waits, here for the next day's opening:
-// the window crosses midnight in no case the engine needs to know.
+// the window crosses midnight in no case the engine needs to know. The
+// window is 22½ hours long so that opening is 1½ hours after the close:
+// the engine polls through a hold, and each poll of a fake day's wait ran
+// the scheduler (46s under -race, the package past CI's timeout).
 func TestHoursHoldLetsRunningSessionsGoOn(t *testing.T) {
-	cfg, _ := hoursConfig(-time.Hour, 30*time.Minute)
+	cfg, _ := hoursConfig(-22*time.Hour, 30*time.Minute)
 	h := newHarness(t, chainPlan, cfg)
 	h.autoSignalExcept("A-1")
 	h.signalAt(time.Hour, "A-1")
@@ -146,10 +149,10 @@ func TestHoursHoldLetsRunningSessionsGoOn(t *testing.T) {
 		t.Error("A-1 ended before its signal")
 	}
 	hold := h.event(LimitHold, "")
-	if hold.Task != "A-2" || !hold.Limit.ResetsAt.Equal(t0.Add(23*time.Hour)) {
+	if hold.Task != "A-2" || !hold.Limit.ResetsAt.Equal(t0.Add(2*time.Hour)) {
 		t.Errorf("limit_hold = %+v (limit %+v)", hold, hold.Limit)
 	}
-	if d := h.event(TaskStarted, "A-2").At.Sub(t0.Add(23 * time.Hour)); d < 0 || d > h.cfg.PollInterval.Std() {
+	if d := h.event(TaskStarted, "A-2").At.Sub(t0.Add(2 * time.Hour)); d < 0 || d > h.cfg.PollInterval.Std() {
 		t.Errorf("A-2 started %s after the next opening", d)
 	}
 }
