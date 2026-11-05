@@ -40,6 +40,25 @@ const demoPlan = `## M0 — Repository foundation
 | P0-05 | **Create repo** | — | ready | — | user |
 `
 
+// demoParallelPlan is demoPlan with M0 a parallel phase (SPEC §3.8) in
+// which M0-04 waits on M0-03: M0-03 runs alongside M0-05 and M0-13, so
+// their rows carry the parallel marker (SPEC §15.4).
+var demoParallelPlan = "<!-- igris:format 3 -->\n\n" + strings.NewReplacer(
+	"## M0 — Repository foundation\n", "## M0 — Repository foundation\n\n<!-- igris:parallel -->\n",
+	"pane | M0-01 | ready |", "pane | M0-03 | ready |",
+).Replace(demoPlan)
+
+// layoutPlans are the plans of the layout states that don't draw demoPlan.
+var layoutPlans = map[string]string{"running": demoParallelPlan}
+
+// layoutPlan is the plan the layout state name draws.
+func layoutPlan(name string) string {
+	if p, ok := layoutPlans[name]; ok {
+		return p
+	}
+	return demoPlan
+}
+
 // withPlan writes demoPlan and loads it into the harness's model.
 func (hs *harness) withPlan(text string) {
 	hs.t.Helper()
@@ -176,7 +195,7 @@ func TestWideLayoutGolden(t *testing.T) {
 		t.Run(st.name, func(t *testing.T) {
 			hs := newHarness(t, 120, 40)
 			hs.m.loc = time.UTC
-			hs.withPlan(demoPlan)
+			hs.withPlan(layoutPlan(st.name))
 			st.setup(hs)
 			view := hs.m.View()
 			checkFits(t, view, 120, 40)
@@ -189,7 +208,7 @@ func TestWideLayoutFitsAtItsLimits(t *testing.T) {
 	for _, size := range [][2]int{{100, wideMinHeight}, {100, 24}, {200, 60}} {
 		for _, st := range layoutStates {
 			hs := newHarness(t, size[0], size[1])
-			hs.withPlan(demoPlan)
+			hs.withPlan(layoutPlan(st.name))
 			st.setup(hs)
 			if !strings.HasPrefix(hs.m.View(), "igris · sinjal") || !hs.m.wide() {
 				t.Fatalf("%v %s: not the wide layout", size, st.name)

@@ -161,7 +161,7 @@
 <h2><span class="phase-id">{{.ID}}</span>{{with .Title}} <span class="title">{{.}}</span>{{end}}{{if .Parallel}} <span class="meta">parallel</span>{{end}}{{if .Run}} <span class="now">this run</span>{{end}}</h2>
 <ul class="tasks">
 {{- range .Tasks}}
-<li class="t {{slug .Status}}" id="t-{{.ID}}"><span class="mark" aria-hidden="true">{{mark .Status}}</span> <span class="id">{{.ID}}</span> <span class="title">{{.Title}}</span> <span class="meta">{{.Status}}{{with .Rank}} · <span class="rank rank-{{.}}">{{.}}</span>{{end}}{{with .Mode}} · mode {{.}}{{end}}{{if eq .Owner "user"}} · <span class="you">you</span>{{end}}</span>
+<li class="t {{slug .Status}}" id="t-{{.ID}}"><span class="mark" aria-hidden="true">{{mark .Status}}</span> <span class="id">{{.ID}}</span> <span class="title">{{.Title}}</span> <span class="meta">{{.Status}}{{with .Rank}} · <span class="rank rank-{{.}}">{{.}}</span>{{end}}{{with .Mode}} · mode {{.}}{{end}}{{if eq .Owner "user"}} · <span class="you">you</span>{{end}}{{with .Together}} · with {{join . ", "}}{{end}}</span>
 {{- with .ModeForm}}
 <details><summary>Task mode…</summary>{{template "form" .}}</details>
 {{- end}}</li>

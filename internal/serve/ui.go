@@ -64,6 +64,7 @@ var uiTemplates = template.Must(template.New("ui").Funcs(template.FuncMap{
 	"offered":   func(m string) bool { return slices.Contains(remoteModes, m) },
 	"tokens":    tokensText,
 	"spans":     codeSpans,
+	"join":      strings.Join,
 }).ParseFS(uiFiles, "ui/page.html"))
 
 // UIOptions configures the web UI.

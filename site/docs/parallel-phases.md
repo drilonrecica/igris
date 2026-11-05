@@ -66,7 +66,7 @@ On a wide terminal the run view shows one card per active task, with its slot, a
 - **Parallel runs need git and commits.** `commit = "never"` and projects without a commit run one task at a time instead, with a warning.
 - **It is harder to follow.** N sessions need N times your attention when they ask questions. Don't run it unattended in a mode that asks a lot.
 
-A good first phase is small, independent and well-gated: separate packages or services, no shared generated files, a verify that is quick. Run `igris phases` first: it shows which tasks could run together.
+A good first phase is small, independent and well-gated: separate packages or services, no shared generated files, a verify that is quick. Run `igris phases` first: it shows which tasks could run together. The TUI says it too: in a parallel phase a task's row ends in `with B-2, B-3`, Phase detail lists the sets under its counts, and the Preview shows them above its steps; the web plan page puts `with …` on the task.
 
 ## Safety
 

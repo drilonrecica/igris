@@ -64,6 +64,32 @@ func (r rows) tasks() []*plan.Task {
 	return nil
 }
 
+// parallelism is the phase's parallelism over its unfinished tasks
+// (SPEC §3.8): the sets arise would start together, none in a phase
+// without the parallel marker.
+func (r rows) parallelism() plan.Parallelism {
+	if r.plan == nil {
+		return plan.Parallelism{}
+	}
+	if ph := r.plan.Phase(r.phase); ph != nil {
+		return ph.ParallelismOf(nil)
+	}
+	return plan.Parallelism{}
+}
+
+// withText is the parallel marker of a task (SPEC §15.4): "with B-2, B-3",
+// the tasks it would run alongside, in words; "" for none.
+func withText(par plan.Parallelism, id string) string {
+	if w := par.With(id); len(w) > 0 {
+		return "with " + strings.Join(w, ", ")
+	}
+	return ""
+}
+
+// minTitle is the fewest title cells a row keeps (or its longest title,
+// when shorter) before it drops its parallel marker to make room.
+const minTitle = 12
+
 // needsOwner reports whether t is an active task that waits on the owner.
 func (r rows) needsOwner(t *plan.Task) bool {
 	return (r.curID == t.ID && r.waiting) || r.waits[t.ID]
@@ -116,16 +142,21 @@ func rank(t *plan.Task) string {
 }
 
 // natural is the width the task list wants (SPEC §15.1, TASKS as wide as
-// its longest row): "›✓ " + ID + "  " + the longest title + " " + rank.
+// its longest row): "›✓ " + ID + "  " + the longest title + " " + rank,
+// then " with …" in a parallel phase.
 func (r rows) natural() int {
-	idW, titleW, rankW := 0, 0, 0
+	par := r.parallelism()
+	idW, titleW, rankW, markW := 0, 0, 0, 0
 	for _, t := range r.tasks() {
 		idW, titleW, rankW = max(idW, textWidth(t.ID)), max(titleW, textWidth(t.Title)), max(rankW, textWidth(rank(t)))
+		if m := withText(par, t.ID); m != "" {
+			markW = max(markW, 1+textWidth(m))
+		}
 	}
 	if idW == 0 {
 		return textWidth("reading the plan…")
 	}
-	return 3 + idW + 2 + titleW + 1 + rankW
+	return 3 + idW + 2 + titleW + 1 + rankW + markW
 }
 
 // lines renders the task list w cells wide, returning the lines, the index
@@ -141,11 +172,19 @@ func (r rows) lines(w, sel int) (lines []string, follow int, owner []int) {
 		}
 		return []string{"no tasks in this phase"}, -1, []int{-1}
 	}
-	idW, rankW := 0, 0
+	par := r.parallelism()
+	idW, rankW, markW, longest := 0, 0, 0, 0
 	for _, t := range tasks {
-		idW, rankW = max(idW, textWidth(t.ID)), max(rankW, textWidth(rank(t)))
+		idW, rankW, longest = max(idW, textWidth(t.ID)), max(rankW, textWidth(rank(t))), max(longest, textWidth(t.Title))
+		if m := withText(par, t.ID); m != "" {
+			markW = max(markW, 1+textWidth(m))
+		}
 	}
-	titleW := max(w-3-idW-2-1-rankW, 1) // "›✓ " + ID + "  " + title + " " + rank
+	titleW := w - 3 - idW - 2 - 1 - rankW // "›✓ " + ID + "  " + title + " " + rank
+	if titleW-markW < min(minTitle, longest) {
+		markW = 0 // too narrow: the title keeps the room
+	}
+	titleW = max(titleW-markW, 1)
 	var out []string
 	follow = -1
 	for i, t := range tasks {
@@ -153,13 +192,24 @@ func (r rows) lines(w, sel int) (lines []string, follow int, owner []int) {
 			follow = len(out)
 		}
 		id, title := pad(t.ID, idW), pad(fit(t.Title, titleW), titleW)
+		mark := ""
+		if markW > 0 {
+			mark = withText(par, t.ID)
+		}
 		if i == sel {
 			// The selected row is one focus bar; its parts keep no looks.
 			row := rowMark(true) + r.glyph(t) + " " + id + "  " + title + " " + rank(t)
+			if mark != "" {
+				row += strings.Repeat(" ", rankW-textWidth(rank(t))) + " " + mark
+			}
 			out = append(out, r.th.focusLine(fit(row, w), w))
 		} else {
 			_, tl := r.looks(t)
 			row := rowMark(false) + r.paintedGlyph(t) + " " + r.th.paint(tl, id) + "  " + r.th.paint(tl, title) + " " + r.th.rank(rank(t), tl == lookDim)
+			if mark != "" {
+				// The marker is words, dim (SPEC §15.4), after the rank column.
+				row += strings.Repeat(" ", rankW-textWidth(rank(t))) + " " + r.th.paint(lookDim, mark)
+			}
 			out = append(out, fit(row, w))
 		}
 		owner = append(owner, i)
@@ -181,12 +231,17 @@ func (r rows) lines(w, sel int) (lines []string, follow int, owner []int) {
 // doesn't fit its cell is cut.
 func (r rows) compact(w, sel int) (lines []string, cols, cellW, cur int) {
 	tasks := r.tasks()
+	par := r.parallelism()
 	cells := make([]string, len(tasks))
+	marks := make([]string, len(tasks))
 	cur = sel
 	idW := 0
 	for i, t := range tasks {
 		idW = max(idW, textWidth(t.ID))
-		cells[i] = rowMark(i == sel) + r.glyph(t) + " " + t.ID + " " + t.Title
+		if m := withText(par, t.ID); m != "" {
+			marks[i] = " " + m
+		}
+		cells[i] = rowMark(i == sel) + r.glyph(t) + " " + t.ID + " " + t.Title + marks[i]
 		cellW = max(cellW, textWidth(cells[i]))
 		if sel < 0 && r.curID == t.ID {
 			cur = i
@@ -199,18 +254,25 @@ func (r rows) compact(w, sel int) (lines []string, cols, cellW, cur int) {
 	if cols == 1 {
 		cellW = w
 	}
-	titleW := max(cellW-3-idW-1, 1)
 	for i, t := range tasks {
+		// The marker follows the title while the title keeps minTitle cells
+		// (or all of itself); a title cut shorter drops it.
+		mark := marks[i]
+		titleW := cellW - 3 - idW - 1
+		if mark != "" && titleW-textWidth(mark) < min(minTitle, textWidth(t.Title)) {
+			mark = ""
+		}
+		titleW = max(titleW-textWidth(mark), 1)
 		title := fit(t.Title, titleW)
 		if i == sel {
 			// The focus bar is as wide as the cell's text: a padded one would
 			// leave trailing spaces the plain layout trims.
-			cell := rowMark(true) + r.glyph(t) + " " + pad(t.ID, idW) + " " + title
+			cell := rowMark(true) + r.glyph(t) + " " + pad(t.ID, idW) + " " + title + mark
 			cells[i] = r.th.focusLine(cell, textWidth(cell))
 			continue
 		}
 		_, tl := r.looks(t)
-		cells[i] = rowMark(false) + r.paintedGlyph(t) + " " + r.th.paint(tl, pad(t.ID, idW)) + " " + r.th.paint(tl, title)
+		cells[i] = rowMark(false) + r.paintedGlyph(t) + " " + r.th.paint(tl, pad(t.ID, idW)) + " " + r.th.paint(tl, title) + r.th.paint(lookDim, mark)
 	}
 	for i := 0; i < len(cells); i += cols {
 		var b strings.Builder
@@ -290,6 +352,11 @@ func (r rows) facts(t *plan.Task) []fact {
 	}
 	if t.Phase != nil {
 		facts = append(facts, fact{"Phase", []string{strings.TrimSpace(t.Phase.ID + " " + t.Phase.Title)}})
+		if !t.Status.Satisfied() {
+			if with := t.Phase.ParallelismOf(nil).With(t.ID); len(with) > 0 {
+				facts = append(facts, fact{"Runs with", []string{strings.Join(with, ", ")}})
+			}
+		}
 	}
 	deps := fact{name: "Deps"}
 	for _, d := range t.Deps {

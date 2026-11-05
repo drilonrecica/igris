@@ -19,7 +19,7 @@ func TestNarrowLayoutGolden(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				hs := newHarness(t, size[0], size[1])
 				hs.m.loc = time.UTC
-				hs.withPlan(demoPlan)
+				hs.withPlan(layoutPlan(st.name))
 				st.setup(hs)
 				view := hs.m.View()
 				checkFits(t, view, size[0], size[1])
@@ -33,7 +33,7 @@ func TestNarrowFitsSmallScreens(t *testing.T) {
 	for _, size := range [][2]int{{50, 20}, {99, 40}, {120, 12}, {30, 10}, {12, 4}} {
 		for _, st := range layoutStates {
 			hs := newHarness(t, size[0], size[1])
-			hs.withPlan(demoPlan)
+			hs.withPlan(layoutPlan(st.name))
 			st.setup(hs)
 			for range 10 {
 				hs.events(engine.Event{Kind: engine.Warning, Detail: strings.Repeat("a long warning ", 8)})

@@ -181,6 +181,7 @@ func (s *previewScreen) body(w int) []string {
 		if len(r.Hooks) > 0 {
 			out = append(out, painted(th, lookDim, "", "task hooks "+strings.Join(r.Hooks, " and ")+" would run around each agent session; the dry run runs none", w)...)
 		}
+		out = append(out, s.parallelism(w)...)
 		out = append(out, "")
 	}
 	for _, st := range r.Steps {
@@ -191,6 +192,24 @@ func (s *previewScreen) body(w int) []string {
 	}
 	if r.Scope != "" && s.err == nil {
 		out = append(out, "", th.paint(lookTitle, "Total: ")+plural(r.Sessions, "session")+" · "+plural(r.Users, "user task"))
+	}
+	return out
+}
+
+// parallelism is, per phase walked with work left, its critical path and
+// width, then the sets of tasks that could run together, as the dry run
+// prints them (SPEC §14); the shared step numbers below say the same.
+func (s *previewScreen) parallelism(w int) []string {
+	var out []string
+	for _, ph := range s.res.Parallelism {
+		if ph.Width == 0 {
+			continue
+		}
+		path := fmt.Sprintf("phase %s: critical path %s (%d), width %d", ph.Phase, strings.Join(ph.CriticalPath, " → "), len(ph.CriticalPath), ph.Width)
+		out = append(out, painted(s.th, lookDim, "", path, w)...)
+		for _, set := range ph.Together {
+			out = append(out, painted(s.th, lookDim, "  ", "could run together: "+strings.Join(set, ", "), w)...)
+		}
 	}
 	return out
 }

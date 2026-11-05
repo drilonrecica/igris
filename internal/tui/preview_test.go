@@ -23,13 +23,18 @@ func previewDry() *report.DryRun {
 		Scope:       "M2 through M3",
 		Sessions:    3,
 		Users:       1,
+		// M2 is a parallel phase: M2-04 and M2-05 start together.
+		Parallelism: []report.PhaseParallelism{
+			{Phase: "M2", Parallelism: report.Parallelism{CriticalPath: []string{"M2-02", "M2-04"}, Width: 2, Together: [][]string{{"M2-04", "M2-05"}}}},
+			{Phase: "M3", Parallelism: report.Parallelism{CriticalPath: []string{"M3-01", "M3-02"}, Width: 1, Together: [][]string{}}},
+		},
 		Steps: []report.DryStep{
 			{Kind: report.StepSession, N: 1, Task: "M2-02", Rank: "sonnet", Model: "sonnet", Mode: "plan", Title: "Parse widgets with a title long enough to wrap in the narrow layouts", Resumed: true},
 			{Kind: report.StepSession, N: 2, Task: "M2-04", Rank: "opus", Model: "opus", Mode: "yolo", Title: "Wire the dispatcher"},
-			{Kind: report.StepUser, N: 3, Task: "M2-05", Title: "Buy the domain"},
+			{Kind: report.StepUser, N: 2, Task: "M2-05", Title: "Buy the domain"},
 			{Kind: report.StepPhaseDone, Phase: "M2"},
 			{Kind: report.StepNote, Lines: []string{"mode of M3 follows the Mode column"}},
-			{Kind: report.StepSession, N: 4, Task: "M3-01", Rank: "haiku", Model: "haiku", Mode: "default", Title: "Release notes"},
+			{Kind: report.StepSession, N: 3, Task: "M3-01", Rank: "haiku", Model: "haiku", Mode: "default", Title: "Release notes"},
 			{Kind: report.StepWarning, Lines: []string{"phase M3 is stuck: M3-02 waits for M9-01"}},
 		},
 	}
@@ -71,7 +76,7 @@ func TestPreviewGolden(t *testing.T) {
 // Under NO_COLOR the badge and warnings are still told in words.
 func TestPreviewNoColor(t *testing.T) {
 	view := previewAt(noColorTheme(t), 120, 40, previewDry(), nil).View()
-	for _, want := range []string{"[SKIP PERMISSIONS]", "▲ phase M3 is stuck", "resumed: fresh session", "opus → opus", "3 sessions · 1 user task"} {
+	for _, want := range []string{"[SKIP PERMISSIONS]", "▲ phase M3 is stuck", "phase M2: critical path M2-02 → M2-04 (2), width 2", "could run together: M2-04, M2-05", "resumed: fresh session", "opus → opus", "3 sessions · 1 user task"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("view lacks %q:\n%s", want, view)
 		}

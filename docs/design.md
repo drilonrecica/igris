@@ -38,6 +38,8 @@ Seven rules fix that. Everything below follows from them.
 
 Glyphs are always followed by a word where there is room (`▲ doctor: 1 warning`, `✗ FAILED: timeout`), and the word is enough on its own where there isn't. The focus marks `›…‹` and `›`, the progress bar `█░` and the ETA's `≈` are not status glyphs and keep their jobs.
 
+**The parallel marker is words, not a glyph** (since 1.10): in a parallel phase a task row that would start alongside others ends in a dim `with B-2, B-3` after its rank; Phase detail lists the sets under its counts (`together: B-1, B-3 · B-4, B-5`), the Preview shows them with the critical path above its steps, a task's detail page says `Runs with B-2, B-3` and the web plan page puts `with …` in the task's meta. A new glyph would need a legend, and each glyph keeps one meaning.
+
 Gone in 1.7: `⚠` and `⚠ rank` (now `▲`, `▲ rank`), `!` as `doctor`'s and the web UI's warning mark (now `▲`; `!` is needs you only), `⨯` for a waiting phase (now `◌`), for a failed check (now `✗`) and for a backend that isn't reachable (now `✗`), `…` as a glyph for a check in flight (now `◌`).
 
 ### Status words

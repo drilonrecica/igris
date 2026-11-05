@@ -9,9 +9,9 @@ igris · sinjal · M1 · 0/4 · 3 active   ! Needs you
 ┃ [o Open session] [t Details]                   ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ── TASKS ─────────────────────────────────────────
- ● M1-03 Parser   ! M1-04 Writer   ● M1-05 Docs
- ⨯ M1-06 Release
-
+ ● M1-03 Parser with M1-04, M1-05
+ ! M1-04 Writer with M1-03, M1-05
+ ● M1-05 Docs with M1-03, M1-04
 ── LOG ───────────────────────────────────────────
 09:41 M1-04 started · sonnet · mode plan
 09:41 M1-04 session open

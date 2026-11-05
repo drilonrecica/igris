@@ -193,6 +193,45 @@ func TestSnapshotPhases(t *testing.T) {
 	}
 }
 
+// A task of a parallel phase carries the tasks it would run alongside
+// (SPEC §3.8, §13, since 1.10), Group-aware; a sequential phase's tasks
+// and a finished task carry none, and the field is absent from the JSON.
+func TestSnapshotTogether(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "tasks.md")
+	const head = "| ID | Task | Deps | Status | Model | Owner | Group |\n|---|---|---|---|---|---|---|\n"
+	const text = "<!-- igris:format 3 -->\n\n## A — Sequential\n\n" + head +
+		"| A-1 | **One** | — | ready | sonnet | agent | — |\n" +
+		"| A-2 | **Two** | — | ready | sonnet | agent | — |\n\n" +
+		"## B — Parallel\n\n<!-- igris:parallel -->\n\n" + head +
+		"| B-1 | **Schema** | — | in progress | sonnet | agent | db |\n" +
+		"| B-2 | **Store** | — | ready | sonnet | agent | db |\n" +
+		"| B-3 | **Client** | — | ready | opus | agent | — |\n" +
+		"| B-4 | **Old** | — | done | opus | agent | — |\n"
+	if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s := New(Options{Plan: func() (*plan.Plan, error) { return plan.Load(path, plan.Options{}) }})
+	got := snap(t, s)
+	if len(got.Phases) != 2 {
+		t.Fatalf("phases = %+v (%s)", got.Phases, got.PlanError)
+	}
+	want := map[string][]string{"B-1": {"B-3"}, "B-3": {"B-1"}}
+	for _, ph := range got.Phases {
+		for _, tk := range ph.Tasks {
+			if fmt.Sprint(tk.Together) != fmt.Sprint(want[tk.ID]) {
+				t.Errorf("%s together = %v, want %v", tk.ID, tk.Together, want[tk.ID])
+			}
+		}
+	}
+	b, err := json.Marshal(got.Phases[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(b), "together") {
+		t.Errorf("a sequential phase's tasks carry together: %s", b)
+	}
+}
+
 // The event line keeps the run log's envelope and field names (SPEC §13,
 // §19): changing one breaks every 1.x client.
 func TestEventEnvelope(t *testing.T) {

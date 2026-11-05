@@ -1,0 +1,40 @@
+igris · sinjal · Phase M2 · Config & state                                                                          Idle
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+● Outcome  next — M2-02 is next
+4 tasks · 1 done · 1 in progress · 2 ready
+together: M2-03, M2-04
+
+ ✓ M2-01  Config loader                                                                                sonnet
+›● M2-02  Lock file                                                                                    opus
+ · M2-03  State file                                                                                   sonnet with M2-04
+ · M2-04  Signals                                                                                      haiku  with M2-03
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[a Arise this phase…] [v Preview this phase] [e Edit plan] [q Close]

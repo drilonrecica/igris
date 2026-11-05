@@ -41,6 +41,26 @@ func invalidFix() homeFixture {
 	return homeFixture{snap: s, doctor: checkWarnings, doctorDone: true}
 }
 
+// parallelFix is readyFix with M2 a parallel phase (SPEC §3.8) in which
+// M2-03 and M2-04 both wait on M2-02 only, so they would run together.
+func parallelFix() homeFixture {
+	f := readyFix()
+	text := "<!-- igris:format 3 -->\n\n" + strings.ReplaceAll(homePlan, "STATUS", "in progress")
+	text = strings.Replace(text, "## M2 — Config & state\n", "## M2 — Config & state\n\n<!-- igris:parallel -->\n", 1)
+	text = strings.Replace(text, "| M2-02, M2-03 | ready | haiku |", "| M2-02 | ready | haiku |", 1)
+	f.snap.Plan = plan.Parse("tasks.md", []byte(text), plan.Options{})
+	f.snap.Issues = report.Issues(f.snap.Plan.Validate(f.snap.Config.Rules("")))
+	if len(f.snap.Issues) > 0 {
+		panic(fmt.Sprint(f.snap.Issues))
+	}
+	st, err := report.Status(f.snap.Plan, "")
+	if err != nil {
+		panic(err)
+	}
+	f.snap.Status = &st
+	return f
+}
+
 func sized(m tea.Model, w, h int) {
 	m.Update(tea.WindowSizeMsg{Width: w, Height: h})
 }
@@ -59,6 +79,15 @@ func TestPlanPagesGolden(t *testing.T) {
 	}{
 		{"phase", func(w, h int) (tea.Model, func() string) {
 			s := newPhaseScreen(planPagesHome(w, h, readyFix()), "M2")
+			return s, s.View
+		}},
+		{"phase_parallel", func(w, h int) (tea.Model, func() string) {
+			s := newPhaseScreen(planPagesHome(w, h, parallelFix()), "M2")
+			return s, s.View
+		}},
+		{"task_parallel", func(w, h int) (tea.Model, func() string) {
+			s := newTaskScreen(planPagesHome(w, h, parallelFix()), "M2-03")
+			s.Update(taskHistoryMsg{h: taskHistory()})
 			return s, s.View
 		}},
 		{"phase_waiting", func(w, h int) (tea.Model, func() string) {

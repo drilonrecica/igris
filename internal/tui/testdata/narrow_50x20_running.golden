@@ -7,11 +7,11 @@ igris · sinjal · M0 · 3/7 · mode plan    ● Working
 │ [o Open session] [t Details]                   │
 └────────────────────────────────────────────────┘
 ── TASKS ─────────────────────────────────────────
- ✓ M0-01 Go module       ✓ M0-02 Entrypoint
- ● M0-03 Makefile        · M0-04 Config loader
- · M0-05 Buy the domain  ⨯ M0-13 Static assets
- – M0-14 Old idea
-
+ ✓ M0-01 Go module
+ ✓ M0-02 Entrypoint
+ ● M0-03 Makefile with M0-05, M0-13
+ · M0-04 Config loader
+ · M0-05 Buy the domain with M0-03, M0-13
 ── LOG ───────────────────────────────────────────
 09:41 ✓ M0-02 done · subcommand dispatch + tests
 09:41 M0-03 started · sonnet · mode plan

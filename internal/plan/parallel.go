@@ -120,3 +120,24 @@ func rounds(ids []string, member map[string]*Task) [][]string {
 	}
 	return out
 }
+
+// With is the other tasks of id's Together set, in that set's order: the
+// tasks arise would start alongside it. Nil when id is in no set, which is
+// every task of a phase without the parallel marker.
+func (p Parallelism) With(id string) []string {
+	for _, set := range p.Together {
+		for _, x := range set {
+			if x != id {
+				continue
+			}
+			out := make([]string, 0, len(set)-1)
+			for _, y := range set {
+				if y != id {
+					out = append(out, y)
+				}
+			}
+			return out
+		}
+	}
+	return nil
+}

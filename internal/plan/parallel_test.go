@@ -45,3 +45,23 @@ func TestParallelismOf(t *testing.T) {
 		})
 	}
 }
+
+func TestParallelismWith(t *testing.T) {
+	p := Parallelism{Together: [][]string{{"B-1", "B-3"}, {"B-4", "B-5", "B-6"}}}
+	for _, c := range []struct {
+		id   string
+		want []string
+	}{
+		{"B-1", []string{"B-3"}},
+		{"B-3", []string{"B-1"}},
+		{"B-5", []string{"B-4", "B-6"}},
+		{"B-2", nil},
+	} {
+		if got := p.With(c.id); !reflect.DeepEqual(got, c.want) {
+			t.Errorf("With(%s) = %v, want %v", c.id, got, c.want)
+		}
+	}
+	if got := (Parallelism{}).With("B-1"); got != nil {
+		t.Errorf("a sequential phase's With = %v, want nil", got)
+	}
+}

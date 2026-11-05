@@ -4,6 +4,10 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+### Added
+
+- **The parallel marker.** In a parallel phase a task that `arise` would start alongside others says so in words: its row in the TUI ends in a dim `with B-2, B-3`, its detail page says `Runs with B-2, B-3`, Phase detail lists the sets under its counts (`together: B-1, B-3`), the Preview shows each phase's critical path and the sets above its steps, and the web plan page shows `with …` on the task. The sets are the ones `igris phases` reports (Group-aware, unfinished tasks). The snapshot's tasks gain `together` (additive, protocol 1 unchanged); nothing in `igris.toml`.
+
 ### Fixed
 
 - **The parallelism report now agrees with the scheduler.** `igris phases` and the summary of `igris arise --dry-run` ignored `Group` and listed tasks as `together` in phases without the parallel marker, so `B-1, B-2, B-3` could be shown together while the dry run started `B-2` after `B-1` (same Group). Tasks sharing a `Group` now take one slot, never together; a phase without the marker has width 1, no `together` sets and its critical path only; the sets are what `arise` would start together. `--json` keeps its shape (`width` and `together` change value only).

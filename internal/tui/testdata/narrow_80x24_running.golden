@@ -7,13 +7,13 @@ igris · sinjal · M0 · 3/7 · 42% ███░░░ · mode plan · herdr    
 │ [o Open session] [t Details]                                                 │
 └──────────────────────────────────────────────────────────────────────────────┘
 ── TASKS ───────────────────────────────────────────────────────────────────────
- ✓ M0-01 Go module       ✓ M0-02 Entrypoint      ● M0-03 Makefile
- · M0-04 Config loader   · M0-05 Buy the domain  ⨯ M0-13 Static assets
+ ✓ M0-01 Go module
+ ✓ M0-02 Entrypoint
+ ● M0-03 Makefile with M0-05, M0-13
+ · M0-04 Config loader
+ · M0-05 Buy the domain with M0-03, M0-13
+ ⨯ M0-13 Static assets with M0-03, M0-05
  – M0-14 Old idea
-
-
-
-
 
 
 ── LOG ─────────────────────────────────────────────────────────────────────────

@@ -1,0 +1,20 @@
+igris · sinjal · M2-03                        Idle
+──────────────────────────────────────────────────
+M2-03 — State file
+
+Status     · ready
+Rank       sonnet
+Owner      agent
+Mode       auto (run mode)
+Phase      M2 Config & state
+Runs with  M2-04
+Deps       ● M2-02 in progress · Lock file
+Waits on   M2-02
+── LAST ATTEMPTS ─────────────────────────────────
+none: igris hasn't run this task
+
+
+
+
+──────────────────────────────────────────────────
+[y Copy ID] [q Close]

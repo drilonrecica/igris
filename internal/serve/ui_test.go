@@ -24,7 +24,9 @@ var uiT0 = time.Date(2026, 10, 22, 9, 0, 0, 0, time.UTC)
 
 // uiPlan is a synthetic plan: a phase with a done task, two
 // agent tasks running, an agent task to do and a user task.
-const uiPlan = "## P1 — Parser <i>and</i> writer\n\n" +
+// P1 is a parallel phase (SPEC §3.8): P1-02 runs with P1-03, P1-04 with
+// P1-05, so the plan page shows the parallel marker.
+const uiPlan = "<!-- igris:format 3 -->\n\n## P1 — Parser <i>and</i> writer\n\n<!-- igris:parallel -->\n\n" +
 	"| ID | Task | Deps | Status | Model | Owner | Mode |\n|---|---|---|---|---|---|---|\n" +
 	"| P1-01 | Go module | — | done | sonnet | agent | — |\n" +
 	"| P1-02 | <b>Parser</b> | P1-01 | in progress | opus | agent | plan |\n" +

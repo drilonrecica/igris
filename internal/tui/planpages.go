@@ -247,9 +247,13 @@ func (s *phaseScreen) body(w int) []string {
 		}
 		out = append(out, th.paint(row.glyphLook, row.glyph)+" "+th.paint(lookTitle, "Outcome")+"  "+fit(text, w-textWidth("Outcome")-4))
 	}
-	out = append(out, th.paint(lookDim, fit(s.counts(ph), w)), "")
-	head := len(out)
+	out = append(out, th.paint(lookDim, fit(s.counts(ph), w)))
 	r := s.rows()
+	if sets := together(r.parallelism()); sets != "" {
+		out = append(out, painted(th, lookDim, "", "together: "+sets, w)...)
+	}
+	out = append(out, "")
+	head := len(out)
 	lines, follow, owner := r.lines(w, s.sel)
 	s.owner = make([]int, head, head+len(owner))
 	for i := range s.owner {
@@ -277,6 +281,16 @@ func (s *phaseScreen) counts(ph *report.PhaseStatus) string {
 		}
 	}
 	return strings.Join(parts, " · ")
+}
+
+// together writes the sets of tasks arise would start together (SPEC
+// §3.8): each set's IDs joined by ", ", the sets by " · "; "" for none.
+func together(par plan.Parallelism) string {
+	sets := make([]string, 0, len(par.Together))
+	for _, set := range par.Together {
+		sets = append(sets, strings.Join(set, ", "))
+	}
+	return strings.Join(sets, " · ")
 }
 
 // phaseRow is the PHASES row of phase id as home draws it.

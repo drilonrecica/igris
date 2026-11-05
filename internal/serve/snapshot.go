@@ -128,6 +128,10 @@ type Task struct {
 	Owner  string `json:"owner,omitempty"`
 	Rank   string `json:"rank,omitempty"`
 	Mode   string `json:"mode,omitempty"`
+	// Together is the tasks arise would start alongside this one in a
+	// parallel phase (SPEC §3.8, since 1.10): the other tasks of its set,
+	// Group-aware; absent in a sequential phase and for a finished task.
+	Together []string `json:"together,omitempty"`
 }
 
 // Current is an active task, as its card shows it.
@@ -551,11 +555,16 @@ func phasesOf(p *plan.Plan) []Phase {
 	out := make([]Phase, 0, len(p.Phases))
 	for _, ph := range p.Phases {
 		x := Phase{ID: textsafe.Line(ph.ID), Title: cut(textsafe.Line(ph.Title), maxTitle), Parallel: ph.Parallel, Tasks: make([]Task, 0, len(ph.Tasks))}
+		par := ph.ParallelismOf(nil)
 		for _, tk := range ph.Tasks {
-			x.Tasks = append(x.Tasks, Task{
+			t := Task{
 				ID: textsafe.Line(tk.ID), Title: cut(textsafe.Line(tk.Title), maxTitle), Status: tk.Status.String(),
 				Owner: textsafe.Line(string(tk.Owner)), Rank: textsafe.Line(tk.Rank), Mode: textsafe.Line(tk.Mode),
-			})
+			}
+			for _, id := range par.With(tk.ID) {
+				t.Together = append(t.Together, textsafe.Line(id))
+			}
+			x.Tasks = append(x.Tasks, t)
 		}
 		out = append(out, x)
 	}

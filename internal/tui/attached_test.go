@@ -128,7 +128,7 @@ func TestAttachedLayoutGoldens(t *testing.T) {
 			t.Run(sz.prefix+st.name, func(t *testing.T) {
 				hs := attachedHarness(t, sz.w, sz.h)
 				hs.m.loc = time.UTC
-				hs.withPlan(demoPlan)
+				hs.withPlan(layoutPlan(st.name))
 				st.setup(hs)
 				golden(t, sz.prefix+st.name, hs.m.View())
 			})
@@ -151,13 +151,13 @@ func TestAttachedSnapshotGoldens(t *testing.T) {
 			}
 			t.Run(sz.prefix+st.name, func(t *testing.T) {
 				hs := attachedHarness(t, sz.w, sz.h)
-				hs.withPlan(demoPlan)
+				hs.withPlan(layoutPlan(st.name))
 				st.setup(hs)
 
 				late := newHarness(t, sz.w, sz.h)
 				late.m.loc, late.now = time.UTC, hs.now
 				late.m.opts.RankDurations = hs.m.opts.RankDurations
-				late.withPlan(demoPlan)
+				late.withPlan(layoutPlan(st.name))
 				wr := &wire{t: t, srv: hs.wire.srv}
 				wr.attach(late)
 				if hs.m.opts.Tail != nil {

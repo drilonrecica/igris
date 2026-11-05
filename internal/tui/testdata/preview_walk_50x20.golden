@@ -5,6 +5,9 @@ run picks it up first
 ▲ M2-04 asks for model fable, which igris.toml
   doesn't define
 nothing is written and no session starts
+phase M2: critical path M2-02 → M2-04 (2), width 2
+  could run together: M2-04, M2-05
+phase M3: critical path M3-01 → M3-02 (2), width 1
 
   1. M2-02 sonnet → sonnet · mode plan · resumed:
      fresh session
@@ -13,8 +16,5 @@ nothing is written and no session starts
   2. M2-04 opus → opus · mode yolo
      [SKIP PERMISSIONS]
      Wire the dispatcher
-  3. M2-05 user task: waits for you
-     Buy the domain
-      phase M2 complete
-── 1–16 of 22 · ↑↓ scroll ────────────────────────
+── 1–16 of 25 · ↑↓ scroll ────────────────────────
 [a Arise…] [v Again] [q Close]
