@@ -121,3 +121,11 @@ Install the new igris (or run `igris update`) and you are done: nothing in your 
 What is new, all additive: [the Igris editor extension](editor.md) for VS Code and its forks; `backend = "auto"` running headless on tmux from a plain terminal, an editor, cron or systemd (an error before); a Tasks step in home's start wizard and **Arise W17…** on the end-of-run summary; the snapshot's `session_host`, which makes **Open session** go where the session lives; and four fixes to 1.8 (commits counted as kept, the hold's resume time, `1 task and the run need you`, a current budget line at a sequential commit question). [CHANGELOG](../../CHANGELOG.md).
 
 **One thing to know:** the extension needs igris 1.8.0 or newer. With `backend = "auto"` igris 1.0–1.8 still refuses to start from outside herdr and tmux, so an editor-started run needs 1.9.
+
+## From 1.9 to 1.10
+
+Install the new igris (or run `igris update`) and you are done: nothing in your plan, `igris.toml`, scripts, `--json` or `.igris/` changes, and a run interrupted under 1.9 resumes. `state.json` stays version 4.
+
+What is new, all additive: four more `igris check --strict` hints for agent-ready tasks; `igris history --stats`; the parallel marker (`with B-2, B-3`) in the TUI and the web plan page; `igris arise --dry-run --prompts`; `igris status --since-last-run`; working hours (`[run] hours`); the command line's text with words for glyphs (`[tui] screen_reader`) and a high-contrast theme (`[tui] theme = "high-contrast"`), both in [install](install.md#accessibility); [a container recipe](container.md); and a fix to the parallelism report, which now agrees with the scheduler about `Group`.
+
+**One thing to know:** the new keys and the theme value are refused by igris 1.0 to 1.9, so finish a run (or delete `.igris/state.json`) before going back; `.igris/plan-cells.json` is ignored by them. [CHANGELOG](../../CHANGELOG.md).

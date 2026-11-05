@@ -4,6 +4,10 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
+The heading becomes `[1.10.0]` with its date when v1.10.0 is published (V110-R).
+
+igris 1.10 helps you write plans agents can run and read what a run did: hints for agent-ready tasks, `history --stats`, the parallel marker, the dry run's prompts, `status --since-last-run`, working hours, two accessibility pieces and a container recipe. It only adds: plans, `--json`, the run log, the webhook payload and protocol 1 are unchanged apart from additive fields ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). `state.json` stays version 4. It also fixes the parallelism report.
+
 ### Added
 
 - **`igris arise --dry-run --prompts`: see the prompts before the run.** Under each session of the dry run, the exact first prompt the engine would send, fenced and indented, handoff notes included, with your real plan and task file paths (a split plan says `(split plan inlined)`). `--prompts` without `--dry-run` is a usage error.
@@ -16,6 +20,8 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 - **`igris status --since-last-run`: what changed in the plan between runs.** A run now keeps a baseline, `.igris/plan-cells.json` (each row's Status, Model, Mode, Owner, Deps, Verify and a sha256 of its Task text), written when it starts and when it ends. `status --since-last-run` adds a `Since the last run (<run id> · <when>)` block: the Status cells igris wrote, as the run log tells them (`M1-03 ready → done`), then everyone else's edits (`M2-01 Task text changed`, `M2-02 Mode — → auto`, `M2-04 added`, `M1-09 removed`), or `no changes`. `--json` gains `since_last_run` (additive); home's card says `plan edited since the last run: 2 rows` when someone else edited rows. The file is untrusted: read bounded, never through a symlink, and shape-checked; one that doesn't pass is no baseline.
 
 - **A high-contrast theme: `[tui] theme = "high-contrast"`.** A black ground with white text where the words of every severity, dim text and the rank colors measure 7:1 (WCAG AAA): brighter Glow, Ember and Plume, dim lines in a grey instead of faint, the rank hues lighter. Plume is still Needs you only, and the focus is still reverse video with `›…‹`. The terminal UI and the command line's colored text use it (the CLI now honors `[tui] theme` too, where it went by `COLORFGBG` alone); the web UI switches to the same tokens when the phone asks for more contrast (`prefers-contrast: more`). `auto` never picks it. See [design](docs/design.md#severity-and-color).
+
+- **[In a box: a container recipe](site/docs/container.md) for skip-permissions runs.** `examples/container/` has a `Containerfile` (Debian, igris, Claude Code, tmux and git, running as a user `igris`, no `ANTHROPIC_API_KEY`) and a README: mount the project at `/work` and `~/.claude` for the login, and a session can reach only what you mounted. Build with podman or docker. A test keeps the image's `IGRIS_VERSION` pinned to the newest released version.
 
 ### Fixed
 

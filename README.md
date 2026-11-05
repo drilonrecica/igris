@@ -190,7 +190,7 @@ igris reads each session's token counts and model ids from its transcript (never
 | | |
 |---|---|
 | **Start** | `igris init` (`--example`, `--template NAME`) · `igris doctor` · bare `igris`: the home screen |
-| **Inspect** | `igris check` (`--strict` for CI) · `phases` · `status [PHASE]` (`--since-last-run`: igris's Status writes and others' edits since the last run) · `history [TASK-ID \| --stats]` · `report [RUN]` (one run as markdown, for a PR, with where the time went: agent, verify, waiting on you) · `usage [RUN \| --since D]` |
+| **Inspect** | `igris check` (`--strict` for CI: also hints that a task is not agent-ready, `spec`, `verify`, `deps` and `words`) · `phases` · `status [PHASE]` (`--since-last-run`: igris's Status writes and others' edits since the last run) · `history [TASK-ID \| --stats]` · `report [RUN]` (one run as markdown, for a PR, with where the time went: agent, verify, waiting on you) · `usage [RUN \| --since D]` |
 | **Run** | `igris arise [PHASE]` · `serve [PHASE]` (`--http ADDR:PORT`) · `serve token` · `attach` · `stop` |
 | **Signal** | `igris done ID` (`--note`) · `skip ID --reason …` · `reset ID` (`--force`) |
 | **Plan with AI** | `igris draft goal\|spec\|import\|extend` · `adapt` |
