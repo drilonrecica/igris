@@ -1,0 +1,40 @@
+igris · sinjal · phase M0 · 3/7 · 42% ████░░░░░░ · mode auto · herdr                                           ● Working
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+TASKS                                     │ ┌─ M0-03 Makefile ─────────────────────────────────────────────────────────┐
+ ✓ M0-01  Go module      sonnet           │ │ ● Working · 4m12s                                                        │
+ ✓ M0-02  Entrypoint     sonnet           │ │ sonnet → sonnet · mode plan                                              │
+ ● M0-03  Makefile       sonnet plan:auto │ │ fmt, lint, test                                                          │
+ · M0-04  Config loader  opus   plan      │ │ [o Open session] [t Details]                                             │
+ · M0-05  Buy the domain user             │ └──────────────────────────────────────────────────────────────────────────┘
+ ⨯ M0-13  Static assets  sonnet yolo      │
+   waits on P0-05                         │
+ – M0-14  Old idea       haiku            │
+── LOG ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+09:41 M0-03 started · sonnet · mode plan
+09:41 M0-03 session open
+09:41 next sessions in mode auto
+09:41 M0-03's next session in mode plan:auto
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[›o Open session‹] [m Mode] [M Task mode] [p Pause] [d Done] [r Retry…] [s Skip…] [x Stop…] [?] [q Quit]

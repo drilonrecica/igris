@@ -1,0 +1,20 @@
+igris · sinjal · M0 · 3/7 · mode auto    ● Working
+──────────────────────────────────────────────────
+┌─ M0-03 Makefile ───────────────────────────────┐
+│ ● Working · 4m12s                              │
+│ sonnet → sonnet · mode plan                    │
+│ fmt, lint, test                                │
+│ [o Open session] [t Details]                   │
+└────────────────────────────────────────────────┘
+── TASKS ─────────────────────────────────────────
+ ✓ M0-01 Go module
+ ✓ M0-02 Entrypoint
+ ● M0-03 Makefile with M0-05, M0-13
+ · M0-04 Config loader
+ · M0-05 Buy the domain with M0-03, M0-13
+── LOG ───────────────────────────────────────────
+09:41 M0-03 started · sonnet · mode plan
+09:41 M0-03 session open
+09:41 next sessions in mode auto
+[›o Open‹] [m Mode] [M Task mode] [p Pause]
+[d Done] [r Retry] [s Skip] [x Stop] [?] [q Quit]

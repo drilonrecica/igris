@@ -165,8 +165,12 @@ var (
 
 func emberOK(text string) bool {
 	return strings.ContainsAny(text, look.GlyphWarn+look.GlyphFail) || quotaPiece.MatchString(strings.TrimSpace(text)) ||
-		budgetPiece.MatchString(strings.TrimSpace(text)) || strings.HasPrefix(strings.TrimSpace(text), "claude-")
+		budgetPiece.MatchString(strings.TrimSpace(text)) || strings.HasPrefix(strings.TrimSpace(text), "claude-") ||
+		skipWord(strings.TrimSpace(text))
 }
+
+// skipWord is a skip-permissions mode on a task row (SPEC §15.2): a warning.
+func skipWord(text string) bool { return text == "yolo" || text == "plan:yolo" }
 
 // plumeOK says a piece in plume belongs to Needs you or to skip
 // permissions: the wordmark's i, the word, the badge (cut or whole), and

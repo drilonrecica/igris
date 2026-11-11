@@ -1,0 +1,40 @@
+[1migr[0m[1mi[0m[1ms[0m · sinjal · phase M0 · 3/7 · 42% ████░░░░░░ · mode yolo [1m[SKIP PERMISSIONS][0m · herdr                        [1m● Working[0m
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[1mTASKS[0m                                     │ ┌─ [1mM0-03 Makefile[0m ─────────────────────────────────────────────────────────┐
+ ✓ [2mM0-01[0m  [2mGo module     [0m [2msonnet[0m           │ │ ● Working · 4m12s                                                        │
+ ✓ [2mM0-02[0m  [2mEntrypoint    [0m [2msonnet[0m           │ │ sonnet → sonnet · mode plan                                              │
+ [1m●[0m [1mM0-03[0m  [1mMakefile      [0m sonnet [2mplan:auto[0m │ │ fmt, lint, test                                                          │
+ · M0-04  Config loader  opus   [2mplan[0m      │ │ [o Open session] [t Details]                                             │
+ · M0-05  Buy the domain user   yolo      │ └──────────────────────────────────────────────────────────────────────────┘
+ [2m⨯[0m [2mM0-13[0m  [2mStatic assets [0m [2msonnet[0m yolo      │
+[2m   waits on P0-05[0m                         │
+ [2m–[0m [2mM0-14[0m  [2mOld idea      [0m [2mhaiku[0m            │
+── [1mLOG[0m ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[2m09:41[0m M0-03 started · sonnet · mode plan
+[2m09:41[0m M0-03 session open
+[2m09:41[0m next sessions in mode yolo [1m[SKIP PERMISSIONS][0m
+[2m09:41[0m M0-03's next session in mode plan:auto
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[1;7m[›o Open session‹][0m [m Mode] [M Task mode] [p Pause] [d Done] [r Retry…] [s Skip…] [x Stop…] [?] [q Quit]

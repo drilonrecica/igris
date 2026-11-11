@@ -3,6 +3,7 @@ package tui
 import (
 	"strings"
 
+	"github.com/drilonrecica/igris/internal/engine"
 	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/plan"
 )
@@ -146,9 +147,10 @@ func rank(t *plan.Task) string {
 // then " with …" in a parallel phase.
 func (r rows) natural() int {
 	par := r.parallelism()
-	idW, titleW, rankW, markW := 0, 0, 0, 0
+	idW, titleW, rankW, markW, modeW := 0, 0, 0, 0, 0
 	for _, t := range r.tasks() {
 		idW, titleW, rankW = max(idW, textWidth(t.ID)), max(titleW, textWidth(t.Title)), max(rankW, textWidth(rank(t)))
+		modeW = max(modeW, textWidth(r.modeWord(t)))
 		if m := withText(par, t.ID); m != "" {
 			markW = max(markW, 1+textWidth(m))
 		}
@@ -156,7 +158,41 @@ func (r rows) natural() int {
 	if idW == 0 {
 		return textWidth("reading the plan…")
 	}
-	return 3 + idW + 2 + titleW + 1 + rankW + markW
+	if modeW > 0 {
+		modeW++
+	}
+	return 3 + idW + 2 + titleW + 1 + rankW + modeW + markW
+}
+
+// modeWord is the mode shown on t's row (SPEC §15.2): the mode its next
+// session runs in when that differs from the run's, a skip-permissions mode
+// always; "" for none, and for done and skipped tasks (no session will run).
+func (r rows) modeWord(t *plan.Task) string {
+	if t.Status == plan.Done || t.Status == plan.Skipped {
+		return ""
+	}
+	m := r.taskMode(t)
+	if m == "" || (m == r.mode && !engine.SkipsPermissions(m)) {
+		return ""
+	}
+	return m
+}
+
+// modePad pads a mode word to the mode column when something follows it.
+func modePad(word string, w int, more bool) string {
+	if more {
+		return pad(word, w)
+	}
+	return word
+}
+
+// modeLook is the look of a mode word: a skip-permissions mode is a warning
+// (Ember, SPEC §15.4), any other dim.
+func modeLook(m string) tone {
+	if engine.SkipsPermissions(m) {
+		return lookWarn
+	}
+	return lookDim
 }
 
 // lines renders the task list w cells wide, returning the lines, the index
@@ -174,17 +210,37 @@ func (r rows) lines(w, sel int) (lines []string, follow int, owner []int) {
 	}
 	par := r.parallelism()
 	idW, rankW, markW, longest := 0, 0, 0, 0
+	allW, skipW := 0, 0 // widths of the mode words: all shown, only skip-permissions ones
 	for _, t := range tasks {
 		idW, rankW, longest = max(idW, textWidth(t.ID)), max(rankW, textWidth(rank(t))), max(longest, textWidth(t.Title))
 		if m := withText(par, t.ID); m != "" {
 			markW = max(markW, 1+textWidth(m))
 		}
+		if mw := r.modeWord(t); mw != "" {
+			allW = max(allW, textWidth(mw))
+			if engine.SkipsPermissions(mw) {
+				skipW = max(skipW, textWidth(mw))
+			}
+		}
 	}
 	titleW := w - 3 - idW - 2 - 1 - rankW // "›✓ " + ID + "  " + title + " " + rank
-	if titleW-markW < min(minTitle, longest) {
-		markW = 0 // too narrow: the title keeps the room
+	keep := min(minTitle, longest)
+	modeW, onlySkip := allW, false
+	if modeW > 0 {
+		modeW++
 	}
-	titleW = max(titleW-markW, 1)
+	// Too narrow: the marker goes first, then a mode that differs, never a
+	// skip-permissions one; the title is cut to minTitle instead.
+	if titleW-markW-modeW < keep {
+		markW = 0
+	}
+	if titleW-modeW < keep && allW > skipW {
+		modeW, onlySkip = skipW, true
+		if modeW > 0 {
+			modeW++
+		}
+	}
+	titleW = max(titleW-markW-modeW, 1)
 	var out []string
 	follow = -1
 	for i, t := range tasks {
@@ -196,19 +252,39 @@ func (r rows) lines(w, sel int) (lines []string, follow int, owner []int) {
 		if markW > 0 {
 			mark = withText(par, t.ID)
 		}
+		word := ""
+		if modeW > 0 {
+			word = r.modeWord(t)
+			if onlySkip && !engine.SkipsPermissions(word) {
+				word = ""
+			}
+		}
 		if i == sel {
 			// The selected row is one focus bar; its parts keep no looks.
 			row := rowMark(true) + r.glyph(t) + " " + id + "  " + title + " " + rank(t)
-			if mark != "" {
-				row += strings.Repeat(" ", rankW-textWidth(rank(t))) + " " + mark
+			if word != "" || mark != "" {
+				row += strings.Repeat(" ", rankW-textWidth(rank(t)))
+				if word != "" || modeW > 0 {
+					row += " " + modePad(word, modeW-1, mark != "")
+				}
+				if mark != "" {
+					row += " " + mark
+				}
 			}
 			out = append(out, r.th.focusLine(fit(row, w), w))
 		} else {
 			_, tl := r.looks(t)
 			row := rowMark(false) + r.paintedGlyph(t) + " " + r.th.paint(tl, id) + "  " + r.th.paint(tl, title) + " " + r.th.rank(rank(t), tl == lookDim)
-			if mark != "" {
-				// The marker is words, dim (SPEC §15.4), after the rank column.
-				row += strings.Repeat(" ", rankW-textWidth(rank(t))) + " " + r.th.paint(lookDim, mark)
+			if word != "" || mark != "" {
+				// The mode and the marker are words (SPEC §15.4), after the rank
+				// column: the mode dim, or Ember when it skips permissions.
+				row += strings.Repeat(" ", rankW-textWidth(rank(t)))
+				if word != "" || modeW > 0 {
+					row += " " + r.th.paint(modeLook(word), modePad(word, modeW-1, mark != ""))
+				}
+				if mark != "" {
+					row += " " + r.th.paint(lookDim, mark)
+				}
 			}
 			out = append(out, fit(row, w))
 		}
@@ -234,6 +310,7 @@ func (r rows) compact(w, sel int) (lines []string, cols, cellW, cur int) {
 	par := r.parallelism()
 	cells := make([]string, len(tasks))
 	marks := make([]string, len(tasks))
+	skips := make([]string, len(tasks)) // " yolo": only a skip-permissions mode shows here
 	cur = sel
 	idW := 0
 	for i, t := range tasks {
@@ -241,7 +318,10 @@ func (r rows) compact(w, sel int) (lines []string, cols, cellW, cur int) {
 		if m := withText(par, t.ID); m != "" {
 			marks[i] = " " + m
 		}
-		cells[i] = rowMark(i == sel) + r.glyph(t) + " " + t.ID + " " + t.Title + marks[i]
+		if mw := r.modeWord(t); engine.SkipsPermissions(mw) {
+			skips[i] = " " + mw
+		}
+		cells[i] = rowMark(i == sel) + r.glyph(t) + " " + t.ID + " " + t.Title + skips[i] + marks[i]
 		cellW = max(cellW, textWidth(cells[i]))
 		if sel < 0 && r.curID == t.ID {
 			cur = i
@@ -256,9 +336,10 @@ func (r rows) compact(w, sel int) (lines []string, cols, cellW, cur int) {
 	}
 	for i, t := range tasks {
 		// The marker follows the title while the title keeps minTitle cells
-		// (or all of itself); a title cut shorter drops it.
-		mark := marks[i]
-		titleW := cellW - 3 - idW - 1
+		// (or all of itself); a title cut shorter drops it. A skip-permissions
+		// mode is never dropped.
+		mark, skip := marks[i], skips[i]
+		titleW := cellW - 3 - idW - 1 - textWidth(skip)
 		if mark != "" && titleW-textWidth(mark) < min(minTitle, textWidth(t.Title)) {
 			mark = ""
 		}
@@ -267,12 +348,12 @@ func (r rows) compact(w, sel int) (lines []string, cols, cellW, cur int) {
 		if i == sel {
 			// The focus bar is as wide as the cell's text: a padded one would
 			// leave trailing spaces the plain layout trims.
-			cell := rowMark(true) + r.glyph(t) + " " + pad(t.ID, idW) + " " + title + mark
+			cell := rowMark(true) + r.glyph(t) + " " + pad(t.ID, idW) + " " + title + skip + mark
 			cells[i] = r.th.focusLine(cell, textWidth(cell))
 			continue
 		}
 		_, tl := r.looks(t)
-		cells[i] = rowMark(false) + r.paintedGlyph(t) + " " + r.th.paint(tl, pad(t.ID, idW)) + " " + r.th.paint(tl, title) + r.th.paint(lookDim, mark)
+		cells[i] = rowMark(false) + r.paintedGlyph(t) + " " + r.th.paint(tl, pad(t.ID, idW)) + " " + r.th.paint(tl, title) + r.th.paint(lookWarn, skip) + r.th.paint(lookDim, mark)
 	}
 	for i := 0; i < len(cells); i += cols {
 		var b strings.Builder
