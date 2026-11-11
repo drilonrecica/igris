@@ -4,7 +4,22 @@ All notable changes to igris are documented here. The format follows [Keep a Cha
 
 ## [Unreleased]
 
-The heading becomes `[1.10.0]` with its date when v1.10.0 is published (V110-R).
+The heading becomes `[1.11.0]` with its date when v1.11.0 is published (V111-R). The 1.10 block below it is published first (V110-R) and becomes `[1.10.0]`.
+
+igris 1.11 puts several projects behind one page: `igris hub` follows the live runs you choose (or all of them, and the ones you start later) with one listener, one pairing and one QR code, and the web UI has a wide layout for a laptop. It only adds, apart from a cookie that is renamed and moves over by itself: plans, `igris.toml`, `--json`, the run log, the webhook payload and protocol 1 are unchanged ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). `state.json` stays version 4.
+
+### Added
+
+- **[`igris hub`](site/docs/several-projects.md#one-page-for-all-your-runs): every live run on one page.** `igris hub --all --http ADDR:PORT` follows every live run, over each run's socket, and serves one web page and one pairing for them all (`igris hub PATH...` takes only those projects; on a terminal without either it lists the live runs and asks, **All (and new runs)** preselected). `/` has one row per run (the project, the status word, the phase bar, what needs you, the elapsed time), most urgent first, and **one sheet for the questions of every project**, the project's name on each; a run's own page is `/p/<name>-<h6>/`, the page `igris serve` draws, with its answers sent to that run. A run started later joins by itself (the run registry is read every 2 s); an ended run shows its outcome until the page is reloaded. Manage only: starting a run, panes and side sessions stay in the terminal, skip-permissions mode is never offered or accepted, and Skip, Stop and Done still ask twice. Ending the hub never stops a run. The hub has the HTTP listener's bind rules, TLS, auth, CSRF and rate limit, its own cookie `igris_hub` and its own token, `$XDG_STATE_HOME/igris/hub-token` (`~/.local/state/igris/hub-token`; `igris hub token [--rotate]`), the one file igris keeps outside the projects.
+- **A run registry.** While its socket is up, `igris serve` writes `$XDG_RUNTIME_DIR/igris/runs/<h>.json` (project, root, pid, start, socket) and removes it when it ends; readers drop entries whose process is gone or whose socket doesn't answer. The runtime directory goes away at logout, so nothing stays in your home for it. igris 1.0–1.10 don't know the command or the files.
+- **ntfy's Open goes through the hub.** With `actions = true` and a hub running that follows the project, **Open** links to the hub's page for that task (`<hub>/p/<id>/?task=<ID>`), so the button opens the page that has every run. Without a hub nothing changes.
+- **A wide layout for a laptop.** At 64rem and wider (a MacBook reaching the hub over Tailscale or `ssh -L`, paired by copying the URL), the hub's `/` is two panes, the run list at the left and the selected run's page at the right, with the questions in a panel beside the page; a run page, the hub's and serve's own, lays its task cards in a grid of up to three columns with Plan, Pause and Stop in a header bar. `j` and `k` move between runs, Enter opens one, `?` lists the keys. Below 64rem nothing changes.
+
+### Fixed
+
+- **Two projects served on one address no longer unpair each other.** Every project's web UI set the same cookie, `igris_token`, and browsers don't separate cookies by port, so pairing a second project on the same host replaced the first project's cookie and the first page asked to pair again. The cookie is now `igris_token_<h>`, `<h>` the first 12 hex characters of the sha256 of the project root. A phone paired under 1.10 moves over by itself the first time it opens the page (the old `igris_token` is still accepted through 1.11.x, no longer from 1.12.0); a phone that isn't opened during 1.11 pairs again.
+
+## 1.10.0 - not yet published
 
 igris 1.10 helps you write plans agents can run and read what a run did: hints for agent-ready tasks, `history --stats`, the parallel marker, the dry run's prompts, `status --since-last-run`, working hours, two accessibility pieces and a container recipe. It only adds: plans, `--json`, the run log, the webhook payload and protocol 1 are unchanged apart from additive fields ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). `state.json` stays version 4. It also fixes the parallelism report.
 

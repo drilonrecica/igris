@@ -11,7 +11,7 @@ Everything igris keeps for a project is in that project's own `.igris/` folder: 
 - **A stale lock.** If a crashed run left its lock behind, igris says so, and `igris arise --force-unlock` clears it. A lock held by a live process on this host is always refused.
 - **Read-only views never take the lock.** `status`, `doctor`, `history`, `report` and the home screen work while a run is going; the home screen of a project with a live run is read-only and shows that run.
 
-Each project has its own `igris.toml`, plan, verify commands, notification channels and quiet hours. Nothing is shared through your home directory.
+Each project has its own `igris.toml`, plan, verify commands, notification channels and quiet hours. Nothing is shared through your home directory, except the hub's token if you use [the hub](#one-page-for-all-your-runs).
 
 ## Subscription limits are shared
 
@@ -24,6 +24,24 @@ Two things help when you run several projects:
 - Keep the rank in your plans honest. A routine task on `sonnet` costs less of the shared limit than one on `opus`, in every project at once.
 - Run less at a time: `--only`, `--from` and `--until` run part of a phase, and `p` in a run pauses after the current task.
 
+## One page for all your runs
+
+Since 1.11, `igris hub` puts the live runs of several projects behind one web page, one pairing and one QR code, so a phone or a laptop can manage them all without a listener, URL and pairing per project.
+
+```sh
+igris hub --all --http 100.101.102.103:7777     # every live run, and the ones you start later
+igris hub ~/code/sinjal ~/code/api --http 100.101.102.103:7777     # only these projects
+igris hub --http 127.0.0.1:7777                # on a terminal: a checklist of the live runs
+```
+
+The address is the one you would give `igris serve`: loopback or Tailscale, or `--listen-public` with `--tls-cert` and `--tls-key`. It is given each time; the hub remembers nothing but its token. Start it after the runs, or before: with **All**, a run started later joins by itself within a couple of seconds and the hub logs `run joined: <project>`. With paths, each project must have a live run (`igris arise` or `igris serve` in it) or the hub says which hasn't.
+
+The hub prints a pairing URL and a QR code, as `igris serve token` does; scan it once. `igris hub token` prints the URL again (fill in the address), `igris hub token --rotate` unpairs every device. The token is `~/.local/state/igris/hub-token` (`$XDG_STATE_HOME/igris/hub-token`), the one file igris keeps outside your projects.
+
+The page at `/` has a row for each run: the project, the status word, the phase bar, what needs you and the time, **most urgent first**. Questions from every project are in one sheet with the project's name on each; `1 of 3 ›` steps through them. Tap a row for that run's page, the one `igris serve` draws, with its plan, Pause and Stop. Ended runs show their outcome until you reload.
+
+The hub **manages** runs: it can't start one (that stays in the terminal), it never offers skip-permissions mode, and Skip, Stop and Done ask twice. Ending the hub (Ctrl-C) never stops a run. Runs started by an igris before 1.11 don't register, so the hub can't see them: update the igris that hosts them. With `actions = true` under `[notify.ntfy]`, the **Open** button goes to the hub's page for the task while a hub that follows the project is running.
+
 ## Telling the projects apart
 
 Notifications name the project, phase and task, so a ntfy message says which project needs you. Sessions are named by task and rank (`<task> · <rank>` in tmux).
@@ -32,5 +50,6 @@ If you want one phone topic per project, set a different `topic` in each project
 
 ## Related
 
+- [Control from your phone](control-from-your-phone.md#one-qr-code-for-all-runs)
 - [Notifications](notifications.md)
 - [Troubleshooting](troubleshooting.md#another-igris-is-running-in-this-project)

@@ -50,7 +50,15 @@ igris serve token
 
 It prints a pairing URL and, under it, a QR code. Scan the code with the phone, or open the URL in its browser. Opening it stores the token in an `HttpOnly`, `SameSite=Lax` cookie (`Secure` over TLS) and redirects to the same address without the token, so it doesn't stay in the address bar or the history. If the listener's address is `0.0.0.0` or has no port the phone can use, the URL is printed without a QR code.
 
-The token is a file, `.igris/serve-token` (0600), one per project. `igris serve token` prints the same URL again; `igris serve token --rotate` makes a new token and unpairs every device at once, a live run included. Pair again afterwards. Scripts can send the token as `Authorization: Bearer <token>` instead of a cookie.
+The token is a file, `.igris/serve-token` (0600), one per project, and the cookie it sets is `igris_token_<h>`, one per project too, so several projects paired on one address (a laptop's `ssh -L` to a few of them, say) each stay paired. Before 1.11 they all shared one cookie name and the last one paired unpaired the others; a phone paired under 1.10 moves to the new cookie by itself the first time it opens the page, with no pairing again (through 1.11.x). `igris serve token` prints the same URL again; `igris serve token --rotate` makes a new token and unpairs every device at once, a live run included. Pair again afterwards. Scripts can send the token as `Authorization: Bearer <token>` instead of a cookie.
+
+## One QR code for all runs
+
+With several projects running, `igris hub` gives you one page and one pairing instead of one per project: `igris hub --all --http 100.101.102.103:7777`, scan the QR code it prints, and `/` lists every run, most urgent first, with the questions of all of them in one sheet. See [Running several projects at once](several-projects.md#one-page-for-all-your-runs). The hub has its own token and cookie; the per-project pairing above keeps working next to it.
+
+## From a laptop
+
+A laptop reaches the listener (or the hub) the way a phone does: over Tailscale, or over `ssh -L 7777:127.0.0.1:7777 you@your-machine` with the listener on loopback. Pairing needs no camera: run `igris serve token` (or `igris hub token`, and fill in the address you gave `--http`) on the machine and **copy the URL** into the laptop's browser. At 64rem and wider the page uses the room: the hub's `/` is two panes, the runs at the left and the selected run at the right; the questions are a panel beside the page instead of a sheet; the run page has Plan, Pause and Stop in a header bar and its task cards in a grid of up to three columns. `j` and `k` move between runs, Enter opens one, `?` lists the keys. Below that width nothing changes.
 
 ## What it can and can't do
 
@@ -85,7 +93,7 @@ Discord, Slack, Gotify, the webhook and the toast can't take replies and are unc
 
 - Treat the pairing URL and QR code like a password. Anyone who saw them, or who holds the paired phone, can drive the run until you `--rotate`.
 - Prefer Tailscale or `ssh -L`. `--listen-public` puts a port on the internet that one token guards; use it only with a certificate you trust.
-- Browsers send a cookie to every port of the same host, so another web service on the listener's address (a dev server your project starts) can see it. A loopback address or a bearer client avoids that.
+- Browsers send a cookie to every port of the same host, so another web service on the listener's address (a dev server your project starts) can see it. The cookie is named for the project, so projects don't overwrite each other, but a service on the same host can still read it. A loopback address or a bearer client avoids that.
 - `100.64.0.0/10` is the whole carrier-grade NAT range; a machine whose ISP gives it an address there binds as if it were Tailscale's.
 - Failed logins are rate-limited per address, changes made with the cookie need a CSRF token and a same-origin request, and responses carry a strict content security policy.
 
@@ -93,4 +101,4 @@ The [threat model](https://github.com/drilonrecica/igris/blob/master/docs/threat
 
 ## What is promised
 
-The HTTP mapping of protocol 1 (`/pair`, `/api/v1/events`, `/api/v1/command`, `/api/v1/action/…`, the cookie, bearer auth, `X-Igris-CSRF`, `.igris/serve-token`) and the `[serve]` and `[notify.ntfy] actions` keys are frozen for 1.x. The web UI's pages, paths and script are not; use the API for anything you build ([compatibility](../../docs/compatibility.md)).
+The HTTP mapping of protocol 1 (`/pair`, `/api/v1/events`, `/api/v1/command`, `/api/v1/action/…`, the cookie `igris_token_<h>`, bearer auth, `X-Igris-CSRF`, `.igris/serve-token`) and the `[serve]` and `[notify.ntfy] actions` keys are frozen for 1.x. The web UI's pages, paths and script are not; use the API for anything you build ([compatibility](../../docs/compatibility.md)).
