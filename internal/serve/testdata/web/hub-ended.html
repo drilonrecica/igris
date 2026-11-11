@@ -1,3 +1,4 @@
+<div class="side">
 <header class="top">
 <svg class="mark" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="7" fill="#05070F" stroke="#3CC8FF" stroke-opacity=".35"></rect><path fill="#E3172B" d="M15 10.5C17.5 5.5 24 3.5 28 6.5C24.5 6.5 21 8 18.5 12Z"></path><path fill="#3CC8FF" d="M3.5 14L14 17L16 19.5L18 17L28.5 14L27.5 19L18 22L16 24.5L14 22L4.5 19Z"></path><path fill="#B8F0FF" d="M7 16L14.2 18.2L16 20.3L17.8 18.2L25 16L24.8 17L17.8 19.6L16 21.6L14.2 19.6L7.2 17Z"></path></svg>
 <p class="wordmark">igr<span class="i">i</span>s<span class="project"> · hub</span></p>
@@ -9,7 +10,7 @@
 </section>
 <ul class="runs" aria-label="Runs">
 <li class="run" id="run-alpha-111111">
-<a class="row" href="/p/alpha-111111/">
+<a class="row" href="/p/alpha-111111/" data-run="alpha-111111" aria-current="true">
 <h2><span class="project">alpha</span> <span class="word"><span class="glyph" aria-hidden="true">●</span> Working</span></h2>
 <p class="line">nothing needs you</p>
 <ol class="bar-phase" aria-label="Phase progress">
@@ -23,7 +24,7 @@
 </a>
 </li>
 <li class="run" id="run-gamma-333333">
-<a class="row" href="/p/gamma-333333/">
+<a class="row" href="/p/gamma-333333/" data-run="gamma-333333">
 <h2><span class="project">gamma</span> <span class="word"><span class="glyph" aria-hidden="true">●</span> Working</span></h2>
 <p class="line">nothing needs you</p>
 <ol class="bar-phase" aria-label="Phase progress">
@@ -51,3 +52,102 @@
 </div>
 </li>
 </ul>
+</div>
+<section class="pane" aria-label="Run alpha" data-run="alpha-111111" data-base="/p/alpha-111111">
+<header class="top">
+<h2 class="pane-name">alpha</h2>
+</header>
+<section class="glance" aria-label="Status">
+<h1 class="word">Working</h1>
+<p class="line">nothing needs you · <span class="ran" data-started="2026-10-22T09:00:00Z">4m12s</span></p>
+<ol class="bar-phase" aria-label="Phase progress">
+<li class="seg done"><a href="/p/alpha-111111/plan#t-P1-01" title="P1-01: done"><span class="sr">P1-01: done</span></a></li>
+<li class="seg active"><a href="/p/alpha-111111/plan#t-P1-02" title="P1-02: working"><span class="sr">P1-02: working</span></a></li>
+<li class="seg todo"><a href="/p/alpha-111111/plan#t-P1-03" title="P1-03: to do"><span class="sr">P1-03: to do</span></a></li>
+<li class="seg todo"><a href="/p/alpha-111111/plan#t-P1-04" title="P1-04: to do"><span class="sr">P1-04: to do</span></a></li>
+<li class="seg todo"><a href="/p/alpha-111111/plan#t-P1-05" title="P1-05: to do"><span class="sr">P1-05: to do</span></a></li>
+</ol>
+<p class="meta"><span>phase P1 · Parser &lt;i&gt;and&lt;/i&gt; writer</span><span>1 of 5 done · <span class="ran" data-started="2026-10-22T09:00:00Z">4m12s</span></span></p>
+</section>
+<section class="cards" aria-label="Active tasks">
+<article class="card" id="card-P1-02">
+<h2><span class="id">P1-02</span> <span class="title">Parser</span><span class="glyph" aria-hidden="true">●</span></h2>
+<p class="meta state">working</p>
+<p class="meta"><span class="rank rank-opus">opus</span> → claude-opus-5-5 · mode plan · <span class="ran" data-started="2026-10-22T09:00:01Z">4m11s</span></p>
+<pre class="tail" data-task="P1-02" aria-label="The session's last lines"></pre>
+<div class="actions">
+<form method="post" action="/p/alpha-111111/act" class="cmd has-field" data-confirm="1">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="done">
+<input type="hidden" name="task" value="P1-02">
+<div class="field"><label>Note (optional) <input type="text" name="text" maxlength="16384"></label></div>
+<button type="submit" class="go">Mark done</button>
+<div class="confirm" hidden>
+<p><strong>Mark P1-02 done?</strong> It&#39;s your decision, so igris doesn&#39;t verify it.</p>
+<button type="submit" name="confirmed" value="1">Mark P1-02 done</button>
+<button type="button" class="cancel">Cancel</button>
+</div>
+</form>
+<form method="post" action="/p/alpha-111111/act" class="cmd danger has-field" data-confirm="1">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="skip">
+<input type="hidden" name="task" value="P1-02">
+<div class="field"><label>Reason <input type="text" name="text" maxlength="16384" required></label></div>
+<button type="submit" class="go">Skip</button>
+<div class="confirm" hidden>
+<p><strong>Skip P1-02?</strong> The reason is recorded with the skip; an open session is closed.</p>
+<button type="submit" name="confirmed" value="1">Skip P1-02</button>
+<button type="button" class="cancel">Cancel</button>
+</div>
+</form>
+<details class="retry"><summary>Retry</summary>
+<form method="post" action="/p/alpha-111111/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="retry">
+<input type="hidden" name="task" value="P1-02">
+<button type="submit" class="go">Retry fresh</button>
+</form>
+<form method="post" action="/p/alpha-111111/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="retry">
+<input type="hidden" name="task" value="P1-02">
+<input type="hidden" name="continue" value="1">
+<button type="submit" class="go">Retry, continuing the conversation</button>
+</form>
+</details>
+</div>
+</article>
+</section>
+<section class="next" aria-label="Next up">
+<h2>Next up</h2>
+<ul class="tasks">
+<li><span class="mark" aria-hidden="true">⨯</span> <span class="id">P1-04</span> <span class="title">Docs</span> <span class="meta rank rank-sonnet">sonnet</span></li>
+<li><span class="mark" aria-hidden="true">⨯</span> <span class="id">P1-05</span> <span class="title">Owner check</span></li>
+</ul>
+</section>
+<section class="recent" aria-label="Recent events">
+<h2>Recent</h2>
+<ul class="recent">
+<li class="ev"><span class="glyph" aria-hidden="true">●</span> <span class="what">P1-02 started · Parser</span> <time datetime="2026-10-22T09:00:01Z">4m ago</time></li>
+<li class="ev"><span class="what">Run started · phase P1</span> <time datetime="2026-10-22T09:00:00Z">4m ago</time></li>
+</ul>
+</section>
+<nav class="bar" aria-label="Actions">
+<a href="/p/alpha-111111/plan" class="btn">Plan</a>
+<form method="post" action="/p/alpha-111111/act" class="cmd">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="pause">
+<button type="submit" class="go">Pause after this task</button>
+</form>
+<form method="post" action="/p/alpha-111111/act" class="cmd danger stop" data-confirm="1">
+<input type="hidden" name="csrf" value="orB8IwSMjKba7m-VHhKYGo6ggtO-uN8iOcQuuYD1GJg">
+<input type="hidden" name="type" value="stop">
+<button type="submit" class="go">Stop</button>
+<div class="confirm" hidden>
+<p><strong>Stop igris?</strong> The session stays open; igris arise picks the run up again.</p>
+<button type="submit" name="confirmed" value="1">Stop igris</button>
+<button type="button" class="cancel">Cancel</button>
+</div>
+</form>
+</nav>
+</section>

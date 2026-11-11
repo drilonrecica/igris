@@ -426,6 +426,40 @@ ul.runs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction
 .run .word .glyph { font-family: var(--mono); }
 .run.ended .project, .run.ended .meta { color: var(--muted); }
 main.hub .glance { gap: 4px; }
+/* the side column and the chosen run's page are the wide layout's
+   (below): on a phone the list flows as it always has, and the pane is
+   not drawn */
+main.hub > .side { display: contents; }
+main.hub > .pane { display: none; }
+
+/* the hub's keys (`?`, with the script): a box over the page */
+.keys {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  left: 16px;
+  z-index: 7;
+  max-width: 22rem;
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  padding: 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .5);
+}
+.keys dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; align-items: baseline; }
+.keys dd { margin: 0; color: var(--muted); }
+kbd {
+  font-family: var(--mono);
+  font-size: .85rem;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: var(--r-field);
+}
 
 /* next up, recent, the plan's task list */
 section.next, section.recent, section.phase { display: flex; flex-direction: column; gap: 6px; }
@@ -508,4 +542,127 @@ nav.bar .confirm { position: absolute; left: 16px; right: 16px; bottom: calc(100
 
 @media (min-width: 40rem) {
   main { padding-top: 16px; }
+}
+
+/* The wide layout (SPEC §15.8, decisions.md V111-P1): a laptop from
+   64rem. Below it nothing here applies. A run's page (serve's /, the
+   hub's /p/<id>/ and its pane) puts Plan, Pause and Stop in a header bar
+   beside the brand, keeps the glance and its phase bar across, and lays
+   its cards in a grid of up to three columns; the sheet becomes a panel
+   at the right, always open, beside the page instead of over it. The
+   hub's / is the run list as a fixed column at the left and the chosen
+   run's page beside it. */
+@media (min-width: 64rem) {
+  :root { --list: 16rem; --panel: 19rem; }
+
+  main#live, .pane {
+    max-width: 84rem;
+    padding: 0 24px 32px;
+    display: grid;
+    /* the brand or the run's name as wide as it is, the buttons in the
+       rest, wrapping there */
+    grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+    align-content: start;
+    gap: 16px 24px;
+  }
+  main#live > *, .pane > * { grid-column: 1 / -1; min-width: 0; }
+
+  /* the header bar: the brand at the left, the buttons at the right,
+     kept at the top while the page scrolls */
+  main#live > header.top, .pane > header.top { grid-column: 1; }
+  main#live > header.top, main#live > nav.bar, .pane > header.top, .pane > nav.bar {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: var(--ground);
+    padding-top: max(14px, env(safe-area-inset-top));
+    padding-bottom: 10px;
+  }
+  main#live > nav.bar, .pane > nav.bar {
+    grid-column: 2;
+    grid-row: 1;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    max-width: none;
+    margin: 0;
+    padding-left: 0;
+    padding-right: 0;
+    border-top: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+  }
+  nav.bar > * { flex: none; }
+  nav.bar button.go, nav.bar > .btn { width: auto; min-height: 44px; padding: 9px 14px; font-size: .95rem; }
+  nav.bar .confirm { top: calc(100% + 4px); bottom: auto; left: auto; right: 0; width: 22rem; }
+
+  section.cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(max(17rem, calc((100% - 24px) / 3)), 1fr));
+    gap: 12px;
+    align-items: start;
+  }
+  pre.tail { max-height: 12rem; }
+
+  /* the sheet as a side panel: every question, one at a time with its
+     stepper, the page beside it undimmed */
+  html.js .question.sheet {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: auto;
+    width: var(--panel);
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    border: 0;
+    border-left: 1px solid var(--line);
+    border-top: 2px solid var(--plume);
+    border-radius: 0;
+    padding: max(16px, env(safe-area-inset-top)) 20px 20px;
+    box-shadow: none;
+  }
+  html.js .question.sheet:not(.peek)::before { display: none; }
+  html.js .question.sheet .fold, html.js .question.sheet .peek { display: none; }
+  html.js body.has-sheet { padding-right: var(--panel); }
+  html.js body.has-sheet::after { display: none; }
+  html.js body.has-sheet main, html.js body.has-peek main { padding-bottom: 32px; }
+
+  /* the hub: the list a fixed column, the chosen run's page beside it */
+  main#live.hub {
+    max-width: none;
+    margin: 0;
+    padding: 0 24px 32px calc(var(--list) + 24px);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  main.hub > .side {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 3;
+    width: var(--list);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 0 16px 16px;
+    background: var(--ground);
+    border-right: 1px solid var(--line-soft);
+  }
+  main.hub > .pane { display: grid; max-width: 84rem; padding: 0; }
+  .pane-name { font-family: var(--display); font-weight: 700; font-size: 1.25rem; }
+  .run .row { padding: 12px; }
+  /* the chosen run: a thick edge, which is no colour */
+  .run a.row[aria-current] { box-shadow: inset 5px 0 0 var(--text); padding-left: 17px; }
+  /* the run the keys are on: › before its name, and a heavier outline */
+  .run a.row:focus-visible { outline-width: 3px; outline-offset: 3px; }
+  .run a.row:focus-visible .project::before { content: "› "; }
+}
+
+@media (min-width: 90rem) {
+  :root { --list: 20rem; --panel: 26rem; }
 }

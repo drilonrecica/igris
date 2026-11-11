@@ -273,6 +273,9 @@ func renderHubPages(t *testing.T) map[string]string {
 	w.add("gamma-333333", "gamma", hubCommit...)
 	page("hub-sheet.html", w, "/", http.StatusOK)
 	page("hub-sheet-live.html", w, PathLive, http.StatusOK)
+	// The wide layout's pane: the run asked for (?run=), beside the list.
+	page("hub-pick.html", w, "/?run=alpha-111111", http.StatusOK)
+	page("hub-pick-live.html", w, PathLive+"?run=gamma-333333", http.StatusOK)
 	page("hub-run.html", w, "/p/gamma-333333/", http.StatusOK)
 	page("hub-unknown.html", w, "/p/nobody-000000/", http.StatusNotFound)
 	w.hub.end("alpha-111111", look.Stopped)
@@ -519,5 +522,89 @@ func TestHubStreams(t *testing.T) {
 	var c HubChange
 	if err := json.Unmarshal([]byte(sseData(t, hub)), &c); err != nil || c != (HubChange{Run: "alpha-111111", Change: HubLeft, Outcome: "completed"}) {
 		t.Errorf("hub change %+v %v", c, err)
+	}
+}
+
+// panePart is the pane of a hub page: the chosen run's page beside the
+// list (the live part's last section), and the run it is of.
+func panePart(t *testing.T, body string) (run, pane string) {
+	t.Helper()
+	i := strings.Index(body, `<section class="pane"`)
+	if i < 0 {
+		return "", ""
+	}
+	pane = body[i:]
+	if j := strings.Index(pane, "</main>"); j >= 0 {
+		pane = pane[:j]
+	}
+	m := regexp.MustCompile(`^<section class="pane" aria-label="Run [^"]+" data-run="([a-z0-9-]+)" data-base="/p/([a-z0-9-]+)">`).FindStringSubmatch(pane)
+	if m == nil || m[1] != m[2] {
+		t.Fatalf("the pane's head: %.200s", pane)
+	}
+	return m[1], pane
+}
+
+// The wide layout's pane (SPEC §15.8): the run ?run= asks for while it
+// goes on, else the first that needs the owner, else the first; marked
+// in the list; drawn with the run's base and without its own sheet, its
+// cards linking to their entries of the list's sheet.
+func TestHubPane(t *testing.T) {
+	w := newHubWeb(t)
+	if _, body, _ := w.get("/"); strings.Contains(body, `class="pane"`) || strings.Contains(body, "aria-current") {
+		t.Errorf("a pane with no run")
+	}
+	w.add("alpha-111111", "alpha", hubWorking...)
+	w.add("beta-222222", "beta", hubTwoAsks...)
+	w.add("gamma-333333", "gamma", hubCommit...)
+	w.add("delta-444444", "delta", hubWorking...)
+	for _, c := range []struct{ path, want string }{
+		{"/", "beta-222222"},
+		{PathLive, "beta-222222"},
+		{"/?run=alpha-111111", "alpha-111111"},
+		{PathLive + "?run=gamma-333333", "gamma-333333"},
+		{"/?run=nobody-000000", "beta-222222"},
+		{"/?run=%3Cb%3E", "beta-222222"},
+	} {
+		_, body, _ := w.get(c.path)
+		run, _ := panePart(t, body)
+		if run != c.want {
+			t.Errorf("GET %s: the pane is %q, want %q", c.path, run, c.want)
+		}
+		if cur := regexp.MustCompile(`data-run="([a-z0-9-]+)" aria-current="true"`).FindAllStringSubmatch(body, -1); len(cur) != 1 || cur[0][1] != c.want {
+			t.Errorf("GET %s: marked in the list %v, want %s", c.path, cur, c.want)
+		}
+	}
+
+	_, body, _ := w.get("/?run=beta-222222")
+	_, pane := panePart(t, body)
+	if strings.Contains(pane, `class="question`) || strings.Contains(pane, "wordmark") {
+		t.Errorf("the pane draws its own sheet or brand:\n%s", pane)
+	}
+	for _, m := range uiPath.FindAllStringSubmatch(pane, -1) {
+		if !strings.HasPrefix(m[1], "/p/beta-222222") {
+			t.Errorf("path %q of the pane not under its run's base", m[1])
+		}
+	}
+	if !strings.Contains(pane, `<nav class="bar"`) || !strings.Contains(pane, `value="stop"`) || !strings.Contains(pane, `data-confirm="1"`) {
+		t.Errorf("the pane has no Plan, Pause and Stop, or Stop doesn't confirm")
+	}
+	// Each card of beta that asks links to its own entry of the list's
+	// sheet, numbered across every run.
+	for _, task := range []string{"P1-02", "P1-03"} {
+		m := regexp.MustCompile(`(?s)id="card-` + task + `".*?class="to-sheet" href="#(q-\d+)"`).FindStringSubmatch(pane)
+		if m == nil {
+			t.Errorf("card %s doesn't link to the sheet", task)
+			continue
+		}
+		if !regexp.MustCompile(`id="` + m[1] + `" data-key="beta-222222 [^"]*" data-task="` + task + `"`).MatchString(body) {
+			t.Errorf("card %s links to %s, not its entry", task, m[1])
+		}
+	}
+
+	// A run that ended is not shown beside the list.
+	w.hub.end("beta-222222", look.Completed)
+	_, body, _ = w.get("/?run=beta-222222&ended=beta-222222")
+	if run, _ := panePart(t, body); run != "gamma-333333" {
+		t.Errorf("the pane after beta ended is %q, want gamma-333333", run)
 	}
 }

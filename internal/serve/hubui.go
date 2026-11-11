@@ -1,9 +1,11 @@
 package serve
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"io/fs"
 	"net/http"
 	"net/url"
@@ -35,6 +37,9 @@ const (
 	endedField = "ended"
 	// maxEnded bounds the ids endedField is read for.
 	maxEnded = 32
+	// runField chooses, on / and its live part, the run whose page the
+	// wide layout shows beside the list (SPEC §15.8).
+	runField = "run"
 )
 
 // HubRunSource is one run the hub follows: what its pages read and act
@@ -117,7 +122,7 @@ type hubUI struct {
 // project's next run has the same id and gets its own.
 type hubPages struct {
 	run HubRunSource
-	ui  http.Handler
+	ui  *ui
 }
 
 // NewHubUI returns the hub's pages over src. The caller authenticates
@@ -239,13 +244,13 @@ func (h *hubUI) run(w http.ResponseWriter, r *http.Request) {
 }
 
 // pagesOf is the web UI of run under /p/<id>, made once per run.
-func (h *hubUI) pagesOf(id string, run HubRunSource) http.Handler {
+func (h *hubUI) pagesOf(id string, run HubRunSource) *ui {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if p, ok := h.pages[id]; ok && p.run == run {
 		return p.ui
 	}
-	ui := NewUI(run, UIOptions{Now: h.now, Base: PathHubRun + id, Logf: h.logf})
+	ui := newUI(run, UIOptions{Now: h.now, Base: PathHubRun + id, Logf: h.logf})
 	h.pages[id] = hubPages{run: run, ui: ui}
 	return ui
 }
@@ -319,6 +324,19 @@ type hubView struct {
 	Live, Needs int
 	Rows        []hubRow
 	Sheet       []questionView
+	// Sel is the run the wide layout shows beside the list, Pane its
+	// page; none with no live run. Below the wide layout's width the
+	// pane is not drawn.
+	Sel  string
+	Pane *hubPane
+}
+
+// hubPane is a run's page drawn into the hub's list for the wide layout:
+// the run's live part with its base path, without its own sheet (the
+// list's holds every run's questions).
+type hubPane struct {
+	ID, Project string
+	HTML        template.HTML
 }
 
 // Summary is the line under the title: `3 live runs · 1 needs you`.
@@ -372,6 +390,7 @@ func (h *hubUI) view(r *http.Request) hubView {
 	type drawn struct {
 		row   hubRow
 		sheet []questionView
+		run   HubRun
 	}
 	var all []drawn
 	seen := map[string]bool{}
@@ -381,7 +400,7 @@ func (h *hubUI) view(r *http.Request) hubView {
 		}
 		seen[run.ID] = true
 		row, sheet := h.rowOf(run, plain)
-		all = append(all, drawn{row, sheet})
+		all = append(all, drawn{row, sheet, run})
 	}
 	for _, id := range endedIDs(r) {
 		if seen[id] {
@@ -409,7 +428,50 @@ func (h *hubUI) view(r *http.Request) hubView {
 		q.Sheet = i == 0
 		q.N, q.Of, q.NextN = i+1, len(v.Sheet), (i+1)%len(v.Sheet)+1
 	}
+	// The pane: the run asked for if it goes on, else the first that
+	// needs the owner, else the first (the rows are in that order).
+	sel := -1
+	for i, d := range all {
+		if d.row.Ended {
+			continue
+		}
+		if sel < 0 || d.row.ID == r.URL.Query().Get(runField) {
+			sel = i
+		}
+	}
+	if sel >= 0 {
+		v.Sel = all[sel].row.ID
+		v.Pane = h.paneOf(all[sel].run, all[sel].row.Project, plain, v.Sheet)
+	}
 	return v
+}
+
+// paneOf draws run's page for the pane beside the list: its live part
+// with its base path, without its own sheet; a card whose question is in
+// the list's sheet links to that entry there. Nil if it can't be drawn.
+func (h *hubUI) paneOf(run HubRun, project string, r *http.Request, sheet []questionView) *hubPane {
+	u := h.pagesOf(run.ID, run.Run)
+	pv := u.view(r)
+	pv.Sheet = nil
+	for i := range pv.Cards {
+		c := &pv.Cards[i]
+		if c.Question == nil {
+			continue
+		}
+		key := run.ID + " " + c.Question.Key
+		c.Question = nil
+		for j := range sheet {
+			if sheet[j].Key == key {
+				c.Question = &sheet[j]
+			}
+		}
+	}
+	var b bytes.Buffer
+	if err := u.pages.ExecuteTemplate(&b, "pane", pv); err != nil {
+		h.logf("hub: the page of %s not drawn beside the list: %v", run.ID, err)
+		return nil
+	}
+	return &hubPane{ID: run.ID, Project: project, HTML: template.HTML(b.String())} //nolint:gosec // the output of our own template
 }
 
 // rowOf is run's row and its entries of the sheet, each named by its

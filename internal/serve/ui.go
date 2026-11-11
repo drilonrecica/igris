@@ -124,7 +124,11 @@ func (s *Server) UI(opts UIOptions) http.Handler {
 // opts.Base. The caller authenticates every request, checks the CSRF token
 // of a cookie's POST, puts the token in the request's context (CSRFToken)
 // and strips opts.Base from the path.
-func NewUI(src UISource, opts UIOptions) http.Handler {
+func NewUI(src UISource, opts UIOptions) http.Handler { return newUI(src, opts) }
+
+// newUI is NewUI's handler as itself, for the hub, which also draws a
+// run's page into its own (hubui.go).
+func newUI(src UISource, opts UIOptions) *ui {
 	if opts.Now == nil {
 		opts.Now = time.Now
 	}
@@ -302,7 +306,7 @@ func (u *ui) act(w http.ResponseWriter, r *http.Request) {
 		u.message(w, status, "Not sent", rep.Error)
 		return
 	}
-	http.Redirect(w, r, u.base+"/", http.StatusSeeOther)
+	http.Redirect(w, r, u.base+"/", http.StatusSeeOther) //nolint:gosec // a path of this host: "" or the hub's /p/ and a checked run id (validRunID)
 }
 
 // formRequest reads a form's command; the form fields are the request's.

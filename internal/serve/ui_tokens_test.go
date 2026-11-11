@@ -214,3 +214,48 @@ func contrast(t *testing.T, a, b string) float64 {
 	la, lb := lum(a), lum(b)
 	return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
 }
+
+var wideMedia = regexp.MustCompile(`^@media \(min-width: (\d+)rem\)$`)
+
+// The wide layout (SPEC §15.8) is the stylesheet's last part, media
+// blocks from 64rem only, so below that width nothing changes; before
+// it the hub's side column is no box and its pane is not drawn.
+func TestCSSWideFromSixtyFourRem(t *testing.T) {
+	css := appCSS(t)
+	i := strings.Index(css, "@media (min-width: 64rem) {")
+	if i < 0 {
+		t.Fatal("app.css has no wide layout")
+	}
+	phone := cssRules(css[:i])
+	if d := phone["main.hub > .side"]; !strings.Contains(d, "display: contents") {
+		t.Errorf("the hub's side column is a box on a phone: %q", d)
+	}
+	if d := phone["main.hub > .pane"]; !strings.Contains(d, "display: none") {
+		t.Errorf("the hub's pane is drawn on a phone: %q", d)
+	}
+	wide := regexp.MustCompile(`(?s)/\*.*?\*/`).ReplaceAllString(css[i:], "")
+	depth, start := 0, 0
+	for j, c := range wide {
+		switch c {
+		case '{':
+			if depth == 0 {
+				prelude := strings.TrimSpace(wide[start:j])
+				m := wideMedia.FindStringSubmatch(prelude)
+				if m == nil {
+					t.Errorf("after the wide layout's start, %q is not a wide media block", prelude)
+				} else if n, _ := strconv.Atoi(m[1]); n < 64 {
+					t.Errorf("%q is narrower than the wide layout", prelude)
+				}
+			}
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				start = j + 1
+			}
+		}
+	}
+	if depth != 0 {
+		t.Errorf("app.css's braces don't balance after the wide layout")
+	}
+}

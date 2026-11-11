@@ -3,7 +3,9 @@
 // tails while the page is visible, and sends the forms as protocol-1
 // commands. Without it the page is the snapshot of its load and the forms
 // post to /act. On the hub's list (data-hub) it follows the hub's merged
-// stream instead, and each question of its sheet goes to its own run.
+// stream instead, and each question of its sheet goes to its own run; in
+// the wide layout (from 64rem) choosing a run there shows its page beside
+// the list (?run=), and j, k, Enter and ? move between the runs.
 "use strict";
 
 (function () {
@@ -38,6 +40,17 @@
   var hub = live.dataset.hub === "1";
   var eventsURL = live.dataset.events || base + "/api/v1/events";
   var gone = [];
+  // wide: the wide layout (app.css, from 64rem), where the sheet is a
+  // panel beside the page, always open. pick: the run whose page the
+  // hub's list shows beside it, kept across refreshes (?run=; else the
+  // one the hub chose first).
+  var wide = window.matchMedia ? window.matchMedia("(min-width: 64rem)") : null;
+  var pick = hub ? new URLSearchParams(location.search).get("run") || "" : "";
+  var keys = document.getElementById("keys");
+
+  function isWide() {
+    return wide !== null && wide.matches;
+  }
 
   // collapse disables the text field of every form that hasn't been
   // opened: a disabled control is left out of the browser's own
@@ -71,16 +84,17 @@
       }
     });
     sheetKey = asks.length > 0 ? asks[at].dataset.key : "";
+    var open = sheetOpen || isWide(); // a panel beside the page doesn't fold
     asks.forEach(function (q, i) {
       q.classList.toggle("sheet", i === at);
-      q.classList.toggle("peek", i === at && !sheetOpen);
+      q.classList.toggle("peek", i === at && !open);
     });
-    var bar = live.querySelector("nav.bar");
+    var bar = live.querySelector(":scope > nav.bar"); // not the hub's pane's
     // The sheet sits on the bar; with none (the hub's list, an ended run)
     // on the screen's bottom edge.
     root.style.setProperty("--bar", bar ? bar.offsetHeight + "px" : "env(safe-area-inset-bottom)");
-    document.body.classList.toggle("has-sheet", asks.length > 0 && sheetOpen);
-    document.body.classList.toggle("has-peek", asks.length > 0 && !sheetOpen);
+    document.body.classList.toggle("has-sheet", asks.length > 0 && open);
+    document.body.classList.toggle("has-peek", asks.length > 0 && !open);
   }
 
   // showSheet opens the sheet at the entry with id, or folds it.
@@ -197,7 +211,34 @@
     collapse();
   }
 
-  function refresh() {
+  // liveQuery is the live part to fetch: the hub's with the run it shows
+  // and the runs it saw end.
+  function liveQuery() {
+    if (!hub) {
+      return liveURL;
+    }
+    var q = [];
+    if (pick) {
+      q.push("run=" + encodeURIComponent(pick));
+    }
+    if (gone.length > 0) {
+      q.push("ended=" + encodeURIComponent(gone.join(",")));
+    }
+    return q.length > 0 ? liveURL + "?" + q.join("&") : liveURL;
+  }
+
+  // picked keeps the run the hub's list shows: the one it drew (the
+  // asked one, or the hub's choice when it ended or none was asked).
+  function picked() {
+    var pane = live.querySelector(".pane[data-run]");
+    if (hub && pane) {
+      pick = pane.dataset.run;
+    }
+  }
+
+  // refresh fetches the live part again; force: also while the owner is
+  // in a field (they chose another run).
+  function refresh(force) {
     if (over) {
       return;
     }
@@ -205,14 +246,13 @@
       stale = true;
       return;
     }
-    if (busy()) {
+    if (!force && busy()) {
       stale = true;
       return;
     }
     stale = false;
     refreshing = true;
-    var url = hub && gone.length > 0 ? liveURL + "?ended=" + encodeURIComponent(gone.join(",")) : liveURL;
-    fetch(url, { credentials: "same-origin" }).then(function (r) {
+    fetch(liveQuery(), { credentials: "same-origin" }).then(function (r) {
       if (r.status === 401) {
         throw new Error("this device is not paired any more: open the pairing URL `" + (hub ? "igris hub token" : "igris serve token") + "` prints");
       }
@@ -226,8 +266,18 @@
       }
       var doc = new DOMParser().parseFromString("<!doctype html><body>" + html, "text/html");
       var kept = typed();
+      // The run the keys are on stays focused across the refresh.
+      var on = document.activeElement;
+      var onRun = on && on.matches && on.matches("a.row[data-run]") ? on.dataset.run : "";
       live.replaceChildren.apply(live, Array.prototype.slice.call(doc.body.childNodes));
       retype(kept);
+      picked();
+      if (onRun) {
+        var again = live.querySelector('a.row[data-run="' + CSS.escape(onRun) + '"]');
+        if (again) {
+          again.focus({ preventScroll: true });
+        }
+      }
       fillTails();
       tick();
       sheet();
@@ -276,7 +326,12 @@
       setTimeout(readTails, 4000);
       return;
     }
-    var pres = Array.prototype.slice.call(live.querySelectorAll("pre.tail"));
+    // Not the tails of a pane the layout doesn't show (the hub's on a
+    // phone).
+    var pres = Array.prototype.slice.call(live.querySelectorAll("pre.tail")).filter(function (pre) {
+      var pane = pre.closest(".pane");
+      return !pane || pane.getClientRects().length > 0;
+    });
     var next = function () {
       var pre = pres.shift();
       if (!pre) {
@@ -284,7 +339,7 @@
         return;
       }
       var task = pre.dataset.task;
-      post({ type: "tail", task: task, n: 40 }).then(function (rep) {
+      post({ type: "tail", task: task, n: 40 }, formBase(pre)).then(function (rep) {
         if (rep.type === "tail") {
           tails[task] = rep.lines || [];
           fillTails();
@@ -518,8 +573,30 @@
     send(form, submitter);
   });
 
+  // choose shows run id's page beside the hub's list, the URL with it.
+  function choose(id) {
+    pick = id;
+    history.pushState(null, "", base + "/?run=" + encodeURIComponent(id));
+    live.querySelectorAll("a.row[data-run]").forEach(function (a) {
+      if (a.dataset.run === id) {
+        a.setAttribute("aria-current", "true");
+      } else {
+        a.removeAttribute("aria-current");
+      }
+    });
+    refresh(true);
+  }
+
   live.addEventListener("click", function (e) {
     if (!e.target.closest) {
+      return;
+    }
+    // A run of the hub's list, in the wide layout: its page beside the
+    // list, not instead of it (a phone opens the run's page).
+    var row = e.target.closest("a.row[data-run]");
+    if (row && hub && isWide() && e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
+      e.preventDefault();
+      choose(row.dataset.run);
       return;
     }
     var b = e.target.closest("button.cancel");
@@ -566,6 +643,59 @@
       sheetOpen = false;
       card.scrollIntoView({ block: "center" });
     }
+  }
+  if (hub) {
+    window.addEventListener("popstate", function () {
+      pick = new URLSearchParams(location.search).get("run") || "";
+      refresh(true);
+    });
+    // The keys of the hub's list: j and k move between the runs, Enter
+    // opens the one they are on (a link), ? lists them, Esc closes that.
+    document.addEventListener("keydown", function (e) {
+      var t = e.target;
+      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey ||
+          (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable))) {
+        return;
+      }
+      if (e.key === "?") {
+        e.preventDefault();
+        keys.hidden = !keys.hidden;
+        return;
+      }
+      if (e.key === "Escape" && !keys.hidden) {
+        keys.hidden = true;
+        return;
+      }
+      if (e.key !== "j" && e.key !== "k") {
+        return;
+      }
+      var rows = Array.prototype.slice.call(live.querySelectorAll("ul.runs a.row"));
+      if (rows.length === 0) {
+        return;
+      }
+      e.preventDefault();
+      var at = rows.indexOf(document.activeElement);
+      if (at < 0) {
+        // From outside the list: the chosen run first, else an end.
+        at = rows.findIndex(function (a) { return a.hasAttribute("aria-current"); });
+        if (at < 0) {
+          at = e.key === "j" ? 0 : rows.length - 1;
+        }
+      } else {
+        at = Math.max(0, Math.min(rows.length - 1, at + (e.key === "j" ? 1 : -1)));
+      }
+      rows[at].focus();
+      rows[at].scrollIntoView({ block: "nearest" });
+    });
+    keys.addEventListener("click", function (e) {
+      if (e.target.closest && e.target.closest("button.close")) {
+        keys.hidden = true;
+      }
+    });
+    picked();
+  }
+  if (wide !== null && wide.addEventListener) {
+    wide.addEventListener("change", function () { sheet(); });
   }
   tick();
   sheet();
