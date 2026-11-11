@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"io"
 	"log"
@@ -31,8 +32,11 @@ const (
 	// PathAction is the prefix of ntfy's answer buttons (SPEC §10).
 	PathAction = "/api/v1/action/"
 
-	// CookieName holds the owner token once a device is paired.
-	CookieName = "igris_token"
+	// LegacyCookieName is the cookie every project's listener set through
+	// 1.10: cookies don't isolate ports, so a second project on one address
+	// unpaired the first. Accepted, and moved to CookieFor's name, through
+	// 1.11.x (SPEC §14, §19).
+	LegacyCookieName = "igris_token"
 	// CSRFHeader carries the CSRF token of a cookie-authenticated POST;
 	// a form carries it as the field CSRFField.
 	CSRFHeader = "X-Igris-CSRF"
@@ -74,6 +78,8 @@ type RemoteOptions struct {
 	// on every request, so a rotation takes effect at once; an error
 	// authenticates nobody.
 	Token func() (string, error)
+	// Root is the project root; it names the cookie (CookieFor).
+	Root string
 	// TLS says the listener serves TLS: the cookie is Secure and HSTS is
 	// sent.
 	TLS bool
@@ -191,7 +197,7 @@ func (h *remote) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.tooMany(w, r, wait)
 		return
 	}
-	token, viaCookie, ok := h.authenticate(r, key)
+	token, viaCookie, ok := h.authenticate(w, r, key)
 	if !ok {
 		h.fail(w, r, http.StatusUnauthorized, "not paired: run `igris serve token` on the machine and open its URL on this device")
 		return
@@ -246,8 +252,8 @@ func (h *remote) sameOrigin(r *http.Request) bool {
 // authenticate checks the request's cookie or bearer token against the
 // owner token. A wrong one counts as a failure of its address; none at
 // all doesn't (an unpaired browser asking for its pages guesses nothing).
-func (h *remote) authenticate(r *http.Request, key string) (token string, viaCookie, ok bool) {
-	given, viaCookie := credential(r)
+func (h *remote) authenticate(w http.ResponseWriter, r *http.Request, key string) (token string, viaCookie, ok bool) {
+	given, viaCookie, legacy := credential(r, h.cookie())
 	if given == "" {
 		return "", false, false
 	}
@@ -256,28 +262,64 @@ func (h *remote) authenticate(r *http.Request, key string) (token string, viaCoo
 		h.limit.fail(key)
 		return "", false, false
 	}
+	if legacy {
+		// A phone paired before 1.11 moves to this project's cookie
+		// without pairing again; the old one stays for other projects.
+		h.setCookie(w, token)
+	}
 	return token, viaCookie, true
 }
 
-// credential is the request's bearer token, else its cookie.
-func credential(r *http.Request) (given string, viaCookie bool) {
+// CookieFor is the name of the cookie a project's listener sets:
+// igris_token_<h>, h the first 12 hex characters of the sha256 of the
+// project root (the hash the socket fallback uses), so projects paired on
+// one address keep their own (SPEC §14).
+func CookieFor(root string) string {
+	sum := sha256.Sum256([]byte(root))
+	return LegacyCookieName + "_" + hex.EncodeToString(sum[:6])
+}
+
+func (h *remote) cookie() string { return CookieFor(h.opts.Root) }
+
+// credential is the request's bearer token, else its cookie: name's, else
+// (through 1.11.x) the legacy one, which legacy reports.
+func credential(r *http.Request, name string) (given string, viaCookie, legacy bool) {
 	if a := r.Header.Get("Authorization"); a != "" {
 		scheme, tok, _ := strings.Cut(a, " ")
 		if !strings.EqualFold(scheme, "Bearer") {
-			return "", false
+			return "", false, false
 		}
-		return strings.TrimSpace(tok), false
+		return strings.TrimSpace(tok), false, false
 	}
-	if c, err := r.Cookie(CookieName); err == nil {
-		return c.Value, true
+	if c, err := r.Cookie(name); err == nil {
+		return c.Value, true, false
 	}
-	return "", false
+	if c, err := r.Cookie(LegacyCookieName); err == nil {
+		return c.Value, true, true
+	}
+	return "", false, false
+}
+
+// setCookie pairs the browser: the token in this project's cookie. Secure
+// only on TLS: a loopback or Tailscale listener is plain http, where a
+// Secure cookie would never be sent back (SPEC §14). Lax, not Strict: a
+// phone opens the pairing URL from its camera and the ntfy Open button
+// from the ntfy app, and Android Chrome withholds Strict cookies on a
+// navigation another app started, this redirect included (the page then
+// said "not paired", owner check 2026-10-22). Lax still withholds the
+// cookie on a cross-site POST and on subresource requests, and every
+// change needs the CSRF token besides.
+func (h *remote) setCookie(w http.ResponseWriter, token string) {
+	http.SetCookie(w, &http.Cookie{ //nolint:gosec // HttpOnly and SameSite=Lax always, Secure on TLS
+		Name: h.cookie(), Value: token, Path: "/",
+		MaxAge: int(cookieMaxAge / time.Second), HttpOnly: true, Secure: h.opts.TLS, SameSite: http.SameSiteLaxMode,
+	})
 }
 
 // stillValid reports whether the request's credential is still the owner
 // token, for a stream that outlives a rotation.
 func (h *remote) stillValid(r *http.Request) bool {
-	given, _ := credential(r)
+	given, _, _ := credential(r, h.cookie())
 	token, err := h.opts.Token()
 	return err == nil && given != "" && equal(given, token)
 }
@@ -315,18 +357,7 @@ func (h *remote) pair(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, r, http.StatusUnauthorized, "this pairing URL is not valid (any more): run `igris serve token` on the machine for the current one")
 		return
 	}
-	// Secure only on TLS: a loopback or Tailscale listener is plain http,
-	// where a Secure cookie would never be sent back (SPEC §14). Lax, not
-	// Strict: a phone opens the pairing URL from its camera and the ntfy
-	// Open button from the ntfy app, and Android Chrome withholds Strict
-	// cookies on a navigation another app started, this redirect included
-	// (the page then said "not paired", owner check 2026-10-22). Lax still
-	// withholds the cookie on a cross-site POST and on subresource requests,
-	// and every change needs the CSRF token besides.
-	http.SetCookie(w, &http.Cookie{ //nolint:gosec // HttpOnly and SameSite=Lax always, Secure on TLS
-		Name: CookieName, Value: token, Path: "/",
-		MaxAge: int(cookieMaxAge / time.Second), HttpOnly: true, Secure: h.opts.TLS, SameSite: http.SameSiteLaxMode,
-	})
+	h.setCookie(w, token)
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 

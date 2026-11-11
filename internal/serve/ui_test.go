@@ -51,7 +51,7 @@ func uiWeb(t *testing.T, mode string, withPlan bool) *web {
 	}
 	w.srv = New(so)
 	now := func() time.Time { return uiT0.Add(4*time.Minute + 12*time.Second) }
-	w.ts = httptest.NewServer(w.srv.Remote(RemoteOptions{Token: w.token.get, Now: w.clock.now, UI: w.srv.UI(UIOptions{Now: now})}))
+	w.ts = httptest.NewServer(w.srv.Remote(RemoteOptions{Root: testRoot, Token: w.token.get, Now: w.clock.now, UI: w.srv.UI(UIOptions{Now: now})}))
 	t.Cleanup(func() {
 		w.ts.Close()
 		_ = w.srv.Close()
@@ -102,7 +102,7 @@ func (w *web) postForm(path string, f url.Values) (int, string, http.Header) {
 		w.t.Fatal(err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.AddCookie(&http.Cookie{Name: CookieName, Value: goodToken}) //nolint:gosec // a client's cookie
+	req.AddCookie(&http.Cookie{Name: testCookie, Value: goodToken}) //nolint:gosec // a client's cookie
 	resp, err := noRedirect.Do(req)
 	if err != nil {
 		w.t.Fatal(err)
@@ -604,7 +604,7 @@ func TestUIFormBodyBounded(t *testing.T) {
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set(CSRFHeader, csrfFor(goodToken))
-	req.AddCookie(&http.Cookie{Name: CookieName, Value: goodToken}) //nolint:gosec // a client's cookie
+	req.AddCookie(&http.Cookie{Name: testCookie, Value: goodToken}) //nolint:gosec // a client's cookie
 	resp, err := noRedirect.Do(req)
 	if err != nil {
 		t.Fatal(err)

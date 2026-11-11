@@ -60,6 +60,10 @@ func (b *tokenBox) set(tok string) {
 	b.tok = tok
 }
 
+const testRoot = "/home/owner/demo"
+
+var testCookie = CookieFor(testRoot)
+
 // web is an HTTP listener under test.
 type web struct {
 	t     *testing.T
@@ -87,7 +91,7 @@ func newWebWith(t *testing.T, server func(*Options), tune func(*RemoteOptions)) 
 		server(&so)
 	}
 	w.srv = New(so)
-	opts := RemoteOptions{Token: w.token.get, Now: w.clock.now}
+	opts := RemoteOptions{Root: testRoot, Token: w.token.get, Now: w.clock.now}
 	if tune != nil {
 		tune(&opts)
 	}
@@ -110,7 +114,7 @@ func (w *web) do(method, path, auth, body string, hdr map[string]string) *http.R
 	case "bearer":
 		req.Header.Set("Authorization", "Bearer "+goodToken)
 	case "cookie":
-		req.AddCookie(&http.Cookie{Name: CookieName, Value: goodToken}) //nolint:gosec // a client's cookie: the attributes are the server's
+		req.AddCookie(&http.Cookie{Name: testCookie, Value: goodToken}) //nolint:gosec // a client's cookie: the attributes are the server's
 	}
 	if body != "" {
 		req.Header.Set("Content-Type", "application/json")
@@ -152,7 +156,7 @@ func TestHTTPPairing(t *testing.T) {
 			t.Fatalf("pair set %d cookies", len(cookies))
 		}
 		c := cookies[0]
-		if c.Name != CookieName || c.Value != goodToken || !c.HttpOnly || c.SameSite != http.SameSiteLaxMode || c.Path != "/" || c.Secure != tlsOn || c.MaxAge < 300*24*3600 {
+		if c.Name != testCookie || c.Value != goodToken || !c.HttpOnly || c.SameSite != http.SameSiteLaxMode || c.Path != "/" || c.Secure != tlsOn || c.MaxAge < 300*24*3600 {
 			t.Errorf("tls %v: cookie %+v", tlsOn, c)
 		}
 		if hsts := resp.Header.Get("Strict-Transport-Security"); (hsts != "") != tlsOn {
@@ -185,7 +189,7 @@ func TestHTTPAuth(t *testing.T) {
 		{"wrong bearer", "/", map[string]string{"Authorization": "Bearer " + badToken}, "", http.StatusUnauthorized},
 		{"lower-case scheme", "/", map[string]string{"Authorization": "bearer " + goodToken}, "", http.StatusOK},
 		{"basic", "/", map[string]string{"Authorization": "Basic " + goodToken}, "", http.StatusUnauthorized},
-		{"wrong cookie", "/", map[string]string{"Cookie": CookieName + "=" + badToken}, "", http.StatusUnauthorized},
+		{"wrong cookie", "/", map[string]string{"Cookie": testCookie + "=" + badToken}, "", http.StatusUnauthorized},
 		{"token in the query", "/?token=" + goodToken, nil, "", http.StatusUnauthorized},
 		{"unknown path", "/nope", nil, "bearer", http.StatusNotFound},
 	} {
@@ -313,7 +317,7 @@ func TestHTTPCSRFAndOrigin(t *testing.T) {
 	for field, want := range map[string]int{form: http.StatusOK, "csrf=nope": http.StatusForbidden} {
 		req, _ := http.NewRequest("POST", w.ts.URL+"/answer", strings.NewReader(field))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		req.AddCookie(&http.Cookie{Name: CookieName, Value: goodToken}) //nolint:gosec // a client's cookie: the attributes are the server's
+		req.AddCookie(&http.Cookie{Name: testCookie, Value: goodToken}) //nolint:gosec // a client's cookie: the attributes are the server's
 		r2, err := noRedirect.Do(req)
 		if err != nil {
 			t.Fatal(err)
@@ -712,5 +716,48 @@ func TestHTTPUnknownTypeIsCut(t *testing.T) {
 	}
 	if n := len(w.send.got()); n != 0 {
 		t.Errorf("%d commands reached the run", n)
+	}
+}
+
+func TestHTTPCookiePerProject(t *testing.T) {
+	a := newWeb(t, nil)
+	b := newWeb(t, func(o *RemoteOptions) { o.Root = "/home/owner/other" })
+	nameA, nameB := CookieFor(testRoot), CookieFor("/home/owner/other")
+	if nameA == nameB || !strings.HasPrefix(nameA, "igris_token_") || len(nameA) != len("igris_token_")+12 {
+		t.Fatalf("cookie names %q, %q", nameA, nameB)
+	}
+	cookie := func(name string) map[string]string { return map[string]string{"Cookie": name + "=" + goodToken} }
+
+	// Paired on both: each keeps its own cookie, so both stay authenticated.
+	for w, want := range map[*web]string{a: nameA, b: nameB} {
+		resp := w.do("GET", PathPair+"?token="+goodToken, "", "", nil)
+		if cs := resp.Cookies(); len(cs) != 1 || cs[0].Name != want {
+			t.Fatalf("pair set %+v", cs)
+		}
+	}
+	both := map[string]string{"Cookie": nameA + "=" + goodToken + "; " + nameB + "=" + goodToken}
+	for name, w := range map[string]*web{"a": a, "b": b} {
+		if resp := w.do("GET", "/", "", "", both); resp.StatusCode != http.StatusOK || len(resp.Cookies()) != 0 {
+			t.Errorf("%s with both cookies: %d, %d cookies", name, resp.StatusCode, len(resp.Cookies()))
+		}
+	}
+
+	// A cookie of another project is refused.
+	if resp := a.do("GET", "/", "", "", cookie(nameB)); resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("other project's cookie: %d, want 401", resp.StatusCode)
+	}
+
+	// The old cookie still works and moves to the new name.
+	resp := a.do("GET", "/", "", "", cookie(LegacyCookieName))
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("legacy cookie: %d, want 200", resp.StatusCode)
+	}
+	if cs := resp.Cookies(); len(cs) != 1 || cs[0].Name != nameA || cs[0].Value != goodToken || !cs[0].HttpOnly || cs[0].Path != "/" {
+		t.Errorf("legacy cookie not migrated: %+v", cs)
+	}
+	// A wrong legacy cookie is refused, migrates nothing.
+	resp = a.do("GET", "/", "", "", map[string]string{"Cookie": LegacyCookieName + "=" + badToken})
+	if resp.StatusCode != http.StatusUnauthorized || len(resp.Cookies()) != 0 {
+		t.Errorf("wrong legacy cookie: %d with %d cookies", resp.StatusCode, len(resp.Cookies()))
 	}
 }
