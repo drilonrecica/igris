@@ -2,6 +2,19 @@
 
 All notable changes to igris are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and igris uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Until 1.0, minor versions may change the plan format, config or CLI; such changes are called out here.
 
+## [Unreleased]
+
+igris 1.12 makes the run view easier to read at one look and retires the old web UI cookie. It only adds, apart from the cookie: plans, `igris.toml`, `--json`, the run log, the webhook payload and protocol 1 are unchanged ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). `state.json` stays version 4. The editor extension is unchanged and keeps its version, 1.9.0.
+
+### Added
+
+- **The mode on a task row, where it differs.** A row whose next session would run in a mode other than the run's (the plan's Mode cell, or an override set with `M`) ends in that mode as a dim word after the rank (`opus   plan`). A skip-permissions mode (`yolo`, `plan:yolo`) always shows, in Ember, even when it is the run's. Done and skipped rows show none. Words, never a glyph, so `[tui] screen_reader` and the high-contrast theme need nothing new. On a narrow row the parallel marker goes first, then a mode that differs, never a skip-permissions one.
+
+### Changed
+
+- **The run view on a small terminal spends its rows where they are read.** TASKS is only as tall as its rows; the card that needs you comes first and keeps its whole body while other active tasks shrink to a line each; the bar is one row of what applies now (`[o Open session] [p Pause] [x Stop…] [? More]`, every other key still works and `?` lists it); and a quiet log lends its rows to the session's last lines. One set of rules at every size, no breakpoint.
+- **The old cookie `igris_token` is no longer accepted.** 1.11 accepted it and moved it to `igris_token_<h>`; 1.12 doesn't, so a phone or browser not opened during 1.11 pairs again with `igris serve token`. A phone opened under 1.11 is unaffected.
+
 ## [1.11.0] - 2026-11-11
 
 igris 1.11 puts several projects behind one page and helps you write plans agents can run. `igris hub` follows the live runs you choose (or all of them, and the ones you start later) with one listener, one pairing and one QR code, and the web UI has a wide layout for a laptop. There is no 1.10 release: what was built as 1.10 ships here too, hints for agent-ready tasks, `history --stats`, the parallel marker, the dry run's prompts, `status --since-last-run`, working hours, two accessibility pieces and a container recipe. It only adds, apart from a cookie that is renamed and moves over by itself: plans, `igris.toml`, `--json`, the run log, the webhook payload and protocol 1 are unchanged apart from additive fields ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). `state.json` stays version 4.
