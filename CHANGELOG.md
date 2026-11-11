@@ -29,6 +29,10 @@ igris 1.11 puts several projects behind one page and helps you write plans agent
 - **The parallelism report now agrees with the scheduler.** `igris phases` and the summary of `igris arise --dry-run` ignored `Group` and listed tasks as `together` in phases without the parallel marker, so `B-1, B-2, B-3` could be shown together while the dry run started `B-2` after `B-1` (same Group). Tasks sharing a `Group` now take one slot, never together; a phase without the marker has width 1, no `together` sets and its critical path only; the sets are what `arise` would start together. `--json` keeps its shape (`width` and `together` change value only).
 - **`igris doctor` no longer says `next: igris adapt` for a missing plan.** After `igris init` without a plan, `adapt` has nothing to adapt; the `next` is now `igris init --example` (or `--template NAME`), which writes a starter plan and never overwrites one. The levels are unchanged; an invalid plan still says `igris adapt`.
 
+### Security
+
+- Built with Go 1.27.4 (`toolchain go1.27.4` in `go.mod`). Go 1.27.3's `net/http` HTTP/1 server could crash on a race between `MaxBytesReader` and the request's headers ([GO-2026-6859](https://pkg.go.dev/vuln/GO-2026-6859)). igris serves HTTP only from the listener you turn on (`igris serve --http`, `[serve] http`, `igris hub`), the web UI's; a crash there would end serve and so the run. A `go install` with an older Go builds with your own Go, so install with Go 1.27.4 or newer, or use a release archive or Homebrew. govulncheck finds no vulnerability igris calls.
+
 ## [1.9.0] - 2026-11-05
 
 igris 1.9 puts igris in your editor: an extension for VS Code and its forks, a client of `igris serve`, and the TUI's start wizard and end-of-run summary can go from one phase, or part of one, to the next. It only adds: plans, `--json`, the run log, the webhook payload and protocol 1 are unchanged apart from additive fields ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). `state.json` stays version 4. It also fixes the four small things the v1.8 gate left.
