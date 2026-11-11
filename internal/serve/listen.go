@@ -2,8 +2,6 @@ package serve
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -42,8 +40,7 @@ func maxSocketPath() int {
 // fallbackName is the socket's file name outside .igris/: the first 16 hex
 // characters of the sha256 of the project root (SPEC §13).
 func fallbackName(root string) string {
-	sum := sha256.Sum256([]byte(root))
-	return hex.EncodeToString(sum[:8]) + ".sock"
+	return state.RootHash(root) + ".sock"
 }
 
 // tempDirName is the per-user directory under os.TempDir().
@@ -75,6 +72,17 @@ func (e env) candidates(root string) []struct{ path, dir string } {
 		out = append(out, struct{ path, dir string }{filepath.Join(d, name), d})
 	}
 	return out
+}
+
+// Register writes the run's registry entry (SPEC §13) for the project of
+// dir, whose socket is l's, and returns the function that removes it. Call
+// it once the socket is up.
+func Register(dir *state.Dir, l *Listener, project string) (func() error, error) {
+	return register(dir, l, project, systemEnv())
+}
+
+func register(dir *state.Dir, l *Listener, project string, e env) (func() error, error) {
+	return dir.RegisterRun(state.RegistryEnv{RuntimeDir: e.runtimeDir, TempDir: e.tempDir}, project, l.Path(), time.Now())
 }
 
 // Listener is the run's socket. Closing it removes the socket and
@@ -152,27 +160,7 @@ func listen(dir *state.Dir, e env) (*Listener, error) {
 
 // privateDir creates dir 0700 if needed and checks that it is a directory
 // of this user's, not a symlink, which nobody else can enter.
-func privateDir(dir string) error {
-	if err := os.Mkdir(dir, 0o700); err != nil && !errors.Is(err, fs.ErrExist) {
-		return fmt.Errorf("create the socket directory %s: %w", dir, err)
-	}
-	fi, err := os.Lstat(dir)
-	if err != nil {
-		return fmt.Errorf("socket directory %s: %w", dir, err)
-	}
-	if !fi.IsDir() {
-		return fmt.Errorf("socket directory %s is not a directory; remove it", dir)
-	}
-	if st, ok := fi.Sys().(*syscall.Stat_t); ok && int(st.Uid) != os.Getuid() {
-		return fmt.Errorf("socket directory %s belongs to another user; remove it or set XDG_RUNTIME_DIR", dir)
-	}
-	if fi.Mode().Perm() != 0o700 {
-		if err := os.Chmod(dir, 0o700); err != nil { //nolint:gosec // a directory: 0700 is the owner's only
-			return fmt.Errorf("restrict the socket directory %s to 0700: %w", dir, err)
-		}
-	}
-	return nil
-}
+func privateDir(dir string) error { return state.PrivateDir(dir, "socket directory") }
 
 // clearStale makes room for the socket at path: nothing there, or a socket
 // no listener answers on, which is removed.

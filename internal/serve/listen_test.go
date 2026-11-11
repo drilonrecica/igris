@@ -324,3 +324,41 @@ func TestFallbackName(t *testing.T) {
 		t.Errorf("fallbackName = %q", got)
 	}
 }
+
+// The run registry (SPEC §13): written once the socket is up, found by
+// LiveRuns while it answers, gone after the remove function runs.
+func TestRegisterRun(t *testing.T) {
+	rt := t.TempDir()
+	t.Setenv("XDG_RUNTIME_DIR", rt)
+	e := env{runtimeDir: rt, tempDir: t.TempDir(), max: maxSocketPath()}
+	root := t.TempDir()
+	dir := openDir(t, root)
+	l, err := listen(dir, e)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = l.Close() }()
+	go func() { // answer connections, as serve does
+		for {
+			c, err := l.Accept()
+			if err != nil {
+				return
+			}
+			_ = c.Close()
+		}
+	}()
+	remove, err := register(dir, l, "demo", e)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runs, _ := state.LiveRuns(context.Background())
+	if len(runs) != 1 || runs[0].Root != root || runs[0].Project != "demo" || runs[0].Socket != l.Path() {
+		t.Fatalf("LiveRuns = %+v", runs)
+	}
+	if err := remove(); err != nil {
+		t.Fatal(err)
+	}
+	if runs, _ := state.LiveRuns(context.Background()); len(runs) != 0 {
+		t.Errorf("after remove: %+v", runs)
+	}
+}

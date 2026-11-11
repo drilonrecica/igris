@@ -172,6 +172,17 @@ func execServe(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return fail("the run's socket can't be created: %v", err)
 	}
+	// The registry is an aid for `igris hub`: a failure to write it never
+	// stops the run.
+	if unregister, err := serve.Register(l.State, ln, proj.Name()); err != nil {
+		fmt.Fprintf(out, "warning: the run is not listed for `igris hub`: %v\n", err)
+	} else {
+		defer func() {
+			if err := unregister(); err != nil {
+				fmt.Fprintf(out, "warning: %v\n", err)
+			}
+		}()
+	}
 	host := &serveHost{stopEarly: stopEarly}
 	// The first hello is the starter's; a later client's yolo changes
 	// nothing (it confirms with the mode command instead).
