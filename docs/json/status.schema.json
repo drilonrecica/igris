@@ -318,7 +318,7 @@
       ]
     },
     "since_last_run": {
-      "description": "With --since-last-run (since 1.10): the plan compared with the baseline the last run left in .igris/plan-cells.json (SPEC §5.4, §14). Absent without the flag.",
+      "description": "With --since-last-run (since 1.11): the plan compared with the baseline the last run left in .igris/plan-cells.json (SPEC §5.4, §14). Absent without the flag.",
       "type": "object",
       "properties": {
         "baseline": {

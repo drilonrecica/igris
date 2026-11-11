@@ -49,7 +49,7 @@ func TestLimitHoldHeaderAndStartAnyway(t *testing.T) {
 	}
 }
 
-// The working hours' hold (since 1.10) is drawn as the usage hold, resuming
+// The working hours' hold (since 1.11) is drawn as the usage hold, resuming
 // at the window's opening.
 func TestHoursHoldHeader(t *testing.T) {
 	hs := newHarness(t, 120, 40)

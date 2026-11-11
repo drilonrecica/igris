@@ -11,7 +11,7 @@ import "time"
 // window comes from a file a session can write).
 func Window(window string) string {
 	switch window {
-	case "hours": // the working hours ([run] hours, since 1.10)
+	case "hours": // the working hours ([run] hours, since 1.11)
 		return "outside hours"
 	case "five_hour":
 		return "5h"

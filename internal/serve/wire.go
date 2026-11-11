@@ -411,7 +411,7 @@ func budgetsOf(in []engine.BudgetUse) []engine.BudgetUse {
 }
 
 // limitWindows are the windows an event's limit may name: the quota's and,
-// since 1.10, the working hours'.
+// since 1.11, the working hours'.
 var limitWindows = map[string]bool{state.WindowFiveHour: true, state.WindowSevenDay: true, state.WindowSpendLimit: true, state.WindowHours: true}
 
 // limitOf is a limit the run sent, nil unless it has the shape of one: a

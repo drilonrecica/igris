@@ -95,7 +95,7 @@
   }
 }
 
-/* High contrast (SPEC §15.4, since 1.10): the phone asks for more
+/* High contrast (SPEC §15.4, since 1.11): the phone asks for more
    contrast, light or dark, and gets [tui] theme = "high-contrast": a black
    ground, white text, every text token 7:1 (TestCSSContrastAA), the same
    tokens as internal/look's third shade (TestCSSTokensMatchLook). Plume

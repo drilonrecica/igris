@@ -194,7 +194,7 @@ func TestSnapshotPhases(t *testing.T) {
 }
 
 // A task of a parallel phase carries the tasks it would run alongside
-// (SPEC §3.8, §13, since 1.10), Group-aware; a sequential phase's tasks
+// (SPEC §3.8, §13, since 1.11), Group-aware; a sequential phase's tasks
 // and a finished task carry none, and the field is absent from the JSON.
 func TestSnapshotTogether(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "tasks.md")

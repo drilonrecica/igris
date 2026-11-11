@@ -82,7 +82,7 @@ const (
 	// EventHoursHold: new starts are held outside the working hours ([run]
 	// hours, SPEC §6.9), with Window "hours", ResetsAt the window's opening
 	// and Detail the window; EventHoursResume when they no longer are,
-	// Detail "window opened" or "started anyway". Since 1.10.
+	// Detail "window opened" or "started anyway". Since 1.11.
 	EventHoursHold   EventType = "hours_hold"
 	EventHoursResume EventType = "hours_resume"
 	// EventBudgetExceeded: a budget is reached (SPEC §6.9), with Budget,
@@ -222,7 +222,7 @@ type Event struct {
 	Side string `json:"side,omitempty"`
 	// Window and ResetsAt are the quota window (five_hour, seven_day or
 	// spend_limit) and its reset (RFC 3339, UTC) on limit_hit and
-	// limit_hold (SPEC §6.9). Since 1.8; since 1.10 also "hours" and the
+	// limit_hold (SPEC §6.9). Since 1.8; since 1.11 also "hours" and the
 	// window's opening on hours_hold and hours_resume.
 	Window   string `json:"window,omitempty"`
 	ResetsAt string `json:"resets_at,omitempty"`

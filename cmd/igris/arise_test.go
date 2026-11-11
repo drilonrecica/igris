@@ -119,7 +119,7 @@ func TestFormatEvent(t *testing.T) {
 		{engine.Event{Kind: engine.LimitHold, Task: "A-2", Detail: "5h at 96%", Limit: &engine.Limit{Window: "five_hour", ResetsAt: time.Date(2026, 10, 23, 15, 12, 0, 0, time.UTC), Percent: 96.4}},
 			"◌ paused before A-2 · 5h limit 96% · resumes 15:13; type `start` to start it anyway"},
 		{engine.Event{Kind: engine.LimitResume, Detail: "reset"}, "resumed · reset"},
-		// Working hours (since 1.10): resumes at the opening, no grace.
+		// Working hours (since 1.11): resumes at the opening, no grace.
 		{engine.Event{Kind: engine.LimitHold, Task: "A-2", Detail: "outside hours 09:00–22:00", Limit: &engine.Limit{Window: "hours", ResetsAt: time.Date(2026, 10, 23, 9, 0, 0, 0, time.UTC)}},
 			"◌ paused before A-2 · outside hours · resumes 09:00; type `start` to start it anyway"},
 		{engine.Event{Kind: engine.LimitResume, Detail: "window opened"}, "resumed · window opened"},

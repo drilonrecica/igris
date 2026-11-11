@@ -156,7 +156,7 @@ type Run struct {
 	// hash while unset or true.
 	DepNotes *bool `toml:"dep_notes,omitempty" json:",omitempty"`
 	// Hours is the working-hours window, "HH:MM-HH:MM" local time, which
-	// may cross midnight (SPEC §6.9, since 1.10): outside it no agent task
+	// may cross midnight (SPEC §6.9, since 1.11): outside it no agent task
 	// starts. "" is always. Left out of the config hash while unset.
 	Hours string `toml:"hours,omitempty" json:",omitempty"`
 }
@@ -605,7 +605,7 @@ type TUI struct {
 	// Mouse turns on click/tap, wheel and hover support (SPEC §15.5). Off keeps the
 	// terminal's own text selection without shift+drag.
 	Mouse bool `toml:"mouse"`
-	// Theme picks the colors for a dark or a light terminal, or since 1.10
+	// Theme picks the colors for a dark or a light terminal, or since 1.11
 	// "high-contrast" (black ground, white text, every severity 7:1); "auto"
 	// goes by the terminal's background (SPEC §15.4).
 	Theme string `toml:"theme"`

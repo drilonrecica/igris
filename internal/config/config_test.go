@@ -138,7 +138,7 @@ func TestParseModelsMergeOverDefaults(t *testing.T) {
 	}
 }
 
-// Every [tui] theme of SPEC §15.4 parses, high-contrast since 1.10.
+// Every [tui] theme of SPEC §15.4 parses, high-contrast since 1.11.
 func TestThemes(t *testing.T) {
 	for _, th := range []string{"auto", "dark", "light", "high-contrast"} {
 		c, err := Parse([]byte("[tui]\ntheme = \""+th+"\"\n"), "igris.toml")
@@ -1475,7 +1475,7 @@ func TestParseHTTPAddr(t *testing.T) {
 	}
 }
 
-// [run] hours (SPEC §6.9, since 1.10): parsed like [notify] quiet, the
+// [run] hours (SPEC §6.9, since 1.11): parsed like [notify] quiet, the
 // window may cross midnight, and the key stays out of the hash while unset.
 func TestRunHours(t *testing.T) {
 	if _, ok := Default().Run.WorkingHours(); ok {

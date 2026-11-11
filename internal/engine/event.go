@@ -167,7 +167,7 @@ type Event struct {
 // ResetsAt against the UI's clock.
 type Limit struct {
 	// Window is five_hour, seven_day or spend_limit, or state.WindowHours
-	// for the working-hours hold (since 1.10; ResetsAt is the window's
+	// for the working-hours hold (since 1.11; ResetsAt is the window's
 	// opening).
 	Window string `json:"window,omitempty"`
 	// ResetsAt is when the window resets; UTC.

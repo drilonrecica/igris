@@ -121,7 +121,7 @@
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `mouse` | boolean | `true` | Click/tap, wheel and hover in the TUI (SPEC §15.5). `false` keeps the terminal's own text selection. |
-| `theme` | string | `"auto"` | Which colors to use (SPEC §15.4). `auto` goes by the terminal's background; `high-contrast` (since 1.10) is a black ground with white text, every severity's words 7:1 (WCAG AAA), for the TUI and the CLI's text output. Allowed: `auto`, `dark`, `light`, `high-contrast`. |
+| `theme` | string | `"auto"` | Which colors to use (SPEC §15.4). `auto` goes by the terminal's background; `high-contrast` (since 1.11) is a black ground with white text, every severity's words 7:1 (WCAG AAA), for the TUI and the CLI's text output. Allowed: `auto`, `dark`, `light`, `high-contrast`. |
 | `rank_colors` | table | empty | Rank to color: `"#rrggbb"` or an ANSI color number `"0"`–`"255"` (SPEC §15.4). Ranks not listed keep the built-in colors. |
 | `tail` | boolean | `true` | Live tail of the current session in the task card (SPEC §15.3). `false` makes no tail calls. |
 | `screen_reader` | boolean | `false` | The CLI's text output says words instead of glyphs and bars (`needs you M1-03` for `! M1-03`, `3 of 7 done` for a bar) and puts one fact per line (SPEC §15.4). `IGRIS_SCREEN_READER=1` (or `0`) overrides it. The TUI ignores it. |

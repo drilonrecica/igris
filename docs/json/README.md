@@ -10,7 +10,7 @@ The `--json` output of igris is part of its 1.x contract (SPEC §19). Each outpu
 | [`invalid-plan.schema.json`](invalid-plan.schema.json) | `igris phases --json` and `igris status --json` on a plan that doesn't validate (exit 1) |
 | [`history.schema.json`](history.schema.json) | `igris history --json` |
 | [`history-task.schema.json`](history-task.schema.json) | `igris history TASK-ID --json` |
-| [`history-stats.schema.json`](history-stats.schema.json) | `igris history --stats --json` (since 1.10) |
+| [`history-stats.schema.json`](history-stats.schema.json) | `igris history --stats --json` (since 1.11) |
 | [`report.schema.json`](report.schema.json) | `igris report --json` |
 | [`usage.schema.json`](usage.schema.json) | `igris usage --json` (since 1.1) |
 | [`doctor.schema.json`](doctor.schema.json) | `igris doctor --json` |

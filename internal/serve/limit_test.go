@@ -95,7 +95,7 @@ func TestUIStatusLimited(t *testing.T) {
 	}
 }
 
-// The working hours' hold (since 1.10) crosses the wire and reads as any
+// The working hours' hold (since 1.11) crosses the wire and reads as any
 // hold, resuming at the opening without the grace.
 func TestUIStatusOutsideHours(t *testing.T) {
 	open := uiT0.Add(7*time.Hour + 12*time.Minute)

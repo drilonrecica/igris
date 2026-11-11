@@ -174,7 +174,7 @@ export function liveStatus(run: Run, now: number): Status {
   }
   if (run.limited) {
     const l = run.limited;
-    // The working hours ([run] hours, since 1.10) resume at the opening.
+    // The working hours ([run] hours, since 1.11) resume at the opening.
     if (l.window === "hours") return paused(`${windowLabel(l.window)} · resumes ${until(l.resetsAt, now)}`);
     const pct = l.percent > 0 ? ` ${Math.round(l.percent)}%` : "";
     return paused(`${windowLabel(l.window)} limit${pct} · resumes ${until(l.resetsAt + RESUME_GRACE, now)}`);

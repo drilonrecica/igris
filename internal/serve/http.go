@@ -33,7 +33,7 @@ const (
 	PathAction = "/api/v1/action/"
 
 	// LegacyCookieName is the cookie every project's listener set through
-	// 1.10: cookies don't isolate ports, so a second project on one address
+	// 1.9: cookies don't isolate ports, so a second project on one address
 	// unpaired the first. Accepted, and moved to CookieFor's name, through
 	// 1.11.x (SPEC §14, §19).
 	LegacyCookieName = "igris_token"
@@ -102,7 +102,7 @@ type remote struct {
 	srv  *Server
 	opts RemoteOptions
 	// cookieName is the cookie the browser is paired with; legacy says
-	// the 1.10 cookie is accepted too (a project's listener, not a Guard).
+	// the 1.9 cookie is accepted too (a project's listener, not a Guard).
 	cookieName string
 	legacy     bool
 	// pairCmd is the command that prints the pairing URL, named when a

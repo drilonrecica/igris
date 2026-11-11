@@ -737,7 +737,7 @@ func TestStatusLimited(t *testing.T) {
 	}
 }
 
-// A served run held outside the working hours (since 1.10): Paused with
+// A served run held outside the working hours (since 1.11): Paused with
 // the opening and its countdown, no grace (SPEC §6.9).
 func TestStatusOutsideHours(t *testing.T) {
 	open := time.Date(2026, 10, 23, 19, 12, 0, 0, time.UTC) // textNow is 12:00

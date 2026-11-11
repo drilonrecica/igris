@@ -81,7 +81,7 @@ type Snapshot struct {
 // 1.8): the window, its reset, the use that holds (0 after a hit), the task
 // that hit it or, on the hold, the task that would start, and the words.
 type Limited struct {
-	Window   string    `json:"window"` // a quota window, or "hours" (since 1.10)
+	Window   string    `json:"window"` // a quota window, or "hours" (since 1.11)
 	ResetsAt time.Time `json:"resets_at"`
 	Percent  float64   `json:"percent,omitempty"`
 	Task     string    `json:"task,omitempty"`
@@ -132,7 +132,7 @@ type Task struct {
 	Rank   string `json:"rank,omitempty"`
 	Mode   string `json:"mode,omitempty"`
 	// Together is the tasks arise would start alongside this one in a
-	// parallel phase (SPEC §3.8, since 1.10): the other tasks of its set,
+	// parallel phase (SPEC §3.8, since 1.11): the other tasks of its set,
 	// Group-aware; absent in a sequential phase and for a finished task.
 	Together []string `json:"together,omitempty"`
 }
