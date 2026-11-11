@@ -436,8 +436,17 @@ func TestHubHandler(t *testing.T) {
 		t.Fatalf("pairing cookie %+v", w.Result().Cookies())
 	}
 	w = get("/", cookie)
-	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "1 live run") || !strings.Contains(w.Body.String(), "sinjal · "+RunID("sinjal", "/p/sinjal")) {
+	id := RunID("sinjal", "/p/sinjal")
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "1 live run") || !strings.Contains(w.Body.String(), `href="/p/`+id+`/"`) {
 		t.Errorf("paired: %d %q", w.Code, w.Body)
+	}
+	// The run's page is the web UI's under its base; an id the hub
+	// doesn't follow says so.
+	if w := get("/p/"+id+"/", cookie); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `data-base="/p/`+id+`"`) {
+		t.Errorf("run page: %d %q", w.Code, w.Body)
+	}
+	if w := get("/p/nobody-000000/", cookie); w.Code != http.StatusNotFound || !strings.Contains(w.Body.String(), "Back to the runs") {
+		t.Errorf("unknown run: %d %q", w.Code, w.Body)
 	}
 	// A project's cookie, new or old, holding the same value is not the
 	// hub's: it counts for nothing.
@@ -458,5 +467,51 @@ func TestHubHandler(t *testing.T) {
 	hh.ServeHTTP(w, r)
 	if w.Code != http.StatusForbidden {
 		t.Errorf("cross-site POST: %d", w.Code)
+	}
+}
+
+// The pages read the hub's merged stream as joins, events by their type
+// and ends with their outcome.
+func TestHubPagesStream(t *testing.T) {
+	reg := &registry{}
+	h, _ := newHub(t, reg, Options{All: true})
+	stream, cancel := source{h}.Subscribe()
+	defer cancel()
+	reg.set(entry("sinjal", 1))
+	h.Scan(context.Background())
+	id := RunID("sinjal", "/p/sinjal")
+	read := func() serve.HubChange {
+		t.Helper()
+		select {
+		case c, ok := <-stream:
+			if !ok {
+				t.Fatal("the stream closed")
+			}
+			return c
+		case <-time.After(patience):
+			t.Fatal("no change")
+		}
+		return serve.HubChange{}
+	}
+	if c := read(); c != (serve.HubChange{Run: id, Change: serve.HubJoined}) {
+		t.Errorf("joined: %+v", c)
+	}
+	// The run's stream starts with its snapshot.
+	if c := read(); c != (serve.HubChange{Run: id, Change: serve.HubEvent, Type: "snapshot"}) {
+		t.Errorf("snapshot: %+v", c)
+	}
+	reg.run("/p/sinjal").send(`{"v":1,"type":"task_started","task":"A-1"}`)
+	if c := read(); c != (serve.HubChange{Run: id, Change: serve.HubEvent, Type: "task_started"}) {
+		t.Errorf("event: %+v", c)
+	}
+	reg.run("/p/sinjal").end(engine.Result{Outcome: engine.Stuck}, nil)
+	if c := read(); c != (serve.HubChange{Run: id, Change: serve.HubLeft, Outcome: "stuck"}) {
+		t.Errorf("left: %+v", c)
+	}
+	if e, ok := (source{h}).Lookup(id); !ok || !e.Ended || e.Outcome != look.Stuck {
+		t.Errorf("lookup after the end: %+v %v", e, ok)
+	}
+	if runs := (source{h}).Runs(); len(runs) != 0 {
+		t.Errorf("runs after the end: %+v", runs)
 	}
 }

@@ -2,7 +2,8 @@
 // page's live part again when something happens, reads the active tasks'
 // tails while the page is visible, and sends the forms as protocol-1
 // commands. Without it the page is the snapshot of its load and the forms
-// post to /act.
+// post to /act. On the hub's list (data-hub) it follows the hub's merged
+// stream instead, and each question of its sheet goes to its own run.
 "use strict";
 
 (function () {
@@ -31,6 +32,12 @@
   // every path the script asks for.
   var base = live.dataset.base || "";
   var liveURL = live.dataset.live || base + "/live"; // the run's live part, or the plan's
+  // hub: the hub's list of runs, whose stream is the hub's (no run of its
+  // own: it never ends, and Stop is a run's). gone: the runs it saw end,
+  // kept with their outcome until the page is reloaded.
+  var hub = live.dataset.hub === "1";
+  var eventsURL = live.dataset.events || base + "/api/v1/events";
+  var gone = [];
 
   // collapse disables the text field of every form that hasn't been
   // opened: a disabled control is left out of the browser's own
@@ -69,9 +76,9 @@
       q.classList.toggle("peek", i === at && !sheetOpen);
     });
     var bar = live.querySelector("nav.bar");
-    if (bar) {
-      root.style.setProperty("--bar", bar.offsetHeight + "px"); // the sheet sits on it
-    }
+    // The sheet sits on the bar; with none (the hub's list, an ended run)
+    // on the screen's bottom edge.
+    root.style.setProperty("--bar", bar ? bar.offsetHeight + "px" : "env(safe-area-inset-bottom)");
     document.body.classList.toggle("has-sheet", asks.length > 0 && sheetOpen);
     document.body.classList.toggle("has-peek", asks.length > 0 && !sheetOpen);
   }
@@ -122,10 +129,17 @@
     flashTimer = setTimeout(function () { flash.hidden = true; }, isError ? 10000 : 3000);
   }
 
-  function post(msg) {
+  // formBase is the base path a form's command goes under: its run's on
+  // the hub's sheet, else the page's.
+  function formBase(form) {
+    var at = form.closest("[data-base]");
+    return at ? at.dataset.base : base;
+  }
+
+  function post(msg, to) {
     msg.v = 1;
     msg.id = id();
-    return fetch(base + "/api/v1/command", {
+    return fetch((to === undefined ? base : to) + "/api/v1/command", {
       method: "POST",
       credentials: "same-origin",
       headers: { "Content-Type": "application/json", "X-Igris-CSRF": csrf },
@@ -197,9 +211,10 @@
     }
     stale = false;
     refreshing = true;
-    fetch(liveURL, { credentials: "same-origin" }).then(function (r) {
+    var url = hub && gone.length > 0 ? liveURL + "?ended=" + encodeURIComponent(gone.join(",")) : liveURL;
+    fetch(url, { credentials: "same-origin" }).then(function (r) {
       if (r.status === 401) {
-        throw new Error("this device is not paired any more: open the pairing URL `igris serve token` prints");
+        throw new Error("this device is not paired any more: open the pairing URL `" + (hub ? "igris hub token" : "igris serve token") + "` prints");
       }
       if (!r.ok) {
         throw new Error("the page could not be updated (HTTP " + r.status + ")");
@@ -335,8 +350,14 @@
   }
 
   function follow() {
-    stream = new EventSource(base + "/api/v1/events");
-    stream.onopen = function () { conn.hidden = true; root.classList.remove("down"); };
+    stream = new EventSource(eventsURL);
+    stream.onopen = function () {
+      conn.hidden = true;
+      root.classList.remove("down");
+      if (hub) {
+        refresh(); // the hub's stream has no snapshot: draw afresh, also after a reconnect
+      }
+    };
     stream.onerror = function () { conn.hidden = false; root.classList.add("down"); };
     stream.onmessage = function (e) {
       var m;
@@ -347,6 +368,16 @@
       }
       conn.hidden = true;
       root.classList.remove("down");
+      if (hub) {
+        // A run joined, left (its row keeps its outcome) or had an event.
+        if (m.change === "left" && gone.indexOf(m.run) < 0 && gone.length < 32) {
+          gone.push(m.run);
+        }
+        if (m.type !== "tokens" && m.type !== "quota") {
+          later();
+        }
+        return;
+      }
       if (m.type === "tokens" || m.type === "quota") {
         return; // counters the page doesn't show
       }
@@ -437,13 +468,13 @@
     }
     var buttons = form.querySelectorAll("button");
     buttons.forEach(function (b) { b.disabled = true; });
-    post(msg).then(function (rep) {
+    post(msg, formBase(form)).then(function (rep) {
       if (rep.type === "error") {
         say("Not sent: " + rep.error, true);
         return;
       }
       say("Sent.", false);
-      if (msg.type === "stop") {
+      if (msg.type === "stop" && !hub) {
         stopping = true;
         stopped();
       }

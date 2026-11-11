@@ -198,7 +198,12 @@ func (u *ui) message(w http.ResponseWriter, status int, title, text string) {
 	u.render(w, status, "message", messageView{Project: u.src.Project(), Title: title, Text: text})
 }
 
-type messageView struct{ Project, Title, Text string }
+type messageView struct {
+	Project, Title, Text string
+	// Back is the way back's label: "Back to the run" when empty, at
+	// the pages' base.
+	Back string
+}
 
 // refuse is the page of a request the listener turned away before the UI
 // saw it (not paired, a stale pairing URL, a missing CSRF token): the
@@ -482,6 +487,10 @@ type questionView struct {
 	NextN int
 	// Key names the entry across refreshes, so the script keeps showing it.
 	Key string
+	// Project and Base are the run's on the hub's sheet, which holds the
+	// questions of every run (its name on each, its answers sent to it);
+	// empty on a run's own page.
+	Project, Base string
 	// Kind is the small label: commit?, plan, session lost, your turn…
 	Kind    string
 	Title   string
@@ -508,7 +517,10 @@ type recentView struct {
 // form is one command's form: hidden fields, at most one text or select
 // field, and the button. Confirm asks the second confirmation first.
 type form struct {
-	CSRF     string
+	CSRF string
+	// Base is the run's base path the form posts under on the hub's
+	// sheet; empty on a run's own page, whose base the templates have.
+	Base     string
 	Type     string
 	Task     string
 	Question string

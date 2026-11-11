@@ -220,8 +220,8 @@ func (h *remote) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if h.opts.TLS {
 		w.Header().Set("Strict-Transport-Security", "max-age=31536000")
 	}
-	// Everything but the event stream answers within the body timeout.
-	if r.URL.Path != PathEvents {
+	// Everything but an event stream answers within the body timeout.
+	if !h.stream(r.URL.Path) {
 		rc := http.NewResponseController(w)
 		_ = rc.SetReadDeadline(time.Now().Add(bodyTimeout))
 		_ = rc.SetWriteDeadline(time.Now().Add(bodyTimeout))
@@ -281,7 +281,46 @@ func (h *remote) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, "igris: this device is paired.\n")
 		return
 	}
-	h.opts.UI.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), csrfKey{}, csrf)))
+	ctx := context.WithValue(r.Context(), csrfKey{}, csrf)
+	ctx = context.WithValue(ctx, streamKey{}, streamCheck{ping: h.opts.Ping, valid: func() bool { return h.stillValid(r) }})
+	h.opts.UI.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// stream says path is an event stream, which has no write deadline: the
+// protocol's, and behind a Guard the hub's merged stream and a run's
+// under its base path (SPEC §14, §15.8).
+func (h *remote) stream(path string) bool {
+	if path == PathEvents {
+		return true
+	}
+	return h.srv == nil && (path == PathHubEvents || strings.HasPrefix(path, PathHubRun) && strings.HasSuffix(path, PathEvents))
+}
+
+// api says path is answered in protocol 1's JSON: the protocol's paths,
+// and behind a Guard a run's under its base path.
+func (h *remote) api(path string) bool {
+	if strings.HasPrefix(path, "/api/") {
+		return true
+	}
+	return h.srv == nil && strings.HasPrefix(path, PathHubRun) && strings.Contains(path, "/api/")
+}
+
+type streamKey struct{}
+
+// streamCheck is how a stream the UI serves behind the listener says it
+// is alive, and checks the credential that opened it still holds.
+type streamCheck struct {
+	ping  time.Duration
+	valid func() bool
+}
+
+// streamCheckOf is the request's streamCheck; outside the listener, a
+// ping every 15 s and a credential that always holds.
+func streamCheckOf(ctx context.Context) streamCheck {
+	if c, ok := ctx.Value(streamKey{}).(streamCheck); ok && c.valid != nil {
+		return c
+	}
+	return streamCheck{ping: pingInterval, valid: func() bool { return true }}
 }
 
 // sameOrigin refuses a request another site made: an Origin that isn't
@@ -431,12 +470,6 @@ func (h *remote) events(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, r, http.StatusServiceUnavailable, "the run is ending")
 		return
 	}
-	rc := http.NewResponseController(w)
-	_ = rc.SetReadDeadline(time.Time{})
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("X-Accel-Buffering", "no")
-	w.WriteHeader(http.StatusOK)
-
 	lines := make(chan []byte)
 	stop := make(chan struct{})
 	defer close(stop)
@@ -453,6 +486,18 @@ func (h *remote) events(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}()
+	writeSSE(w, r, lines, h.opts.Ping, func() bool { return h.stillValid(r) })
+}
+
+// writeSSE writes lines to the client as server-sent events until lines
+// closes, the client goes or, checked at every ping, valid says the
+// request's credential no longer holds.
+func writeSSE(w http.ResponseWriter, r *http.Request, lines <-chan []byte, ping time.Duration, valid func() bool) {
+	rc := http.NewResponseController(w)
+	_ = rc.SetReadDeadline(time.Time{})
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("X-Accel-Buffering", "no")
+	w.WriteHeader(http.StatusOK)
 	write := func(parts ...[]byte) bool {
 		_ = rc.SetWriteDeadline(time.Now().Add(writeTimeout))
 		for _, p := range parts {
@@ -465,16 +510,16 @@ func (h *remote) events(w http.ResponseWriter, r *http.Request) {
 	if !write([]byte("retry: 3000\n\n")) {
 		return
 	}
-	ping := time.NewTicker(h.opts.Ping)
-	defer ping.Stop()
+	t := time.NewTicker(ping)
+	defer t.Stop()
 	for {
 		select {
 		case b, ok := <-lines:
 			if !ok || !write([]byte("data: "), b, []byte("\n\n")) {
 				return
 			}
-		case <-ping.C:
-			if !h.stillValid(r) || !write([]byte(": ping\n\n")) {
+		case <-t.C:
+			if !valid() || !write([]byte(": ping\n\n")) {
 				return
 			}
 		case <-r.Context().Done():
@@ -486,36 +531,44 @@ func (h *remote) events(w http.ResponseWriter, r *http.Request) {
 // command takes one protocol-1 command or tail request and answers its
 // reply (SPEC §14).
 func (h *remote) command(w http.ResponseWriter, r *http.Request) {
+	serveCommand(w, r, &h.tails, h.srv.Request)
+}
+
+// serveCommand reads one protocol-1 command or tail request from r's JSON
+// body, at most tails' bound of tail reads at once, and writes the reply
+// request gives.
+func serveCommand(w http.ResponseWriter, r *http.Request, tails *atomic.Int32, request func(context.Context, Request) (Reply, int)) {
+	fail := func(status int, msg string) { writeReply(w, status, Reply{Type: TypeError, Error: msg}) }
 	if mt, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type")); mt != "application/json" {
-		h.fail(w, r, http.StatusUnsupportedMediaType, "a command is sent as application/json")
+		fail(http.StatusUnsupportedMediaType, "a command is sent as application/json")
 		return
 	}
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, MaxLine))
 	if err != nil {
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
-			h.fail(w, r, http.StatusRequestEntityTooLarge, "a command is at most 1 MiB")
+			fail(http.StatusRequestEntityTooLarge, "a command is at most 1 MiB")
 			return
 		}
-		h.fail(w, r, http.StatusBadRequest, "the command could not be read")
+		fail(http.StatusBadRequest, "the command could not be read")
 		return
 	}
 	req, err := decodeRequest(body)
 	if err != nil {
-		h.fail(w, r, http.StatusBadRequest, err.Error())
+		fail(http.StatusBadRequest, err.Error())
 		return
 	}
 	if req.Type == TypeTail {
 		// A tail is a backend read; a token holder gets a bounded number
 		// at once, as a socket client gets one.
-		if h.tails.Add(1) > maxTails {
-			h.tails.Add(-1)
-			h.fail(w, r, http.StatusServiceUnavailable, "too many tail reads at once; try again")
+		if tails.Add(1) > maxTails {
+			tails.Add(-1)
+			fail(http.StatusServiceUnavailable, "too many tail reads at once; try again")
 			return
 		}
-		defer h.tails.Add(-1)
+		defer tails.Add(-1)
 	}
-	rep, status := h.srv.Request(r.Context(), req)
+	rep, status := request(r.Context(), req)
 	writeReply(w, status, rep)
 }
 
@@ -593,7 +646,7 @@ func method(w http.ResponseWriter, r *http.Request, want string) bool {
 
 // fail answers an error: a protocol-1 error under /api/, else text.
 func (h *remote) fail(w http.ResponseWriter, r *http.Request, status int, msg string) {
-	if strings.HasPrefix(r.URL.Path, "/api/") {
+	if h.api(r.URL.Path) {
 		writeReply(w, status, Reply{Type: TypeError, Error: msg})
 		return
 	}

@@ -241,13 +241,15 @@ header.top .btn.back { margin-left: auto; width: auto; min-height: 44px; padding
   gap: 4px;
 }
 .seg { flex: 1 1 0; display: flex; }
-.seg a { flex: 1; display: flex; align-items: center; min-height: 32px; }
-.seg a::before { content: ""; flex: 1; height: 10px; border-radius: var(--r-field); border: 1px solid var(--muted); }
-.seg.done a::before { background: var(--accent); border-color: var(--accent); }
-.seg.active a::before { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 12px var(--glow); animation: pulse 2.4s ease-in-out infinite; }
-.seg.needs a::before { background: var(--plume); border-color: var(--plume); box-shadow: 0 0 12px var(--needs-glow); }
-.seg.skipped a::before { border-style: dashed; }
-html.over .seg.active a::before { animation: none; box-shadow: none; }
+/* a run's row on the hub's list is one link: its segments are spans */
+.seg > a, .seg > span { flex: 1; display: flex; align-items: center; min-height: 32px; }
+.run .seg > span { min-height: 14px; }
+.seg > a::before, .seg > span::before { content: ""; flex: 1; height: 10px; border-radius: var(--r-field); border: 1px solid var(--muted); }
+.seg.done > a::before, .seg.done > span::before { background: var(--accent); border-color: var(--accent); }
+.seg.active > a::before, .seg.active > span::before { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 12px var(--glow); animation: pulse 2.4s ease-in-out infinite; }
+.seg.needs > a::before, .seg.needs > span::before { background: var(--plume); border-color: var(--plume); box-shadow: 0 0 12px var(--needs-glow); }
+.seg.skipped > a::before, .seg.skipped > span::before { border-style: dashed; }
+html.over .seg.active > a::before, .run.ended .seg.active > span::before { animation: none; box-shadow: none; }
 .glance .meta { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 
 /* cards and questions */
@@ -273,6 +275,7 @@ a.to-sheet { color: var(--needs-text); font-weight: 600; text-decoration: none; 
 .question { border-top: 2px solid var(--plume); }
 .question .kind { font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; color: var(--needs-text); display: flex; gap: 8px; align-items: baseline; }
 .question .kind .step { margin-left: auto; color: var(--accent-text); text-transform: none; letter-spacing: 0; font-size: .9rem; min-height: 44px; display: inline-flex; align-items: center; text-decoration: none; font-weight: 600; }
+.question .kind .project { color: var(--text); text-transform: none; letter-spacing: 0; font-weight: 700; overflow-wrap: anywhere; }
 .question .kind .id { color: var(--accent-text); text-transform: none; letter-spacing: 0; font-size: .85rem; }
 .question h2 { font-size: 1.2rem; line-height: 1.3; }
 .question .peek, .question .fold { display: none; }
@@ -401,6 +404,28 @@ html.js body.has-sheet::after {
 }
 html.js body.has-sheet main { padding-bottom: 40vh; }
 html.js body.has-peek main { padding-bottom: calc(var(--bar) + 76px); }
+
+/* the hub's list (SPEC §15.8): a row per run, most urgent first, each
+   a link to the run's page; one that ended keeps its outcome, dimmed */
+ul.runs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.run .row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  padding: 14px;
+  color: var(--text);
+  text-decoration: none;
+}
+.run.needs .row { border-color: var(--plume); }
+.run h2 { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.run .project { font-family: var(--display); font-weight: 700; font-size: 1.15rem; overflow-wrap: anywhere; }
+.run .word { margin-left: auto; font-size: 1.05rem; line-height: 1.3; }
+.run .word .glyph { font-family: var(--mono); }
+.run.ended .project, .run.ended .meta { color: var(--muted); }
+main.hub .glance { gap: 4px; }
 
 /* next up, recent, the plan's task list */
 section.next, section.recent, section.phase { display: flex; flex-direction: column; gap: 6px; }
