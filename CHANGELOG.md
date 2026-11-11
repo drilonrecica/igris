@@ -2,7 +2,7 @@
 
 All notable changes to igris are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and igris uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Until 1.0, minor versions may change the plan format, config or CLI; such changes are called out here.
 
-## [Unreleased]
+## [1.12.0] - 2026-11-12
 
 igris 1.12 makes the run view easier to read at one look and retires the old web UI cookie. It only adds, apart from the cookie: plans, `igris.toml`, `--json`, the run log, the webhook payload and protocol 1 are unchanged ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). `state.json` stays version 4. The editor extension is unchanged and keeps its version, 1.9.0.
 
@@ -768,6 +768,7 @@ First release. Linux and macOS, herdr backend only. The full behavior is specifi
 - Release artifacts are not signed (checksums only); signing is planned.
 - No Homebrew tap yet.
 
+[1.12.0]: https://github.com/drilonrecica/igris/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/drilonrecica/igris/compare/v1.9.0...v1.11.0
 [1.9.0]: https://github.com/drilonrecica/igris/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/drilonrecica/igris/compare/v1.7.0...v1.8.0
