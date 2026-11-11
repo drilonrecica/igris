@@ -32,6 +32,7 @@ These rules apply to every coding agent working in this repository (Claude Code 
   - `internal/checks/` — the ordered check list shared by `check`, `arise`, `doctor` and home; results only, no printing
   - `internal/report/` — pure data the CLI and home render (check, phases, status, run info, history, dry run); no printing
   - `internal/project/` — opens a project (root, config, plan) tolerantly, builds the engine for `arise` and home, implements the home screen's services
+  - `internal/hub/` — `igris hub` (SPEC §14): the chosen live runs from the run registry, one `serve.Mirror` each, the registry polled every 2 s, the merged stream, and the listener's handler behind `serve.Guard` with the hub token
   - `internal/side/` — side sessions (SPEC §6.10): open, list and reattach, focus, close; records under `.igris/side/` through `internal/state`
   - `internal/fsafe/` — reads files an untrusted party may have replaced (the plan, `igris.toml`, `.igris/`) as regular files of bounded size, never blocking
   - `internal/look/` — the design language as data (SPEC §15.4, docs/design.md): glyphs, status words, severities, palette and rank colors, and how counts, durations, times and tokens are written; the TUI and the CLI draw with it, the web UI's CSS tokens are tested against it

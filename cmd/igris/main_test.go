@@ -17,6 +17,7 @@ import (
 	"github.com/drilonrecica/igris/internal/project"
 	"github.com/drilonrecica/igris/internal/runner"
 	"github.com/drilonrecica/igris/internal/side"
+	"github.com/drilonrecica/igris/internal/state"
 )
 
 // TestMain keeps the tests off the real claude and herdr: no version check
@@ -49,6 +50,10 @@ func TestMain(m *testing.M) {
 	// runs headless only where tmux is installed (SPEC §11.3).
 	ariseLookPath = func(string) (string, error) { return "", exec.ErrNotFound }
 	interactiveTerm = func() bool { return false } // tests are not on a terminal
+	// Nor on the developer's home and runs: a hub test sets its own token
+	// directory and live runs; without them there is no token and no run.
+	hubTokenEnv = func() state.HubTokenEnv { return state.HubTokenEnv{} }
+	hubLive = func(context.Context) []state.RunEntry { return nil }
 	outTerminal = func(io.Writer) (bool, int) { return false, 0 }
 	// Text output tells local times against now: both fixed, so the
 	// goldens don't depend on where and when they run.

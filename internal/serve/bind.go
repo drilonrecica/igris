@@ -63,6 +63,9 @@ type HTTPConfig struct {
 	// CertFile and KeyFile are the PEM files TLS is served from, both or
 	// neither; resolved by the caller.
 	CertFile, KeyFile string
+	// TLSSetting is how the errors name the TLS setting; "" is serve's,
+	// [serve] tls_cert and tls_key in igris.toml.
+	TLSSetting string
 }
 
 // HTTPListener is a bound HTTP listener.
@@ -99,20 +102,24 @@ func ListenHTTP(c HTTPConfig) (*HTTPListener, error) {
 		ap = netip.AddrPortFrom(ap.Addr(), 0)
 	}
 	tlsOn := c.CertFile != "" && c.KeyFile != ""
+	setting := c.TLSSetting
+	if setting == "" {
+		setting = "[serve] tls_cert and tls_key in igris.toml"
+	}
 	exp := ExposureOf(ap.Addr())
 	if exp == Public {
 		switch {
 		case !c.Public:
-			return nil, fmt.Errorf("%s is reachable beyond loopback and Tailscale; use a loopback address (with ssh -L) or this machine's Tailscale address, or pass --listen-public with [serve] tls_cert and tls_key", ap)
+			return nil, fmt.Errorf("%s is reachable beyond loopback and Tailscale; use a loopback address (with ssh -L) or this machine's Tailscale address, or pass --listen-public with %s", ap, setting)
 		case !tlsOn:
-			return nil, fmt.Errorf("--listen-public needs TLS: set [serve] tls_cert and tls_key in igris.toml")
+			return nil, fmt.Errorf("--listen-public needs TLS: set %s", setting)
 		}
 	}
 	var cfg *tls.Config
 	if tlsOn {
 		cert, err := tls.LoadX509KeyPair(c.CertFile, c.KeyFile)
 		if err != nil {
-			return nil, fmt.Errorf("the TLS certificate (serve.tls_cert, serve.tls_key) doesn't load: %w", err)
+			return nil, fmt.Errorf("the TLS certificate (%s) doesn't load: %w", setting, err)
 		}
 		cfg = &tls.Config{MinVersion: tls.VersionTLS12, Certificates: []tls.Certificate{cert}}
 	}

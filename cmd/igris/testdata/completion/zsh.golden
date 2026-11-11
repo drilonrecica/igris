@@ -3,7 +3,7 @@
 _igris() {
     local cmd prev
     if (( CURRENT == 2 )); then
-        compadd -- init doctor check phases status history report usage arise serve attach stop done skip reset notify config adapt draft update completion help version
+        compadd -- init doctor check phases status history report usage arise serve hub attach stop done skip reset notify config adapt draft update completion help version
         return
     fi
     cmd=$words[2]
@@ -28,6 +28,9 @@ _igris() {
         serve:--parallel) return ;;
         serve:--through) compadd -- ${(f)"$(igris __complete phases 2>/dev/null)"} ; return ;;
         serve:--until) compadd -- ${(f)"$(igris __complete tasks 2>/dev/null)"} ; return ;;
+        hub:--http) return ;;
+        hub:--tls-cert) _files ; return ;;
+        hub:--tls-key) _files ; return ;;
         done:--note) return ;;
         skip:--reason) return ;;
         notify:--event) compadd -- needs_input session_lost task_overdue rank_mismatch verify_failed_limit task_done phase_done phase_stuck run_error usage_limit budget_exceeded ; return ;;
@@ -49,6 +52,7 @@ _igris() {
             usage) compadd -- --json --since ;;
             arise) compadd -- --dry-run --force-unlock --from --mode --no-tui --only --parallel --prompts --through --until --worktree ;;
             serve) compadd -- --force-unlock --from --http --listen-public --mode --only --parallel --rotate --through --until --worktree ;;
+            hub) compadd -- --all --http --listen-public --rotate --tls-cert --tls-key ;;
             done) compadd -- --note ;;
             skip) compadd -- --reason ;;
             reset) compadd -- --force ;;

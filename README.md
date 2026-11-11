@@ -173,6 +173,8 @@ Mark a phase `<!-- igris:parallel -->` (the plan declares `<!-- igris:format 3 -
 
 With `[serve] http` set to this machine's Tailscale address (or loopback for `ssh -L`), serve also serves a web UI for a glance from the couch: one word for the run, a bar segmented by task, and whatever needs you in a sheet at your thumb, with its answers. Pair a device once with `igris serve token` (a URL and a QR code). From it you answer questions, approve plans, pause, stop, retry, mark done or skip, and change modes, all but skip-permissions. With `actions = true` under `[notify.ntfy]`, the ntfy message itself carries the buttons (Commit, Approve, Retry, Reset, Continue, …) and **Open**, to that task's question on the web UI; the message says what waits (`waits for a permission (Bash)`, `plan to approve`, `commit question`). The listener is off until you give it an address. [Control from your phone](https://drilonrecica.github.io/igris/docs/control-from-your-phone.html).
 
+Several projects running at once? `igris hub --all --http 127.0.0.1:7777` puts every live run, and the runs you start later, behind one listener and one pairing (one QR code); `igris hub PATH...` takes only those projects, and on a terminal without either it asks which. Ending the hub never stops a run.
+
 ### In your editor
 
 The **Igris** extension for VS Code, Cursor, Kiro, Antigravity and Windsurf (`drilonrecica.igris`; the `.vsix` is on each GitHub release, or `make vsix` builds it: not in the Marketplace or Open VSX for now) is one more client of `igris serve`: a tree of the plan's phases and tasks with the live run on top, the status word in the status bar, what needs you answered from notifications and QuickPick, a task's commits or branch in the editor's diff, a CodeLens on the plan's rows, and each active task's session as a terminal tab, so you never handle tmux. **Igris: Set up** checks igris, Claude Code and tmux and starts a first run with one button. It needs igris 1.8.0 or newer, never offers skip-permissions mode and is not part of what 1.x freezes. [In your editor](https://drilonrecica.github.io/igris/docs/editor.html), [`editors/vscode/`](editors/vscode/).
@@ -191,7 +193,7 @@ igris reads each session's token counts and model ids from its transcript (never
 |---|---|
 | **Start** | `igris init` (`--example`, `--template NAME`) · `igris doctor` · bare `igris`: the home screen |
 | **Inspect** | `igris check` (`--strict` for CI: also hints that a task is not agent-ready, `spec`, `verify`, `deps` and `words`) · `phases` · `status [PHASE]` (`--since-last-run`: igris's Status writes and others' edits since the last run) · `history [TASK-ID \| --stats]` · `report [RUN]` (one run as markdown, for a PR, with where the time went: agent, verify, waiting on you) · `usage [RUN \| --since D]` |
-| **Run** | `igris arise [PHASE]` · `serve [PHASE]` (`--http ADDR:PORT`) · `serve token` · `attach` · `stop` |
+| **Run** | `igris arise [PHASE]` · `serve [PHASE]` (`--http ADDR:PORT`) · `serve token` · `attach` · `hub [PATH...]` (`--all`, `--http ADDR:PORT`) · `hub token` · `stop` |
 | **Signal** | `igris done ID` (`--note`) · `skip ID --reason …` · `reset ID` (`--force`) |
 | **Plan with AI** | `igris draft goal\|spec\|import\|extend` · `adapt` |
 | **Maintain** | `igris notify test` · `config migrate` · `update` · `completion bash\|zsh\|fish` · `help` · `version` |

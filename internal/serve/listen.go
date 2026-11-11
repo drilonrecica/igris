@@ -214,7 +214,13 @@ func validFallback(root, p string) bool {
 // Dial connects to the live run of the project at root. With no run
 // listening it returns ErrNotServed.
 func Dial(ctx context.Context, root string) (net.Conn, error) {
-	path := socketPath(root)
+	return DialSocket(ctx, socketPath(root))
+}
+
+// DialSocket connects to the run's socket at path, as a run registry entry
+// names it (state.RunEntry); the error wraps ErrNotServed when nothing
+// answers there.
+func DialSocket(ctx context.Context, path string) (net.Conn, error) {
 	var d net.Dialer
 	c, err := d.DialContext(ctx, "unix", path)
 	if err != nil {

@@ -12,7 +12,7 @@ _igris() {
         esac
     done
     if [[ -z $cmd ]]; then
-        COMPREPLY=($(compgen -W "init doctor check phases status history report usage arise serve attach stop done skip reset notify config adapt draft update completion help version" -- "$cur"))
+        COMPREPLY=($(compgen -W "init doctor check phases status history report usage arise serve hub attach stop done skip reset notify config adapt draft update completion help version" -- "$cur"))
         return
     fi
     case "$cmd:$prev" in
@@ -35,6 +35,9 @@ _igris() {
         serve:--parallel) return ;;
         serve:--through) COMPREPLY=($(compgen -W "$(igris __complete phases 2>/dev/null)" -- "$cur")) ; return ;;
         serve:--until) COMPREPLY=($(compgen -W "$(igris __complete tasks 2>/dev/null)" -- "$cur")) ; return ;;
+        hub:--http) return ;;
+        hub:--tls-cert) COMPREPLY=($(compgen -f -- "$cur")) ; return ;;
+        hub:--tls-key) COMPREPLY=($(compgen -f -- "$cur")) ; return ;;
         done:--note) return ;;
         skip:--reason) return ;;
         notify:--event) COMPREPLY=($(compgen -W "needs_input session_lost task_overdue rank_mismatch verify_failed_limit task_done phase_done phase_stuck run_error usage_limit budget_exceeded" -- "$cur")) ; return ;;
@@ -56,6 +59,7 @@ _igris() {
             usage) COMPREPLY=($(compgen -W "--json --since" -- "$cur")) ;;
             arise) COMPREPLY=($(compgen -W "--dry-run --force-unlock --from --mode --no-tui --only --parallel --prompts --through --until --worktree" -- "$cur")) ;;
             serve) COMPREPLY=($(compgen -W "--force-unlock --from --http --listen-public --mode --only --parallel --rotate --through --until --worktree" -- "$cur")) ;;
+            hub) COMPREPLY=($(compgen -W "--all --http --listen-public --rotate --tls-cert --tls-key" -- "$cur")) ;;
             done) COMPREPLY=($(compgen -W "--note" -- "$cur")) ;;
             skip) COMPREPLY=($(compgen -W "--reason" -- "$cur")) ;;
             reset) COMPREPLY=($(compgen -W "--force" -- "$cur")) ;;

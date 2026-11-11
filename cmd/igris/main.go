@@ -73,6 +73,8 @@ Run
   serve          run headless, for attach and the web UI        [PHASE]  --http ADDR:PORT
   serve token    print the web UI's pairing URL                 --rotate
   attach         open this project's live run
+  hub            live runs of several projects on one web page  [PATH...]  --all  --http ADDR:PORT
+  hub token      print the hub's pairing URL                    --rotate
   stop           stop the live run (sessions stay open)
 
 Signal (from a session)
@@ -124,6 +126,13 @@ const synopses = `
   serve token [--rotate]                print the pairing URL of the HTTP listener (creating the token);
                                         --rotate replaces the token, unpairing every device
   attach                                open the run view of this project's live run
+  hub [PATH...] [--all] --http ADDR:PORT
+      [--listen-public] [--tls-cert FILE --tls-key FILE]
+                                        live runs of several projects behind one web listener and one pairing:
+                                        a checklist on a terminal, --all every run and the runs started later,
+                                        PATH the runs of those projects; Ctrl-C ends the hub, never a run
+  hub token [--rotate]                  print the hub's pairing URL (creating its token);
+                                        --rotate replaces the token, unpairing every device
   stop                                  stop this project's live run (sessions stay open)
   done ID [--note TEXT]                 signal that a task is finished
   skip ID --reason TEXT                 signal that a task is skipped
@@ -199,6 +208,7 @@ func commands() []command {
 			}
 		}, exec: execArise},
 		{name: "serve", setup: serveFlags, exec: execServe},
+		{name: "hub", setup: hubFlags, exec: execHub},
 		{name: "attach", setup: func(fs *flag.FlagSet) func([]string) error { return maxArgs(fs, 0) }, exec: execAttach},
 		{name: "stop", setup: func(fs *flag.FlagSet) func([]string) error { return maxArgs(fs, 0) }, exec: execStop},
 		{name: "done", setup: func(fs *flag.FlagSet) func([]string) error {
@@ -411,6 +421,7 @@ var flagArgs = map[string]string{
 	"plan": "PATH", "template": "NAME", "event": "NAME", "note": "TEXT", "reason": "TEXT",
 	"mode": "MODE", "through": "PHASE", "only": "ID[,ID...]", "from": "ID", "until": "ID",
 	"n": "N", "parallel": "N", "since": "D", "model": "MODEL", "format": "FORMAT", "http": "ADDR:PORT",
+	"tls-cert": "FILE", "tls-key": "FILE",
 }
 
 // printCommandHelp is `igris NAME -h`: the command's synopsis, then its

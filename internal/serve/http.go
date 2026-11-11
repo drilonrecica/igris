@@ -97,8 +97,17 @@ type RemoteOptions struct {
 // remote is the HTTP listener's handler: auth, CSRF, the rate limit and
 // the headers in front of protocol 1 over HTTP.
 type remote struct {
-	srv     *Server
-	opts    RemoteOptions
+	// srv is the run protocol 1 is served for; nil for a Guard, which
+	// hands every request past the checks to opts.UI.
+	srv  *Server
+	opts RemoteOptions
+	// cookieName is the cookie the browser is paired with; legacy says
+	// the 1.10 cookie is accepted too (a project's listener, not a Guard).
+	cookieName string
+	legacy     bool
+	// pairCmd is the command that prints the pairing URL, named when a
+	// request isn't paired.
+	pairCmd string
 	limit   *limiter
 	streams atomic.Int32
 	tails   atomic.Int32
@@ -112,14 +121,49 @@ func (s *Server) Remote(opts RemoteOptions) http.Handler {
 	if opts.Ping <= 0 {
 		opts.Ping = pingInterval
 	}
-	return &remote{srv: s, opts: opts, limit: newLimiter(opts.Now)}
+	return &remote{srv: s, opts: opts, cookieName: CookieFor(opts.Root), legacy: true,
+		pairCmd: "igris serve token", limit: newLimiter(opts.Now)}
 }
 
-// ServeRemote serves h on l until the server closes; then it returns nil.
-// Shutdown ends its event streams with the socket's clients, Close closes
-// its connections.
-func (s *Server) ServeRemote(l net.Listener, h http.Handler) error {
-	hs := &http.Server{
+// GuardOptions configures Guard.
+type GuardOptions struct {
+	// Token returns the owner token; called on every request, an error
+	// authenticates nobody.
+	Token func() (string, error)
+	// Cookie is the name of the cookie a browser is paired with.
+	Cookie string
+	// TLS says the listener serves TLS: the cookie is Secure and HSTS is
+	// sent.
+	TLS bool
+	// Pair is the command that prints the pairing URL, named to a device
+	// that isn't paired, e.g. "igris hub token".
+	Pair string
+	// Next serves every request that passed the checks; CSRFToken gives it
+	// the token its forms carry. Nil answers them with a short text.
+	Next http.Handler
+	// Now is the rate limit's clock; nil is time.Now.
+	Now func() time.Time
+}
+
+// Guard returns the HTTP listener's checks without a run behind them, for
+// a listener that serves several (igris hub, SPEC §14): the headers, the
+// pairing at /pair with its own cookie, authentication by that cookie or a
+// bearer token, the CSRF token of a cookie's POST, the same-origin rule and
+// the rate limit of failed authentications, as a project's listener has
+// them. There is no protocol 1 at /api/v1/, no ntfy answer and no legacy
+// cookie: everything past the checks goes to Next.
+func Guard(o GuardOptions) http.Handler {
+	if o.Now == nil {
+		o.Now = time.Now
+	}
+	return &remote{opts: RemoteOptions{Token: o.Token, TLS: o.TLS, UI: o.Next, Now: o.Now, Ping: pingInterval},
+		cookieName: o.Cookie, pairCmd: o.Pair, limit: newLimiter(o.Now)}
+}
+
+// HTTPServer is the http.Server an HTTP listener serves h with: bounded
+// headers, the read and idle timeouts, no log of TLS handshake noise.
+func HTTPServer(h http.Handler) *http.Server {
+	return &http.Server{
 		Handler:           h,
 		ReadHeaderTimeout: headerTimeout,
 		IdleTimeout:       idleTimeout,
@@ -128,6 +172,13 @@ func (s *Server) ServeRemote(l net.Listener, h http.Handler) error {
 		// the handler.
 		ErrorLog: log.New(io.Discard, "", 0),
 	}
+}
+
+// ServeRemote serves h on l until the server closes; then it returns nil.
+// Shutdown ends its event streams with the socket's clients, Close closes
+// its connections.
+func (s *Server) ServeRemote(l net.Listener, h http.Handler) error {
+	hs := HTTPServer(h)
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
@@ -178,7 +229,7 @@ func (h *remote) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Every body is bounded, whoever reads it: a form the UI parses as
 	// much as a command (SPEC §14).
 	r.Body = http.MaxBytesReader(w, r.Body, MaxLine)
-	if strings.HasPrefix(r.URL.Path, PathAction) {
+	if h.srv != nil && strings.HasPrefix(r.URL.Path, PathAction) {
 		// Its token is its authority: no cookie, so no other site can
 		// borrow one, and ntfy's web app sends its own Origin.
 		h.action(w, r)
@@ -199,7 +250,7 @@ func (h *remote) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	token, viaCookie, ok := h.authenticate(w, r, key)
 	if !ok {
-		h.fail(w, r, http.StatusUnauthorized, "not paired: run `igris serve token` on the machine and open its URL on this device")
+		h.fail(w, r, http.StatusUnauthorized, "not paired: run `"+h.pairCmd+"` on the machine and open its URL on this device")
 		return
 	}
 	csrf := csrfFor(token)
@@ -207,29 +258,30 @@ func (h *remote) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, r, http.StatusForbidden, "the CSRF token is missing or wrong; reload the page")
 		return
 	}
-	switch r.URL.Path {
-	case PathEvents:
-		if !method(w, r, http.MethodGet) {
-			return
-		}
-		h.events(w, r)
-	case PathCommand:
-		if !method(w, r, http.MethodPost) {
-			return
-		}
-		h.command(w, r)
-	default:
-		if h.opts.UI == nil {
-			if r.URL.Path != "/" {
-				h.fail(w, r, http.StatusNotFound, "not found")
-				return
+	if h.srv != nil {
+		switch r.URL.Path {
+		case PathEvents:
+			if method(w, r, http.MethodGet) {
+				h.events(w, r)
 			}
-			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-			_, _ = io.WriteString(w, "igris: this device is paired.\n")
+			return
+		case PathCommand:
+			if method(w, r, http.MethodPost) {
+				h.command(w, r)
+			}
 			return
 		}
-		h.opts.UI.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), csrfKey{}, csrf)))
 	}
+	if h.opts.UI == nil {
+		if r.URL.Path != "/" {
+			h.fail(w, r, http.StatusNotFound, "not found")
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		_, _ = io.WriteString(w, "igris: this device is paired.\n")
+		return
+	}
+	h.opts.UI.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), csrfKey{}, csrf)))
 }
 
 // sameOrigin refuses a request another site made: an Origin that isn't
@@ -253,7 +305,7 @@ func (h *remote) sameOrigin(r *http.Request) bool {
 // owner token. A wrong one counts as a failure of its address; none at
 // all doesn't (an unpaired browser asking for its pages guesses nothing).
 func (h *remote) authenticate(w http.ResponseWriter, r *http.Request, key string) (token string, viaCookie, ok bool) {
-	given, viaCookie, legacy := credential(r, h.cookie())
+	given, viaCookie, legacy := credential(r, h.cookieName, h.legacy)
 	if given == "" {
 		return "", false, false
 	}
@@ -279,11 +331,9 @@ func CookieFor(root string) string {
 	return LegacyCookieName + "_" + hex.EncodeToString(sum[:6])
 }
 
-func (h *remote) cookie() string { return CookieFor(h.opts.Root) }
-
 // credential is the request's bearer token, else its cookie: name's, else
-// (through 1.11.x) the legacy one, which legacy reports.
-func credential(r *http.Request, name string) (given string, viaCookie, legacy bool) {
+// (through 1.11.x, when withLegacy) the legacy one, which legacy reports.
+func credential(r *http.Request, name string, withLegacy bool) (given string, viaCookie, legacy bool) {
 	if a := r.Header.Get("Authorization"); a != "" {
 		scheme, tok, _ := strings.Cut(a, " ")
 		if !strings.EqualFold(scheme, "Bearer") {
@@ -293,6 +343,9 @@ func credential(r *http.Request, name string) (given string, viaCookie, legacy b
 	}
 	if c, err := r.Cookie(name); err == nil {
 		return c.Value, true, false
+	}
+	if !withLegacy {
+		return "", false, false
 	}
 	if c, err := r.Cookie(LegacyCookieName); err == nil {
 		return c.Value, true, true
@@ -311,7 +364,7 @@ func credential(r *http.Request, name string) (given string, viaCookie, legacy b
 // change needs the CSRF token besides.
 func (h *remote) setCookie(w http.ResponseWriter, token string) {
 	http.SetCookie(w, &http.Cookie{ //nolint:gosec // HttpOnly and SameSite=Lax always, Secure on TLS
-		Name: h.cookie(), Value: token, Path: "/",
+		Name: h.cookieName, Value: token, Path: "/",
 		MaxAge: int(cookieMaxAge / time.Second), HttpOnly: true, Secure: h.opts.TLS, SameSite: http.SameSiteLaxMode,
 	})
 }
@@ -319,7 +372,7 @@ func (h *remote) setCookie(w http.ResponseWriter, token string) {
 // stillValid reports whether the request's credential is still the owner
 // token, for a stream that outlives a rotation.
 func (h *remote) stillValid(r *http.Request) bool {
-	given, _, _ := credential(r, h.cookie())
+	given, _, _ := credential(r, h.cookieName, h.legacy)
 	token, err := h.opts.Token()
 	return err == nil && given != "" && equal(given, token)
 }
@@ -354,7 +407,7 @@ func (h *remote) pair(w http.ResponseWriter, r *http.Request) {
 		if given != "" {
 			h.limit.fail(key)
 		}
-		h.fail(w, r, http.StatusUnauthorized, "this pairing URL is not valid (any more): run `igris serve token` on the machine for the current one")
+		h.fail(w, r, http.StatusUnauthorized, "this pairing URL is not valid (any more): run `"+h.pairCmd+"` on the machine for the current one")
 		return
 	}
 	h.setCookie(w, token)
