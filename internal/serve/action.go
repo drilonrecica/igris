@@ -124,7 +124,8 @@ type actionToken struct {
 // Buttons returns the buttons of an ntfy message, for
 // engine.Options.Actions: base is the HTTP listener's URL as the phone
 // reaches it. A message about one task gets Open to its question on the
-// web UI (a grouped one, or one of the run's, to the page); a message
+// web UI (a grouped one, or one of the run's, to the page), through the
+// hub's page of this run while an `igris hub` has it (Options.HubOpen); a message
 // that announces a question still pending here also gets its answers
 // first, one token per button.
 func (s *Server) Buttons(base string) notify.Actions {
@@ -161,6 +162,11 @@ func (s *Server) Buttons(base string) notify.Actions {
 		}
 		if opens[m.Event] || m.Question != "" {
 			open := base + "/"
+			if s.opts.HubOpen != nil {
+				if hub := strings.TrimRight(s.opts.HubOpen(), "/"); hub != "" {
+					open = hub + "/"
+				}
+			}
 			if m.TaskID != "" && len(m.Tasks) == 0 {
 				open += "?task=" + url.QueryEscape(m.TaskID)
 			}

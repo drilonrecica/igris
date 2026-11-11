@@ -106,3 +106,50 @@ func TestNtfyActionsGolden(t *testing.T) {
 		})
 	}
 }
+
+// With an `igris hub` that has the project (Options.HubOpen), Open goes to
+// the run's page in the hub; the answer buttons still go to the run's own
+// listener, and without a hub nothing changes (SPEC §10).
+func TestNtfyOpenThroughHubGolden(t *testing.T) {
+	tests := []struct {
+		name string
+		hub  string
+	}{
+		{"open_hub", "https://hub.example:7777/p/demo-0a1b2c"},
+		{"open_hub_slash", "https://hub.example:7777/p/demo-0a1b2c/"},
+		{"open_no_hub", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := newWebWith(t, func(o *Options) { o.HubOpen = func() string { return tt.hub } }, nil)
+			w.srv.Publish(engine.Event{Kind: engine.TaskStarted, Task: "M1-03", Title: "Title", Model: "opus"})
+			w.srv.Publish(engine.Event{Kind: engine.Asked, Task: "M1-03", Question: engine.QuestionCommit, Detail: "?"})
+			var header string
+			ntfy := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) { header = r.Header.Get("Actions") }))
+			defer ntfy.Close()
+			n := &notify.Ntfy{Server: ntfy.URL, Topic: "t", Actions: w.srv.Buttons(w.ts.URL + "/")}
+			msg := notify.Message{Event: notify.NeedsInput, Project: "demo", TaskID: "M1-03", Title: "Title", What: "x", Question: string(engine.QuestionCommit)}
+			if err := n.Send(context.Background(), msg); err != nil {
+				t.Fatal(err)
+			}
+			got := listenerRE.ReplaceAllString(actionTokenRE.ReplaceAllString(header, "/api/v1/action/<token>"), "http://<listener>")
+			got = strings.ReplaceAll(got, "},{", "},\n{") + "\n"
+			path := filepath.Join("testdata", "ntfy", tt.name+".golden")
+			if *update {
+				if err := os.WriteFile(path, []byte(got), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			want, err := os.ReadFile(path) //nolint:gosec // the test's own golden file
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != string(want) {
+				t.Errorf("Actions header differs from %s (go test -update rewrites it):\n%s", path, got)
+			}
+			if tt.hub == "" && !strings.Contains(got, "http://<listener>/?task=M1-03") {
+				t.Errorf("without a hub Open must stay on the run's listener:\n%s", got)
+			}
+		})
+	}
+}

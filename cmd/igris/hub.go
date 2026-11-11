@@ -172,6 +172,26 @@ func runHub(ctx context.Context, c hubConfig, stdout, stderr io.Writer) int {
 		o.printf("the hub's token is new (%s): every device pairs once", path)
 	}
 
+	// hub.json lets a serve send its ntfy Open through this hub (SPEC §13);
+	// a hub on every address has no URL a phone could use, so it writes none.
+	if ap, err := netip.ParseAddrPort(l.Addr().String()); err == nil && ap.Addr().IsUnspecified() {
+		o.printf("ntfy's Open buttons keep going to each run's own listener: the hub takes every address, so it has no URL to give them")
+	} else {
+		entry := state.HubEntry{URL: l.URL() + "/", PID: os.Getpid()}
+		if !all {
+			entry.Roots = roots
+		}
+		if unregister, err := state.RegisterHub(state.SystemRegistryEnv(), entry); err != nil {
+			o.warnf("ntfy's Open buttons keep going to each run's own listener: %v", err)
+		} else {
+			defer func() {
+				if err := unregister(); err != nil {
+					o.warnf("%v", err)
+				}
+			}()
+		}
+	}
+
 	h := hub.New(hub.Options{All: all, Roots: roots, Name: "igris " + igrisVersion(), Live: hubLive, Out: stdout})
 	hs := serve.HTTPServer(h.Handler(hub.HandlerOptions{TLS: l.TLS, Token: func() (string, error) { return state.ReadHubToken(path) }}))
 	served := make(chan error, 1)

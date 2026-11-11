@@ -253,3 +253,26 @@ func TestRunHubPublic(t *testing.T) {
 		}
 	}
 }
+
+func TestHubOpenBase(t *testing.T) {
+	dir := t.TempDir()
+	e := state.RegistryEnv{RuntimeDir: dir, TempDir: dir}
+	root := "/work/Demo App"
+	if got := hubOpenBase(e, root, "Demo App"); got != "" {
+		t.Errorf("without a hub: %q", got)
+	}
+	remove, err := state.RegisterHub(e, state.HubEntry{URL: "http://127.0.0.1:7777/", Roots: []string{root}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := hubOpenBase(e, root, "Demo App"), "http://127.0.0.1:7777/p/"+hub.RunID("Demo App", root); got != want {
+		t.Errorf("hub has the project: %q, want %q", got, want)
+	}
+	if got := hubOpenBase(e, "/work/other", "other"); got != "" {
+		t.Errorf("project not in the hub: %q", got)
+	}
+	_ = remove()
+	if got := hubOpenBase(e, root, "Demo App"); got != "" {
+		t.Errorf("after the hub ended: %q", got)
+	}
+}

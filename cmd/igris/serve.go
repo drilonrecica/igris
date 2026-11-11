@@ -17,6 +17,7 @@ import (
 	"github.com/drilonrecica/igris/internal/backend/tmux"
 	"github.com/drilonrecica/igris/internal/config"
 	"github.com/drilonrecica/igris/internal/engine"
+	"github.com/drilonrecica/igris/internal/hub"
 	"github.com/drilonrecica/igris/internal/look"
 	"github.com/drilonrecica/igris/internal/notify"
 	"github.com/drilonrecica/igris/internal/plan"
@@ -202,7 +203,8 @@ func execServe(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 		Hello:   onHello,
 		Version: igrisVersion(), Project: proj.Name(), Backend: l.Backend.Name(), Host: where, Mode: f.mode,
 		Sender: host, Tail: host.tail,
-		Plan: func() (*plan.Plan, error) { return plan.Load(proj.PlanPath, proj.Cfg.PlanOptions(proj.Root)) },
+		HubOpen: func() string { return hubOpenBase(state.SystemRegistryEnv(), l.State.Root(), proj.Name()) },
+		Plan:    func() (*plan.Plan, error) { return plan.Load(proj.PlanPath, proj.Cfg.PlanOptions(proj.Root)) },
 		Logf: func(format string, a ...any) {
 			fmt.Fprintf(out, "%s %s\n", look.ClockSeconds(time.Now()), fmt.Sprintf(format, a...))
 		},
@@ -502,6 +504,17 @@ func listenWeb(d *state.Dir, cfg config.Serve, flagAddr string, public bool, out
 		fmt.Fprintln(out, "no device is paired yet; `igris serve token` pairs one")
 	}
 	return l, nil
+}
+
+// hubOpenBase is the base URL of the run's pages in a running `igris hub`
+// that has the project (`<hub>/p/<id>`), or "" without one (SPEC §10, §13):
+// ntfy's Open goes there rather than to the run's own listener.
+func hubOpenBase(e state.RegistryEnv, root, project string) string {
+	h, ok := state.LiveHub(e)
+	if !ok || !h.Has(root) {
+		return ""
+	}
+	return strings.TrimRight(h.URL, "/") + "/p/" + hub.RunID(project, root)
 }
 
 // serveButtons is what makes ntfy's answer buttons for a run served on

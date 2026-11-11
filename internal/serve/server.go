@@ -58,6 +58,12 @@ type Options struct {
 	QueueBytes int64
 	QueueLen   int
 
+	// HubOpen returns the base URL of this run's pages in a running
+	// `igris hub` (`<hub>/p/<id>`), or "" when there is no such hub; ntfy's
+	// Open button goes there instead of to the run's own listener (SPEC
+	// §10). Called for every message that gets Open; nil is no hub.
+	HubOpen func() string
+
 	// Now is the clock ntfy's answer buttons expire by (Buttons); nil is
 	// time.Now.
 	Now func() time.Time
