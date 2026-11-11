@@ -2,6 +2,7 @@ package serve
 
 import (
 	"bytes"
+	"context"
 	"embed"
 	"fmt"
 	"html/template"
@@ -57,26 +58,54 @@ const recentLen = 5
 //go:embed ui/page.html ui/app.js ui/app.css ui/icon.svg ui/fonts/*.woff2
 var uiFiles embed.FS
 
-var uiTemplates = template.Must(template.New("ui").Funcs(template.FuncMap{
-	"mark":      statusMark,
-	"stateText": stateText,
-	"slug":      slug,
-	"offered":   func(m string) bool { return slices.Contains(remoteModes, m) },
-	"tokens":    tokensText,
-	"spans":     codeSpans,
-	"join":      strings.Join,
-}).ParseFS(uiFiles, "ui/page.html"))
+// parseUI parses the page templates for the web UI at base: the templates'
+// base function writes it before every path of theirs ("" for serve's own
+// pages at /).
+func parseUI(base string) *template.Template {
+	return template.Must(template.New("ui").Funcs(template.FuncMap{
+		"base":      func() string { return base },
+		"mark":      statusMark,
+		"stateText": stateText,
+		"slug":      slug,
+		"offered":   func(m string) bool { return slices.Contains(remoteModes, m) },
+		"tokens":    tokensText,
+		"spans":     codeSpans,
+		"join":      strings.Join,
+	}).ParseFS(uiFiles, "ui/page.html"))
+}
+
+// UISource is what the web UI reads a run through and acts on it with: the
+// in-process Server, or a run seen over its socket (SPEC §15.8).
+type UISource interface {
+	// Snapshot is the run as a client starting now would see it.
+	Snapshot() Snapshot
+	// Request answers a remote client's request, with the HTTP status of
+	// its reply; a skip-permissions mode is refused (SPEC §14).
+	Request(ctx context.Context, r Request) (Reply, int)
+	// Project is the project's name, shown in the pages' header.
+	Project() string
+}
 
 // UIOptions configures the web UI.
 type UIOptions struct {
 	// Now is the clock for how long a task has run; nil is time.Now.
 	Now func() time.Time
+	// Base is the path the pages live under, without a trailing slash: ""
+	// for serve's, which live at /. Every link, form, script and the event
+	// stream the pages use start with it; the handler is given requests
+	// with it already taken off.
+	Base string
+	// Logf reports a page that could not be rendered; nil drops it.
+	Logf func(format string, args ...any)
 }
 
-// ui serves the web UI of a server's run.
+// ui serves the web UI of a run.
 type ui struct {
-	srv    *Server
+	src    UISource
 	now    func() time.Time
+	base   string
+	logf   func(format string, args ...any)
+	pages  *template.Template
 	static http.Handler
 }
 
@@ -85,16 +114,34 @@ type ui struct {
 // token of a cookie's POST and put the token for the forms in the
 // request's context (CSRFToken).
 func (s *Server) UI(opts UIOptions) http.Handler {
+	if opts.Logf == nil {
+		opts.Logf = s.opts.Logf
+	}
+	return NewUI(s, opts)
+}
+
+// NewUI returns the web UI's handler over src, with its pages under
+// opts.Base. The caller authenticates every request, checks the CSRF token
+// of a cookie's POST, puts the token in the request's context (CSRFToken)
+// and strips opts.Base from the path.
+func NewUI(src UISource, opts UIOptions) http.Handler {
 	if opts.Now == nil {
 		opts.Now = time.Now
+	}
+	if opts.Logf == nil {
+		opts.Logf = func(string, ...any) {}
 	}
 	sub, err := fs.Sub(uiFiles, "ui")
 	if err != nil {
 		panic(err) // the embedded directory is there by construction
 	}
 	_ = mime.AddExtensionType(".woff2", "font/woff2") // not in every system's table
-	return &ui{srv: s, now: opts.Now, static: http.StripPrefix(pathStatic, http.FileServerFS(sub))}
+	return &ui{src: src, now: opts.Now, base: opts.Base, logf: opts.Logf, pages: parseUI(opts.Base),
+		static: http.StripPrefix(pathStatic, http.FileServerFS(sub))}
 }
+
+// Project is the project's name, as the clients' header shows it.
+func (s *Server) Project() string { return s.opts.Project }
 
 func (u *ui) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch p := r.URL.Path; p {
@@ -136,8 +183,8 @@ func (u *ui) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // clean 500 rather than half a page.
 func (u *ui) render(w http.ResponseWriter, status int, name string, data any) {
 	var b bytes.Buffer
-	if err := uiTemplates.ExecuteTemplate(&b, name, data); err != nil {
-		u.srv.opts.Logf("web UI: page %s not rendered: %v", name, err)
+	if err := u.pages.ExecuteTemplate(&b, name, data); err != nil {
+		u.logf("web UI: page %s not rendered: %v", name, err)
 		http.Error(w, "igris: the page could not be rendered", http.StatusInternalServerError)
 		return
 	}
@@ -148,7 +195,7 @@ func (u *ui) render(w http.ResponseWriter, status int, name string, data any) {
 
 // message shows a page with a title, a text and a way back.
 func (u *ui) message(w http.ResponseWriter, status int, title, text string) {
-	u.render(w, status, "message", messageView{Project: u.srv.opts.Project, Title: title, Text: text})
+	u.render(w, status, "message", messageView{Project: u.src.Project(), Title: title, Text: text})
 }
 
 type messageView struct{ Project, Title, Text string }
@@ -242,15 +289,15 @@ func (u *ui) act(w http.ResponseWriter, r *http.Request) {
 		c, ok = undoConfirm, true
 	}
 	if ok && f.Get(confirmedField) != "1" {
-		u.render(w, http.StatusOK, "confirm", confirmView{Project: u.srv.opts.Project, Confirm: c, Form: f, CSRF: CSRFToken(r.Context())})
+		u.render(w, http.StatusOK, "confirm", confirmView{Project: u.src.Project(), Confirm: c, Form: f, CSRF: CSRFToken(r.Context())})
 		return
 	}
-	rep, status := u.srv.remoteRequest(r.Context(), req)
+	rep, status := u.src.Request(r.Context(), req)
 	if rep.Type == TypeError {
 		u.message(w, status, "Not sent", rep.Error)
 		return
 	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, u.base+"/", http.StatusSeeOther)
 }
 
 // formRequest reads a form's command; the form fields are the request's.
@@ -493,7 +540,7 @@ var remoteModes = slices.DeleteFunc(slices.Clone(engine.Modes), engine.SkipsPerm
 
 // view arranges the snapshot for the page.
 func (u *ui) view(r *http.Request) pageView {
-	snap := u.srv.Snapshot()
+	snap := u.src.Snapshot()
 	now := u.now()
 	csrf := CSRFToken(r.Context())
 	v := pageView{CSRF: csrf, Snap: snap, Budgets: budgetViews(snap.Budgets)}

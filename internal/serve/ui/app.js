@@ -27,7 +27,10 @@
   var sheetOpen = true; // the sheet is open, else a peek strip
   var sheetKey = ""; // the entry the sheet shows, kept across refreshes
   var seen = {}; // the entries the sheet has shown: a new one opens it
-  var liveURL = live.dataset.live || "/live"; // the run's live part, or the plan's
+  // base: the path the pages live under ("" for serve's, at /), before
+  // every path the script asks for.
+  var base = live.dataset.base || "";
+  var liveURL = live.dataset.live || base + "/live"; // the run's live part, or the plan's
 
   // collapse disables the text field of every form that hasn't been
   // opened: a disabled control is left out of the browser's own
@@ -122,7 +125,7 @@
   function post(msg) {
     msg.v = 1;
     msg.id = id();
-    return fetch("/api/v1/command", {
+    return fetch(base + "/api/v1/command", {
       method: "POST",
       credentials: "same-origin",
       headers: { "Content-Type": "application/json", "X-Igris-CSRF": csrf },
@@ -332,7 +335,7 @@
   }
 
   function follow() {
-    stream = new EventSource("/api/v1/events");
+    stream = new EventSource(base + "/api/v1/events");
     stream.onopen = function () { conn.hidden = true; root.classList.remove("down"); };
     stream.onerror = function () { conn.hidden = false; root.classList.add("down"); };
     stream.onmessage = function (e) {

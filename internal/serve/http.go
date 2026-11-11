@@ -462,14 +462,14 @@ func (h *remote) command(w http.ResponseWriter, r *http.Request) {
 		}
 		defer h.tails.Add(-1)
 	}
-	rep, status := h.srv.remoteRequest(r.Context(), req)
+	rep, status := h.srv.Request(r.Context(), req)
 	writeReply(w, status, rep)
 }
 
-// remoteRequest answers a remote client's request as the socket would,
+// Request answers a remote client's request as the socket would,
 // except that there is no hello and a skip-permissions mode is refused
 // whatever it carries (SPEC §14).
-func (s *Server) remoteRequest(ctx context.Context, r Request) (Reply, int) {
+func (s *Server) Request(ctx context.Context, r Request) (Reply, int) {
 	if err := checkID(r.ID); err != nil {
 		return Reply{Type: TypeError, Error: err.Error()}, http.StatusBadRequest
 	}
