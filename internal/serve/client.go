@@ -479,8 +479,12 @@ func requestOf(cmd engine.Command) (Request, bool) {
 	if !ok {
 		return Request{}, false
 	}
+	text := cmd.Text
+	if cmd.Kind == engine.CmdLimitStart {
+		text = LimitStart // the wire names the one action; the TUI's command has no text
+	}
 	return Request{
-		Type: t, Text: cmd.Text, Continue: cmd.Continue, Yes: cmd.Yes, Task: cmd.Task,
+		Type: t, Text: text, Continue: cmd.Continue, Yes: cmd.Yes, Task: cmd.Task,
 		Question: string(cmd.Question), Plan: cmd.Plan,
 	}, true
 }

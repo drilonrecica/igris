@@ -233,6 +233,24 @@ func TestClientSend(t *testing.T) {
 	}
 }
 
+// Start anyway as the TUI sends it, without text, reaches the run: the
+// wire's limit command takes the text start (V112-G: serve refused it with
+// "limit takes text start").
+func TestClientSendsStartAnyway(t *testing.T) {
+	snd := make(chanSender, 1)
+	s := New(Options{Version: "1.12.0", Sender: snd})
+	c, _, _ := attachTo(t, s)
+	c.Send(engine.Command{Kind: engine.CmdLimitStart})
+	select {
+	case cmd := <-snd:
+		if cmd.Kind != engine.CmdLimitStart {
+			t.Errorf("the run got %+v", cmd)
+		}
+	case <-time.After(patience):
+		t.Fatal("the run got no command")
+	}
+}
+
 // A command the run refuses is told as a warning.
 func TestClientRefusedCommand(t *testing.T) {
 	s := New(Options{Version: "1.4.0"})

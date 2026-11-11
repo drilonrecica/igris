@@ -15,6 +15,10 @@ igris 1.12 makes the run view easier to read at one look and retires the old web
 - **The run view on a small terminal spends its rows where they are read.** TASKS is only as tall as its rows; the card that needs you comes first and keeps its whole body while other active tasks shrink to a line each; the bar is one row of what applies now (`[o Open session] [p Pause] [x Stop…] [? More]`, every other key still works and `?` lists it); and a quiet log lends its rows to the session's last lines. One set of rules at every size, no breakpoint.
 - **The old cookie `igris_token` is no longer accepted.** 1.11 accepted it and moved it to `igris_token_<h>`; 1.12 doesn't, so a phone or browser not opened during 1.11 pairs again with `igris serve token`. A phone opened under 1.11 is unaffected.
 
+### Fixed
+
+- **Start anyway works from the terminal UI.** During a usage hold or outside working hours, `a` (**Start anyway**) in the run view was refused with `the run refused a command: limit takes text start`, because the TUI reaches the run through `igris serve` and sent the command without the text the socket expects. Since 1.8; the web UI and the editor extension were unaffected.
+
 ## [1.11.0] - 2026-11-11
 
 igris 1.11 puts several projects behind one page and helps you write plans agents can run. `igris hub` follows the live runs you choose (or all of them, and the ones you start later) with one listener, one pairing and one QR code, and the web UI has a wide layout for a laptop. There is no 1.10 release: what was built as 1.10 ships here too, hints for agent-ready tasks, `history --stats`, the parallel marker, the dry run's prompts, `status --since-last-run`, working hours, two accessibility pieces and a container recipe. It only adds, apart from a cookie that is renamed and moves over by itself: plans, `igris.toml`, `--json`, the run log, the webhook payload and protocol 1 are unchanged apart from additive fields ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). `state.json` stays version 4.
