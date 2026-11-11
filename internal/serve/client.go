@@ -40,6 +40,13 @@ type Sink interface {
 	End(res engine.Result, err error)
 }
 
+// wireSink is a Sink that takes each event of the run in its wire form
+// too, as the serve's own snapshot folds it (Mirror). Push then gets only
+// what the client itself tells: a command refused or not sent.
+type wireSink interface {
+	PushWire(raw engine.Event, ev Event)
+}
+
 // ClientOptions configures a Client.
 type ClientOptions struct {
 	// Name is this igris in the hello, e.g. "igris 1.4.0".
@@ -222,13 +229,16 @@ func (c *Client) loop(conn net.Conn, sc *bufio.Scanner) {
 	}
 }
 
+// typeLost is the reply lost hands a waiting request: never on the wire.
+const typeLost = "lost"
+
 // lost forgets the connection and fails the requests waiting on it.
 func (c *Client) lost() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.conn = nil
 	for id, ch := range c.waiting {
-		ch <- Reply{Type: TypeError, ID: id, Error: "the connection to the run was lost"}
+		ch <- Reply{Type: typeLost, ID: id, Error: "the connection to the run was lost"}
 		delete(c.waiting, id)
 	}
 }
@@ -267,7 +277,11 @@ func (c *Client) read(sc *bufio.Scanner) error {
 			if !ok {
 				continue // a type of a later igris: clients ignore what they don't know
 			}
-			c.opts.Sink.Push(e)
+			if w, ok := c.opts.Sink.(wireSink); ok {
+				w.PushWire(e, ev)
+			} else {
+				c.opts.Sink.Push(e)
+			}
 			switch e.Kind {
 			case engine.RunFailed:
 				failure = e.Detail
@@ -410,9 +424,24 @@ func (c *Client) Tail(ctx context.Context, n int) ([]string, error) { return c.T
 // the current task's. A serve of 1.4 ignores the task and answers with the
 // current task's lines.
 func (c *Client) TailTask(ctx context.Context, id string, n int) ([]string, error) {
-	ch := make(chan Reply, 1)
-	if err := c.send(Request{Type: TypeTail, Task: id, N: min(n, maxTail)}, ch); err != nil {
+	r, err := c.Do(ctx, Request{Type: TypeTail, Task: id, N: min(n, maxTail)})
+	if err != nil {
 		return nil, err
+	}
+	if r.Type == TypeError {
+		return nil, errors.New(r.Error)
+	}
+	return r.Lines, nil
+}
+
+// Do sends r, a command or a tail request, under an id of the client's
+// and waits for its reply: ack, tail, or the run's error (its text
+// cleaned). The error says the request could not be sent or answered: the
+// connection is lost, or ctx ended.
+func (c *Client) Do(ctx context.Context, r Request) (Reply, error) {
+	ch := make(chan Reply, 1)
+	if err := c.send(r, ch); err != nil {
+		return Reply{}, err
 	}
 	select {
 	case <-ctx.Done():
@@ -423,12 +452,15 @@ func (c *Client) TailTask(ctx context.Context, id string, n int) ([]string, erro
 			}
 		}
 		c.mu.Unlock()
-		return nil, ctx.Err()
-	case r := <-ch:
-		if r.Type == TypeError {
-			return nil, errors.New(textsafe.Line(cut(r.Error, 4<<10)))
+		return Reply{}, ctx.Err()
+	case rep := <-ch:
+		switch rep.Type {
+		case typeLost:
+			return Reply{}, errors.New(rep.Error)
+		case TypeError:
+			rep.Error = textsafe.Line(cut(rep.Error, 4<<10))
 		}
-		return r.Lines, nil
+		return rep, nil
 	}
 }
 

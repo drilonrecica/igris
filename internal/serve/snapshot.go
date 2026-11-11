@@ -218,6 +218,66 @@ func newTracker(mode string) *tracker {
 	return &tracker{mode: mode, overrides: map[string]string{}, asks: map[string]*Event{}}
 }
 
+// trackerFrom is a tracker that continues s, a snapshot a client got
+// (Mirror): the events after s fold into it as into the serve's own, so
+// its snapshot is the serve's. Nothing in it is shared with s. A resolver
+// card's words are its detail as s has it.
+func trackerFrom(s Snapshot) *tracker {
+	t := newTracker(s.Mode)
+	t.run, t.phase, t.end, t.started = s.Run, s.Phase, s.End, s.Started
+	t.slice = slices.Clone(s.Slice)
+	for k, v := range s.Overrides {
+		t.overrides[k] = v
+	}
+	t.paused, t.holding, t.worktree, t.ended = s.Paused, s.Holding, s.Worktree, s.Ended
+	for _, c := range s.Active {
+		cc := c
+		if c.Slot != nil {
+			n := *c.Slot
+			cc.Slot = &n
+		}
+		if c.Limit != nil {
+			l := *c.Limit
+			cc.Limit = &l
+		}
+		if c.Tokens != nil {
+			tk := *c.Tokens
+			tk.Models = slices.Clone(tk.Models)
+			cc.Tokens = &tk
+		}
+		t.cards = append(t.cards, &cc)
+		if c.Resolver != "" {
+			if t.resolving == nil {
+				t.resolving = map[string]string{}
+			}
+			t.resolving[c.Task] = c.Detail
+		}
+	}
+	for _, q := range s.Questions {
+		e := q
+		t.asks[q.Task] = &e
+	}
+	event := func(e *Event) *Event {
+		if e == nil {
+			return nil
+		}
+		c := *e
+		return &c
+	}
+	t.reset, t.budgetAsk, t.batchAsk = event(s.Reset), event(s.BudgetQuestion), event(s.BatchQuestion)
+	if s.Quota != nil {
+		q := *s.Quota
+		t.quota = &q
+	}
+	if s.Limited != nil {
+		l := *s.Limited
+		t.limited = &l
+	}
+	t.budgets = slices.Clone(s.Budgets)
+	t.feed = slices.Clone(s.Feed[max(0, len(s.Feed)-feedLen):])
+	return t
+}
+
 // card is active task id's card, or nil.
 func (t *tracker) card(id string) *Current {
 	for _, c := range t.cards {
