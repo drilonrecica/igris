@@ -32,9 +32,11 @@ func TestParallelMarkerFitsTheNaturalWidth(t *testing.T) {
 			t.Errorf("A-3 runs with nothing: %q", l)
 		}
 	}
+	// The narrow cells leave it out: the switcher names the other active
+	// tasks (SPEC §15.2).
 	cells, _, _, _ := r.compact(80, -1)
-	if got := strings.Join(cells, "\n"); !strings.Contains(got, "A-1 Go with A-2") {
-		t.Errorf("compact cells lack the marker:\n%s", got)
+	if got := strings.Join(cells, "\n"); strings.Contains(got, "with") || !strings.Contains(got, "A-1 Go") {
+		t.Errorf("compact cells draw the marker:\n%s", got)
 	}
 	// Too narrow for the marker: the title keeps the room.
 	narrow, _, _ := r.lines(3+3+2+4+1+6, -1)

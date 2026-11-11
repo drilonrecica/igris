@@ -55,52 +55,82 @@ func TestNarrowShowsWhatMatters(t *testing.T) {
 		hs.events(engine.Event{Kind: engine.Warning, Detail: fmt.Sprintf("log %d", i)})
 	}
 	v := hs.m.View()
-	for _, want := range []string{"M0-03 Makefile", "● M0-03 Makefile", "⨯ M0-13 Static assets", "log 2", "log 3", "log 4", "[›o Open‹]", "[d Done]"} {
+	checkFits(t, v, 50, 20)
+	for _, want := range []string{"M0-03 Makefile", "● M0-03 Makefile", "⨯ M0-13 Static assets", "log 0", "log 2", "log 4", "[›o Open session‹]", "[? More]"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("view lacks %q:\n%s", want, v)
 		}
 	}
-	if strings.Contains(v, "log 1") {
-		t.Errorf("more than the last %d log lines:\n%s", narrowLog, v)
+	// TASKS is only as tall as its rows (SPEC §15.2): the LOG rule follows
+	// its last row, and the log takes the rest of the screen.
+	lines := strings.Split(v, "\n")
+	for i, l := range lines {
+		if strings.Contains(l, "– M0-14 Old idea") && (i+1 >= len(lines) || !strings.Contains(lines[i+1], "LOG")) {
+			t.Errorf("empty TASKS rows under the last task:\n%s", v)
+		}
 	}
-	if strings.Contains(v, "More…") {
-		t.Errorf("More… shown although everything fits:\n%s", v)
+	if strings.Contains(v, "More…") || strings.Contains(v, "session open") {
+		t.Errorf("More… shown, or more log lines than rows:\n%s", v)
 	}
-	hs.click(isAct(actDone))
+	hs.key("d") // not on the bar while the task works, but its key works
 	if got := hs.s.take(); len(got) != 1 || got[0].Kind != engine.CmdDone {
 		t.Errorf("sent %+v", got)
 	}
 }
 
-func TestNarrowFoldsIntoMore(t *testing.T) {
-	hs := newHarness(t, 16, 20)
+// TestOneButtonRow: the bar is one row of the actions that apply now and
+// ? More (SPEC §15.4), the whole bar where it fits on one row, the keys
+// alone where even the short row doesn't.
+func TestOneButtonRow(t *testing.T) {
+	needsYou := func(hs *harness) {
+		hs.events(started("M0-03"), opened("M0-03"), engine.Event{Kind: engine.NeedsYou, Phase: "M0", Task: "M0-03", Detail: "idle"})
+	}
+	working := func(hs *harness) { hs.events(started("M0-03"), opened("M0-03")) }
+	for _, tc := range []struct {
+		name  string
+		w, h  int
+		setup func(*harness)
+		want  string
+	}{
+		{"working", 80, 24, working, "[›o Open session‹] [p Pause] [x Stop…] [? More]"},
+		{"needs you", 80, 24, needsYou, "[›o Open session‹] [d Done] [r Retry…] [p Pause] [x Stop…] [? More]"},
+		{"needs you, keys", 50, 20, needsYou, "[›o‹] [d] [r] [p] [x] [?]"},
+		{"working, wide", 100, 24, working, "[›o Open session‹] [p Pause] [x Stop…] [? More]"},
+		{"working, room for all", 120, 30, working, "[›o Open session‹] [m Mode] [M Task mode] [p Pause] [d Done] [r Retry…] [s Skip…] [x Stop…] [?] [q Quit]"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			hs := newHarness(t, tc.w, tc.h)
+			hs.withPlan(demoPlan)
+			tc.setup(hs)
+			v := hs.m.View()
+			checkFits(t, v, tc.w, tc.h)
+			lines := strings.Split(v, "\n")
+			if got := lines[len(lines)-1]; got != tc.want {
+				t.Errorf("bar %q, want %q:\n%s", got, tc.want, v)
+			}
+			if strings.Contains(lines[len(lines)-2], "[") {
+				t.Errorf("the bar takes two rows:\n%s", v)
+			}
+		})
+	}
+	// A user task at its turn has its own actions.
+	hs := yourTurn(t, 50, 20)
+	lines := strings.Split(hs.m.View(), "\n")
+	if got, want := lines[len(lines)-1], "[›d Done…‹] [s Skip…] [p Pause] [x Stop…] [? More]"; got != want {
+		t.Errorf("your turn: bar %q, want %q", got, want)
+	}
+	// ? More lists every key; the keys not on the bar still work.
+	hs = newHarness(t, 80, 24)
 	hs.withPlan(demoPlan)
-	hs.events(started("M0-03"), opened("M0-03"))
-	v := hs.m.View()
-	if !strings.Contains(v, "[More…]") || strings.Contains(v, "[p Pause]") {
-		t.Fatalf("bar not folded:\n%s", v)
+	working(hs)
+	hs.click(isAct(actHelp))
+	if hs.m.page == nil || !strings.Contains(hs.m.View(), "Done — mark the current task done") {
+		t.Fatalf("? More shows no help:\n%s", hs.m.View())
 	}
-	hs.click(isAct(actMore))
-	if hs.m.dialog == nil || !strings.Contains(hs.m.View(), "Pause") {
-		t.Fatalf("More… shows no folded actions:\n%s", hs.m.View())
-	}
-	pause := -1
-	for i, o := range hs.m.dialog.options {
-		if o.act == actPause {
-			pause = i
-		}
-	}
-	hs.key(fmt.Sprint(pause + 1))
-	if got := hs.s.take(); len(got) != 1 || got[0].Kind != engine.CmdPause {
-		t.Errorf("sent %+v, want pause", got)
-	}
-	if hs.m.dialog != nil {
-		t.Error("More… stays open after a pick")
-	}
-	hs.click(isAct(actMore))
 	hs.key("esc")
-	if hs.m.dialog != nil || len(hs.s.take()) != 0 {
-		t.Error("esc doesn't just close More…")
+	hs.key("s")
+	if hs.m.dialog == nil {
+		t.Errorf("s opened no skip dialog:\n%s", hs.m.View())
 	}
 }
 
@@ -207,18 +237,15 @@ func TestClicksLandWhereTheTextIs(t *testing.T) {
 			if got := hs.s.take(); len(got) != 1 || got[0] != (engine.Command{Kind: engine.CmdAnswer, Task: "M0-03"}) {
 				t.Fatalf("dialog option: sent %+v", got)
 			}
-			if size[0] >= 50 {
-				hs.clickText("[d Done]")
-				if got := hs.s.take(); len(got) != 1 || got[0].Kind != engine.CmdDone {
-					t.Fatalf("bar: sent %+v", got)
-				}
-			} else {
-				// Too narrow for Done on the bar: it is behind More….
-				hs.clickText("[More…]")
-				if hs.m.dialog == nil || !hasOption(hs.m.dialog, actDone) {
-					t.Fatalf("More… doesn't offer Done:\n%s", hs.m.View())
-				}
-				hs.key("esc")
+			// The task needs you: Done is on the one-row bar, by its key
+			// alone where the labels don't fit.
+			done := "[d]"
+			if size[0] >= 100 {
+				done = "[d Done]"
+			}
+			hs.clickText(done)
+			if got := hs.s.take(); len(got) != 1 || got[0].Kind != engine.CmdDone {
+				t.Fatalf("bar: sent %+v", got)
 			}
 			hs.clickText("[o Open se")
 			if len(hs.focus) != 1 {

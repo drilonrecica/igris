@@ -14,11 +14,11 @@
  ␛[1m␛[38;2;255;92;116m!␛[0m␛[0m ␛[1mM0-03␛[0m ␛[1mMakefile␛[0m␛[38;2;255;176;0m yolo␛[0m        · M0-04 Config loader␛[38;2;255;176;0m yolo␛[0m
  · M0-05 Buy the domain␛[38;2;255;176;0m yolo␛[0m  ␛[2m⨯␛[0m ␛[2mM0-13␛[0m ␛[2mStatic assets␛[0m␛[38;2;255;176;0m yolo␛[0m
  ␛[2m–␛[0m ␛[2mM0-14␛[0m ␛[2mOld idea␛[0m
-
-
 ␛[38;2;44;89;160m──␛[0m ␛[1mLOG␛[0m ␛[38;2;44;89;160m─────────────────────────────────────────────────────␛[0m
+␛[2m09:41␛[0m M0-03 started · sonnet · mode plan
+␛[2m09:41␛[0m M0-03 session open
+␛[2m09:41␛[0m next sessions in mode yolo ␛[1m␛[38;2;255;92;116m[SKIP PERMISSIONS]␛[0m␛[0m
 ␛[2m09:41␛[0m ␛[38;2;255;176;0m▲ M0-03 rank mismatch · on claude-opus-5-5, not its r…␛[0m
 ␛[2m09:41␛[0m ␛[38;2;255;176;0m▲ M0-03 overdue · 52m of 45m␛[0m
 ␛[2m09:41␛[0m ␛[1m␛[38;2;255;92;116m! M0-03 needs you · idle␛[0m␛[0m
-␛[1;7m[›o Open session‹]␛[0m [m Mode] [M Task mode] [p Pause] [d Done]
-[r Retry…] [s Skip…] [x Stop…] [?] [q Quit]
+␛[1;7m[›o‹]␛[0m [d] [r] [p] [x] [?]

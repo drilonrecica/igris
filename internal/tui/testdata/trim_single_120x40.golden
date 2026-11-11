@@ -1,0 +1,40 @@
+igris · sinjal · phase M0 · 0/4 · 0% ░░░░░░░░░░ · mode plan · herdr                                            ● Working
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+TASKS                           │ ┌─ M0-02 title of M0-02 ─────────────────────────────────────────────────────────────┐
+ ● M0-01  Makefile       sonnet │ │ ● Working · 0s                                                                     │
+ · M0-02  Config loader  opus   │ │ opus → opus · mode plan                                                            │
+ · M0-03  Long task      sonnet │ │ earlier line one                                                                   │
+ · M0-04  Pick a license user   │ │ earlier line two                                                                   │
+                                │ │ ⏺ Running the tests with make test.                                                │
+                                │ │   ⎿  ok github.com/example/demo 0.012s                                             │
+                                │ │ FAIL TestParse: a line long enough to be clipped at the card's width in every lay… │
+                                │ │ ✻ Thinking… (esc to interrupt)                                                     │
+                                │ │ >                                                                                  │
+                                │ │ read igris.toml and report every problem with its line                             │
+                                │ │ [o Open session] [t Details]                                                       │
+                                │ └────────────────────────────────────────────────────────────────────────────────────┘
+── LOG ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+09:41 M0-02 started · opus · mode plan
+09:41 M0-02 session open
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[›o Open session‹] [m Mode] [M Task mode] [p Pause] [d Done] [r Retry…] [s Skip…] [x Stop…] [?] [q Quit]

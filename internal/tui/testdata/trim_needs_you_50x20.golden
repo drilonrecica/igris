@@ -1,0 +1,20 @@
+igris · sinjal · M0 · 0/4 · mode plan  ! Needs you
+──────────────────────────────────────────────────
+┌─ M0-02 title of M0-02 ─────────────────────────┐
+│ ! Needs you · idle 0s · o opens the session    │
+│ opus → opus · mode plan · 0s                   │
+│ the session is idle without a signal           │
+│ FAIL TestParse: a line long enough to be clip… │
+│ ✻ Thinking… (esc to interrupt)                 │
+│ >                                              │
+│ read igris.toml and report every problem with  │
+│ its line                                       │
+│ [o Open session] [t Details]                   │
+└────────────────────────────────────────────────┘
+── TASKS ─────────────────────────────────────────
+ ● M0-01 Makefile        ! M0-02 Config loader
+── LOG ───────────────────────────────────────────
+09:41 M0-02 started · opus · mode plan
+09:41 M0-02 session open
+09:41 ! M0-02 needs you · ended its turn without …
+[›o‹] [d] [r] [p] [x] [?]

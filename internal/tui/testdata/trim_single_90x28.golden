@@ -1,0 +1,28 @@
+igris · sinjal · M0 · 0/4 · 0% ░░░░░░ · mode plan · herdr                        ● Working
+──────────────────────────────────────────────────────────────────────────────────────────
+┌─ M0-02 title of M0-02 ─────────────────────────────────────────────────────────────────┐
+│ ● Working · 0s                                                                         │
+│ opus → opus · mode plan                                                                │
+│ earlier line one                                                                       │
+│ earlier line two                                                                       │
+│ ⏺ Running the tests with make test.                                                    │
+│   ⎿  ok github.com/example/demo 0.012s                                                 │
+│   FAIL TestParse: a line long enough to be clipped at the card's width in every layout │
+│ ✻ Thinking… (esc to interrupt)                                                         │
+│ >                                                                                      │
+│ read igris.toml and report every problem with its line                                 │
+│ [o Open session] [t Details]                                                           │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+── TASKS ─────────────────────────────────────────────────────────────────────────────────
+ ● M0-01 Makefile        · M0-02 Config loader   · M0-03 Long task
+ · M0-04 Pick a license
+── LOG ───────────────────────────────────────────────────────────────────────────────────
+09:41 M0-02 started · opus · mode plan
+09:41 M0-02 session open
+
+
+
+
+
+
+[›o Open session‹] [p Pause] [x Stop…] [? More]

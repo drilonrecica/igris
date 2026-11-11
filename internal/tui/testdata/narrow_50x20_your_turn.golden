@@ -12,9 +12,9 @@ igris · sinjal · M0 · 3/7 · mode plan  ! Needs you
  ✓ M0-01 Go module       ✓ M0-02 Entrypoint
  ● M0-03 Makefile        · M0-04 Config loader
  ! M0-05 Buy the domain  ⨯ M0-13 Static assets
+ – M0-14 Old idea
 ── LOG ───────────────────────────────────────────
 09:41 M0-05 started · user task
 09:41 ! M0-05 needs you · your turn · do it outsi…
 
-[›m Mode‹] [p Pause] [d Done…] [s Skip…] [x Stop…]
-[?] [q Quit]
+[›d Done…‹] [s Skip…] [p Pause] [x Stop…] [? More]

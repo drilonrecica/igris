@@ -203,26 +203,82 @@ var (
 // text + " │".
 func cardInner(w int) int { return max(w-4, 1) }
 
-// cardsView stacks the cards in rows lines of w cells drawn at (x, y),
-// each in its box, and records their zones. The cards share the height:
-// each gets what it needs while that fits, else an even share, the rest
-// going to the first that want more; the task text gives way first, then
-// the tail.
+// cardsView stacks the cards in rows lines of w cells drawn at (x, y)
+// and records their zones (SPEC §15.1). With room for every card's box,
+// each gets what it needs. Without it the cards go by priority, not equal
+// shares: the card that needs you first, else the selected one, keeps its
+// box and its full need (as far as the rows go), and the others become
+// one line each (cardLine), in plan order.
 func (m *model) cardsView(x, y, w, rows int) []string {
+	rows = max(rows, 0)
 	inner := cardInner(w)
-	need := make([]int, len(m.cards))
-	for i, c := range m.cards {
-		need[i] = len(m.cardBody(c, inner, 0, 0, -1, false, true))
-	}
-	give := shareRows(need, max(rows, 0))
+	boxes := m.cardsNeed(w) <= rows
+	first := m.priorityCard()
 	var out []string
-	for i, c := range m.cards {
-		if give[i] <= 0 {
-			continue
+	for _, c := range m.cards {
+		need := 2 + len(m.cardBody(c, inner, 0, 0, -1, false, true))
+		switch {
+		case boxes:
+			out = append(out, m.drawCard(c, x, y+len(out), w, need)...)
+		case c == first:
+			out = append(out, m.drawCard(c, x, y+len(out), w, min(need, max(rows-(len(m.cards)-1), 0)))...)
+		default:
+			out = append(out, m.cardLine(c, x, y+len(out), w))
 		}
-		out = append(out, m.drawCard(c, x, y+len(out), w, give[i])...)
 	}
-	return out
+	return out[:min(len(out), rows)]
+}
+
+// priorityCard is the card that keeps its box when the cards don't all
+// fit: the first in needYou() order that needs you, else the selected one.
+func (m *model) priorityCard() *current {
+	if ids := m.needYou(); len(ids) > 0 {
+		if c := m.card(ids[0]); c != nil {
+			return c
+		}
+	}
+	return m.cur
+}
+
+// cardLine is c's card as one line at (x, y), w cells, for a card without
+// room for its box (cardsView): `● M1-03 Parser  sonnet  4m12s  <the last
+// tail line>`, the glyph and the rank in their colors, `›` before the
+// selected one. A click selects it (the selected one's opens its details)
+// and [ ] reach it as they reach any card.
+func (m *model) cardLine(c *current, x, y, w int) string {
+	mark := ""
+	if c == m.cur {
+		mark = m.th.paint(lookAccentBold, "› ")
+	}
+	rank := "user"
+	if !c.user {
+		rank = m.th.rank(c.rank, false)
+	}
+	s := mark + m.paintedCardGlyph(c) + " " + c.id + " " + c.title + "  " + rank + "  " + m.th.paint(lookDim, since(m.opts.Now(), c.started))
+	if tail := m.tailView(c, w); len(tail) > 0 {
+		s += "  " + tail[len(tail)-1]
+	} else if m.needs(c) {
+		s += "  " + m.th.paint(lookAlert, m.needKind(c))
+	}
+	if !m.modal() {
+		t := target{act: actCardPick, option: slices.Index(m.cards, c)}
+		if c == m.cur {
+			t = target{act: actDetails}
+		}
+		m.zones.add(rect{x, y, w, 1}, t)
+	}
+	return fit(s, w)
+}
+
+// cardsFit is how many rows the stacked cards take in at most rows: every
+// box when they fit, else the priority card's box and a line for each
+// other (cardsView).
+func (m *model) cardsFit(w, rows int) int {
+	if n := m.cardsNeed(w); n <= rows {
+		return n
+	}
+	first := 2 + len(m.cardBody(m.priorityCard(), cardInner(w), 0, 0, -1, false, true))
+	return min(first+len(m.cards)-1, max(rows, 0))
 }
 
 // drawCard draws c's card in a box at (x, y), rows lines (borders
@@ -264,33 +320,6 @@ func (m *model) cardsNeed(w int) int {
 		n += 2 + len(m.cardBody(c, cardInner(w), 0, 0, -1, false, true))
 	}
 	return n
-}
-
-// shareRows splits rows among boxes that each need need[i] rows of body
-// plus two of border.
-func shareRows(need []int, rows int) []int {
-	give := make([]int, len(need))
-	total := 0
-	for i, n := range need {
-		give[i] = n + 2
-		total += give[i]
-	}
-	if total <= rows || len(need) == 0 {
-		return give
-	}
-	share := rows / len(need)
-	left := rows
-	for i := range give {
-		give[i] = min(give[i], share)
-		left -= give[i]
-	}
-	for i := range give {
-		if more := min(need[i]+2-give[i], left); more > 0 {
-			give[i] += more
-			left -= more
-		}
-	}
-	return give
 }
 
 // switcher is the narrow layout's line over the selected card (SPEC

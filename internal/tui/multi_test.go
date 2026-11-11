@@ -272,7 +272,7 @@ func TestNarrowSwitcher(t *testing.T) {
 }
 
 func TestMultiLayouts(t *testing.T) {
-	for _, sz := range [][2]int{{120, 40}, {100, 24}, {80, 24}, {50, 20}} {
+	for _, sz := range trimSizes {
 		hs := multiHarness(t, sz[0], sz[1])
 		hs.events(engine.Event{Kind: engine.NeedsYou, Phase: "M1", Task: "M1-04", Detail: "the agent is idle"})
 		v := hs.m.View()

@@ -5,18 +5,22 @@ package tui
 // compact task list, the last log lines and the action bar. It must stay
 // usable at 50×20.
 
-// narrowLog is how many log lines the narrow layout shows.
+// narrowLog is how many log lines the narrow layout keeps at least.
 const narrowLog = 3
 
-// barRows is how many rows the action bar may take before it folds
-// actions into More….
+// barRows is how many rows the action bar may take on a screen too
+// narrow even for its keys on one row (fitBar).
 const barRows = 2
 
 // narrowScreen draws the narrow layout's h lines of w cells and records
 // its zones (SPEC §15.2): the header and its rule, the switcher with
-// several active tasks (SPEC §15.1), the selected card, TASKS, the last
-// log lines and the bar; a dialog takes the whole screen (View).
+// several active tasks (SPEC §15.1), the selected card, TASKS, the log
+// and the bar; a dialog takes the whole screen (View). The card gets what
+// it needs while the log keeps narrowLog lines and TASKS one row; TASKS is
+// only as tall as its rows, and the log gets the rest. A log with fewer
+// lines than its rows lends the difference to the card's live tail.
 func (m *model) narrowScreen(w, h int) []string {
+	m.lend = 0
 	bar := m.fitBar(w, barRows)
 	switchRows := 0
 	if m.multi() && !m.ended {
@@ -25,9 +29,16 @@ func (m *model) narrowScreen(w, h int) []string {
 	// The header, its rule, the switcher, the two section rules and the
 	// bar are fixed; the card, the task list and the log share the rest.
 	rest := max(h-2-switchRows-2-len(bar.rows), 0)
-	logRows := min(narrowLog, rest)
-	cardRows := min(m.cardNeed(w), max(rest-logRows-1, 0)) // leave a task row
-	taskRows := max(rest-logRows-cardRows, 0)
+	logMin := min(narrowLog, rest)
+	need := m.cardNeed(w)
+	cardRows := min(need, max(rest-logMin-1, 0)) // leave a task row
+	taskRows := min(m.compactNeed(w), max(rest-logMin-cardRows, 0))
+	logRows := max(rest-cardRows-taskRows, 0)
+	if spare := logRows - len(m.log); spare > 0 && cardRows == need {
+		m.lend = spare
+		grow := min(m.cardNeed(w)-cardRows, spare)
+		cardRows, logRows = cardRows+grow, logRows-grow
+	}
 
 	out := []string{m.header(w), m.th.rule(w, "")}
 	if switchRows > 0 {
@@ -55,6 +66,16 @@ func (m *model) narrowScreen(w, h int) []string {
 		out = out[:h]
 	}
 	return out
+}
+
+// compactNeed is how many rows the narrow TASKS area wants w cells wide.
+func (m *model) compactNeed(w int) int {
+	if len(m.phaseTasks()) == 0 {
+		lines, _, _ := m.taskLines(w)
+		return len(lines)
+	}
+	lines, _, _, _ := m.rows().compact(w, m.listSel())
+	return len(lines)
 }
 
 // compactTasks lays the phase's tasks out as "glyph ID rank" cells in as

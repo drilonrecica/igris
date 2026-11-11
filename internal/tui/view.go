@@ -19,6 +19,7 @@ const wideWidth = 100
 // screen (the whole screen when narrow, SPEC §15.5).
 func (m *model) View() string {
 	m.zones.reset()
+	m.lend = 0 // the layout lends rows as it draws
 	w, h := max(m.width, 10), max(m.height, 3)
 	var screen []string
 	switch {

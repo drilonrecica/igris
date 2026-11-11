@@ -149,7 +149,7 @@ func TestSkipAsksForAReason(t *testing.T) {
 }
 
 func TestSkipByMouse(t *testing.T) {
-	hs := newHarness(t, 50, 20)
+	hs := newHarness(t, 120, 30) // the whole bar: Skip is on it
 	hs.withPlan(demoPlan)
 	hs.events(started("M0-03"), opened("M0-03"))
 	hs.click(isAct(actSkip))
@@ -294,20 +294,17 @@ func TestFocusSurvivesButtonChanges(t *testing.T) {
 }
 
 func TestNarrowBarFocus(t *testing.T) {
-	hs := newHarness(t, 16, 20)
+	hs := newHarness(t, 50, 20)
 	hs.withPlan(demoPlan)
 	hs.events(started("M0-03"), opened("M0-03"))
 	hs.m.View()
-	hs.keys("right") // Open session, then More… (Done is behind it at this width)
-	if v := hs.m.View(); hs.focusedButtonIs(actMore) && !strings.Contains(v, "[›More…‹]") {
-		t.Fatalf("More… not marked:\n%s", v)
-	}
-	if !hs.focusedButtonIs(actMore) {
-		t.Fatalf("focus on %v, want More…", hs.m.focusedButton())
+	hs.keys("right") // Open session, then Pause
+	if v := hs.m.View(); !hs.focusedButtonIs(actPause) || !strings.Contains(v, "[›p Pause‹]") {
+		t.Fatalf("focus on %v, want Pause:\n%s", hs.m.focusedButton(), v)
 	}
 	hs.key("enter")
-	if hs.m.dialog == nil {
-		t.Fatal("enter on More… opened nothing")
+	if got := hs.s.take(); len(got) != 1 || got[0].Kind != engine.CmdPause {
+		t.Errorf("enter on Pause sent %+v", got)
 	}
 }
 

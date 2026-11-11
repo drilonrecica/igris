@@ -52,8 +52,16 @@ const (
 func (m *model) wideScreen(w, h int) []string {
 	lw := min(max(m.rows().natural(), tasksMinWidth), (w-3)/tasksMaxShare) // the left column; " │ " then the right one
 	rw := columnsRight(lw, w)
-	avail := h - chromeRows - 1                                           // the panes and the log, without the LOG rule
-	paneRows := min(max(m.paneNeed(lw, rw), 4), max(avail-wideLogMin, 4)) // incl. the TASKS title
+	avail := h - chromeRows - 1 // the panes and the log, without the LOG rule
+	room := max(avail-wideLogMin, 4)
+	m.lend = 0
+	paneRows := min(max(m.paneNeed(lw, rw, room), 4), room) // incl. the TASKS title
+	if spare := avail - paneRows - len(m.log); spare > 0 {
+		// A quiet log lends its rows to the selected card's live tail
+		// (SPEC §15.1): the panes may grow into them, the log keeps its lines.
+		m.lend, room = spare, paneRows+spare
+		paneRows = min(max(m.paneNeed(lw, rw, room), 4), room)
+	}
 	logRows := max(avail-paneRows, 0)
 
 	out := []string{m.header(w), m.th.rule(w, "")}
@@ -163,9 +171,11 @@ func (m *model) banner(x, y, w int) (string, bool) {
 }
 
 // header is the run view's header line (SPEC §15.1): the project, the
-// run's facts and the status word at the right. The side count goes
-// first when the width runs out, then the quota, then the progress bar
-// and the percentage; the project, the phase and the word never drop.
+// run's facts and the status word at the right. When the width runs out
+// the backend goes first, then the percentage, then the bar (the count
+// then reads "3 of 8 done", "3/8" where even that doesn't fit), then the
+// side count, the quota and the mode; the project, the phase and the word
+// never drop.
 func (m *model) header(w int) string {
 	status := m.statusText()
 	narrow := !m.wide()
@@ -188,14 +198,18 @@ type factsDrop struct {
 }
 
 // factsDrops is the order the header drops its facts in when the width
-// runs out (SPEC §15.1): side sessions, the quota, the progress bar, the
-// percentage, the backend, the mode. The project and the phase never go.
+// runs out (SPEC §15.1): the backend, the percentage, the bar (the count
+// in words, then as n/m), side sessions, the quota, the mode. The project
+// and the phase never go.
 var factsDrops = []factsDrop{
 	{progressFull, factsAll, false, false},
-	{progressFull, factsQuota, false, false},
-	{progressFull, factsNone, false, false},
-	{progressNoBar, factsNone, false, false},
-	{progressCount, factsNone, false, false},
+	{progressFull, factsAll, true, false},
+	{progressNoPct, factsAll, true, false},
+	{progressWords, factsAll, true, false},
+	{progressCount, factsAll, true, false},
+	{progressWords, factsQuota, true, false},
+	{progressCount, factsQuota, true, false},
+	{progressWords, factsNone, true, false},
 	{progressCount, factsNone, true, false},
 	{progressCount, factsNone, true, true},
 }
@@ -309,11 +323,16 @@ func (m *model) listSel() int {
 	return m.selected()
 }
 
-// paneNeed is how many rows the panes want: the TASKS title and its rows,
-// or the banner and the cards.
-func (m *model) paneNeed(lw, rw int) int {
+// paneNeed is how many rows the panes want in at most room: the TASKS
+// title and its rows, or the banner and the cards (by priority when they
+// don't all fit, cardsView).
+func (m *model) paneNeed(lw, rw, room int) int {
 	tasks, _, _ := m.taskLines(lw)
-	return max(1+len(tasks), m.bannerRows()+m.cardNeed(rw))
+	cards := m.cardNeed(rw)
+	if m.cur != nil && !m.ended {
+		cards = m.cardsFit(rw, room-m.bannerRows())
+	}
+	return max(1+len(tasks), m.bannerRows()+cards)
 }
 
 // cardPane renders the cards at (x, y), rows lines of w cells, and
@@ -399,7 +418,94 @@ func (m *model) renderCard(w, rows int) []string {
 // cut with moreText. boxed leaves the title out: the box's border carries
 // it.
 func (m *model) cardBody(c *current, w, x, y, rows int, record, boxed bool) []string {
-	var head []string
+	head, stateAt := m.cardHead(c, w, boxed, false)
+
+	tail := m.tailView(c, w)
+
+	// The task's text: for a user task the engine sends it with Your turn;
+	// otherwise it comes from the plan as last loaded.
+	a := ""
+	if c.state == stateYourTurn && c.detail != "" {
+		a = aboutText(c.detail, c.title)
+	} else if t := m.rows().task(c.id); t != nil {
+		a = about(t)
+	}
+	var text []string
+	if a != "" {
+		text = wrap(a, w)
+		if len(text) > cardTextMax {
+			text = m.cutText(text, cardTextMax, w) // a card, not a page: Details has the rest
+		}
+	}
+
+	// The buttons carry their keys as the bar's do (SPEC §15.1): what
+	// answers igris's wait comes first.
+	btns := []option{{"[t Details]", actDetails}}
+	if c.user {
+		btns = append([]option{{"[d Done…]", actDone}, {"[s Skip…]", actSkip}}, btns...)
+	}
+	if m.canOpen(c) {
+		btns = append([]option{{"[o Open session]", actOpen}}, btns...)
+	}
+	// Alone, the card answers whatever waits; among several, its own.
+	if m.dialog == nil && (m.cardAsk(c) != nil || (!m.multi() && m.question() != nil)) {
+		btns = append([]option{{"[Answer…]", actAnswerCard}}, btns...)
+	}
+	btnLines, btnZones := m.cardButtons(c, btns, w)
+
+	if rows >= 0 && len(head)+len(tail)+len(text)+len(btnLines) > rows {
+		// Short of rows: the rank and the mode join the state line.
+		head, stateAt = m.cardHead(c, w, boxed, true)
+	}
+	if rows >= 0 {
+		free := max(rows-len(head)-len(btnLines), 0)
+		// The text gives way first, then the tail's oldest lines.
+		tail = tail[len(tail)-min(len(tail), free):]
+		if free -= len(tail); free < len(text) {
+			text = m.cutText(text, free, w)
+		}
+		if over := len(head) + len(tail) + len(text) + len(btnLines) - rows; over > 0 && boxed {
+			// In a box the title is on the border: the facts go first,
+			// then the buttons (the bar and the keys have them too), and
+			// the state stays longest.
+			kept := head[:0:0]
+			for i, l := range head {
+				if i != stateAt && over > 0 {
+					over--
+					continue
+				}
+				kept = append(kept, l)
+			}
+			head = kept
+			btnLines = btnLines[:max(len(btnLines)-over, 0)]
+		} else if over > 0 {
+			head = head[:max(len(head)-over, 0)]
+		}
+	}
+	if record && len(head) > 0 && !boxed {
+		m.zones.add(rect{x, y, min(textWidth(m.cardTitle(c)), w), 1}, target{act: actDetails})
+	}
+	out := append(append(append(head, tail...), text...), btnLines...)
+	if record {
+		top := y + len(head) + len(tail) + len(text)
+		for _, z := range btnZones {
+			if z.r.y < len(btnLines) {
+				m.zones.add(rect{x + z.r.x, top + z.r.y, z.r.w, 1}, z.t)
+			}
+		}
+	}
+	if rows >= 0 && len(out) > rows {
+		out = out[:rows]
+	}
+	return out
+}
+
+// cardHead is the head of c's card w cells wide (cardBody) and the index
+// of its state line, which a tight box keeps longest. merged puts the
+// rank and the mode on the state line in place of the facts line, for a
+// card short of rows (SPEC §15.1): `! Needs you · idle 2m · sonnet · mode
+// plan`.
+func (m *model) cardHead(c *current, w int, boxed, merged bool) (head []string, stateAt int) {
 	if !boxed {
 		head = append(head, m.th.paint(lookTitle, fit(m.cardTitle(c), w)))
 	}
@@ -414,7 +520,7 @@ func (m *model) cardBody(c *current, w, x, y, rows int, record, boxed bool) []st
 	if onState {
 		state += m.th.paint(lookPlain, " · "+timing)
 	}
-	stateAt := len(head) // the state's line, which a tight box keeps longest
+	stateAt = len(head)
 	if c.state == stateNeedsYou {
 		// Each reason stays whole: the line breaks between them rather
 		// than cut one off (needParts).
@@ -424,7 +530,7 @@ func (m *model) cardBody(c *current, w, x, y, rows int, record, boxed bool) []st
 		}
 		state = m.th.paint(stateLook(c), lines[len(lines)-1])
 	}
-	if c.state == stateNeedsYou && m.canOpen(c) {
+	if c.state == stateNeedsYou && m.canOpen(c) && !merged {
 		// Say how to get there, on the state line when it fits.
 		hint := m.th.paint(stateLook(c), openHint)
 		if textWidth(state)+textWidth(openHint) <= w {
@@ -434,7 +540,21 @@ func (m *model) cardBody(c *current, w, x, y, rows int, record, boxed bool) []st
 			state = m.th.paint(stateLook(c), strings.TrimPrefix(openHint, " · "))
 		}
 	}
-	head = append(head, fit(state, w))
+	if merged {
+		// The facts' rank and mode join the state line, on a line of their
+		// own only when the state line has no room for them.
+		model := "user task"
+		if !c.user {
+			model = m.th.rank(c.rank, false) + m.th.marks(" · mode "+c.mode+badge(c.mode))
+		}
+		if textWidth(state)+3+textWidth(model) <= w {
+			head = append(head, fit(state+m.th.paint(lookPlain, " · ")+model, w))
+		} else {
+			head = append(head, fit(state, w), fit(model, w))
+		}
+	} else {
+		head = append(head, fit(state, w))
+	}
 	facts := "user task"
 	if !c.user {
 		facts = m.th.rank(c.rank, false) + " → " + c.model + m.th.marks(" · mode "+c.mode+badge(c.mode))
@@ -447,7 +567,9 @@ func (m *model) cardBody(c *current, w, x, y, rows int, record, boxed bool) []st
 			facts += " · " + look.InOutNarrow(t.In, t.Out) // the narrow card's usage (SPEC §15.2)
 		}
 	}
-	head = append(head, fit(facts, w))
+	if !merged {
+		head = append(head, fit(facts, w))
+	}
 	if line, command, note := m.sessionWhereNote(c); line != "" {
 		// Where the session is when this view can't open it (SPEC
 		// §15.3); y copies the command, which gets a line of its own
@@ -495,81 +617,7 @@ func (m *model) cardBody(c *current, w, x, y, rows int, record, boxed bool) []st
 	case c.state == stateLost:
 		head = append(head, fit(c.detail, w))
 	}
-
-	tail := m.tailView(c, w)
-
-	// The task's text: for a user task the engine sends it with Your turn;
-	// otherwise it comes from the plan as last loaded.
-	a := ""
-	if c.state == stateYourTurn && c.detail != "" {
-		a = aboutText(c.detail, c.title)
-	} else if t := m.rows().task(c.id); t != nil {
-		a = about(t)
-	}
-	var text []string
-	if a != "" {
-		text = wrap(a, w)
-		if len(text) > cardTextMax {
-			text = m.cutText(text, cardTextMax, w) // a card, not a page: Details has the rest
-		}
-	}
-
-	// The buttons carry their keys as the bar's do (SPEC §15.1): what
-	// answers igris's wait comes first.
-	btns := []option{{"[t Details]", actDetails}}
-	if c.user {
-		btns = append([]option{{"[d Done…]", actDone}, {"[s Skip…]", actSkip}}, btns...)
-	}
-	if m.canOpen(c) {
-		btns = append([]option{{"[o Open session]", actOpen}}, btns...)
-	}
-	// Alone, the card answers whatever waits; among several, its own.
-	if m.dialog == nil && (m.cardAsk(c) != nil || (!m.multi() && m.question() != nil)) {
-		btns = append([]option{{"[Answer…]", actAnswerCard}}, btns...)
-	}
-	btnLines, btnZones := m.cardButtons(c, btns, w)
-
-	if rows >= 0 {
-		free := max(rows-len(head)-len(btnLines), 0)
-		// The text gives way first, then the tail's oldest lines.
-		tail = tail[len(tail)-min(len(tail), free):]
-		if free -= len(tail); free < len(text) {
-			text = m.cutText(text, free, w)
-		}
-		if over := len(head) + len(tail) + len(text) + len(btnLines) - rows; over > 0 && boxed {
-			// In a box the title is on the border: the facts go first,
-			// then the buttons (the bar and the keys have them too), and
-			// the state stays longest.
-			kept := head[:0:0]
-			for i, l := range head {
-				if i != stateAt && over > 0 {
-					over--
-					continue
-				}
-				kept = append(kept, l)
-			}
-			head = kept
-			btnLines = btnLines[:max(len(btnLines)-over, 0)]
-		} else if over > 0 {
-			head = head[:max(len(head)-over, 0)]
-		}
-	}
-	if record && len(head) > 0 && !boxed {
-		m.zones.add(rect{x, y, min(textWidth(m.cardTitle(c)), w), 1}, target{act: actDetails})
-	}
-	out := append(append(append(head, tail...), text...), btnLines...)
-	if record {
-		top := y + len(head) + len(tail) + len(text)
-		for _, z := range btnZones {
-			if z.r.y < len(btnLines) {
-				m.zones.add(rect{x + z.r.x, top + z.r.y, z.r.w, 1}, z.t)
-			}
-		}
-	}
-	if rows >= 0 && len(out) > rows {
-		out = out[:rows]
-	}
-	return out
+	return head, stateAt
 }
 
 // packParts joins parts with " · " on as few lines of w cells as it can,
@@ -636,22 +684,80 @@ func (m *model) cardButtons(c *current, btns []option, w int) ([]string, []zone)
 }
 
 // fitBar lays the bar out in at most rows rows of w cells, records its
-// buttons and marks the focused one. The focus moves to the first button
-// when its button was folded away or is gone.
+// buttons and marks the focused one (SPEC §15.3, §15.4). While the run
+// goes on: every action
+// with its full label when that fits one row; else one row of the actions
+// that apply now and `? More` (nowButtons); else that row with keys only,
+// `[o] [d] [?]`; on a screen too narrow even for that, the keys wrap and
+// fold as layoutBar does. The focus moves to the first button when its
+// button is not on the bar.
 func (m *model) fitBar(w, rows int) barLayout {
-	btns := m.buttons()
 	mark := actNone
 	if m.barFocused() {
 		mark = m.barFocus
 	}
-	l := layoutBar(m.th, btns, w, rows, mark, m.modal(), foldOrder)
+	now := m.nowButtons()
+	place := func(mark action) barLayout {
+		if m.ended || m.lost {
+			// The summary's bar, and Quit alone while reconnecting.
+			return layoutBar(m.th, m.buttons(), w, rows, mark, m.modal(), foldOrder)
+		}
+		for _, btns := range [][]button{m.buttons(), now, keysOnly(now)} {
+			if l := placeBar(m.th, btns, w, mark, m.modal(), false); len(l.rows) <= 1 {
+				return l
+			}
+		}
+		return layoutBar(m.th, keysOnly(now), w, rows, mark, m.modal(), foldOrder)
+	}
+	l := place(mark)
 	if m.barFocused() && !l.has(mark) && len(l.rows) > 0 && len(l.rows[0]) > 0 {
-		mark = l.rows[0][0].act
-		l = layoutBar(m.th, btns, w, rows, mark, m.modal(), foldOrder)
+		l = place(l.rows[0][0].act)
 	}
 	m.bar = append(m.bar[:0], l.acts()...)
 	m.folded = l.folded
 	return l
+}
+
+// moreButton ends the one-row bar: `?` lists every key (SPEC §15.4).
+var moreButton = button{label: "More", key: "?", act: actHelp}
+
+// nowButtons is the one-row bar (SPEC §15.4): the actions that apply now,
+// the first focused, then `? More`. A working task offers Open session,
+// Pause and Stop; a task that needs you Open session, Done, Retry, Pause
+// and Stop; a user task at its turn Done and Skip, Pause and Stop. Answer…
+// leads while a question waits; every other key still works.
+func (m *model) nowButtons() []button {
+	all := m.buttons()
+	want := []action{actAnswer, actOpen}
+	if c := m.cur; c != nil {
+		switch {
+		case c.state == stateYourTurn:
+			want = append(want, actDone, actSkip)
+		case c.needsOwner():
+			want = append(want, actDone, actRetry)
+		}
+	}
+	want = append(want, actLimitStart, actPause, actStopAsk)
+	var out []button
+	for _, a := range want {
+		if i := slices.IndexFunc(all, func(b button) bool { return b.act == a }); i >= 0 {
+			out = append(out, all[i])
+		}
+	}
+	return append(out, moreButton)
+}
+
+// keysOnly shortens btns to their keys, `[o] [d] [?]`; a button without a
+// key (Answer…) keeps its label.
+func keysOnly(btns []button) []button {
+	out := make([]button, len(btns))
+	for i, b := range btns {
+		out[i] = b
+		if b.key != "" {
+			out[i].label, out[i].short = "", ""
+		}
+	}
+	return out
 }
 
 // foldOrder lists the actions the bar folds into More… first when it

@@ -11,14 +11,14 @@ igris · sinjal · M0 · 3/7 · 42% ███░░░ · mode plan · herdr    
  ✓ M0-01 Go module       ✓ M0-02 Entrypoint      ! M0-03 Makefile
  · M0-04 Config loader   · M0-05 Buy the domain  ⨯ M0-13 Static assets
  – M0-14 Old idea
-
-
-
-
-
 ── LOG ─────────────────────────────────────────────────────────────────────────
+09:41 M0-03 started · sonnet · mode plan
 09:41 M0-03 session open
 09:41 ! run budget 100k reached · 110k used · M0-03 keeps running
 09:41 ! M0-03 needs you · commit?
-[›Answer…‹] [o Open session] [m Mode] [M Task mode] [p Pause] [d Done]
-[r Retry…] [s Skip…] [x Stop…] [?] [q Quit]
+
+
+
+
+
+[›Answer…‹] [o Open session] [d Done] [r Retry…] [p Pause] [x Stop…] [? More]

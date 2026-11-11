@@ -12,9 +12,9 @@ igris · sinjal · M0 · 3/7                ● Working
  ● M0-03 Makefile yolo
  · M0-04 Config loader
  · M0-05 Buy the domain yolo
+ ⨯ M0-13 Static assets yolo
 ── LOG ───────────────────────────────────────────
 09:41 M0-03 started · sonnet · mode plan
 09:41 M0-03 session open
 09:41 next sessions in mode yolo [SKIP PERMISSION…
-[›o Open‹] [m Mode] [M Task mode] [p Pause]
-[d Done] [r Retry] [s Skip] [x Stop] [?] [q Quit]
+[›o Open session‹] [p Pause] [x Stop…] [? More]

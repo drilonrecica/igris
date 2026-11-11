@@ -300,28 +300,23 @@ func (r rows) lines(w, sel int) (lines []string, follow int, owner []int) {
 }
 
 // compact lays the phase's tasks out as "glyph ID title" cells (SPEC
-// §15.2, the narrow TASKS keep the titles) in as many columns as fit w,
+// §15.2, the narrow TASKS keep the titles, without the parallel marker) in as many columns as fit w,
 // row by row, returning the lines, the column count, the cell width and
 // the index of the task to keep in view (-1 for none): the selected one,
 // else the current one. sel < 0 means no selection is shown. A title that
 // doesn't fit its cell is cut.
 func (r rows) compact(w, sel int) (lines []string, cols, cellW, cur int) {
 	tasks := r.tasks()
-	par := r.parallelism()
 	cells := make([]string, len(tasks))
-	marks := make([]string, len(tasks))
 	skips := make([]string, len(tasks)) // " yolo": only a skip-permissions mode shows here
 	cur = sel
 	idW := 0
 	for i, t := range tasks {
 		idW = max(idW, textWidth(t.ID))
-		if m := withText(par, t.ID); m != "" {
-			marks[i] = " " + m
-		}
 		if mw := r.modeWord(t); engine.SkipsPermissions(mw) {
 			skips[i] = " " + mw
 		}
-		cells[i] = rowMark(i == sel) + r.glyph(t) + " " + t.ID + " " + t.Title + skips[i] + marks[i]
+		cells[i] = rowMark(i == sel) + r.glyph(t) + " " + t.ID + " " + t.Title + skips[i]
 		cellW = max(cellW, textWidth(cells[i]))
 		if sel < 0 && r.curID == t.ID {
 			cur = i
@@ -335,25 +330,20 @@ func (r rows) compact(w, sel int) (lines []string, cols, cellW, cur int) {
 		cellW = w
 	}
 	for i, t := range tasks {
-		// The marker follows the title while the title keeps minTitle cells
-		// (or all of itself); a title cut shorter drops it. A skip-permissions
-		// mode is never dropped.
-		mark, skip := marks[i], skips[i]
-		titleW := cellW - 3 - idW - 1 - textWidth(skip)
-		if mark != "" && titleW-textWidth(mark) < min(minTitle, textWidth(t.Title)) {
-			mark = ""
-		}
-		titleW = max(titleW-textWidth(mark), 1)
-		title := fit(t.Title, titleW)
+		// No parallel marker here (SPEC §15.2): the switcher over the card
+		// names the other active tasks. A skip-permissions mode is never
+		// dropped; the title is cut instead.
+		skip := skips[i]
+		title := fit(t.Title, max(cellW-3-idW-1-textWidth(skip), 1))
 		if i == sel {
 			// The focus bar is as wide as the cell's text: a padded one would
 			// leave trailing spaces the plain layout trims.
-			cell := rowMark(true) + r.glyph(t) + " " + pad(t.ID, idW) + " " + title + skip + mark
+			cell := rowMark(true) + r.glyph(t) + " " + pad(t.ID, idW) + " " + title + skip
 			cells[i] = r.th.focusLine(cell, textWidth(cell))
 			continue
 		}
 		_, tl := r.looks(t)
-		cells[i] = rowMark(false) + r.paintedGlyph(t) + " " + r.th.paint(tl, pad(t.ID, idW)) + " " + r.th.paint(tl, title) + r.th.paint(lookWarn, skip) + r.th.paint(lookDim, mark)
+		cells[i] = rowMark(false) + r.paintedGlyph(t) + " " + r.th.paint(tl, pad(t.ID, idW)) + " " + r.th.paint(tl, title) + r.th.paint(lookWarn, skip)
 	}
 	for i := 0; i < len(cells); i += cols {
 		var b strings.Builder

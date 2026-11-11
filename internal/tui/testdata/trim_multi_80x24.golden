@@ -1,0 +1,24 @@
+igris · sinjal · M1 · 0/4 · 0% ░░░░░░ · 3 active · mode plan         ! Needs you
+────────────────────────────────────────────────────────────────────────────────
+‹ ! M1-04 · 1 of 3 › ● M1-03 ● M1-05
+┏━ › M1-04 · slot 2 title of M1-04 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ! Needs you · idle 0s · o opens the session                                  ┃
+┃ sonnet → sonnet · mode plan · 0s                                             ┃
+┃ the agent is idle                                                            ┃
+┃ Plan ready: keep byte offsets per cell                                       ┃
+┃ Approve to continue.                                                         ┃
+┃ write the output                                                             ┃
+┃ [o Open session] [t Details]                                                 ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+── TASKS ───────────────────────────────────────────────────────────────────────
+ ● M1-03 Parser   ! M1-04 Writer   ● M1-05 Docs     ⨯ M1-06 Release
+── LOG ─────────────────────────────────────────────────────────────────────────
+09:41 Arise. phase M1 · 4 tasks · mode plan
+09:41 M1-05 started · sonnet · mode plan
+09:41 M1-05 session open
+09:41 M1-03 started · sonnet · mode plan
+09:41 M1-03 session open
+09:41 M1-04 started · sonnet · mode plan
+09:41 M1-04 session open
+09:41 ! M1-04 needs you · the agent is idle
+[›o Open session‹] [d Done] [r Retry…] [p Pause] [x Stop…] [? More]

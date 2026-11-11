@@ -1,0 +1,30 @@
+igris · sinjal · phase M0 · 0/4 · 0% ░░░░░░░░░░ · mode plan · herdr                      ! Needs you
+────────────────────────────────────────────────────────────────────────────────────────────────────
+TASKS                           │ ! M0-02 needs you · ended its turn without igris done
+ ● M0-01  Makefile       sonnet │ ┌─ M0-02 title of M0-02 ─────────────────────────────────────────┐
+ ! M0-02  Config loader  opus   │ │ ! Needs you · idle 0s · o opens the session                    │
+ · M0-03  Long task      sonnet │ │ opus → opus · mode plan · 0s                                   │
+ · M0-04  Pick a license user   │ │ the session is idle without a signal                           │
+                                │ │ earlier line one                                               │
+                                │ │ earlier line two                                               │
+                                │ │ ⏺ Running the tests with make test.                            │
+                                │ │   ⎿  ok github.com/example/demo 0.012s                         │
+                                │ │ FAIL TestParse: a line long enough to be clipped at the card'… │
+                                │ │ ✻ Thinking… (esc to interrupt)                                 │
+                                │ │ >                                                              │
+                                │ │ read igris.toml and report every problem with its line         │
+                                │ │ [o Open session] [t Details]                                   │
+                                │ └────────────────────────────────────────────────────────────────┘
+── LOG ─────────────────────────────────────────────────────────────────────────────────────────────
+09:41 M0-02 started · opus · mode plan
+09:41 M0-02 session open
+09:41 ! M0-02 needs you · ended its turn without igris done
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+[›o Open session‹] [d Done] [r Retry…] [p Pause] [x Stop…] [? More]

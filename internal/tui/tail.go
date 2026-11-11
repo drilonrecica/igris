@@ -128,7 +128,7 @@ func (m *model) gotTail(msg tailMsg) {
 	}
 	m.tails = make(map[string][]string, len(msg.lines))
 	for id, lines := range msg.lines {
-		m.tails[id] = tailLines(lines, tailWide)
+		m.tails[id] = tailLines(lines, tailFetch) // all of them: a quiet log lends the card rows (tailView)
 	}
 }
 
@@ -179,7 +179,8 @@ func expandTabs(s string) string {
 }
 
 // tailView is c's card's tail, w cells wide: the last lines that fit the
-// layout, dimmed so they don't read as igris's own text. A line wider than
+// layout, more on the selected card when a quiet log lends it rows
+// (m.lend), dimmed so they don't read as igris's own text. A line wider than
 // the card loses its leading spaces before it is clipped: Claude Code pads
 // right-aligned text (`◐ medium · /effort`) to the pane's width, and
 // clipping the padding would leave a blank row ending in "…".
@@ -191,6 +192,9 @@ func (m *model) tailView(c *current, w int) []string {
 	n := tailNarrow
 	if m.wide() && !m.multi() {
 		n = tailWide // several cards share the height: each a shorter tail
+	}
+	if c == m.cur {
+		n += m.lend
 	}
 	lines := tail[max(len(tail)-n, 0):]
 	out := make([]string, len(lines))

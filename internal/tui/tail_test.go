@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
@@ -111,6 +112,7 @@ func TestCardShowsTheTail(t *testing.T) {
 	}{{120, 40, tailWide}, {80, 24, tailNarrow}, {50, 20, tailNarrow}} {
 		hs := cardHarness(t, tc.w, tc.h, "M0-02")
 		src := hs.withTail(sampleTail...)
+		busyLog(hs) // a quiet log would lend the tail its rows
 		v := hs.m.View()
 		checkFits(t, v, tc.w, tc.h)
 		// One key per cleaned line, oldest first (the last, ">", is left out).
@@ -130,6 +132,42 @@ func TestCardShowsTheTail(t *testing.T) {
 		if got := src.calls; !slices.Equal(got, []int{tailFetch}) {
 			t.Errorf("tail calls %v", got)
 		}
+	}
+}
+
+// busyLog fills the log past any screen's rows, so it lends none.
+func busyLog(hs *harness) {
+	for i := range 40 {
+		hs.events(engine.Event{Kind: engine.Warning, Detail: fmt.Sprintf("busy %d", i)})
+	}
+}
+
+// TestQuietLogLendsTheTail: a log with fewer lines than its rows lends the
+// difference to the selected card's live tail (SPEC §15.1), at every size;
+// the log keeps every line it has.
+func TestQuietLogLendsTheTail(t *testing.T) {
+	for _, size := range [][2]int{{120, 40}, {100, 30}, {90, 28}, {80, 24}} {
+		t.Run(fmt.Sprint(size), func(t *testing.T) {
+			hs := cardHarness(t, size[0], size[1], "M0-02")
+			hs.withTail(sampleTail...)
+			v := hs.m.View()
+			checkFits(t, v, size[0], size[1])
+			for _, k := range []string{"earlier line one", "earlier line two", "Running the tests", "Thinking"} {
+				if !strings.Contains(v, k) {
+					t.Errorf("the quiet log lent the tail no rows: %q missing:\n%s", k, v)
+				}
+			}
+			for _, e := range hs.m.log {
+				if !strings.Contains(v, e.text) {
+					t.Errorf("the log lost %q:\n%s", e.text, v)
+				}
+			}
+			// A busy log lends nothing.
+			busyLog(hs)
+			if v := hs.m.View(); strings.Contains(v, "earlier line one") {
+				t.Errorf("a busy log still lends rows:\n%s", v)
+			}
+		})
 	}
 }
 

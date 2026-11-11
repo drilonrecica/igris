@@ -160,6 +160,9 @@ type model struct {
 	tails    map[string][]string
 	tailBusy bool
 	tailGen  int
+	// lend is how many more tail lines the selected card shows, the rows
+	// a quiet log lends it (SPEC §15.1); the layout sets it as it draws.
+	lend int
 
 	// side is the side sessions (side.go); nil without Options.Side.
 	// worktree says the run works in a worktree of its own (SPEC §6.8),

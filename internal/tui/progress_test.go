@@ -33,7 +33,7 @@ func TestProgressText(t *testing.T) {
 	hs := newHarness(t, 120, 30)
 	hs.withPlan(demoPlan)
 	hs.events(engine.Event{Kind: engine.RunStarted, Phase: "M0", Detail: "phase M0"})
-	for level, want := range []string{"3/7 · 42% ████░░░░░░", "3/7 · 42%", "3/7"} {
+	for level, want := range []string{"3/7 · 42% ████░░░░░░", "3/7 ████░░░░░░", "3 of 7 done", "3/7"} {
 		if got := hs.m.progressText(level, wideProgressBar); got != want {
 			t.Errorf("level %d: %q, want %q", level, got, want)
 		}
@@ -53,25 +53,47 @@ func TestProgressText(t *testing.T) {
 	}
 }
 
-// TestProgressGivesWayToWidth: the bar goes first, then the percentage.
+// TestProgressGivesWayToWidth: the backend goes first, then the
+// percentage, then the bar (SPEC §15.1), before the mode.
 func TestProgressGivesWayToWidth(t *testing.T) {
 	for _, tc := range []struct {
 		w          int
+		notice     string
 		want, gone string
 	}{
-		{100, "3/7 · 42% ████░░░░░░", ""},
-		{66, "· 3/7 · 42% ·", "█"},
-		{60, "· 3/7 · mode", "%"},
-		{54, "· 3/7 · mode", "herdr"},
-		{44, "sinjal · M0 · 3/7", "mode"},
+		{100, "", "3/7 · 42% ████░░░░░░ · mode plan · herdr", ""},
+		{105, "copied claude --resume 0b5c", "3/7 · 42% ████░░░░░░ · mode plan · copied", "herdr"},
+		{100, "copied claude --resume 0b5c", "phase M0 · 3/7 ████░░░░░░ · mode plan · copied", "%"},
+		{70, "", "· 3/7 · 42% ███░░░ · mode plan · herdr", ""},
+		{66, "", "· 3/7 · 42% ███░░░ · mode plan", "herdr"},
+		{60, "", "· 3/7 ███░░░ · mode plan", "%"},
+		{54, "", "· 3/7 · mode plan", "█"},
+		{44, "", "sinjal · M0 · 3/7", "mode"},
 	} {
 		hs := newHarness(t, tc.w, 24)
 		hs.withPlan(demoPlan)
 		hs.events(engine.Event{Kind: engine.RunStarted, Phase: "M0", Detail: "phase M0"})
+		hs.m.notice = tc.notice
 		top := hs.m.header(tc.w)
 		if !strings.Contains(top, tc.want) || (tc.gone != "" && strings.Contains(top, tc.gone)) || textWidth(top) > tc.w || !strings.HasSuffix(top, "● Working") {
 			t.Errorf("%d columns: %q, want %q without %q", tc.w, top, tc.want, tc.gone)
 		}
+	}
+}
+
+// The count reads in words once the bar is gone, where the words fit
+// (SPEC §15.4's count form), else as n/m.
+func TestProgressInWords(t *testing.T) {
+	hs := newHarness(t, 120, 30)
+	hs.withPlan(demoPlan)
+	hs.events(engine.Event{Kind: engine.RunStarted, Phase: "M0", Detail: "phase M0"})
+	d := factsDrop{level: progressWords, extras: factsNone, noBackend: true}
+	if got := hs.m.facts(false, d); !strings.HasPrefix(got, "phase M0 · 3 of 7 done · mode plan") {
+		t.Errorf("facts in words: %q", got)
+	}
+	hs.events(engine.Event{Kind: engine.RunStarted, Phase: "M0", Detail: "phase M0; only M0-01, M0-04", Slice: []string{"M0-01", "M0-04"}})
+	if got := hs.m.progressText(progressWords, wideProgressBar); got != "slice 1 of 2 done" {
+		t.Errorf("a slice in words: %q", got)
 	}
 }
 

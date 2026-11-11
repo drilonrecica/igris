@@ -20,12 +20,14 @@ const (
 // minETAPoints is how many finished tasks of a rank the ETA needs.
 const minETAPoints = 3
 
-// How much of the progress a header shows, from all of it to the least;
-// with too little width the bar goes first, then the percentage.
+// How much of the progress a header shows, from all of it to the least
+// (SPEC §15.1): with too little width the percentage goes first, then the
+// bar, leaving the count in words (§15.4's form), then as n/m.
 const (
-	progressFull = iota
-	progressNoBar
-	progressCount
+	progressFull  = iota // "7/12 · 58% ██████░░░░"
+	progressNoPct        // "7/12 ██████░░░░"
+	progressWords        // "7 of 12 done"
+	progressCount        // "7/12"
 	progressLevels
 )
 
@@ -45,21 +47,25 @@ func (m *model) progress() (done, total int) {
 	return done, total
 }
 
-// progressText is the progress at level, e.g. "7/12 · 58% ██████░░░░" or
-// "slice 2/3 · 66%"; "" when the phase has none of the run's tasks.
+// progressText is the progress at level, e.g. "7/12 · 58% ██████░░░░",
+// "7 of 12 done" or "slice 2/3 · 66%"; "" when the phase has none of the
+// run's tasks.
 func (m *model) progressText(level, cells int) string {
 	done, total := m.progress()
 	if total == 0 {
 		return ""
 	}
 	s := fmt.Sprintf("%d/%d", done, total)
+	if level == progressWords {
+		s = look.ProgressWords(done, total)
+	}
 	if m.slice != nil {
 		s = "slice " + s
 	}
-	if level < progressCount {
+	if level == progressFull {
 		s += fmt.Sprintf(" · %d%%", 100*done/total)
 	}
-	if level < progressNoBar {
+	if level <= progressNoPct {
 		s += " " + look.Bar(done, total, cells)
 	}
 	return s

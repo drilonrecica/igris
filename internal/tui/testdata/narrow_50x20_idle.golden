@@ -6,15 +6,15 @@ no task running
  ● M0-03 Makefile        · M0-04 Config loader
  · M0-05 Buy the domain  ⨯ M0-13 Static assets
  – M0-14 Old idea
-
-
-
-
-
-
 ── LOG ───────────────────────────────────────────
 09:41 Arise. phase M0 · 4 tasks · mode plan
 09:41 phase M0 started
 
-[›m Mode‹] [M Task mode] [p Pause] [x Stop…] [?]
-[q Quit]
+
+
+
+
+
+
+
+[›p Pause‹] [x Stop…] [? More]

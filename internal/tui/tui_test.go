@@ -241,7 +241,7 @@ func TestShortcutKeysSendCommands(t *testing.T) {
 }
 
 func TestClickingBarButtons(t *testing.T) {
-	hs := newHarness(t, 80, 24)
+	hs := newHarness(t, 120, 30) // the whole bar, Done and Quit on it
 	hs.events(started("M0-03"), opened("M0-03"))
 	hs.click(isAct(actPause))
 	hs.click(isAct(actDone))
