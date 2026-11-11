@@ -100,8 +100,11 @@ func liveHub(e RegistryEnv, alive func(int) bool) (HubEntry, bool) {
 	if err != nil {
 		return HubEntry{}, false
 	}
+	if !ownedPrivate(filepath.Dir(path)) {
+		return HubEntry{}, false
+	}
 	data, err := fsafe.ReadFile(path, maxHubFile, false)
-	if err != nil {
+	if err != nil || !ownedFile(path) {
 		return HubEntry{}, false
 	}
 	var h HubEntry

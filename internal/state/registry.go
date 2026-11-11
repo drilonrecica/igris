@@ -114,6 +114,30 @@ func PrivateDir(dir, what string) error {
 	return nil
 }
 
+// ownedPrivate checks, without creating or changing anything, that dir is a
+// directory of this user's, not a symlink, that nobody else can enter. The
+// readers of the registry and hub.json trust only such a directory: under
+// the os.TempDir() fallback another local user could have made
+// <tempdir>/igris-<uid> first and filled it with entries of their own.
+func ownedPrivate(dir string) bool {
+	fi, err := os.Lstat(dir)
+	if err != nil || !fi.IsDir() || fi.Mode().Perm()&0o077 != 0 {
+		return false
+	}
+	st, ok := fi.Sys().(*syscall.Stat_t)
+	return ok && int(st.Uid) == os.Getuid()
+}
+
+// ownedFile says whether the file at path belongs to this user.
+func ownedFile(path string) bool {
+	fi, err := os.Lstat(path)
+	if err != nil {
+		return false
+	}
+	st, ok := fi.Sys().(*syscall.Stat_t)
+	return ok && int(st.Uid) == os.Getuid()
+}
+
 // RegisterRun writes the registry entry of the run in dir, atomically, and
 // returns the function that removes it (a missing file is not an error). The
 // directories are created 0700 and checked as the socket's are. Call it once
@@ -161,6 +185,12 @@ func liveRuns(ctx context.Context, e RegistryEnv, alive func(int) bool, answerin
 	if err != nil {
 		return nil, nil
 	}
+	if _, err := os.Lstat(dir); errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if !ownedPrivate(filepath.Dir(dir)) || !ownedPrivate(dir) {
+		return nil, []SkippedEntry{{Path: dir, Reason: "not a private directory of this user's (0700, owned by you, not a symlink); remove it"}}
+	}
 	names, err := os.ReadDir(dir)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -207,6 +237,9 @@ func readRunEntry(path, name string) (RunEntry, string) {
 	data, err := fsafe.ReadFile(path, maxRunEntry, false)
 	if err != nil {
 		return RunEntry{}, err.Error()
+	}
+	if !ownedFile(path) {
+		return RunEntry{}, "belongs to another user"
 	}
 	var r RunEntry
 	if err := json.Unmarshal(data, &r); err != nil {

@@ -103,3 +103,32 @@ func TestHubEntryHasRoots(t *testing.T) {
 		t.Error("a hub with All takes every project")
 	}
 }
+
+// A directory others can enter isn't trusted: under the os.TempDir()
+// fallback another user could have made it and written hub.json there.
+func TestLiveHubRefusesAnOpenDirectory(t *testing.T) {
+	e := regEnv(t)
+	if _, err := RegisterHub(e, HubEntry{URL: "http://127.0.0.1:7777/", PID: os.Getpid()}); err != nil {
+		t.Fatal(err)
+	}
+	path, _ := e.HubFile()
+	if _, ok := LiveHub(e); !ok {
+		t.Fatal("the hub's own hub.json is not read")
+	}
+	if err := os.Chmod(filepath.Dir(path), 0o755); err != nil { //nolint:gosec // the test opens it on purpose
+		t.Fatal(err)
+	}
+	if h, ok := LiveHub(e); ok {
+		t.Errorf("hub.json in a 0755 directory accepted: %+v", h)
+	}
+	link := filepath.Join(t.TempDir(), "igris")
+	if err := os.Chmod(filepath.Dir(path), 0o700); err != nil { //nolint:gosec // back to private, as RegisterHub made it
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Dir(path), link); err != nil {
+		t.Fatal(err)
+	}
+	if h, ok := liveHub(RegistryEnv{RuntimeDir: filepath.Dir(link)}, alive); ok {
+		t.Errorf("hub.json through a symlinked directory accepted: %+v", h)
+	}
+}

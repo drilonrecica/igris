@@ -199,3 +199,32 @@ func TestLiveRunsOrder(t *testing.T) {
 		t.Errorf("not ordered by start: %v", got)
 	}
 }
+
+// The registry's readers trust only a private directory of this user's:
+// under the os.TempDir() fallback another user could have made
+// <tempdir>/igris-<uid>/runs first and filled it with entries.
+func TestLiveRunsRefusesAnOpenDirectory(t *testing.T) {
+	for _, which := range []string{"base", "runs"} {
+		t.Run(which, func(t *testing.T) {
+			e := regEnv(t)
+			d := openState(t)
+			if _, err := d.RegisterRun(e, "p", "/tmp/p.sock", time.Now()); err != nil {
+				t.Fatal(err)
+			}
+			if runs, _ := liveRuns(context.Background(), e, alive, yes); len(runs) != 1 {
+				t.Fatalf("own entry not read: %v", runs)
+			}
+			dir, _ := e.RunsDir()
+			if which == "base" {
+				dir = filepath.Dir(dir)
+			}
+			if err := os.Chmod(dir, 0o755); err != nil { //nolint:gosec // the test opens it on purpose
+				t.Fatal(err)
+			}
+			runs, skipped := liveRuns(context.Background(), e, alive, yes)
+			if len(runs) != 0 || len(skipped) != 1 || !strings.Contains(skipped[0].Reason, "not a private directory") {
+				t.Errorf("open %s directory: runs %v, skipped %v", which, runs, skipped)
+			}
+		})
+	}
+}
