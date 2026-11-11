@@ -727,6 +727,7 @@ func TestHTTPCookiePerProject(t *testing.T) {
 		t.Fatalf("cookie names %q, %q", nameA, nameB)
 	}
 	cookie := func(name string) map[string]string { return map[string]string{"Cookie": name + "=" + goodToken} }
+	cookie2 := func(name, tok string) map[string]string { return map[string]string{"Cookie": name + "=" + tok} }
 
 	// Paired on both: each keeps its own cookie, so both stay authenticated.
 	for w, want := range map[*web]string{a: nameA, b: nameB} {
@@ -747,17 +748,17 @@ func TestHTTPCookiePerProject(t *testing.T) {
 		t.Errorf("other project's cookie: %d, want 401", resp.StatusCode)
 	}
 
-	// The old cookie still works and moves to the new name.
-	resp := a.do("GET", "/", "", "", cookie(LegacyCookieName))
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("legacy cookie: %d, want 200", resp.StatusCode)
+	// The old cookie alone is refused (since 1.12.0), whatever its value,
+	// and migrates nothing.
+	for _, tok := range []string{goodToken, badToken} {
+		resp := a.do("GET", "/", "", "", cookie2(LegacyCookieName, tok))
+		if resp.StatusCode != http.StatusUnauthorized || len(resp.Cookies()) != 0 {
+			t.Errorf("old cookie %q: %d with %d cookies", tok, resp.StatusCode, len(resp.Cookies()))
+		}
 	}
-	if cs := resp.Cookies(); len(cs) != 1 || cs[0].Name != nameA || cs[0].Value != goodToken || !cs[0].HttpOnly || cs[0].Path != "/" {
-		t.Errorf("legacy cookie not migrated: %+v", cs)
-	}
-	// A wrong legacy cookie is refused, migrates nothing.
-	resp = a.do("GET", "/", "", "", map[string]string{"Cookie": LegacyCookieName + "=" + badToken})
-	if resp.StatusCode != http.StatusUnauthorized || len(resp.Cookies()) != 0 {
-		t.Errorf("wrong legacy cookie: %d with %d cookies", resp.StatusCode, len(resp.Cookies()))
+	// The per-project cookie still works next to a stale old one.
+	both2 := map[string]string{"Cookie": LegacyCookieName + "=" + badToken + "; " + nameA + "=" + goodToken}
+	if resp := a.do("GET", "/", "", "", both2); resp.StatusCode != http.StatusOK {
+		t.Errorf("per-project cookie beside the old one: %d, want 200", resp.StatusCode)
 	}
 }

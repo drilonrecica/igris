@@ -34,8 +34,8 @@ const (
 
 	// LegacyCookieName is the cookie every project's listener set through
 	// 1.9: cookies don't isolate ports, so a second project on one address
-	// unpaired the first. Accepted, and moved to CookieFor's name, through
-	// 1.11.x (SPEC §14, §19).
+	// unpaired the first. No longer read since 1.12.0 (SPEC §14, §19); it
+	// stays as CookieFor's prefix and for tests that need the old name.
 	LegacyCookieName = "igris_token"
 	// CSRFHeader carries the CSRF token of a cookie-authenticated POST;
 	// a form carries it as the field CSRFField.
@@ -101,10 +101,8 @@ type remote struct {
 	// hands every request past the checks to opts.UI.
 	srv  *Server
 	opts RemoteOptions
-	// cookieName is the cookie the browser is paired with; legacy says
-	// the 1.9 cookie is accepted too (a project's listener, not a Guard).
+	// cookieName is the cookie the browser is paired with.
 	cookieName string
-	legacy     bool
 	// pairCmd is the command that prints the pairing URL, named when a
 	// request isn't paired.
 	pairCmd string
@@ -121,7 +119,7 @@ func (s *Server) Remote(opts RemoteOptions) http.Handler {
 	if opts.Ping <= 0 {
 		opts.Ping = pingInterval
 	}
-	return &remote{srv: s, opts: opts, cookieName: CookieFor(opts.Root), legacy: true,
+	return &remote{srv: s, opts: opts, cookieName: CookieFor(opts.Root),
 		pairCmd: "igris serve token", limit: newLimiter(opts.Now)}
 }
 
@@ -344,7 +342,7 @@ func (h *remote) sameOrigin(r *http.Request) bool {
 // owner token. A wrong one counts as a failure of its address; none at
 // all doesn't (an unpaired browser asking for its pages guesses nothing).
 func (h *remote) authenticate(w http.ResponseWriter, r *http.Request, key string) (token string, viaCookie, ok bool) {
-	given, viaCookie, legacy := credential(r, h.cookieName, h.legacy)
+	given, viaCookie := credential(r, h.cookieName)
 	if given == "" {
 		return "", false, false
 	}
@@ -352,11 +350,6 @@ func (h *remote) authenticate(w http.ResponseWriter, r *http.Request, key string
 	if err != nil || !equal(given, token) {
 		h.limit.fail(key)
 		return "", false, false
-	}
-	if legacy {
-		// A phone paired before 1.11 moves to this project's cookie
-		// without pairing again; the old one stays for other projects.
-		h.setCookie(w, token)
 	}
 	return token, viaCookie, true
 }
@@ -370,26 +363,20 @@ func CookieFor(root string) string {
 	return LegacyCookieName + "_" + hex.EncodeToString(sum[:6])
 }
 
-// credential is the request's bearer token, else its cookie: name's, else
-// (through 1.11.x, when withLegacy) the legacy one, which legacy reports.
-func credential(r *http.Request, name string, withLegacy bool) (given string, viaCookie, legacy bool) {
+// credential is the request's bearer token, else its cookie named name.
+// The old cookie igris_token is not read (since 1.12.0).
+func credential(r *http.Request, name string) (given string, viaCookie bool) {
 	if a := r.Header.Get("Authorization"); a != "" {
 		scheme, tok, _ := strings.Cut(a, " ")
 		if !strings.EqualFold(scheme, "Bearer") {
-			return "", false, false
+			return "", false
 		}
-		return strings.TrimSpace(tok), false, false
+		return strings.TrimSpace(tok), false
 	}
 	if c, err := r.Cookie(name); err == nil {
-		return c.Value, true, false
+		return c.Value, true
 	}
-	if !withLegacy {
-		return "", false, false
-	}
-	if c, err := r.Cookie(LegacyCookieName); err == nil {
-		return c.Value, true, true
-	}
-	return "", false, false
+	return "", false
 }
 
 // setCookie pairs the browser: the token in this project's cookie. Secure
@@ -411,7 +398,7 @@ func (h *remote) setCookie(w http.ResponseWriter, token string) {
 // stillValid reports whether the request's credential is still the owner
 // token, for a stream that outlives a rotation.
 func (h *remote) stillValid(r *http.Request) bool {
-	given, _, _ := credential(r, h.cookieName, h.legacy)
+	given, _ := credential(r, h.cookieName)
 	token, err := h.opts.Token()
 	return err == nil && given != "" && equal(given, token)
 }
