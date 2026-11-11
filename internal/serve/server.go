@@ -558,9 +558,7 @@ func (s *Server) tail(c *client, r Request) {
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		defer c.tailing.Store(false)
 		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
 		go func() {
 			select {
 			case <-c.done:
@@ -568,7 +566,12 @@ func (s *Server) tail(c *client, r Request) {
 			case <-ctx.Done():
 			}
 		}()
-		c.reply(s.readTail(ctx, r))
+		rep := s.readTail(ctx, r)
+		cancel()
+		// Over before its reply goes out: the client may ask the next one
+		// as soon as it reads this.
+		c.tailing.Store(false)
+		c.reply(rep)
 	}()
 }
 

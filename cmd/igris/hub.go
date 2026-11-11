@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -174,6 +175,8 @@ func runHub(ctx context.Context, c hubConfig, stdout, stderr io.Writer) int {
 
 	// hub.json lets a serve send its ntfy Open through this hub (SPEC §13);
 	// a hub on every address has no URL a phone could use, so it writes none.
+	// release removes it, once.
+	release := func() {}
 	if ap, err := netip.ParseAddrPort(l.Addr().String()); err == nil && ap.Addr().IsUnspecified() {
 		o.printf("ntfy's Open buttons keep going to each run's own listener: the hub takes every address, so it has no URL to give them")
 	} else {
@@ -184,11 +187,15 @@ func runHub(ctx context.Context, c hubConfig, stdout, stderr io.Writer) int {
 		if unregister, err := state.RegisterHub(state.SystemRegistryEnv(), entry); err != nil {
 			o.warnf("ntfy's Open buttons keep going to each run's own listener: %v", err)
 		} else {
-			defer func() {
-				if err := unregister(); err != nil {
-					o.warnf("%v", err)
-				}
-			}()
+			var once sync.Once
+			release = func() {
+				once.Do(func() {
+					if err := unregister(); err != nil {
+						o.warnf("%v", err)
+					}
+				})
+			}
+			defer release()
 		}
 	}
 
@@ -223,6 +230,10 @@ func runHub(ctx context.Context, c hubConfig, stdout, stderr io.Writer) int {
 			code = exitFail
 		}
 	}
+	// hub.json goes first: the hub is ending, and a line it prints now can
+	// be its last act (stdout a pipe whose reader ended with the same
+	// Ctrl-C raises SIGPIPE).
+	release()
 	sctx, done := context.WithTimeout(context.Background(), shutdownWait)
 	defer done()
 	_ = hs.Shutdown(sctx)

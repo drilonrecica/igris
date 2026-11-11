@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 	"time"
 
@@ -157,5 +158,27 @@ func TestSnapshotResolverCard(t *testing.T) {
 	s.Publish(engine.Event{At: at(6), Kind: engine.ResolverDone, Task: "M1-03", Detail: "resolver resolved it: kept both"})
 	if c := snap(t, s).Active[0]; c.Resolver != "" {
 		t.Errorf("card after the resolver: %+v", c)
+	}
+}
+
+// Tails one after another are each answered: a tail is over before its
+// reply goes out, so the next one asked on its reply is never refused as
+// "a tail is already being read" (the V111 gate saw TestTailOfATask fail so
+// under the race detector; the hub's mirror carries every page's tails of
+// a run over one connection, as the web UI asks them, one after another).
+func TestTailsOneAfterAnother(t *testing.T) {
+	// More Ps than cores, so the tail's goroutine is put aside between its
+	// reply and its end often enough to show it.
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(64))
+	s := New(Options{Version: "1.11.0", Tail: func(_ context.Context, task string, _ int) ([]string, error) {
+		return []string{"lines of " + task}, nil
+	}})
+	c, _, _ := attachTo(t, s)
+	ctx, cancel := context.WithTimeout(context.Background(), patience)
+	defer cancel()
+	for i := range 2000 {
+		if _, err := c.TailTask(ctx, "M1-04", 1); err != nil {
+			t.Fatalf("tail %d: %v", i+1, err)
+		}
 	}
 }

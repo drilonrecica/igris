@@ -20,6 +20,11 @@ import (
 	"github.com/drilonrecica/igris/internal/state"
 )
 
+// testRuntimeDir is the tests' own $XDG_RUNTIME_DIR, set by TestMain: the
+// run registry and hub.json (SPEC §13) the in-process serve and the hub
+// write go there, never into the developer's.
+var testRuntimeDir string
+
 // TestMain keeps the tests off the real claude and herdr: no version check
 // runs unless a test asks for one (see withVersions). It runs nothing when
 // this binary was started as `igris serve` (project.SpawnedButNotIgris):
@@ -53,6 +58,28 @@ func TestMain(m *testing.M) {
 	// Nor on the developer's home and runs: a hub test sets its own token
 	// directory and live runs; without them there is no token and no run.
 	hubTokenEnv = func() state.HubTokenEnv { return state.HubTokenEnv{} }
+	// Nor the developer's run registry and hub.json: the in-process serve
+	// registers its run and a hub test writes hub.json (SPEC §13), which
+	// the developer's own `igris hub` and serves read. A helper process of
+	// a test (signal_test.go) takes its parent's directory, which the
+	// parent removes: a helper ends by a signal, before it could.
+	const runtimeVar = "IGRIS_TEST_RUNTIME_DIR"
+	dir, made := os.Getenv(runtimeVar), ""
+	if dir == "" {
+		d, err := os.MkdirTemp("", "igris-runtime-")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		dir, made = d, d
+	}
+	testRuntimeDir = dir
+	for k, v := range map[string]string{runtimeVar: dir, "XDG_RUNTIME_DIR": dir} {
+		if err := os.Setenv(k, v); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+	}
 	hubLive = func(context.Context) []state.RunEntry { return nil }
 	outTerminal = func(io.Writer) (bool, int) { return false, 0 }
 	// Text output tells local times against now: both fixed, so the
@@ -65,6 +92,9 @@ func TestMain(m *testing.M) {
 	// Run from a side session, done, skip and reset would refuse.
 	_ = os.Unsetenv(side.Env)
 	code := m.Run()
+	if made != "" {
+		_ = os.RemoveAll(made)
+	}
 	if left := leftoverChildren(); len(left) > 0 {
 		fmt.Fprintf(os.Stderr, "igris processes left running by the tests: %v\n", left)
 		if code == 0 {

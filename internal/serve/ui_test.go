@@ -520,6 +520,25 @@ func TestUITailFollowsTheNewestLines(t *testing.T) {
 	}
 }
 
+// The page that confirmed Stop says Stopping until the end, and the end
+// stays: through the hub the stop's reply comes back after run_stopped
+// (the hub relays it over the run's socket), and the V111 gate saw that
+// page say "Stopping · the sessions stay open" for good while every other
+// page said "Done · – stopped".
+func TestUIStopReplyAfterTheEndKeepsDone(t *testing.T) {
+	b, err := uiFiles.ReadFile("ui/app.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fn := regexp.MustCompile(`(?s)function stopped\(\) \{(.*?)\n  \}`).FindStringSubmatch(string(b))
+	if fn == nil {
+		t.Fatal("app.js has no stopped()")
+	}
+	if !regexp.MustCompile(`^\s*if \(over\) \{\s*return;`).MatchString(fn[1]) {
+		t.Errorf("stopped() writes Stopping over an ended page:\n%s", fn[0])
+	}
+}
+
 func TestUIScriptEndsWithTheRun(t *testing.T) {
 	b, err := uiFiles.ReadFile("ui/app.js")
 	if err != nil {

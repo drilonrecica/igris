@@ -18,6 +18,7 @@ igris 1.11 puts several projects behind one page: `igris hub` follows the live r
 ### Fixed
 
 - **Two projects served on one address no longer unpair each other.** Every project's web UI set the same cookie, `igris_token`, and browsers don't separate cookies by port, so pairing a second project on the same host replaced the first project's cookie and the first page asked to pair again. The cookie is now `igris_token_<h>`, `<h>` the first 12 hex characters of the sha256 of the project root. A phone paired under 1.10 moves over by itself the first time it opens the page (the old `igris_token` is still accepted through 1.11.x, no longer from 1.12.0); a phone that isn't opened during 1.11 pairs again.
+- **A session's last lines no longer skip a refresh now and then.** Serve sent a tail's reply before it was ready for the next one, so a client that asked again as soon as the reply came (the web UI's cards ask one tail after another) was sometimes told `a tail is already being read`, and that card's lines stayed as they were until the next round. Since 1.4; more likely through the hub, which carries every page's tails of a run over one connection.
 
 ## 1.10.0 - not yet published
 

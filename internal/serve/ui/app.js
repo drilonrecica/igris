@@ -118,7 +118,12 @@
 
   // stopped shows Stopping on the page that confirmed Stop: the protocol
   // has no event for it, so the other pages say Working until the end.
+  // Once the run ended it does nothing: the stop's reply can come after
+  // run_stopped (through the hub it does), and Done stays.
   function stopped() {
+    if (over) {
+      return;
+    }
     var word = live.querySelector(".glance .word");
     var line = live.querySelector(".glance .line");
     if (word) {

@@ -276,3 +276,79 @@ func TestHubOpenBase(t *testing.T) {
 		t.Errorf("after the hub ended: %q", got)
 	}
 }
+
+// The tests never write the developer's run registry or hub.json: a run
+// the in-process serve registered, or a test's hub, would join or steer
+// the developer's own `igris hub` (found at the V111 gate: TestRunHub wrote
+// the real $XDG_RUNTIME_DIR/igris/hub.json while it ran).
+func TestTestsKeepOutOfTheRuntimeDir(t *testing.T) {
+	e := state.SystemRegistryEnv()
+	for _, f := range []func() (string, error){e.HubFile, e.RunsDir} {
+		p, err := f()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if testRuntimeDir == "" || !strings.HasPrefix(p, testRuntimeDir+string(filepath.Separator)) {
+			t.Errorf("the tests write %s, not under their own runtime directory %q", p, testRuntimeDir)
+		}
+	}
+}
+
+// endWatch records whether hub.json was still there when the hub wrote
+// its last line.
+type endWatch struct {
+	lockedBuf
+	file string
+	mu   sync.Mutex
+	left *bool
+}
+
+func (w *endWatch) Write(p []byte) (int, error) {
+	if strings.Contains(string(p), "the hub ended") {
+		_, err := os.Lstat(w.file)
+		left := err == nil
+		w.mu.Lock()
+		w.left = &left
+		w.mu.Unlock()
+	}
+	return w.lockedBuf.Write(p)
+}
+
+// The hub removes hub.json before its last line: with stdout a pipe whose
+// reader ended with the same Ctrl-C (`igris hub … | tee hub.log`), that
+// write is the hub's last act (SIGPIPE), and the V111 gate found hub.json
+// left behind.
+func TestHubRemovesHubFileBeforeItsLastLine(t *testing.T) {
+	useHubSeams(t, nil)
+	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+	file, err := state.SystemRegistryEnv().HubFile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	out, errb := &endWatch{file: file}, &lockedBuf{}
+	done := make(chan int)
+	go func() { done <- runHub(ctx, hubConfig{all: true, addr: "127.0.0.1:0"}, out, errb) }()
+	deadline := time.Now().Add(10 * time.Second)
+	for !strings.Contains(out.String(), "\x1b[0m\n") { // the QR code's last line
+		if time.Now().After(deadline) {
+			t.Fatalf("the hub didn't start:\n%s\n%s", out.String(), errb.String())
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	if _, err := os.Lstat(file); err != nil {
+		t.Fatalf("no hub.json while the hub runs: %v", err)
+	}
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the hub didn't end with its context")
+	}
+	out.mu.Lock()
+	defer out.mu.Unlock()
+	if out.left == nil || *out.left {
+		t.Errorf("hub.json was still there at the hub's last line (seen: %v):\n%s", out.left != nil, out.String())
+	}
+}
