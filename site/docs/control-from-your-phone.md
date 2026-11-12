@@ -23,7 +23,13 @@ igris binds only addresses it can call private: loopback (`127.0.0.1`, `::1`) an
 
 Install [Tailscale](https://tailscale.com) on the machine that runs igris and on the phone, sign in to the same tailnet, and set `http` to the machine's Tailscale address (`tailscale ip -4`). Traffic is WireGuard-encrypted end to end, and nothing is exposed to the internet.
 
-The machine's firewall still applies to its Tailscale interface. On Fedora, firewalld leaves `tailscale0` in the default zone, which drops the port, so the phone gets no answer until you let it through: `sudo firewall-cmd --add-port=7777/tcp` for now, or with `--permanent` (then `--reload`) to keep it. Other distributions with `ufw` or `nftables` want the same for their rules.
+The machine's firewall still applies to its Tailscale interface. On Fedora, `tailscale0` falls into firewalld's default zone, which drops the port, so the phone gets no answer until you let Tailscale's addresses through. Trust their ranges:
+
+```bash
+sudo firewall-cmd --permanent --zone=trusted --add-source=100.64.0.0/10 --add-source=fd7a:115c:a1e0::/48 && sudo firewall-cmd --reload
+```
+
+This covers `igris serve`'s port and the hub's alike, survives reboots, and lets in only traffic that arrives from the tailnet (opening the port with `--add-port=7777/tcp` would miss the hub's port and open it to your LAN as well). Don't put the interface in the zone with `--add-interface=tailscale0`: NetworkManager manages `tailscale0` and resets its zone at runtime, so that doesn't stick. `sudo firewall-cmd --zone=trusted --change-interface=tailscale0` fixes the running session at once, but the sources above are what lasts. With `ufw` or `nftables`, the same idea in one line: allow traffic from `100.64.0.0/10` and `fd7a:115c:a1e0::/48` (for `ufw`, `sudo ufw allow from 100.64.0.0/10` and `sudo ufw allow from fd7a:115c:a1e0::/48`).
 
 ### ssh -L
 
