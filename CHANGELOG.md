@@ -2,6 +2,20 @@
 
 All notable changes to igris are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and igris uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Until 1.0, minor versions may change the plan format, config or CLI; such changes are called out here.
 
+## [Unreleased]
+
+### Added
+
+- **A bare `igris hub` picks its address.** `--http` is optional: the hub listens on this machine's Tailscale address (the first in `100.64.0.0/10`), else on `127.0.0.1` with a line saying how to reach it from elsewhere, always on port 7780, so a bookmark and a pairing keep working. A line before the QR code says what was chosen. When 7780 is taken by a hub already running there, it says so and exits 0; by anything else, it says to pass `--http` and exits 1. `igris hub token` uses the same default and accepts `--http` (SPEC §14, decisions.md V113-P1).
+
+### Changed
+
+- **Off a terminal, the hub takes all runs.** `igris hub` without PATH and not on a terminal used to be a usage error (exit 2); it now takes all runs, as `--all` does, and says so.
+
+### Documentation
+
+- **The firewall advice for Tailscale.** On Fedora, trust Tailscale's ranges (`--add-source=100.64.0.0/10` and `fd7a:115c:a1e0::/48` in the `trusted` zone) instead of opening `7777/tcp`: it covers the hub's port, survives reboots and doesn't open the port to the LAN. Why `--add-interface=tailscale0` doesn't stick is explained, and `ufw` and `nftables` users get the same idea.
+
 ## [1.12.1] - 2026-11-12
 
 ### Fixed

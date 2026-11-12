@@ -139,3 +139,11 @@ Install the new igris (or run `igris update`) and you are done: nothing in your 
 What is new: a task row in the TUI says its mode when it differs from the run's (`plan`, and `yolo` in Ember whenever a session would skip permissions), and the run view spends its rows where they are read on a small terminal (TASKS as tall as its rows, the card that needs you first, one row of buttons, a quiet log lending its rows to the session's last lines).
 
 **One thing to know.** The web UI's old cookie `igris_token` is no longer accepted. Through 1.11.x it was moved to `igris_token_<h>` the first time a phone opened the page; a phone or browser you didn't open during 1.11 pairs again with `igris serve token`. Nothing else about pairing changes. [CHANGELOG](../../CHANGELOG.md).
+
+## From 1.12 to 1.13
+
+Install the new igris (or run `igris update`) and you are done: nothing in your plan, `igris.toml`, scripts, `--json` or `.igris/` changes, and a run interrupted under 1.12 resumes. `state.json` stays version 4.
+
+What is new: `igris hub` needs no flags. It listens on the machine's Tailscale address (else `127.0.0.1`) on port 7780 and says what it chose; `igris hub token` prints that same URL; and off a terminal the hub takes all runs instead of refusing. The Tailscale firewall advice for Fedora is corrected in [control from your phone](control-from-your-phone.md) and [troubleshooting](troubleshooting.md).
+
+**One thing to know.** `igris hub` without `--http` is a usage error in igris 1.12 and earlier, so a script that relied on that, or on exit code 2 off a terminal, sees a hub start. Pass `--http ADDR:PORT` to keep the old behavior. The editor extension is unchanged. [CHANGELOG](../../CHANGELOG.md).
