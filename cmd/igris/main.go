@@ -73,7 +73,7 @@ Run
   serve          run headless, for attach and the web UI        [PHASE]  --http ADDR:PORT
   serve token    print the web UI's pairing URL                 --rotate
   attach         open this project's live run
-  hub            live runs of several projects on one web page  [PATH...]  --all  --http ADDR:PORT
+  hub            live runs of several projects on one web page  [PATH...]  --all  --http
   hub token      print the hub's pairing URL                    --rotate
   stop           stop the live run (sessions stay open)
 
@@ -126,12 +126,13 @@ const synopses = `
   serve token [--rotate]                print the pairing URL of the HTTP listener (creating the token);
                                         --rotate replaces the token, unpairing every device
   attach                                open the run view of this project's live run
-  hub [PATH...] [--all] --http ADDR:PORT
+  hub [PATH...] [--all] [--http ADDR:PORT]
       [--listen-public] [--tls-cert FILE --tls-key FILE]
                                         live runs of several projects behind one web listener and one pairing:
                                         a checklist on a terminal, --all every run and the runs started later,
-                                        PATH the runs of those projects; Ctrl-C ends the hub, never a run
-  hub token [--rotate]                  print the hub's pairing URL (creating its token);
+                                        PATH the runs of those projects; without --http, this machine's Tailscale
+                                        address (else 127.0.0.1) on port 7780; Ctrl-C ends the hub, never a run
+  hub token [--rotate] [--http ADDR:PORT] print the hub's pairing URL (creating its token);
                                         --rotate replaces the token, unpairing every device
   stop                                  stop this project's live run (sessions stay open)
   done ID [--note TEXT]                 signal that a task is finished

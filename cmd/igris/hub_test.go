@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -35,15 +36,13 @@ func TestHubUsage(t *testing.T) {
 		args []string
 		want string
 	}{
-		{[]string{"hub"}, "the hub needs --http ADDR:PORT"},
 		{[]string{"hub", "--http", "nope"}, "invalid --http"},
 		{[]string{"hub", "--all", "--http", "127.0.0.1:7777", "x"}, "--all takes every live run"},
 		{[]string{"hub", "--http", "127.0.0.1:7777", "--tls-cert", "c.pem"}, "--tls-cert and --tls-key go together"},
 		{[]string{"hub", "--rotate", "--http", "127.0.0.1:7777"}, "--rotate is for `igris hub token`"},
-		{[]string{"hub", "token", "--all"}, "hub token takes only --rotate, not --all"},
+		{[]string{"hub", "token", "--all"}, "hub token takes only --rotate and --http, not --all"},
+		{[]string{"hub", "token", "--http", "nope"}, "invalid --http"},
 		{[]string{"hub", "token", "x"}, "unexpected argument"},
-		// Off a terminal there is no checklist.
-		{[]string{"hub", "--http", "127.0.0.1:7777"}, "the checklist needs a terminal; pass --all"},
 	} {
 		var out, errb bytes.Buffer
 		if code := run(tc.args, &out, &errb); code != exitUsage || !strings.Contains(errb.String(), tc.want) {
@@ -54,6 +53,7 @@ func TestHubUsage(t *testing.T) {
 
 func TestHubToken(t *testing.T) {
 	path := useHubSeams(t, nil)
+	useHubNet(t, nil, true, nil)
 	var out, errb bytes.Buffer
 	if code := run([]string{"hub", "token"}, &out, &errb); code != exitOK {
 		t.Fatalf("exit %d: %s", code, errb.String())
@@ -62,7 +62,7 @@ func TestHubToken(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out.String(), "  http://ADDR:PORT/pair?token="+tok+"\n") || !strings.Contains(out.String(), "next: igris hub --http ADDR:PORT") {
+	if !strings.Contains(out.String(), "  http://127.0.0.1:7780/pair?token="+tok+"\n") || !strings.Contains(out.String(), "next: igris hub") {
 		t.Errorf("output:\n%s", out.String())
 	}
 	out.Reset()
@@ -350,5 +350,119 @@ func TestHubRemovesHubFileBeforeItsLastLine(t *testing.T) {
 	defer out.mu.Unlock()
 	if out.left == nil || *out.left {
 		t.Errorf("hub.json was still there at the hub's last line (seen: %v):\n%s", out.left != nil, out.String())
+	}
+}
+
+// useHubNet fakes the interface addresses, the port check and the live hub.
+func useHubNet(t *testing.T, addrs []string, free bool, running *state.HubEntry) {
+	t.Helper()
+	sa, sf, sr := hubIfaceAddrs, hubPortFree, hubRunning
+	t.Cleanup(func() { hubIfaceAddrs, hubPortFree, hubRunning = sa, sf, sr })
+	hubIfaceAddrs = func() ([]netip.Addr, error) {
+		var out []netip.Addr
+		for _, a := range addrs {
+			out = append(out, netip.MustParseAddr(a))
+		}
+		return out, nil
+	}
+	hubPortFree = func(string) bool { return free }
+	hubRunning = func() (state.HubEntry, bool) {
+		if running == nil {
+			return state.HubEntry{}, false
+		}
+		return *running, true
+	}
+}
+
+func TestHubAddr(t *testing.T) {
+	const noTS = "no Tailscale address on this machine: listening on this machine only; from another device use ssh -L 7780:127.0.0.1:7780, or start Tailscale"
+	for _, tc := range []struct {
+		name  string
+		addrs []string
+		addr  string
+		why   string
+	}{
+		{"present", []string{"127.0.0.1", "192.168.1.5", "100.84.7.96", "100.99.0.1"}, "100.84.7.96:7780",
+			"listening on http://100.84.7.96:7780 (this machine's Tailscale address; --http picks another)"},
+		{"absent", []string{"127.0.0.1", "192.168.1.5", "100.128.0.1"}, "127.0.0.1:7780", noTS},
+		{"only IPv6", []string{"::1", "fd7a:115c:a1e0::1", "fe80::1"}, "127.0.0.1:7780", noTS},
+		{"none", nil, "127.0.0.1:7780", noTS},
+	} {
+		useHubNet(t, tc.addrs, true, nil)
+		if addr, why := hubAddr(); addr != tc.addr || why != tc.why {
+			t.Errorf("%s: %q, %q; want %q, %q", tc.name, addr, why, tc.addr, tc.why)
+		}
+	}
+}
+
+// A bare hub: the port free starts it and says what was chosen; held by the
+// live hub at the same URL it exits 0; held by anything else it exits 1.
+func TestRunHubDefaultPort(t *testing.T) {
+	useHubSeams(t, nil)
+	same := &state.HubEntry{URL: "http://100.84.7.96:7780/", PID: 1}
+	other := &state.HubEntry{URL: "http://127.0.0.1:7777/", PID: 1}
+	for _, tc := range []struct {
+		name    string
+		free    bool
+		running *state.HubEntry
+		code    int
+		out     string
+		errs    string
+	}{
+		{"live hub", false, same, exitOK, "a hub already runs at http://100.84.7.96:7780; open it, or pair another device with igris hub token", ""},
+		{"another hub", false, other, exitFail, "", "port 7780 is in use: pass --http ADDR:PORT"},
+		{"something else", false, nil, exitFail, "", "port 7780 is in use: pass --http ADDR:PORT"},
+	} {
+		useHubNet(t, []string{"100.84.7.96"}, tc.free, tc.running)
+		var out, errb bytes.Buffer
+		code := runHub(context.Background(), hubConfig{all: true}, &out, &errb)
+		if code != tc.code || !strings.Contains(out.String(), tc.out) || !strings.Contains(errb.String(), tc.errs) {
+			t.Errorf("%s: exit %d, out %q, err %q", tc.name, code, out.String(), errb.String())
+		}
+	}
+}
+
+// Off a terminal and with no PATH the hub takes all runs and says so.
+func TestRunHubOffTerminalTakesAll(t *testing.T) {
+	useHubSeams(t, nil)
+	useHubNet(t, nil, true, nil)
+	saved := interactiveTerm
+	interactiveTerm = func() bool { return false }
+	t.Cleanup(func() { interactiveTerm = saved })
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	out, errb := &lockedBuf{}, &lockedBuf{}
+	done := make(chan int)
+	go func() { done <- runHub(ctx, hubConfig{addr: "127.0.0.1:0"}, out, errb) }()
+	deadline := time.Now().Add(10 * time.Second)
+	for !strings.Contains(out.String(), "\x1b[0m\n") {
+		if time.Now().After(deadline) {
+			t.Fatalf("the hub didn't start:\n%s\n%s", out.String(), errb.String())
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	if !strings.Contains(out.String(), "not on a terminal, so no checklist: the hub takes every run") {
+		t.Errorf("no line saying so:\n%s", out.String())
+	}
+	cancel()
+	if code := <-done; code != exitOK {
+		t.Errorf("exit %d: %s", code, errb.String())
+	}
+}
+
+func TestHubTokenAddress(t *testing.T) {
+	useHubSeams(t, nil)
+	for _, tc := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"hub", "token"}, "  http://100.84.7.96:7780/pair?token="},
+		{[]string{"hub", "token", "--http", "127.0.0.1:7777"}, "  http://127.0.0.1:7777/pair?token="},
+	} {
+		useHubNet(t, []string{"100.84.7.96"}, true, nil)
+		var out, errb bytes.Buffer
+		if code := run(tc.args, &out, &errb); code != exitOK || !strings.Contains(out.String(), tc.want) {
+			t.Errorf("%v: exit %d, %q %q", tc.args, code, out.String(), errb.String())
+		}
 	}
 }

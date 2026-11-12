@@ -31,12 +31,13 @@ Since 1.11, `igris hub` puts the live runs of several projects behind one web pa
 ```sh
 igris hub --all --http 100.101.102.103:7777     # every live run, and the ones you start later
 igris hub ~/code/sinjal ~/code/api --http 100.101.102.103:7777     # only these projects
-igris hub --http 127.0.0.1:7777                # on a terminal: a checklist of the live runs
+igris hub                                       # on a terminal: a checklist of the live runs; off one: all
+igris hub --http 127.0.0.1:7777                # pick the address yourself
 ```
 
-The address is the one you would give `igris serve`: loopback or Tailscale, or `--listen-public` with `--tls-cert` and `--tls-key`. It is given each time; the hub remembers nothing but its token. Start it after the runs, or before: with **All**, a run started later joins by itself within a couple of seconds and the hub logs `run joined: <project>`. With paths, each project must have a live run (`igris arise` or `igris serve` in it) or the hub says which hasn't.
+Without `--http` (since 1.13) the hub listens on this machine's Tailscale address, else on `127.0.0.1` with a line saying how to reach it with `ssh -L`, always on port 7780 so a bookmark and a pairing keep working; it says which it chose. If 7780 is in use by a hub already, it tells you where that one is; by anything else, pass `--http`. With `--http` the address is the one you would give `igris serve`: loopback or Tailscale, or `--listen-public` with `--tls-cert` and `--tls-key`. The hub remembers nothing but its token. Start it after the runs, or before: with **All**, a run started later joins by itself within a couple of seconds and the hub logs `run joined: <project>`. With paths, each project must have a live run (`igris arise` or `igris serve` in it) or the hub says which hasn't.
 
-The hub prints a pairing URL and a QR code, as `igris serve token` does; scan it once. `igris hub token` prints the URL again (fill in the address), `igris hub token --rotate` unpairs every device. The token is `~/.local/state/igris/hub-token` (`$XDG_STATE_HOME/igris/hub-token`), the one file igris keeps outside your projects.
+The hub prints a pairing URL and a QR code, as `igris serve token` does; scan it once. `igris hub token` prints the URL again, `igris hub token --rotate` unpairs every device. The token is `~/.local/state/igris/hub-token` (`$XDG_STATE_HOME/igris/hub-token`), the one file igris keeps outside your projects.
 
 The page at `/` has a row for each run: the project, the status word, the phase bar, what needs you and the time, **most urgent first**. Questions from every project are in one sheet with the project's name on each; `1 of 3 ›` steps through them. Tap a row for that run's page, the one `igris serve` draws, with its plan, Pause and Stop. Ended runs show their outcome until you reload.
 

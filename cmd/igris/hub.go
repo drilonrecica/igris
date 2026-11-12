@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/netip"
 	"os"
@@ -32,11 +33,64 @@ var (
 	hubTokenEnv           = state.SystemHubTokenEnv
 	hubLive               = func(ctx context.Context) []state.RunEntry { r, _ := state.LiveRuns(ctx); return r }
 	hubStdin    io.Reader = os.Stdin
-	hubContext            = func() (context.Context, context.CancelFunc) {
+	// hubIfaceAddrs are this machine's interface addresses; hubPortFree says
+	// whether a TCP listener can bind addr; hubRunning is the live hub, if any.
+	hubIfaceAddrs = interfaceAddrs
+	hubPortFree   = portFree
+	hubRunning    = func() (state.HubEntry, bool) { return state.LiveHub(state.SystemRegistryEnv()) }
+	hubContext    = func() (context.Context, context.CancelFunc) {
 		ctx, cancel, _ := signalContext(os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 		return ctx, cancel
 	}
 )
+
+// hubPort is the port a hub without --http listens on: the same every start,
+// so a bookmark and a pairing keep working (SPEC §14, V113-P1).
+const hubPort = 7780
+
+// tailnetV4 is Tailscale's IPv4 range, where a bare hub looks for its address.
+var tailnetV4 = netip.MustParsePrefix("100.64.0.0/10")
+
+// interfaceAddrs reads the addresses of the machine's interfaces.
+func interfaceAddrs() ([]netip.Addr, error) {
+	as, err := net.InterfaceAddrs()
+	if err != nil {
+		return nil, err
+	}
+	var out []netip.Addr
+	for _, a := range as {
+		if n, ok := a.(*net.IPNet); ok {
+			if ip, ok := netip.AddrFromSlice(n.IP); ok {
+				out = append(out, ip.Unmap())
+			}
+		}
+	}
+	return out, nil
+}
+
+// portFree says whether addr can be bound right now.
+func portFree(addr string) bool {
+	l, err := net.Listen("tcp", addr)
+	if err != nil {
+		return false
+	}
+	_ = l.Close()
+	return true
+}
+
+// hubAddr is the address of a hub given no --http: this machine's first
+// Tailscale IPv4 address, else loopback, on hubPort. why is the line that
+// says what was chosen (and, for loopback, how to reach it from elsewhere).
+func hubAddr() (addr, why string) {
+	as, _ := hubIfaceAddrs()
+	for _, a := range as {
+		if a.Is4() && tailnetV4.Contains(a) {
+			addr = netip.AddrPortFrom(a, hubPort).String()
+			return addr, fmt.Sprintf("listening on http://%s (this machine's Tailscale address; --http picks another)", addr)
+		}
+	}
+	return fmt.Sprintf("127.0.0.1:%d", hubPort), fmt.Sprintf("no Tailscale address on this machine: listening on this machine only; from another device use ssh -L %d:127.0.0.1:%d, or start Tailscale", hubPort, hubPort)
+}
 
 // hubTokenArg is the word that makes `igris hub token` (SPEC §14).
 const hubTokenArg = "token"
@@ -47,7 +101,7 @@ const hubTLSFlags = "--tls-cert and --tls-key"
 // hubFlags registers hub's flags and checks them.
 func hubFlags(fs *flag.FlagSet) func([]string) error {
 	all := fs.Bool("all", false, "every live run and every run started later, without the checklist")
-	httpAddr := fs.String("http", "", "listen on HTTP at ADDR:PORT (required): a loopback or Tailscale address, or another with --listen-public")
+	httpAddr := fs.String("http", "", "listen on HTTP at ADDR:PORT (default: this machine's Tailscale address, else 127.0.0.1, port 7780): a loopback or Tailscale address, or another with --listen-public")
 	fs.Bool("listen-public", false, "let --http be an address beyond loopback and Tailscale (needs TLS)")
 	cert := fs.String("tls-cert", "", "serve TLS with this PEM certificate (with --tls-key)")
 	key := fs.String("tls-key", "", "the PEM key of --tls-cert")
@@ -56,30 +110,39 @@ func hubFlags(fs *flag.FlagSet) func([]string) error {
 		if len(args) > 0 && args[0] == hubTokenArg {
 			var other []string
 			fs.Visit(func(f *flag.Flag) {
-				if f.Name != "rotate" {
+				if f.Name != "rotate" && f.Name != "http" {
 					other = append(other, "--"+f.Name)
 				}
 			})
 			if len(other) > 0 {
-				return fmt.Errorf("hub token takes only --rotate, not %s", strings.Join(other, ", "))
+				return fmt.Errorf("hub token takes only --rotate and --http, not %s", strings.Join(other, ", "))
 			}
-			return atMost(args, 1)
+			if err := atMost(args, 1); err != nil {
+				return err
+			}
+			return checkHTTPFlag(*httpAddr)
 		}
 		switch {
 		case flagSet(fs, "rotate"):
 			return errors.New("--rotate is for `igris hub token`")
 		case *all && len(args) > 0:
 			return errors.New("--all takes every live run; leave it out to pin projects by PATH")
-		case *httpAddr == "":
-			return errors.New("the hub needs --http ADDR:PORT, e.g. 127.0.0.1:7777 for ssh -L, or this machine's Tailscale address")
 		case (*cert == "") != (*key == ""):
 			return errors.New("--tls-cert and --tls-key go together")
 		}
-		if _, err := config.ParseHTTPAddr(*httpAddr); err != nil {
-			return fmt.Errorf("invalid --http %q: %v", *httpAddr, err)
-		}
+		return checkHTTPFlag(*httpAddr)
+	}
+}
+
+// checkHTTPFlag validates --http when it was given.
+func checkHTTPFlag(addr string) error {
+	if addr == "" {
 		return nil
 	}
+	if _, err := config.ParseHTTPAddr(addr); err != nil {
+		return fmt.Errorf("invalid --http %q: %v", addr, err)
+	}
+	return nil
 }
 
 // hubConfig is what `igris hub` was asked for.
@@ -95,7 +158,7 @@ type hubConfig struct {
 // listener and one pairing, until a signal ends the hub (never a run).
 func execHub(fs *flag.FlagSet, args []string, stdout, stderr io.Writer) int {
 	if len(args) > 0 && args[0] == hubTokenArg {
-		return execHubToken(fs.Lookup("rotate").Value.String() == "true", stdout, stderr)
+		return execHubToken(fs.Lookup("rotate").Value.String() == "true", fs.Lookup("http").Value.String(), stdout, stderr)
 	}
 	c := hubConfig{
 		all: fs.Lookup("all").Value.String() == "true", paths: args,
@@ -114,6 +177,20 @@ func runHub(ctx context.Context, c hubConfig, stdout, stderr io.Writer) int {
 		return exitFail
 	}
 	o := newOut(stdout)
+	// The address: --http, or the default (V113-P1).
+	chosen := ""
+	if c.addr == "" {
+		c.addr, chosen = hubAddr()
+		if !hubPortFree(c.addr) {
+			url := "http://" + c.addr
+			if h, ok := hubRunning(); ok && strings.TrimSuffix(h.URL, "/") == url {
+				o.printf("a hub already runs at %s; open it, or pair another device with igris hub token", url)
+				return exitOK
+			}
+			fmt.Fprintf(stderr, "igris hub: port %d is in use: pass --http ADDR:PORT\n", hubPort)
+			return exitFail
+		}
+	}
 	// Which runs: the pinned projects', the checklist's, or all.
 	live := hubLive(ctx)
 	all, roots := c.all, []string(nil)
@@ -136,8 +213,8 @@ func runHub(ctx context.Context, c hubConfig, stdout, stderr io.Writer) int {
 		}
 	case all:
 	case !interactiveTerm():
-		fmt.Fprintln(stderr, "igris hub: the checklist needs a terminal; pass --all, or the PATH of each project to put in the hub")
-		return exitUsage
+		o.println("not on a terminal, so no checklist: the hub takes every run, and the runs started later (--all)")
+		all = true
 	case len(live) == 0:
 		o.println("no run is live yet; runs join the hub as they start")
 		all = true
@@ -168,6 +245,9 @@ func runHub(ctx context.Context, c hubConfig, stdout, stderr io.Writer) int {
 	}
 	if l.Exposure == serve.Public {
 		o.warnf("the hub on %s is reachable beyond loopback and Tailscale; only the token and TLS guard it", l.Addr())
+	}
+	if chosen != "" {
+		o.println(chosen)
 	}
 	if created {
 		o.printf("the hub's token is new (%s): every device pairs once", path)
@@ -327,11 +407,11 @@ func parseChoice(s string, n int) ([]int, error) {
 	return picked, nil
 }
 
-// execHubToken is `igris hub token [--rotate]` (SPEC §14): it prints the
-// hub's pairing URL, making the token first when there is none, or a new
-// one with rotate. The hub's address is given at each start (--http), so
-// the URL leaves it for the owner to fill in.
-func execHubToken(rotate bool, stdout, stderr io.Writer) int {
+// execHubToken is `igris hub token [--rotate] [--http ADDR:PORT]` (SPEC
+// §14): it prints the hub's pairing URL, making the token first when there is
+// none, or a new one with rotate. The address is --http or the default a
+// bare `igris hub` would pick, so the URL is the real one.
+func execHubToken(rotate bool, addr string, stdout, stderr io.Writer) int {
 	var tok string
 	var err error
 	if rotate {
@@ -347,9 +427,12 @@ func execHubToken(rotate bool, stdout, stderr io.Writer) int {
 	if rotate {
 		o.println("the token was replaced: every device paired with the hub must pair again")
 	}
+	if addr == "" {
+		addr, _ = hubAddr()
+	}
 	o.println("Open this URL on the device to pair it; anyone with it controls every run in the hub (short of skip-permissions mode):")
-	o.printf("  http://ADDR:PORT%s?token=%s", serve.PathPair, tok)
-	o.println("put the hub's --http address in place of ADDR:PORT (https with --tls-cert); `igris hub` prints the whole URL and its QR code when it starts")
-	o.next("igris hub --http ADDR:PORT")
+	o.printf("  http://%s%s?token=%s", addr, serve.PathPair, tok)
+	o.println("with --tls-cert the hub serves https: use https in its place; `igris hub` prints the whole URL and its QR code when it starts")
+	o.next("igris hub")
 	return exitOK
 }
