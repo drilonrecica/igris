@@ -5,7 +5,7 @@
 FROM debian:bookworm-slim
 
 # The igris release this image installs. Bump it with each release.
-ARG IGRIS_VERSION=1.12.1
+ARG IGRIS_VERSION=1.13.0
 ARG TARGETARCH
 
 # tmux 3.2+ (bookworm has 3.3a) hosts the sessions; git is what igris commits with.

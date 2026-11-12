@@ -2,7 +2,7 @@
 
 All notable changes to igris are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and igris uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Until 1.0, minor versions may change the plan format, config or CLI; such changes are called out here.
 
-## [Unreleased]
+## [1.13.0] - 2026-11-12
 
 ### Added
 
@@ -788,6 +788,7 @@ First release. Linux and macOS, herdr backend only. The full behavior is specifi
 - Release artifacts are not signed (checksums only); signing is planned.
 - No Homebrew tap yet.
 
+[1.13.0]: https://github.com/drilonrecica/igris/compare/v1.12.1...v1.13.0
 [1.12.1]: https://github.com/drilonrecica/igris/compare/v1.12.0...v1.12.1
 [1.12.0]: https://github.com/drilonrecica/igris/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/drilonrecica/igris/compare/v1.9.0...v1.11.0
