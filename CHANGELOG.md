@@ -2,6 +2,12 @@
 
 All notable changes to igris are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and igris uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Until 1.0, minor versions may change the plan format, config or CLI; such changes are called out here.
 
+## [Unreleased]
+
+### Fixed
+
+- **The plan dialog now closes when you answer the plan in the session's pane.** Claude Code (2.1.322) doesn't cancel igris's plan-approve hook when you approve a plan or type feedback in its own dialog, only for Esc, so the plan stayed open in the TUI, the web UI, the hub and the extension, and the hook waited until `approve_timeout`. A plan shown for approval now also closes once the session's hook state says it went on (working, idle, waiting, limited or exited, recorded after the plan was presented; the permission prompt itself stays blocked), and igris tells the waiting hook that the pane decided, so it ends at once (SPEC §6.3, decisions.md V1121-P1).
+
 ## [1.12.0] - 2026-11-12
 
 igris 1.12 makes the run view easier to read at one look and retires the old web UI cookie. It only adds, apart from the cookie: plans, `igris.toml`, `--json`, the run log, the webhook payload and protocol 1 are unchanged ([compatibility](docs/compatibility.md), [SPEC §19](SPEC.md#19-compatibility)). `state.json` stays version 4. The editor extension is unchanged and keeps its version, 1.9.0.

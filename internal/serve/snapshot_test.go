@@ -150,6 +150,29 @@ func TestSnapshotStates(t *testing.T) {
 	}
 }
 
+// A plan answered in the session's pane closes from the engine's
+// PlanClosed, followed by NeedsYouClear once the session moved on
+// (V1121-01): the snapshot every client reads (web UI, hub, extension)
+// keeps no plan question, and the card works again.
+func TestSnapshotPlanClosedInThePane(t *testing.T) {
+	s := New(Options{})
+	s.Publish(engine.Event{At: t0, Kind: engine.TaskStarted, Phase: "P1", Task: "P1-01", Model: "m"})
+	s.Publish(engine.Event{At: t0.Add(time.Second), Kind: engine.NeedsYou, Phase: "P1", Task: "P1-01", Reason: "plan_approval"})
+	s.Publish(engine.Event{At: t0.Add(time.Second), Kind: engine.Asked, Phase: "P1", Task: "P1-01", Question: engine.QuestionPlanApproval, Plan: "# Plan", Then: "auto"})
+	if got := snap(t, s); got.Question == nil || len(got.Questions) != 1 {
+		t.Fatalf("before: question %+v, questions %d", got.Question, len(got.Questions))
+	}
+	s.Publish(engine.Event{At: t0.Add(5 * time.Second), Kind: engine.PlanClosed, Phase: "P1", Task: "P1-01", Detail: "the plan was answered in the session's pane, or its hook gave up"})
+	s.Publish(engine.Event{At: t0.Add(5 * time.Second), Kind: engine.NeedsYouClear, Phase: "P1", Task: "P1-01"})
+	got := snap(t, s)
+	if got.Question != nil || len(got.Questions) != 0 {
+		t.Errorf("after: question %+v, questions %+v", got.Question, got.Questions)
+	}
+	if got.Current == nil || got.Current.State != StateWorking {
+		t.Errorf("current = %+v, want working", got.Current)
+	}
+}
+
 // The feed keeps the newest events, oldest first, without plan text.
 func TestSnapshotFeedIsBounded(t *testing.T) {
 	s := New(Options{})

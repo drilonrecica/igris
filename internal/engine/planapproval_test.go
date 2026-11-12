@@ -524,3 +524,154 @@ func TestApprovedPlanCappedInCommit(t *testing.T) {
 		t.Errorf("commit body has %d of the plan's characters", strings.Count(body, "ü"))
 	}
 }
+
+// record writes the session's hook state record as `igris hook` does, at
+// offset from t0 on the hook's clock.
+func (p *planHook) record(st backend.AgentState, event string, offset time.Duration) {
+	p.h.t.Helper()
+	if err := state.WriteAgentState(p.h.root, p.uuid(), state.AgentState{State: st, Event: event, At: t0.Add(offset)}); err != nil {
+		p.h.t.Fatal(err)
+	}
+}
+
+// pending reports whether a decision file exists for the session.
+func (p *planHook) pending() (state.PlanDecision, bool) {
+	p.h.t.Helper()
+	d, ok, err := state.ReadPlanDecision(p.h.root, p.uuid())
+	if err != nil {
+		p.h.t.Fatal(err)
+	}
+	return d, ok
+}
+
+// An answer in the pane leaves the hook waiting (Claude Code 2.1.322,
+// V1121-P1): the session's next hook state record that isn't blocked
+// closes the view, and the pane decision ends the hook. A blocked record
+// (the permission prompt) or one older than the request keeps the plan
+// open.
+func TestPlanClosesWhenTheSessionMovesOn(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		st     backend.AgentState
+		event  string
+		at     time.Duration // the record's at; the request's is 5s
+		closes bool
+	}{
+		{"working after PostToolUse", backend.Working, "PostToolUse", 7 * time.Second, true},
+		{"working after UserPromptSubmit", backend.Working, "UserPromptSubmit", 7 * time.Second, true},
+		{"idle after Stop", backend.Idle, "Stop", 7 * time.Second, true},
+		{"exited", backend.Exited, "SessionEnd", 7 * time.Second, true},
+		{"blocked at the permission prompt", backend.Blocked, "Notification", 7 * time.Second, false},
+		{"older than the request", backend.Working, "PostToolUse", 3 * time.Second, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			h, hook := planHarness(t, "")
+			closed := 0
+			h.onEvent = func(ev Event) {
+				switch {
+				case ev.Kind == SessionOpened:
+					h.clock.At(ev.At.Sub(t0)+5*time.Second, func() { hook.present(planText) })
+				case ev.Kind == Asked && ev.Question == QuestionPlanApproval:
+					h.clock.At(tt.at+2*time.Second, func() { hook.record(tt.st, tt.event, tt.at) })
+					h.clock.At(20*time.Second, func() {
+						d, ok := hook.pending()
+						if tt.closes {
+							if closed != 1 || !ok || d.Behavior != state.PlanPane || d.N != hook.n {
+								t.Errorf("closed %d times, decision %+v (%v)", closed, d, ok)
+							}
+							hook.done()
+							_ = h.signal("A-1")
+							return
+						}
+						if closed != 0 || ok {
+							t.Errorf("closed %d times, decision %+v", closed, d)
+						}
+						h.eng.Send(Command{Kind: CmdPlan, Plan: state.PlanAllow})
+					})
+				case ev.Kind == PlanClosed:
+					closed++
+					if !tt.closes {
+						if d := hook.decision(); d.Behavior != state.PlanAllow {
+							t.Errorf("decision %+v", d)
+						}
+						hook.done()
+						_ = h.signal("A-1")
+					} else if !strings.Contains(ev.Detail, "answered in the session's pane") {
+						t.Errorf("closed: %q", ev.Detail)
+					}
+				}
+			}
+			if _, err := h.run(withPlanApproval); err != nil {
+				t.Fatal(err)
+			}
+			if h.count(Asked) != 1 || closed != 1 {
+				t.Errorf("asked %d, closed %d", h.count(Asked), closed)
+			}
+			if !strings.HasPrefix(h.waits(), "A-1#1 plan_approval, clear A-1#1 plan_approval") {
+				t.Errorf("waits = %q", h.waits())
+			}
+			if logged := h.logged(); strings.Contains(logged, "plan_rejected") || tt.closes == strings.Contains(logged, "plan_approved") {
+				t.Errorf("run log = %s", logged)
+			}
+		})
+	}
+}
+
+// After igris answers, the session works on while its hook hands the
+// answer over: that record neither closes the view again nor replaces the
+// decision with pane. A rejection's revised plan is shown as before.
+func TestPlanAnsweredInIgrisThenMovesOn(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		cmd  Command
+	}{
+		{"approved", Command{Kind: CmdPlan, Plan: state.PlanAllow}},
+		{"rejected", Command{Kind: CmdPlan, Plan: state.PlanDeny, Text: "smaller steps"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			h, hook := planHarness(t, "")
+			closed := 0
+			h.onEvent = func(ev Event) {
+				switch {
+				case ev.Kind == SessionOpened:
+					h.clock.At(ev.At.Sub(t0)+5*time.Second, func() { hook.present(planText) })
+				case ev.Kind == Asked && ev.Question == QuestionPlanApproval && h.count(Asked) == 1:
+					h.eng.Send(tt.cmd)
+				case ev.Kind == Asked:
+					// The revised plan after the rejection, shown as before.
+					h.eng.Send(Command{Kind: CmdPlan, Plan: state.PlanAllow})
+				case ev.Kind == PlanClosed:
+					closed++
+					if closed > 1 {
+						hook.done()
+						_ = h.signal("A-1")
+						return
+					}
+					off := ev.At.Sub(t0)
+					h.clock.At(off+time.Second, func() { hook.record(backend.Working, "PostToolUse", off+time.Second) })
+					h.clock.At(off+6*time.Second, func() {
+						if d := hook.decision(); d.Behavior != tt.cmd.Plan {
+							t.Errorf("decision %+v", d)
+						}
+						hook.done()
+						if tt.cmd.Plan == state.PlanDeny {
+							hook.present("second plan")
+							return
+						}
+						_ = h.signal("A-1")
+					})
+				}
+			}
+			if _, err := h.run(withPlanApproval); err != nil {
+				t.Fatal(err)
+			}
+			want := 1
+			if tt.cmd.Plan == state.PlanDeny {
+				want = 2
+			}
+			if h.count(Asked) != want || closed != want {
+				t.Errorf("asked %d, closed %d, want %d", h.count(Asked), closed, want)
+			}
+		})
+	}
+}

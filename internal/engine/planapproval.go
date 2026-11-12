@@ -9,6 +9,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/drilonrecica/igris/internal/backend"
 	"github.com/drilonrecica/igris/internal/hook"
 	"github.com/drilonrecica/igris/internal/state"
 	"github.com/drilonrecica/igris/internal/textsafe"
@@ -32,9 +33,10 @@ var setModeOf = map[string]string{ModeDefault: "default", ModeAccept: "acceptEdi
 
 // planShown is the plan request the owner is shown for l's session.
 type planShown struct {
-	n    string // the request's ID; "" while none is shown
-	file string // where the plan is kept, relative to the root; "" if saving failed
-	sum  string // sha256 of the plan text
+	n    string    // the request's ID; "" while none is shown
+	at   time.Time // the request's at: the hook's clock when it asked
+	file string    // where the plan is kept, relative to the root; "" if saving failed
+	sum  string    // sha256 of the plan text
 	// answered is the request igris answered; its file stays until the
 	// hook has read the decision, and is not shown again meanwhile.
 	answered string
@@ -61,8 +63,11 @@ func (e *Engine) planApproval(mode string) *hook.PlanApproval {
 }
 
 // checkPlanRequest looks for a plan l's session presents for approval, and for
-// one shown that is gone: the owner answered in the pane (Claude Code
-// cancels the hook), the hook gave up or igris answered it.
+// one shown that is over: its request is gone (Claude Code cancelled the
+// hook, the hook gave up) or replaced, or the session moved on past it.
+// Since 1.12.1 (V1121-P1) an answer in the pane doesn't end the hook:
+// Claude Code 2.1.322 cancels it only for Esc, so the session's hook state
+// record newer than the request, and not blocked, says the pane answered.
 func (e *Engine) checkPlanRequest(ctx context.Context, l *launch) {
 	if e.planApproval(l.mode) == nil || !ValidSessionID(l.cur.ClaudeSession) {
 		return // the session has no plan-approve hook; nothing to show
@@ -75,7 +80,15 @@ func (e *Engine) checkPlanRequest(ctx context.Context, l *launch) {
 	if ok && r.PID > 0 && !state.ProcessAlive(r.PID) {
 		ok = false // the hook is gone; its request answers nothing
 	}
-	if p.n != "" && (!ok || r.N != p.n) {
+	if p.n != "" && (!ok || r.N != p.n || e.movedOn(l)) {
+		if ok {
+			// Its hook may still be polling: tell it the pane decided, so
+			// it ends now instead of at approve_timeout.
+			e.answerInPane(l, p.n)
+			if r.N == p.n {
+				p.answered = p.n // not shown again while the hook winds down
+			}
+		}
 		e.closePlan(l, "the plan was answered in the session's pane, or its hook gave up")
 	}
 	if !ok {
@@ -88,11 +101,29 @@ func (e *Engine) checkPlanRequest(ctx context.Context, l *launch) {
 	e.presentPlan(ctx, l, r)
 }
 
+// movedOn reports whether l's session went on past the plan shown: the
+// latest hook state record is newer than the request and isn't blocked
+// (SPEC §6.3). While the plan waits, the records are PermissionRequest
+// and then Notification permission_prompt, both blocked.
+func (e *Engine) movedOn(l *launch) bool {
+	rec, ok := state.PeekAgentState(e.dir.Root(), l.cur.ClaudeSession)
+	return ok && rec.State != backend.Blocked && rec.At.After(l.plan.at)
+}
+
+// answerInPane writes the pane decision for request n of l's session, so a
+// hook still waiting on it prints nothing and ends.
+func (e *Engine) answerInPane(l *launch, n string) {
+	d := state.PlanDecision{N: n, Behavior: state.PlanPane}
+	if err := state.WritePlanDecision(e.dir.Root(), l.cur.ClaudeSession, d); err != nil {
+		e.reportOnce("plan|"+err.Error(), Warning, fmt.Sprintf("tell the plan hook of %s the pane answered: %v", l.t.ID, err))
+	}
+}
+
 // presentPlan keeps the plan of request r, logs it and asks the owner.
 func (e *Engine) presentPlan(ctx context.Context, l *launch, r state.PlanRequest) {
 	t := l.t
 	sum := sha256.Sum256([]byte(r.Plan))
-	l.plan = planShown{n: r.N, sum: hex.EncodeToString(sum[:])}
+	l.plan = planShown{n: r.N, at: r.At, sum: hex.EncodeToString(sum[:])}
 	file, err := e.dir.SavePlan(t.ID, max(l.attempt, 1), r.Plan)
 	if err != nil {
 		e.warn(fmt.Sprintf("keep the plan of %s: %v", t.ID, err))
@@ -153,7 +184,7 @@ func (e *Engine) decidePlan(l *launch, c Command) {
 	if d.Behavior == state.PlanPane {
 		// The session still waits on the owner, in its pane now: the
 		// blocked episode's Needs you takes over.
-		l.plan.n, l.plan.file, l.plan.sum = "", "", ""
+		l.plan.n, l.plan.at, l.plan.file, l.plan.sum = "", time.Time{}, "", ""
 		e.emit(Event{Kind: PlanClosed, Detail: why})
 		e.waitOver(state.ReasonPlanApproval)
 		return
@@ -171,7 +202,7 @@ func (e *Engine) closePlan(l *launch, why string) {
 	if l.plan.n == "" {
 		return
 	}
-	l.plan.n, l.plan.file, l.plan.sum = "", "", ""
+	l.plan.n, l.plan.at, l.plan.file, l.plan.sum = "", time.Time{}, "", ""
 	e.emit(Event{Kind: PlanClosed, Detail: why})
 	e.emit(Event{Kind: NeedsYouClear})
 	e.waitOver(state.ReasonPlanApproval)
